@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "hsync-desktop"
+version = "1.0.0"
+description = "HSYNC Desktop - Cross-platform GUI for HSYNC Client"
+authors = ["Alberto Basso"]
+license = "MPL-2.0"
+readme = "README.md"
+packages = [{include = "hsync_desktop"}]
+
+[tool.poetry.scripts]
+hsync-desktop = "hsync_desktop.main:main"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+PySide6 = "^6.8.0"
+pyinstaller = "^6.12.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.2"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
