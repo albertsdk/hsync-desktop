@@ -10,11 +10,18 @@ System notification manager for HSYNC Desktop.
 Uses QSystemTrayIcon.showMessage for cross-platform desktop
 notifications (balloon tips on Windows, notification centre on
 macOS, libnotify on Linux).
+
+Policy:
+- Notify only on download complete (not upload).
+- Notify on errors.
+- Do NOT notify when the user explicitly stops the process.
 """
 
 from __future__ import annotations
 
 from PySide6.QtWidgets import QSystemTrayIcon
+
+from hsync_desktop.i18n import tr
 
 
 class NotificationManager:
@@ -23,6 +30,7 @@ class NotificationManager:
     def __init__(self, tray_icon: QSystemTrayIcon) -> None:
         self._tray = tray_icon
         self._enabled = True
+        self.user_stopped = False  # set True when user clicks Stop
 
     # ── Public API ───────────────────────────────────────────────────────
 
@@ -54,18 +62,29 @@ class NotificationManager:
         self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning)
 
     def error(self, title: str, message: str) -> None:
+        """Always notify errors (unless user just stopped the process)."""
+        if self.user_stopped:
+            return
         self.notify(title, message, QSystemTrayIcon.MessageIcon.Critical, 8000)
 
+    def download_complete(self, filename: str) -> None:
+        """Notify when a file has been downloaded (not uploaded)."""
+        msg = tr("notif.download_complete").replace("{filename}", filename)
+        self.info(tr("notif.sync_complete"), msg)
+
     def sync_complete(self, files: int = 0) -> None:
-        msg = f"{files} file(s) synchronized" if files else "All files in sync"
-        self.info("Sync Complete", msg)
+        msg = tr("notif.sync_complete_msg")
+        self.info(tr("notif.sync_complete"), msg)
 
     def peer_joined(self, count: int) -> None:
-        self.info("Peer Update", f"{count} peer(s) connected")
+        msg = tr("notif.peer_update_msg").replace("{count}", str(count))
+        self.info(tr("notif.peer_update"), msg)
 
     def connection_lost(self) -> None:
-        self.warning("Disconnected", "Connection to peers lost")
+        if self.user_stopped:
+            return
+        self.warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
 
     def became_master(self) -> None:
-        self.info("Master Elected", "This client is now the master")
+        self.info(tr("notif.master_elected"), tr("notif.master_elected_msg"))
 

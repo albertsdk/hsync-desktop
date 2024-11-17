@@ -77,7 +77,6 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 |---------|-------------|
 | Bucket | Bucket name (required) |
 | Continuous | Watch for changes |
-| Compare by | File comparison method (mtime/ctime) |
 | Re-sync interval | Force full sync every N seconds |
 | Ignore deletions | Backup mode |
 | Compression | Enable/disable transfer compression |

@@ -8,32 +8,38 @@
 Main window for HSYNC Desktop.
 
 Contains:
-- Status panel: connection icon, status label, master/client indicator,
-  bucket name, peer count, group name, transfer stats
-- Action bar: Start/Stop, Sync, path selector, Settings
+- Action bar: Start/Stop, Sync, Preview, path selector, Settings
+- File panel: real-time file transfer table with detail panel
 - Log viewer: real-time scrolling log output
+- Bottom bar: status indicator, peers, transfer stats (right-aligned)
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSettings, Slot
+import re
+
+from PySide6.QtCore import Qt, QSettings, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QFileDialog,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSplitter,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from hsync_desktop.engine import HsyncEngine
+from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.i18n import tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.settings_dialog import (
     SETTINGS_APP,
@@ -72,6 +78,7 @@ class MainWindow(QMainWindow):
         self._tray = tray
         self._notifier = NotificationManager(tray)
         self._notifier.enabled = are_notifications_enabled()
+        self._user_stopped = False  # track if stop was user-initiated
 
         self._build_ui()
         self._connect_signals()
@@ -91,106 +98,134 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(10)
 
-        # ── Status panel ─────────────────────────────────────────────────
-        status_box = QGroupBox("Status")
-        sg = QHBoxLayout(status_box)
-
-        # Connection status
-        self._status_dot = QLabel("●")
-        self._status_dot.setStyleSheet(f"color: {COLOR_DISCONNECTED.name()}; font-size: 18px;")
-        sg.addWidget(self._status_dot)
-        self._status_label = QLabel("Disconnected")
-        self._status_label.setStyleSheet("font-weight: bold;")
-        sg.addWidget(self._status_label)
-        sg.addSpacing(16)
-
-        # Master/client indicator
-        self._role_label = QLabel("⬡ Client")
-        self._role_label.setToolTip("Role in the network")
-        sg.addWidget(self._role_label)
-        sg.addSpacing(16)
-
-        # Bucket
-        sg.addWidget(QLabel("Bucket:"))
-        self._bucket_label = QLabel("–")
-        self._bucket_label.setStyleSheet("font-weight: bold;")
-        sg.addWidget(self._bucket_label)
-        sg.addSpacing(16)
-
-        # Group
-        sg.addWidget(QLabel("Group:"))
-        self._group_label = QLabel("–")
-        sg.addWidget(self._group_label)
-        sg.addSpacing(16)
-
-        # Peers
-        sg.addWidget(QLabel("Peers:"))
-        self._peers_label = QLabel("0")
-        self._peers_label.setStyleSheet("font-weight: bold;")
-        sg.addWidget(self._peers_label)
-
-        sg.addStretch()
-        root.addWidget(status_box)
-
         # ── Action bar ───────────────────────────────────────────────────
         action_row = QHBoxLayout()
 
-        self._btn_start = QPushButton("▶  Start")
+        self._btn_start = QPushButton(tr("btn.start"))
         self._btn_start.setObjectName("primaryButton")
         self._btn_start.clicked.connect(self._on_start)
         action_row.addWidget(self._btn_start)
 
-        self._btn_stop = QPushButton("■  Stop")
+        self._btn_stop = QPushButton(tr("btn.stop"))
         self._btn_stop.setEnabled(False)
         self._btn_stop.clicked.connect(self._on_stop)
         action_row.addWidget(self._btn_stop)
 
-        self._btn_sync = QPushButton("⟳  Sync")
+        self._btn_sync = QPushButton(tr("btn.sync"))
         self._btn_sync.setEnabled(False)
         self._btn_sync.clicked.connect(self._on_sync)
         action_row.addWidget(self._btn_sync)
 
+        self._btn_preview = QPushButton(tr("btn.preview"))
+        self._btn_preview.clicked.connect(self._on_preview)
+        action_row.addWidget(self._btn_preview)
+
         action_row.addSpacing(20)
 
         # Path selector
-        action_row.addWidget(QLabel("Path:"))
+        action_row.addWidget(QLabel(tr("label.path")))
         self._path_edit = QLineEdit()
-        self._path_edit.setPlaceholderText("Select local directory…")
+        self._path_edit.setPlaceholderText(tr("label.path"))
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         self._path_edit.setText(s.value("path/local", "", str))
         action_row.addWidget(self._path_edit, stretch=1)
         btn_browse = QToolButton()
-        btn_browse.setText("…")
-        btn_browse.setToolTip("Browse")
+        btn_browse.setText(tr("btn.browse"))
+        btn_browse.setToolTip(tr("btn.browse"))
         btn_browse.clicked.connect(self._browse_path)
         action_row.addWidget(btn_browse)
 
         action_row.addSpacing(20)
-        btn_settings = QPushButton("⚙  Settings")
+        btn_settings = QPushButton(tr("btn.settings"))
         btn_settings.clicked.connect(self._open_settings)
         action_row.addWidget(btn_settings)
 
         root.addLayout(action_row)
 
-        # ── Transfer stats ───────────────────────────────────────────────
-        stats_row = QHBoxLayout()
-        stats_row.addWidget(QLabel("↑ Sent:"))
-        self._sent_label = QLabel("0 files (0 B)")
-        stats_row.addWidget(self._sent_label)
-        stats_row.addSpacing(24)
-        stats_row.addWidget(QLabel("↓ Received:"))
-        self._recv_label = QLabel("0 files (0 B)")
-        stats_row.addWidget(self._recv_label)
-        stats_row.addStretch()
-        root.addLayout(stats_row)
+        # ── File panel + Log viewer (vertical splitter, 2/3 : 1/3) ─────
+        self._main_splitter = QSplitter(Qt.Orientation.Vertical)
 
-        # ── Log viewer ───────────────────────────────────────────────────
+        # File panel (top, 2/3)
+        self._file_panel = FilePanel()
+        self._file_panel.setMinimumHeight(150)
+        self._main_splitter.addWidget(self._file_panel)
+
+        # Log viewer (bottom, 1/3)
         self._log_view = QPlainTextEdit()
         self._log_view.setObjectName("logViewer")
         self._log_view.setReadOnly(True)
         self._log_view.setMaximumBlockCount(5000)
         self._log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        root.addWidget(self._log_view, stretch=1)
+        self._log_view.setMinimumHeight(100)
+        self._main_splitter.addWidget(self._log_view)
+
+        # Set initial sizes (2/3 files, 1/3 log)
+        self._main_splitter.setSizes([400, 200])
+        self._main_splitter.setCollapsible(0, False)
+        self._main_splitter.setCollapsible(1, False)
+
+        root.addWidget(self._main_splitter, stretch=1)
+
+        # ── Bottom bar (status + peers + stats, right-aligned) ────────
+        _SMALL = "font-size: 11px;"
+        bottom_row = QHBoxLayout()
+        bottom_row.addStretch()
+
+        # Status dot + label
+        self._status_dot = QLabel("●")
+        self._status_dot.setStyleSheet(f"color: {COLOR_DISCONNECTED.name()}; font-size: 14px;")
+        bottom_row.addWidget(self._status_dot)
+        self._status_label = QLabel(tr("status.disconnected"))
+        self._status_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
+        bottom_row.addWidget(self._status_label)
+        bottom_row.addSpacing(10)
+
+        # Role
+        self._role_label = QLabel(tr("role.client"))
+        self._role_label.setToolTip(tr("role.client_tip"))
+        self._role_label.setStyleSheet(_SMALL)
+        bottom_row.addWidget(self._role_label)
+        bottom_row.addSpacing(10)
+
+        # Bucket
+        self._bucket_label = QLabel("–")
+        self._bucket_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
+        bottom_row.addWidget(self._bucket_label)
+        bottom_row.addSpacing(10)
+
+        # Group
+        self._group_label = QLabel("–")
+        self._group_label.setStyleSheet(_SMALL)
+        bottom_row.addWidget(self._group_label)
+        bottom_row.addSpacing(14)
+
+        # Peers
+        lbl_peers = QLabel(tr("label.peers"))
+        lbl_peers.setStyleSheet(_SMALL)
+        bottom_row.addWidget(lbl_peers)
+        self._peers_label = QLabel("0")
+        self._peers_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
+        bottom_row.addWidget(self._peers_label)
+        bottom_row.addSpacing(14)
+
+        # Sent
+        lbl_sent = QLabel(tr("label.sent"))
+        lbl_sent.setStyleSheet(_SMALL)
+        bottom_row.addWidget(lbl_sent)
+        self._sent_label = QLabel("0 (0 B)")
+        self._sent_label.setStyleSheet(_SMALL)
+        bottom_row.addWidget(self._sent_label)
+        bottom_row.addSpacing(10)
+
+        # Received
+        lbl_recv = QLabel(tr("label.received"))
+        lbl_recv.setStyleSheet(_SMALL)
+        bottom_row.addWidget(lbl_recv)
+        self._recv_label = QLabel("0 (0 B)")
+        self._recv_label.setStyleSheet(_SMALL)
+        bottom_row.addWidget(self._recv_label)
+
+        root.addLayout(bottom_row)
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
@@ -204,7 +239,7 @@ class MainWindow(QMainWindow):
         e.group_detected.connect(lambda g: self._group_label.setText(g))
         e.file_transferred.connect(self._on_file_transferred)
         e.sync_completed.connect(lambda: self._notifier.sync_complete())
-        e.error_occurred.connect(lambda msg: self._notifier.error("Error", msg))
+        e.error_occurred.connect(lambda msg: self._notifier.error(tr("notif.error"), msg))
         e.process_finished.connect(self._on_process_finished)
 
         # Tray signals
@@ -218,22 +253,65 @@ class MainWindow(QMainWindow):
 
     # ── Slots ────────────────────────────────────────────────────────────
 
+    # Regex patterns for file transfer log lines
+    _RE_DOWNLOAD = re.compile(r'↓\s*\[DOWNLOAD\s*\]\s*"?([^"]+)"?\s*(?:\(([^)]+)\))?')
+    _RE_UPLOAD = re.compile(r'↑\s*\[UPLOAD\s*\]\s*"?([^"]+)"?\s*(?:\(([^)]+)\))?')
+
     @Slot(str)
     def _append_log(self, line: str) -> None:
         self._log_view.appendPlainText(line)
+        # Parse for file transfers and update file panel
+        self._parse_transfer_line(line)
+
+    def _parse_transfer_line(self, line: str) -> None:
+        """Parse log line for file transfers and update file panel."""
+        # Download pattern: ↓ [DOWNLOAD ] "filepath" (size)
+        m = self._RE_DOWNLOAD.search(line)
+        if m:
+            filepath = m.group(1).strip()
+            size_str = m.group(2)
+            size = self._parse_size(size_str) if size_str else 0
+            self._file_panel.complete_transfer(filepath, size, direction="↓")
+            return
+
+        # Upload pattern: ↑ [UPLOAD   ] "filepath" (size)
+        m = self._RE_UPLOAD.search(line)
+        if m:
+            filepath = m.group(1).strip()
+            size_str = m.group(2)
+            size = self._parse_size(size_str) if size_str else 0
+            self._file_panel.complete_transfer(filepath, size, direction="↑")
+            return
+
+    def _parse_size(self, text: str) -> int:
+        """Parse human-readable size like '1.2 MB' to bytes."""
+        if not text:
+            return 0
+        text = text.strip()
+        multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
+        for suffix, mult in multipliers.items():
+            if text.upper().endswith(suffix):
+                try:
+                    return int(float(text[: -len(suffix)].strip()) * mult)
+                except ValueError:
+                    return 0
+        try:
+            return int(float(text))
+        except ValueError:
+            return 0
 
     @Slot(str)
     def _on_status(self, status: str) -> None:
-        labels = {
-            "connected": ("Connected", COLOR_CONNECTED),
-            "disconnected": ("Disconnected", COLOR_DISCONNECTED),
-            "connecting": ("Connecting…", COLOR_WAITING),
-            "waiting": ("Waiting…", COLOR_WAITING),
-            "error": ("Error", COLOR_DISCONNECTED),
+        i18n_map = {
+            "connected": ("status.connected", COLOR_CONNECTED),
+            "disconnected": ("status.disconnected", COLOR_DISCONNECTED),
+            "connecting": ("status.connecting", COLOR_WAITING),
+            "waiting": ("status.waiting", COLOR_WAITING),
+            "error": ("status.error", COLOR_DISCONNECTED),
         }
-        text, color = labels.get(status, ("Unknown", COLOR_DISCONNECTED))
-        self._status_dot.setStyleSheet(f"color: {color.name()}; font-size: 18px;")
-        self._status_label.setText(text)
+        key, color = i18n_map.get(status, ("status.unknown", COLOR_DISCONNECTED))
+        self._status_dot.setStyleSheet(f"color: {color.name()}; font-size: 14px;")
+        self._status_label.setText(tr(key))
         self._tray.update_status(status)
 
         if status == "disconnected":
@@ -247,22 +325,25 @@ class MainWindow(QMainWindow):
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
         if is_master:
-            self._role_label.setText("★ Master")
-            self._role_label.setToolTip("This client is the master")
+            self._role_label.setText(tr("role.master"))
+            self._role_label.setToolTip(tr("role.master_tip"))
             self._notifier.became_master()
         else:
-            self._role_label.setText("⬡ Client")
-            self._role_label.setToolTip("This client is a slave")
+            self._role_label.setText(tr("role.client"))
+            self._role_label.setToolTip(tr("role.client_tip"))
 
     @Slot(str, str)
     def _on_file_transferred(self, direction: str, filename: str) -> None:
         st = self._engine.stats
         self._sent_label.setText(
-            f"{st.files_sent} files ({_format_bytes(st.bytes_sent)})"
+            f"{st.files_sent} ({_format_bytes(st.bytes_sent)})"
         )
         self._recv_label.setText(
-            f"{st.files_received} files ({_format_bytes(st.bytes_received)})"
+            f"{st.files_received} ({_format_bytes(st.bytes_received)})"
         )
+        # Notify only on download complete (not upload)
+        if direction == "↓":
+            self._notifier.download_complete(filename)
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
@@ -274,7 +355,35 @@ class MainWindow(QMainWindow):
 
     # ── Actions ──────────────────────────────────────────────────────────
 
+    def _show_disclaimer(self) -> bool:
+        """Show disclaimer dialog. Returns True if user accepts."""
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if s.value("ui/disclaimer_accepted", False, bool):
+            return True
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("disclaimer.title"))
+        msg.setText(tr("disclaimer.message"))
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
+
+        checkbox = QCheckBox(tr("disclaimer.dont_show"))
+        msg.setCheckBox(checkbox)
+
+        result = msg.exec()
+        if result == QMessageBox.StandardButton.Ok:
+            if checkbox.isChecked():
+                s.setValue("ui/disclaimer_accepted", True)
+            return True
+        return False
+
     def _on_start(self) -> None:
+        # Show disclaimer first
+        if not self._show_disclaimer():
+            return
+
         local_path = self._path_edit.text().strip()
         if not local_path:
             self._append_log("⚠ Please select a local directory first.")
@@ -286,6 +395,9 @@ class MainWindow(QMainWindow):
         # Persist path
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
         self._log_view.clear()
+        self._file_panel.clear()  # Clear file panel on new sync
+        self._user_stopped = False
+        self._notifier.user_stopped = False
         if self._engine.start(args):
             self._btn_start.setEnabled(False)
             self._btn_stop.setEnabled(True)
@@ -293,13 +405,34 @@ class MainWindow(QMainWindow):
             self._tray.set_running(True)
 
     def _on_stop(self) -> None:
+        self._user_stopped = True
+        self._notifier.user_stopped = True
         self._engine.stop()
 
     def _on_sync(self) -> None:
         self._engine.force_sync()
 
+    def _on_preview(self) -> None:
+        """Launch a dry-run to preview sync actions."""
+        local_path = self._path_edit.text().strip()
+        if not local_path:
+            self._append_log("⚠ Please select a local directory first.")
+            return
+        args = build_hsync_args(local_path)
+        if not args:
+            self._append_log("⚠ Please configure a bucket name in Settings.")
+            return
+        # Force dry-run
+        if "-n" not in args:
+            args.append("-n")
+        # Remove -w to do a single pass
+        if "-w" in args:
+            args.remove("-w")
+        self._append_log(f"--- {tr('preview.title')} ---")
+        self._engine.start(args)
+
     def _browse_path(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, "Select local directory")
+        d = QFileDialog.getExistingDirectory(self, tr("label.path"))
         if d:
             self._path_edit.setText(d)
 
@@ -334,16 +467,10 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Minimize to tray instead of closing."""
+        """Minimize to tray instead of closing (no notification)."""
         if self._tray.isVisible():
             event.ignore()
             self.hide()
-            self._tray.showMessage(
-                "HSYNC Desktop",
-                "Application minimized to system tray",
-                self._tray.MessageIcon.Information,
-                2000,
-            )
         else:
             # No tray available – actually close
             self._quit()
