@@ -12,19 +12,20 @@ Contains:
 - File panel: real-time file transfer table with detail panel
 - Log viewer: real-time scrolling log output
 - Bottom bar: status indicator, peers, transfer stats (right-aligned)
+
+UI is loaded from ui/main_window.ui (Qt Designer).
 """
 
 from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import Qt, QSettings, Slot
+from PySide6.QtCore import QSettings, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFileDialog,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -33,7 +34,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QToolButton,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -56,6 +56,7 @@ from hsync_desktop.themes import (
     COLOR_WAITING,
     apply_theme,
 )
+from hsync_desktop.ui.loader import load_ui_widget
 
 
 def _format_bytes(n: int) -> str:
@@ -71,8 +72,6 @@ class MainWindow(QMainWindow):
 
     def __init__(self, engine: HsyncEngine, tray: SystemTray) -> None:
         super().__init__()
-        self.setWindowTitle("HSYNC Desktop")
-        self.setMinimumSize(760, 520)
 
         self._engine = engine
         self._tray = tray
@@ -80,7 +79,7 @@ class MainWindow(QMainWindow):
         self._notifier.enabled = are_notifications_enabled()
         self._user_stopped = False  # track if stop was user-initiated
 
-        self._build_ui()
+        self._load_ui()
         self._connect_signals()
 
         # Restore window geometry
@@ -89,147 +88,87 @@ class MainWindow(QMainWindow):
         if geo:
             self.restoreGeometry(geo)
 
-    # ── UI construction ──────────────────────────────────────────────────
+    # ── UI loading from .ui file ─────────────────────────────────────────
 
-    def _build_ui(self) -> None:
-        central = QWidget()
-        self.setCentralWidget(central)
-        root = QVBoxLayout(central)
-        root.setContentsMargins(12, 12, 12, 12)
-        root.setSpacing(10)
+    def _load_ui(self) -> None:
+        """Load UI from .ui file and setup widget references."""
+        # Load UI into self
+        load_ui_widget("main_window", self)
 
-        # ── Action bar ───────────────────────────────────────────────────
-        action_row = QHBoxLayout()
+        # Get widget references from .ui file
+        self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
+        self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
+        self._btn_sync: QPushButton = self.findChild(QPushButton, "btnSync")  # type: ignore[assignment]
+        self._btn_preview: QPushButton = self.findChild(QPushButton, "btnPreview")  # type: ignore[assignment]
+        self._btn_settings: QPushButton = self.findChild(QPushButton, "btnSettings")  # type: ignore[assignment]
+        self._btn_browse: QToolButton = self.findChild(QToolButton, "btnBrowse")  # type: ignore[assignment]
+        self._path_edit: QLineEdit = self.findChild(QLineEdit, "pathEdit")  # type: ignore[assignment]
+        self._lbl_path: QLabel = self.findChild(QLabel, "lblPath")  # type: ignore[assignment]
+        self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
+        self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
 
-        self._btn_start = QPushButton(tr("btn.start"))
-        self._btn_start.setObjectName("primaryButton")
-        self._btn_start.clicked.connect(self._on_start)
-        action_row.addWidget(self._btn_start)
+        # Bottom bar widgets
+        self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
+        self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
+        self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
+        self._bucket_label: QLabel = self.findChild(QLabel, "bucketLabel")  # type: ignore[assignment]
+        self._group_label: QLabel = self.findChild(QLabel, "groupLabel")  # type: ignore[assignment]
+        self._lbl_peers: QLabel = self.findChild(QLabel, "lblPeers")  # type: ignore[assignment]
+        self._peers_label: QLabel = self.findChild(QLabel, "peersLabel")  # type: ignore[assignment]
+        self._lbl_sent: QLabel = self.findChild(QLabel, "lblSent")  # type: ignore[assignment]
+        self._sent_label: QLabel = self.findChild(QLabel, "sentLabel")  # type: ignore[assignment]
+        self._lbl_recv: QLabel = self.findChild(QLabel, "lblRecv")  # type: ignore[assignment]
+        self._recv_label: QLabel = self.findChild(QLabel, "recvLabel")  # type: ignore[assignment]
 
-        self._btn_stop = QPushButton(tr("btn.stop"))
-        self._btn_stop.setEnabled(False)
-        self._btn_stop.clicked.connect(self._on_stop)
-        action_row.addWidget(self._btn_stop)
-
-        self._btn_sync = QPushButton(tr("btn.sync"))
-        self._btn_sync.setEnabled(False)
-        self._btn_sync.clicked.connect(self._on_sync)
-        action_row.addWidget(self._btn_sync)
-
-        self._btn_preview = QPushButton(tr("btn.preview"))
-        self._btn_preview.clicked.connect(self._on_preview)
-        action_row.addWidget(self._btn_preview)
-
-        action_row.addSpacing(20)
-
-        # Path selector
-        action_row.addWidget(QLabel(tr("label.path")))
-        self._path_edit = QLineEdit()
-        self._path_edit.setPlaceholderText(tr("label.path"))
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        self._path_edit.setText(s.value("path/local", "", str))
-        action_row.addWidget(self._path_edit, stretch=1)
-        btn_browse = QToolButton()
-        btn_browse.setText(tr("btn.browse"))
-        btn_browse.setToolTip(tr("btn.browse"))
-        btn_browse.clicked.connect(self._browse_path)
-        action_row.addWidget(btn_browse)
-
-        action_row.addSpacing(20)
-        btn_settings = QPushButton(tr("btn.settings"))
-        btn_settings.clicked.connect(self._open_settings)
-        action_row.addWidget(btn_settings)
-
-        root.addLayout(action_row)
-
-        # ── File panel + Log viewer (vertical splitter, 2/3 : 1/3) ─────
-        self._main_splitter = QSplitter(Qt.Orientation.Vertical)
-
-        # File panel (top, 2/3)
+        # Replace filePanelPlaceholder with actual FilePanel
+        placeholder: QWidget = self.findChild(QWidget, "filePanelPlaceholder")  # type: ignore[assignment]
         self._file_panel = FilePanel()
         self._file_panel.setMinimumHeight(150)
-        self._main_splitter.addWidget(self._file_panel)
-
-        # Log viewer (bottom, 1/3)
-        self._log_view = QPlainTextEdit()
-        self._log_view.setObjectName("logViewer")
-        self._log_view.setReadOnly(True)
-        self._log_view.setMaximumBlockCount(5000)
-        self._log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self._log_view.setMinimumHeight(100)
-        self._main_splitter.addWidget(self._log_view)
-
+        # Replace placeholder in splitter
+        idx = self._main_splitter.indexOf(placeholder)
+        if idx >= 0:
+            placeholder.setParent(None)
+            self._main_splitter.insertWidget(idx, self._file_panel)
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
-        self._main_splitter.setCollapsible(0, False)
-        self._main_splitter.setCollapsible(1, False)
 
-        root.addWidget(self._main_splitter, stretch=1)
+        # Restore saved path
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self._path_edit.setText(s.value("path/local", "", str))
 
-        # ── Bottom bar (status + peers + stats, right-aligned) ────────
-        _SMALL = "font-size: 11px;"
-        bottom_row = QHBoxLayout()
-        bottom_row.addStretch()
+        # Apply translations
+        self._apply_translations()
 
-        # Status dot + label
-        self._status_dot = QLabel("●")
-        self._status_dot.setStyleSheet(f"color: {COLOR_DISCONNECTED.name()}; font-size: 14px;")
-        bottom_row.addWidget(self._status_dot)
-        self._status_label = QLabel(tr("status.disconnected"))
-        self._status_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
-        bottom_row.addWidget(self._status_label)
-        bottom_row.addSpacing(10)
-
-        # Role
-        self._role_label = QLabel(tr("role.client"))
+    def _apply_translations(self) -> None:
+        """Apply i18n translations to UI elements."""
+        self._btn_start.setText(tr("btn.start"))
+        self._btn_stop.setText(tr("btn.stop"))
+        self._btn_sync.setText(tr("btn.sync"))
+        self._btn_preview.setText(tr("btn.preview"))
+        self._btn_settings.setText(tr("btn.settings"))
+        self._btn_browse.setText(tr("btn.browse"))
+        self._btn_browse.setToolTip(tr("btn.browse"))
+        self._lbl_path.setText(tr("label.path"))
+        self._path_edit.setPlaceholderText(tr("label.path"))
+        self._status_label.setText(tr("status.disconnected"))
+        self._role_label.setText(tr("role.client"))
         self._role_label.setToolTip(tr("role.client_tip"))
-        self._role_label.setStyleSheet(_SMALL)
-        bottom_row.addWidget(self._role_label)
-        bottom_row.addSpacing(10)
-
-        # Bucket
-        self._bucket_label = QLabel("–")
-        self._bucket_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
-        bottom_row.addWidget(self._bucket_label)
-        bottom_row.addSpacing(10)
-
-        # Group
-        self._group_label = QLabel("–")
-        self._group_label.setStyleSheet(_SMALL)
-        bottom_row.addWidget(self._group_label)
-        bottom_row.addSpacing(14)
-
-        # Peers
-        lbl_peers = QLabel(tr("label.peers"))
-        lbl_peers.setStyleSheet(_SMALL)
-        bottom_row.addWidget(lbl_peers)
-        self._peers_label = QLabel("0")
-        self._peers_label.setStyleSheet(f"font-weight: bold; {_SMALL}")
-        bottom_row.addWidget(self._peers_label)
-        bottom_row.addSpacing(14)
-
-        # Sent
-        lbl_sent = QLabel(tr("label.sent"))
-        lbl_sent.setStyleSheet(_SMALL)
-        bottom_row.addWidget(lbl_sent)
-        self._sent_label = QLabel("0 (0 B)")
-        self._sent_label.setStyleSheet(_SMALL)
-        bottom_row.addWidget(self._sent_label)
-        bottom_row.addSpacing(10)
-
-        # Received
-        lbl_recv = QLabel(tr("label.received"))
-        lbl_recv.setStyleSheet(_SMALL)
-        bottom_row.addWidget(lbl_recv)
-        self._recv_label = QLabel("0 (0 B)")
-        self._recv_label.setStyleSheet(_SMALL)
-        bottom_row.addWidget(self._recv_label)
-
-        root.addLayout(bottom_row)
+        self._lbl_peers.setText(tr("label.peers"))
+        self._lbl_sent.setText(tr("label.sent"))
+        self._lbl_recv.setText(tr("label.received"))
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
     def _connect_signals(self) -> None:
+        # Button signals
+        self._btn_start.clicked.connect(self._on_start)
+        self._btn_stop.clicked.connect(self._on_stop)
+        self._btn_sync.clicked.connect(self._on_sync)
+        self._btn_preview.clicked.connect(self._on_preview)
+        self._btn_settings.clicked.connect(self._open_settings)
+        self._btn_browse.clicked.connect(self._browse_path)
+
+        # Engine signals
         e = self._engine
         e.log_received.connect(self._append_log)
         e.status_changed.connect(self._on_status)
