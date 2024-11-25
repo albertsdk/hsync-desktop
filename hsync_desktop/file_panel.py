@@ -24,13 +24,14 @@ from time import time
 from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMenu,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -107,7 +108,7 @@ def _format_eta(seconds: Optional[float]) -> str:
     return f"{int(seconds // 3600)}h {int((seconds % 3600) // 60)}m"
 
 
-# Column indices
+# Column indices and translation keys
 COL_DIRECTION = 0
 COL_PATH = 1
 COL_NAME = 2
@@ -115,6 +116,17 @@ COL_SIZE = 3
 COL_REMAINING = 4
 COL_ETA = 5
 COL_STATUS = 6
+
+# Column translation keys (in order)
+_COLUMN_KEYS = [
+    "file.direction",
+    "file.path",
+    "file.name",
+    "file.size",
+    "file.remaining",
+    "file.eta",
+    "file.status",
+]
 
 
 class FileDetailPanel(QFrame):
@@ -206,15 +218,7 @@ class FileTransferTable(QTableWidget):
         self._setup_table()
 
     def _setup_table(self) -> None:
-        headers = [
-            tr("file.direction"),
-            tr("file.path"),
-            tr("file.name"),
-            tr("file.size"),
-            tr("file.remaining"),
-            tr("file.eta"),
-            tr("file.status"),
-        ]
+        headers = [tr(key) for key in _COLUMN_KEYS]
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -233,7 +237,30 @@ class FileTransferTable(QTableWidget):
         header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.ResizeToContents)
 
+        # Enable context menu on header for column visibility
+        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.customContextMenuRequested.connect(self._show_header_context_menu)
+
         self.itemSelectionChanged.connect(self._on_selection_changed)
+
+    def _show_header_context_menu(self, pos) -> None:
+        """Show context menu to toggle column visibility."""
+        menu = QMenu(self)
+        header = self.horizontalHeader()
+
+        for col, key in enumerate(_COLUMN_KEYS):
+            action = QAction(tr(key), menu)
+            action.setCheckable(True)
+            action.setChecked(not header.isSectionHidden(col))
+            # Use default argument to capture col value
+            action.toggled.connect(lambda checked, c=col: self._toggle_column(c, checked))
+            menu.addAction(action)
+
+        menu.exec(header.mapToGlobal(pos))
+
+    def _toggle_column(self, col: int, visible: bool) -> None:
+        """Toggle visibility of a column."""
+        self.horizontalHeader().setSectionHidden(col, not visible)
 
     def _on_selection_changed(self) -> None:
         rows = self.selectionModel().selectedRows()
