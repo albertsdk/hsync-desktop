@@ -199,6 +199,9 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _append_log(self, line: str) -> None:
         self._log_view.appendPlainText(line)
+        # Auto-scroll to bottom
+        scrollbar = self._log_view.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
         # Parse for file transfers and update file panel
         self._parse_transfer_line(line)
 
