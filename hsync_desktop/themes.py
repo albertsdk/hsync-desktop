@@ -82,8 +82,10 @@ def _build_dark_palette() -> QPalette:
 
 _COMMON_QSS = """
 QToolTip {{
+    background-color: #FFFFC8;
+    color: #1E1E1E;
     padding: 4px 8px;
-    border: 1px solid {border};
+    border: 1px solid #C0A000;
     border-radius: 4px;
 }}
 QPushButton {{
