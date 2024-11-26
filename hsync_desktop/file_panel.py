@@ -227,8 +227,9 @@ class FileTransferTable(QTableWidget):
         self.setSortingEnabled(True)
         self.setAlternatingRowColors(True)
 
-        # Column sizing
+        # Column sizing and behavior
         header = self.horizontalHeader()
+        header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_PATH, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
