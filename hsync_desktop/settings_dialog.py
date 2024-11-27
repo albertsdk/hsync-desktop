@@ -96,7 +96,7 @@ class SettingsDialog(QDialog):
         load_ui_widget("settings_dialog", self)
 
         # Get widget references from .ui file
-        self._mode_combo: QComboBox = self.findChild(QComboBox, "modeCombo")  # type: ignore[assignment]
+        self._advanced_mode: QCheckBox = self.findChild(QCheckBox, "advancedMode")  # type: ignore[assignment]
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
@@ -159,9 +159,8 @@ class SettingsDialog(QDialog):
         """Apply i18n translations to UI elements."""
         self.setWindowTitle(tr("settings.title"))
 
-        # Mode combo
-        self._mode_combo.setItemText(0, tr("settings.mode_default"))
-        self._mode_combo.setItemText(1, tr("settings.mode_advanced"))
+        # Advanced mode toggle
+        self._advanced_mode.setText(tr("settings.mode_advanced"))
 
         # Tab titles
         self._tabs.setTabText(0, tr("settings.connection"))
@@ -290,15 +289,15 @@ class SettingsDialog(QDialog):
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
-        self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self._advanced_mode.toggled.connect(self._on_mode_changed)
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
     # ── Mode toggle ─────────────────────────────────────────────────────
 
-    def _on_mode_changed(self, index: int) -> None:
-        self._advanced = index == 1
+    def _on_mode_changed(self, checked: bool) -> None:
+        self._advanced = checked
         self._apply_mode()
 
     def _apply_mode(self) -> None:
@@ -376,7 +375,7 @@ class SettingsDialog(QDialog):
             s.setValue("appearance/language", lang_code)
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
-        s.setValue("settings/mode_advanced", self._mode_combo.currentIndex() == 1)
+        s.setValue("settings/mode_advanced", self._advanced_mode.isChecked())
 
     def load(self) -> None:
         """Restore settings from QSettings."""
@@ -421,8 +420,8 @@ class SettingsDialog(QDialog):
         self.tooltips_enabled.setChecked(s.value("appearance/tooltips", True, bool))
         # Mode
         advanced = s.value("settings/mode_advanced", False, bool)
-        self._mode_combo.setCurrentIndex(1 if advanced else 0)
-        self._advanced = advanced
+        self._advanced_mode.setChecked(bool(advanced))
+        self._advanced = bool(advanced)
 
 
 # ─── Utility: build CLI args from QSettings ─────────────────────────────────
