@@ -37,9 +37,16 @@
       </spacer>
      </item>
      <item>
+      <widget class="QLabel" name="lblAdvanced">
+       <property name="text">
+        <string>Advanced</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QCheckBox" name="advancedMode">
        <property name="text">
-        <string>Advanced Mode</string>
+        <string/>
        </property>
       </widget>
      </item>
