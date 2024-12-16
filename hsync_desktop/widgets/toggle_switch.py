@@ -171,11 +171,6 @@ class ToggleSwitch(QAbstractButton):
 
     # ── Mouse Events ────────────────────────────────────────────────────────
 
-    def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.setChecked(not self.isChecked())
-        super().mouseReleaseEvent(event)
-
     def enterEvent(self, event) -> None:
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         super().enterEvent(event)
