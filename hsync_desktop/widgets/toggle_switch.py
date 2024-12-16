@@ -22,9 +22,8 @@ from PySide6.QtCore import (
     QRect,
     QSize,
     Qt,
-    Signal,
 )
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QPainter, QPalette
 from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QWidget
 
 
@@ -32,26 +31,22 @@ class ToggleSwitch(QAbstractButton):
     """
     A toggle switch widget with smooth animation.
 
+    Uses system palette colors for theme compatibility:
+    - Track off: Mid color from palette
+    - Track on: Highlight (accent) color from palette
+    - Thumb: Base color from palette
+
     Signals:
         toggled(bool): Emitted when the switch state changes.
 
     Properties:
         checked: Whether the switch is on (True) or off (False).
-        track_color_off: Background color when off.
-        track_color_on: Background color when on.
-        thumb_color: Color of the sliding thumb.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setCheckable(True)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        # Colors
-        self._track_color_off = QColor("#B0B0B0")
-        self._track_color_on = QColor("#0078D4")
-        self._thumb_color = QColor("#FFFFFF")
-        self._track_opacity = 1.0
 
         # Animation
         self._thumb_position = 0.0
@@ -81,32 +76,17 @@ class ToggleSwitch(QAbstractButton):
 
     thumb_position = Property(float, get_thumb_position, set_thumb_position)
 
-    @property
-    def track_color_off(self) -> QColor:
-        return self._track_color_off
-
-    @track_color_off.setter
-    def track_color_off(self, color: QColor) -> None:
-        self._track_color_off = color
-        self.update()
-
-    @property
-    def track_color_on(self) -> QColor:
-        return self._track_color_on
-
-    @track_color_on.setter
-    def track_color_on(self, color: QColor) -> None:
-        self._track_color_on = color
-        self.update()
-
-    @property
-    def thumb_color(self) -> QColor:
-        return self._thumb_color
-
-    @thumb_color.setter
-    def thumb_color(self, color: QColor) -> None:
-        self._thumb_color = color
-        self.update()
+    def _get_palette_colors(self) -> tuple[QColor, QColor, QColor]:
+        """Get colors from the current palette for theme compatibility."""
+        palette = self.palette()
+        # Track off: use Mid color (gray)
+        track_off = palette.color(QPalette.ColorRole.Mid)
+        # Track on: use Highlight color (accent/selection color)
+        track_on = palette.color(QPalette.ColorRole.Highlight)
+        # Thumb: use Base color (white in light theme, dark in dark theme)
+        # But we want the thumb to always be visible, so use Light color
+        thumb = palette.color(QPalette.ColorRole.Light)
+        return track_off, track_on, thumb
 
     # ── Slots ───────────────────────────────────────────────────────────────
 
@@ -122,13 +102,15 @@ class ToggleSwitch(QAbstractButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        # Get colors from palette
+        track_color_off, track_color_on, thumb_color = self._get_palette_colors()
+
         # Dimensions
         w = self.width()
         h = self.height()
         track_height = h * 0.6
         track_radius = track_height / 2
         thumb_diameter = h * 0.8
-        thumb_radius = thumb_diameter / 2
         margin = (h - track_height) / 2
 
         # Track rectangle
@@ -142,9 +124,9 @@ class ToggleSwitch(QAbstractButton):
         # Interpolate track color based on thumb position
         t = self._thumb_position
         track_color = QColor(
-            int(self._track_color_off.red() + t * (self._track_color_on.red() - self._track_color_off.red())),
-            int(self._track_color_off.green() + t * (self._track_color_on.green() - self._track_color_off.green())),
-            int(self._track_color_off.blue() + t * (self._track_color_on.blue() - self._track_color_off.blue())),
+            int(track_color_off.red() + t * (track_color_on.red() - track_color_off.red())),
+            int(track_color_off.green() + t * (track_color_on.green() - track_color_off.green())),
+            int(track_color_off.blue() + t * (track_color_on.blue() - track_color_off.blue())),
         )
 
         # Draw track
@@ -164,7 +146,7 @@ class ToggleSwitch(QAbstractButton):
         painter.drawEllipse(int(thumb_x + 1), int(thumb_y + 1), int(thumb_diameter), int(thumb_diameter))
 
         # Draw thumb
-        painter.setBrush(QBrush(self._thumb_color))
+        painter.setBrush(QBrush(thumb_color))
         painter.drawEllipse(int(thumb_x), int(thumb_y), int(thumb_diameter), int(thumb_diameter))
 
         painter.end()
