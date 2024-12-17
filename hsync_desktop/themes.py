@@ -21,9 +21,27 @@ THEME_DARK = "dark"
 
 # ─── Color Palette ───────────────────────────────────────────────────────────
 
-# Accent color used across both themes
-ACCENT = QColor("#0078D4")
-ACCENT_HOVER = QColor("#106EBE")
+# System accent color - will be initialized from system palette
+_system_accent: QColor | None = None
+
+
+def _get_system_accent() -> QColor:
+    """Get the system's accent/highlight color, with fallback to blue."""
+    global _system_accent
+    if _system_accent is None:
+        app = QApplication.instance()
+        if app:
+            # Get highlight color from system palette before we override it
+            _system_accent = app.palette().color(QPalette.ColorRole.Highlight)
+        else:
+            _system_accent = QColor("#0078D4")  # Fallback blue
+    return _system_accent
+
+
+def _get_accent_hover() -> QColor:
+    """Get a darker version of the accent color for hover states."""
+    accent = _get_system_accent()
+    return accent.darker(115)
 
 # Status colors
 COLOR_CONNECTED = QColor("#2EA043")
@@ -42,7 +60,7 @@ def _build_light_palette() -> QPalette:
     p.setColor(QPalette.ColorRole.Text, QColor("#1E1E1E"))
     p.setColor(QPalette.ColorRole.Button, QColor("#E8E8E8"))
     p.setColor(QPalette.ColorRole.ButtonText, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.Highlight, ACCENT)
+    p.setColor(QPalette.ColorRole.Highlight, _get_system_accent())
     p.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.ToolTipBase, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.ToolTipText, QColor("#1E1E1E"))
@@ -65,7 +83,7 @@ def _build_dark_palette() -> QPalette:
     p.setColor(QPalette.ColorRole.Text, QColor("#D4D4D4"))
     p.setColor(QPalette.ColorRole.Button, QColor("#333333"))
     p.setColor(QPalette.ColorRole.ButtonText, QColor("#D4D4D4"))
-    p.setColor(QPalette.ColorRole.Highlight, ACCENT)
+    p.setColor(QPalette.ColorRole.Highlight, _get_system_accent())
     p.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
     p.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2D2D2D"))
     p.setColor(QPalette.ColorRole.ToolTipText, QColor("#D4D4D4"))
@@ -136,14 +154,14 @@ QStatusBar {{
 def _light_qss() -> str:
     return _COMMON_QSS.format(
         border="#D0D0D0", btn_hover="#DCDCDC", btn_pressed="#C8C8C8",
-        accent=ACCENT.name(), accent_hover=ACCENT_HOVER.name(),
+        accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
     )
 
 
 def _dark_qss() -> str:
     return _COMMON_QSS.format(
         border="#404040", btn_hover="#3A3A3A", btn_pressed="#454545",
-        accent=ACCENT.name(), accent_hover=ACCENT_HOVER.name(),
+        accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
     )
 
 
