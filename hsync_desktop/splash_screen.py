@@ -13,7 +13,7 @@ UI is loaded from ui/splash_screen.ui (Qt Designer).
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QWidget
 
 from hsync_desktop import __version__
@@ -23,6 +23,9 @@ from hsync_desktop.ui.loader import load_ui_widget
 
 class SplashScreen(QWidget):
     """Small frameless welcome window that auto-dismisses."""
+
+    # Emitted when the splash screen is closed
+    finished = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(
@@ -62,4 +65,9 @@ class SplashScreen(QWidget):
             y = geo.y() + (geo.height() - self.height()) // 2
             self.move(x, y)
         QTimer.singleShot(duration_ms, self.close)
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        """Emit finished signal when closing."""
+        self.finished.emit()
+        super().closeEvent(event)
 

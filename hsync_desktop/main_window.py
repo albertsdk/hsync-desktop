@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.file_panel import FilePanel
-from hsync_desktop.i18n import tr
+from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.settings_dialog import (
     SETTINGS_APP,
@@ -138,6 +138,9 @@ class MainWindow(QMainWindow):
 
         # Apply translations
         self._apply_translations()
+
+        # Register for language change notifications
+        register_language_callback(self._apply_translations)
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
@@ -292,6 +295,7 @@ class MainWindow(QMainWindow):
         self._btn_start.setEnabled(True)
         self._btn_stop.setEnabled(False)
         self._btn_sync.setEnabled(False)
+        self._btn_preview.setEnabled(False)
         self._tray.set_running(False)
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
 
@@ -344,6 +348,7 @@ class MainWindow(QMainWindow):
             self._btn_start.setEnabled(False)
             self._btn_stop.setEnabled(True)
             self._btn_sync.setEnabled(True)
+            self._btn_preview.setEnabled(True)
             self._tray.set_running(True)
 
     def _on_stop(self) -> None:
@@ -355,23 +360,16 @@ class MainWindow(QMainWindow):
         self._engine.force_sync()
 
     def _on_preview(self) -> None:
-        """Launch a dry-run to preview sync actions."""
-        local_path = self._path_edit.text().strip()
-        if not local_path:
-            self._append_log("⚠ Please select a local directory first.")
+        """Trigger a preview (dry-run) using the running process.
+
+        Sends SIGUSR1 to the running hsync-client process to get a preview
+        of pending sync actions without starting a new process.
+        """
+        if not self._engine.is_running:
+            self._append_log("⚠ Please start synchronization first.")
             return
-        args = build_hsync_args(local_path)
-        if not args:
-            self._append_log("⚠ Please configure a bucket name in Settings.")
-            return
-        # Force dry-run
-        if "-n" not in args:
-            args.append("-n")
-        # Remove -w to do a single pass
-        if "-w" in args:
-            args.remove("-w")
         self._append_log(f"--- {tr('preview.title')} ---")
-        self._engine.start(args)
+        self._engine.preview()
 
     def _browse_path(self) -> None:
         d = QFileDialog.getExistingDirectory(self, tr("label.path"))

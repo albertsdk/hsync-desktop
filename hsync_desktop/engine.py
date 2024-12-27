@@ -221,6 +221,22 @@ class HsyncEngine(QObject):
         self.stop()
         self.start(args)
 
+    def preview(self) -> None:
+        """Trigger a preview (dry-run) by sending SIGUSR1 to the running process.
+
+        On Unix, this sends SIGUSR1 which the hsync-client handles by running
+        a preview that shows pending sync actions without performing transfers.
+        On Windows, SIGUSR1 is not available so this is a no-op.
+        """
+        if not self._process or not self._running:
+            return
+        pid = self._process.processId()
+        if pid and hasattr(signal, "SIGUSR1"):
+            try:
+                os.kill(pid, signal.SIGUSR1)
+            except OSError as e:
+                self.error_occurred.emit(f"Failed to send preview signal: {e}")
+
     # ── Internal slots ───────────────────────────────────────────────────
 
     @Slot()

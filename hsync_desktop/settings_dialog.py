@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -40,7 +41,7 @@ from hsync_desktop.i18n import (
     tr,
 )
 from hsync_desktop.icons import icon
-from hsync_desktop.themes import THEME_DARK, THEME_LIGHT
+from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
@@ -55,6 +56,64 @@ DEFAULT_GROUP = "my-group"
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
     """Set tooltip on *widget* from i18n *key* only when *enabled*."""
     widget.setToolTip(tr(key) if enabled else "")
+
+
+def _replace_checkbox_with_toggle(
+    parent: QWidget, checkbox_name: str
+) -> tuple[ToggleSwitch, QLabel]:
+    """Replace a QCheckBox with a ToggleSwitch in a QFormLayout.
+
+    Finds the checkbox by name, creates a ToggleSwitch with the same text,
+    and replaces it in the parent layout.
+
+    Args:
+        parent: The parent widget containing the checkbox.
+        checkbox_name: The object name of the checkbox to replace.
+
+    Returns:
+        A tuple of (ToggleSwitch, QLabel) for the new widgets.
+    """
+    checkbox: QCheckBox | None = parent.findChild(QCheckBox, checkbox_name)  # type: ignore[assignment]
+    if checkbox is None:
+        # Fallback: return a new toggle switch with empty label
+        return ToggleSwitch(parent), QLabel(parent)
+
+    # Get the checkbox text for the label
+    text = checkbox.text()
+
+    # Find the parent layout
+    parent_layout = checkbox.parentWidget()
+    if parent_layout is None:
+        checkbox.deleteLater()
+        return ToggleSwitch(parent), QLabel(parent)
+
+    # Find the form layout containing this checkbox
+    layout = parent_layout.layout()
+    if isinstance(layout, QFormLayout):
+        # Find the row containing the checkbox
+        for row in range(layout.rowCount()):
+            item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if item and item.widget() == checkbox:
+                # Create toggle switch with label
+                toggle = ToggleSwitch(parent)
+                label = QLabel(text, parent)
+                # Create a horizontal layout with toggle + label (switch on left)
+                h_layout = QHBoxLayout()
+                h_layout.setContentsMargins(0, 0, 0, 0)
+                h_layout.addWidget(toggle)
+                h_layout.addWidget(label)
+                h_layout.addStretch()
+                # Create container widget
+                container = QWidget(parent)
+                container.setLayout(h_layout)
+                # Replace in form layout
+                layout.removeRow(row)
+                layout.insertRow(row, "", container)
+                return toggle, label
+
+    # Fallback: just delete and return new toggle
+    checkbox.deleteLater()
+    return ToggleSwitch(parent), QLabel(parent)
 
 
 class SettingsDialog(QDialog):
@@ -122,41 +181,41 @@ class SettingsDialog(QDialog):
         # Connection tab widgets
         self.server_url: QLineEdit = self.findChild(QLineEdit, "serverUrl")  # type: ignore[assignment]
         self.api_key: QLineEdit = self.findChild(QLineEdit, "apiKey")  # type: ignore[assignment]
-        self.insecure: QCheckBox = self.findChild(QCheckBox, "insecure")  # type: ignore[assignment]
+        self.insecure, self._lbl_insecure = _replace_checkbox_with_toggle(self, "insecure")
         self.ca_cert: QLineEdit = self.findChild(QLineEdit, "caCert")  # type: ignore[assignment]
         self.http_timeout: QSpinBox = self.findChild(QSpinBox, "httpTimeout")  # type: ignore[assignment]
 
         # Sync tab widgets
         self.bucket: QLineEdit = self.findChild(QLineEdit, "bucket")  # type: ignore[assignment]
-        self.continuous: QCheckBox = self.findChild(QCheckBox, "continuous")  # type: ignore[assignment]
-        self.ignore_delete: QCheckBox = self.findChild(QCheckBox, "ignoreDelete")  # type: ignore[assignment]
+        self.continuous, self._lbl_continuous = _replace_checkbox_with_toggle(self, "continuous")
+        self.ignore_delete, self._lbl_ignore_delete = _replace_checkbox_with_toggle(self, "ignoreDelete")
         self.resync: QSpinBox = self.findChild(QSpinBox, "resync")  # type: ignore[assignment]
         self.retry_delay: QSpinBox = self.findChild(QSpinBox, "retryDelay")  # type: ignore[assignment]
         self.stability_delay: QSpinBox = self.findChild(QSpinBox, "stabilityDelay")  # type: ignore[assignment]
         self.max_wait: QSpinBox = self.findChild(QSpinBox, "maxWait")  # type: ignore[assignment]
         self.filter_path: QLineEdit = self.findChild(QLineEdit, "filterPath")  # type: ignore[assignment]
-        self.no_compression: QCheckBox = self.findChild(QCheckBox, "noCompression")  # type: ignore[assignment]
-        self.dry_run: QCheckBox = self.findChild(QCheckBox, "dryRun")  # type: ignore[assignment]
+        self.no_compression, self._lbl_no_compression = _replace_checkbox_with_toggle(self, "noCompression")
+        self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
 
         # LAN tab widgets
-        self.lan_mode: QCheckBox = self.findChild(QCheckBox, "lanMode")  # type: ignore[assignment]
+        self.lan_mode, self._lbl_lan_mode = _replace_checkbox_with_toggle(self, "lanMode")
         self.lan_group: QLineEdit = self.findChild(QLineEdit, "lanGroup")  # type: ignore[assignment]
         self.lan_key: QLineEdit = self.findChild(QLineEdit, "lanKey")  # type: ignore[assignment]
         self.lan_port: QSpinBox = self.findChild(QSpinBox, "lanPort")  # type: ignore[assignment]
         self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
-        self.lan_https: QCheckBox = self.findChild(QCheckBox, "lanHttps")  # type: ignore[assignment]
-        self.lan_persistent: QCheckBox = self.findChild(QCheckBox, "lanPersistent")  # type: ignore[assignment]
+        self.lan_https, self._lbl_lan_https = _replace_checkbox_with_toggle(self, "lanHttps")
+        self.lan_persistent, self._lbl_lan_persistent = _replace_checkbox_with_toggle(self, "lanPersistent")
 
         # Log tab widgets
-        self.verbose: QCheckBox = self.findChild(QCheckBox, "verbose")  # type: ignore[assignment]
-        self.quiet: QCheckBox = self.findChild(QCheckBox, "quiet")  # type: ignore[assignment]
+        self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
+        self.quiet, self._lbl_quiet = _replace_checkbox_with_toggle(self, "quiet")
         self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
 
         # Appearance tab widgets
         self.theme_combo: QComboBox = self.findChild(QComboBox, "themeCombo")  # type: ignore[assignment]
         self.lang_combo: QComboBox = self.findChild(QComboBox, "langCombo")  # type: ignore[assignment]
-        self.notifications_enabled: QCheckBox = self.findChild(QCheckBox, "notificationsEnabled")  # type: ignore[assignment]
-        self.tooltips_enabled: QCheckBox = self.findChild(QCheckBox, "tooltipsEnabled")  # type: ignore[assignment]
+        self.notifications_enabled, self._lbl_notifications = _replace_checkbox_with_toggle(self, "notificationsEnabled")
+        self.tooltips_enabled, self._lbl_tooltips = _replace_checkbox_with_toggle(self, "tooltipsEnabled")
 
         # Set tab icons programmatically (theme icons don't work cross-platform)
         self._tabs.setTabIcon(0, icon("network-wired"))
@@ -196,7 +255,7 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.api_key"))
-        self.insecure.setText(tr("settings.insecure"))
+        self._lbl_insecure.setText(tr("settings.insecure"))
         lbl = self.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.ca_cert"))
@@ -208,8 +267,8 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.bucket"))
-        self.continuous.setText(tr("settings.watch"))
-        self.ignore_delete.setText(tr("settings.ignore_delete"))
+        self._lbl_continuous.setText(tr("settings.watch"))
+        self._lbl_ignore_delete.setText(tr("settings.ignore_delete"))
         lbl = self.findChild(QLabel, "lblResync")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.resync"))
@@ -225,11 +284,11 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblFilterPath")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.filter_path"))
-        self.no_compression.setText(tr("settings.no_compression"))
-        self.dry_run.setText(tr("settings.dry_run"))
+        self._lbl_no_compression.setText(tr("settings.no_compression"))
+        self._lbl_dry_run.setText(tr("settings.dry_run"))
 
         # LAN tab labels
-        self.lan_mode.setText(tr("settings.lan_mode"))
+        self._lbl_lan_mode.setText(tr("settings.lan_mode"))
         lbl = self.findChild(QLabel, "lblLanGroup")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.lan_group"))
@@ -242,12 +301,12 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.discovery_timeout"))
-        self.lan_https.setText(tr("settings.lan_https"))
-        self.lan_persistent.setText(tr("settings.lan_persistent"))
+        self._lbl_lan_https.setText(tr("settings.lan_https"))
+        self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
 
         # Log tab labels
-        self.verbose.setText(tr("settings.verbose"))
-        self.quiet.setText(tr("settings.quiet"))
+        self._lbl_verbose.setText(tr("settings.verbose"))
+        self._lbl_quiet.setText(tr("settings.quiet"))
         lbl = self.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.logfile"))
@@ -261,8 +320,8 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.language"))
-        self.notifications_enabled.setText(tr("settings.notifications"))
-        self.tooltips_enabled.setText(tr("settings.tooltips"))
+        self._lbl_notifications.setText(tr("settings.notifications"))
+        self._lbl_tooltips.setText(tr("settings.tooltips"))
 
     def _apply_tooltips(self) -> None:
         """Apply tooltips to widgets if enabled."""
@@ -425,7 +484,7 @@ class SettingsDialog(QDialog):
         self.verbose.setChecked(bool(s.value("output/verbose", False, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", False, bool)))
         self.logfile.setText(str(s.value("output/logfile", "", str)))
-        theme = s.value("appearance/theme", THEME_LIGHT, str)
+        theme = s.value("appearance/theme", detect_system_theme(), str)
         self.theme_combo.setCurrentIndex(1 if theme == THEME_DARK else 0)
         self.notifications_enabled.setChecked(
             bool(s.value("appearance/notifications", True, bool))
@@ -519,9 +578,11 @@ def build_hsync_args(local_path: str) -> list[str]:
 
 
 def get_saved_theme() -> str:
-    """Return the persisted theme name."""
+    """Return the persisted theme name, defaulting to system theme."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    return str(s.value("appearance/theme", THEME_LIGHT, str))
+    # Use system theme as default if no theme has been saved
+    default_theme = detect_system_theme()
+    return str(s.value("appearance/theme", default_theme, str))
 
 
 def are_notifications_enabled() -> bool:
