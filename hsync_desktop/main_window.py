@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
 
         # Restore saved path
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        self._path_edit.setText(s.value("path/local", "", str))
+        self._path_edit.setText(str(s.value("path/local", "", str)))
 
         # Apply translations
         self._apply_translations()
