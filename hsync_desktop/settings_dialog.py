@@ -205,11 +205,13 @@ class SettingsDialog(QDialog):
         self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
         self.lan_https, self._lbl_lan_https = _replace_checkbox_with_toggle(self, "lanHttps")
         self.lan_persistent, self._lbl_lan_persistent = _replace_checkbox_with_toggle(self, "lanPersistent")
+        self.force_master, self._lbl_force_master = _replace_checkbox_with_toggle(self, "forceMaster")
 
         # Log tab widgets
         self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
         self.quiet, self._lbl_quiet = _replace_checkbox_with_toggle(self, "quiet")
         self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
+        self.show_log_panel, self._lbl_show_log = _replace_checkbox_with_toggle(self, "showLogPanel")
 
         # Appearance tab widgets
         self.theme_combo: QComboBox = self.findChild(QComboBox, "themeCombo")  # type: ignore[assignment]
@@ -303,6 +305,7 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.discovery_timeout"))
         self._lbl_lan_https.setText(tr("settings.lan_https"))
         self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
+        self._lbl_force_master.setText(tr("settings.force_master"))
 
         # Log tab labels
         self._lbl_verbose.setText(tr("settings.verbose"))
@@ -354,6 +357,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
         _maybe_tip(self.lan_https, "tip.lan_https", tips)
         _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
+        _maybe_tip(self.force_master, "tip.force_master", tips)
 
         # Log tab
         _maybe_tip(self.verbose, "tip.verbose", tips)
@@ -442,6 +446,7 @@ class SettingsDialog(QDialog):
         s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
         s.setValue("lan/https", self.lan_https.isChecked())
         s.setValue("lan/persistent", self.lan_persistent.isChecked())
+        s.setValue("lan/force_master", self.force_master.isChecked())
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
@@ -454,6 +459,7 @@ class SettingsDialog(QDialog):
             s.setValue("appearance/language", lang_code)
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
+        s.setValue("appearance/show_log", self.show_log_panel.isChecked())
         s.setValue("settings/mode_advanced", self._advanced_mode.isChecked())
 
     def load(self) -> None:
@@ -481,6 +487,7 @@ class SettingsDialog(QDialog):
         self.discovery_timeout.setValue(cast(int, s.value("lan/discovery_timeout", 10, int)))
         self.lan_https.setChecked(bool(s.value("lan/https", True, bool)))
         self.lan_persistent.setChecked(bool(s.value("lan/persistent", True, bool)))
+        self.force_master.setChecked(bool(s.value("lan/force_master", False, bool)))
         self.verbose.setChecked(bool(s.value("output/verbose", False, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", False, bool)))
         self.logfile.setText(str(s.value("output/logfile", "", str)))
@@ -497,6 +504,8 @@ class SettingsDialog(QDialog):
                 break
         # Tooltips
         self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", True, bool)))
+        # Show log panel (default: hidden)
+        self.show_log_panel.setChecked(bool(s.value("appearance/show_log", False, bool)))
         # Mode
         advanced = s.value("settings/mode_advanced", False, bool)
         self._advanced_mode.setChecked(bool(advanced))
@@ -505,8 +514,13 @@ class SettingsDialog(QDialog):
 
 # ─── Utility: build CLI args from QSettings ─────────────────────────────────
 
-def build_hsync_args(local_path: str) -> list[str]:
-    """Read persisted settings and return hsync CLI argument list."""
+def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
+    """Read persisted settings and return hsync CLI argument list.
+
+    Args:
+        local_path: The local directory path to sync.
+        force_dry_run: If True, always add --dry-run flag regardless of settings.
+    """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     args: list[str] = []
 
@@ -547,7 +561,7 @@ def build_hsync_args(local_path: str) -> list[str]:
         args += ["--filter-path", filter_path]
     if s.value("sync/no_compression", False, bool):
         args.append("--no-compression")
-    if s.value("sync/dry_run", False, bool):
+    if force_dry_run or s.value("sync/dry_run", False, bool):
         args.append("-n")
 
     # LAN
@@ -563,6 +577,8 @@ def build_hsync_args(local_path: str) -> list[str]:
             args.append("--no-lan-https")
         if not s.value("lan/persistent", True, bool):
             args.append("--no-lan-persistent")
+        if s.value("lan/force_master", False, bool):
+            args.append("--force-master")
 
     # Output – always use --no-color for machine-friendly parsing
     args.append("--no-color")
@@ -589,3 +605,9 @@ def are_notifications_enabled() -> bool:
     """Return whether notifications are enabled."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("appearance/notifications", True, bool))
+
+
+def is_log_panel_visible() -> bool:
+    """Return whether the log panel should be visible (default: hidden)."""
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return bool(s.value("appearance/show_log", False, bool))

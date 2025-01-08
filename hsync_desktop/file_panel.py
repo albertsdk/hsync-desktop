@@ -646,6 +646,10 @@ class FileTransferTable(QTableWidget):
         # Remove from internal dict
         del self._transfers[filepath]
 
+    def remove_transfer(self, filepath: str) -> None:
+        """Remove a transfer from the table immediately."""
+        self._remove_file(filepath)
+
     def _refresh_row(self, transfer: FileTransfer) -> None:
         """Refresh or create a row for the given transfer."""
         # Use index for fast lookup
@@ -719,12 +723,20 @@ class FilePanel(QWidget):
     Contains:
     - Sortable file transfer table (left)
     - Collapsible detail panel (right, shown on row click)
+    - Periodic directory consistency check
     """
+
+    # Interval for directory consistency check (in milliseconds)
+    CONSISTENCY_CHECK_INTERVAL_MS = 5000
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
+        self._current_directory: str = ""
+        # Timer for periodic directory consistency check
+        self._consistency_timer = QTimer(self)
+        self._consistency_timer.timeout.connect(self._check_directory_consistency)
         self._build_ui()
         self._connect_signals()
 
@@ -809,6 +821,7 @@ class FilePanel(QWidget):
 
     def clear(self) -> None:
         """Clear all transfers and stop any ongoing scan."""
+        self._consistency_timer.stop()
         self._stop_scan()
         self._table.clear_transfers()
         self._detail.clear()
@@ -822,12 +835,17 @@ class FilePanel(QWidget):
         Args:
             directory: Path to the local directory to scan.
         """
-        # Cancel any ongoing scan
+        # Cancel any ongoing scan and stop consistency timer
         self._stop_scan()
+        self._consistency_timer.stop()
         self.clear()
 
         if not directory or not os.path.isdir(directory):
+            self._current_directory = ""
             return
+
+        # Save current directory for consistency checks
+        self._current_directory = directory
 
         # Show loading overlay
         self._show_loading()
@@ -881,6 +899,9 @@ class FilePanel(QWidget):
             self._scan_thread.wait()
         self._scan_thread = None
         self._scan_worker = None
+        # Start periodic consistency check
+        if self._current_directory:
+            self._consistency_timer.start(self.CONSISTENCY_CHECK_INTERVAL_MS)
 
     @Slot(int, int)
     def _on_scan_progress(self, current: int, total: int) -> None:
@@ -905,6 +926,65 @@ class FilePanel(QWidget):
             if self._loading_overlay.isVisible():
                 self._loading_overlay.setGeometry(self._table_container.rect())
         return super().eventFilter(watched, event)
+
+    @Slot()
+    def _check_directory_consistency(self) -> None:
+        """Check if table contents match the actual directory.
+
+        Adds new files and removes deleted files from the table.
+        Runs periodically via timer to keep the table in sync with filesystem.
+        """
+        if not self._current_directory or not os.path.isdir(self._current_directory):
+            self._consistency_timer.stop()
+            return
+
+        # Get current files in directory (quick scan without sizes for comparison)
+        current_files: set[str] = set()
+        base_path = Path(self._current_directory)
+        try:
+            for root, dirs, files in os.walk(self._current_directory):
+                # Skip hidden directories
+                dirs[:] = [d for d in dirs if not d.startswith(".")]
+                for f in files:
+                    if f.startswith("."):
+                        continue
+                    full_path = Path(root) / f
+                    try:
+                        rel_path = str(full_path.relative_to(base_path))
+                        current_files.add(rel_path)
+                    except ValueError:
+                        pass
+        except OSError:
+            # Directory may have been deleted or become inaccessible
+            return
+
+        # Get files currently in table
+        table_files = set(self._table._transfers.keys())
+
+        # Find new files (in directory but not in table)
+        new_files = current_files - table_files
+        for rel_path in new_files:
+            full_path = base_path / rel_path
+            try:
+                size = full_path.stat().st_size
+            except OSError:
+                size = 0
+            transfer = FileTransfer(
+                filepath=rel_path,
+                direction="—",
+                size=size,
+                bytes_transferred=0,
+                status=TransferStatus.LOCAL,
+            )
+            self._table.add_transfer(transfer)
+
+        # Find deleted files (in table but not in directory)
+        deleted_files = table_files - current_files
+        for rel_path in deleted_files:
+            # Only remove if status is LOCAL (not being transferred)
+            transfer = self._table._transfers.get(rel_path)
+            if transfer and transfer.status == TransferStatus.LOCAL:
+                self._table.remove_transfer(rel_path)
 
     def update_file_status(self, filepath: str, status: str, size: int = 0) -> None:
         """Update or add a file with status from preview."""
