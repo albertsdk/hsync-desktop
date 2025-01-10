@@ -489,6 +489,8 @@ class MainWindow(QMainWindow):
 
     def _open_settings(self) -> None:
         dlg = SettingsDialog(self)
+        # Disable connection-critical settings while sync is running
+        dlg.set_connection_active(self._engine.is_running)
         if dlg.exec() == SettingsDialog.DialogCode.Accepted:
             theme = get_saved_theme()
             app = QApplication.instance()
