@@ -20,38 +20,6 @@
    <string>Settings</string>
   </property>
   <layout class="QVBoxLayout" name="mainLayout">
-   <!-- Mode toggle row -->
-   <item>
-    <layout class="QHBoxLayout" name="modeLayout">
-     <item>
-      <spacer name="modeSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QLabel" name="lblAdvanced">
-       <property name="text">
-        <string>Advanced</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="advancedMode">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
    <!-- Tab Widget -->
    <item>
     <widget class="QTabWidget" name="tabWidget">
@@ -310,6 +278,16 @@
         <widget class="QCheckBox" name="dryRun">
          <property name="text">
           <string>Dry run (preview only)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="1">
+        <widget class="QCheckBox" name="autoSync">
+         <property name="text">
+          <string>Auto-sync on startup</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>

@@ -18,22 +18,26 @@ UI is loaded from ui/main_window.ui (Qt Designer).
 
 from __future__ import annotations
 
-import re
+import os
 
-from PySide6.QtCore import QSettings, Slot
+from PySide6.QtCore import QPoint, QSettings, QTimer, Qt, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFileDialog,
+    QFrame,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QSplitter,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -43,12 +47,15 @@ from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings_dialog import (
+    ApiKeyDialog,
+    LanKeyDialog,
     SETTINGS_APP,
     SETTINGS_ORG,
     SettingsDialog,
     build_hsync_args,
     get_saved_theme,
     are_notifications_enabled,
+    is_auto_sync_enabled,
     is_log_panel_visible,
 )
 from hsync_desktop.system_tray import SystemTray
@@ -69,6 +76,28 @@ def _format_bytes(n: int) -> str:
     return f"{n:.1f} TB"
 
 
+# ── Button styles ────────────────────────────────────────────────────────────
+_BTN_START_ACTIVE = (
+    "QPushButton { background-color: #2EA043; color: #FFFFFF;"
+    " border: none; font-weight: bold; }"
+    "QPushButton:hover { background-color: #278a39; }"
+    "QPushButton:pressed { background-color: #1f7a30; }"
+)
+_BTN_STOP_ACTIVE = (
+    "QPushButton { background-color: #CF222E; color: #FFFFFF;"
+    " border: none; font-weight: bold; }"
+    "QPushButton:hover { background-color: #b71d28; }"
+    "QPushButton:pressed { background-color: #a01822; }"
+)
+_BTN_REFRESH_ACTIVE = (
+    "QPushButton { background-color: #0969DA; color: #FFFFFF;"
+    " border: none; font-weight: bold; }"
+    "QPushButton:hover { background-color: #0860CA; }"
+    "QPushButton:pressed { background-color: #0757BA; }"
+)
+_BTN_IDLE = ""  # Reset to theme default
+
+
 class MainWindow(QMainWindow):
     """Primary application window."""
 
@@ -86,6 +115,7 @@ class MainWindow(QMainWindow):
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
+        self._transitioning_to_sync = False  # True during dry-run → sync restart
 
         self._load_ui()
         self._connect_signals()
@@ -95,6 +125,10 @@ class MainWindow(QMainWindow):
         geo = s.value("window/geometry")
         if geo:
             self.restoreGeometry(geo)
+
+        # Schedule auto-sync check after event loop starts
+        if is_auto_sync_enabled():
+            QTimer.singleShot(0, self._check_auto_sync)
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 
@@ -106,14 +140,16 @@ class MainWindow(QMainWindow):
         # Get widget references from .ui file
         self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
-        self._btn_sync: QPushButton = self.findChild(QPushButton, "btnSync")  # type: ignore[assignment]
-        self._btn_preview: QPushButton = self.findChild(QPushButton, "btnPreview")  # type: ignore[assignment]
+        self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
         self._btn_settings: QPushButton = self.findChild(QPushButton, "btnSettings")  # type: ignore[assignment]
         self._btn_browse: QToolButton = self.findChild(QToolButton, "btnBrowse")  # type: ignore[assignment]
         self._path_edit: QLineEdit = self.findChild(QLineEdit, "pathEdit")  # type: ignore[assignment]
+        self._path_edit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self._lbl_path: QLabel = self.findChild(QLabel, "lblPath")  # type: ignore[assignment]
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
+        self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._log_view.customContextMenuRequested.connect(self._show_log_context_menu)
 
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
@@ -131,14 +167,21 @@ class MainWindow(QMainWindow):
         # Replace filePanelPlaceholder with actual FilePanel
         placeholder: QWidget = self.findChild(QWidget, "filePanelPlaceholder")  # type: ignore[assignment]
         self._file_panel = FilePanel()
-        self._file_panel.setMinimumHeight(150)
         # Replace placeholder in splitter
+        self._file_panel.setMinimumHeight(150)
         idx = self._main_splitter.indexOf(placeholder)
         if idx >= 0:
             placeholder.setParent(None)
             self._main_splitter.insertWidget(idx, self._file_panel)
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
+
+        # Info banner (hidden by default, shown during reconnection)
+        self._info_banner = self._create_info_banner()
+        root_layout: QVBoxLayout = self.findChild(QVBoxLayout, "rootLayout")  # type: ignore[assignment]
+        if root_layout:
+            # Insert between action bar (index 0) and mainSplitter (index 1)
+            root_layout.insertWidget(1, self._info_banner)
 
         # Apply log panel visibility setting
         self._apply_log_visibility()
@@ -153,6 +196,9 @@ class MainWindow(QMainWindow):
         # Apply translations
         self._apply_translations()
 
+        # Apply initial button styles (Start green, Stop idle)
+        self._apply_button_styles()
+
         # Register for language change notifications
         register_language_callback(self._apply_translations)
 
@@ -160,8 +206,7 @@ class MainWindow(QMainWindow):
         """Apply i18n translations to UI elements."""
         self._btn_start.setText(tr("btn.start"))
         self._btn_stop.setText(tr("btn.stop"))
-        self._btn_sync.setText(tr("btn.sync"))
-        self._btn_preview.setText(tr("btn.preview"))
+        self._btn_refresh.setText(tr("btn.refresh"))
         self._btn_settings.setText(tr("btn.settings"))
         self._btn_browse.setText(tr("btn.browse"))
         self._btn_browse.setToolTip(tr("btn.browse"))
@@ -180,8 +225,7 @@ class MainWindow(QMainWindow):
         # Button signals
         self._btn_start.clicked.connect(self._on_start)
         self._btn_stop.clicked.connect(self._on_stop)
-        self._btn_sync.clicked.connect(self._on_sync)
-        self._btn_preview.clicked.connect(self._on_preview)
+        self._btn_refresh.clicked.connect(self._on_refresh)
         self._btn_settings.clicked.connect(self._open_settings)
         self._btn_browse.clicked.connect(self._browse_path)
 
@@ -194,8 +238,12 @@ class MainWindow(QMainWindow):
         e.bucket_detected.connect(lambda b: self._bucket_label.setText(b))
         e.group_detected.connect(lambda g: self._group_label.setText(g))
         e.file_transferred.connect(self._on_file_transferred)
+        e.file_renamed.connect(self._on_file_renamed)
+        e.directory_created.connect(self._on_directory_created)
         e.sync_completed.connect(lambda: self._notifier.sync_complete())
         e.error_occurred.connect(lambda msg: self._notifier.error(tr("notif.error"), msg))
+        e.auth_error_occurred.connect(self._on_auth_error)
+        e.master_conflict.connect(self._on_master_conflict)
         e.process_finished.connect(self._on_process_finished)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
@@ -207,15 +255,11 @@ class MainWindow(QMainWindow):
         t.toggle_window.connect(self._toggle_visibility)
         t.start_requested.connect(self._on_start)
         t.stop_requested.connect(self._on_stop)
-        t.sync_requested.connect(self._on_sync)
+        t.refresh_requested.connect(self._on_refresh)
         t.settings_requested.connect(self._open_settings)
         t.quit_requested.connect(self._quit)
 
     # ── Slots ────────────────────────────────────────────────────────────
-
-    # Regex patterns for file transfer log lines
-    _RE_DOWNLOAD = re.compile(r'↓\s*\[DOWNLOAD\s*\]\s*"?([^"]+)"?\s*(?:\(([^)]+)\))?')
-    _RE_UPLOAD = re.compile(r'↑\s*\[UPLOAD\s*\]\s*"?([^"]+)"?\s*(?:\(([^)]+)\))?')
 
     @Slot(str)
     def _append_log(self, line: str) -> None:
@@ -223,28 +267,27 @@ class MainWindow(QMainWindow):
         # Auto-scroll to bottom
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
-        # Parse for file transfers and update file panel
-        self._parse_transfer_line(line)
 
-    def _parse_transfer_line(self, line: str) -> None:
-        """Parse log line for file transfers and update file panel."""
-        # Download pattern: ↓ [DOWNLOAD ] "filepath" (size)
-        m = self._RE_DOWNLOAD.search(line)
-        if m:
-            filepath = m.group(1).strip()
-            size_str = m.group(2)
-            size = self._parse_size(size_str) if size_str else 0
-            self._file_panel.complete_transfer(filepath, size, direction="↓")
-            return
-
-        # Upload pattern: ↑ [UPLOAD   ] "filepath" (size)
-        m = self._RE_UPLOAD.search(line)
-        if m:
-            filepath = m.group(1).strip()
-            size_str = m.group(2)
-            size = self._parse_size(size_str) if size_str else 0
-            self._file_panel.complete_transfer(filepath, size, direction="↑")
-            return
+    @Slot(QPoint)
+    def _show_log_context_menu(self, pos: QPoint) -> None:
+        """Show custom context menu for the log viewer."""
+        menu = QMenu(self._log_view)
+        act_select_all = menu.addAction(tr("log.select_all"))
+        act_copy = menu.addAction(tr("log.copy"))
+        menu.addSeparator()
+        act_clear = menu.addAction(tr("log.clear"))
+        # Enable/disable based on state
+        act_copy.setEnabled(self._log_view.textCursor().hasSelection())
+        act_select_all.setEnabled(bool(self._log_view.toPlainText()))
+        act_clear.setEnabled(bool(self._log_view.toPlainText()))
+        # Execute and handle
+        action = menu.exec(self._log_view.mapToGlobal(pos))
+        if action == act_select_all:
+            self._log_view.selectAll()
+        elif action == act_copy:
+            self._log_view.copy()
+        elif action == act_clear:
+            self._log_view.clear()
 
     def _parse_size(self, text: str) -> int:
         """Parse human-readable size like '1.2 MB' to bytes."""
@@ -277,12 +320,69 @@ class MainWindow(QMainWindow):
         self._status_label.setText(tr(key))
         self._tray.update_status(status)
 
-        if status == "disconnected":
-            self._notifier.connection_lost()
+        if status in ("disconnected", "waiting"):
+            if not self._transitioning_to_sync:
+                self._file_panel.reset_all_to_local()
+            if status == "disconnected":
+                if not self._transitioning_to_sync:
+                    self._notifier.connection_lost()
         elif status == "connected":
+            self._transitioning_to_sync = False
+            self._hide_info_banner()
             # Auto-run preview when connected to show file status
             if self._engine.is_running:
                 self._engine.preview()
+
+    # ── Info banner ──────────────────────────────────────────────────────
+
+    def _create_info_banner(self) -> QFrame:
+        """Create a hidden info banner for reconnection feedback."""
+        banner = QFrame()
+        banner.setObjectName("infoBanner")
+        banner.setStyleSheet(
+            "#infoBanner {"
+            "  background-color: #0d6efd;"
+            "  border-radius: 6px;"
+            "  padding: 6px 12px;"
+            "}"
+            "#infoBannerLabel {"
+            "  color: #ffffff;"
+            "  font-weight: bold;"
+            "  font-size: 13px;"
+            "}"
+            "#infoBannerClose {"
+            "  color: #ffffff;"
+            "  font-weight: bold;"
+            "  font-size: 16px;"
+            "  background: transparent;"
+            "  border: none;"
+            "  padding: 0 4px;"
+            "}"
+            "#infoBannerClose:hover { color: #ccc; }"
+        )
+        layout = QHBoxLayout(banner)
+        layout.setContentsMargins(12, 4, 8, 4)
+        self._info_banner_label = QLabel("", banner)
+        self._info_banner_label.setObjectName("infoBannerLabel")
+        layout.addWidget(self._info_banner_label, 1)
+        close_btn = QPushButton("✕", banner)
+        close_btn.setObjectName("infoBannerClose")
+        close_btn.setFixedSize(24, 24)
+        close_btn.clicked.connect(self._hide_info_banner)
+        layout.addWidget(close_btn)
+        banner.hide()
+        return banner
+
+    def _show_info_banner(self, message: str, auto_hide_ms: int = 15000) -> None:
+        """Show the info banner with a message and optional auto-hide timer."""
+        self._info_banner_label.setText(message)
+        self._info_banner.show()
+        # Auto-hide after timeout
+        QTimer.singleShot(auto_hide_ms, self._hide_info_banner)
+
+    def _hide_info_banner(self) -> None:
+        """Hide the info banner."""
+        self._info_banner.hide()
 
     @Slot(int)
     def _on_peers(self, count: int) -> None:
@@ -313,15 +413,107 @@ class MainWindow(QMainWindow):
         rel_path = filename
         if base_path and filename.startswith(base_path):
             rel_path = filename[len(base_path):].lstrip("/\\")
+        # Read current mtime from filesystem for the transferred file
+        mtime = 0.0
+        if direction in ("↓", "↑") and base_path:
+            try:
+                full = os.path.join(base_path, rel_path)
+                mtime = os.stat(full).st_mtime
+            except OSError:
+                pass
+        # Gather CID and server IP for detail panel
+        client_cid = self._engine.cid
+        client_ip = self._engine.server_ip
         # Update file panel with actual transfer
         if direction == "↓":
             self._notifier.download_complete(filename)
-            self._file_panel.update_file_status(rel_path, "synced")
+            self._file_panel.update_file_status(
+                rel_path, "synced", mtime=mtime,
+                client_cid=client_cid, client_ip=client_ip,
+            )
         elif direction == "↑":
-            self._file_panel.update_file_status(rel_path, "synced")
+            self._file_panel.update_file_status(
+                rel_path, "synced", mtime=mtime,
+                client_cid=client_cid, client_ip=client_ip,
+            )
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
+
+    @Slot(str, str)
+    def _on_file_renamed(self, old_path: str, new_path: str) -> None:
+        """Handle a file rename event from the engine."""
+        base_path = self._path_edit.text().strip()
+        old_rel = old_path
+        new_rel = new_path
+        if base_path:
+            if old_path.startswith(base_path):
+                old_rel = old_path[len(base_path):].lstrip("/\\")
+            if new_path.startswith(base_path):
+                new_rel = new_path[len(base_path):].lstrip("/\\")
+        # Read mtime of the renamed file from filesystem
+        mtime = 0.0
+        if base_path:
+            try:
+                full = os.path.join(base_path, new_rel)
+                mtime = os.stat(full).st_mtime
+            except OSError:
+                pass
+        # Gather CID and server IP
+        client_cid = self._engine.cid
+        client_ip = self._engine.server_ip
+        self._file_panel.rename_file(
+            old_rel, new_rel, mtime=mtime,
+            client_cid=client_cid, client_ip=client_ip,
+        )
+
+    @Slot(str)
+    def _on_directory_created(self, dirpath: str) -> None:
+        """Handle a directory creation event from the engine."""
+        base_path = self._path_edit.text().strip()
+        rel_path = dirpath
+        if base_path and dirpath.startswith(base_path):
+            rel_path = dirpath[len(base_path):].lstrip("/\\")
+        # Read directory metadata from filesystem
+        mtime = 0.0
+        if base_path:
+            try:
+                full = os.path.join(base_path, rel_path)
+                mtime = os.stat(full).st_mtime
+            except OSError:
+                pass
+        # Gather CID and server IP
+        client_cid = self._engine.cid
+        client_ip = self._engine.server_ip
+        # Add directory to file panel as synced
+        self._file_panel.update_file_status(
+            rel_path, "synced", size=0, mtime=mtime,
+            client_cid=client_cid, client_ip=client_ip,
+        )
+
+    @Slot(str, str, str)
+    def _on_master_conflict(self, conflict_type: str, peer_cid: str, peer_address: str) -> None:
+        """Handle a force_master conflict or takeover notification."""
+        if conflict_type == "conflict_lost":
+            msg = (
+                tr("notif.master_conflict_lost")
+                .replace("{cid}", peer_cid)
+                .replace("{ip}", peer_address)
+            )
+        elif conflict_type == "conflict_won":
+            msg = (
+                tr("notif.master_conflict_won")
+                .replace("{cid}", peer_cid)
+                .replace("{ip}", peer_address)
+            )
+        else:  # takeover
+            msg = (
+                tr("notif.master_takeover")
+                .replace("{cid}", peer_cid)
+                .replace("{ip}", peer_address)
+            )
+        self._notifier.warning(tr("notif.master_conflict_title"), msg)
+        self._append_log(f"⚠ {msg}")
 
     @Slot()
     def _on_preview_started(self) -> None:
@@ -362,19 +554,55 @@ class MainWindow(QMainWindow):
 
     def _show_preview_summary(self) -> None:
         """Show the preview summary dialog and start sync if confirmed."""
+        s = self._preview_stats
+        nothing_to_sync = (
+            s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0
+        )
+
+        if nothing_to_sync:
+            # Skip the dialog entirely — go straight to live sync
+            self._append_log(f"ℹ {tr('preview.no_actions')}")
+            if self._is_dry_run_preview:
+                self._transitioning_to_sync = True
+                self._engine.stop()
+                args = build_hsync_args(self._pending_sync_path, force_dry_run=False)
+                if self._engine.start(args):
+                    self._btn_start.setEnabled(False)
+                    self._btn_stop.setEnabled(True)
+                    self._btn_refresh.setEnabled(True)
+                    self._tray.set_running(True)
+                    self._set_path_editable(False)
+                    self._apply_button_styles()
+            # Stdin preview: process already running, nothing to do
+            self._is_dry_run_preview = False
+            return
+
         dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
             if self._is_dry_run_preview:
                 # Started in dry-run mode - stop and restart in normal mode
+                self._transitioning_to_sync = True
                 self._engine.stop()
                 # Build args without dry-run
                 args = build_hsync_args(self._pending_sync_path, force_dry_run=False)
                 if self._engine.start(args):
-                    self._btn_sync.setEnabled(True)
-                    self._btn_preview.setEnabled(True)
+                    self._btn_start.setEnabled(False)
+                    self._btn_stop.setEnabled(True)
+                    self._btn_refresh.setEnabled(True)
+                    self._tray.set_running(True)
+                    self._set_path_editable(False)
+                    self._apply_button_styles()
             else:
-                # SIGUSR1 preview - just trigger sync
+                # Stdin preview - restart process for full sync
                 self._engine.force_sync()
+                # Restore button state (stop/start toggled by _on_process_finished)
+                if self._engine.is_running:
+                    self._btn_start.setEnabled(False)
+                    self._btn_stop.setEnabled(True)
+                    self._btn_refresh.setEnabled(True)
+                    self._tray.set_running(True)
+                    self._set_path_editable(False)
+                    self._apply_button_styles()
             self._is_dry_run_preview = False
         else:
             if self._is_dry_run_preview:
@@ -384,17 +612,110 @@ class MainWindow(QMainWindow):
                 self._btn_start.setEnabled(True)
                 self._btn_stop.setEnabled(False)
                 self._tray.set_running(False)
-            # If SIGUSR1 preview, just close dialog - process keeps running
+                self._set_path_editable(True)
+                self._apply_button_styles()
+            # If stdin preview, just close dialog - process keeps running
             self._is_dry_run_preview = False
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
         self._btn_start.setEnabled(True)
         self._btn_stop.setEnabled(False)
-        self._btn_sync.setEnabled(False)
-        self._btn_preview.setEnabled(False)
+        self._btn_refresh.setEnabled(False)
         self._tray.set_running(False)
+        self._set_path_editable(True)
+        self._hide_info_banner()
+        self._apply_button_styles()
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
+
+        # Notify only for truly unexpected crashes (not user stop, auth error,
+        # force sync, app quit, etc.)
+        if desc == "crashed" and not self._user_stopped:
+            self._notifier.error(
+                tr("notif.error"),
+                tr("notif.process_crashed").replace("{code}", str(code)),
+            )
+
+    @Slot(str)
+    def _on_auth_error(self, _error_msg: str) -> None:
+        """Handle authentication error by showing the appropriate dialog."""
+        # Stop the current process
+        self._engine.stop()
+
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        lan_enabled = bool(s.value("lan/enabled", False, bool))
+
+        if lan_enabled:
+            # LAN mode: show LAN key dialog
+            self._append_log(f"⚠ {tr('lanauth.error_message')}")
+            dlg = LanKeyDialog(self)
+            if dlg.exec() == LanKeyDialog.DialogCode.Accepted:
+                self._append_log(f"--- {tr('lanauth.retrying')} ---")
+                self._retry_after_auth_fix()
+            else:
+                self._reset_ui_stopped()
+        else:
+            # Server mode: show API key dialog
+            self._append_log(f"⚠ {tr('apikey.error_message')}")
+            dlg = ApiKeyDialog(self)
+            if dlg.exec() == ApiKeyDialog.DialogCode.Accepted:
+                self._append_log("--- Retrying with new API key... ---")
+                self._retry_after_auth_fix()
+            else:
+                self._reset_ui_stopped()
+
+    def _retry_after_auth_fix(self) -> None:
+        """Restart sync in dry-run mode after credentials have been updated."""
+        # Immediately update status bar to show "connecting" state
+        self._on_status("connecting")
+        # Show info banner for extra visibility
+        self._show_info_banner(f"🔄 {tr('banner.reconnecting')}")
+        local_path = self._path_edit.text().strip()
+        if local_path:
+            args = build_hsync_args(local_path, force_dry_run=True)
+            if args:
+                self._log_view.clear()
+                self._file_panel.load_local_files(local_path)
+                self._awaiting_preview_for_sync = True
+                self._is_dry_run_preview = True
+                self._pending_sync_path = local_path
+                if self._engine.start(args):
+                    self._btn_start.setEnabled(False)
+                    self._btn_stop.setEnabled(True)
+                    self._btn_refresh.setEnabled(False)
+                    self._tray.set_running(True)
+                    self._set_path_editable(False)
+                    self._apply_button_styles()
+                    return
+        self._hide_info_banner()
+        self._reset_ui_stopped()
+
+    def _reset_ui_stopped(self) -> None:
+        """Reset UI buttons to the stopped state."""
+        self._btn_start.setEnabled(True)
+        self._btn_stop.setEnabled(False)
+        self._btn_refresh.setEnabled(False)
+        self._tray.set_running(False)
+        self._hide_info_banner()
+        self._set_path_editable(True)
+        self._apply_button_styles()
+
+    def _set_path_editable(self, editable: bool) -> None:
+        """Enable or disable the path input field and browse button."""
+        self._path_edit.setReadOnly(not editable)
+        self._btn_browse.setEnabled(editable)
+
+    def _apply_button_styles(self) -> None:
+        """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
+        self._btn_start.setStyleSheet(
+            _BTN_START_ACTIVE if self._btn_start.isEnabled() else _BTN_IDLE
+        )
+        self._btn_stop.setStyleSheet(
+            _BTN_STOP_ACTIVE if self._btn_stop.isEnabled() else _BTN_IDLE
+        )
+        self._btn_refresh.setStyleSheet(
+            _BTN_REFRESH_ACTIVE if self._btn_refresh.isEnabled() else _BTN_IDLE
+        )
 
     # ── Actions ──────────────────────────────────────────────────────────
 
@@ -422,6 +743,12 @@ class MainWindow(QMainWindow):
             return True
         return False
 
+    def _check_auto_sync(self) -> None:
+        """Auto-start synchronization if a saved path exists."""
+        local_path = self._path_edit.text().strip()
+        if local_path:
+            self._on_start()
+
     def _on_start(self) -> None:
         # Show disclaimer first
         if not self._show_disclaimer():
@@ -439,7 +766,7 @@ class MainWindow(QMainWindow):
         # Persist path
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
         self._log_view.clear()
-        self._file_panel.clear()  # Clear file panel on new sync
+        self._file_panel.load_local_files(local_path)
         self._user_stopped = False
         self._notifier.user_stopped = False
         # Set flags to show preview summary when dry-run completes
@@ -449,23 +776,22 @@ class MainWindow(QMainWindow):
         if self._engine.start(args):
             self._btn_start.setEnabled(False)
             self._btn_stop.setEnabled(True)
-            self._btn_sync.setEnabled(False)  # Disable until preview completes
-            self._btn_preview.setEnabled(False)
+            self._btn_refresh.setEnabled(False)  # Disable until preview completes
             self._tray.set_running(True)
+            self._set_path_editable(False)
+            self._apply_button_styles()
 
     def _on_stop(self) -> None:
         self._user_stopped = True
         self._notifier.user_stopped = True
         self._engine.stop()
 
-    def _on_sync(self) -> None:
-        self._engine.force_sync()
+    def _on_refresh(self) -> None:
+        """Trigger a refresh (preview scan) using the running process.
 
-    def _on_preview(self) -> None:
-        """Trigger a preview (dry-run) using the running process.
-
-        Sends SIGUSR1 to the running hsync-client process to get a preview
-        of pending sync actions without starting a new process.
+        Sends a PREVIEW command via stdin to the running hsync-client process
+        to get a preview of pending sync actions.  If the preview shows work
+        to do, a confirmation dialog is displayed before restarting the sync.
         """
         if not self._engine.is_running:
             self._append_log("⚠ Please start synchronization first.")
@@ -473,7 +799,7 @@ class MainWindow(QMainWindow):
         self._append_log(f"--- {tr('preview.title')} ---")
         # Set flags to show preview summary when preview completes
         self._awaiting_preview_for_sync = True
-        self._is_dry_run_preview = False  # SIGUSR1 preview, not dry-run mode
+        self._is_dry_run_preview = False  # stdin preview, not dry-run mode
         self._engine.preview()
 
     def _browse_path(self) -> None:

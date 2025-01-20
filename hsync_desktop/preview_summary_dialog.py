@@ -13,22 +13,18 @@ total sizes, and estimated transfer times based on network speed.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict
+from dataclasses import dataclass
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
-    QFrame,
-    QGridLayout,
     QLabel,
     QPushButton,
-    QVBoxLayout,
     QWidget,
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.ui.loader import load_ui_widget
 
 
 @dataclass
@@ -91,87 +87,82 @@ class PreviewSummaryDialog(QDialog):
         self._stats = stats
         self._network_speed = network_speed if network_speed > 0 else self.DEFAULT_SPEED
 
+        self._load_ui()
+        self._populate()
+
+    def _load_ui(self) -> None:
+        """Load UI from .ui file and setup widget references."""
+        load_ui_widget("preview_summary_dialog", self)
+
         self.setWindowTitle(tr("preview_summary.title"))
-        self.setMinimumWidth(400)
-        self.setModal(True)
 
-        self._setup_ui()
+        # Get widget references from .ui
+        self._lbl_title: QLabel = self.findChild(QLabel, "lblTitle")  # type: ignore[assignment]
+        self._lbl_downloads: QLabel = self.findChild(QLabel, "lblDownloads")  # type: ignore[assignment]
+        self._val_download_count: QLabel = self.findChild(QLabel, "valDownloadCount")  # type: ignore[assignment]
+        self._lbl_download_size: QLabel = self.findChild(QLabel, "lblDownloadSize")  # type: ignore[assignment]
+        self._val_download_size: QLabel = self.findChild(QLabel, "valDownloadSize")  # type: ignore[assignment]
+        self._lbl_download_time: QLabel = self.findChild(QLabel, "lblDownloadTime")  # type: ignore[assignment]
+        self._val_download_time: QLabel = self.findChild(QLabel, "valDownloadTime")  # type: ignore[assignment]
+        self._lbl_uploads: QLabel = self.findChild(QLabel, "lblUploads")  # type: ignore[assignment]
+        self._val_upload_count: QLabel = self.findChild(QLabel, "valUploadCount")  # type: ignore[assignment]
+        self._lbl_upload_size: QLabel = self.findChild(QLabel, "lblUploadSize")  # type: ignore[assignment]
+        self._val_upload_size: QLabel = self.findChild(QLabel, "valUploadSize")  # type: ignore[assignment]
+        self._lbl_upload_time: QLabel = self.findChild(QLabel, "lblUploadTime")  # type: ignore[assignment]
+        self._val_upload_time: QLabel = self.findChild(QLabel, "valUploadTime")  # type: ignore[assignment]
+        self._lbl_deletions: QLabel = self.findChild(QLabel, "lblDeletions")  # type: ignore[assignment]
+        self._val_delete_count: QLabel = self.findChild(QLabel, "valDeleteCount")  # type: ignore[assignment]
+        self._lbl_synced: QLabel = self.findChild(QLabel, "lblSynced")  # type: ignore[assignment]
+        self._val_synced_count: QLabel = self.findChild(QLabel, "valSyncedCount")  # type: ignore[assignment]
+        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
-    def _setup_ui(self) -> None:
-        """Build the dialog UI."""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+    def _populate(self) -> None:
+        """Populate labels with translated text and stats values."""
+        files = tr("preview_summary.files")
 
-        # Title
-        title = QLabel(f"<h2>{tr('preview_summary.title')}</h2>")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        # Translated labels
+        self._lbl_title.setText(f"<h2>{tr('preview_summary.title')}</h2>")
+        self._lbl_downloads.setText(f"<b>{tr('preview_summary.downloads')}:</b>")
+        self._lbl_download_size.setText(f"  {tr('preview_summary.total_size')}:")
+        self._lbl_download_time.setText(f"  {tr('preview_summary.estimated_time')}:")
+        self._lbl_uploads.setText(f"<b>{tr('preview_summary.uploads')}:</b>")
+        self._lbl_upload_size.setText(f"  {tr('preview_summary.total_size')}:")
+        self._lbl_upload_time.setText(f"  {tr('preview_summary.estimated_time')}:")
+        self._lbl_deletions.setText(f"<b>{tr('preview_summary.deletions')}:</b>")
+        self._lbl_synced.setText(f"<b>{tr('preview_summary.synced')}:</b>")
 
-        # Stats grid
-        grid = QGridLayout()
-        grid.setSpacing(12)
-        grid.setColumnStretch(1, 1)
-
-        row = 0
-
-        # Downloads section
-        dl_label = QLabel(f"<b>{tr('preview_summary.downloads')}:</b>")
-        dl_count = QLabel(f"{self._stats.to_download} {tr('preview_summary.files')}")
-        grid.addWidget(dl_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(dl_count, row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
-
-        dl_size_label = QLabel(f"  {tr('preview_summary.total_size')}:")
-        dl_size = QLabel(_format_bytes(self._stats.download_size))
-        grid.addWidget(dl_size_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(dl_size, row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
-
-        dl_time_label = QLabel(f"  {tr('preview_summary.estimated_time')}:")
+        # Values
+        self._val_download_count.setText(f"{self._stats.to_download} {files}")
+        self._val_download_size.setText(_format_bytes(self._stats.download_size))
         dl_time = self._stats.download_size / self._network_speed
-        grid.addWidget(dl_time_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(QLabel(_format_time(dl_time)), row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
+        self._val_download_time.setText(_format_time(dl_time))
 
-        # Separator
-        sep1 = QFrame()
-        sep1.setFrameShape(QFrame.Shape.HLine)
-        sep1.setFrameShadow(QFrame.Shadow.Sunken)
-        grid.addWidget(sep1, row, 0, 1, 2)
-        row += 1
-
-        # Uploads section
-        ul_label = QLabel(f"<b>{tr('preview_summary.uploads')}:</b>")
-        ul_count = QLabel(f"{self._stats.to_upload} {tr('preview_summary.files')}")
-        grid.addWidget(ul_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(ul_count, row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
-
-        ul_size_label = QLabel(f"  {tr('preview_summary.total_size')}:")
-        ul_size = QLabel(_format_bytes(self._stats.upload_size))
-        grid.addWidget(ul_size_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(ul_size, row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
-
-        ul_time_label = QLabel(f"  {tr('preview_summary.estimated_time')}:")
+        self._val_upload_count.setText(f"{self._stats.to_upload} {files}")
+        self._val_upload_size.setText(_format_bytes(self._stats.upload_size))
         ul_time = self._stats.upload_size / self._network_speed
-        grid.addWidget(ul_time_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        grid.addWidget(QLabel(_format_time(ul_time)), row, 1, Qt.AlignmentFlag.AlignRight)
-        row += 1
+        self._val_upload_time.setText(_format_time(ul_time))
 
-        layout.addLayout(grid)
+        self._val_delete_count.setText(f"{self._stats.to_delete} {files}")
+        self._val_synced_count.setText(f"{self._stats.synced} {files}")
 
-        # Buttons
-        button_box = QDialogButtonBox()
-        self._cancel_btn = QPushButton(tr("preview_summary.cancel"))
-        self._sync_btn = QPushButton(tr("preview_summary.sync"))
-        self._sync_btn.setDefault(True)
-        
-        button_box.addButton(self._cancel_btn, QDialogButtonBox.ButtonRole.RejectRole)
-        button_box.addButton(self._sync_btn, QDialogButtonBox.ButtonRole.AcceptRole)
-        
-        self._cancel_btn.clicked.connect(self.reject)
-        self._sync_btn.clicked.connect(self.accept)
-        
-        layout.addWidget(button_box)
+        # Buttons – show OK only when nothing to sync, else Cancel/Sync
+        has_work = (
+            self._stats.to_download > 0
+            or self._stats.to_upload > 0
+            or self._stats.to_delete > 0
+        )
+
+        if has_work:
+            self._cancel_btn = QPushButton(tr("preview_summary.cancel"))
+            self._sync_btn = QPushButton(tr("preview_summary.sync"))
+            self._sync_btn.setDefault(True)
+            self._button_box.addButton(self._cancel_btn, QDialogButtonBox.ButtonRole.RejectRole)
+            self._button_box.addButton(self._sync_btn, QDialogButtonBox.ButtonRole.AcceptRole)
+            self._cancel_btn.clicked.connect(self.reject)
+            self._sync_btn.clicked.connect(self.accept)
+        else:
+            self._ok_btn = QPushButton(tr("preview_summary.ok"))
+            self._ok_btn.setDefault(True)
+            self._button_box.addButton(self._ok_btn, QDialogButtonBox.ButtonRole.RejectRole)
+            self._ok_btn.clicked.connect(self.reject)
 

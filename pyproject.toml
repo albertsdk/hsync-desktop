@@ -30,6 +30,7 @@ hsync-desktop = "hsync_desktop.main:main"
 [tool.poetry.dependencies]
 python = ">=3.12,<3.14"
 PySide6 = "^6.8.0"
+cryptography = "^46.0.4"
 
 [tool.poetry.group.build.dependencies]
 pyinstaller = "^6.12.0"

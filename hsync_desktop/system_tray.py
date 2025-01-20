@@ -8,7 +8,7 @@
 System tray integration for HSYNC Desktop.
 
 Provides a tray icon with context menu for quick access to
-Show/Hide, Start/Stop, Sync, Settings and Quit.
+Show/Hide, Start/Stop, Refresh, Settings and Quit.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class SystemTray(QSystemTrayIcon):
     toggle_window = Signal()
     start_requested = Signal()
     stop_requested = Signal()
-    sync_requested = Signal()
+    refresh_requested = Signal()
     settings_requested = Signal()
     quit_requested = Signal()
 
@@ -76,10 +76,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.setEnabled(False)
         menu.addAction(self._act_stop)
 
-        self._act_sync = QAction(tr("tray.sync"), menu)
-        self._act_sync.triggered.connect(self.sync_requested.emit)
-        self._act_sync.setEnabled(False)
-        menu.addAction(self._act_sync)
+        self._act_refresh = QAction(tr("tray.refresh"), menu)
+        self._act_refresh.triggered.connect(self.refresh_requested.emit)
+        self._act_refresh.setEnabled(False)
+        menu.addAction(self._act_refresh)
 
         menu.addSeparator()
         self._act_settings = QAction(tr("tray.settings"), menu)
@@ -123,8 +123,9 @@ class SystemTray(QSystemTrayIcon):
         """Update menu items based on running state."""
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
-        self._act_sync.setEnabled(running)
-        visible = self.parent() and self.parent().isVisible()
+        self._act_refresh.setEnabled(running)
+        parent = self.parent()
+        visible = isinstance(parent, QWidget) and parent.isVisible()
         self._act_show.setText(tr("tray.hide") if visible else tr("tray.show"))
 
     def _apply_translations(self) -> None:
@@ -132,7 +133,7 @@ class SystemTray(QSystemTrayIcon):
         self._act_show.setText(tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
         self._act_stop.setText(tr("tray.stop"))
-        self._act_sync.setText(tr("tray.sync"))
+        self._act_refresh.setText(tr("tray.refresh"))
         self._act_settings.setText(tr("tray.settings"))
         self._act_quit.setText(tr("tray.quit"))
         # Update tooltip with current status
