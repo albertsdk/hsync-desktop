@@ -100,6 +100,7 @@ _RE_SYNCED = re.compile(r'\[SYNCED\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 _RE_TO_DOWNLOAD = re.compile(r'\[TO_DOWNLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 _RE_TO_UPLOAD = re.compile(r'\[TO_UPLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 _RE_TO_DELETE = re.compile(r'\[TO_DELETE\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
+_RE_TO_RENAME = re.compile(r'\[TO_RENAME\s*\]\s*"(.+?)"\s*->\s*"(.+?)"\s*\(([^)]+)\)')
 
 
 def _parse_size(text: str | None) -> int:
@@ -173,6 +174,7 @@ class HsyncEngine(QObject):
     preview_ended = Signal()                        # preview scan ended
     file_status = Signal(str, str, int)             # status, filepath, size
     # status can be: "synced", "to_download", "to_upload", "to_delete"
+    file_rename_status = Signal(str, str, int)       # old_path, new_path, size
 
     # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -322,24 +324,21 @@ class HsyncEngine(QObject):
             self._process.waitForFinished(3000)
 
     def force_sync(self) -> None:
-        """Trigger an immediate full re-sync by restarting the process."""
-        # hsync-client doesn't expose a signal for this, so we restart
-        if not self._running or not self._process:
-            return
-        args = self._process.arguments()
-        # Remove stale --api-key-fd / --lan-key-fd args (start() creates fresh pipes)
-        filtered: list[str] = []
-        skip_next = False
-        for arg in args:
-            if skip_next:
-                skip_next = False
-                continue
-            if arg in ("--api-key-fd", "--lan-key-fd"):
-                skip_next = True
-                continue
-            filtered.append(arg)
-        self.stop()
-        self.start(filtered)
+        """Trigger an immediate full sync via stdin command.
+
+        Sends a SYNC command to the running process, which will execute
+        a full synchronisation cycle without restarting.
+        """
+        self.sync()
+
+    def sync(self) -> None:
+        """Send SYNC command to the running process.
+
+        In dry-run mode this switches the process to real sync mode
+        and performs the synchronisation.  In normal mode it triggers
+        an additional full sync cycle.
+        """
+        self._send_command({"cmd": "SYNC"})
 
     def preview(self) -> None:
         """Trigger a preview (dry-run) by sending a PREVIEW command via stdin."""
@@ -436,6 +435,10 @@ class HsyncEngine(QObject):
             m = _RE_TO_UPLOAD.search(clean)
             if m:
                 self.file_status.emit("to_upload", m.group(1), _parse_size(m.group(2)))
+                return
+            m = _RE_TO_RENAME.search(clean)
+            if m:
+                self.file_rename_status.emit(m.group(1), m.group(2), _parse_size(m.group(3)))
                 return
             m = _RE_TO_DELETE.search(clean)
             if m:

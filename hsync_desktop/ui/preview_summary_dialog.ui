@@ -125,13 +125,32 @@
        <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
       </widget>
      </item>
-     <!-- Synced -->
+     <!-- Renames -->
      <item row="10" column="0">
+      <widget class="QLabel" name="lblRenames">
+       <property name="text"><string>&lt;b&gt;Renames:&lt;/b&gt;</string></property>
+      </widget>
+     </item>
+     <item row="10" column="1">
+      <widget class="QLabel" name="valRenameCount">
+       <property name="text"><string>0</string></property>
+       <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+      </widget>
+     </item>
+     <!-- Separator 4 -->
+     <item row="11" column="0" colspan="2">
+      <widget class="QFrame" name="sep4">
+       <property name="frameShape"><enum>QFrame::HLine</enum></property>
+       <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+      </widget>
+     </item>
+     <!-- Synced -->
+     <item row="12" column="0">
       <widget class="QLabel" name="lblSynced">
        <property name="text"><string>&lt;b&gt;Synced:&lt;/b&gt;</string></property>
       </widget>
      </item>
-     <item row="10" column="1">
+     <item row="12" column="1">
       <widget class="QLabel" name="valSyncedCount">
        <property name="text"><string>0</string></property>
        <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>

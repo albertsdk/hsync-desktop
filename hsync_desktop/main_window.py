@@ -115,7 +115,6 @@ class MainWindow(QMainWindow):
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
-        self._transitioning_to_sync = False  # True during dry-run → sync restart
 
         self._load_ui()
         self._connect_signals()
@@ -249,6 +248,7 @@ class MainWindow(QMainWindow):
         e.preview_started.connect(self._on_preview_started)
         e.preview_ended.connect(self._on_preview_ended)
         e.file_status.connect(self._on_file_status)
+        e.file_rename_status.connect(self._on_file_rename_status)
 
         # Tray signals
         t = self._tray
@@ -321,13 +321,10 @@ class MainWindow(QMainWindow):
         self._tray.update_status(status)
 
         if status in ("disconnected", "waiting"):
-            if not self._transitioning_to_sync:
-                self._file_panel.reset_all_to_local()
+            self._file_panel.reset_all_to_local()
             if status == "disconnected":
-                if not self._transitioning_to_sync:
-                    self._notifier.connection_lost()
+                self._notifier.connection_lost()
         elif status == "connected":
-            self._transitioning_to_sync = False
             self._hide_info_banner()
             # Auto-run preview when connected to show file status
             if self._engine.is_running:
@@ -552,57 +549,42 @@ class MainWindow(QMainWindow):
         elif status == "synced":
             self._preview_stats.synced += 1
 
+    @Slot(str, str, int)
+    def _on_file_rename_status(self, old_path: str, new_path: str, size: int) -> None:
+        """Handle file rename status from preview."""
+        base_path = self._path_edit.text().strip()
+        rel_old = old_path
+        if base_path and old_path.startswith(base_path):
+            rel_old = old_path[len(base_path):].lstrip("/\\")
+        self._file_panel.update_file_status(rel_old, "to_rename", size)
+        self._preview_stats.to_rename += 1
+
     def _show_preview_summary(self) -> None:
         """Show the preview summary dialog and start sync if confirmed."""
         s = self._preview_stats
         nothing_to_sync = (
             s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0
+            and s.to_rename == 0
         )
 
         if nothing_to_sync:
             # Skip the dialog entirely — go straight to live sync
             self._append_log(f"ℹ {tr('preview.no_actions')}")
             if self._is_dry_run_preview:
-                self._transitioning_to_sync = True
-                self._engine.stop()
-                args = build_hsync_args(self._pending_sync_path, force_dry_run=False)
-                if self._engine.start(args):
-                    self._btn_start.setEnabled(False)
-                    self._btn_stop.setEnabled(True)
-                    self._btn_refresh.setEnabled(True)
-                    self._tray.set_running(True)
-                    self._set_path_editable(False)
-                    self._apply_button_styles()
-            # Stdin preview: process already running, nothing to do
+                # Send SYNC command to switch from dry-run to real sync
+                self._engine.sync()
+                self._btn_refresh.setEnabled(True)
+                self._apply_button_styles()
             self._is_dry_run_preview = False
             return
 
         dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
-            if self._is_dry_run_preview:
-                # Started in dry-run mode - stop and restart in normal mode
-                self._transitioning_to_sync = True
-                self._engine.stop()
-                # Build args without dry-run
-                args = build_hsync_args(self._pending_sync_path, force_dry_run=False)
-                if self._engine.start(args):
-                    self._btn_start.setEnabled(False)
-                    self._btn_stop.setEnabled(True)
-                    self._btn_refresh.setEnabled(True)
-                    self._tray.set_running(True)
-                    self._set_path_editable(False)
-                    self._apply_button_styles()
-            else:
-                # Stdin preview - restart process for full sync
-                self._engine.force_sync()
-                # Restore button state (stop/start toggled by _on_process_finished)
-                if self._engine.is_running:
-                    self._btn_start.setEnabled(False)
-                    self._btn_stop.setEnabled(True)
-                    self._btn_refresh.setEnabled(True)
-                    self._tray.set_running(True)
-                    self._set_path_editable(False)
-                    self._apply_button_styles()
+            # Send SYNC command — the running process will perform
+            # the actual sync without needing a restart.
+            self._engine.sync()
+            self._btn_refresh.setEnabled(True)
+            self._apply_button_styles()
             self._is_dry_run_preview = False
         else:
             if self._is_dry_run_preview:
