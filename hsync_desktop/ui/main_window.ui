@@ -88,16 +88,15 @@
        </spacer>
       </item>
       <item>
-       <widget class="QLabel" name="lblPath">
+       <widget class="QLabel" name="pathLabel">
         <property name="text">
-         <string>Path:</string>
+         <string/>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="pathEdit">
-        <property name="placeholderText">
-         <string>Select folder to sync...</string>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </item>

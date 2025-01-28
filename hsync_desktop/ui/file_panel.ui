@@ -48,13 +48,19 @@
        <bool>false</bool>
       </property>
       <property name="columnCount">
-       <number>6</number>
+       <number>8</number>
       </property>
+      <column>
+       <property name="text"><string/></property>
+      </column>
       <column>
        <property name="text"><string>Name</string></property>
       </column>
       <column>
        <property name="text"><string>Size</string></property>
+      </column>
+      <column>
+       <property name="text"><string>Type</string></property>
       </column>
       <column>
        <property name="text"><string>Modified</string></property>
@@ -96,7 +102,7 @@
         <layout class="QHBoxLayout" name="detailHeader">
          <item>
           <widget class="QLabel" name="lblDetailTitle">
-           <property name="text"><string>File Details</string></property>
+           <property name="text"><string>Properties</string></property>
            <property name="font">
             <font><bold>true</bold></font>
            </property>

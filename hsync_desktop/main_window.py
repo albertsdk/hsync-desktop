@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 
 from PySide6.QtCore import QPoint, QSettings, QTimer, Qt, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -142,9 +141,11 @@ class MainWindow(QMainWindow):
         self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
         self._btn_settings: QPushButton = self.findChild(QPushButton, "btnSettings")  # type: ignore[assignment]
         self._btn_browse: QToolButton = self.findChild(QToolButton, "btnBrowse")  # type: ignore[assignment]
-        self._path_edit: QLineEdit = self.findChild(QLineEdit, "pathEdit")  # type: ignore[assignment]
-        self._path_edit.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self._lbl_path: QLabel = self.findChild(QLabel, "lblPath")  # type: ignore[assignment]
+        self._path_label: QLabel = self.findChild(QLabel, "pathLabel")  # type: ignore[assignment]
+        self._path_label.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
+        self._path_label.setOpenExternalLinks(False)
+        self._path_label.linkActivated.connect(self._on_path_clicked)
+        self._local_path: str = ""
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
         self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -188,7 +189,7 @@ class MainWindow(QMainWindow):
         # Restore saved path and load files
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         saved_path = str(s.value("path/local", "", str))
-        self._path_edit.setText(saved_path)
+        self._set_path(saved_path)
         if saved_path:
             self._load_local_files(saved_path)
 
@@ -208,9 +209,8 @@ class MainWindow(QMainWindow):
         self._btn_refresh.setText(tr("btn.refresh"))
         self._btn_settings.setText(tr("btn.settings"))
         self._btn_browse.setText(tr("btn.browse"))
-        self._btn_browse.setToolTip(tr("btn.browse"))
-        self._lbl_path.setText(tr("label.path"))
-        self._path_edit.setPlaceholderText(tr("label.path"))
+        self._btn_browse.setToolTip(tr("label.path_placeholder"))
+        self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
         self._role_label.setText(tr("role.client"))
         self._role_label.setToolTip(tr("role.client_tip"))
@@ -406,7 +406,7 @@ class MainWindow(QMainWindow):
             f"{st.files_received} ({_format_bytes(st.bytes_received)})"
         )
         # Convert absolute path to relative path for table lookup
-        base_path = self._path_edit.text().strip()
+        base_path = self._local_path
         rel_path = filename
         if base_path and filename.startswith(base_path):
             rel_path = filename[len(base_path):].lstrip("/\\")
@@ -440,7 +440,7 @@ class MainWindow(QMainWindow):
     @Slot(str, str)
     def _on_file_renamed(self, old_path: str, new_path: str) -> None:
         """Handle a file rename event from the engine."""
-        base_path = self._path_edit.text().strip()
+        base_path = self._local_path
         old_rel = old_path
         new_rel = new_path
         if base_path:
@@ -467,7 +467,7 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _on_directory_created(self, dirpath: str) -> None:
         """Handle a directory creation event from the engine."""
-        base_path = self._path_edit.text().strip()
+        base_path = self._local_path
         rel_path = dirpath
         if base_path and dirpath.startswith(base_path):
             rel_path = dirpath[len(base_path):].lstrip("/\\")
@@ -532,7 +532,7 @@ class MainWindow(QMainWindow):
     def _on_file_status(self, status: str, filepath: str, size: int) -> None:
         """Handle file status from preview."""
         # Convert absolute path to relative path for table lookup
-        base_path = self._path_edit.text().strip()
+        base_path = self._local_path
         rel_path = filepath
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path):].lstrip("/\\")
@@ -552,7 +552,7 @@ class MainWindow(QMainWindow):
     @Slot(str, str, int)
     def _on_file_rename_status(self, old_path: str, new_path: str, size: int) -> None:
         """Handle file rename status from preview."""
-        base_path = self._path_edit.text().strip()
+        base_path = self._local_path
         rel_old = old_path
         if base_path and old_path.startswith(base_path):
             rel_old = old_path[len(base_path):].lstrip("/\\")
@@ -652,7 +652,7 @@ class MainWindow(QMainWindow):
         self._on_status("connecting")
         # Show info banner for extra visibility
         self._show_info_banner(f"🔄 {tr('banner.reconnecting')}")
-        local_path = self._path_edit.text().strip()
+        local_path = self._local_path
         if local_path:
             args = build_hsync_args(local_path, force_dry_run=True)
             if args:
@@ -683,9 +683,41 @@ class MainWindow(QMainWindow):
         self._apply_button_styles()
 
     def _set_path_editable(self, editable: bool) -> None:
-        """Enable or disable the path input field and browse button."""
-        self._path_edit.setReadOnly(not editable)
+        """Enable or disable the browse button."""
         self._btn_browse.setEnabled(editable)
+
+    def _set_path(self, path: str) -> None:
+        """Set the local path and update the display."""
+        self._local_path = path.strip()
+        self._update_path_display()
+
+    def _update_path_display(self) -> None:
+        """Update the path label display."""
+        if self._local_path:
+            link_color = self._path_label.palette().color(
+                self._path_label.palette().ColorRole.Link
+            ).name()
+            self._path_label.setText(
+                f'📂 <a href="open" style="color:{link_color}; text-decoration:none;">'
+                f'{self._local_path}</a>'
+            )
+            self._path_label.setToolTip(self._local_path)
+            self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        else:
+            mid = self._path_label.palette().color(
+                self._path_label.palette().ColorRole.PlaceholderText
+            ).name()
+            self._path_label.setText(
+                f'<span style="color:{mid};">{tr("label.path_placeholder")}</span>'
+            )
+            self._path_label.setToolTip("")
+            self._path_label.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _on_path_clicked(self, _link: str) -> None:
+        """Open the local path directory in the system file manager."""
+        if self._local_path and os.path.isdir(self._local_path):
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
@@ -714,6 +746,9 @@ class MainWindow(QMainWindow):
         msg.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         )
+        cancel_btn = msg.button(QMessageBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setText(tr("action.cancel"))
 
         checkbox = QCheckBox(tr("disclaimer.dont_show"))
         msg.setCheckBox(checkbox)
@@ -727,7 +762,7 @@ class MainWindow(QMainWindow):
 
     def _check_auto_sync(self) -> None:
         """Auto-start synchronization if a saved path exists."""
-        local_path = self._path_edit.text().strip()
+        local_path = self._local_path
         if local_path:
             self._on_start()
 
@@ -736,7 +771,7 @@ class MainWindow(QMainWindow):
         if not self._show_disclaimer():
             return
 
-        local_path = self._path_edit.text().strip()
+        local_path = self._local_path
         if not local_path:
             self._append_log("⚠ Please select a local directory first.")
             return
@@ -785,9 +820,9 @@ class MainWindow(QMainWindow):
         self._engine.preview()
 
     def _browse_path(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, tr("label.path"))
+        d = QFileDialog.getExistingDirectory(self, tr("label.path_placeholder"))
         if d:
-            self._path_edit.setText(d)
+            self._set_path(d)
             self._load_local_files(d)
 
     def _load_local_files(self, path: str) -> None:
