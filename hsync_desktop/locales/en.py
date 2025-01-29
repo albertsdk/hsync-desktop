@@ -263,5 +263,9 @@ translations: dict[str, str] = {
     "ctx.error_rename": "Cannot rename file: {error}",
     "ctx.error_trash": "Cannot move to trash: {error}",
     "ctx.copy_dialog_title": "Copy To…",
+    "ctx.confirm_copy_title": "Confirm Copy",
+    "ctx.confirm_copy": "Copy «{name}» to «{dest}»?",
+    "ctx.confirm_trash_title": "Confirm Deletion",
+    "ctx.confirm_trash": "Move «{name}» to trash?",
 }
 
