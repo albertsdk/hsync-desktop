@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -301,8 +302,54 @@ class ProgressBarDelegate(QStyledItemDelegate):
                 QStyle.ControlElement.CE_ProgressBar, opt, painter
             )
 
+
+class CenteredIconDelegate(QStyledItemDelegate):
+    """Custom delegate that centers the icon in the cell."""
+
+    def paint(self, painter, option, index):
+        # Draw selection background if selected
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        # Get the icon from the item
+        icon = index.data(Qt.ItemDataRole.DecorationRole)
+        if icon and not icon.isNull():
+            # Calculate centered position
+            icon_size = option.decorationSize
+            x = option.rect.x() + (option.rect.width() - icon_size.width()) // 2
+            y = option.rect.y() + (option.rect.height() - icon_size.height()) // 2
+            icon.paint(painter, x, y, icon_size.width(), icon_size.height())
+
+
 # Batch size for async file loading
 _FILE_BATCH_SIZE = 50
+
+
+def _confirm_dialog(
+    parent: QWidget,
+    title: str,
+    message: str,
+    default_no: bool = True,
+) -> bool:
+    """Show a confirmation dialog with translated Yes/No buttons.
+
+    Returns True if user clicked Yes, False otherwise.
+    """
+    msg = QMessageBox(parent)
+    msg.setWindowTitle(title)
+    msg.setText(message)
+    msg.setIcon(QMessageBox.Icon.Question)
+
+    btn_yes = msg.addButton(tr("btn.yes"), QMessageBox.ButtonRole.YesRole)
+    btn_no = msg.addButton(tr("btn.no"), QMessageBox.ButtonRole.NoRole)
+
+    if default_no:
+        msg.setDefaultButton(btn_no)
+    else:
+        msg.setDefaultButton(btn_yes)
+
+    msg.exec()
+    return msg.clickedButton() == btn_yes
 
 
 class DirectoryScanWorker(QObject):
@@ -526,12 +573,8 @@ class FileDetailPanel:
         self._lbl_filepath.setOpenExternalLinks(False)
         self._lbl_filepath.linkActivated.connect(self._on_filepath_clicked)
 
-        # Set close button icon
-        style = frame.style()
-        if style:
-            self._btn_close.setIcon(
-                style.standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton)
-            )
+        # Set close button icon (use bundled icon for cross-platform consistency)
+        self._btn_close.setIcon(get_icon("window-close"))
 
         # Apply translations
         self._apply_translations()
@@ -608,18 +651,25 @@ class FileDetailPanel:
 
 
 class FileTransferTable(QTableWidget):
-    """Sortable table showing file transfers."""
+    """Sortable table showing file transfers with hierarchical folder navigation."""
 
     row_selected = Signal(object)  # Emits FileTransfer or None
     row_deselected = Signal()      # Emitted when clicking on already selected row
     properties_requested = Signal(object)  # Emits FileTransfer for properties panel
+    path_changed = Signal(str)     # Emitted when current navigation path changes
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer
-        self._row_index: Dict[str, int] = {}  # filepath -> row index for fast lookup
+        self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
+        self._row_index: Dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         self._base_directory: str = ""
+
+        # Hierarchical navigation state
+        self._current_path: str = ""  # Current folder (relative to base, "" = root)
+        self._nav_history: list[str] = [""]  # Navigation history stack
+        self._nav_index: int = 0  # Current position in history
+
         # Timer to distinguish single-click from double-click
         self._click_timer = QTimer(self)
         self._click_timer.setSingleShot(True)
@@ -645,7 +695,7 @@ class FileTransferTable(QTableWidget):
         header = self.horizontalHeader()
         header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
-        header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.ResizeToContents)
@@ -653,6 +703,10 @@ class FileTransferTable(QTableWidget):
         header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.ResizeToContents)
+
+        # Icon column: centered icon with fixed width
+        self.setItemDelegateForColumn(COL_ICON, CenteredIconDelegate(self))
+        header.resizeSection(COL_ICON, 32)
 
         # Progress bar delegate and default column width
         self.setItemDelegateForColumn(COL_PROGRESS, ProgressBarDelegate(self))
@@ -712,26 +766,366 @@ class FileTransferTable(QTableWidget):
                 self.row_selected.emit(transfer)
 
     def _on_cell_double_clicked(self, row: int, _col: int) -> None:
-        """Handle double-click: cancel pending single-click and open the file."""
+        """Handle double-click: navigate into folder or open file."""
         self._click_timer.stop()
-        # Ensure the row stays selected
         self._last_selected_row = row
-        transfer = self._get_transfer_at_row(row)
-        if transfer:
-            self._ctx_open(transfer)
+        name_item = self.item(row, COL_NAME)
+        if not name_item:
+            return
+        display_name = name_item.text()
+        # Check if it's a synthesized folder (exists in current level)
+        full_path = (
+            f"{self._current_path}/{display_name}" if self._current_path else display_name
+        )
+        # Check if any transfer has this as a prefix (folder)
+        is_folder = any(
+            t.filepath == full_path + "/" or t.filepath.startswith(full_path + "/")
+            for t in self._transfers.values()
+        )
+        if is_folder:
+            self.navigate_to(full_path)
+        else:
+            # It's a file - open it
+            transfer = self._get_transfer_at_row(row)
+            if transfer:
+                self._ctx_open(transfer)
 
     def set_base_directory(self, directory: str) -> None:
         """Set the base directory for resolving absolute file paths."""
         self._base_directory = directory
+        # Reset navigation when base directory changes
+        self._current_path = ""
+        self._nav_history = [""]
+        self._nav_index = 0
+
+    # ── Hierarchical navigation ───────────────────────────────────────────
+
+    @property
+    def current_path(self) -> str:
+        """Current folder path (relative to base directory)."""
+        return self._current_path
+
+    def navigate_to(self, path: str) -> None:
+        """Navigate to a folder path (relative to base directory)."""
+        path = path.strip("/")
+        if path == self._current_path:
+            return
+        # Add to history (truncate forward history if navigating from middle)
+        self._nav_index += 1
+        self._nav_history = self._nav_history[:self._nav_index] + [path]
+        self._current_path = path
+        self.refresh_view()
+        self.path_changed.emit(path)
+
+    def navigate_back(self) -> None:
+        """Navigate to the previous folder in history."""
+        if self._nav_index > 0:
+            self._nav_index -= 1
+            self._current_path = self._nav_history[self._nav_index]
+            self.refresh_view()
+            self.path_changed.emit(self._current_path)
+
+    def navigate_forward(self) -> None:
+        """Navigate to the next folder in history."""
+        if self._nav_index < len(self._nav_history) - 1:
+            self._nav_index += 1
+            self._current_path = self._nav_history[self._nav_index]
+            self.refresh_view()
+            self.path_changed.emit(self._current_path)
+
+    def navigate_up(self) -> None:
+        """Navigate to parent folder."""
+        if self._current_path:
+            parent = str(Path(self._current_path).parent)
+            self.navigate_to("" if parent == "." else parent)
+
+    def can_go_back(self) -> bool:
+        """Check if back navigation is possible."""
+        return self._nav_index > 0
+
+    def can_go_forward(self) -> bool:
+        """Check if forward navigation is possible."""
+        return self._nav_index < len(self._nav_history) - 1
+
+    def _get_items_at_current_level(self) -> list[tuple[str, FileTransfer | None, dict]]:
+        """Get items to display at the current navigation level.
+
+        Returns a list of (display_name, transfer_or_none, folder_data) tuples.
+        - For files: transfer is the FileTransfer, folder_data is empty
+        - For folders: transfer is None, folder_data contains aggregated info
+        """
+        prefix = f"{self._current_path}/" if self._current_path else ""
+        prefix_len = len(prefix)
+
+        items: dict[str, tuple[FileTransfer | None, dict]] = {}
+        folder_files: dict[str, list[FileTransfer]] = {}  # folder_name -> files within
+
+        for filepath, transfer in self._transfers.items():
+            # Skip files not under current path
+            if prefix and not filepath.startswith(prefix):
+                continue
+            if not prefix and "/" in filepath.rstrip("/"):
+                # Root level: only show top-level items
+                top_part = filepath.split("/")[0]
+                if top_part not in folder_files:
+                    folder_files[top_part] = []
+                folder_files[top_part].append(transfer)
+                continue
+            if prefix:
+                remainder = filepath[prefix_len:]
+            else:
+                remainder = filepath
+
+            # Remove trailing slash for processing
+            remainder_clean = remainder.rstrip("/")
+            if not remainder_clean:
+                continue
+
+            if "/" in remainder_clean:
+                # This is a nested item - extract the immediate subfolder
+                subfolder = remainder_clean.split("/")[0]
+                if subfolder not in folder_files:
+                    folder_files[subfolder] = []
+                folder_files[subfolder].append(transfer)
+            else:
+                # Direct child (file or empty directory)
+                items[remainder_clean] = (transfer, {})
+
+        # Aggregate folder data
+        for folder_name, files in folder_files.items():
+            folder_data = self._aggregate_folder(files)
+            if folder_name in items:
+                # Folder already exists (explicit entry), update with aggregated data
+                existing_transfer, _ = items[folder_name]
+                items[folder_name] = (existing_transfer, folder_data)
+            else:
+                items[folder_name] = (None, folder_data)
+
+        # Sort: folders first, then files, both alphabetically
+        def sort_key(item: tuple[str, tuple[FileTransfer | None, dict]]) -> tuple[int, str]:
+            name, (transfer, folder_data) = item
+            is_folder = transfer is None or transfer.filepath.endswith("/")
+            return (0 if is_folder else 1, name.lower())
+
+        sorted_items = sorted(items.items(), key=sort_key)
+        return [(name, t, fd) for name, (t, fd) in sorted_items]
+
+    def _aggregate_folder(self, files: list[FileTransfer]) -> dict:
+        """Aggregate data for a folder from its contained files.
+
+        Returns dict with: count, total_size, mtime, progress, status, status_key
+        """
+        count = len(files)
+        total_size = 0
+        total_transferred = 0
+        max_mtime = 0.0
+        status_priority = 100  # Lower = higher priority
+        status_key = "folder.status.local"
+
+        # Status priority mapping (lower number = higher priority)
+        priority_map = {
+            TransferStatus.ERROR: 1,
+            TransferStatus.DOWNLOADING: 2,
+            TransferStatus.UPLOADING: 2,
+            TransferStatus.TO_DOWNLOAD: 3,
+            TransferStatus.TO_UPLOAD: 3,
+            TransferStatus.TO_DELETE: 3,
+            TransferStatus.TO_RENAME: 3,
+            TransferStatus.COMPLETED: 4,
+            TransferStatus.SYNCED: 5,
+            TransferStatus.LOCAL: 6,
+        }
+        status_key_map = {
+            1: "folder.status.error",
+            2: "folder.status.syncing",
+            3: "folder.status.to_sync",
+            4: "folder.status.completed",
+            5: "folder.status.synced",
+            6: "folder.status.local",
+        }
+
+        for f in files:
+            if not f.filepath.endswith("/"):  # Only count actual files for size
+                total_size += f.size
+                total_transferred += f.bytes_transferred
+            if f.mtime > max_mtime:
+                max_mtime = f.mtime
+            p = priority_map.get(f.status, 100)
+            if p < status_priority:
+                status_priority = p
+
+        status_key = status_key_map.get(status_priority, "folder.status.local")
+        progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
+
+        return {
+            "count": count,
+            "total_size": total_size,
+            "mtime": max_mtime,
+            "progress": progress,
+            "status_key": status_key,
+            "status_priority": status_priority,
+        }
+
+    def refresh_view(self) -> None:
+        """Refresh the table to show items at the current navigation level."""
+        self.setUpdatesEnabled(False)
+        self.setSortingEnabled(False)
+        try:
+            self.setRowCount(0)
+            self._row_index.clear()
+            self._last_selected_row = -1
+
+            items = self._get_items_at_current_level()
+            for display_name, transfer, folder_data in items:
+                row = self.rowCount()
+                self.insertRow(row)
+                self._row_index[display_name] = row
+                self._populate_row_hierarchical(row, display_name, transfer, folder_data)
+        finally:
+            self.setSortingEnabled(True)
+            self.setUpdatesEnabled(True)
+
+    def _populate_row_hierarchical(
+        self, row: int, display_name: str,
+        transfer: FileTransfer | None, folder_data: dict | None
+    ) -> None:
+        """Populate a row for hierarchical view."""
+        is_folder = transfer is None or transfer.filepath.endswith("/")
+
+        # Icon
+        if is_folder:
+            icon_name, type_key = "folder", "ftype.folder"
+        else:
+            icon_name, type_key = _classify_file(transfer.filepath)  # type: ignore
+        icon_item = QTableWidgetItem()
+        icon_item.setIcon(get_icon(icon_name))
+        icon_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_ICON, icon_item)
+
+        # Name (just the display name, not full path)
+        self.setItem(row, COL_NAME, QTableWidgetItem(display_name))
+
+        # Type
+        self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))
+
+        # Size / Item count
+        if is_folder and folder_data:
+            count = folder_data.get("count", 0)
+            size_text = tr("folder.items").format(count=count)
+        elif transfer and not is_folder:
+            size_text = _format_size(transfer.size)
+        else:
+            size_text = ""
+        size_item = QTableWidgetItem(size_text)
+        size_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_SIZE, size_item)
+
+        # Modified
+        mtime = folder_data.get("mtime", 0.0) if folder_data else (transfer.mtime if transfer else 0.0)
+        mtime_item = QTableWidgetItem(_format_mtime(mtime))
+        mtime_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_MODIFIED, mtime_item)
+
+        # Progress
+        progress_item = QTableWidgetItem()
+        if is_folder:
+            # For folders: hide progress bar if not actively syncing
+            # Show progress only when folder status indicates sync is in progress
+            if folder_data:
+                status_priority = folder_data.get("status_priority", 100)
+                # Priority 2 = syncing (downloading/uploading), 3 = to_sync
+                # Only show progress bar during active sync (priority 2)
+                if status_priority == 2:
+                    progress = folder_data.get("progress", -1)
+                else:
+                    progress = -1  # Hide bar for local, synced, completed, to_sync, error
+            else:
+                progress = -1
+            progress_item.setData(Qt.ItemDataRole.UserRole, progress)
+        elif transfer:
+            if transfer.status in _NO_PROGRESS_STATUSES:
+                progress_item.setData(Qt.ItemDataRole.UserRole, -1)
+            elif transfer.size > 0:
+                pct = int(transfer.bytes_transferred / transfer.size * 100)
+                progress_item.setData(Qt.ItemDataRole.UserRole, pct)
+            else:
+                # File with size 0: no progress bar
+                progress_item.setData(Qt.ItemDataRole.UserRole, -1)
+        else:
+            progress_item.setData(Qt.ItemDataRole.UserRole, -1)
+        self.setItem(row, COL_PROGRESS, progress_item)
+
+        # ETA
+        eta = transfer.eta_seconds if transfer else None
+        eta_item = QTableWidgetItem(_format_eta(eta))
+        eta_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_ETA, eta_item)
+
+        # Status
+        if is_folder and folder_data:
+            status_key = folder_data.get("status_key", "folder.status.local")
+            status_text = tr(status_key)
+            status_priority = folder_data.get("status_priority", 6)
+            # Map priority to TransferStatus for color
+            priority_to_status = {
+                1: TransferStatus.ERROR,
+                2: TransferStatus.DOWNLOADING,
+                3: TransferStatus.TO_DOWNLOAD,
+                4: TransferStatus.COMPLETED,
+                5: TransferStatus.SYNCED,
+                6: TransferStatus.LOCAL,
+            }
+            status_for_color = priority_to_status.get(status_priority, TransferStatus.LOCAL)
+        elif transfer:
+            status_map = {
+                TransferStatus.LOCAL: tr("detail.local"),
+                TransferStatus.SYNCED: tr("detail.synced"),
+                TransferStatus.TO_DOWNLOAD: tr("detail.to_download"),
+                TransferStatus.TO_UPLOAD: tr("detail.to_upload"),
+                TransferStatus.TO_DELETE: tr("detail.to_delete"),
+                TransferStatus.TO_RENAME: tr("detail.to_rename"),
+                TransferStatus.DOWNLOADING: tr("detail.downloading"),
+                TransferStatus.UPLOADING: tr("detail.uploading"),
+                TransferStatus.DELETED: tr("detail.deleted"),
+                TransferStatus.QUEUED: tr("detail.pending"),
+                TransferStatus.TRANSFERRING: tr("detail.transferring"),
+                TransferStatus.COMPLETED: tr("detail.completed"),
+                TransferStatus.ERROR: tr("status.error"),
+            }
+            status_text = status_map.get(transfer.status, "?")
+            status_for_color = transfer.status
+        else:
+            status_text = ""
+            status_for_color = TransferStatus.LOCAL
+        self.setItem(row, COL_STATUS, QTableWidgetItem(status_text))
+
+        # Apply status color
+        color = STATUS_COLORS.get(status_for_color, QColor(128, 128, 128))
+        for col in range(self.columnCount()):
+            item = self.item(row, col)
+            if item:
+                item.setForeground(color)
 
     def _get_transfer_at_row(self, row: int) -> FileTransfer | None:
-        """Return the FileTransfer for the given row, or None."""
+        """Return the FileTransfer for the given row, or None (for synthesized folders)."""
         name_item = self.item(row, COL_NAME)
-        if name_item:
-            key = name_item.text()
-            # Try exact match first, then with trailing "/" (directory marker)
-            return self._transfers.get(key) or self._transfers.get(key + "/")
-        return None
+        if not name_item:
+            return None
+        display_name = name_item.text()
+        # Build full path from current navigation path + display name
+        full_path = (
+            f"{self._current_path}/{display_name}" if self._current_path else display_name
+        )
+        # Try exact match, then with trailing "/" (directory marker)
+        return self._transfers.get(full_path) or self._transfers.get(full_path + "/")
 
     def _absolute_path(self, transfer: FileTransfer) -> str:
         """Build the absolute path of a transfer's file."""
@@ -744,9 +1138,28 @@ class FileTransferTable(QTableWidget):
         index = self.indexAt(pos)
         if not index.isValid():
             return
-        transfer = self._get_transfer_at_row(index.row())
+
+        row = index.row()
+        transfer = self._get_transfer_at_row(row)
+
+        # For synthesized folders (no direct transfer), create a virtual one
         if not transfer:
-            return
+            name_item = self.item(row, COL_NAME)
+            if not name_item:
+                return
+            display_name = name_item.text()
+            # Build folder path
+            folder_path = (
+                f"{self._current_path}/{display_name}/"
+                if self._current_path else f"{display_name}/"
+            )
+            # Create a virtual transfer for the folder
+            transfer = FileTransfer(
+                filepath=folder_path,
+                direction="—",
+                size=0,
+                status=TransferStatus.LOCAL,
+            )
 
         is_dir = transfer.filepath.endswith("/")
 
@@ -857,22 +1270,43 @@ class FileTransferTable(QTableWidget):
         if not dest_dir:
             return
 
-        # Confirmation dialog
+        # Confirmation dialog with translated buttons
         display_name = transfer.filepath.rstrip("/")
-        answer = QMessageBox.question(
+        if not _confirm_dialog(
             self,
             tr("ctx.confirm_copy_title"),
             tr("ctx.confirm_copy").format(name=display_name, dest=dest_dir),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if answer != QMessageBox.StandardButton.Yes:
+        ):
             return
 
+        # Check if destination already exists and ask for overwrite confirmation
+        is_dir = os.path.isdir(abs_path)
+        item_name = os.path.basename(abs_path.rstrip("/"))
+        dest_path = os.path.join(dest_dir, item_name)
+
+        if os.path.exists(dest_path):
+            if not _confirm_dialog(
+                self,
+                tr("ctx.confirm_overwrite_title"),
+                tr("ctx.confirm_overwrite").format(name=item_name, dest=dest_dir),
+            ):
+                return
+            # Remove existing destination before copying
+            try:
+                if os.path.isdir(dest_path):
+                    shutil.rmtree(dest_path)
+                else:
+                    os.remove(dest_path)
+            except Exception as exc:
+                QMessageBox.warning(
+                    self, tr("ctx.error_title"),
+                    tr("ctx.error_copy").format(error=str(exc)),
+                )
+                return
+
         try:
-            if os.path.isdir(abs_path):
-                dir_name = os.path.basename(abs_path.rstrip("/"))
-                shutil.copytree(abs_path, os.path.join(dest_dir, dir_name))
+            if is_dir:
+                shutil.copytree(abs_path, dest_path)
             else:
                 shutil.copy2(abs_path, dest_dir)
         except Exception as exc:
@@ -925,11 +1359,8 @@ class FileTransferTable(QTableWidget):
             del self._transfers[old_rel]
             transfer.filepath = new_rel
             self._transfers[new_rel] = transfer
-            # Update row_index
-            if old_rel in self._row_index:
-                row = self._row_index.pop(old_rel)
-                self._row_index[new_rel] = row
-            self._refresh_row(transfer)
+            # Refresh the view to show the renamed file
+            self.refresh_view()
         except Exception as exc:
             QMessageBox.warning(
                 self, tr("ctx.error_title"),
@@ -939,14 +1370,11 @@ class FileTransferTable(QTableWidget):
     def _ctx_trash(self, transfer: FileTransfer) -> None:
         """Move the file to the system trash (with confirmation)."""
         display_name = transfer.filepath.rstrip("/")
-        answer = QMessageBox.question(
+        if not _confirm_dialog(
             self,
             tr("ctx.confirm_trash_title"),
             tr("ctx.confirm_trash").format(name=display_name),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if answer != QMessageBox.StandardButton.Yes:
+        ):
             return
 
         abs_path = self._absolute_path(transfer)
@@ -1004,13 +1432,13 @@ class FileTransferTable(QTableWidget):
     def add_transfer(self, transfer: FileTransfer) -> None:
         """Add or update a transfer in the table."""
         self._transfers[transfer.filepath] = transfer
-        self._refresh_row(transfer)
+        self.refresh_view()
 
     def update_transfer_status(self, filepath: str, status: TransferStatus) -> None:
         """Update the status of a transfer."""
         if filepath in self._transfers:
             self._transfers[filepath].status = status
-            self._refresh_row(self._transfers[filepath])
+            self.refresh_view()
 
     def mark_completed(self, filepath: str, size: int = 0, direction: str = "↓") -> None:
         """Mark a transfer as completed, creating it if it doesn't exist."""
@@ -1030,12 +1458,15 @@ class FileTransferTable(QTableWidget):
                 status=TransferStatus.COMPLETED,
             )
             self._transfers[filepath] = t
-        self._refresh_row(t)
+        self.refresh_view()
 
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
         self._transfers.clear()
         self._row_index.clear()
+        self._current_path = ""
+        self._nav_history = [""]
+        self._nav_index = 0
         self.setRowCount(0)
 
     def reset_all_to_local(self) -> None:
@@ -1044,35 +1475,15 @@ class FileTransferTable(QTableWidget):
             transfer.status = TransferStatus.LOCAL
             transfer.direction = "—"
             transfer.bytes_transferred = 0
-        # Bulk-refresh all visible rows
-        self.setUpdatesEnabled(False)
-        try:
-            for transfer in self._transfers.values():
-                self._refresh_row(transfer)
-        finally:
-            self.setUpdatesEnabled(True)
+        self.refresh_view()
 
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
         """Add multiple transfers efficiently with UI updates disabled."""
         if not transfers:
             return
-
-        self.setUpdatesEnabled(False)
-        self.setSortingEnabled(False)
-        try:
-            for transfer in transfers:
-                self._transfers[transfer.filepath] = transfer
-                self._add_row_fast(transfer)
-        finally:
-            self.setSortingEnabled(True)
-            self.setUpdatesEnabled(True)
-
-    def _add_row_fast(self, transfer: FileTransfer) -> None:
-        """Add a new row without searching for existing (for batch insert)."""
-        row = self.rowCount()
-        self.insertRow(row)
-        self._row_index[transfer.filepath] = row
-        self._populate_row(row, transfer)
+        for transfer in transfers:
+            self._transfers[transfer.filepath] = transfer
+        self.refresh_view()
 
     def update_file_status(
         self,
@@ -1140,7 +1551,7 @@ class FileTransferTable(QTableWidget):
                 client_ip=client_ip,
             )
             self._transfers[filepath] = t
-        self._refresh_row(t)
+        self.refresh_view()
 
     def mark_deleted(self, filepath: str) -> None:
         """
@@ -1152,7 +1563,7 @@ class FileTransferTable(QTableWidget):
             t = self._transfers[filepath]
             t.status = TransferStatus.DELETED
             t.direction = "✕"
-            self._refresh_row(t)
+            self.refresh_view()
             # Schedule removal after 3 seconds
             QTimer.singleShot(3000, lambda: self._remove_file(filepath))
 
@@ -1160,18 +1571,8 @@ class FileTransferTable(QTableWidget):
         """Remove a file from the table."""
         if filepath not in self._transfers:
             return
-
-        row = self._row_index.get(filepath, -1)
-        if row >= 0:
-            self.removeRow(row)
-            # Update indices for rows after the removed one
-            del self._row_index[filepath]
-            for path, r in self._row_index.items():
-                if r > row:
-                    self._row_index[path] = r - 1
-
-        # Remove from internal dict
         del self._transfers[filepath]
+        self.refresh_view()
 
     def rename_file(
         self,
@@ -1195,7 +1596,7 @@ class FileTransferTable(QTableWidget):
         old_size = 0
         if old_path in self._transfers:
             old_size = self._transfers[old_path].size
-            self._remove_file(old_path)
+            del self._transfers[old_path]
 
         # Add or update the new entry as synced
         if new_path in self._transfers:
@@ -1221,101 +1622,11 @@ class FileTransferTable(QTableWidget):
                 client_ip=client_ip,
             )
             self._transfers[new_path] = t
-        self._refresh_row(t)
+        self.refresh_view()
 
     def remove_transfer(self, filepath: str) -> None:
         """Remove a transfer from the table immediately."""
         self._remove_file(filepath)
-
-    def _refresh_row(self, transfer: FileTransfer) -> None:
-        """Refresh or create a row for the given transfer."""
-        # Use index for fast lookup
-        row = self._row_index.get(transfer.filepath, -1)
-
-        if row < 0:
-            row = self.rowCount()
-            self.insertRow(row)
-            self._row_index[transfer.filepath] = row
-
-        self._populate_row(row, transfer)
-
-    def _populate_row(self, row: int, transfer: FileTransfer) -> None:
-        """Populate a row with transfer data."""
-        is_dir = transfer.filepath.endswith("/")
-
-        # Icon (centered)
-        icon_name, type_key = _classify_file(transfer.filepath)
-        icon_item = QTableWidgetItem()
-        icon_item.setIcon(get_icon(icon_name))
-        icon_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.setItem(row, COL_ICON, icon_item)
-
-        # Name (full relative path, strip trailing "/" for display)
-        display_name = transfer.filepath.rstrip("/")
-        self.setItem(row, COL_NAME, QTableWidgetItem(display_name))
-
-        # Type
-        self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))
-
-        # Size (right-aligned) — empty for directories
-        size_text = "" if is_dir else _format_size(transfer.size)
-        size_item = QTableWidgetItem(size_text)
-        size_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.setItem(row, COL_SIZE, size_item)
-
-        # Modification date (right-aligned)
-        mtime_item = QTableWidgetItem(_format_mtime(transfer.mtime))
-        mtime_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.setItem(row, COL_MODIFIED, mtime_item)
-
-        # Progress (rendered by ProgressBarDelegate via UserRole data)
-        progress_item = QTableWidgetItem()
-        if transfer.status in _NO_PROGRESS_STATUSES:
-            progress_item.setData(Qt.ItemDataRole.UserRole, -1)
-        elif transfer.size > 0:
-            pct = int(transfer.bytes_transferred / transfer.size * 100)
-            progress_item.setData(Qt.ItemDataRole.UserRole, pct)
-        else:
-            progress_item.setData(Qt.ItemDataRole.UserRole, 0)
-        self.setItem(row, COL_PROGRESS, progress_item)
-
-        # ETA (right-aligned)
-        eta_item = QTableWidgetItem(_format_eta(transfer.eta_seconds))
-        eta_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.setItem(row, COL_ETA, eta_item)
-
-        # Status
-        status_map = {
-            TransferStatus.LOCAL: tr("detail.local"),
-            TransferStatus.SYNCED: tr("detail.synced"),
-            TransferStatus.TO_DOWNLOAD: tr("detail.to_download"),
-            TransferStatus.TO_UPLOAD: tr("detail.to_upload"),
-            TransferStatus.TO_DELETE: tr("detail.to_delete"),
-            TransferStatus.TO_RENAME: tr("detail.to_rename"),
-            TransferStatus.DOWNLOADING: tr("detail.downloading"),
-            TransferStatus.UPLOADING: tr("detail.uploading"),
-            TransferStatus.DELETED: tr("detail.deleted"),
-            TransferStatus.QUEUED: tr("detail.pending"),
-            TransferStatus.TRANSFERRING: tr("detail.transferring"),
-            TransferStatus.COMPLETED: tr("detail.completed"),
-            TransferStatus.ERROR: tr("status.error"),
-        }
-        self.setItem(row, COL_STATUS, QTableWidgetItem(status_map.get(transfer.status, "?")))
-
-        # Apply status color to all cells in the row
-        color = STATUS_COLORS.get(transfer.status, QColor(128, 128, 128))
-        for col in range(self.columnCount()):
-            item = self.item(row, col)
-            if item:
-                item.setForeground(color)
 
 
 class FilePanel(QWidget):
@@ -1360,6 +1671,55 @@ class FilePanel(QWidget):
         table_layout = QVBoxLayout(self._table_container)
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
+
+        # Navigation toolbar (back/forward/up buttons)
+        nav_bar = QWidget()
+        nav_layout = QHBoxLayout(nav_bar)
+        nav_layout.setContentsMargins(4, 4, 4, 4)
+        nav_layout.setSpacing(4)
+
+        self._btn_back = QToolButton()
+        self._btn_back.setIcon(get_icon("go-previous"))
+        self._btn_back.setToolTip(tr("nav.back"))
+        self._btn_back.setEnabled(False)
+        self._btn_back.setAutoRaise(True)
+
+        self._btn_forward = QToolButton()
+        self._btn_forward.setIcon(get_icon("go-next"))
+        self._btn_forward.setToolTip(tr("nav.forward"))
+        self._btn_forward.setEnabled(False)
+        self._btn_forward.setAutoRaise(True)
+
+        self._btn_up = QToolButton()
+        self._btn_up.setIcon(get_icon("go-up"))
+        self._btn_up.setToolTip(tr("nav.up"))
+        self._btn_up.setEnabled(False)
+        self._btn_up.setAutoRaise(True)
+
+        nav_layout.addWidget(self._btn_back)
+        nav_layout.addWidget(self._btn_forward)
+        nav_layout.addWidget(self._btn_up)
+
+        # Breadcrumb folder icon (clickable to go to root)
+        self._breadcrumb_icon = QLabel(nav_bar)
+        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        self._breadcrumb_icon.setFixedSize(20, 20)
+        self._breadcrumb_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._breadcrumb_icon.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._breadcrumb_icon.setToolTip(tr("nav.root"))
+        self._breadcrumb_icon.mousePressEvent = lambda _: self._table.navigate_to("")
+        nav_layout.addWidget(self._breadcrumb_icon)
+
+        # Breadcrumb label for folder navigation
+        self._breadcrumb_label = QLabel()
+        self._breadcrumb_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.LinksAccessibleByMouse
+        )
+        self._breadcrumb_label.setOpenExternalLinks(False)
+        self._breadcrumb_label.linkActivated.connect(self._on_breadcrumb_clicked)
+        nav_layout.addWidget(self._breadcrumb_label, 1)  # stretch factor 1
+
+        table_layout.addWidget(nav_bar)
         table_layout.addWidget(self._table)
 
         # Remove the .ui table and insert our container
@@ -1386,6 +1746,15 @@ class FilePanel(QWidget):
         self._table.row_selected.connect(self._on_row_selected)
         self._table.properties_requested.connect(self._on_properties_requested)
         self._detail._btn_close.clicked.connect(self._on_detail_close)
+
+        # Navigation button signals
+        self._btn_back.clicked.connect(self._table.navigate_back)
+        self._btn_forward.clicked.connect(self._table.navigate_forward)
+        self._btn_up.clicked.connect(self._table.navigate_up)
+        self._table.path_changed.connect(self._update_nav_buttons)
+
+        # Initialize breadcrumb
+        self._update_breadcrumb()
 
     @Slot()
     def _on_detail_close(self) -> None:
@@ -1414,6 +1783,55 @@ class FilePanel(QWidget):
         self._splitter.setSizes([800, 0])
         self._table.clearSelection()
         self._table._last_selected_row = -1
+
+    @Slot(str)
+    def _update_nav_buttons(self, _path: str) -> None:
+        """Update navigation button enabled state based on navigation history."""
+        self._btn_back.setEnabled(self._table.can_go_back())
+        self._btn_forward.setEnabled(self._table.can_go_forward())
+        # "Up" is enabled if not at root
+        self._btn_up.setEnabled(bool(self._table.current_path))
+        # Update breadcrumb
+        self._update_breadcrumb()
+
+    def _update_breadcrumb(self) -> None:
+        """Update the breadcrumb label with the current navigation path."""
+        # Update icon (may have changed with theme)
+        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
+
+        current_folder = self._table.current_path
+
+        # If at root, show nothing in the label (icon is already visible)
+        if not current_folder:
+            self._breadcrumb_label.setText("")
+            self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
+            return
+
+        link_color = self._breadcrumb_label.palette().color(
+            self._breadcrumb_label.palette().ColorRole.Link
+        ).name()
+
+        parts = []
+
+        # Add folder segments (root icon is shown separately)
+        segments = current_folder.split("/")
+        path_so_far = ""
+        for seg in segments:
+            path_so_far = f"{path_so_far}/{seg}" if path_so_far else seg
+            parts.append(
+                f'<a href="nav:{path_so_far}" style="color:{link_color}; '
+                f'text-decoration:none;">{seg}</a>'
+            )
+
+        breadcrumb = " › " + " › ".join(parts)
+        self._breadcrumb_label.setText(breadcrumb)
+        self._breadcrumb_label.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def _on_breadcrumb_clicked(self, link: str) -> None:
+        """Handle click on breadcrumb segment."""
+        if link.startswith("nav:"):
+            folder_path = link[4:]  # Remove "nav:" prefix
+            self._table.navigate_to(folder_path)
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -1668,4 +2086,17 @@ class FilePanel(QWidget):
     def table(self) -> FileTransferTable:
         """Access the underlying table widget."""
         return self._table
+
+    def refresh_icons_for_theme(self) -> None:
+        """Refresh all icons after theme change."""
+        # Refresh navigation button icons
+        self._btn_back.setIcon(get_icon("go-previous"))
+        self._btn_forward.setIcon(get_icon("go-next"))
+        self._btn_up.setIcon(get_icon("go-up"))
+        # Refresh breadcrumb icon
+        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        # Refresh close button icon in detail panel
+        self._btn_close_detail.setIcon(get_icon("window-close"))
+        # Refresh table view to update file type icons
+        self._table.refresh_view()
 
