@@ -1926,12 +1926,18 @@ class FilePanel(QWidget):
         self._scan_worker.moveToThread(self._scan_thread)
 
         # Connect signals (capture current_gen for stale-batch guard)
+        # Use QueuedConnection to ensure slots run in the main GUI thread
         self._scan_thread.started.connect(self._scan_worker.run)
         self._scan_worker.files_found.connect(
-            lambda files, g=current_gen: self._on_files_found(files, g)
+            lambda files, g=current_gen: self._on_files_found(files, g),
+            Qt.ConnectionType.QueuedConnection
         )
-        self._scan_worker.progress.connect(self._on_scan_progress)
-        self._scan_worker.finished.connect(self._on_scan_finished)
+        self._scan_worker.progress.connect(
+            self._on_scan_progress, Qt.ConnectionType.QueuedConnection
+        )
+        self._scan_worker.finished.connect(
+            self._on_scan_finished, Qt.ConnectionType.QueuedConnection
+        )
 
         # Start scanning
         self._scan_thread.start()
