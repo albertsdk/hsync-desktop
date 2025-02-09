@@ -2096,7 +2096,7 @@ class FilePanel(QWidget):
         # Refresh breadcrumb icon
         self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
         # Refresh close button icon in detail panel
-        self._btn_close_detail.setIcon(get_icon("window-close"))
+        self._detail._btn_close.setIcon(get_icon("window-close"))
         # Refresh table view to update file type icons
         self._table.refresh_view()
 
