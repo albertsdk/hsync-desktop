@@ -140,6 +140,9 @@ class MainWindow(QMainWindow):
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
         self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
         self._btn_settings: QPushButton = self.findChild(QPushButton, "btnSettings")  # type: ignore[assignment]
+        # Set icons for action buttons
+        from hsync_desktop.icons import icon as get_icon
+        self._btn_refresh.setIcon(get_icon("view-refresh"))
         self._btn_browse: QToolButton = self.findChild(QToolButton, "btnBrowse")  # type: ignore[assignment]
         self._path_label: QLabel = self.findChild(QLabel, "pathLabel")  # type: ignore[assignment]
         self._path_label.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
@@ -148,7 +151,6 @@ class MainWindow(QMainWindow):
         self._local_path: str = ""
 
         # Add folder icon label before path label
-        from hsync_desktop.icons import icon as get_icon
         self._path_icon_label = QLabel(self.centralWidget())
         self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
         self._path_icon_label.setFixedSize(20, 20)
@@ -875,6 +877,8 @@ class MainWindow(QMainWindow):
         """Refresh all icons after theme change."""
         from hsync_desktop.icons import clear_icon_cache, icon as get_icon
         clear_icon_cache()
+        # Refresh button icons
+        self._btn_refresh.setIcon(get_icon("view-refresh"))
         # Refresh path icon
         if self._local_path:
             self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
