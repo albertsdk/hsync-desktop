@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -30,7 +31,9 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QSpinBox,
+    QGroupBox,
     QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -165,17 +168,39 @@ class SettingsDialog(QDialog):
         if main_layout:
             main_layout.insertWidget(0, self._connection_banner)
 
-        # Connection tab widgets
+        # Sync tab widgets (now first tab, index 0)
+        self.shared_path: QLineEdit = self.findChild(QLineEdit, "sharedPath")  # type: ignore[assignment]
+        self.btn_browse_shared: QToolButton = self.findChild(QToolButton, "btnBrowseShared")  # type: ignore[assignment]
+        self.bucket: QLineEdit = self.findChild(QLineEdit, "bucket")  # type: ignore[assignment]
+        self.continuous, self._lbl_continuous = _replace_checkbox_with_toggle(self, "continuous")
+        self.ignore_delete, self._lbl_ignore_delete = _replace_checkbox_with_toggle(self, "ignoreDelete")
+
+        # Sync direction combo – inject BEFORE ignore_delete row (so direction comes first)
+        self.sync_direction_combo = QComboBox(self)
+        self.sync_direction_combo.addItem("", "bidirectional")
+        self.sync_direction_combo.addItem("", "upload-only")
+        self.sync_direction_combo.addItem("", "download-only")
+        self._lbl_sync_direction = QLabel(self)
+        # Find the Sync tab form layout and inject before ignore_delete row
+        sync_tab = self._tabs.widget(0)  # Sync is the first tab (index 0)
+        if sync_tab:
+            for child in sync_tab.findChildren(QFormLayout):
+                form: QFormLayout = child
+                # Find the ignore_delete row and insert before it
+                for row in range(form.rowCount()):
+                    item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    if item and item.widget() and item.widget() is self.ignore_delete.parent():
+                        form.insertRow(row, self._lbl_sync_direction, self.sync_direction_combo)
+                        break
+                break
+
+        # Connection tab widgets (now second tab, index 1 — "Server Mode")
         self.server_url: QLineEdit = self.findChild(QLineEdit, "serverUrl")  # type: ignore[assignment]
         self.api_key: QLineEdit = self.findChild(QLineEdit, "apiKey")  # type: ignore[assignment]
         self.insecure, self._lbl_insecure = _replace_checkbox_with_toggle(self, "insecure")
         self.ca_cert: QLineEdit = self.findChild(QLineEdit, "caCert")  # type: ignore[assignment]
         self.http_timeout: QSpinBox = self.findChild(QSpinBox, "httpTimeout")  # type: ignore[assignment]
 
-        # Sync tab widgets
-        self.bucket: QLineEdit = self.findChild(QLineEdit, "bucket")  # type: ignore[assignment]
-        self.continuous, self._lbl_continuous = _replace_checkbox_with_toggle(self, "continuous")
-        self.ignore_delete, self._lbl_ignore_delete = _replace_checkbox_with_toggle(self, "ignoreDelete")
         self.resync: QSpinBox = self.findChild(QSpinBox, "resync")  # type: ignore[assignment]
         self.retry_delay: QSpinBox = self.findChild(QSpinBox, "retryDelay")  # type: ignore[assignment]
         self.stability_delay: QSpinBox = self.findChild(QSpinBox, "stabilityDelay")  # type: ignore[assignment]
@@ -184,6 +209,9 @@ class SettingsDialog(QDialog):
         self.no_compression, self._lbl_no_compression = _replace_checkbox_with_toggle(self, "noCompression")
         self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
         self.auto_sync, self._lbl_auto_sync = _replace_checkbox_with_toggle(self, "autoSync")
+
+        # Reorganize sync tab into grouped sections
+        self._reorganize_sync_tab()
 
         # LAN tab widgets
         self.lan_mode, self._lbl_lan_mode = _replace_checkbox_with_toggle(self, "lanMode")
@@ -216,11 +244,39 @@ class SettingsDialog(QDialog):
         self.tooltips_enabled, self._lbl_tooltips = _replace_checkbox_with_toggle(self, "tooltipsEnabled")
 
         # Set tab icons programmatically (theme icons don't work cross-platform)
-        self._tabs.setTabIcon(0, icon("network-wired"))
-        self._tabs.setTabIcon(1, icon("emblem-synchronizing"))
+        self._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
+        self._tabs.setTabIcon(1, icon("network-wired"))         # Server Mode (second)
         self._tabs.setTabIcon(2, icon("network-workgroup"))
         self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
         self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
+
+        # Create info banner for Server Mode tab when LAN is active (hidden by default)
+        self._lan_banner = QFrame(self)
+        self._lan_banner.setObjectName("lanBanner")
+        self._lan_banner.setStyleSheet(
+            "QFrame#lanBanner { "
+            "background-color: #fff3cd; "
+            "border: 1px solid #ffc107; "
+            "border-radius: 4px; "
+            "padding: 8px; "
+            "}"
+        )
+        lan_banner_layout = QHBoxLayout(self._lan_banner)
+        lan_banner_layout.setContentsMargins(8, 4, 8, 4)
+        self._lan_banner_icon = QLabel("⚠️")
+        self._lan_banner_text = QLabel()
+        self._lan_banner_text.setWordWrap(True)
+        self._lan_banner_text.setStyleSheet("color: #856404;")
+        lan_banner_layout.addWidget(self._lan_banner_icon)
+        lan_banner_layout.addWidget(self._lan_banner_text, 1)
+        self._lan_banner.hide()
+
+        # Insert LAN banner at the top of the Server Mode (tabConnection) layout
+        conn_tab = self._tabs.widget(1)
+        if conn_tab:
+            conn_layout = conn_tab.layout()
+            if isinstance(conn_layout, QFormLayout):
+                conn_layout.insertRow(0, self._lan_banner)
 
         # Setup language combo with proper data
         self.lang_combo.clear()
@@ -231,18 +287,105 @@ class SettingsDialog(QDialog):
         self._apply_translations()
         self._apply_tooltips()
 
+        # Auto-size to fit all content (especially the grouped Sync tab)
+        self.setMinimumSize(0, 0)          # Override .ui minimumSize
+        self.setMinimumWidth(640)          # Keep a reasonable minimum width
+        self.adjustSize()                   # Resize to sizeHint
+        hint = self.sizeHint()
+        self.setFixedSize(max(hint.width(), 640), hint.height())
+
+    # ── Sync tab grouping ─────────────────────────────────────────
+
+    def _reorganize_sync_tab(self) -> None:
+        """Reorganize the Sync tab into grouped sections using QGroupBox."""
+        sync_tab = self._tabs.widget(0)
+        if not sync_tab:
+            return
+
+        # ── Collect label references from .ui ──────────────────
+        lbl_shared: QLabel = self.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
+        lbl_bucket: QLabel = self.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
+        lbl_resync: QLabel = self.findChild(QLabel, "lblResync")  # type: ignore[assignment]
+        lbl_retry: QLabel = self.findChild(QLabel, "lblRetryDelay")  # type: ignore[assignment]
+        lbl_stability: QLabel = self.findChild(QLabel, "lblStabilityDelay")  # type: ignore[assignment]
+        lbl_max_wait: QLabel = self.findChild(QLabel, "lblMaxWait")  # type: ignore[assignment]
+        lbl_filter: QLabel = self.findChild(QLabel, "lblFilterPath")  # type: ignore[assignment]
+
+        # Toggle switch containers (toggle.parent() == container QWidget)
+        cont_continuous: QWidget = self.continuous.parent()  # type: ignore[assignment]
+        cont_ignore: QWidget = self.ignore_delete.parent()  # type: ignore[assignment]
+        cont_no_comp: QWidget = self.no_compression.parent()  # type: ignore[assignment]
+        cont_dry_run: QWidget = self.dry_run.parent()  # type: ignore[assignment]
+        cont_auto_sync: QWidget = self.auto_sync.parent()  # type: ignore[assignment]
+
+        # ── Detach old layout ──────────────────────────────────
+        old = sync_tab.layout()
+        if old is not None:
+            while old.count():
+                old.takeAt(0)
+            _tmp = QWidget()
+            _tmp.setLayout(old)
+
+        # ── Build new grouped layout (no scroll) ──────────────
+        vbox = QVBoxLayout(sync_tab)
+        vbox.setContentsMargins(4, 4, 4, 4)
+        vbox.setSpacing(8)
+
+        # Group 1: Path & Bucket
+        self._grp_path = QGroupBox(tr("settings.group.path_bucket"))
+        f1 = QFormLayout(self._grp_path)
+        path_row = QHBoxLayout()
+        path_row.addWidget(self.shared_path)
+        path_row.addWidget(self.btn_browse_shared)
+        f1.addRow(lbl_shared, path_row)
+        f1.addRow(lbl_bucket, self.bucket)
+        vbox.addWidget(self._grp_path)
+
+        # Group 2: Sync Mode
+        self._grp_sync = QGroupBox(tr("settings.group.sync_mode"))
+        f2 = QFormLayout(self._grp_sync)
+        f2.addRow(self._lbl_sync_direction, self.sync_direction_combo)
+        f2.addRow("", cont_ignore)
+        f2.addRow("", cont_continuous)
+        f2.addRow("", cont_auto_sync)
+        vbox.addWidget(self._grp_sync)
+
+        # Group 3: Timing & Intervals
+        self._grp_timing = QGroupBox(tr("settings.group.timing"))
+        f3 = QFormLayout(self._grp_timing)
+        f3.addRow(lbl_resync, self.resync)
+        f3.addRow(lbl_retry, self.retry_delay)
+        f3.addRow(lbl_stability, self.stability_delay)
+        f3.addRow(lbl_max_wait, self.max_wait)
+        vbox.addWidget(self._grp_timing)
+
+        # Group 4: Advanced Options
+        self._grp_advanced = QGroupBox(tr("settings.group.advanced"))
+        f4 = QFormLayout(self._grp_advanced)
+        f4.addRow(lbl_filter, self.filter_path)
+        f4.addRow("", cont_no_comp)
+        f4.addRow("", cont_dry_run)
+        vbox.addWidget(self._grp_advanced)
+
+        vbox.addStretch()
+
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
         self.setWindowTitle(tr("settings.title"))
 
         # Tab titles
-        self._tabs.setTabText(0, tr("settings.connection"))
-        self._tabs.setTabText(1, tr("settings.sync"))
+        self._tabs.setTabText(0, tr("settings.sync"))
+        self._tabs.setTabText(1, tr("settings.server_mode"))
         self._tabs.setTabText(2, tr("settings.lan"))
         self._tabs.setTabText(3, tr("settings.log"))
         self._tabs.setTabText(4, tr("settings.appearance"))
 
-        # Connection tab labels
+        # Sync tab - shared path label
+        lbl_shared: QLabel = self.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
+        if lbl_shared:
+            lbl_shared.setText(tr("settings.shared_path"))
+
+        # Server Mode tab labels
         lbl: QLabel = self.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.server_url"))
@@ -263,6 +406,10 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.bucket"))
         self._lbl_continuous.setText(tr("settings.watch"))
         self._lbl_ignore_delete.setText(tr("settings.ignore_delete"))
+        self._lbl_sync_direction.setText(tr("settings.sync_direction"))
+        self.sync_direction_combo.setItemText(0, tr("settings.sync_direction.bidirectional"))
+        self.sync_direction_combo.setItemText(1, tr("settings.sync_direction.upload_only"))
+        self.sync_direction_combo.setItemText(2, tr("settings.sync_direction.download_only"))
         lbl = self.findChild(QLabel, "lblResync")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.resync"))
@@ -281,6 +428,12 @@ class SettingsDialog(QDialog):
         self._lbl_no_compression.setText(tr("settings.no_compression"))
         self._lbl_dry_run.setText(tr("settings.dry_run"))
         self._lbl_auto_sync.setText(tr("settings.auto_sync"))
+
+        # Sync tab group box titles
+        self._grp_path.setTitle(tr("settings.group.path_bucket"))
+        self._grp_sync.setTitle(tr("settings.group.sync_mode"))
+        self._grp_timing.setTitle(tr("settings.group.timing"))
+        self._grp_advanced.setTitle(tr("settings.group.advanced"))
 
         # LAN tab labels
         self._lbl_lan_mode.setText(tr("settings.lan_mode"))
@@ -331,17 +484,12 @@ class SettingsDialog(QDialog):
         """Apply tooltips to widgets if enabled."""
         tips = self._tips_enabled()
 
-        # Connection tab
-        _maybe_tip(self.server_url, "tip.server_url", tips)
-        _maybe_tip(self.api_key, "tip.api_key", tips)
-        _maybe_tip(self.insecure, "tip.insecure", tips)
-        _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
-        _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
-
         # Sync tab
+        _maybe_tip(self.shared_path, "tip.shared_path", tips)
         _maybe_tip(self.bucket, "tip.bucket", tips)
         _maybe_tip(self.continuous, "tip.watch", tips)
         _maybe_tip(self.ignore_delete, "tip.ignore_delete", tips)
+        _maybe_tip(self.sync_direction_combo, "tip.sync_direction", tips)
         _maybe_tip(self.resync, "tip.resync", tips)
         _maybe_tip(self.retry_delay, "tip.retry_delay", tips)
         _maybe_tip(self.stability_delay, "tip.stability_delay", tips)
@@ -350,6 +498,13 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.no_compression, "tip.no_compression", tips)
         _maybe_tip(self.dry_run, "tip.dry_run", tips)
         _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
+
+        # Server Mode tab
+        _maybe_tip(self.server_url, "tip.server_url", tips)
+        _maybe_tip(self.api_key, "tip.api_key", tips)
+        _maybe_tip(self.insecure, "tip.insecure", tips)
+        _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
+        _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
 
         # LAN tab
         _maybe_tip(self.lan_mode, "tip.lan_mode", tips)
@@ -367,31 +522,97 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.logfile, "tip.logfile", tips)
 
         # Appearance tab
-        _maybe_tip(self.theme_combo, "tip.theme", tips)
         _maybe_tip(self.lang_combo, "tip.language", tips)
+        _maybe_tip(self.theme_combo, "tip.theme", tips)
         _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
         _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
+        self.btn_browse_shared.clicked.connect(self._on_browse_shared)
+        self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
     def _on_ignore_delete_toggled(self, checked: bool) -> None:
         """Show a warning when the user disables ignore-delete."""
         if not checked:
-            result = QMessageBox.warning(
-                self,
+            msg = QMessageBox(
+                QMessageBox.Icon.Warning,
                 tr("warn.ignore_delete_title"),
                 tr("warn.ignore_delete_msg"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
+                self,
             )
-            if result != QMessageBox.StandardButton.Yes:
+            msg.setDefaultButton(QMessageBox.StandardButton.No)
+            yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+            no_btn = msg.button(QMessageBox.StandardButton.No)
+            if yes_btn:
+                yes_btn.setText(tr("action.yes"))
+            if no_btn:
+                no_btn.setText(tr("action.no"))
+            if msg.exec() != QMessageBox.StandardButton.Yes:
                 self.ignore_delete.blockSignals(True)
                 self.ignore_delete.setChecked(True)
                 self.ignore_delete.blockSignals(False)
+
+    def _on_browse_shared(self) -> None:
+        """Open a folder browser to select the shared path."""
+        current = self.shared_path.text() or ""
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            tr("settings.shared_path_browse"),
+            current,
+        )
+        if folder:
+            self.shared_path.setText(folder)
+
+    def _on_lan_mode_toggled(self, checked: bool) -> None:
+        """Enable/disable Server Mode tab widgets when LAN mode changes,
+        and enable/disable LAN tab widgets based on LAN mode state."""
+        # Show/hide the LAN banner on Server Mode tab
+        self._lan_banner.setVisible(checked)
+        if checked:
+            self._lan_banner_text.setText(tr("settings.lan_disables_server"))
+
+        # Disable/enable all Server Mode tab widgets
+        server_widgets: list[QWidget] = [
+            self.server_url,
+            self.api_key,
+            self.insecure,
+            self.ca_cert,
+            self.http_timeout,
+        ]
+        for widget in server_widgets:
+            widget.setEnabled(not checked)
+
+        # Also disable the labels in the Server Mode tab
+        conn_tab = self._tabs.widget(1)
+        if conn_tab:
+            for lbl in conn_tab.findChildren(QLabel):
+                if lbl not in (self._lan_banner_icon, self._lan_banner_text):
+                    lbl.setEnabled(not checked)
+
+        # Enable/disable LAN tab widgets (except the lan_mode toggle itself)
+        lan_sub_widgets: list[QWidget] = [
+            self.lan_group,
+            self.lan_key,
+            self.lan_port,
+            self.discovery_timeout,
+            self.lan_https,
+            self.lan_persistent,
+            self.force_master,
+        ]
+        for widget in lan_sub_widgets:
+            widget.setEnabled(checked)
+
+        # Also enable/disable the labels in the LAN tab (except lan_mode label)
+        lan_tab = self._tabs.widget(2)
+        if lan_tab:
+            for lbl in lan_tab.findChildren(QLabel):
+                if lbl is not self._lbl_lan_mode:
+                    lbl.setEnabled(checked)
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -402,12 +623,36 @@ class SettingsDialog(QDialog):
     # ── Save / Load ──────────────────────────────────────────────────────
 
     def _on_accept(self) -> None:
+        # Validate: force-master is incompatible with directional sync
+        if self.force_master.isChecked():
+            direction = self.sync_direction_combo.currentData() or "bidirectional"
+            if direction != "bidirectional":
+                msg = QMessageBox(
+                    QMessageBox.Icon.Warning,
+                    tr("warn.force_master_title"),
+                    tr("warn.force_master_msg"),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    self,
+                )
+                msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+                yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+                no_btn = msg.button(QMessageBox.StandardButton.No)
+                if yes_btn:
+                    yes_btn.setText(tr("action.yes"))
+                if no_btn:
+                    no_btn.setText(tr("action.no"))
+                if msg.exec() == QMessageBox.StandardButton.Yes:
+                    # Reset to bidirectional and continue saving
+                    self.sync_direction_combo.setCurrentIndex(0)
+                else:
+                    return  # Go back to dialog
         self.save()
         self.accept()
 
     def save(self) -> None:
         """Persist all settings to QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        s.setValue("path/local", self.shared_path.text())
         s.setValue("connection/server_url", self.server_url.text())
         s.setValue("connection/api_key", encrypt_value(self.api_key.text()))
         s.setValue("connection/insecure", self.insecure.isChecked())
@@ -420,6 +665,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/stability_delay", self.stability_delay.value())
         s.setValue("sync/max_wait", self.max_wait.value())
         s.setValue("sync/ignore_delete", self.ignore_delete.isChecked())
+        s.setValue("sync/direction", self.sync_direction_combo.currentData() or "bidirectional")
         s.setValue("sync/filter_path", self.filter_path.text())
         s.setValue("sync/no_compression", self.no_compression.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
@@ -449,6 +695,7 @@ class SettingsDialog(QDialog):
     def load(self) -> None:
         """Restore settings from QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self.shared_path.setText(str(s.value("path/local", "", str)))
         self.server_url.setText(str(s.value("connection/server_url", "", str)))
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", False, bool)))
@@ -461,6 +708,11 @@ class SettingsDialog(QDialog):
         self.stability_delay.setValue(cast(int, s.value("sync/stability_delay", 0, int)))
         self.max_wait.setValue(cast(int, s.value("sync/max_wait", 120, int)))
         self.ignore_delete.setChecked(bool(s.value("sync/ignore_delete", True, bool)))  # default ON
+        saved_dir = s.value("sync/direction", "bidirectional", str)
+        for i in range(self.sync_direction_combo.count()):
+            if self.sync_direction_combo.itemData(i) == saved_dir:
+                self.sync_direction_combo.setCurrentIndex(i)
+                break
         self.filter_path.setText(str(s.value("sync/filter_path", "", str)))
         self.no_compression.setChecked(bool(s.value("sync/no_compression", False, bool)))
         self.dry_run.setChecked(bool(s.value("sync/dry_run", False, bool)))
@@ -491,8 +743,15 @@ class SettingsDialog(QDialog):
         self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", True, bool)))
         # Show log panel (default: hidden)
         self.show_log_panel.setChecked(bool(s.value("appearance/show_log", False, bool)))
+        # Apply LAN mode state to Server Mode tab
+        self._on_lan_mode_toggled(self.lan_mode.isChecked())
 
     # ── Connection-active state management ────────────────────────────────
+
+    def set_current_tab(self, index: int) -> None:
+        """Switch the tab widget to the given index."""
+        if self._tabs and 0 <= index < self._tabs.count():
+            self._tabs.setCurrentIndex(index)
 
     def set_connection_active(self, active: bool) -> None:
         """Enable or disable settings that cannot be changed during sync.
@@ -526,9 +785,12 @@ class SettingsDialog(QDialog):
 
         # Sync tab - all settings affect sync behavior
         sync_widgets: list[QWidget] = [
+            self.shared_path,
+            self.btn_browse_shared,
             self.bucket,
             self.continuous,
             self.ignore_delete,
+            self.sync_direction_combo,
             self.resync,
             self.retry_delay,
             self.stability_delay,
@@ -559,9 +821,11 @@ class SettingsDialog(QDialog):
             if active:
                 widget.setToolTip(disabled_tip)
 
-        # Re-apply normal tooltips when connection is not active
+        # Re-apply normal tooltips and LAN-mode state when connection is not active
         if not active:
             self._apply_tooltips()
+            # Re-apply LAN mode state so sub-widgets stay disabled if LAN is off
+            self._on_lan_mode_toggled(self.lan_mode.isChecked())
 
 
 # ─── API Key Dialog ─────────────────────────────────────────────────────────
@@ -745,6 +1009,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     args += ["--max-wait-timeout", str(s.value("sync/max_wait", 120, int))]
     if s.value("sync/ignore_delete", True, bool):
         args.append("--ignore-delete")
+    sync_dir = s.value("sync/direction", "bidirectional", str)
+    if sync_dir and sync_dir != "bidirectional":
+        args += ["--sync-direction", sync_dir]
     filter_path = s.value("sync/filter_path", "", str)
     if filter_path:
         args += ["--filter-path", filter_path]

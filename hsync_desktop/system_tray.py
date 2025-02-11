@@ -124,6 +124,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
         self._act_refresh.setEnabled(running)
+
+    def set_start_enabled(self, enabled: bool) -> None:
+        """Enable or disable the Start action in the tray menu."""
+        self._act_start.setEnabled(enabled)
         parent = self.parent()
         visible = isinstance(parent, QWidget) and parent.isVisible()
         self._act_show.setText(tr("tray.hide") if visible else tr("tray.show"))

@@ -66,8 +66,33 @@ class SplashScreen(QWidget):
             self.move(x, y)
         QTimer.singleShot(duration_ms, self.close)
 
+    def show_as_about(self) -> None:
+        """Show the splash screen as an About dialog (no auto-dismiss)."""
+        self._is_about = True
+        self.show()
+        # Center on screen
+        screen = self.screen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = geo.x() + (geo.width() - self.width()) // 2
+            y = geo.y() + (geo.height() - self.height()) // 2
+            self.move(x, y)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        """Close on click when shown as About dialog."""
+        if getattr(self, "_is_about", False):
+            self.close()
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        """Close on Esc when shown as About dialog."""
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+        super().keyPressEvent(event)
+
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        """Emit finished signal when closing."""
-        self.finished.emit()
+        """Emit finished signal when closing (only for splash, not About)."""
+        if not getattr(self, "_is_about", False):
+            self.finished.emit()
         super().closeEvent(event)
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 
 from PySide6.QtCore import QPoint, QSettings, QTimer, Qt, Slot
-from PySide6.QtGui import QCloseEvent, QDesktopServices
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -76,25 +76,26 @@ def _format_bytes(n: int) -> str:
 
 
 # ── Button styles ────────────────────────────────────────────────────────────
+_BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
 _BTN_START_ACTIVE = (
-    "QPushButton { background-color: #2EA043; color: #FFFFFF;"
-    " border: none; font-weight: bold; }"
+    f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
     "QPushButton:hover { background-color: #278a39; }"
     "QPushButton:pressed { background-color: #1f7a30; }"
 )
 _BTN_STOP_ACTIVE = (
-    "QPushButton { background-color: #CF222E; color: #FFFFFF;"
-    " border: none; font-weight: bold; }"
+    f"QPushButton {{ background-color: #CF222E; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
     "QPushButton:hover { background-color: #b71d28; }"
     "QPushButton:pressed { background-color: #a01822; }"
 )
 _BTN_REFRESH_ACTIVE = (
-    "QPushButton { background-color: #0969DA; color: #FFFFFF;"
-    " border: none; font-weight: bold; }"
+    f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
     "QPushButton:hover { background-color: #0860CA; }"
     "QPushButton:pressed { background-color: #0757BA; }"
 )
-_BTN_IDLE = ""  # Reset to theme default
+_BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 
 class MainWindow(QMainWindow):
@@ -139,11 +140,18 @@ class MainWindow(QMainWindow):
         self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
         self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
-        self._btn_settings: QPushButton = self.findChild(QPushButton, "btnSettings")  # type: ignore[assignment]
-        # Set icons for action buttons
+        # Set icons for action buttons (icon-only, no text)
         from hsync_desktop.icons import icon as get_icon
-        self._btn_refresh.setIcon(get_icon("view-refresh"))
-        self._btn_browse: QToolButton = self.findChild(QToolButton, "btnBrowse")  # type: ignore[assignment]
+        from PySide6.QtCore import QSize
+        icon_size = QSize(18, 18)
+        for btn, ico_name in (
+            (self._btn_start, "media-playback-start"),
+            (self._btn_stop, "media-playback-stop"),
+            (self._btn_refresh, "view-refresh"),
+        ):
+            btn.setIcon(get_icon(ico_name))
+            btn.setIconSize(icon_size)
+            btn.setText("")
         self._path_label: QLabel = self.findChild(QLabel, "pathLabel")  # type: ignore[assignment]
         self._path_label.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
         self._path_label.setOpenExternalLinks(False)
@@ -156,20 +164,37 @@ class MainWindow(QMainWindow):
         self._path_icon_label.setFixedSize(20, 20)
         self._path_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._path_icon_label.hide()  # Hidden until path is set
-        # Insert icon label before path label in the actionBarLayout
-        # The actionBarLayout is a nested layout inside rootLayout (centralWidget's layout)
+
+        # Sync direction icon (right of path label)
+        self._sync_dir_icon = QLabel(self.centralWidget())
+        self._sync_dir_icon.setFixedSize(20, 20)
+        self._sync_dir_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._sync_dir_icon.hide()
+
+        # Remote endpoint icon + label (right of sync direction icon)
+        self._remote_icon = QLabel(self.centralWidget())
+        self._remote_icon.setFixedSize(20, 20)
+        self._remote_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._remote_icon.hide()
+        self._remote_label = QLabel(self.centralWidget())
+        self._remote_label.hide()
+
+        # Insert widgets into the actionBarLayout
+        # Layout order: ... [folder-icon] [path-label] [sync-dir-icon] [remote-icon] [remote-label] [browse-btn] ...
         root_layout: QVBoxLayout | None = self.centralWidget().layout()  # type: ignore[assignment]
         if root_layout:
-            # First item in rootLayout should be actionBarLayout (QHBoxLayout)
             first_item = root_layout.itemAt(0)
             if first_item:
                 action_bar_layout = first_item.layout()
                 if isinstance(action_bar_layout, QHBoxLayout):
-                    # Find index of path_label and insert icon before it
                     for i in range(action_bar_layout.count()):
                         item = action_bar_layout.itemAt(i)
                         if item and item.widget() == self._path_label:
                             action_bar_layout.insertWidget(i, self._path_icon_label)
+                            # Insert after path_label (i+2 because we just inserted one)
+                            action_bar_layout.insertWidget(i + 2, self._sync_dir_icon)
+                            action_bar_layout.insertWidget(i + 3, self._remote_icon)
+                            action_bar_layout.insertWidget(i + 4, self._remote_label)
                             break
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
@@ -224,17 +249,20 @@ class MainWindow(QMainWindow):
         # Apply initial button styles (Start green, Stop idle)
         self._apply_button_styles()
 
+        # Create classic menu bar
+        self._create_menu_bar()
+
+        # Set initial button/menu/tray state (disables Start if no path)
+        self._update_menu_state()
+
         # Register for language change notifications
         register_language_callback(self._apply_translations)
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
-        self._btn_start.setText(tr("btn.start"))
-        self._btn_stop.setText(tr("btn.stop"))
-        self._btn_refresh.setText(tr("btn.refresh"))
-        self._btn_settings.setText(tr("btn.settings"))
-        self._btn_browse.setText(tr("btn.browse"))
-        self._btn_browse.setToolTip(tr("label.path_placeholder"))
+        self._btn_start.setToolTip(tr("btn.start"))
+        self._btn_stop.setToolTip(tr("btn.stop"))
+        self._btn_refresh.setToolTip(tr("btn.refresh"))
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
         self._role_label.setText(tr("role.client"))
@@ -242,6 +270,270 @@ class MainWindow(QMainWindow):
         self._lbl_peers.setText(tr("label.peers"))
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
+        # Menu bar translations
+        if hasattr(self, "_menu_sync"):
+            self._menu_sync.setTitle(tr("menu.sync"))
+            self._act_start.setText(tr("menu.sync.start"))
+            self._act_stop.setText(tr("menu.sync.stop"))
+            self._act_refresh.setText(tr("menu.sync.refresh"))
+            self._menu_direction.setTitle(tr("menu.sync.direction"))
+            self._act_dir_bidi.setText(tr("menu.sync.direction.bidirectional"))
+            self._act_dir_upload.setText(tr("menu.sync.direction.upload_only"))
+            self._act_dir_download.setText(tr("menu.sync.direction.download_only"))
+            self._act_quit.setText(tr("menu.sync.quit"))
+            self._menu_file.setTitle(tr("menu.file"))
+            self._act_file_open.setText(tr("menu.file.open"))
+            self._act_file_open_with.setText(tr("menu.file.open_with"))
+            self._act_file_copy_to.setText(tr("menu.file.copy_to"))
+            self._act_file_rename.setText(tr("menu.file.rename"))
+            self._act_file_trash.setText(tr("menu.file.trash"))
+            self._act_file_properties.setText(tr("menu.file.properties"))
+            self._act_settings.setText(tr("menu.settings"))
+            self._menu_help.setTitle(tr("menu.help"))
+            self._act_help_docs.setText(tr("menu.help.docs"))
+            self._act_help_about.setText(tr("menu.help.about"))
+
+    # ── Menu bar ──────────────────────────────────────────────────────────
+
+    def _create_menu_bar(self) -> None:
+        """Create the classic menu bar with Sync, File, Settings, Help."""
+        menubar = self.menuBar()
+        # Use Qt menu bar (not native) so Alt mnemonics work on GNOME/Ubuntu
+        menubar.setNativeMenuBar(False)
+
+        # ── Sync menu ─────────────────────────────────────────────────
+        self._menu_sync = menubar.addMenu(tr("menu.sync"))
+
+        self._act_start = QAction(tr("menu.sync.start"), self)
+        self._act_start.setShortcut("Ctrl+Shift+S")
+        self._act_start.triggered.connect(self._on_start)
+        self._menu_sync.addAction(self._act_start)
+
+        self._act_stop = QAction(tr("menu.sync.stop"), self)
+        self._act_stop.setEnabled(False)
+        self._act_stop.triggered.connect(self._on_stop)
+        self._menu_sync.addAction(self._act_stop)
+
+        self._act_refresh = QAction(tr("menu.sync.refresh"), self)
+        self._act_refresh.setShortcut("F5")
+        self._act_refresh.setEnabled(False)
+        self._act_refresh.triggered.connect(self._on_refresh)
+        self._menu_sync.addAction(self._act_refresh)
+
+        # ── Sync direction submenu ──────────────────────────────────
+        self._menu_direction = self._menu_sync.addMenu(tr("menu.sync.direction"))
+        self._direction_group = QActionGroup(self)
+        self._direction_group.setExclusive(True)
+
+        self._act_dir_bidi = QAction(tr("menu.sync.direction.bidirectional"), self)
+        self._act_dir_bidi.setCheckable(True)
+        self._act_dir_bidi.setData("bidirectional")
+        self._direction_group.addAction(self._act_dir_bidi)
+        self._menu_direction.addAction(self._act_dir_bidi)
+
+        self._act_dir_upload = QAction(tr("menu.sync.direction.upload_only"), self)
+        self._act_dir_upload.setCheckable(True)
+        self._act_dir_upload.setData("upload-only")
+        self._direction_group.addAction(self._act_dir_upload)
+        self._menu_direction.addAction(self._act_dir_upload)
+
+        self._act_dir_download = QAction(tr("menu.sync.direction.download_only"), self)
+        self._act_dir_download.setCheckable(True)
+        self._act_dir_download.setData("download-only")
+        self._direction_group.addAction(self._act_dir_download)
+        self._menu_direction.addAction(self._act_dir_download)
+
+        # Load saved direction and check the right action
+        saved_dir = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
+            "sync/direction", "bidirectional", str
+        )
+        for act in self._direction_group.actions():
+            if act.data() == saved_dir:
+                act.setChecked(True)
+                break
+        else:
+            self._act_dir_bidi.setChecked(True)
+
+        self._direction_group.triggered.connect(self._on_direction_changed)
+
+        self._menu_sync.addSeparator()
+
+        self._act_quit = QAction(tr("menu.sync.quit"), self)
+        self._act_quit.setShortcut("Ctrl+Q")
+        self._act_quit.triggered.connect(self._quit)
+        self._menu_sync.addAction(self._act_quit)
+
+        # ── File menu ─────────────────────────────────────────────────
+        self._menu_file = menubar.addMenu(tr("menu.file"))
+
+        self._act_file_open = QAction(tr("menu.file.open"), self)
+        self._act_file_open.triggered.connect(self._menu_file_open)
+        self._menu_file.addAction(self._act_file_open)
+
+        self._act_file_open_with = QAction(tr("menu.file.open_with"), self)
+        self._act_file_open_with.triggered.connect(self._menu_file_open_with)
+        self._menu_file.addAction(self._act_file_open_with)
+
+        self._menu_file.addSeparator()
+
+        self._act_file_copy_to = QAction(tr("menu.file.copy_to"), self)
+        self._act_file_copy_to.triggered.connect(self._menu_file_copy_to)
+        self._menu_file.addAction(self._act_file_copy_to)
+
+        self._act_file_rename = QAction(tr("menu.file.rename"), self)
+        self._act_file_rename.triggered.connect(self._menu_file_rename)
+        self._menu_file.addAction(self._act_file_rename)
+
+        self._menu_file.addSeparator()
+
+        self._act_file_trash = QAction(tr("menu.file.trash"), self)
+        self._act_file_trash.triggered.connect(self._menu_file_trash)
+        self._menu_file.addAction(self._act_file_trash)
+
+        self._menu_file.addSeparator()
+
+        self._act_file_properties = QAction(tr("menu.file.properties"), self)
+        self._act_file_properties.triggered.connect(self._menu_file_properties)
+        self._menu_file.addAction(self._act_file_properties)
+
+        # Disable all File menu actions initially (no selection)
+        self._set_file_menu_enabled(False)
+
+        # ── Settings (direct menu item) ───────────────────────────────
+        self._act_settings = QAction(tr("menu.settings"), self)
+        self._act_settings.triggered.connect(self._open_settings)
+        menubar.addAction(self._act_settings)
+
+        # ── Help menu ─────────────────────────────────────────────────
+        self._menu_help = menubar.addMenu(tr("menu.help"))
+
+        self._act_help_docs = QAction(tr("menu.help.docs"), self)
+        self._act_help_docs.triggered.connect(self._open_documentation)
+        self._menu_help.addAction(self._act_help_docs)
+
+        self._act_help_about = QAction(tr("menu.help.about"), self)
+        self._act_help_about.triggered.connect(self._show_about)
+        self._menu_help.addAction(self._act_help_about)
+
+    def _set_file_menu_enabled(self, enabled: bool) -> None:
+        """Enable or disable all File menu actions."""
+        for act in (
+            self._act_file_open,
+            self._act_file_open_with,
+            self._act_file_copy_to,
+            self._act_file_rename,
+            self._act_file_trash,
+            self._act_file_properties,
+        ):
+            act.setEnabled(enabled)
+
+    def _update_menu_state(self) -> None:
+        """Update menu/button/tray enabled state based on app state."""
+        if not hasattr(self, "_act_start"):
+            return  # Menu bar not yet created
+        is_running = self._engine.is_running
+        has_path = bool(self._local_path)
+
+        can_start = not is_running and has_path
+        self._act_start.setEnabled(can_start)
+        self._btn_start.setEnabled(can_start)
+        self._tray.set_start_enabled(can_start)
+        self._act_stop.setEnabled(is_running)
+        self._act_refresh.setEnabled(is_running and self._btn_refresh.isEnabled())
+        self._apply_button_styles()
+
+    @Slot(QAction)
+    def _on_direction_changed(self, action: QAction) -> None:
+        """Handle sync direction change from the menu."""
+        direction = action.data()
+        if not direction:
+            return
+        # Persist to QSettings
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("sync/direction", direction)
+        # If the engine is running, send the command dynamically
+        if self._engine.is_running:
+            self._engine.set_sync_direction(direction)
+        # Refresh path display to update sync direction icon
+        self._update_path_display()
+
+    @Slot(object)
+    def _on_file_selection_changed(self, transfer) -> None:
+        """Handle file selection change from the file panel table."""
+        has_selection = transfer is not None
+        self._set_file_menu_enabled(has_selection)
+        # Hide "Open With" for folders
+        if has_selection and hasattr(transfer, "filepath"):
+            is_dir = transfer.filepath.endswith("/")
+            self._act_file_open_with.setEnabled(not is_dir)
+
+    # ── File menu action wrappers ─────────────────────────────────────────
+
+    def _get_selected_transfer(self):
+        """Return the currently selected transfer from the file panel, or None."""
+        table = self._file_panel._table
+        row = table._last_selected_row
+        if row < 0 or row >= table.rowCount():
+            return None
+        transfer = table._get_transfer_at_row(row)
+        if not transfer:
+            # Synthesized folder — create a virtual transfer
+            from hsync_desktop.file_panel import COL_NAME, FileTransfer, TransferStatus
+            name_item = table.item(row, COL_NAME)
+            if not name_item:
+                return None
+            display_name = name_item.text()
+            folder_path = (
+                f"{table._current_path}/{display_name}/"
+                if table._current_path else f"{display_name}/"
+            )
+            transfer = FileTransfer(
+                filepath=folder_path,
+                direction="—",
+                size=0,
+                status=TransferStatus.LOCAL,
+            )
+        return transfer
+
+    def _menu_file_open(self) -> None:
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_open(t)
+
+    def _menu_file_open_with(self) -> None:
+        t = self._get_selected_transfer()
+        if t and not t.filepath.endswith("/"):
+            self._file_panel._table._ctx_open_with(t)
+
+    def _menu_file_copy_to(self) -> None:
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_copy_to(t)
+
+    def _menu_file_rename(self) -> None:
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_rename(t)
+
+    def _menu_file_trash(self) -> None:
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_trash(t)
+
+    def _menu_file_properties(self) -> None:
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_properties(t)
+
+    def _open_documentation(self) -> None:
+        """Open the documentation URL in the default browser."""
+        from PySide6.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl("https://docs.hsync.app"))
+
+    def _show_about(self) -> None:
+        """Show the splash screen as an About dialog."""
+        from hsync_desktop.splash_screen import SplashScreen
+        about = SplashScreen(self)
+        about.show_as_about()
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
@@ -250,8 +542,6 @@ class MainWindow(QMainWindow):
         self._btn_start.clicked.connect(self._on_start)
         self._btn_stop.clicked.connect(self._on_stop)
         self._btn_refresh.clicked.connect(self._on_refresh)
-        self._btn_settings.clicked.connect(self._open_settings)
-        self._btn_browse.clicked.connect(self._browse_path)
 
         # Engine signals
         e = self._engine
@@ -260,7 +550,7 @@ class MainWindow(QMainWindow):
         e.peers_changed.connect(self._on_peers)
         e.master_changed.connect(self._on_master)
         e.bucket_detected.connect(lambda b: self._bucket_label.setText(b))
-        e.group_detected.connect(lambda g: self._group_label.setText(g))
+        e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
@@ -274,6 +564,12 @@ class MainWindow(QMainWindow):
         e.preview_ended.connect(self._on_preview_ended)
         e.file_status.connect(self._on_file_status)
         e.file_rename_status.connect(self._on_file_rename_status)
+
+        # File panel selection signals for menu state
+        self._file_panel._table.row_selected.connect(self._on_file_selection_changed)
+        self._file_panel._table.row_deselected.connect(
+            lambda: self._set_file_menu_enabled(False)
+        )
 
         # Tray signals
         t = self._tray
@@ -351,6 +647,8 @@ class MainWindow(QMainWindow):
                 self._notifier.connection_lost()
         elif status == "connected":
             self._hide_info_banner()
+            # Refresh path display (server_ip now available)
+            self._update_path_display()
             # Auto-run preview when connected to show file status
             if self._engine.is_running:
                 self._engine.preview()
@@ -420,6 +718,16 @@ class MainWindow(QMainWindow):
         else:
             self._role_label.setText(tr("role.client"))
             self._role_label.setToolTip(tr("role.client_tip"))
+
+    @Slot(str)
+    def _on_group_detected(self, group: str) -> None:
+        """Update group label in bottom bar and LAN label in top bar."""
+        self._group_label.setText(group)
+        # Also update the remote label if LAN mode is active
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if bool(s.value("lan/enabled", False, bool)):
+            self._remote_label.setText(f"LAN ({group})" if group else "LAN")
+            self._group_label.hide()
 
     @Slot(str, str)
     def _on_file_transferred(self, direction: str, filename: str) -> None:
@@ -616,23 +924,25 @@ class MainWindow(QMainWindow):
                 # User cancelled - stop the dry-run process
                 self._engine.stop()
                 # Reset UI state
-                self._btn_start.setEnabled(True)
+                self._btn_start.setEnabled(bool(self._local_path))
                 self._btn_stop.setEnabled(False)
                 self._tray.set_running(False)
                 self._set_path_editable(True)
                 self._apply_button_styles()
+                self._update_menu_state()
             # If stdin preview, just close dialog - process keeps running
             self._is_dry_run_preview = False
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
-        self._btn_start.setEnabled(True)
+        self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)
         self._tray.set_running(False)
         self._set_path_editable(True)
         self._hide_info_banner()
         self._apply_button_styles()
+        self._update_menu_state()
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
 
         # Notify only for truly unexpected crashes (not user stop, auth error,
@@ -699,53 +1009,125 @@ class MainWindow(QMainWindow):
 
     def _reset_ui_stopped(self) -> None:
         """Reset UI buttons to the stopped state."""
-        self._btn_start.setEnabled(True)
+        self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)
         self._tray.set_running(False)
         self._hide_info_banner()
         self._set_path_editable(True)
         self._apply_button_styles()
+        self._update_menu_state()
 
     def _set_path_editable(self, editable: bool) -> None:
-        """Enable or disable the browse button."""
-        self._btn_browse.setEnabled(editable)
+        """Path editing is now handled in Settings dialog — no-op."""
+        pass
 
     def _set_path(self, path: str) -> None:
         """Set the local path and update the display."""
         self._local_path = path.strip()
         self._update_path_display()
+        self._update_menu_state()
+
+    @staticmethod
+    def _simplify_path(path: str) -> str:
+        """Replace the user's HOME prefix with ~ for a shorter display."""
+        from pathlib import Path as _Path
+        home = str(_Path.home())
+        if path.startswith(home):
+            return "~" + path[len(home):]
+        return path
 
     def _update_path_display(self) -> None:
-        """Update the path label display."""
+        """Update the path label, sync direction icon, and remote endpoint."""
         from hsync_desktop.icons import icon as get_icon
+
         if self._local_path:
-            # Update icon (may have changed with theme)
+            # ── Folder icon + path label ──────────────────────────────
             self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
             self._path_icon_label.show()
+            display_path = self._simplify_path(self._local_path)
+            # Elide the path if it's too long (max ~300px)
+            max_path_px = 300
+            fm = QFontMetrics(self._path_label.font())
+            elided = fm.elidedText(display_path, Qt.TextElideMode.ElideMiddle, max_path_px)
             link_color = self._path_label.palette().color(
                 self._path_label.palette().ColorRole.Link
             ).name()
             self._path_label.setText(
                 f'<a href="open" style="color:{link_color}; text-decoration:none;">'
-                f'{self._local_path}</a>'
+                f'{elided}</a>'
             )
             self._path_label.setToolTip(self._local_path)
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            # ── Sync direction icon ───────────────────────────────────
+            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+            direction = str(s.value("sync/direction", "bidirectional", str))
+            dir_icon_map = {
+                "bidirectional": "sync-bidirectional",
+                "upload-only": "sync-upload",
+                "download-only": "sync-download",
+            }
+            dir_tip_map = {
+                "bidirectional": tr("menu.sync.direction.bidirectional"),
+                "upload-only": tr("menu.sync.direction.upload_only"),
+                "download-only": tr("menu.sync.direction.download_only"),
+            }
+            icon_name = dir_icon_map.get(direction, "sync-bidirectional")
+            self._sync_dir_icon.setPixmap(get_icon(icon_name).pixmap(16, 16))
+            self._sync_dir_icon.setToolTip(dir_tip_map.get(direction, ""))
+            self._sync_dir_icon.show()
+
+            # ── Remote endpoint icon + label ──────────────────────────
+            lan_enabled = bool(s.value("lan/enabled", False, bool))
+            if lan_enabled:
+                self._remote_icon.setPixmap(
+                    get_icon("network-workgroup").pixmap(16, 16)
+                )
+                group = str(s.value("lan/group", "", str))
+                self._remote_label.setText(f"LAN ({group})" if group else "LAN")
+                self._remote_icon.setToolTip(tr("label.remote_lan_tip"))
+                self._remote_label.setToolTip(tr("label.remote_lan_tip"))
+                # Group name shown next to LAN label — hide from bottom bar
+                self._group_label.hide()
+            else:
+                self._remote_icon.setPixmap(
+                    get_icon("network-wired").pixmap(16, 16)
+                )
+                server_ip = self._engine.server_ip if self._engine.server_ip else ""
+                if not server_ip:
+                    server_url = str(s.value("connection/server_url", "", str))
+                    if server_url:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(server_url)
+                        server_ip = parsed.hostname or ""
+                self._remote_label.setText(server_ip if server_ip else tr("label.remote_server"))
+                self._remote_icon.setToolTip(tr("label.remote_server_tip"))
+                self._remote_label.setToolTip(tr("label.remote_server_tip"))
+                # In server mode, group label stays in bottom bar
+                self._group_label.show()
+            self._remote_icon.show()
+            self._remote_label.show()
         else:
             self._path_icon_label.hide()
-            mid = self._path_label.palette().color(
-                self._path_label.palette().ColorRole.PlaceholderText
+            self._sync_dir_icon.hide()
+            self._remote_icon.hide()
+            self._remote_label.hide()
+            link_color = self._path_label.palette().color(
+                self._path_label.palette().ColorRole.Link
             ).name()
             self._path_label.setText(
-                f'<span style="color:{mid};">{tr("label.path_placeholder")}</span>'
+                f'<a href="settings" style="color:{link_color}; text-decoration:none;">'
+                f'{tr("label.path_placeholder")}</a>'
             )
-            self._path_label.setToolTip("")
-            self._path_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self._path_label.setToolTip(tr("label.path_placeholder_tip"))
+            self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def _on_path_clicked(self, _link: str) -> None:
-        """Open the local path directory in the system file manager."""
-        if self._local_path and os.path.isdir(self._local_path):
+    def _on_path_clicked(self, link: str) -> None:
+        """Handle clicks on the path label link."""
+        if link == "settings":
+            self._open_settings(initial_tab=0)
+        elif self._local_path and os.path.isdir(self._local_path):
             from PySide6.QtCore import QUrl
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
@@ -827,6 +1209,7 @@ class MainWindow(QMainWindow):
             self._tray.set_running(True)
             self._set_path_editable(False)
             self._apply_button_styles()
+            self._update_menu_state()
 
     def _on_stop(self) -> None:
         self._user_stopped = True
@@ -849,21 +1232,18 @@ class MainWindow(QMainWindow):
         self._is_dry_run_preview = False  # stdin preview, not dry-run mode
         self._engine.preview()
 
-    def _browse_path(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, tr("label.path_placeholder"))
-        if d:
-            self._set_path(d)
-            self._load_local_files(d)
-
     def _load_local_files(self, path: str) -> None:
         """Load files from the selected directory into the file panel."""
         if path:
             self._file_panel.load_local_files(path)
 
-    def _open_settings(self) -> None:
+    def _open_settings(self, initial_tab: int | None = None) -> None:
         dlg = SettingsDialog(self)
         # Disable connection-critical settings while sync is running
         dlg.set_connection_active(self._engine.is_running)
+        # initial_tab may receive a bool from Qt signal triggered(bool) — ignore that
+        if isinstance(initial_tab, int) and not isinstance(initial_tab, bool):
+            dlg.set_current_tab(initial_tab)
         if dlg.exec() == SettingsDialog.DialogCode.Accepted:
             theme = get_saved_theme()
             app = QApplication.instance()
@@ -872,16 +1252,26 @@ class MainWindow(QMainWindow):
                 self._refresh_icons_for_theme()
             self._notifier.enabled = are_notifications_enabled()
             self._apply_log_visibility()
+            # Reload path in case it changed in settings
+            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+            new_path = str(s.value("path/local", "", str))
+            if new_path != self._local_path:
+                self._set_path(new_path)
+                if new_path:
+                    self._load_local_files(new_path)
+            # Refresh path display (settings may have changed LAN/server/direction)
+            self._update_path_display()
 
     def _refresh_icons_for_theme(self) -> None:
         """Refresh all icons after theme change."""
         from hsync_desktop.icons import clear_icon_cache, icon as get_icon
         clear_icon_cache()
         # Refresh button icons
+        self._btn_start.setIcon(get_icon("media-playback-start"))
+        self._btn_stop.setIcon(get_icon("media-playback-stop"))
         self._btn_refresh.setIcon(get_icon("view-refresh"))
-        # Refresh path icon
-        if self._local_path:
-            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        # Refresh path display (includes folder, sync direction, and remote icons)
+        self._update_path_display()
         # Refresh file panel icons
         self._file_panel.refresh_icons_for_theme()
 
@@ -915,6 +1305,22 @@ class MainWindow(QMainWindow):
     def _quit(self) -> None:
         """Quit the application properly."""
         if self._engine.is_running:
+            msg = QMessageBox(
+                QMessageBox.Icon.Question,
+                tr("menu.sync.confirm_quit_title"),
+                tr("menu.sync.confirm_quit"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                self,
+            )
+            msg.setDefaultButton(QMessageBox.StandardButton.No)
+            yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+            no_btn = msg.button(QMessageBox.StandardButton.No)
+            if yes_btn:
+                yes_btn.setText(tr("action.yes"))
+            if no_btn:
+                no_btn.setText(tr("action.no"))
+            if msg.exec() != QMessageBox.StandardButton.Yes:
+                return
             self._engine.stop()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
             "window/geometry", self.saveGeometry()
