@@ -217,6 +217,8 @@ translations: dict[str, str] = {
     "notif.master_elected": "Master Elected",
     "notif.master_elected_msg": "This client is now the master",
     "notif.process_crashed": "The sync process terminated unexpectedly (exit code {code})",
+    "notif.path_not_found": "Path not found",
+    "notif.path_not_found_msg": "The shared folder '{path}' does not exist. Check the path in Settings.",
     "notif.master_conflict_title": "Master Conflict",
     "notif.master_conflict_lost": "Another master {cid} at {ip} has priority (started earlier). This client will operate as slave.",
     "notif.master_conflict_won": "Peer {cid} at {ip} also has force_master enabled. This client wins (started earlier).",
