@@ -14,7 +14,7 @@ Provides cross-platform icon support with consistent appearance:
 Usage:
     from hsync_desktop.icons import icon
 
-    btn.setIcon(icon("network-wired"))
+    btn.setIcon(icon("network-cloud"))
     tab.setIcon(icon("emblem-synchronizing"))
 """
 
@@ -80,9 +80,9 @@ ICONS_DIR = Path(__file__).parent / "resources" / "icons"
 # Add entries here when you add custom fallback icons
 _FALLBACK_MAP: dict[str, str] = {
     # Tab icons
-    "network-wired": "network-wired.svg",
+    "network-cloud": "network-cloud.svg",
     "emblem-synchronizing": "emblem-synchronizing.svg",
-    "network-workgroup": "network-workgroup.svg",
+    "network-lan": "network-lan.svg",
     "utilities-log-viewer": "utilities-log-viewer.svg",
     "preferences-desktop-theme": "preferences-desktop-theme.svg",
     # Action icons
@@ -151,13 +151,13 @@ def icon(name: str) -> QIcon:
     Falls back to system theme icons if no bundled icon exists.
 
     Args:
-        name: FreeDesktop icon name (e.g., "network-wired")
+        name: FreeDesktop icon name (e.g., "network-cloud")
 
     Returns:
         QIcon instance (may be null if no icon found)
 
     Example:
-        btn.setIcon(icon("network-wired"))
+        btn.setIcon(icon("network-cloud"))
     """
     is_dark = _is_dark_theme()
     cache_key = (name, is_dark)
