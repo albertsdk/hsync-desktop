@@ -1218,6 +1218,61 @@ class MainWindow(QMainWindow):
         if local_path:
             self._on_start()
 
+    def _check_deletion_risk(self) -> bool:
+        """Check if sync settings could cause local file deletion.
+
+        Returns True if safe to proceed (no risk or user confirmed).
+        """
+        local_path = self._local_path
+        if not local_path or not os.path.exists(local_path):
+            return True
+
+        # Check if directory has any content
+        try:
+            entries = os.listdir(local_path)
+        except OSError:
+            return True
+        if not entries:
+            return True
+
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        lan_mode = s.value("lan/enabled", False, bool)
+        force_master = s.value("lan/force_master", False, bool)
+        sync_dir = s.value("sync/direction", "bidirectional", str)
+
+        # upload-only never deletes local files
+        if sync_dir == "upload-only":
+            return True
+
+        # force_master in LAN mode means this client is authoritative
+        if lan_mode and force_master:
+            return True
+
+        # Determine risk
+        if lan_mode and not force_master:
+            reason = tr("notif.deletion_risk_lan")
+        elif sync_dir == "download-only":
+            reason = tr("notif.deletion_risk_download")
+        else:
+            # bidirectional server mode – normal behaviour
+            return True
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("notif.deletion_risk"))
+        msg.setText(tr("notif.deletion_risk_msg").replace("{reason}", reason))
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        return msg.exec() == QMessageBox.StandardButton.Yes
+
     def _on_start(self) -> None:
         # Show disclaimer first
         if not self._show_disclaimer():
@@ -1226,6 +1281,10 @@ class MainWindow(QMainWindow):
         local_path = self._local_path
         if not local_path:
             self._append_log("⚠ Please select a local directory first.")
+            return
+
+        # Check for file deletion risk
+        if not self._check_deletion_risk():
             return
         # Start in dry-run mode first to show preview
         args = build_hsync_args(local_path, force_dry_run=True)

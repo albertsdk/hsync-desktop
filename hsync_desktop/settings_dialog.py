@@ -1036,6 +1036,10 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         if s.value("lan/force_master", False, bool):
             args.append("--force-master")
 
+    # Always skip CLI confirmation prompts – hsync-desktop handles
+    # deletion-risk confirmation via its own dialog.
+    args.append("--yes")
+
     # Output – always use --no-color for machine-friendly parsing
     # NOTE: We intentionally NEVER pass -q (quiet) because hsync-desktop
     # depends on parsing stdout for status updates, file transfers,
