@@ -15,7 +15,10 @@ UI is loaded from ui/settings_dialog.ui (Qt Designer).
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import cast
+from urllib.parse import urlparse
 
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
@@ -47,6 +50,10 @@ from hsync_desktop.i18n import (
 from hsync_desktop.config import (
     DEFAULT_BUCKET,
     DEFAULT_GROUP,
+    DEFAULT_SERVER_URL,
+    DEFAULT_INSECURE,
+    DEFAULT_CA_CERT,
+    DEFAULT_HTTP_TIMEOUT,
     DEFAULT_CONTINUOUS,
     DEFAULT_IGNORE_DELETE,
     DEFAULT_SYNC_DIRECTION,
@@ -54,6 +61,12 @@ from hsync_desktop.config import (
     DEFAULT_RETRY_DELAY,
     DEFAULT_STABILITY_DELAY,
     DEFAULT_MAX_WAIT,
+    DEFAULT_FILTER_PATH,
+    DEFAULT_NO_COMPRESSION,
+    DEFAULT_DRY_RUN,
+    DEFAULT_AUTO_SYNC,
+    DEFAULT_LAN_ENABLED,
+    DEFAULT_LAN_KEY,
     DEFAULT_LAN_PORT,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_LAN_HTTPS,
@@ -67,7 +80,6 @@ from hsync_desktop.config import (
     DEFAULT_NOTIFICATIONS,
     DEFAULT_TOOLTIPS,
     DEFAULT_LANGUAGE,
-    DEFAULT_HTTP_TIMEOUT,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.icons import icon
@@ -719,8 +731,8 @@ class SettingsDialog(QDialog):
         self.shared_path.setText(str(s.value("path/local", "", str)))
         self.server_url.setText(str(s.value("connection/server_url", "", str)))
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
-        self.insecure.setChecked(bool(s.value("connection/insecure", False, bool)))
-        self.ca_cert.setText(str(s.value("connection/ca_cert", "", str)))
+        self.insecure.setChecked(bool(s.value("connection/insecure", DEFAULT_INSECURE, bool)))
+        self.ca_cert.setText(str(s.value("connection/ca_cert", DEFAULT_CA_CERT, str)))
         self.http_timeout.setValue(cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int)))
         self.bucket.setText(str(s.value("sync/bucket", DEFAULT_BUCKET, str)))
         self.continuous.setChecked(bool(s.value("sync/continuous", DEFAULT_CONTINUOUS, bool)))
@@ -734,13 +746,13 @@ class SettingsDialog(QDialog):
             if self.sync_direction_combo.itemData(i) == saved_dir:
                 self.sync_direction_combo.setCurrentIndex(i)
                 break
-        self.filter_path.setText(str(s.value("sync/filter_path", "", str)))
-        self.no_compression.setChecked(bool(s.value("sync/no_compression", False, bool)))
-        self.dry_run.setChecked(bool(s.value("sync/dry_run", False, bool)))
-        self.auto_sync.setChecked(bool(s.value("sync/auto_sync", False, bool)))
-        self.lan_mode.setChecked(bool(s.value("lan/enabled", False, bool)))
+        self.filter_path.setText(str(s.value("sync/filter_path", DEFAULT_FILTER_PATH, str)))
+        self.no_compression.setChecked(bool(s.value("sync/no_compression", DEFAULT_NO_COMPRESSION, bool)))
+        self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
+        self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
+        self.lan_mode.setChecked(bool(s.value("lan/enabled", DEFAULT_LAN_ENABLED, bool)))
         self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
-        self.lan_key.setText(str(s.value("lan/key", "", str)))
+        self.lan_key.setText(str(s.value("lan/key", DEFAULT_LAN_KEY, str)))
         self.lan_port.setValue(cast(int, s.value("lan/port", DEFAULT_LAN_PORT, int)))
         self.discovery_timeout.setValue(cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int)))
         self.lan_https.setChecked(bool(s.value("lan/https", DEFAULT_LAN_HTTPS, bool)))
@@ -986,6 +998,99 @@ class LanKeyDialog(QDialog):
         return self._lan_key_edit.text().strip()
 
 
+# ─── Input Validation ───────────────────────────────────────────────────────
+
+import re
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+def _validate_path(path: str, allow_absolute: bool = True) -> str | None:
+    """Validate a file path to prevent path traversal attacks.
+
+    Args:
+        path: The path to validate.
+        allow_absolute: If False, only relative paths are allowed.
+
+    Returns:
+        The validated path if safe, None otherwise.
+    """
+    if not path:
+        return None
+
+    # Remove null bytes
+    path = path.replace("\x00", "")
+
+    # Resolve the path and check it's within expected bounds
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, ValueError):
+        return None
+
+    # If absolute paths not allowed, ensure it's relative
+    if not allow_absolute and resolved.is_absolute():
+        return None
+
+    return str(resolved)
+
+
+def _validate_bucket(bucket: str) -> str | None:
+    """Validate a bucket name.
+
+    Bucket names should only contain alphanumeric characters,
+    dashes, underscores, and periods.
+    """
+    if not bucket:
+        return None
+
+    # Remove null bytes
+    bucket = bucket.replace("\x00", "")
+
+    # Bucket name pattern: lowercase alphanumeric, dashes, underscores, periods
+    # Must start and end with alphanumeric
+    if re.match(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$", bucket):
+        return bucket
+
+    return None
+
+
+def _validate_url(url: str) -> str | None:
+    """Validate a URL for server connection."""
+    if not url:
+        return None
+
+    # Remove null bytes
+    url = url.replace("\x00", "")
+
+    try:
+        parsed = urlparse(url)
+        # Must have scheme and netloc
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return url
+    except Exception:
+        pass
+
+    return None
+
+
+def _validate_group_name(group: str) -> str | None:
+    """Validate a LAN group name.
+
+    Group names should be alphanumeric with limited special characters.
+    """
+    if not group:
+        return None
+
+    # Remove null bytes
+    group = group.replace("\x00", "")
+
+    # Allow alphanumeric, dashes, underscores, and limited punctuation
+    if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", group):
+        return group
+
+    return None
+
+
 # ─── Utility: build CLI args from QSettings ─────────────────────────────────
 
 def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
@@ -994,48 +1099,100 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     Args:
         local_path: The local directory path to sync.
         force_dry_run: If True, always add --dry-run flag regardless of settings.
+
+    Returns:
+        List of command-line arguments for hsync binary.
+
+    Raises:
+        ValueError: If input validation fails.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     args: list[str] = []
 
-    # Bucket – use default if not set
-    bucket = s.value("sync/bucket", DEFAULT_BUCKET, str) or DEFAULT_BUCKET
-    args += ["-b", bucket]
+    # Validate local_path - must be a valid directory
+    if local_path:
+        validated_path = _validate_path(local_path)
+        if validated_path is None:
+            raise ValueError(f"Invalid local path: {local_path}")
+        # Additional check: path must exist and be a directory
+        if not Path(validated_path).is_dir():
+            raise ValueError(f"Local path is not a valid directory: {local_path}")
 
-    # Path
+    # Bucket – use default if not set
+    bucket_raw = str(s.value("sync/bucket", DEFAULT_BUCKET, str))
+    bucket = bucket_raw or DEFAULT_BUCKET
+    validated_bucket = _validate_bucket(bucket)
+    if validated_bucket is None:
+        validated_bucket = DEFAULT_BUCKET  # Fallback to safe default
+    args += ["-b", validated_bucket]
+
+    # Path (validated above)
     if local_path:
         args += ["-p", local_path]
 
-    # Connection
-    url = s.value("connection/server_url", "", str)
-    if url:
-        args += ["-s", url]
+    # Connection - validate URL
+    url_raw = str(s.value("connection/server_url", "", str))
+    validated_url = _validate_url(url_raw)
+    if validated_url:
+        args += ["-s", validated_url]
     if s.value("connection/insecure", False, bool):
         args.append("--insecure")
-    ca = s.value("connection/ca_cert", "", str)
-    if ca:
-        args += ["--ca-cert", ca]
-    args += ["--timeout", str(s.value("connection/http_timeout", 30, int))]
+
+    # CA cert - validate it exists if specified
+    ca_raw = str(s.value("connection/ca_cert", "", str))
+    if ca_raw:
+        # Only add if file exists and path is safe
+        ca_path = _validate_path(ca_raw, allow_absolute=True)
+        if ca_path and Path(ca_path).exists():
+            args += ["--ca-cert", ca_path]
+
+    # Validate HTTP timeout is in reasonable range
+    http_timeout = int(s.value("connection/http_timeout", 30))
+    http_timeout = max(1, min(http_timeout, 300))  # Clamp to 1-300 seconds
+    args += ["--timeout", str(http_timeout)]
 
     # Sync
     if s.value("sync/continuous", True, bool):
         args.append("-w")
-    resync = cast(int, s.value("sync/resync", 0, int))
+    resync = int(s.value("sync/resync", 0))
+    resync = max(0, min(resync, 86400))  # Clamp to 0-24 hours
     if resync > 0:
         args += ["-i", str(resync)]
-    args += ["--retry-delay", str(s.value("sync/retry_delay", 5, int))]
-    sd = cast(int, s.value("sync/stability_delay", 0, int))
-    if sd > 0:
-        args += ["--stability-delay", str(sd)]
-    args += ["--max-wait-timeout", str(s.value("sync/max_wait", 120, int))]
+
+    # Validate retry delay
+    retry_delay = int(s.value("sync/retry_delay", 5))
+    retry_delay = max(1, min(retry_delay, 60))  # Clamp to 1-60 seconds
+    args += ["--retry-delay", str(retry_delay)]
+
+    # Validate stability delay
+    stability_delay = int(s.value("sync/stability_delay", 0))
+    stability_delay = max(0, min(stability_delay, 3600))  # Clamp to 0-1 hour
+    if stability_delay > 0:
+        args += ["--stability-delay", str(stability_delay)]
+
+    # Validate max wait
+    max_wait = int(s.value("sync/max_wait", 120))
+    max_wait = max(10, min(max_wait, 3600))  # Clamp to 10-3600 seconds
+    args += ["--max-wait-timeout", str(max_wait)]
+
     if s.value("sync/ignore_delete", True, bool):
         args.append("--ignore-delete")
-    sync_dir = s.value("sync/direction", "bidirectional", str)
-    if sync_dir and sync_dir != "bidirectional":
+
+    # Validate sync direction
+    sync_dir = str(s.value("sync/direction", "bidirectional", str))
+    valid_directions = ("bidirectional", "upload-only", "download-only")
+    if sync_dir not in valid_directions:
+        sync_dir = "bidirectional"
+    if sync_dir != "bidirectional":
         args += ["--sync-direction", sync_dir]
-    filter_path = s.value("sync/filter_path", "", str)
-    if filter_path:
-        args += ["--filter-path", filter_path]
+
+    # Validate filter path
+    filter_path_raw = str(s.value("sync/filter_path", "", str))
+    if filter_path_raw:
+        validated_filter = _validate_path(filter_path_raw)
+        if validated_filter:
+            args += ["--filter-path", validated_filter]
+
     if s.value("sync/no_compression", False, bool):
         args.append("--no-compression")
     if force_dry_run or s.value("sync/dry_run", False, bool):
@@ -1044,12 +1201,24 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # LAN
     if s.value("lan/enabled", False, bool):
         args.append("--lan-mode")
-        port = s.value("lan/port", 0, int)
+        port = int(s.value("lan/port", 0))
+        port = max(0, min(port, 65535))  # Valid port range
         if port:
             args += ["--lan-port", str(port)]
-        args += ["--discovery-timeout", str(s.value("lan/discovery_timeout", 10, int))]
-        grp = s.value("lan/group", DEFAULT_GROUP, str) or DEFAULT_GROUP
-        args += ["--lan-group", grp]
+
+        # Validate discovery timeout
+        discovery_timeout = int(s.value("lan/discovery_timeout", 10))
+        discovery_timeout = max(1, min(discovery_timeout, 60))  # 1-60 seconds
+        args += ["--discovery-timeout", str(discovery_timeout)]
+
+        # Validate LAN group
+        grp_raw = str(s.value("lan/group", DEFAULT_GROUP, str))
+        grp = grp_raw or DEFAULT_GROUP
+        validated_grp = _validate_group_name(grp)
+        if validated_grp is None:
+            validated_grp = DEFAULT_GROUP
+        args += ["--lan-group", validated_grp]
+
         if not s.value("lan/https", True, bool):
             args.append("--no-lan-https")
         if not s.value("lan/persistent", True, bool):
@@ -1068,10 +1237,13 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     args.append("--no-color")
     if s.value("output/verbose", False, bool):
         args.append("-v")
-    # Quiet mode is ignored - see note above
-    logfile = s.value("output/logfile", "", str)
-    if logfile:
-        args += ["-o", logfile]
+
+    # Validate logfile path
+    logfile_raw = str(s.value("output/logfile", "", str))
+    if logfile_raw:
+        validated_logfile = _validate_path(logfile_raw, allow_absolute=True)
+        if validated_logfile:
+            args += ["-o", validated_logfile]
 
     return args
 
