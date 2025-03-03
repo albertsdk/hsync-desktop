@@ -121,6 +121,8 @@ def decrypt_value(stored: str) -> str:
 
     If *stored* does not carry the encryption prefix it is returned as-is
     (transparent migration from plain-text settings).
+
+    Returns an empty string if decryption fails (corrupted data or machine ID changed).
     """
     if not stored:
         return ""
@@ -130,7 +132,11 @@ def decrypt_value(stored: str) -> str:
     token = stored[len(_ENC_PREFIX):].encode("ascii")
     try:
         return _get_fernet().decrypt(token).decode("utf-8")
-    except (InvalidToken, Exception):
-        # Corrupted or key changed – return empty to force re-entry.
+    except InvalidToken:
+        # Token is corrupted or key changed – return empty to force re-entry.
+        return ""
+    except Exception:
+        # Unexpected error – log and return empty for safety.
+        # Could be base64 decode error, memory issues, etc.
         return ""
 
