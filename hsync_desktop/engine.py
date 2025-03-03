@@ -419,6 +419,15 @@ class HsyncEngine(QObject):
 
     def _parse_line(self, line: str) -> None:
         """Parse a single log line and emit signals as needed."""
+        try:
+            self._parse_line_inner(line)
+        except Exception as e:
+            # Log parsing errors should not crash the engine
+            # Just log and continue processing
+            self.log_received.emit(f"[PARSE ERROR] {line[:100]}")
+
+    def _parse_line_inner(self, line: str) -> None:
+        """Internal method to parse a single log line."""
         # Strip ANSI escape codes for pattern matching
         clean = re.sub(r"\x1b\[[0-9;]*m", "", line)
 
