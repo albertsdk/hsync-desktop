@@ -1147,31 +1147,31 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             args += ["--ca-cert", ca_path]
 
     # Validate HTTP timeout is in reasonable range
-    http_timeout = int(s.value("connection/http_timeout", 30))
+    http_timeout = cast(int, s.value("connection/http_timeout", 30, int))
     http_timeout = max(1, min(http_timeout, 300))  # Clamp to 1-300 seconds
     args += ["--timeout", str(http_timeout)]
 
     # Sync
     if s.value("sync/continuous", True, bool):
         args.append("-w")
-    resync = int(s.value("sync/resync", 0))
+    resync = cast(int, s.value("sync/resync", 0, int))
     resync = max(0, min(resync, 86400))  # Clamp to 0-24 hours
     if resync > 0:
         args += ["-i", str(resync)]
 
     # Validate retry delay
-    retry_delay = int(s.value("sync/retry_delay", 5))
+    retry_delay = cast(int, s.value("sync/retry_delay", 5, int))
     retry_delay = max(1, min(retry_delay, 60))  # Clamp to 1-60 seconds
     args += ["--retry-delay", str(retry_delay)]
 
     # Validate stability delay
-    stability_delay = int(s.value("sync/stability_delay", 0))
+    stability_delay = cast(int, s.value("sync/stability_delay", 0, int))
     stability_delay = max(0, min(stability_delay, 3600))  # Clamp to 0-1 hour
     if stability_delay > 0:
         args += ["--stability-delay", str(stability_delay)]
 
     # Validate max wait
-    max_wait = int(s.value("sync/max_wait", 120))
+    max_wait = cast(int, s.value("sync/max_wait", 120, int))
     max_wait = max(10, min(max_wait, 3600))  # Clamp to 10-3600 seconds
     args += ["--max-wait-timeout", str(max_wait)]
 
@@ -1201,13 +1201,13 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # LAN
     if s.value("lan/enabled", False, bool):
         args.append("--lan-mode")
-        port = int(s.value("lan/port", 0))
+        port = cast(int, s.value("lan/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range
         if port:
             args += ["--lan-port", str(port)]
 
         # Validate discovery timeout
-        discovery_timeout = int(s.value("lan/discovery_timeout", 10))
+        discovery_timeout = cast(int, s.value("lan/discovery_timeout", 10, int))
         discovery_timeout = max(1, min(discovery_timeout, 60))  # 1-60 seconds
         args += ["--discovery-timeout", str(discovery_timeout)]
 
