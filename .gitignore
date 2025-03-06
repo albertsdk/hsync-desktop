@@ -1,35 +1,62 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
-*.egg
-dist/
-build/
-*.spec
+**/*.pyc
+**/__pycache__
+*.pyo
 
 # Virtual environment
-.venv/
+.env
+.venv
 venv/
+ENV/
 
-# IDE
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Unit test / coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+
+# Build / Distribution
+/build/
+/dist/
+/tmp/
+*.egg-info/
+*.egg
+*.whl
+
+# IDE settings
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
+# OS specific
 .DS_Store
 Thumbs.db
 
-# Qt
-*.qmlc
-*.jsc
-
-# Poetry
-poetry.lock
+# Project specific
+/buckets/
+/certs/
 
 # Logs
 *.log
 
+# Qt specific (for hsync-desktop)
+*.qmlc
+*.jsc
+
+# Python compiled
+*.spec (PyInstaller)
+
+# Poetry lock (optional - comment if you want to commit poetry.lock)
+# poetry.lock
