@@ -134,4 +134,3 @@ MPL-2.0 - See [LICENSE](../LICENSE) for details.
 ## Version
 
 1.0.0
-

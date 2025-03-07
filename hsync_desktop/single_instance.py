@@ -97,4 +97,3 @@ class SingleInstance(QObject):
         if self._server is not None:
             self._server.close()
             self._server = None
-

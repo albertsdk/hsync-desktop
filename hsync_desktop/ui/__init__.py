@@ -20,7 +20,7 @@ Or use pyside6-uic directly:
 To load .ui files at runtime (alternative to compilation):
     from PySide6.QtUiTools import QUiLoader
     from PySide6.QtCore import QFile
-    
+
     loader = QUiLoader()
     ui_file = QFile("hsync_desktop/ui/main_window.ui")
     ui_file.open(QFile.ReadOnly)
@@ -47,17 +47,16 @@ UI_FILES = {
 
 def get_ui_path(name: str) -> Path:
     """Get the path to a .ui file by name.
-    
+
     Args:
         name: Name of the UI file (without extension).
               One of: main_window, settings_dialog, splash_screen, file_panel,
               preview_summary_dialog, api_key_dialog, lan_key_dialog
-    
+
     Returns:
         Path to the .ui file.
-    
+
     Raises:
         KeyError: If the UI file name is not found.
     """
     return UI_FILES[name]
-

@@ -22,13 +22,12 @@ from __future__ import annotations
 
 import base64
 import getpass
-import hashlib
 import platform
 import sys
 
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Fixed application salt – changing this invalidates all previously encrypted values.
 _APP_SALT = b"hsync-desktop-settings-v1"
@@ -129,7 +128,7 @@ def decrypt_value(stored: str) -> str:
     if not stored.startswith(_ENC_PREFIX):
         # Plain-text value from a previous version – return unchanged.
         return stored
-    token = stored[len(_ENC_PREFIX):].encode("ascii")
+    token = stored[len(_ENC_PREFIX) :].encode("ascii")
     try:
         return _get_fernet().decrypt(token).decode("utf-8")
     except InvalidToken:
@@ -139,4 +138,3 @@ def decrypt_value(stored: str) -> str:
         # Unexpected error – log and return empty for safety.
         # Could be base64 decode error, memory issues, etc.
         return ""
-

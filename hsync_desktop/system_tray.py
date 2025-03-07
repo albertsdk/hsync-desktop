@@ -14,7 +14,7 @@ Show/Hide, Start/Stop, Refresh, Settings and Quit.
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QFont
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 
 from hsync_desktop.i18n import register_language_callback, tr
@@ -112,8 +112,10 @@ class SystemTray(QSystemTrayIcon):
             "waiting": "status.waiting",
             "error": "status.error",
         }
-        icon_key = "connected" if status == "connected" else (
-            "waiting" if status in ("connecting", "waiting") else "disconnected"
+        icon_key = (
+            "connected"
+            if status == "connected"
+            else ("waiting" if status in ("connecting", "waiting") else "disconnected")
         )
         self.setIcon(self._icons[icon_key])
         key = i18n_map.get(status, status)
@@ -156,4 +158,3 @@ class SystemTray(QSystemTrayIcon):
     def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             self.toggle_window.emit()
-

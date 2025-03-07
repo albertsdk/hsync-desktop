@@ -144,7 +144,7 @@ translations: dict[str, str] = {
     "warn.ignore_delete_title": "Advertencia",
     "warn.ignore_delete_msg": "Al desactivar esta opción, las eliminaciones SE propagarán. Si un archivo se elimina en un dispositivo, también se eliminará en todos los dispositivos sincronizados. ¿Está seguro?",
     "warn.force_master_title": "Incompatibilidad de configuración",
-    "warn.force_master_msg": "La opción \"Forzar master\" es incompatible con una dirección de sincronización diferente a bidireccional. El master LAN siempre opera en modo bidireccional.\n\n¿Desea restablecer la dirección a bidireccional?",
+    "warn.force_master_msg": 'La opción "Forzar master" es incompatible con una dirección de sincronización diferente a bidireccional. El master LAN siempre opera en modo bidireccional.\n\n¿Desea restablecer la dirección a bidireccional?',
     "settings.connection_active_warning": "Algunas configuraciones están deshabilitadas durante la sincronización. Detenga la sincronización para modificarlas.",
     "tip.disabled_during_sync": "Esta configuración no se puede cambiar mientras la sincronización está en ejecución.",
     "tray.show": "Mostrar",
@@ -314,4 +314,3 @@ translations: dict[str, str] = {
     "menu.help.docs": "Documentación",
     "menu.help.about": "Acerca de HSYNC Desktop",
 }
-

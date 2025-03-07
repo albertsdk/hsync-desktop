@@ -149,17 +149,23 @@ class ToggleSwitch(QAbstractButton):
         shadow_color = QColor(0, 0, 0, 40)
         painter.setBrush(QBrush(shadow_color))
         painter.drawRoundedRect(
-            int(thumb_x + 1), int(thumb_y_centered + 1),
-            int(thumb_width), int(thumb_height),
-            thumb_radius, thumb_radius
+            int(thumb_x + 1),
+            int(thumb_y_centered + 1),
+            int(thumb_width),
+            int(thumb_height),
+            thumb_radius,
+            thumb_radius,
         )
 
         # Draw thumb
         painter.setBrush(QBrush(thumb_color))
         painter.drawRoundedRect(
-            int(thumb_x), int(thumb_y_centered),
-            int(thumb_width), int(thumb_height),
-            thumb_radius, thumb_radius
+            int(thumb_x),
+            int(thumb_y_centered),
+            int(thumb_width),
+            int(thumb_height),
+            thumb_radius,
+            thumb_radius,
         )
 
         painter.end()
@@ -169,4 +175,3 @@ class ToggleSwitch(QAbstractButton):
     def enterEvent(self, event) -> None:
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         super().enterEvent(event)
-

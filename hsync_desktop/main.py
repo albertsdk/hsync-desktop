@@ -18,7 +18,7 @@ from hsync_desktop import __version__
 from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.i18n import init_language
 from hsync_desktop.main_window import MainWindow
-from hsync_desktop.settings_dialog import get_saved_theme, are_notifications_enabled
+from hsync_desktop.settings_dialog import get_saved_theme
 from hsync_desktop.single_instance import SingleInstance
 from hsync_desktop.splash_screen import SplashScreen
 from hsync_desktop.system_tray import SystemTray
@@ -72,4 +72,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

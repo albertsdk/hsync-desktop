@@ -95,4 +95,3 @@ class SplashScreen(QWidget):
         if not getattr(self, "_is_about", False):
             self.finished.emit()
         super().closeEvent(event)
-

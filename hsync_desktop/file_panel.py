@@ -26,10 +26,20 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from time import time
-from typing import Dict, Optional
 
-from PySide6.QtCore import QLocale, QMutex, QMutexLocker, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon
+from PySide6.QtCore import (
+    QLocale,
+    QMutex,
+    QMutexLocker,
+    QObject,
+    Qt,
+    QThread,
+    QTimer,
+    QUrl,
+    Signal,
+    Slot,
+)
+from PySide6.QtGui import QAction, QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -46,8 +56,8 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QSplitter,
     QStyle,
-    QStyleOptionProgressBar,
     QStyledItemDelegate,
+    QStyleOptionProgressBar,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -63,42 +73,44 @@ from hsync_desktop.ui.loader import load_ui_widget
 
 class TransferStatus(Enum):
     """Status of a file transfer."""
-    LOCAL = "local"              # File exists locally, status unknown
-    SYNCED = "synced"            # File is in sync (no action needed)
+
+    LOCAL = "local"  # File exists locally, status unknown
+    SYNCED = "synced"  # File is in sync (no action needed)
     TO_DOWNLOAD = "to_download"  # File needs to be downloaded
-    TO_UPLOAD = "to_upload"      # File needs to be uploaded
-    TO_DELETE = "to_delete"      # File will be deleted
+    TO_UPLOAD = "to_upload"  # File needs to be uploaded
+    TO_DELETE = "to_delete"  # File will be deleted
     DOWNLOADING = "downloading"  # File is being downloaded
-    UPLOADING = "uploading"      # File is being uploaded
-    TO_RENAME = "to_rename"      # File will be renamed (same content, different path)
-    DELETED = "deleted"          # File was deleted (shown briefly before removal)
-    QUEUED = "queued"            # Legacy: file is queued for transfer
+    UPLOADING = "uploading"  # File is being uploaded
+    TO_RENAME = "to_rename"  # File will be renamed (same content, different path)
+    DELETED = "deleted"  # File was deleted (shown briefly before removal)
+    QUEUED = "queued"  # Legacy: file is queued for transfer
     TRANSFERRING = "transferring"  # Legacy: file is being transferred
-    COMPLETED = "completed"      # File transfer completed
+    COMPLETED = "completed"  # File transfer completed
     ERROR = "error"
 
 
 # Status colors for the file table
 STATUS_COLORS = {
-    TransferStatus.LOCAL: QColor(128, 128, 128),       # Gray
-    TransferStatus.SYNCED: QColor(76, 175, 80),        # Green (#4caf50)
-    TransferStatus.TO_DOWNLOAD: QColor(0, 188, 212),   # Cyan (#00bcd4)
-    TransferStatus.TO_UPLOAD: QColor(255, 152, 0),     # Orange (#ff9800)
-    TransferStatus.TO_DELETE: QColor(244, 67, 54),     # Red (#f44336)
-    TransferStatus.TO_RENAME: QColor(156, 39, 176),    # Purple (#9c27b0)
+    TransferStatus.LOCAL: QColor(128, 128, 128),  # Gray
+    TransferStatus.SYNCED: QColor(76, 175, 80),  # Green (#4caf50)
+    TransferStatus.TO_DOWNLOAD: QColor(0, 188, 212),  # Cyan (#00bcd4)
+    TransferStatus.TO_UPLOAD: QColor(255, 152, 0),  # Orange (#ff9800)
+    TransferStatus.TO_DELETE: QColor(244, 67, 54),  # Red (#f44336)
+    TransferStatus.TO_RENAME: QColor(156, 39, 176),  # Purple (#9c27b0)
     TransferStatus.DOWNLOADING: QColor(33, 150, 243),  # Blue (#2196f3)
-    TransferStatus.UPLOADING: QColor(255, 193, 7),     # Amber (#ffc107)
-    TransferStatus.DELETED: QColor(244, 67, 54),       # Red (#f44336)
-    TransferStatus.QUEUED: QColor(128, 128, 128),      # Gray
-    TransferStatus.TRANSFERRING: QColor(33, 150, 243), # Blue (#2196f3)
-    TransferStatus.COMPLETED: QColor(76, 175, 80),     # Green (#4caf50)
-    TransferStatus.ERROR: QColor(244, 67, 54),         # Red (#f44336)
+    TransferStatus.UPLOADING: QColor(255, 193, 7),  # Amber (#ffc107)
+    TransferStatus.DELETED: QColor(244, 67, 54),  # Red (#f44336)
+    TransferStatus.QUEUED: QColor(128, 128, 128),  # Gray
+    TransferStatus.TRANSFERRING: QColor(33, 150, 243),  # Blue (#2196f3)
+    TransferStatus.COMPLETED: QColor(76, 175, 80),  # Green (#4caf50)
+    TransferStatus.ERROR: QColor(244, 67, 54),  # Red (#f44336)
 }
 
 
 @dataclass
 class FileTransfer:
     """Represents a file transfer (download or upload)."""
+
     filepath: str
     direction: str  # "↓" or "↑"
     size: int = 0
@@ -123,7 +135,7 @@ class FileTransfer:
         return max(0, self.size - self.bytes_transferred)
 
     @property
-    def eta_seconds(self) -> Optional[float]:
+    def eta_seconds(self) -> float | None:
         if self.status != TransferStatus.TRANSFERRING or self.bytes_transferred == 0:
             return None
         elapsed = time() - self.start_time
@@ -144,7 +156,7 @@ def _format_size(n: int) -> str:
     return f"{n:.1f} TB"
 
 
-def _format_eta(seconds: Optional[float]) -> str:
+def _format_eta(seconds: float | None) -> str:
     """Format ETA as human-readable string."""
     if seconds is None:
         return ""
@@ -193,7 +205,7 @@ COL_STATUS = 7
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
-    "",            # icon column — no header text
+    "",  # icon column — no header text
     "file.name",
     "file.size",
     "file.type",
@@ -211,48 +223,206 @@ _COLUMN_KEYS = [
 _FILE_TYPE_MAP: dict[str, tuple[str, str]] = {}
 
 _TYPE_DEFINITIONS: list[tuple[str, str, list[str]]] = [
-    ("image-x-generic", "ftype.image", [
-        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico",
-        ".tiff", ".tif", ".heic", ".heif", ".avif", ".raw", ".cr2", ".nef",
-    ]),
-    ("audio-x-generic", "ftype.audio", [
-        ".mp3", ".wav", ".flac", ".ogg", ".aac", ".wma", ".m4a", ".opus",
-        ".aiff", ".alac", ".mid", ".midi",
-    ]),
-    ("video-x-generic", "ftype.video", [
-        ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v",
-        ".mpeg", ".mpg", ".3gp", ".ts",
-    ]),
-    ("x-office-spreadsheet", "ftype.spreadsheet", [
-        ".xls", ".xlsx", ".ods", ".csv", ".tsv", ".numbers",
-    ]),
-    ("x-office-presentation", "ftype.presentation", [
-        ".ppt", ".pptx", ".odp", ".key",
-    ]),
-    ("x-office-document", "ftype.document", [
-        ".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".md", ".tex",
-        ".epub", ".pages", ".log",
-    ]),
-    ("package-x-generic", "ftype.archive", [
-        ".zip", ".tar", ".gz", ".bz2", ".xz", ".rar", ".7z", ".zst",
-        ".tgz", ".tbz2", ".iso", ".dmg", ".deb", ".rpm",
-    ]),
-    ("text-x-script", "ftype.code", [
-        ".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".scss",
-        ".java", ".c", ".cpp", ".h", ".hpp", ".cs", ".go", ".rs", ".rb",
-        ".php", ".swift", ".kt", ".lua", ".sh", ".bash", ".zsh", ".ps1",
-        ".sql", ".r", ".m", ".pl", ".scala", ".zig", ".nim", ".dart",
-        ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
-    ]),
-    ("application-certificate", "ftype.key", [
-        ".pem", ".crt", ".cer", ".key", ".p12", ".pfx", ".jks",
-    ]),
-    ("font-x-generic", "ftype.font", [
-        ".ttf", ".otf", ".woff", ".woff2", ".eot",
-    ]),
-    ("application-x-executable", "ftype.executable", [
-        ".exe", ".msi", ".app", ".bin", ".run", ".appimage",
-    ]),
+    (
+        "image-x-generic",
+        "ftype.image",
+        [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".svg",
+            ".webp",
+            ".ico",
+            ".tiff",
+            ".tif",
+            ".heic",
+            ".heif",
+            ".avif",
+            ".raw",
+            ".cr2",
+            ".nef",
+        ],
+    ),
+    (
+        "audio-x-generic",
+        "ftype.audio",
+        [
+            ".mp3",
+            ".wav",
+            ".flac",
+            ".ogg",
+            ".aac",
+            ".wma",
+            ".m4a",
+            ".opus",
+            ".aiff",
+            ".alac",
+            ".mid",
+            ".midi",
+        ],
+    ),
+    (
+        "video-x-generic",
+        "ftype.video",
+        [
+            ".mp4",
+            ".avi",
+            ".mkv",
+            ".mov",
+            ".wmv",
+            ".flv",
+            ".webm",
+            ".m4v",
+            ".mpeg",
+            ".mpg",
+            ".3gp",
+            ".ts",
+        ],
+    ),
+    (
+        "x-office-spreadsheet",
+        "ftype.spreadsheet",
+        [
+            ".xls",
+            ".xlsx",
+            ".ods",
+            ".csv",
+            ".tsv",
+            ".numbers",
+        ],
+    ),
+    (
+        "x-office-presentation",
+        "ftype.presentation",
+        [
+            ".ppt",
+            ".pptx",
+            ".odp",
+            ".key",
+        ],
+    ),
+    (
+        "x-office-document",
+        "ftype.document",
+        [
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".odt",
+            ".rtf",
+            ".txt",
+            ".md",
+            ".tex",
+            ".epub",
+            ".pages",
+            ".log",
+        ],
+    ),
+    (
+        "package-x-generic",
+        "ftype.archive",
+        [
+            ".zip",
+            ".tar",
+            ".gz",
+            ".bz2",
+            ".xz",
+            ".rar",
+            ".7z",
+            ".zst",
+            ".tgz",
+            ".tbz2",
+            ".iso",
+            ".dmg",
+            ".deb",
+            ".rpm",
+        ],
+    ),
+    (
+        "text-x-script",
+        "ftype.code",
+        [
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".html",
+            ".css",
+            ".scss",
+            ".java",
+            ".c",
+            ".cpp",
+            ".h",
+            ".hpp",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".lua",
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".ps1",
+            ".sql",
+            ".r",
+            ".m",
+            ".pl",
+            ".scala",
+            ".zig",
+            ".nim",
+            ".dart",
+            ".json",
+            ".xml",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".ini",
+            ".cfg",
+            ".conf",
+        ],
+    ),
+    (
+        "application-certificate",
+        "ftype.key",
+        [
+            ".pem",
+            ".crt",
+            ".cer",
+            ".key",
+            ".p12",
+            ".pfx",
+            ".jks",
+        ],
+    ),
+    (
+        "font-x-generic",
+        "ftype.font",
+        [
+            ".ttf",
+            ".otf",
+            ".woff",
+            ".woff2",
+            ".eot",
+        ],
+    ),
+    (
+        "application-x-executable",
+        "ftype.executable",
+        [
+            ".exe",
+            ".msi",
+            ".app",
+            ".bin",
+            ".run",
+            ".appimage",
+        ],
+    ),
 ]
 
 for _icon_name, _key, _exts in _TYPE_DEFINITIONS:
@@ -269,6 +439,7 @@ def _classify_file(filepath: str) -> tuple[str, str]:
         return ("folder", "ftype.folder")
     ext = Path(filepath).suffix.lower()
     return _FILE_TYPE_MAP.get(ext, ("text-x-generic", "ftype.other"))
+
 
 # Statuses where no progress bar should be shown
 _NO_PROGRESS_STATUSES = {
@@ -299,9 +470,7 @@ class ProgressBarDelegate(QStyledItemDelegate):
 
         style = QApplication.style()
         if style:
-            style.drawControl(
-                QStyle.ControlElement.CE_ProgressBar, opt, painter
-            )
+            style.drawControl(QStyle.ControlElement.CE_ProgressBar, opt, painter)
 
 
 class CenteredIconDelegate(QStyledItemDelegate):
@@ -568,9 +737,7 @@ class FileDetailPanel:
         self._lbl_ip_label: QLabel = frame.findChild(QLabel, "lblIp")  # type: ignore[assignment]
 
         # Make filepath label clickable via <a href> + linkActivated signal
-        self._lbl_filepath.setTextInteractionFlags(
-            Qt.TextInteractionFlag.LinksAccessibleByMouse
-        )
+        self._lbl_filepath.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
         self._lbl_filepath.setOpenExternalLinks(False)
         self._lbl_filepath.linkActivated.connect(self._on_filepath_clicked)
 
@@ -610,9 +777,7 @@ class FileDetailPanel:
         self._current_abs_dir = abs_dir
         # Render as clickable HTML link (Qt handles underline + color)
         escaped = display.replace("&", "&amp;").replace("<", "&lt;")
-        self._lbl_filepath.setText(
-            f'<a href="file://{abs_dir}">{escaped}</a>'
-        )
+        self._lbl_filepath.setText(f'<a href="file://{abs_dir}">{escaped}</a>')
 
         self._lbl_filename.setText(transfer.filename)
         self._lbl_size.setText(_format_size(transfer.size))
@@ -655,15 +820,15 @@ class FileTransferTable(QTableWidget):
     """Sortable table showing file transfers with hierarchical folder navigation."""
 
     row_selected = Signal(object)  # Emits FileTransfer or None
-    row_deselected = Signal()      # Emitted when clicking on already selected row
+    row_deselected = Signal()  # Emitted when clicking on already selected row
     properties_requested = Signal(object)  # Emits FileTransfer for properties panel
-    path_changed = Signal(str)     # Emitted when current navigation path changes
+    path_changed = Signal(str)  # Emitted when current navigation path changes
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
+        self._transfers: dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
         self._transfers_mutex = QMutex()  # Protects _transfers dict
-        self._row_index: Dict[str, int] = {}  # display key -> row index
+        self._row_index: dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         self._base_directory: str = ""
 
@@ -699,6 +864,7 @@ class FileTransferTable(QTableWidget):
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
         from PySide6.QtCore import QSize
+
         self.setIconSize(QSize(16, 16))
 
         # Column sizing and behavior
@@ -784,9 +950,7 @@ class FileTransferTable(QTableWidget):
             return
         display_name = name_item.text()
         # Check if it's a synthesized folder (exists in current level)
-        full_path = (
-            f"{self._current_path}/{display_name}" if self._current_path else display_name
-        )
+        full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
         # Check if any transfer has this as a prefix (folder)
         is_folder = any(
             t.filepath == full_path + "/" or t.filepath.startswith(full_path + "/")
@@ -822,7 +986,7 @@ class FileTransferTable(QTableWidget):
             return
         # Add to history (truncate forward history if navigating from middle)
         self._nav_index += 1
-        self._nav_history = self._nav_history[:self._nav_index] + [path]
+        self._nav_history = self._nav_history[: self._nav_index] + [path]
         self._current_path = path
         self.refresh_view()
         self.path_changed.emit(path)
@@ -1012,8 +1176,7 @@ class FileTransferTable(QTableWidget):
             self.setUpdatesEnabled(True)
 
     def _populate_row_hierarchical(
-        self, row: int, display_name: str,
-        transfer: FileTransfer | None, folder_data: dict | None
+        self, row: int, display_name: str, transfer: FileTransfer | None, folder_data: dict | None
     ) -> None:
         """Populate a row for hierarchical view."""
         is_folder = transfer is None or transfer.filepath.endswith("/")
@@ -1025,9 +1188,7 @@ class FileTransferTable(QTableWidget):
             icon_name, type_key = _classify_file(transfer.filepath)  # type: ignore
         icon_item = QTableWidgetItem()
         icon_item.setIcon(get_icon(icon_name))
-        icon_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
-        )
+        icon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_ICON, icon_item)
 
         # Name (just the display name, not full path)
@@ -1045,17 +1206,15 @@ class FileTransferTable(QTableWidget):
         else:
             size_text = ""
         size_item = QTableWidgetItem(size_text)
-        size_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_SIZE, size_item)
 
         # Modified
-        mtime = folder_data.get("mtime", 0.0) if folder_data else (transfer.mtime if transfer else 0.0)
-        mtime_item = QTableWidgetItem(_format_mtime(mtime))
-        mtime_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        mtime = (
+            folder_data.get("mtime", 0.0) if folder_data else (transfer.mtime if transfer else 0.0)
         )
+        mtime_item = QTableWidgetItem(_format_mtime(mtime))
+        mtime_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_MODIFIED, mtime_item)
 
         # Progress
@@ -1090,9 +1249,7 @@ class FileTransferTable(QTableWidget):
         # ETA
         eta = transfer.eta_seconds if transfer else None
         eta_item = QTableWidgetItem(_format_eta(eta))
-        eta_item.setTextAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        eta_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_ETA, eta_item)
 
         # Status
@@ -1147,9 +1304,7 @@ class FileTransferTable(QTableWidget):
             return None
         display_name = name_item.text()
         # Build full path from current navigation path + display name
-        full_path = (
-            f"{self._current_path}/{display_name}" if self._current_path else display_name
-        )
+        full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
         # Try exact match, then with trailing "/" (directory marker)
         return self._transfers.get(full_path) or self._transfers.get(full_path + "/")
 
@@ -1177,7 +1332,8 @@ class FileTransferTable(QTableWidget):
             # Build folder path
             folder_path = (
                 f"{self._current_path}/{display_name}/"
-                if self._current_path else f"{display_name}/"
+                if self._current_path
+                else f"{display_name}/"
             )
             # Create a virtual transfer for the folder
             transfer = FileTransfer(
@@ -1209,7 +1365,8 @@ class FileTransferTable(QTableWidget):
             QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
         except Exception as exc:
             QMessageBox.warning(
-                self, tr("ctx.error_title"),
+                self,
+                tr("ctx.error_title"),
                 tr("ctx.error_open").format(error=str(exc)),
             )
 
@@ -1224,11 +1381,11 @@ class FileTransferTable(QTableWidget):
                 # AppleScript: present the "choose application" dialog
                 script = (
                     f'set theFile to POSIX file "{abs_path}"\n'
-                    f'set theApp to choose application with prompt '
+                    f"set theApp to choose application with prompt "
                     f'"Open With" as alias\n'
-                    f'tell application (POSIX path of (theApp as text))\n'
-                    f'  open theFile\n'
-                    f'end tell'
+                    f"tell application (POSIX path of (theApp as text))\n"
+                    f"  open theFile\n"
+                    f"end tell"
                 )
                 subprocess.Popen(
                     ["osascript", "-e", script],
@@ -1246,7 +1403,8 @@ class FileTransferTable(QTableWidget):
                 QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
         except Exception as exc:
             QMessageBox.warning(
-                self, tr("ctx.error_title"),
+                self,
+                tr("ctx.error_title"),
                 tr("ctx.error_open_with").format(error=str(exc)),
             )
 
@@ -1271,16 +1429,18 @@ class FileTransferTable(QTableWidget):
             os.close(fd)
 
         msg = QDBusMessage.createMethodCall(
-            "org.freedesktop.portal.Desktop",       # service
-            "/org/freedesktop/portal/desktop",       # path
-            "org.freedesktop.portal.OpenURI",        # interface
-            "OpenFile",                              # method
+            "org.freedesktop.portal.Desktop",  # service
+            "/org/freedesktop/portal/desktop",  # path
+            "org.freedesktop.portal.OpenURI",  # interface
+            "OpenFile",  # method
         )
-        msg.setArguments([
-            "",                          # parent_window (empty string)
-            descriptor,                  # fd  (h — unix file descriptor)
-            {"ask": True},               # options a{sv}
-        ])
+        msg.setArguments(
+            [
+                "",  # parent_window (empty string)
+                descriptor,  # fd  (h — unix file descriptor)
+                {"ask": True},  # options a{sv}
+            ]
+        )
 
         bus = QDBusConnection.sessionBus()
         reply = bus.call(msg)
@@ -1291,7 +1451,9 @@ class FileTransferTable(QTableWidget):
         """Copy the file or directory to a user-chosen directory."""
         abs_path = self._absolute_path(transfer)
         dest_dir = QFileDialog.getExistingDirectory(
-            self, tr("ctx.copy_dialog_title"), os.path.dirname(abs_path),
+            self,
+            tr("ctx.copy_dialog_title"),
+            os.path.dirname(abs_path),
         )
         if not dest_dir:
             return
@@ -1325,7 +1487,8 @@ class FileTransferTable(QTableWidget):
                     os.remove(dest_path)
             except Exception as exc:
                 QMessageBox.warning(
-                    self, tr("ctx.error_title"),
+                    self,
+                    tr("ctx.error_title"),
                     tr("ctx.error_copy").format(error=str(exc)),
                 )
                 return
@@ -1337,7 +1500,8 @@ class FileTransferTable(QTableWidget):
                 shutil.copy2(abs_path, dest_dir)
         except Exception as exc:
             QMessageBox.warning(
-                self, tr("ctx.error_title"),
+                self,
+                tr("ctx.error_title"),
                 tr("ctx.error_copy").format(error=str(exc)),
             )
 
@@ -1353,10 +1517,12 @@ class FileTransferTable(QTableWidget):
         form.addRow(tr("ctx.rename_label"), line_edit)
         buttons = QDialogButtonBox()
         rename_btn = buttons.addButton(
-            tr("ctx.rename_btn"), QDialogButtonBox.ButtonRole.AcceptRole,
+            tr("ctx.rename_btn"),
+            QDialogButtonBox.ButtonRole.AcceptRole,
         )
         buttons.addButton(
-            tr("action.cancel"), QDialogButtonBox.ButtonRole.RejectRole,
+            tr("action.cancel"),
+            QDialogButtonBox.ButtonRole.RejectRole,
         )
         buttons.rejected.connect(dlg.reject)
         rename_btn.clicked.connect(dlg.accept)
@@ -1389,7 +1555,8 @@ class FileTransferTable(QTableWidget):
             self.refresh_view()
         except Exception as exc:
             QMessageBox.warning(
-                self, tr("ctx.error_title"),
+                self,
+                tr("ctx.error_title"),
                 tr("ctx.error_rename").format(error=str(exc)),
             )
 
@@ -1418,9 +1585,9 @@ class FileTransferTable(QTableWidget):
                 # macOS: use osascript to move to trash
                 subprocess.run(
                     [
-                        "osascript", "-e",
-                        f'tell application "Finder" to delete '
-                        f'(POSIX file "{abs_path}" as alias)',
+                        "osascript",
+                        "-e",
+                        f'tell application "Finder" to delete (POSIX file "{abs_path}" as alias)',
                     ],
                     check=True,
                     stdout=subprocess.DEVNULL,
@@ -1429,8 +1596,8 @@ class FileTransferTable(QTableWidget):
             elif system == "Windows":
                 # Windows: use PowerShell to recycle
                 ps_cmd = (
-                    f'Add-Type -AssemblyName Microsoft.VisualBasic; '
-                    f'[Microsoft.VisualBasic.FileIO.FileSystem]'
+                    f"Add-Type -AssemblyName Microsoft.VisualBasic; "
+                    f"[Microsoft.VisualBasic.FileIO.FileSystem]"
                     f'::DeleteFile("{abs_path}", "OnlyErrorDialogs", '
                     f'"SendToRecycleBin")'
                 )
@@ -1447,7 +1614,8 @@ class FileTransferTable(QTableWidget):
             self._remove_file(transfer.filepath)
         except Exception as exc:
             QMessageBox.warning(
-                self, tr("ctx.error_title"),
+                self,
+                tr("ctx.error_title"),
                 tr("ctx.error_trash").format(error=str(exc)),
             )
 
@@ -1844,9 +2012,11 @@ class FilePanel(QWidget):
             self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
             return
 
-        link_color = self._breadcrumb_label.palette().color(
-            self._breadcrumb_label.palette().ColorRole.Link
-        ).name()
+        link_color = (
+            self._breadcrumb_label.palette()
+            .color(self._breadcrumb_label.palette().ColorRole.Link)
+            .name()
+        )
 
         parts = []
 
@@ -1954,7 +2124,7 @@ class FilePanel(QWidget):
     def _stop_scan(self) -> None:
         """Stop any ongoing directory scan."""
         self._hide_loading()
-        
+
         # Disconnect signals to prevent late callbacks from stale scans
         if self._scan_worker:
             try:
@@ -1971,12 +2141,12 @@ class FilePanel(QWidget):
                 pass
             self._scan_worker.cancel()
             self._scan_worker.deleteLater()
-        
+
         if self._scan_thread and self._scan_thread.isRunning():
             self._scan_thread.quit()
             self._scan_thread.wait(1000)  # Wait up to 1 second
             self._scan_thread.deleteLater()
-        
+
         self._scan_thread = None
         self._scan_worker = None
 
@@ -2123,8 +2293,12 @@ class FilePanel(QWidget):
     ) -> None:
         """Update or add a file with status from preview."""
         self._table.update_file_status(
-            filepath, status, size, mtime=mtime,
-            client_cid=client_cid, client_ip=client_ip,
+            filepath,
+            status,
+            size,
+            mtime=mtime,
+            client_cid=client_cid,
+            client_ip=client_ip,
         )
 
     def mark_deleted(self, filepath: str) -> None:
@@ -2141,8 +2315,11 @@ class FilePanel(QWidget):
     ) -> None:
         """Handle a file rename in the table."""
         self._table.rename_file(
-            old_path, new_path, mtime=mtime,
-            client_cid=client_cid, client_ip=client_ip,
+            old_path,
+            new_path,
+            mtime=mtime,
+            client_cid=client_cid,
+            client_ip=client_ip,
         )
 
     @property
@@ -2162,4 +2339,3 @@ class FilePanel(QWidget):
         self._detail._btn_close.setIcon(get_icon("window-close"))
         # Refresh table view to update file type icons
         self._table.refresh_view()
-

@@ -27,12 +27,13 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QSettings, Si
 
 from hsync_desktop.crypto import decrypt_value
 
-
 # ─── Stats dataclass ────────────────────────────────────────────────────────
+
 
 @dataclass
 class TransferStats:
     """Cumulative transfer statistics."""
+
     files_sent: int = 0
     files_received: int = 0
     bytes_sent: int = 0
@@ -57,7 +58,9 @@ _RE_LOG = re.compile(
 )
 
 _RE_PEERS = re.compile(r"Discovered\s+(\d+)\s+peer")
-_RE_MASTER = re.compile(r"I am the (?:new )?master|This client is the master|elected as master", re.I)
+_RE_MASTER = re.compile(
+    r"I am the (?:new )?master|This client is the master|elected as master", re.I
+)
 _RE_SLAVE = re.compile(r"Master is |Connecting to master|I am a slave", re.I)
 _RE_BUCKET = re.compile(r"bucket\s+'([^']+)'", re.I)
 _RE_GROUP = re.compile(r"group\s*=\s*'([^']+)'", re.I)
@@ -74,16 +77,16 @@ _RE_DISCONNECTED = re.compile(
 )
 _RE_SYNC_COMPLETE = re.compile(r"Sync complete|All files in sync|Initial sync complete", re.I)
 _RE_ERROR = re.compile(r"ERROR:\s*(.+)")
-_RE_AUTH_ERROR = re.compile(r"Invalid API key|API key required|Authentication.*failed|401.*Unauthorized", re.I)
+_RE_AUTH_ERROR = re.compile(
+    r"Invalid API key|API key required|Authentication.*failed|401.*Unauthorized", re.I
+)
 _RE_PATH_NOT_FOUND = re.compile(r"Directory '(.+?)' does not exist")
 
 # Master conflict patterns
 _RE_MASTER_CONFLICT = re.compile(
     r"\[MASTER_CONFLICT\].*?(?:another master|peer)\s+(\S+)\s+at\s+(\S+)"
 )
-_RE_MASTER_TAKEOVER = re.compile(
-    r"\[MASTER_TAKEOVER\].*?peer\s+(\S+)\s+at\s+(\S+)"
-)
+_RE_MASTER_TAKEOVER = re.compile(r"\[MASTER_TAKEOVER\].*?peer\s+(\S+)\s+at\s+(\S+)")
 
 # Session CID pattern
 _RE_SESSION_CID = re.compile(r"Session CID:\s*(\S+)")
@@ -126,6 +129,7 @@ def _parse_size(text: str | None) -> int:
 
 # ─── Default binary discovery ───────────────────────────────────────────────
 
+
 def find_hsync_binary() -> str | None:
     """Locate the hsync binary: bundled → PATH → sibling project dist."""
     # 1. Bundled alongside this package
@@ -156,28 +160,28 @@ class HsyncEngine(QObject):
     """
 
     # ── Signals ──────────────────────────────────────────────────────────
-    log_received = Signal(str)              # raw log line
-    status_changed = Signal(str)            # disconnected|connecting|connected|waiting|error
-    peers_changed = Signal(int)             # number of alive peers
-    master_changed = Signal(bool)           # True ⇒ this client is master
-    bucket_detected = Signal(str)           # bucket name
-    group_detected = Signal(str)            # LAN group name
-    file_transferred = Signal(str, str)     # direction ("↓"|"↑"|"✕"), filename
-    file_renamed = Signal(str, str)         # old_path, new_path
-    directory_created = Signal(str)         # directory path
-    sync_completed = Signal()               # a full sync cycle finished
-    error_occurred = Signal(str)            # error message
-    auth_error_occurred = Signal(str)       # authentication error (invalid/missing API key)
-    path_not_found = Signal(str)            # shared path does not exist
-    process_finished = Signal(int, str)     # exit code, exit status description
+    log_received = Signal(str)  # raw log line
+    status_changed = Signal(str)  # disconnected|connecting|connected|waiting|error
+    peers_changed = Signal(int)  # number of alive peers
+    master_changed = Signal(bool)  # True ⇒ this client is master
+    bucket_detected = Signal(str)  # bucket name
+    group_detected = Signal(str)  # LAN group name
+    file_transferred = Signal(str, str)  # direction ("↓"|"↑"|"✕"), filename
+    file_renamed = Signal(str, str)  # old_path, new_path
+    directory_created = Signal(str)  # directory path
+    sync_completed = Signal()  # a full sync cycle finished
+    error_occurred = Signal(str)  # error message
+    auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
+    path_not_found = Signal(str)  # shared path does not exist
+    process_finished = Signal(int, str)  # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
 
     # Preview signals (emitted during dry-run preview)
-    preview_started = Signal()                      # preview scan started
-    preview_ended = Signal()                        # preview scan ended
-    file_status = Signal(str, str, int)             # status, filepath, size
+    preview_started = Signal()  # preview scan started
+    preview_ended = Signal()  # preview scan ended
+    file_status = Signal(str, str, int)  # status, filepath, size
     # status can be: "synced", "to_download", "to_upload", "to_delete"
-    file_rename_status = Signal(str, str, int)       # old_path, new_path, size
+    file_rename_status = Signal(str, str, int)  # old_path, new_path, size
 
     # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -452,21 +456,21 @@ class HsyncEngine(QObject):
         """Parse a single log line and emit signals as needed."""
         try:
             self._parse_line_inner(line)
-        except Exception as e:
+        except Exception:
             # Log parsing errors should not crash the engine
             # Just log and continue processing
             self.log_received.emit(f"[PARSE ERROR] {line[:100]}")
 
     def _parse_line_inner(self, line: str) -> None:
         """Internal method to parse a single log line.
-        
+
         Optimized with early returns and ordered pattern matching
         to minimize regex operations per line.
         """
         # Quick check: if line starts with common prefixes, skip expensive patterns
         # This is a fast filter before doing regex matching
         first_char = line[0] if line else ""
-        
+
         # Strip ANSI escape codes for pattern matching (only if needed)
         clean = line
         if "\x1b[" in line:
@@ -514,15 +518,27 @@ class HsyncEngine(QObject):
 
         # High-priority patterns (most common in normal operation)
         # Connection status - very common
-        if clean.startswith("Connected") or clean.startswith("WebSocket") or clean.startswith("Initial"):
+        if (
+            clean.startswith("Connected")
+            or clean.startswith("WebSocket")
+            or clean.startswith("Initial")
+        ):
             if _RE_CONNECTED.search(clean):
                 self._set_status("connected")
                 return
-        if clean.startswith("Waiting") or clean.startswith("No peers") or clean.startswith("Searching"):
+        if (
+            clean.startswith("Waiting")
+            or clean.startswith("No peers")
+            or clean.startswith("Searching")
+        ):
             if _RE_WAITING.search(clean):
                 self._set_status("waiting")
                 return
-        if clean.startswith("WebSocket") or clean.startswith("Connection") or clean.startswith("All peers"):
+        if (
+            clean.startswith("WebSocket")
+            or clean.startswith("Connection")
+            or clean.startswith("All peers")
+        ):
             if _RE_DISCONNECTED.search(clean):
                 self._set_status("waiting")
                 return
@@ -536,8 +552,12 @@ class HsyncEngine(QObject):
         # Transfer patterns - common during sync
         if "[" in clean:
             bracket_pos = clean.find("[")
-            prefix = clean[bracket_pos:bracket_pos+10] if len(clean) > bracket_pos + 10 else clean[bracket_pos:]
-            
+            prefix = (
+                clean[bracket_pos : bracket_pos + 10]
+                if len(clean) > bracket_pos + 10
+                else clean[bracket_pos:]
+            )
+
             if "DOWNLOAD" in prefix:
                 m = _RE_DOWNLOAD.search(clean)
                 if m and not m.group(1).strip().endswith(_HSYNCKEEP):
@@ -618,6 +638,7 @@ class HsyncEngine(QObject):
                 m = _RE_MASTER_URL.search(clean)
             if m:
                 from urllib.parse import urlparse
+
                 parsed = urlparse(m.group(1))
                 self._server_ip = parsed.hostname or ""
                 return
@@ -649,4 +670,3 @@ class HsyncEngine(QObject):
                 self.auth_error_occurred.emit(clean)
                 self._set_status("error")
                 return
-

@@ -314,4 +314,3 @@ translations: dict[str, str] = {
     "menu.help.docs": "Documentation",
     "menu.help.about": "À propos de HSYNC Desktop",
 }
-

@@ -38,6 +38,7 @@ def detect_system_theme() -> str:
         pass
     return THEME_LIGHT
 
+
 # ─── Color Palette ───────────────────────────────────────────────────────────
 
 # System accent color - will be initialized from system palette
@@ -61,6 +62,7 @@ def _get_accent_hover() -> QColor:
     """Get a darker version of the accent color for hover states."""
     accent = _get_system_accent()
     return accent.darker(115)
+
 
 # Status colors
 COLOR_CONNECTED = QColor("#2EA043")
@@ -227,8 +229,11 @@ QLabel:disabled {{
 
 def _light_qss() -> str:
     return _COMMON_QSS.format(
-        border="#D0D0D0", btn_hover="#DCDCDC", btn_pressed="#C8C8C8",
-        accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
+        border="#D0D0D0",
+        btn_hover="#DCDCDC",
+        btn_pressed="#C8C8C8",
+        accent=_get_system_accent().name(),
+        accent_hover=_get_accent_hover().name(),
         disabled_text="#A0A0A0",
         menu_hover="#E0E0E0",
     )
@@ -236,14 +241,18 @@ def _light_qss() -> str:
 
 def _dark_qss() -> str:
     return _COMMON_QSS.format(
-        border="#404040", btn_hover="#3A3A3A", btn_pressed="#454545",
-        accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
+        border="#404040",
+        btn_hover="#3A3A3A",
+        btn_pressed="#454545",
+        accent=_get_system_accent().name(),
+        accent_hover=_get_accent_hover().name(),
         disabled_text="#606060",
         menu_hover="#3A3A3A",
     )
 
 
 # ─── Public API ──────────────────────────────────────────────────────────────
+
 
 def apply_theme(app: QApplication, theme: str = THEME_LIGHT) -> None:
     """Apply the specified theme to the application."""
@@ -253,4 +262,3 @@ def apply_theme(app: QApplication, theme: str = THEME_LIGHT) -> None:
     else:
         app.setPalette(_build_light_palette())
         app.setStyleSheet(_light_qss())
-
