@@ -684,8 +684,10 @@ class FileTransferTable(QTableWidget):
         # Icon
         if is_folder:
             icon_name, type_key = "folder", "ftype.folder"
-        else:
+        elif transfer is not None:
             icon_name, type_key = _classify_file(transfer.filepath)
+        else:
+            icon_name, type_key = "folder", "ftype.folder"
         icon_item = QTableWidgetItem()
         icon_item.setIcon(get_icon(icon_name))
         icon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -1244,8 +1246,8 @@ class FilePanel(QWidget):
 
     def _build_ui(self) -> None:
         load_ui_widget("file_panel", self)
-        self._splitter: QSplitter = self.findChild(QSplitter, "splitter")
-        ui_table: QTableWidget = self.findChild(QTableWidget, "transferTable")
+        self._splitter: QSplitter = self.findChild(QSplitter, "splitter")  # type: ignore[assignment]
+        ui_table: QTableWidget = self.findChild(QTableWidget, "transferTable")  # type: ignore[assignment]
         self._table = FileTransferTable()
         table_idx = self._splitter.indexOf(ui_table)
 
@@ -1307,7 +1309,7 @@ class FilePanel(QWidget):
         self._loading_overlay = LoadingOverlay(self._table_container)
         self._table_container.installEventFilter(self)
 
-        detail_frame: QFrame = self.findChild(QFrame, "detailPanel")
+        detail_frame: QFrame = self.findChild(QFrame, "detailPanel")  # type: ignore[assignment]
         self._detail = FileDetailPanel(detail_frame)
 
         self._splitter.setSizes([800, 0])
