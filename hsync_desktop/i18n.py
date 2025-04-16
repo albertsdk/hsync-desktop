@@ -18,8 +18,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QSettings
 
-SETTINGS_ORG = "HSYNC"
-SETTINGS_APP = "HSYNCDesktop"
+from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 
 # Callbacks to notify when language changes
 _language_change_callbacks: list[Callable[[], None]] = []
