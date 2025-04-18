@@ -573,6 +573,7 @@ class MainWindow(QMainWindow):
         e.bucket_detected.connect(lambda b: self._bucket_label.setText(b))
         e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
+        e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
         e.sync_completed.connect(lambda: self._notifier.sync_complete())
@@ -797,6 +798,17 @@ class MainWindow(QMainWindow):
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
+
+    @Slot(str, int, int)
+    def _on_file_progress(self, filepath: str, bytes_transferred: int, total_bytes: int) -> None:
+        """Handle real-time file transfer progress updates."""
+        # Convert absolute path to relative path for table lookup
+        base_path = self._local_path
+        rel_path = filepath
+        if base_path and filepath.startswith(base_path):
+            rel_path = filepath[len(base_path) :].lstrip("/\\")
+        # Update the file panel with the progress
+        self._file_panel.update_transfer_progress(rel_path, bytes_transferred, total_bytes)
 
     @Slot(str, str)
     def _on_file_renamed(self, old_path: str, new_path: str) -> None:

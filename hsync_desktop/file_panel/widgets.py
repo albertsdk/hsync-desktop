@@ -1233,6 +1233,26 @@ class FileTransferTable(QTableWidget):
         """Remove a transfer immediately."""
         self._remove_file(filepath)
 
+    def update_transfer_progress(
+        self, filepath: str, bytes_transferred: int, total_bytes: int
+    ) -> None:
+        """Update the progress of a transfer in real-time.
+
+        Args:
+            filepath: The file path to update
+            bytes_transferred: Number of bytes transferred so far
+            total_bytes: Total size of the file in bytes
+        """
+        with QMutexLocker(self._transfers_mutex):
+            if filepath in self._transfers:
+                t = self._transfers[filepath]
+                t.bytes_transferred = bytes_transferred
+                t.size = total_bytes
+                # Set status to transferring if not already set
+                if t.status not in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING):
+                    t.status = TransferStatus.DOWNLOADING
+        self._schedule_refresh()
+
 
 # ── Main File Panel ───────────────────────────────────────────────────────
 
@@ -1595,6 +1615,18 @@ class FilePanel(QWidget):
         client_ip: str = "",
     ) -> None:
         self._table.rename_file(old_path, new_path, mtime, client_cid, client_ip)
+
+    def update_transfer_progress(
+        self, filepath: str, bytes_transferred: int, total_bytes: int
+    ) -> None:
+        """Update the progress of a transfer in real-time.
+
+        Args:
+            filepath: The file path to update
+            bytes_transferred: Number of bytes transferred so far
+            total_bytes: Total size of the file in bytes
+        """
+        self._table.update_transfer_progress(filepath, bytes_transferred, total_bytes)
 
     @property
     def table(self) -> FileTransferTable:

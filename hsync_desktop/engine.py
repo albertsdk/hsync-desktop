@@ -101,6 +101,11 @@ _RE_DIR_CREATE = re.compile(r'\[(?:LAN )?CREATE\s*\]\s*"(.+?)"')
 # Preview status patterns (emitted by PREVIEW stdin command)
 _RE_PREVIEW_START = re.compile(r"--- Preview \(dry-run\) ---")
 _RE_PREVIEW_END = re.compile(r"--- End Preview ---")
+
+# Transfer progress patterns (real-time progress updates)
+# Matches lines like: [DOWNLOADING] "file.txt" 50% (1.5MB/3.0MB)
+_RE_DOWNLOAD_PROGRESS = re.compile(r'\[DOWNLOADING\s*\]\s*"(.+?)"\s+(\d+)%\s+\((\d+)/(\d+)\)')
+_RE_UPLOAD_PROGRESS = re.compile(r'\[UPLOADING\s*\]\s*"(.+?)"\s+(\d+)%\s+\((\d+)/(\d+)\)')
 _RE_SYNCED = re.compile(r'\[SYNCED\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 _RE_TO_DOWNLOAD = re.compile(r'\[TO_DOWNLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 _RE_TO_UPLOAD = re.compile(r'\[TO_UPLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
@@ -169,6 +174,7 @@ class HsyncEngine(QObject):
     file_transferred = Signal(str, str)  # direction ("↓"|"↑"|"✕"), filename
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
+    file_progress = Signal(str, int, int)  # filepath, bytes_transferred, total_bytes
     sync_completed = Signal()  # a full sync cycle finished
     error_occurred = Signal(str)  # error message
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
@@ -576,6 +582,24 @@ class HsyncEngine(QObject):
                 m = _RE_REMOVE.search(clean)
                 if m and not m.group(1).strip().endswith(_HSYNCKEEP):
                     self.file_transferred.emit("✕", m.group(1).strip())
+                    return
+            elif "DOWNLOADING" in prefix:
+                # Check for real-time progress update
+                m = _RE_DOWNLOAD_PROGRESS.search(clean)
+                if m:
+                    filepath = m.group(1).strip()
+                    bytes_transferred = int(m.group(3))
+                    total_bytes = int(m.group(4))
+                    self.file_progress.emit(filepath, bytes_transferred, total_bytes)
+                    return
+            elif "UPLOADING" in prefix:
+                # Check for real-time progress update
+                m = _RE_UPLOAD_PROGRESS.search(clean)
+                if m:
+                    filepath = m.group(1).strip()
+                    bytes_transferred = int(m.group(3))
+                    total_bytes = int(m.group(4))
+                    self.file_progress.emit(filepath, bytes_transferred, total_bytes)
                     return
             elif "RENAME" in prefix or "CREATE" in prefix:
                 m = _RE_RENAME.search(clean)
