@@ -56,14 +56,14 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Logging Functions
+# Logging Functions (all output to stderr)
 # -----------------------------------------------------------------------------
 
-log_info() { echo -e "${BLUE}ℹ${RESET} $*"; }
-log_ok()   { echo -e "${GREEN}✓${RESET} $*"; }
-log_warn() { echo -e "${YELLOW}⚠${RESET} $*"; }
+log_info() { echo -e "${BLUE}ℹ${RESET} $*" >&2; }
+log_ok()   { echo -e "${GREEN}✓${RESET} $*" >&2; }
+log_warn() { echo -e "${YELLOW}⚠${RESET} $*" >&2; }
 log_error(){ echo -e "${RED}✕${RESET} $*" >&2; }
-log_step() { echo -e "${CYAN}→${RESET} ${BOLD}$*${RESET}"; }
+log_step() { echo -e "${CYAN}→${RESET} ${BOLD}$*${RESET}" >&2; }
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -118,10 +118,12 @@ bundle_client() {
         cp "${CLIENT_BINARY}" hsync_desktop/bin/hsync
         chmod +x hsync_desktop/bin/hsync
         log_ok "Bundled hsync-client"
+        # Output ONLY the --add-data argument to stdout (no log messages)
         echo "--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin"
     else
         log_warn "hsync-client binary not found at ${CLIENT_BINARY}"
         log_info "Desktop will search PATH for 'hsync' at runtime"
+        # Output empty string to stdout
         echo ""
     fi
 }
@@ -134,6 +136,7 @@ build_binary() {
     [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
 
     local add_data
+    # Capture ONLY stdout from bundle_client (logs go to stderr)
     add_data="$(bundle_client)"
 
     local extra_args=()
