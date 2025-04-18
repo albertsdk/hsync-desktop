@@ -142,7 +142,7 @@ build_binary() {
     local extra_args=()
     [[ -n "${add_data}" ]] && extra_args+=("${add_data}")
 
-    LC_ALL=C PYTHONWARNINGS=ignore "${PYINSTALLER}" \
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
         --clean --onefile --strip \
         --name "${APP_NAME}" \
         --log-level ERROR \
