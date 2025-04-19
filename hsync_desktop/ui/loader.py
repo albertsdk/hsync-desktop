@@ -30,6 +30,7 @@ Example usage:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -39,8 +40,25 @@ from PySide6.QtUiTools import QUiLoader
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
 
+
+def _get_ui_dir() -> Path:
+    """Get the directory containing .ui files.
+
+    Handles both development mode and PyInstaller frozen executable.
+    """
+    if getattr(sys, "frozen", False):
+        # Running as PyInstaller bundle - use _MEIPASS temp directory
+        # Files are stored in hsync_desktop/ui subdirectory
+        meipass = getattr(sys, "_MEIPASS", "")
+        base_path = Path(meipass) / "hsync_desktop" / "ui"
+    else:
+        # Running in development - use source directory
+        base_path = Path(__file__).parent
+    return base_path
+
+
 # Directory containing .ui files
-UI_DIR = Path(__file__).parent
+UI_DIR = _get_ui_dir()
 
 
 class UiLoader(QUiLoader):
