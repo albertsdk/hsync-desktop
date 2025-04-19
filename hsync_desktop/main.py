@@ -18,7 +18,8 @@ from hsync_desktop import __version__
 from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.i18n import init_language
 from hsync_desktop.main_window import MainWindow
-from hsync_desktop.settings_dialog import get_saved_theme
+from hsync_desktop.notifications import NotificationManager
+from hsync_desktop.settings_dialog import are_notifications_enabled, get_saved_theme
 from hsync_desktop.single_instance import SingleInstance
 from hsync_desktop.splash_screen import SplashScreen
 from hsync_desktop.system_tray import SystemTray
@@ -48,14 +49,28 @@ def main() -> int:
 
     # Create core components
     engine = HsyncEngine()
-    tray = SystemTray()
-    window = MainWindow(engine, tray)
+    # First create window, then pass it to tray
+    window = MainWindow(engine, None)  # temp: no tray yet
+    tray = SystemTray(window)
+    # Now update window with tray and connect tray signals
+    window._tray = tray
+    tray.toggle_window.connect(window._toggle_visibility)
+    tray.start_requested.connect(window._on_start)
+    tray.stop_requested.connect(window._on_stop)
+    tray.refresh_requested.connect(window._on_refresh)
+    tray.settings_requested.connect(window._open_settings)
+    tray.quit_requested.connect(window._quit)
+    # Create the notifier now that tray is available
+    window._notifier = NotificationManager(tray)
+    window._notifier.enabled = are_notifications_enabled()
 
     # Connect single instance activation to window
     def activate_window() -> None:
         window.show()
         window.raise_()
         window.activateWindow()
+        # Update tray menu text when window becomes visible
+        tray._apply_translations()
 
     single_instance.activate_requested.connect(activate_window)
 
