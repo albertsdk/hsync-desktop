@@ -200,6 +200,7 @@ translations: dict[str, str] = {
     # Tray menu
     "tray.show": "Show",
     "tray.hide": "Hide",
+    "tray.minimize": "Minimize to tray",
     "tray.start": "Start",
     "tray.stop": "Stop",
     "tray.refresh": "Refresh",

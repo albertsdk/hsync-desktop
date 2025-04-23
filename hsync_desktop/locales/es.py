@@ -149,6 +149,7 @@ translations: dict[str, str] = {
     "tip.disabled_during_sync": "Esta configuración no se puede cambiar mientras la sincronización está en ejecución.",
     "tray.show": "Mostrar",
     "tray.hide": "Ocultar",
+    "tray.minimize": "Minimizar a la bandeja del sistema",
     "tray.start": "Iniciar",
     "tray.stop": "Detener",
     "tray.refresh": "Actualizar",
