@@ -21,7 +21,14 @@ from __future__ import annotations
 import os
 
 from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
-from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QFontMetrics
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QCloseEvent,
+    QDesktopServices,
+    QFontMetrics,
+    QPalette,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -1201,10 +1208,40 @@ class MainWindow(QMainWindow):
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
+        from hsync_desktop.icons import icon as get_icon
+        from hsync_desktop.icons import themed_icon
+
+        # Determine icon colors based on theme
+        # Light theme: icons change color based on button state
+        # Dark theme: icons always white
+        app = QApplication.instance()
+        is_light_theme = False
+        if app:
+            palette = app.palette()
+            bg = palette.color(QPalette.ColorRole.Window)
+            luminance = 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue()
+            is_light_theme = luminance >= 128
+
+        # Start button: green background, white icon when enabled
         self._btn_start.setStyleSheet(
             _BTN_START_ACTIVE if self._btn_start.isEnabled() else _BTN_IDLE
         )
+        # Start icon: white when sync stopped, dark when running (light theme only)
+        if is_light_theme:
+            start_icon_color = "#424242" if self._btn_start.isEnabled() else "#FFFFFF"
+            self._btn_start.setIcon(themed_icon("media-playback-start", start_icon_color))
+        else:
+            self._btn_start.setIcon(get_icon("media-playback-start"))
+
+        # Stop button: red background, white icon when enabled
         self._btn_stop.setStyleSheet(_BTN_STOP_ACTIVE if self._btn_stop.isEnabled() else _BTN_IDLE)
+        # Stop icon: white when sync running, dark when stopped (light theme only)
+        if is_light_theme:
+            stop_icon_color = "#424242" if self._btn_stop.isEnabled() else "#FFFFFF"
+            self._btn_stop.setIcon(themed_icon("media-playback-stop", stop_icon_color))
+        else:
+            self._btn_stop.setIcon(get_icon("media-playback-stop"))
+
         self._btn_refresh.setStyleSheet(
             _BTN_REFRESH_ACTIVE if self._btn_refresh.isEnabled() else _BTN_IDLE
         )
@@ -1389,14 +1426,12 @@ class MainWindow(QMainWindow):
 
     def _refresh_icons_for_theme(self) -> None:
         """Refresh all icons after theme change."""
-        from hsync_desktop.icons import clear_icon_cache
+        from hsync_desktop.icons import clear_icon_cache, themed_icon
         from hsync_desktop.icons import icon as get_icon
 
         clear_icon_cache()
-        # Refresh button icons
-        self._btn_start.setIcon(get_icon("media-playback-start"))
-        self._btn_stop.setIcon(get_icon("media-playback-stop"))
-        self._btn_refresh.setIcon(get_icon("view-refresh"))
+        # Refresh button icons with theme-appropriate colors
+        self._apply_button_styles()
         # Refresh role icon
         current_role = self._role_label.text()
         role_name = "role-master" if current_role == tr("role.master") else "role-client"

@@ -43,11 +43,12 @@ def _is_dark_theme() -> bool:
     return luminance < 128
 
 
-def _load_themed_svg(svg_path: Path) -> QIcon:
+def _load_themed_svg(svg_path: Path, custom_color: str | None = None) -> QIcon:
     """Load an SVG file and replace 'currentColor' with theme-appropriate color.
 
     Args:
         svg_path: Path to the SVG file
+        custom_color: Optional custom color (e.g., "#FF0000"). If provided, overrides theme color.
 
     Returns:
         QIcon with the themed SVG
@@ -57,9 +58,12 @@ def _load_themed_svg(svg_path: Path) -> QIcon:
     except OSError:
         return QIcon()
 
-    # Choose color based on theme
+    # Use custom color if provided, otherwise fall back to theme-based color
     # Light theme: dark gray (#424242), Dark theme: light gray (#e0e0e0)
-    color = "#e0e0e0" if _is_dark_theme() else "#424242"
+    if custom_color is None:
+        color = "#e0e0e0" if _is_dark_theme() else "#424242"
+    else:
+        color = custom_color
 
     # Replace currentColor with the appropriate color
     themed_svg = svg_content.replace("currentColor", color)
@@ -143,8 +147,8 @@ def _has_icon_theme() -> bool:
     return True
 
 
-# Cache for icons, keyed by (name, is_dark_theme)
-_icon_cache: dict[tuple[str, bool], QIcon] = {}
+# Cache for icons, keyed by (name, is_dark_theme, custom_color)
+_icon_cache: dict[tuple[str, bool, str | None], QIcon] = {}
 
 
 def icon(name: str) -> QIcon:
@@ -163,8 +167,29 @@ def icon(name: str) -> QIcon:
     Example:
         btn.setIcon(icon("network-cloud"))
     """
+    return _get_icon_impl(name, None)
+
+
+def themed_icon(name: str, color: str) -> QIcon:
+    """Get an icon with a custom color.
+
+    Args:
+        name: FreeDesktop icon name (e.g., "media-playback-start")
+        color: Custom color in hex format (e.g., "#FFFFFF" or "#2EA043")
+
+    Returns:
+        QIcon instance with the custom color applied
+
+    Example:
+        btn.setIcon(themed_icon("media-playback-start", "#FFFFFF"))
+    """
+    return _get_icon_impl(name, color)
+
+
+def _get_icon_impl(name: str, custom_color: str | None) -> QIcon:
+    """Internal implementation for getting icons with optional custom color."""
     is_dark = _is_dark_theme()
-    cache_key = (name, is_dark)
+    cache_key = (name, is_dark, custom_color)
 
     if cache_key in _icon_cache:
         return _icon_cache[cache_key]
@@ -174,7 +199,7 @@ def icon(name: str) -> QIcon:
     if fallback_name:
         fallback_path = ICONS_DIR / fallback_name
         if fallback_path.exists():
-            result = _load_themed_svg(fallback_path)
+            result = _load_themed_svg(fallback_path, custom_color)
             _icon_cache[cache_key] = result
             return result
 
