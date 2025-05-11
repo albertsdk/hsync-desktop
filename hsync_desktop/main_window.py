@@ -1453,7 +1453,7 @@ class MainWindow(QMainWindow):
             self.activateWindow()
         # Update tray menu text after visibility change
         if self._tray:
-            self._tray._apply_translations()
+            self._tray.set_window_visible(self.isVisible())
 
     def _quit(self) -> None:
         """Quit the application properly."""
@@ -1486,7 +1486,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
             # Update tray menu to show "Show" instead of "Minimize"
-            self._tray._apply_translations()
+            self._tray.set_window_visible(False)
         else:
             # No tray available – actually close
             self._quit()
