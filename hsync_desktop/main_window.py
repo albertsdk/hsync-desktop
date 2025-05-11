@@ -69,15 +69,7 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
-
-
-def _format_bytes(n: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if abs(n) < 1024:
-            return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
-        n /= 1024  # type: ignore[assignment]
-    return f"{n:.1f} TB"
-
+from hsync_desktop.utils import format_bytes
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
@@ -765,8 +757,8 @@ class MainWindow(QMainWindow):
     @Slot(str, str)
     def _on_file_transferred(self, direction: str, filename: str) -> None:
         st = self._engine.stats
-        self._sent_label.setText(f"{st.files_sent} ({_format_bytes(st.bytes_sent)})")
-        self._recv_label.setText(f"{st.files_received} ({_format_bytes(st.bytes_received)})")
+        self._sent_label.setText(f"{st.files_sent} ({format_bytes(st.bytes_sent)})")
+        self._recv_label.setText(f"{st.files_received} ({format_bytes(st.bytes_received)})")
         # Convert absolute path to relative path for table lookup
         base_path = self._local_path
         rel_path = filename
