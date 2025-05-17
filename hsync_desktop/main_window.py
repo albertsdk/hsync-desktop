@@ -204,6 +204,8 @@ class MainWindow(QMainWindow):
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
         self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._log_view.customContextMenuRequested.connect(self._show_log_context_menu)
+        # Limit log lines to prevent memory issues with long-running sessions
+        self._log_view.setMaximumBlockCount(10000)
 
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
