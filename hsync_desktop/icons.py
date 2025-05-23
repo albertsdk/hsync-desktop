@@ -150,6 +150,9 @@ def _has_icon_theme() -> bool:
 # Cache for icons, keyed by (name, is_dark_theme, custom_color)
 _icon_cache: dict[tuple[str, bool, str | None], QIcon] = {}
 
+# Maximum cache size to prevent memory issues
+_MAX_CACHE_SIZE = 256
+
 
 def icon(name: str) -> QIcon:
     """Get an icon by FreeDesktop name.
@@ -193,6 +196,13 @@ def _get_icon_impl(name: str, custom_color: str | None) -> QIcon:
 
     if cache_key in _icon_cache:
         return _icon_cache[cache_key]
+
+    # If cache is too large, clear old entries (FIFO-style approximation)
+    if len(_icon_cache) >= _MAX_CACHE_SIZE:
+        # Remove approximately 25% of oldest entries
+        keys_to_remove = list(_icon_cache.keys())[: _MAX_CACHE_SIZE // 4]
+        for key in keys_to_remove:
+            del _icon_cache[key]
 
     # Always prefer bundled icons for cross-platform uniformity
     fallback_name = _FALLBACK_MAP.get(name)
