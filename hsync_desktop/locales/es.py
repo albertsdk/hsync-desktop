@@ -315,4 +315,15 @@ translations: dict[str, str] = {
     "menu.help": "A&yuda",
     "menu.help.docs": "Documentación",
     "menu.help.about": "Acerca de HSYNC Desktop",
+    # Bandwidth dialog
+    "bandwidth.title": "Límites de ancho de banda",
+    "bandwidth.upload": "Subida",
+    "bandwidth.download": "Descarga",
+    "bandwidth.limit_enabled": "Limitar velocidad",
+    "bandwidth.warning_active": "La sincronización está activa. Los nuevos ajustes se aplicarán a los próximos archivos transferidos.",
+    "bandwidth.info": "Establece la velocidad máxima de subida y descarga. Deja deshabilitado para velocidad ilimitada.",
+    "bandwidth.apply": "Aplicar",
+    "bandwidth.click_to_edit": "Clic para editar los límites de ancho de banda",
+    "bandwidth.applied": "Límites de ancho de banda actualizados: subida {upload} MB/s, descarga {download} MB/s",
+    "bandwidth.saved": "Límites de ancho de banda guardados: subida {upload} MB/s, descarga {download} MB/s",
 }
