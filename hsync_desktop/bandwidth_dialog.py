@@ -12,22 +12,18 @@ Allows users to configure upload and download speed limits.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSettings, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
-    QFormLayout,
-    QHBoxLayout,
     QLabel,
-    QMessageBox,
-    QVBoxLayout,
     QWidget,
 )
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.cli_args import get_bandwidth_limits, save_bandwidth_limits
+from hsync_desktop.ui.loader import load_ui_widget
 
 
 class BandwidthDialog(QDialog):
@@ -50,85 +46,53 @@ class BandwidthDialog(QDialog):
         self._load_settings()
 
     def _load_ui(self) -> None:
-        """Setup the dialog UI."""
+        """Load UI from .ui file and setup widget references."""
+        load_ui_widget("bandwidth_dialog", self)
+
         self.setWindowTitle(tr("bandwidth.title"))
-        self.setMinimumWidth(350)
 
-        layout = QVBoxLayout(self)
+        # Get widget references from .ui file
+        self._lbl_warning: QLabel = self.findChild(QLabel, "lblWarning")  # type: ignore[assignment]
+        self._lbl_upload: QLabel = self.findChild(QLabel, "lblUpload")  # type: ignore[assignment]
+        self._lbl_download: QLabel = self.findChild(QLabel, "lblDownload")  # type: ignore[assignment]
+        self._lbl_info: QLabel = self.findChild(QLabel, "lblInfo")  # type: ignore[assignment]
+        self._upload_enabled: QCheckBox = self.findChild(QCheckBox, "chkUploadEnabled")  # type: ignore[assignment]
+        self._upload_spin: QDoubleSpinBox = self.findChild(QDoubleSpinBox, "spnUpload")  # type: ignore[assignment]
+        self._download_enabled: QCheckBox = self.findChild(QCheckBox, "chkDownloadEnabled")  # type: ignore[assignment]
+        self._download_spin: QDoubleSpinBox = self.findChild(QDoubleSpinBox, "spnDownload")  # type: ignore[assignment]
+        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
-        # Warning banner if sync is active
-        if self._sync_active:
-            warning = QLabel("⚠️ " + tr("bandwidth.warning_active"))
-            warning.setStyleSheet(
-                "background-color: #fff3cd; "
-                "border: 1px solid #ffc107; "
-                "border-radius: 4px; "
-                "padding: 8px; "
-                "color: #856404;"
-            )
-            warning.setWordWrap(True)
-            layout.addWidget(warning)
-
-        form = QFormLayout()
-
-        # Upload settings
-        self._upload_enabled = QCheckBox(tr("bandwidth.limit_enabled"))
+        # Connect signals
         self._upload_enabled.toggled.connect(self._on_upload_toggled)
-
-        self._upload_spin = QDoubleSpinBox()
-        self._upload_spin.setRange(0.1, 1000.0)
-        self._upload_spin.setSuffix(" MB/s")
-        self._upload_spin.setDecimals(1)
-        self._upload_spin.setValue(10.0)
-
-        upload_layout = QHBoxLayout()
-        upload_layout.addWidget(self._upload_enabled)
-        upload_layout.addWidget(self._upload_spin)
-        upload_layout.addStretch()
-
-        form.addRow(tr("bandwidth.upload"), upload_layout)
-
-        # Download settings
-        self._download_enabled = QCheckBox(tr("bandwidth.limit_enabled"))
         self._download_enabled.toggled.connect(self._on_download_toggled)
-
-        self._download_spin = QDoubleSpinBox()
-        self._download_spin.setRange(0.1, 1000.0)
-        self._download_spin.setSuffix(" MB/s")
-        self._download_spin.setDecimals(1)
-        self._download_spin.setValue(10.0)
-
-        download_layout = QHBoxLayout()
-        download_layout.addWidget(self._download_enabled)
-        download_layout.addWidget(self._download_spin)
-        download_layout.addStretch()
-
-        form.addRow(tr("bandwidth.download"), download_layout)
-
-        layout.addLayout(form)
-
-        # Info text
-        info = QLabel(tr("bandwidth.info"))
-        info.setStyleSheet("color: #666; font-size: 10pt;")
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
-        # Buttons
-        self._button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
-        # Set button texts
+        # Update translations
+        self._apply_translations()
+
+        # Show/hide warning based on sync state
+        if self._sync_active:
+            self._lbl_warning.setText("⚠️ " + tr("bandwidth.warning_active"))
+            self._lbl_warning.show()
+        else:
+            self._lbl_warning.hide()
+
+    def _apply_translations(self) -> None:
+        """Apply i18n translations to UI elements."""
+        self._lbl_upload.setText(tr("bandwidth.upload"))
+        self._lbl_download.setText(tr("bandwidth.download"))
+        self._upload_enabled.setText(tr("bandwidth.limit_enabled"))
+        self._download_enabled.setText(tr("bandwidth.limit_enabled"))
+        self._lbl_info.setText(tr("bandwidth.info"))
+
+        # Update button texts
         ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
         if ok_btn:
             ok_btn.setText(tr("bandwidth.apply"))
         cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel_btn:
             cancel_btn.setText(tr("action.cancel"))
-
-        layout.addWidget(self._button_box)
 
     def _load_settings(self) -> None:
         """Load current bandwidth settings."""

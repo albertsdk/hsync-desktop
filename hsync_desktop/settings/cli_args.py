@@ -228,14 +228,32 @@ def get_bandwidth_limits() -> tuple[int | None, int | None]:
         Tuple of (upload_bps, download_bps) where None means unlimited.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    upload = s.value("sync/bandwidth_upload", None)
-    download = s.value("sync/bandwidth_download", None)
+    upload_raw = s.value("sync/bandwidth_upload", None)
+    download_raw = s.value("sync/bandwidth_download", None)
 
-    # Convert from MB/s to bytes/s if stored as float
-    if upload is not None:
-        upload = int(cast(float, upload) * 1024 * 1024)
-    if download is not None:
-        download = int(cast(float, download) * 1024 * 1024)
+    upload: int | None = None
+    download: int | None = None
+
+    # Validate and convert from MB/s to bytes/s if stored as float
+    if upload_raw is not None:
+        try:
+            upload_val = float(
+                str(upload_raw)
+            )  # Convert to string first to handle weird QSettings values
+            upload = int(upload_val * 1024 * 1024)
+        except (ValueError, TypeError):
+            # Invalid stored value - remove and treat as unlimited
+            s.remove("sync/bandwidth_upload")
+
+    if download_raw is not None:
+        try:
+            download_val = float(
+                str(download_raw)
+            )  # Convert to string first to handle weird QSettings values
+            download = int(download_val * 1024 * 1024)
+        except (ValueError, TypeError):
+            # Invalid stored value - remove and treat as unlimited
+            s.remove("sync/bandwidth_download")
 
     return upload, download
 

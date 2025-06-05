@@ -229,14 +229,19 @@ class MainWindow(QMainWindow):
         self._lbl_recv: QLabel = self.findChild(QLabel, "lblRecv")  # type: ignore[assignment]
         self._recv_label: QLabel = self.findChild(QLabel, "recvLabel")  # type: ignore[assignment]
 
-        # Make bandwidth labels clickable
+        # Make bandwidth labels clickable (both the label header and value)
+        self._lbl_sent.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._lbl_sent.setToolTip(tr("bandwidth.click_to_edit"))
         self._sent_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sent_label.setToolTip(tr("bandwidth.click_to_edit"))
+        self._lbl_recv.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._lbl_recv.setToolTip(tr("bandwidth.click_to_edit"))
         self._recv_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self._recv_label.setToolTip(tr("bandwidth.click_to_edit"))
-        # Connect bandwidth label click handlers
-        self._sent_label.mousePressEvent = self._on_bandwidth_click  # type: ignore[assignment]
-        self._recv_label.mousePressEvent = self._on_bandwidth_click  # type: ignore[assignment]
+
+        # Connect bandwidth label click handlers using event filter
+        for label in [self._lbl_sent, self._sent_label, self._lbl_recv, self._recv_label]:
+            label.installEventFilter(self)
 
         # Replace filePanelPlaceholder with actual FilePanel
         placeholder: QWidget = self.findChild(QWidget, "filePanelPlaceholder")  # type: ignore[assignment]
@@ -298,6 +303,11 @@ class MainWindow(QMainWindow):
         self._lbl_peers.setText(tr("label.peers"))
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
+        # Bandwidth label tooltips
+        self._lbl_sent.setToolTip(tr("bandwidth.click_to_edit"))
+        self._sent_label.setToolTip(tr("bandwidth.click_to_edit"))
+        self._lbl_recv.setToolTip(tr("bandwidth.click_to_edit"))
+        self._recv_label.setToolTip(tr("bandwidth.click_to_edit"))
         # Menu bar translations
         if hasattr(self, "_menu_sync"):
             self._menu_sync.setTitle(tr("menu.sync"))
@@ -1214,8 +1224,26 @@ class MainWindow(QMainWindow):
 
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
-    def _on_bandwidth_click(self, event) -> None:
-        """Handle clicks on the bandwidth labels (sent/recv)."""
+    def eventFilter(self, obj, event) -> bool:  # type: ignore[no-untyped-def]
+        """Event filter to handle clicks on bandwidth labels."""
+        from PySide6.QtCore import QEvent
+
+        if event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.LeftButton:
+                # Check if the clicked widget is one of our bandwidth labels
+                bandwidth_labels = [
+                    self._lbl_sent,
+                    self._sent_label,
+                    self._lbl_recv,
+                    self._recv_label,
+                ]
+                if obj in bandwidth_labels:
+                    self._show_bandwidth_dialog()
+                    return True
+        return super().eventFilter(obj, event)
+
+    def _show_bandwidth_dialog(self) -> None:
+        """Show the bandwidth settings dialog."""
         # Check if sync is active
         sync_active = self._engine.is_running
 
