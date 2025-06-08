@@ -1393,14 +1393,27 @@ class MainWindow(QMainWindow):
             self._append_log("⚠ Please select a local directory first.")
             return
 
+        # Delay the deletion risk check to prevent accidental double-clicks
+        # This gives the user time to read the disclaimer before the next dialog appears
+        self._pending_sync_path = local_path
+        QTimer.singleShot(500, self._continue_start_after_disclaimer)
+
+    def _continue_start_after_disclaimer(self) -> None:
+        """Continue startup after disclaimer delay - check deletion risk and start sync."""
+        local_path = self._pending_sync_path
+        if not local_path:
+            return
+
         # Check for file deletion risk
         if not self._check_deletion_risk():
             return
+
         # Start in dry-run mode first to show preview
         args = build_hsync_args(local_path, force_dry_run=True)
         if not args:
             self._append_log("⚠ Please configure a bucket name in Settings.")
             return
+
         # Persist path
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
         self._log_view.clear()
