@@ -19,6 +19,7 @@ UI is loaded from ui/main_window.ui (Qt Designer).
 from __future__ import annotations
 
 import os
+from typing import cast
 
 from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
@@ -1383,6 +1384,33 @@ class MainWindow(QMainWindow):
         msg.setDefaultButton(QMessageBox.StandardButton.No)
         return msg.exec() == QMessageBox.StandardButton.Yes
 
+    def _check_disk_space(self) -> bool:
+        """Check if sufficient disk space is available. Returns False if insufficient."""
+        from shutil import disk_usage
+
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        min_free_mb = cast(int, s.value("sync/min_free_disk_space", 500, int))
+
+        if min_free_mb <= 0:
+            return True
+
+        try:
+            usage = disk_usage(self._local_path)
+            free_mb = usage.free / (1024 * 1024)
+            if free_mb < min_free_mb:
+                QMessageBox.critical(
+                    self,
+                    tr("error.insufficient_disk_space"),
+                    tr("error.insufficient_disk_space_msg").format(
+                        required=min_free_mb,
+                        available=int(free_mb),
+                    ),
+                )
+                return False
+        except OSError as e:
+            self._append_log(f"⚠ Could not check disk space: {e}")
+        return True
+
     def _on_start(self) -> None:
         # Show disclaimer first
         if not self._show_disclaimer():
@@ -1406,6 +1434,10 @@ class MainWindow(QMainWindow):
 
         # Check for file deletion risk
         if not self._check_deletion_risk():
+            return
+
+        # Check disk space
+        if not self._check_disk_space():
             return
 
         # Start in dry-run mode first to show preview
