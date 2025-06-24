@@ -61,7 +61,7 @@ _RE_PEERS = re.compile(r"Discovered\s+(\d+)\s+peer")
 _RE_MASTER = re.compile(
     r"I am the (?:new )?master|This client is the master|elected as master", re.I
 )
-_RE_SLAVE = re.compile(r"Master is |Connecting to master|I am a slave", re.I)
+_RE_CLIENT = re.compile(r"Master is |Connecting to master|I am a client", re.I)
 _RE_BUCKET = re.compile(r"bucket\s+'([^']+)'", re.I)
 _RE_GROUP = re.compile(r"group\s*=\s*'([^']+)'", re.I)
 _RE_DOWNLOAD = re.compile(r'\[DOWNLOAD\s*\]\s*"(.+?)"\s+(\S+)\s*$')
@@ -632,14 +632,14 @@ class HsyncEngine(QObject):
                 self.error_occurred.emit(m.group(1))
                 return
 
-        # Master/slave detection - less common but important
-        if "master" in clean.lower() or "slave" in clean.lower():
+        # Master/client detection - less common but important
+        if "master" in clean.lower() or "client" in clean.lower():
             if _RE_MASTER.search(clean):
                 if not self._is_master:
                     self._is_master = True
                     self.master_changed.emit(True)
                 return
-            if _RE_SLAVE.search(clean):
+            if _RE_CLIENT.search(clean):
                 if self._is_master:
                     self._is_master = False
                     self.master_changed.emit(False)
