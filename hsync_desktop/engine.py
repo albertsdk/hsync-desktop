@@ -44,9 +44,8 @@ class TransferStats:
         self.bytes_sent = self.bytes_received = 0
 
 
-# Sentinel filename – must match the client constant.  Hardcoded here to avoid
-# importing from the client package (different virtualenv / install).
-_HSYNCKEEP = ".hsynckeep"
+# Sentinel filename – imported from the shared library (single source of truth).
+from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
 
 # ─── Log-line regex patterns ────────────────────────────────────────────────
 
