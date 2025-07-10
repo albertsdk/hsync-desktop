@@ -55,7 +55,7 @@ class TestSyncDefaults:
         assert config.DEFAULT_CONTINUOUS is True
 
     def test_default_ignore_delete(self):
-        assert config.DEFAULT_IGNORE_DELETE is True
+        assert config.DEFAULT_IGNORE_DELETE is False
 
     def test_default_sync_direction(self):
         assert config.DEFAULT_SYNC_DIRECTION == "bidirectional"
@@ -67,7 +67,7 @@ class TestSyncDefaults:
         assert config.DEFAULT_RETRY_DELAY == 5
 
     def test_default_stability_delay(self):
-        assert config.DEFAULT_STABILITY_DELAY == 0
+        assert config.DEFAULT_STABILITY_DELAY == 5
 
     def test_default_max_wait(self):
         assert config.DEFAULT_MAX_WAIT == 120
