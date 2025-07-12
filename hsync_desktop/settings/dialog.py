@@ -12,9 +12,11 @@ Contains SettingsDialog, ApiKeyDialog, and LanKeyDialog.
 
 from __future__ import annotations
 
+import urllib.error
+import urllib.request
 from typing import cast
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QThread, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -28,6 +30,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QSpinBox,
     QTabWidget,
     QToolButton,
@@ -323,19 +326,24 @@ class SettingsDialog(QDialog):
         self._lan_banner.hide()
 
         # Insert LAN banner at the top of the Server Mode (tabConnection) layout
-        # Also insert server_cert_fingerprint field after ca_cert
+        # Also insert server_cert_fingerprint field and Test Connection button
+        self.btn_test_connection = QPushButton()
+        self.btn_test_connection.setObjectName("btnTestConnection")
+
         conn_tab = self._tabs.widget(1)
         if conn_tab:
             conn_layout = conn_tab.layout()
             if isinstance(conn_layout, QFormLayout):
                 conn_layout.insertRow(0, self._lan_banner)
-                # Insert server_cert_fingerprint after http_timeout row
+                # Insert server_cert_fingerprint after http_timeout row,
+                # then Test Connection button after cert fingerprint
                 for row in range(conn_layout.rowCount()):
                     item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                     if item and item.widget() == self.http_timeout:
                         conn_layout.insertRow(
                             row + 1, self._lbl_cert_fingerprint, self.server_cert_fingerprint
                         )
+                        conn_layout.insertRow(row + 2, "", self.btn_test_connection)
                         break
 
         # Setup language combo with proper data
@@ -461,6 +469,7 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.http_timeout"))
+        self.btn_test_connection.setText(tr("settings.test_connection"))
 
         # Sync tab labels
         lbl = self.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
@@ -597,6 +606,7 @@ class SettingsDialog(QDialog):
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
+        self.btn_test_connection.clicked.connect(self._on_test_connection)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
@@ -648,6 +658,7 @@ class SettingsDialog(QDialog):
             self.insecure,
             self.ca_cert,
             self.http_timeout,
+            self.btn_test_connection,
         ]
         for widget in server_widgets:
             widget.setEnabled(not checked)
@@ -678,6 +689,53 @@ class SettingsDialog(QDialog):
             for lbl in lan_tab.findChildren(QLabel):
                 if lbl is not self._lbl_lan_mode:
                     lbl.setEnabled(checked)
+
+    def _on_test_connection(self) -> None:
+        """Test the server connection by calling the /health endpoint."""
+        url = self.server_url.text().strip()
+        if not url:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_connection_no_url"),
+            )
+            return
+
+        # Normalize URL
+        base = url.rstrip("/")
+        health_url = f"{base}/health"
+
+        self.btn_test_connection.setEnabled(False)
+        self.btn_test_connection.setText("…")
+
+        def _restore() -> None:
+            self.btn_test_connection.setEnabled(True)
+            self.btn_test_connection.setText(tr("settings.test_connection"))
+
+        try:
+            timeout = max(5, self.http_timeout.value())
+            req = urllib.request.Request(health_url, method="GET")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+                success = resp.status == 200
+        except urllib.error.HTTPError as exc:
+            success = exc.code == 200
+        except Exception:
+            success = False
+
+        _restore()
+
+        if success:
+            QMessageBox.information(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_connection_success"),
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_connection_failure"),
+            )
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
