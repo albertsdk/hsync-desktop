@@ -120,7 +120,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     min_free = max(0, min(min_free, 100_000))  # Clamp to 0-100000 MB
     args += ["--min-free-disk-space", str(min_free)]
 
-    if s.value("sync/ignore_delete", True, bool):
+    if s.value(
+        "sync/ignore_delete", False, bool
+    ):  # default False matches config.py DEFAULT_IGNORE_DELETE
         args.append("--ignore-delete")
 
     # Validate sync direction
