@@ -140,6 +140,15 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         if validated_filter:
             args += ["--filter-path", validated_filter]
 
+    # Sync hidden files (default False: hidden/system files are excluded)
+    if s.value("sync/sync_hidden", False, bool):
+        args.append("--sync-hidden")
+
+    # Extra ignore patterns (comma-separated, layered on .hsyncignore)
+    ignore_patterns_raw = str(s.value("sync/ignore_patterns", "", str)).strip()
+    if ignore_patterns_raw:
+        args += ["--ignore-patterns", ignore_patterns_raw]
+
     # Read new key; fall back to inverted legacy key for migration
     if s.contains("sync/compression_enabled"):
         compression_on = bool(s.value("sync/compression_enabled", True, bool))

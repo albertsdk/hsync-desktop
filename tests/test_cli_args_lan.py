@@ -132,3 +132,45 @@ class TestLanSectionConsistency:
         args_b = _build_args({"lan/enabled": True, "lan/https": True, "lan/persistent": False})
         assert "--no-lan-https" not in args_b
         assert "--no-lan-persistent" in args_b
+
+
+class TestSyncHiddenAndIgnorePatterns:
+    """Coverage for --sync-hidden and --ignore-patterns emission."""
+
+    def test_sync_hidden_default_omits_flag(self):
+        """Without an explicit value, --sync-hidden must not be emitted."""
+        args = _build_args({})
+
+        assert "--sync-hidden" not in args
+
+    def test_sync_hidden_false_omits_flag(self):
+        """Explicit False must not emit --sync-hidden."""
+        args = _build_args({"sync/sync_hidden": False})
+
+        assert "--sync-hidden" not in args
+
+    def test_sync_hidden_true_emits_flag(self):
+        """Explicit True must emit --sync-hidden."""
+        args = _build_args({"sync/sync_hidden": True})
+
+        assert "--sync-hidden" in args
+        assert args.count("--sync-hidden") == 1
+
+    def test_ignore_patterns_default_omits_flag(self):
+        """Empty/missing ignore patterns must not emit --ignore-patterns."""
+        args = _build_args({})
+
+        assert "--ignore-patterns" not in args
+
+    def test_ignore_patterns_empty_string_omits_flag(self):
+        """Whitespace-only patterns must not emit --ignore-patterns."""
+        args = _build_args({"sync/ignore_patterns": "   "})
+
+        assert "--ignore-patterns" not in args
+
+    def test_ignore_patterns_value_emits_flag(self):
+        """A non-empty patterns string is passed verbatim to --ignore-patterns."""
+        args = _build_args({"sync/ignore_patterns": "*.log,/build/,/dist/"})
+
+        assert "--ignore-patterns" in args
+        assert args[args.index("--ignore-patterns") + 1] == "*.log,/build/,/dist/"

@@ -10,6 +10,7 @@ Cross-platform desktop GUI for HSYNC Client, built with PySide6 (Qt 6).
 - ▶️ Start/Stop/Sync controls with local directory selector
 - 🔔 Desktop push notifications for key events (configurable)
 - ⚙️ Settings dialog organized by category (Connection, Sync, LAN, Output, Appearance)
+- 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
 - 🌙 Light and dark themes
 - 📌 System tray integration with context menu
 - 💾 Persistent settings and window geometry via QSettings
