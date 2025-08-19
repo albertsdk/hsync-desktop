@@ -182,6 +182,8 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Der Synchronisierungsprozess wurde unerwartet beendet (Exit-Code {code})",
     "notif.path_not_found": "Pfad nicht gefunden",
     "notif.path_not_found_msg": "Der freigegebene Ordner '{path}' existiert nicht. Überprüfen Sie den Pfad in den Einstellungen.",
+    "notif.version_mismatch": "Versionskonflikt",
+    "notif.version_mismatch_msg": "Der mitgelieferte hsync-Client ({binary}) hat eine andere Hauptversion als diese App ({expected}). Die Synchronisierung funktioniert möglicherweise nicht korrekt. Bauen Sie beide Komponenten gemeinsam neu.",
     "notif.deletion_risk": "Risiko der Dateilöschung",
     "notif.deletion_risk_msg": "Der freigegebene Ordner ist nicht leer und die aktuellen Sync-Einstellungen könnten lokale Dateien LÖSCHEN.\n\nGrund: {reason}\n\nMöchten Sie fortfahren?",
     "notif.deletion_risk_lan": "LAN-Modus ohne Force-Master: Der Master-Peer ist die autoritative Quelle und lokale Dateien, die nicht auf dem Master vorhanden sind, werden gelöscht",

@@ -9,6 +9,7 @@
 import pytest
 
 from hsync_desktop.engine import (
+    _EXPECTED_VERSION,
     _HSYNCKEEP,
     _RE_AUTH_ERROR,
     _RE_BUCKET,
@@ -42,7 +43,9 @@ from hsync_desktop.engine import (
     _RE_WAITING,
     TransferStats,
     _parse_size,
+    check_binary_compatibility,
     find_hsync_binary,
+    get_binary_version,
 )
 
 
@@ -329,3 +332,97 @@ class TestRegexPatterns:
         match = _RE_DIR_CREATE.search('[CREATE] "newdir/"')
         assert match is not None
         assert match.group(1) == "newdir/"
+
+
+class _FakeCompleted:
+    """Minimal stand-in for subprocess.CompletedProcess."""
+
+    def __init__(self, stdout: str = "", stderr: str = ""):
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+class TestGetBinaryVersion:
+    """Test get_binary_version function."""
+
+    def test_parses_stdout(self, monkeypatch):
+        """Should extract X.Y.Z from `hsync --version` stdout."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(
+            engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="hsync 1.2.3\n")
+        )
+        assert get_binary_version("/fake/hsync") == "1.2.3"
+
+    def test_parses_stderr(self, monkeypatch):
+        """Should also look in stderr for the version string."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(
+            engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stderr="hsync 2.0.5")
+        )
+        assert get_binary_version("/fake/hsync") == "2.0.5"
+
+    def test_unparseable_returns_none(self, monkeypatch):
+        """Output without a version returns None."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(
+            engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="no version here")
+        )
+        assert get_binary_version("/fake/hsync") is None
+
+    def test_os_error_returns_none(self, monkeypatch):
+        """A failure to execute the binary returns None."""
+        from hsync_desktop import engine
+
+        def _raise(*a, **k):
+            raise OSError("cannot exec")
+
+        monkeypatch.setattr(engine.subprocess, "run", _raise)
+        assert get_binary_version("/fake/hsync") is None
+
+    def test_timeout_returns_none(self, monkeypatch):
+        """A timeout while querying the binary returns None."""
+        from hsync_desktop import engine
+
+        def _raise(*a, **k):
+            raise engine.subprocess.TimeoutExpired(cmd="hsync", timeout=5)
+
+        monkeypatch.setattr(engine.subprocess, "run", _raise)
+        assert get_binary_version("/fake/hsync") is None
+
+
+class TestCheckBinaryCompatibility:
+    """Test check_binary_compatibility function."""
+
+    def test_no_binary_is_compatible(self, monkeypatch):
+        """Missing binary is treated as compatible with no version."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(engine, "find_hsync_binary", lambda: None)
+        assert check_binary_compatibility() == (True, None)
+
+    def test_same_major_is_compatible(self, monkeypatch):
+        """Same major version as expected is compatible."""
+        from hsync_desktop import engine
+
+        major = _EXPECTED_VERSION.split(".")[0]
+        same_major = f"{major}.99.99"
+        monkeypatch.setattr(engine, "get_binary_version", lambda p: same_major)
+        assert check_binary_compatibility("/fake/hsync") == (True, same_major)
+
+    def test_different_major_is_incompatible(self, monkeypatch):
+        """A different major version is incompatible."""
+        from hsync_desktop import engine
+
+        bumped = f"{int(_EXPECTED_VERSION.split('.')[0]) + 1}.0.0"
+        monkeypatch.setattr(engine, "get_binary_version", lambda p: bumped)
+        assert check_binary_compatibility("/fake/hsync") == (False, bumped)
+
+    def test_unparseable_version_is_compatible(self, monkeypatch):
+        """When the binary version cannot be determined, do not block startup."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(engine, "get_binary_version", lambda p: None)
+        assert check_binary_compatibility("/fake/hsync") == (True, None)

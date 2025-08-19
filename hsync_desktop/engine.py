@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import signal
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,8 +46,10 @@ class TransferStats:
         self.bytes_sent = self.bytes_received = 0
 
 
-# Sentinel filename – imported from the shared library (single source of truth).
+# Sentinel filename and protocol version – imported from the shared library
+# (single source of truth).
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
+from hsync_common.constants import VERSION as _EXPECTED_VERSION
 
 # ─── Log-line regex patterns ────────────────────────────────────────────────
 
@@ -183,6 +186,44 @@ def find_hsync_binary() -> str | None:
         return str(sibling)
 
     return None
+
+
+def get_binary_version(binary_path: str) -> str | None:
+    """Return the semantic version reported by the hsync binary, or None.
+
+    Runs ``<binary> --version`` and parses the ``hsync X.Y.Z`` output. Returns
+    None when the binary cannot be executed or its output cannot be parsed.
+    """
+    try:
+        result = subprocess.run(
+            [binary_path, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(r"(\d+\.\d+\.\d+)", f"{result.stdout}\n{result.stderr}")
+    return match.group(1) if match else None
+
+
+def check_binary_compatibility(binary_path: str | None = None) -> tuple[bool, str | None]:
+    """Check the hsync binary version against the desktop's expected version.
+
+    Returns ``(is_compatible, binary_version)``. Compatibility follows the same
+    Semver rule used across HSYNC: only a different *major* version is
+    incompatible. When the binary is missing or its version cannot be
+    determined the result is treated as compatible (best-effort), so startup is
+    never blocked by a parse failure.
+    """
+    path = binary_path or find_hsync_binary()
+    if not path:
+        return (True, None)
+    binary_version = get_binary_version(path)
+    if not binary_version:
+        return (True, None)
+    is_compatible = binary_version.split(".")[0] == _EXPECTED_VERSION.split(".")[0]
+    return (is_compatible, binary_version)
 
 
 # ─── Engine ──────────────────────────────────────────────────────────────────
