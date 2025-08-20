@@ -13,6 +13,8 @@ UI is loaded from ui/splash_screen.ui (Qt Designer).
 
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QLabel, QWidget
 
@@ -56,6 +58,11 @@ class SplashScreen(QWidget):
 
     def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""
+        # On production (frozen) builds, do not advertise the exact version on
+        # the auto-shown splash. The About dialog (show_as_about) still shows it
+        # on explicit user request.
+        if getattr(sys, "frozen", False):
+            self._lbl_version.hide()
         self.show()
         # Center on screen
         screen = self.screen()

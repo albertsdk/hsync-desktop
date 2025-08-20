@@ -14,8 +14,12 @@ sync alignment across all clients (CLI, Desktop, Android).
 
 from __future__ import annotations
 
+import os
+import stat
 from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 
 class _FakeQSettings:
@@ -174,3 +178,35 @@ class TestSyncHiddenAndIgnorePatterns:
 
         assert "--ignore-patterns" in args
         assert args[args.index("--ignore-patterns") + 1] == "*.log,/build/,/dist/"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="0600 enforcement is POSIX-only")
+class TestSecureConfigFile:
+    """Coverage for secure_config_file() (QSettings world-readable hardening)."""
+
+    def test_secure_config_file_restricts_to_owner_only(self, qapp, tmp_path):
+        """After secure_config_file() the native config file is mode 0600."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.settings import cli_args
+
+        fmt = QSettings.Format.NativeFormat
+        scope = QSettings.Scope.UserScope
+        # Redirect native QSettings storage into the temp dir for isolation.
+        QSettings.setPath(fmt, scope, str(tmp_path))
+        try:
+            s = QSettings(cli_args.SETTINGS_ORG, cli_args.SETTINGS_APP)
+            s.setValue("probe", "value")
+            s.sync()
+            path = s.fileName()
+            assert path and os.path.exists(path)
+            # Simulate the umask-derived world-readable default.
+            os.chmod(path, 0o644)
+
+            cli_args.secure_config_file()
+
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+            assert mode == 0o600
+        finally:
+            # Restore the platform default search path for UserScope/Native.
+            QSettings.setPath(fmt, scope, os.path.expanduser("~/.config"))

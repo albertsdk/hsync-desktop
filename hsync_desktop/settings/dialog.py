@@ -87,6 +87,7 @@ from hsync_desktop.i18n import (
     tr,
 )
 from hsync_desktop.icons import icon
+from hsync_desktop.settings.cli_args import secure_config_file
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
@@ -937,6 +938,10 @@ class SettingsDialog(QDialog):
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
         s.setValue("appearance/show_log", self.show_log_panel.isChecked())
+        # Flush to disk and tighten file permissions (config may be created here
+        # on first run, before the startup hardening runs).
+        s.sync()
+        secure_config_file()
 
     def load(self) -> None:
         """Restore settings from QSettings."""

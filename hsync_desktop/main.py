@@ -19,7 +19,11 @@ from hsync_desktop.engine import HsyncEngine, check_binary_compatibility
 from hsync_desktop.i18n import init_language, tr
 from hsync_desktop.main_window import MainWindow
 from hsync_desktop.notifications import NotificationManager
-from hsync_desktop.settings_dialog import are_notifications_enabled, get_saved_theme
+from hsync_desktop.settings_dialog import (
+    are_notifications_enabled,
+    get_saved_theme,
+    secure_config_file,
+)
 from hsync_desktop.single_instance import SingleInstance
 from hsync_desktop.splash_screen import SplashScreen
 from hsync_desktop.system_tray import SystemTray
@@ -39,6 +43,10 @@ def main() -> int:
     if not single_instance.try_start():
         # Another instance is already running - we signaled it to activate
         return 0
+
+    # Tighten permissions on the QSettings config file (owner-only) in case a
+    # previous run created it world-readable.
+    secure_config_file()
 
     # Initialize i18n (must be done before any widget creation)
     init_language()
