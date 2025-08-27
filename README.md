@@ -1,5 +1,14 @@
 # HSYNC Desktop
 
+> [!WARNING]
+> **HSYNC manipulates files and directories** — it creates, overwrites, moves, and deletes data.
+> Misconfiguration, software defects, or other unforeseen conditions may lead to **data loss or
+> corruption**. **Use at your own risk and always keep verified, independent backups.**
+> The software is provided "as is", without warranty of any kind — see the full
+> [Disclaimer](#disclaimer) and [License](#license) below.
+
+---
+
 Cross-platform desktop GUI for HSYNC Client, built with PySide6 (Qt 6).
 
 ## Features
@@ -158,3 +167,9 @@ hsync-desktop/
 ## License
 
 [Mozilla Public License 2.0](LICENSE)
+
+## Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. Although the author has implemented reasonable safety measures, IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY — including, without limitation, any direct, indirect, incidental, special, exemplary, or consequential damages, loss of data, or business interruption — WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+This disclaimer supplements, and does not replace, Sections 6 ("Disclaimer of Warranty") and 7 ("Limitation of Liability") of the [Mozilla Public License 2.0](LICENSE), which govern this software.
