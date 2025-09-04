@@ -1339,7 +1339,7 @@ class FilePanel(QWidget):
         self._breadcrumb_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._breadcrumb_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         self._breadcrumb_icon.setToolTip(tr("nav.root"))
-        self._breadcrumb_icon.mousePressEvent = lambda _: self._table.navigate_to("")
+        self._breadcrumb_icon.mousePressEvent = lambda _: self._table.navigate_to("")  # type: ignore[method-assign]
         nav_layout.addWidget(self._breadcrumb_icon)
 
         self._breadcrumb_label = QLabel()
@@ -1609,8 +1609,8 @@ class FilePanel(QWidget):
             self._table.add_transfer(transfer)
         deleted_files = table_files - current_files
         for rel_path in deleted_files:
-            transfer = self._table._transfers.get(rel_path)
-            if transfer and transfer.status == TransferStatus.LOCAL:
+            existing = self._table._transfers.get(rel_path)
+            if existing and existing.status == TransferStatus.LOCAL:
                 self._table.remove_transfer(rel_path)
 
     def update_file_status(
