@@ -6,7 +6,7 @@
 
 """Tests for hsync_desktop.__main__ and main entry points."""
 
-import pytest
+from unittest.mock import MagicMock
 
 
 class TestMainModule:
@@ -102,3 +102,28 @@ class TestAppMetadata:
         # Check that main function exists
         assert hasattr(main_module, "main")
         assert callable(main_module.main)
+
+    def test_main_exits_when_another_instance_is_running(self, monkeypatch):
+        """main() returns cleanly before creating UI when single-instance lock is held."""
+        import hsync_desktop.main as main_module
+
+        app = MagicMock()
+        single_instance = MagicMock()
+        single_instance.try_start.return_value = False
+
+        def fake_qapplication(argv):
+            del argv
+            return app
+
+        def fake_single_instance(qapp):
+            del qapp
+            return single_instance
+
+        monkeypatch.setattr(main_module, "QApplication", fake_qapplication)
+        monkeypatch.setattr(main_module, "SingleInstance", fake_single_instance)
+
+        assert main_module.main() == 0
+        app.setApplicationName.assert_called_once_with("HSYNC Desktop")
+        app.setOrganizationName.assert_called_once_with("HSYNC")
+        app.setQuitOnLastWindowClosed.assert_called_once_with(False)
+        single_instance.try_start.assert_called_once_with()
