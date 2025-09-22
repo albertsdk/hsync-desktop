@@ -64,6 +64,7 @@ from hsync_desktop.config import (
     DEFAULT_LOGFILE,
     DEFAULT_MAX_WAIT,
     DEFAULT_MIN_FREE_DISK_SPACE,
+    DEFAULT_NEVER_MASTER,
     DEFAULT_NO_COMPRESSION,
     DEFAULT_NOTIFICATIONS,
     DEFAULT_QUIET,
@@ -287,6 +288,27 @@ class SettingsDialog(QDialog):
         self.force_master, self._lbl_force_master = _replace_checkbox_with_toggle(
             self, "forceMaster"
         )
+
+        # Never Master toggle (dynamic, no .ui counterpart) – mutually
+        # exclusive with Force Master. Inserted right after the force_master row.
+        self.never_master = ToggleSwitch(self)
+        self.never_master.setObjectName("neverMaster")
+        self._lbl_never_master = QLabel(self)
+        cont_never_master = QWidget(self)
+        hl_never_master = QHBoxLayout(cont_never_master)
+        hl_never_master.setContentsMargins(0, 0, 0, 0)
+        hl_never_master.addWidget(self.never_master)
+        hl_never_master.addWidget(self._lbl_never_master)
+        hl_never_master.addStretch()
+        fm_container = self.force_master.parent()
+        if isinstance(fm_container, QWidget):
+            fm_layout = fm_container.parent().layout() if fm_container.parent() else None
+            if isinstance(fm_layout, QFormLayout):
+                for row in range(fm_layout.rowCount()):
+                    item = fm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    if item and item.widget() is fm_container:
+                        fm_layout.insertRow(row + 1, "", cont_never_master)
+                        break
 
         # Log tab widgets
         self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
@@ -560,6 +582,7 @@ class SettingsDialog(QDialog):
         self._lbl_lan_https.setText(tr("settings.lan_https"))
         self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
         self._lbl_force_master.setText(tr("settings.force_master"))
+        self._lbl_never_master.setText(tr("settings.never_master"))
 
         # Log tab labels
         self._lbl_verbose.setText(tr("settings.verbose"))
@@ -627,6 +650,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.lan_https, "tip.lan_https", tips)
         _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
+        _maybe_tip(self.never_master, "tip.never_master", tips)
 
         # Log tab
         _maybe_tip(self.verbose, "tip.verbose", tips)
@@ -645,6 +669,8 @@ class SettingsDialog(QDialog):
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
         self.lan_https.toggled.connect(self._on_lan_https_toggled)
+        self.force_master.toggled.connect(self._on_force_master_toggled)
+        self.never_master.toggled.connect(self._on_never_master_toggled)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self._button_box.accepted.connect(self._on_accept)
@@ -732,6 +758,7 @@ class SettingsDialog(QDialog):
             self.lan_https,
             self.lan_persistent,
             self.force_master,
+            self.never_master,
         ]
         for widget in lan_sub_widgets:
             widget.setEnabled(checked)
@@ -749,6 +776,20 @@ class SettingsDialog(QDialog):
     def _on_lan_https_toggled(self, _checked: bool) -> None:
         """Re-apply the shared-secret gate when LAN HTTPS changes."""
         self._apply_lan_key_gate()
+
+    def _on_force_master_toggled(self, checked: bool) -> None:
+        """Force-master and never-master are mutually exclusive."""
+        if checked and self.never_master.isChecked():
+            self.never_master.blockSignals(True)
+            self.never_master.setChecked(False)
+            self.never_master.blockSignals(False)
+
+    def _on_never_master_toggled(self, checked: bool) -> None:
+        """Force-master and never-master are mutually exclusive."""
+        if checked and self.force_master.isChecked():
+            self.force_master.blockSignals(True)
+            self.force_master.setChecked(False)
+            self.force_master.blockSignals(False)
 
     def _apply_lan_key_gate(self) -> None:
         """Disable the LAN shared secret unless LAN HTTPS is enabled.
@@ -923,6 +964,7 @@ class SettingsDialog(QDialog):
         s.setValue("lan/https", self.lan_https.isChecked())
         s.setValue("lan/persistent", self.lan_persistent.isChecked())
         s.setValue("lan/force_master", self.force_master.isChecked())
+        s.setValue("lan/never_master", self.never_master.isChecked())
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
@@ -1004,6 +1046,7 @@ class SettingsDialog(QDialog):
             bool(s.value("lan/persistent", DEFAULT_LAN_PERSISTENT, bool))
         )
         self.force_master.setChecked(bool(s.value("lan/force_master", DEFAULT_FORCE_MASTER, bool)))
+        self.never_master.setChecked(bool(s.value("lan/never_master", DEFAULT_NEVER_MASTER, bool)))
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
         self.logfile.setText(str(s.value("output/logfile", DEFAULT_LOGFILE, str)))
@@ -1097,6 +1140,7 @@ class SettingsDialog(QDialog):
             self.lan_https,
             self.lan_persistent,
             self.force_master,
+            self.never_master,
         ]
 
         # Combine all widgets that should be disabled

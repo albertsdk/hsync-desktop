@@ -212,6 +212,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             args.append("--no-lan-persistent")
         if s.value("lan/force_master", False, bool):
             args.append("--force-master")
+        if s.value("lan/never_master", False, bool):
+            args.append("--never-master")
 
     # Bandwidth limits
     upload_bps, download_bps = get_bandwidth_limits()
