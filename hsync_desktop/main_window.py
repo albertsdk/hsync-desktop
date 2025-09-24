@@ -455,6 +455,10 @@ class MainWindow(QMainWindow):
         self._act_help_docs.triggered.connect(self._open_documentation)
         self._menu_help.addAction(self._act_help_docs)
 
+        self._act_help_github = QAction(tr("menu.help.github"), self)
+        self._act_help_github.triggered.connect(self._open_github)
+        self._menu_help.addAction(self._act_help_github)
+
         self._act_help_about = QAction(tr("menu.help.about"), self)
         self._act_help_about.triggered.connect(self._show_about)
         self._menu_help.addAction(self._act_help_about)
@@ -576,6 +580,12 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import QUrl
 
         QDesktopServices.openUrl(QUrl("https://docs.hsync.app"))
+
+    def _open_github(self) -> None:
+        """Open the project page on GitHub in the default browser."""
+        from PySide6.QtCore import QUrl
+
+        QDesktopServices.openUrl(QUrl("https://github.com/albertobasso/hsync-desktop"))
 
     def _show_about(self) -> None:
         """Show the splash screen as an About dialog."""

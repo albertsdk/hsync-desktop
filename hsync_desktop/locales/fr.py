@@ -347,6 +347,7 @@ translations: dict[str, str] = {
     "menu.settings": "&Paramètres",
     "menu.help": "&Aide",
     "menu.help.docs": "Documentation",
+    "menu.help.github": "Projet sur GitHub",
     "menu.help.about": "À propos de HSYNC Desktop",
     # Bandwidth dialog
     "bandwidth.title": "Limites de bande passante",
