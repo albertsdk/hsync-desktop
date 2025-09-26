@@ -167,6 +167,35 @@ class TestNeverMasterFlag:
         assert "--never-master" not in args
 
 
+class TestRequirePairingFlag:
+    """Coverage for the --require-pairing (strict pairing) user-facing setting."""
+
+    def test_require_pairing_default_omits_flag(self):
+        """With LAN enabled and require_pairing left at default, no flag is emitted."""
+        args = _build_args({"lan/enabled": True})
+
+        assert "--require-pairing" not in args
+
+    def test_require_pairing_false_omits_flag(self):
+        """Explicit require_pairing=False must not emit --require-pairing."""
+        args = _build_args({"lan/enabled": True, "lan/require_pairing": False})
+
+        assert "--require-pairing" not in args
+
+    def test_require_pairing_true_emits_flag(self):
+        """Explicit require_pairing=True must emit --require-pairing exactly once."""
+        args = _build_args({"lan/enabled": True, "lan/require_pairing": True})
+
+        assert args.count("--require-pairing") == 1
+
+    def test_require_pairing_flag_not_emitted_when_lan_disabled(self):
+        """LAN disabled: require-pairing flag must be skipped with the rest of the block."""
+        args = _build_args({"lan/enabled": False, "lan/require_pairing": True})
+
+        assert "--lan-mode" not in args
+        assert "--require-pairing" not in args
+
+
 class TestSyncHiddenAndIgnorePatterns:
     """Coverage for --sync-hidden and --ignore-patterns emission."""
 

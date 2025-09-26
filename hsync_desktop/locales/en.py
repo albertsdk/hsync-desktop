@@ -155,6 +155,7 @@ translations: dict[str, str] = {
     "settings.lan_persistent": "Persistent mode",
     "settings.force_master": "Force primary role",
     "settings.never_master": "Never become primary",
+    "settings.require_pairing": "Require pairing",
     # Settings log
     "settings.verbose": "Verbose (debug) output",
     "settings.quiet": "Quiet (suppress output)",
@@ -210,6 +211,7 @@ translations: dict[str, str] = {
     "tip.lan_persistent": "Keep searching for peers even when none are found",
     "tip.force_master": "Always elect this client as master in LAN mode",
     "tip.never_master": "Prevent this client from ever becoming master; it always stays a client",
+    "tip.require_pairing": "Refuse a primary the first time its certificate is seen until you confirm it out of band (disables trust-on-first-use)",
     "tip.verbose": "Enable detailed debug-level logging",
     "tip.quiet": "Suppress all log output",
     "tip.logfile": "Write log output to a file",
