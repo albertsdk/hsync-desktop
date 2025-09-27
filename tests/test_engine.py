@@ -16,6 +16,7 @@ from hsync_desktop.engine import (
     TransferStats,
     check_binary_compatibility,
     find_hsync_binary,
+    get_binary_capabilities,
     get_binary_version,
 )
 
@@ -181,6 +182,62 @@ class TestCheckBinaryCompatibility:
 
         monkeypatch.setattr(engine, "get_binary_version", lambda p: None)
         assert check_binary_compatibility("/fake/hsync") == (True, None)
+
+
+class TestGetBinaryCapabilities:
+    """Test get_binary_capabilities function (DESIGN_REVIEW §8)."""
+
+    def test_parses_valid_document(self, monkeypatch):
+        """A well-formed --capabilities-json payload is parsed into a document."""
+        import json
+
+        from hsync_common.protocol.capabilities import build_capabilities
+
+        from hsync_desktop import engine
+
+        doc = build_capabilities(app_version="1.2.3", cli_options=["--lan-mode"])
+        monkeypatch.setattr(
+            engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout=json.dumps(doc))
+        )
+        parsed = get_binary_capabilities("/fake/hsync")
+        assert parsed is not None
+        assert parsed["cli_options"] == ["--lan-mode"]
+
+    def test_no_binary_returns_none(self, monkeypatch):
+        """Missing binary yields no capabilities."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(engine, "find_hsync_binary", lambda: None)
+        assert get_binary_capabilities() is None
+
+    def test_malformed_output_returns_none(self, monkeypatch):
+        """Unparseable output degrades to None."""
+        from hsync_desktop import engine
+
+        monkeypatch.setattr(
+            engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="not json")
+        )
+        assert get_binary_capabilities("/fake/hsync") is None
+
+    def test_os_error_returns_none(self, monkeypatch):
+        """A failure to execute the binary returns None."""
+        from hsync_desktop import engine
+
+        def _raise(*a, **k):
+            raise OSError("cannot exec")
+
+        monkeypatch.setattr(engine.subprocess, "run", _raise)
+        assert get_binary_capabilities("/fake/hsync") is None
+
+    def test_timeout_returns_none(self, monkeypatch):
+        """A timeout while querying the binary returns None."""
+        from hsync_desktop import engine
+
+        def _raise(*a, **k):
+            raise engine.subprocess.TimeoutExpired(cmd="hsync", timeout=5)
+
+        monkeypatch.setattr(engine.subprocess, "run", _raise)
+        assert get_binary_capabilities("/fake/hsync") is None
 
 
 def _capture(signal) -> list:

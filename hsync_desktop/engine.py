@@ -60,6 +60,7 @@ class TransferStats:
 # (single source of truth).
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
 from hsync_common.constants import VERSION as _EXPECTED_VERSION
+from hsync_common.protocol.capabilities import CapabilitiesDoc, parse_capabilities
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 
 # Status parsing is no longer regex-based: the child publishes structured
@@ -138,6 +139,29 @@ def get_binary_version(binary_path: str) -> str | None:
         return None
     match = re.search(r"(\d+\.\d+\.\d+)", f"{result.stdout}\n{result.stderr}")
     return match.group(1) if match else None
+
+
+def get_binary_capabilities(binary_path: str | None = None) -> CapabilitiesDoc | None:
+    """Return the capabilities document advertised by the hsync binary, or None.
+
+    Runs ``<binary> --capabilities-json`` and validates its output against the
+    shared schema (DESIGN_REVIEW §8). Returns None when the binary is missing,
+    cannot be executed, or emits an unparseable/unsupported document — the UI
+    then degrades to a best-effort, fully-enabled state.
+    """
+    path = binary_path or find_hsync_binary()
+    if not path:
+        return None
+    try:
+        result = subprocess.run(
+            [path, "--capabilities-json"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return parse_capabilities(result.stdout)
 
 
 def check_binary_compatibility(binary_path: str | None = None) -> tuple[bool, str | None]:

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
+from hsync_common.protocol.capabilities import supports_cli_option
 from PySide6.QtCore import QSettings, QThread, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -82,6 +83,7 @@ from hsync_desktop.config import (
     SETTINGS_ORG,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
+from hsync_desktop.engine import get_binary_capabilities
 from hsync_desktop.i18n import (
     SUPPORTED_LANGUAGES,
     get_language,
@@ -164,10 +166,15 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._connection_active = False  # Track if sync is running
+        # Controls gated off by the binary's capabilities (§8); never re-enabled
+        # by the LAN-mode or connection-active state machines.
+        self._unsupported_widgets: set[QWidget] = set()
+        self._unsupported_labels: set[QLabel] = set()
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
         self._connect_signals()  # Connect signals AFTER loading to avoid spurious events
+        self._apply_capabilities()  # Gate controls the binary does not support
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 
@@ -688,6 +695,44 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
         _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
 
+        # Capability-gated controls always explain why they are unavailable (§8),
+        # overriding any normal tooltip cleared above.
+        for widget in self._unsupported_widgets:
+            widget.setToolTip(tr("tip.capability_unsupported"))
+
+    def _apply_capabilities(self) -> None:
+        """Gate LAN controls by the binary's advertised capabilities (§8).
+
+        Reads the capabilities document from the configured hsync binary and
+        disables any LAN toggle whose CLI flag the binary does not support, so
+        the UI can never offer a control the client cannot honour. An unknown
+        document (missing binary or parse failure) conservatively leaves every
+        control enabled.
+        """
+        doc = get_binary_capabilities()
+        if doc is None:
+            return
+        gated: list[tuple[str, ToggleSwitch, QLabel]] = [
+            ("--lan-mode", self.lan_mode, self._lbl_lan_mode),
+            ("--force-master", self.force_master, self._lbl_force_master),
+            ("--never-master", self.never_master, self._lbl_never_master),
+            ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
+        ]
+        for flag, widget, label in gated:
+            if supports_cli_option(doc, flag):
+                continue
+            self._unsupported_widgets.add(widget)
+            self._unsupported_labels.add(label)
+            if widget.isChecked():
+                widget.blockSignals(True)
+                widget.setChecked(False)
+                widget.blockSignals(False)
+            widget.setEnabled(False)
+            label.setEnabled(False)
+            widget.setToolTip(tr("tip.capability_unsupported"))
+        # Refresh dependent enable-state with the new gates in effect.
+        self._on_lan_mode_toggled(self.lan_mode.isChecked())
+
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
@@ -787,14 +832,14 @@ class SettingsDialog(QDialog):
             self.require_pairing,
         ]
         for widget in lan_sub_widgets:
-            widget.setEnabled(checked)
+            widget.setEnabled(checked and widget not in self._unsupported_widgets)
 
         # Also enable/disable the labels in the LAN tab (except lan_mode label)
         lan_tab = self._tabs.widget(2)
         if lan_tab:
             for lbl in lan_tab.findChildren(QLabel):
                 if lbl is not self._lbl_lan_mode:
-                    lbl.setEnabled(checked)
+                    lbl.setEnabled(checked and lbl not in self._unsupported_labels)
 
         # The shared secret is only usable over HTTPS; keep its gate in sync.
         self._apply_lan_key_gate()
@@ -1178,7 +1223,7 @@ class SettingsDialog(QDialog):
         all_disabled_widgets = connection_widgets + sync_widgets + lan_widgets
 
         for widget in all_disabled_widgets:
-            widget.setEnabled(not active)
+            widget.setEnabled(not active and widget not in self._unsupported_widgets)
             # Set tooltip explaining why it's disabled
             if active:
                 widget.setToolTip(disabled_tip)
