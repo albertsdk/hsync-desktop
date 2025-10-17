@@ -6,8 +6,6 @@
 
 """Tests for hsync_desktop.file_panel module."""
 
-import pytest
-
 from hsync_desktop.file_panel import (
     _FILE_TYPE_MAP,
     _NO_PROGRESS_STATUSES,

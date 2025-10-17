@@ -418,14 +418,6 @@ class HsyncEngine(QObject):
             self._process.kill()
             self._process.waitForFinished(3000)
 
-    def force_sync(self) -> None:
-        """Trigger an immediate full sync via stdin command.
-
-        Sends a SYNC command to the running process, which will execute
-        a full synchronisation cycle without restarting.
-        """
-        self.sync()
-
     def sync(self) -> None:
         """Send SYNC command to the running process.
 

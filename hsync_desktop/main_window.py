@@ -665,23 +665,6 @@ class MainWindow(QMainWindow):
         elif action == act_clear:
             self._log_view.clear()
 
-    def _parse_size(self, text: str) -> int:
-        """Parse human-readable size like '1.2 MB' to bytes."""
-        if not text:
-            return 0
-        text = text.strip()
-        multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
-        for suffix, mult in multipliers.items():
-            if text.upper().endswith(suffix):
-                try:
-                    return int(float(text[: -len(suffix)].strip()) * mult)
-                except ValueError:
-                    return 0
-        try:
-            return int(float(text))
-        except ValueError:
-            return 0
-
     @Slot(str)
     def _on_status(self, status: str) -> None:
         i18n_map = {

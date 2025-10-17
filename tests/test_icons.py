@@ -61,17 +61,9 @@ class TestIconCache:
 class TestIconFunctions:
     """Test icon-related functions."""
 
-    def test_has_icon_function_exists(self):
-        """has_icon function should exist."""
-        assert callable(icons.has_icon)
-
     def test_clear_icon_cache_function_exists(self):
         """clear_icon_cache function should exist."""
         assert callable(icons.clear_icon_cache)
-
-    def test_set_fallback_theme_path_function_exists(self):
-        """set_fallback_theme_path function should exist."""
-        assert callable(icons.set_fallback_theme_path)
 
     def test_icon_function_exists(self):
         """icon function should exist."""
