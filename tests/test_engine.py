@@ -349,6 +349,18 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.error, message="boom"))
         assert out == [("boom",)]
 
+    def test_transfer_failed_event(self, engine):
+        out = _capture(engine.transfer_failed)
+        engine._handle_event(
+            build_event(
+                UiEventName.transfer_failed,
+                op="upload",
+                file="f.txt",
+                message="gave up",
+            )
+        )
+        assert out == [("upload", "f.txt", "gave up")]
+
     def test_auth_error_event(self, engine):
         errors = _capture(engine.auth_error_occurred)
         status = _capture(engine.status_changed)

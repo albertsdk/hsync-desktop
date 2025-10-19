@@ -611,6 +611,7 @@ class MainWindow(QMainWindow):
         e.bucket_detected.connect(lambda b: self._bucket_label.setText(b))
         e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
+        e.transfer_failed.connect(self._on_transfer_failed)
         e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
@@ -911,6 +912,14 @@ class MainWindow(QMainWindow):
         if self._notifier:
             self._notifier.warning(tr("notif.master_conflict_title"), msg)
         self._append_log(f"⚠ {msg}")
+
+    @Slot(str, str, str)
+    def _on_transfer_failed(self, op: str, filepath: str, message: str) -> None:
+        """Surface a per-file transfer that gave up after retries (§11)."""
+        arrow = "↑" if op == "upload" else "↓"
+        self._append_log(f"✕ {arrow} {filepath}: {message}")
+        if self._notifier:
+            self._notifier.error(tr("notif.error"), message)
 
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:
