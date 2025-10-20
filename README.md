@@ -13,8 +13,8 @@ Cross-platform desktop GUI for HSYNC Client, built with PySide6 (Qt 6).
 
 > The desktop drives the `hsync` client as a subprocess over an explicit,
 > versioned contract. See the
-> [Architecture Decision Records](../hsync-common/docs/adr/README.md) — in
-> particular the [desktop ↔ client subprocess contract](../hsync-common/docs/adr/0004-desktop-subprocess-contract.md).
+> [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/README.md) — in
+> particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/0004-desktop-subprocess-contract.md).
 
 ## Features
 
@@ -41,7 +41,7 @@ For building:
 - Poetry (for dependency management)
 
 For running:
-- The compiled `hsync` binary from [hsync-client](../hsync-client)
+- The compiled `hsync` binary from [hsync-client](https://github.com/albertobasso/hsync-client)
 
 ## Quick Start
 
