@@ -197,6 +197,8 @@ translations: dict[str, str] = {
     "notif.master_takeover": "Peer {cid} unter {ip} hat force_master aktiviert und übernimmt die Master-Rolle. Dieser Client wird zum Client.",
     "notif.no_master_title": "Kein Master gewählt",
     "notif.no_master_msg": "Es wurde kein Master gewählt. Alle erkannten Peers sind möglicherweise als Never-Master konfiguriert, sodass kein Knoten Dateien bereitstellt und die Synchronisierung nicht fortgesetzt werden kann.",
+    "notif.sync_paused_title": "Sync pausiert (Löschschutz)",
+    "notif.sync_paused_msg": "Ein Sicherheitsschutz hat in diesem Zyklus {deletes} Löschung(en) blockiert ({reason}). Es wurden keine Dateien entfernt. Prüfe, ob Master/Quelle korrekt ist, und setze dann fort, falls dies erwartet wird.",
     "preview.title": "Synchronisationsvorschau",
     "preview.no_actions": "Keine Aktionen erforderlich — alles ist synchronisiert.",
     "tip.server_url": "URL des hsync-Servers (leer lassen für reinen LAN-Modus)",

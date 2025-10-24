@@ -361,6 +361,18 @@ class TestHandleEvent:
         )
         assert out == [("upload", "f.txt", "gave up")]
 
+    def test_sync_paused_event(self, engine):
+        out = _capture(engine.sync_paused)
+        engine._handle_event(
+            build_event(
+                UiEventName.sync_paused,
+                reason="master exposes an empty bucket",
+                deletes=42,
+                local=100,
+            )
+        )
+        assert out == [("master exposes an empty bucket", 42, 100)]
+
     def test_auth_error_event(self, engine):
         errors = _capture(engine.auth_error_occurred)
         status = _capture(engine.status_changed)
