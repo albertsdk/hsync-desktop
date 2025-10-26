@@ -118,7 +118,7 @@ class TestInsecureApiKeyGate:
 
 
 class TestCapabilityGating:
-    """LAN toggles are gated by the binary's advertised capabilities (§8)."""
+    """LAN toggles are gated by the binary's advertised capabilities."""
 
     def _make_dialog(self, qtbot, monkeypatch, cli_options):
         """Build a dialog whose binary advertises exactly ``cli_options``."""

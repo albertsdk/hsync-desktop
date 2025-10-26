@@ -916,7 +916,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str, str, str)
     def _on_transfer_failed(self, op: str, filepath: str, message: str) -> None:
-        """Surface a per-file transfer that gave up after retries (§11)."""
+        """Surface a per-file transfer that gave up after retries."""
         arrow = "↑" if op == "upload" else "↓"
         self._append_log(f"✕ {arrow} {filepath}: {message}")
         if self._notifier:
@@ -924,7 +924,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str, int, int)
     def _on_sync_paused(self, reason: str, deletes: int, _local: int) -> None:
-        """Surface the mass-deletion guard pausing the delete phase (§12)."""
+        """Surface the mass-deletion guard pausing the delete phase."""
         msg = (
             tr("notif.sync_paused_msg")
             .replace("{deletes}", str(deletes))

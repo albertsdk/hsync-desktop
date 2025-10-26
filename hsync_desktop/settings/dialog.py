@@ -166,7 +166,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._connection_active = False  # Track if sync is running
-        # Controls gated off by the binary's capabilities (§8); never re-enabled
+        # Controls gated off by the binary's capabilities; never re-enabled
         # by the LAN-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
         self._unsupported_labels: set[QLabel] = set()
@@ -695,13 +695,13 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
         _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
 
-        # Capability-gated controls always explain why they are unavailable (§8),
+        # Capability-gated controls always explain why they are unavailable,
         # overriding any normal tooltip cleared above.
         for widget in self._unsupported_widgets:
             widget.setToolTip(tr("tip.capability_unsupported"))
 
     def _apply_capabilities(self) -> None:
-        """Gate LAN controls by the binary's advertised capabilities (§8).
+        """Gate LAN controls by the binary's advertised capabilities.
 
         Reads the capabilities document from the configured hsync binary and
         disables any LAN toggle whose CLI flag the binary does not support, so

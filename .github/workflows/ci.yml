@@ -1,4 +1,4 @@
-# CI — hsync-desktop (§6)
+# CI — hsync-desktop
 # Lint + tests for the PySide6 GUI. hsync-desktop depends on the shared library
 # through a Poetry path dependency (../hsync-common), so the sibling repo is
 # checked out alongside it. PySide6 needs a few system libraries and the

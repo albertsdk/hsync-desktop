@@ -9,9 +9,8 @@ HSYNC Engine - subprocess bridge to hsync-client.
 
 Manages the hsync-client binary as a child process and consumes the structured
 JSON-Lines status events it publishes on a dedicated pipe (``--events-json-fd``),
-mapping each event to a Qt signal so the UI can react to state changes
-(DESIGN_REVIEW §3 / P0-B). The merged stdout/stderr stream is captured purely as
-a diagnostic log feed.
+mapping each event to a Qt signal so the UI can react to state changes.
+The merged stdout/stderr stream is captured purely as a diagnostic log feed.
 """
 
 from __future__ import annotations
@@ -65,8 +64,8 @@ from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_l
 
 # Status parsing is no longer regex-based: the child publishes structured
 # JSON-Lines events over ``--events-json-fd`` and the engine maps each one to a
-# Qt signal in ``_handle_event`` (DESIGN_REVIEW §3 / P0-B). The merged
-# stdout/stderr stream is kept purely as a diagnostic log feed.
+# Qt signal in ``_handle_event``.
+# The merged stdout/stderr stream is kept purely as a diagnostic log feed.
 
 
 # ─── Default binary discovery ───────────────────────────────────────────────
@@ -145,9 +144,9 @@ def get_binary_capabilities(binary_path: str | None = None) -> CapabilitiesDoc |
     """Return the capabilities document advertised by the hsync binary, or None.
 
     Runs ``<binary> --capabilities-json`` and validates its output against the
-    shared schema (DESIGN_REVIEW §8). Returns None when the binary is missing,
-    cannot be executed, or emits an unparseable/unsupported document — the UI
-    then degrades to a best-effort, fully-enabled state.
+    shared schema. Returns None when the binary is missing, cannot be executed,
+    or emits an unparseable/unsupported document — the UI then degrades to a
+    best-effort, fully-enabled state.
     """
     path = binary_path or find_hsync_binary()
     if not path:
@@ -207,7 +206,7 @@ class HsyncEngine(QObject):
     file_progress = Signal(str, int, int)  # filepath, bytes_transferred, total_bytes
     sync_completed = Signal()  # a full sync cycle finished
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
-    sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files (§12)
+    sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
     error_occurred = Signal(str)  # error message
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     path_not_found = Signal(str)  # shared path does not exist
