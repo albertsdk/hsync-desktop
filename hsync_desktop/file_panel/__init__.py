@@ -33,13 +33,7 @@ from hsync_desktop.file_panel.utils import (
     _classify_file,
 )
 from hsync_desktop.file_panel.utils import (
-    format_eta as _format_eta,
-)
-from hsync_desktop.file_panel.utils import (
     format_mtime as _format_mtime,
-)
-from hsync_desktop.file_panel.utils import (
-    format_size as _format_size,
 )
 from hsync_desktop.file_panel.widgets import FilePanel, FileTransferTable
 from hsync_desktop.file_panel.workers import DirectoryScanWorker
@@ -53,8 +47,6 @@ __all__ = [
     "_NO_PROGRESS_STATUSES",
     "_FILE_TYPE_MAP",
     "_classify_file",
-    "_format_size",
-    "_format_eta",
     "_format_mtime",
     "COL_ICON",
     "COL_NAME",

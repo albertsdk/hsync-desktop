@@ -50,7 +50,7 @@ class PreviewStats:
         self.upload_size = 0
 
 
-from hsync_desktop.utils import format_bytes
+from hsync_common.format import format_bytes
 
 
 def _format_time(seconds: float) -> str:

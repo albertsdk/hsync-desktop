@@ -271,26 +271,6 @@ def _classify_file(filepath: str) -> tuple[str, str]:
 # ── Formatting functions ────────────────────────────────────────────────
 
 
-def format_size(n: int) -> str:
-    """Format bytes as human-readable size."""
-    for unit in ("B", "KB", "MB", "GB"):
-        if abs(n) < 1024:
-            return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
-        n /= 1024  # type: ignore[assignment]
-    return f"{n:.1f} TB"
-
-
-def format_eta(seconds: float | None) -> str:
-    """Format ETA as human-readable string."""
-    if seconds is None:
-        return ""
-    if seconds < 60:
-        return f"{int(seconds)}s"
-    if seconds < 3600:
-        return f"{int(seconds // 60)}m {int(seconds % 60)}s"
-    return f"{int(seconds // 3600)}h {int((seconds % 3600) // 60)}m"
-
-
 def format_mtime(epoch: float) -> str:
     """Format modification time as locale-aware human-readable string.
 

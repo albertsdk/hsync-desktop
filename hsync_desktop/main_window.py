@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from typing import cast
 
+from hsync_common.format import format_bytes
 from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
@@ -71,7 +72,6 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
-from hsync_desktop.utils import format_bytes
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"

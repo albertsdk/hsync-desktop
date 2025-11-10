@@ -18,6 +18,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QLocale,
     QMutex,
@@ -73,9 +74,7 @@ from hsync_desktop.file_panel.utils import (
     COL_STATUS,
     COL_TYPE,
     _classify_file,
-    format_eta,
     format_mtime,
-    format_size,
 )
 from hsync_desktop.file_panel.workers import DirectoryScanWorker
 from hsync_desktop.i18n import register_language_callback, tr
@@ -298,7 +297,7 @@ class FileDetailPanel:
         self._lbl_filepath.setText(f'<a href="file://{abs_dir}">{escaped}</a>')
 
         self._lbl_filename.setText(transfer.filename)
-        self._lbl_size.setText(format_size(transfer.size))
+        self._lbl_size.setText(format_bytes(transfer.size))
         self._lbl_modified.setText(format_mtime(transfer.mtime))
 
         status_map = {
@@ -716,7 +715,7 @@ class FileTransferTable(QTableWidget):
             count = folder_data.get("count", 0)
             size_text = tr("folder.items").format(count=count)
         elif transfer and not is_folder:
-            size_text = format_size(transfer.size)
+            size_text = format_bytes(transfer.size)
         else:
             size_text = ""
         size_item = QTableWidgetItem(size_text)
@@ -757,7 +756,7 @@ class FileTransferTable(QTableWidget):
 
         # ETA
         eta = transfer.eta_seconds if transfer else None
-        eta_item = QTableWidgetItem(format_eta(eta))
+        eta_item = QTableWidgetItem(format_duration(eta, style="compact"))
         eta_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_ETA, eta_item)
 
