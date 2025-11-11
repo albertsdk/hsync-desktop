@@ -102,7 +102,6 @@ class TestLanSectionConsistency:
                 "lan/port": 9000,
                 "lan/discovery_timeout": 15,
                 "lan/group": "test-group",
-                "lan/https": False,  # emits --no-lan-https
                 "lan/persistent": False,  # emits --no-lan-persistent
                 "lan/force_master": True,  # emits --force-master
             }
@@ -114,7 +113,6 @@ class TestLanSectionConsistency:
             "--lan-port",
             "--discovery-timeout",
             "--lan-group",
-            "--no-lan-https",
             "--no-lan-persistent",
             "--force-master",
         ):
@@ -125,17 +123,21 @@ class TestLanSectionConsistency:
         assert args[args.index("--discovery-timeout") + 1] == "15"
         assert args[args.index("--lan-group") + 1] == "test-group"
 
-    def test_lan_https_and_persistent_are_independent(self):
-        """The --no-lan-https and --no-lan-persistent flags do not influence each other."""
-        # https disabled, persistent enabled
-        args_a = _build_args({"lan/enabled": True, "lan/https": False, "lan/persistent": True})
-        assert "--no-lan-https" in args_a
-        assert "--no-lan-persistent" not in args_a
+    def test_persistent_and_force_master_are_independent(self):
+        """The --no-lan-persistent and --force-master flags do not influence each other."""
+        # persistent disabled, force_master off
+        args_a = _build_args(
+            {"lan/enabled": True, "lan/persistent": False, "lan/force_master": False}
+        )
+        assert "--no-lan-persistent" in args_a
+        assert "--force-master" not in args_a
 
-        # https enabled, persistent disabled
-        args_b = _build_args({"lan/enabled": True, "lan/https": True, "lan/persistent": False})
-        assert "--no-lan-https" not in args_b
-        assert "--no-lan-persistent" in args_b
+        # persistent enabled, force_master on
+        args_b = _build_args(
+            {"lan/enabled": True, "lan/persistent": True, "lan/force_master": True}
+        )
+        assert "--no-lan-persistent" not in args_b
+        assert "--force-master" in args_b
 
 
 class TestNeverMasterFlag:

@@ -415,16 +415,6 @@
         </widget>
        </item>
        <item row="5" column="1">
-        <widget class="QCheckBox" name="lanHttps">
-         <property name="text">
-          <string>Use HTTPS</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="1">
         <widget class="QCheckBox" name="lanPersistent">
          <property name="text">
           <string>Persistent mode</string>
@@ -434,7 +424,7 @@
          </property>
         </widget>
        </item>
-       <item row="7" column="1">
+       <item row="6" column="1">
         <widget class="QCheckBox" name="forceMaster">
          <property name="text">
           <string>Force master</string>

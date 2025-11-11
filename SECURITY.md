@@ -33,8 +33,8 @@ the client's security model:
 - **Transport security** — HTTPS/WSS supported, including trusting a self-signed
   server certificate via a CA file. Disabling verification is intended for
   testing only.
-- **LAN mode (P2P)** — HTTPS with per-session self-signed certificates and
-  fingerprint verification; optional shared-secret authentication.
+- **LAN mode (P2P)** — HTTPS/WSS only, with a persistent self-signed identity and
+  connection-level fingerprint pinning (TOFU); optional shared-secret authentication.
 
 ## Hardening Recommendations
 
