@@ -24,7 +24,7 @@ jobs:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
       - name: Checkout hsync-desktop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: hsync-desktop
 
@@ -32,7 +32,7 @@ jobs:
       # hsync-common is a private repo, so the default GITHUB_TOKEN cannot read
       # it; authenticate with a PAT stored in the HSYNC_COMMON_PAT secret.
       - name: Checkout hsync-common
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: albertobasso/hsync-common
           ref: main
@@ -46,7 +46,7 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libdbus-1-3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
