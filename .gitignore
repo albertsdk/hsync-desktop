@@ -62,9 +62,6 @@ Thumbs.db
 # poetry.lock
 hsync_desktop/bin/
 
-# Claude
-CLAUDE.md
-
 # Kilo
 .kilo
 
