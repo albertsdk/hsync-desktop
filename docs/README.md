@@ -54,7 +54,7 @@ Build a standalone binary with:
 
 ## Related projects
 
-- [hsync-client](../../hsync-client/docs/README.md) — the sync engine this GUI drives.
-- [hsync-server](../../hsync-server/docs/README.md) — the central server for Server Mode.
-- [hsync-android](../../hsync-android/docs/README.md) — the Android app.
-- [hsync-common](../../hsync-common/docs/README.md) — shared models and protocol.
+- [hsync-client](https://github.com/albertobasso/hsync-client/blob/main/docs/README.md) — the sync engine this GUI drives.
+- [hsync-server](https://github.com/albertobasso/hsync-server/blob/main/docs/README.md) — the central server for Server Mode.
+- [hsync-android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — the Android app.
+- [hsync-common](https://github.com/albertobasso/hsync-common/blob/main/docs/README.md) — shared models and protocol.
