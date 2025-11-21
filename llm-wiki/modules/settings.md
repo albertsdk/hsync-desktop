@@ -42,8 +42,10 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:2
 `build_hsync_args` always appends `--yes` (`:227`, non-interactive) and
 `--no-color` (`:233`); emits `-w` watch (`:122`), `--insecure` (`:105`),
 `--ignore-delete` (`:152`), `--sync-hidden` (`:171`), compression flags
-(`:184`/`:186`), and the LAN block (`--lan-mode:190`, `--no-lan-persistent:210`,
-`--force-master:212`, `--never-master:214`, `--require-pairing:216`). Secrets are
+(`:184`/`:186`), the advanced numeric caps (`--min-free-disk-space`,
+`--max-download-size`), and the LAN block (`--lan-mode:190`,
+`--no-lan-persistent:210`, `--force-master:212`, `--never-master:214`,
+`--require-pairing:216`). Secrets are
 **not** here — they go through engine pipe FDs.
 
 > Any new flag here must mirror an option the client actually exposes

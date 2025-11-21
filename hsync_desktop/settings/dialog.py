@@ -63,6 +63,7 @@ from hsync_desktop.config import (
     DEFAULT_LAN_PORT,
     DEFAULT_LAN_REQUIRE_PAIRING,
     DEFAULT_LOGFILE,
+    DEFAULT_MAX_DOWNLOAD_SIZE,
     DEFAULT_MAX_WAIT,
     DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_NEVER_MASTER,
@@ -262,6 +263,11 @@ class SettingsDialog(QDialog):
         self.min_free_disk_space.setRange(0, 100_000)
         self.min_free_disk_space.setSuffix(" MB")
         self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
+        self.max_download_size = QSpinBox()
+        self.max_download_size.setObjectName("maxDownloadSize")
+        self.max_download_size.setRange(0, 10_000_000)
+        self.max_download_size.setSuffix(" MB")
+        self.max_download_size.setSpecialValueText(tr("settings.disabled"))
         self.compression_enabled, self._lbl_compression_enabled = _replace_checkbox_with_toggle(
             self, "noCompression"
         )
@@ -499,6 +505,8 @@ class SettingsDialog(QDialog):
         f4 = QFormLayout(self._grp_advanced)
         self._lbl_min_free_disk_space = QLabel(tr("settings.min_free_disk_space"))
         f4.addRow(self._lbl_min_free_disk_space, self.min_free_disk_space)
+        self._lbl_max_download_size = QLabel(tr("settings.max_download_size"))
+        f4.addRow(self._lbl_max_download_size, self.max_download_size)
         f4.addRow(lbl_filter, self.filter_path)
         f4.addRow("", cont_no_comp)
         f4.addRow("", cont_dry_run)
@@ -580,6 +588,8 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.filter_path"))
         self._lbl_min_free_disk_space.setText(tr("settings.min_free_disk_space"))
         self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
+        self._lbl_max_download_size.setText(tr("settings.max_download_size"))
+        self.max_download_size.setSpecialValueText(tr("settings.disabled"))
         self._lbl_compression_enabled.setText(tr("settings.compression_enabled"))
         self._lbl_dry_run.setText(tr("settings.dry_run"))
         self._lbl_auto_sync.setText(tr("settings.auto_sync"))
@@ -654,6 +664,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.stability_delay, "tip.stability_delay", tips)
         _maybe_tip(self.max_wait, "tip.max_wait", tips)
         _maybe_tip(self.min_free_disk_space, "tip.min_free_disk_space", tips)
+        _maybe_tip(self.max_download_size, "tip.max_download_size", tips)
         _maybe_tip(self.filter_path, "tip.filter_path", tips)
         _maybe_tip(self.compression_enabled, "tip.compression_enabled", tips)
         _maybe_tip(self.dry_run, "tip.dry_run", tips)
@@ -984,6 +995,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/ignore_delete", self.ignore_delete.isChecked())
         s.setValue("sync/direction", self.sync_direction_combo.currentData() or "bidirectional")
         s.setValue("sync/min_free_disk_space", self.min_free_disk_space.value())
+        s.setValue("sync/max_download_size", self.max_download_size.value())
         s.setValue("sync/filter_path", self.filter_path.text())
         s.setValue("sync/compression_enabled", self.compression_enabled.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
@@ -1051,6 +1063,9 @@ class SettingsDialog(QDialog):
                 break
         self.min_free_disk_space.setValue(
             cast(int, s.value("sync/min_free_disk_space", DEFAULT_MIN_FREE_DISK_SPACE, int))
+        )
+        self.max_download_size.setValue(
+            cast(int, s.value("sync/max_download_size", DEFAULT_MAX_DOWNLOAD_SIZE, int))
         )
         self.filter_path.setText(str(s.value("sync/filter_path", DEFAULT_FILTER_PATH, str)))
         # Read new key; fall back to inverted legacy key for migration
@@ -1158,6 +1173,7 @@ class SettingsDialog(QDialog):
             self.stability_delay,
             self.max_wait,
             self.min_free_disk_space,
+            self.max_download_size,
             self.filter_path,
             self.compression_enabled,
             self.dry_run,

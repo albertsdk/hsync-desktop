@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Max inbound file size setting**: new *Advanced* spinbox controlling the
+  client `--max-download-size` flag (absolute cap on a single inbound file,
+  `0` = disabled, default 10 GB). Without a desktop-side passthrough, files
+  larger than the client default would have been aborted with no way to
+  raise the cap from the UI
+
 ### Changed
 - **Deps**: Updated development and transitive dependencies: cffi 2.1.0,
   coverage 7.15.2, filelock 3.31.2, librt 0.13.0, mypy 2.3.0,
