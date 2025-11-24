@@ -12,15 +12,6 @@ import hsync_desktop.config as config
 class TestAppInfo:
     """Test application info constants."""
 
-    def test_app_name(self):
-        assert config.APP_NAME == "HSYNC Desktop"
-
-    def test_app_org(self):
-        assert config.APP_ORG == "HSYNC"
-
-    def test_app_id(self):
-        assert config.APP_ID == "HSYNCDesktop"
-
 
 class TestDefaultSyncSettings:
     """Test default sync settings."""
@@ -34,9 +25,6 @@ class TestDefaultSyncSettings:
 
 class TestConnectionDefaults:
     """Test connection default values."""
-
-    def test_default_server_url(self):
-        assert config.DEFAULT_SERVER_URL == ""
 
     def test_default_insecure(self):
         assert config.DEFAULT_INSECURE is False
@@ -126,17 +114,11 @@ class TestOutputDefaults:
 class TestAppearanceDefaults:
     """Test appearance default values."""
 
-    def test_default_theme(self):
-        assert config.DEFAULT_THEME == "system"
-
     def test_default_notifications(self):
         assert config.DEFAULT_NOTIFICATIONS is True
 
     def test_default_tooltips(self):
         assert config.DEFAULT_TOOLTIPS is True
-
-    def test_default_language(self):
-        assert config.DEFAULT_LANGUAGE == "en"
 
 
 class TestUIConstants:
@@ -147,15 +129,3 @@ class TestUIConstants:
 
     def test_consistency_check_interval_ms(self):
         assert config.CONSISTENCY_CHECK_INTERVAL_MS == 5000
-
-    def test_deleted_file_display_ms(self):
-        assert config.DELETED_FILE_DISPLAY_MS == 3000
-
-    def test_min_window_width(self):
-        assert config.MIN_WINDOW_WIDTH == 800
-
-    def test_min_window_height(self):
-        assert config.MIN_WINDOW_HEIGHT == 600
-
-    def test_splash_duration_ms(self):
-        assert config.SPLASH_DURATION_MS == 3000

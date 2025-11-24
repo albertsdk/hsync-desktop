@@ -1074,34 +1074,6 @@ class FileTransferTable(QTableWidget):
         self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
-    def update_transfer_status(self, filepath: str, status: TransferStatus) -> None:
-        """Update the status of a transfer."""
-        with QMutexLocker(self._transfers_mutex):
-            if filepath in self._transfers:
-                self._transfers[filepath].status = status
-        self.refresh_view()
-
-    def mark_completed(self, filepath: str, size: int = 0, direction: str = "↓") -> None:
-        """Mark a transfer as completed."""
-        with QMutexLocker(self._transfers_mutex):
-            if filepath in self._transfers:
-                t = self._transfers[filepath]
-                t.status = TransferStatus.COMPLETED
-                if size:
-                    t.size = size
-                    t.bytes_transferred = size
-            else:
-                t = FileTransfer(
-                    filepath=filepath,
-                    direction=direction,
-                    size=size,
-                    bytes_transferred=size,
-                    status=TransferStatus.COMPLETED,
-                )
-                self._transfers[filepath] = t
-        self._cached_items = None  # Invalidate cache
-        self.refresh_view()
-
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
         with QMutexLocker(self._transfers_mutex):
@@ -1287,7 +1259,6 @@ class FilePanel(QWidget):
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
         self._current_directory: str = ""
-        self._scan_generation: int = 0
         self._consistency_timer = QTimer(self)
         self._consistency_timer.timeout.connect(self._check_directory_consistency)
         self._build_ui()
@@ -1464,7 +1435,6 @@ class FilePanel(QWidget):
         self._current_directory = directory
         self._table.set_base_directory(directory)
         self._detail.set_base_directory(directory)
-        self._scan_generation += 1
         self._show_loading()
         self._scan_thread = QThread()
         self._scan_worker = DirectoryScanWorker(directory)

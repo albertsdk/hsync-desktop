@@ -13,11 +13,6 @@ to avoid hardcoding and ensure consistency.
 
 from __future__ import annotations
 
-# Application info
-APP_NAME = "HSYNC Desktop"
-APP_ORG = "HSYNC"
-APP_ID = "HSYNCDesktop"
-
 # QSettings organization and application name
 # These are used by QSettings to store application settings
 SETTINGS_ORG = "HSYNC"
@@ -28,7 +23,6 @@ DEFAULT_BUCKET = "my-bucket"
 DEFAULT_GROUP = "my-group"
 
 # Connection defaults
-DEFAULT_SERVER_URL = ""
 DEFAULT_INSECURE = False
 DEFAULT_CA_CERT = ""
 DEFAULT_SERVER_CERT_FINGERPRINT = ""
@@ -71,17 +65,9 @@ DEFAULT_LOGFILE = ""
 DEFAULT_SHOW_LOG_PANEL = False
 
 # Appearance defaults
-DEFAULT_THEME = "system"  # "light", "dark", or "system"
 DEFAULT_NOTIFICATIONS = True
 DEFAULT_TOOLTIPS = True
-DEFAULT_LANGUAGE = "en"
 
 # File panel
 FILE_BATCH_SIZE = 50
 CONSISTENCY_CHECK_INTERVAL_MS = 5000
-DELETED_FILE_DISPLAY_MS = 3000
-
-# UI constants
-MIN_WINDOW_WIDTH = 800
-MIN_WINDOW_HEIGHT = 600
-SPLASH_DURATION_MS = 3000

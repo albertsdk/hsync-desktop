@@ -35,12 +35,6 @@ class SingleInstance(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._server: QLocalServer | None = None
-        self._is_primary = False
-
-    @property
-    def is_primary(self) -> bool:
-        """Return True if this is the primary (first) instance."""
-        return self._is_primary
 
     def try_start(self) -> bool:
         """Try to become the primary instance.
@@ -71,7 +65,6 @@ class SingleInstance(QObject):
             # Failed to start server - shouldn't happen normally
             return False
 
-        self._is_primary = True
         return True
 
     def _on_new_connection(self) -> None:
@@ -91,9 +84,3 @@ class SingleInstance(QObject):
 
         socket.disconnectFromServer()
         socket.deleteLater()
-
-    def cleanup(self) -> None:
-        """Clean up resources when shutting down."""
-        if self._server is not None:
-            self._server.close()
-            self._server = None

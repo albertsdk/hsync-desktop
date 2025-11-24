@@ -32,15 +32,3 @@ from pathlib import Path
 
 # Directory containing .ui files
 UI_DIR = Path(__file__).parent
-
-# List of available .ui files
-UI_FILES = {
-    "main_window": UI_DIR / "main_window.ui",
-    "settings_dialog": UI_DIR / "settings_dialog.ui",
-    "splash_screen": UI_DIR / "splash_screen.ui",
-    "file_panel": UI_DIR / "file_panel.ui",
-    "preview_summary_dialog": UI_DIR / "preview_summary_dialog.ui",
-    "api_key_dialog": UI_DIR / "api_key_dialog.ui",
-    "lan_key_dialog": UI_DIR / "lan_key_dialog.ui",
-    "bandwidth_dialog": UI_DIR / "bandwidth_dialog.ui",
-}

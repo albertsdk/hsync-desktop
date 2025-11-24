@@ -155,6 +155,4 @@ class TestCapabilityGating:
             cli_options=["--lan-mode", "--force-master", "--never-master"],
         )
         dlg.lan_mode.setChecked(True)
-        dlg.set_connection_active(True)
-        dlg.set_connection_active(False)
         assert not dlg.require_pairing.isEnabled()

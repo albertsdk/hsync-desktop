@@ -229,11 +229,9 @@ class HsyncEngine(QObject):
         self._process: QProcess | None = None
         self._running = False
         self._stopping = False  # True when stop() was called programmatically
-        self._auth_error_active = False  # True when auth error is being handled
         self._is_master = False
         self._peers = 0
         self._status = "disconnected"
-        self._in_preview = False
         self._cid = ""
         self._server_ip = ""
         self.stats = TransferStats()
@@ -252,10 +250,6 @@ class HsyncEngine(QObject):
     @property
     def is_master(self) -> bool:
         return self._is_master
-
-    @property
-    def peer_count(self) -> int:
-        return self._peers
 
     @property
     def status(self) -> str:
@@ -294,7 +288,6 @@ class HsyncEngine(QObject):
         self._is_master = False
         self._peers = 0
         self._stopping = False
-        self._auth_error_active = False
         self._set_status("connecting")
 
         proc = QProcess(self)
@@ -631,7 +624,6 @@ class HsyncEngine(QObject):
             elif name == UiEventName.error:
                 self.error_occurred.emit(str(event.get("message", "")))
             elif name == UiEventName.auth_error:
-                self._auth_error_active = True
                 self.auth_error_occurred.emit(str(event.get("message", "")))
                 self._set_status("error")
             elif name == UiEventName.path_not_found:
@@ -646,10 +638,8 @@ class HsyncEngine(QObject):
             elif name == UiEventName.no_master:
                 self.no_master_warning.emit(str(event.get("message", "")))
             elif name == UiEventName.preview_start:
-                self._in_preview = True
                 self.preview_started.emit()
             elif name == UiEventName.preview_end:
-                self._in_preview = False
                 self.preview_ended.emit()
             elif name == UiEventName.file_status:
                 self.file_status.emit(

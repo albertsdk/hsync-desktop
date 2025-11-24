@@ -14,14 +14,6 @@ from PySide6.QtCore import QByteArray
 class TestSingleInstance:
     """Test SingleInstance class."""
 
-    def test_init_defaults(self):
-        """Test initialization with default values."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        instance = SingleInstance()
-
-        assert instance.is_primary is False
-
     def test_server_name_constant(self):
         """Test that server name constant is defined."""
         from hsync_desktop.single_instance import SingleInstance
@@ -53,37 +45,6 @@ class TestSingleInstance:
         instance = SingleInstance()
         assert instance._server is None
 
-    def test_is_primary_property(self):
-        """Test is_primary property returns False initially."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        instance = SingleInstance()
-        assert instance.is_primary is False
-
-    @patch("hsync_desktop.single_instance.QLocalSocket")
-    @patch("hsync_desktop.single_instance.QLocalServer")
-    def test_try_start_becomes_primary(self, mock_server_class, mock_socket_class):
-        """Test try_start when no instance is running."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        # Setup mock socket to fail connection (no existing instance)
-        mock_socket = MagicMock()
-        mock_socket.waitForConnected.return_value = False
-        mock_socket_class.return_value = mock_socket
-
-        # Setup mock server
-        mock_server = MagicMock()
-        mock_server.listen.return_value = True
-        mock_server_class.return_value = mock_server
-
-        instance = SingleInstance()
-
-        result = instance.try_start()
-
-        assert result is True
-        assert instance.is_primary is True
-        mock_server.listen.assert_called_once()
-
     @patch("hsync_desktop.single_instance.QLocalSocket")
     @patch("hsync_desktop.single_instance.QLocalServer")
     def test_try_start_another_instance_running(self, mock_server_class, mock_socket_class):
@@ -100,7 +61,6 @@ class TestSingleInstance:
         result = instance.try_start()
 
         assert result is False
-        assert instance.is_primary is False
         mock_socket.write.assert_called_once_with(b"activate")
 
     @patch("hsync_desktop.single_instance.QLocalSocket")
@@ -124,8 +84,6 @@ class TestSingleInstance:
         result = instance.try_start()
 
         assert result is False
-        # Should not set is_primary to True when listen fails
-        assert instance.is_primary is False
 
     @patch("hsync_desktop.single_instance.QLocalSocket")
     @patch("hsync_desktop.single_instance.QLocalServer")
@@ -148,41 +106,6 @@ class TestSingleInstance:
 
         # Check removeServer was called
         mock_server_class.removeServer.assert_called_once()
-
-    def test_cleanup(self):
-        """Test cleanup method closes server."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        instance = SingleInstance()
-        mock_server = MagicMock()
-        instance._server = mock_server
-
-        instance.cleanup()
-
-        mock_server.close.assert_called_once()
-        assert instance._server is None
-
-    def test_cleanup_when_server_none(self):
-        """Test cleanup when server is already None."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        instance = SingleInstance()
-        instance._server = None
-
-        # Should not raise
-        instance.cleanup()
-
-    def test_cleanup_sets_server_none(self):
-        """Test cleanup sets _server to None after closing."""
-        from hsync_desktop.single_instance import SingleInstance
-
-        instance = SingleInstance()
-        mock_server = MagicMock()
-        instance._server = mock_server
-
-        instance.cleanup()
-
-        assert instance._server is None
 
 
 class TestSingleInstanceSignals:

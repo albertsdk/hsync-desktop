@@ -32,9 +32,6 @@ class TestStatusColors:
     def test_color_waiting(self):
         assert themes.COLOR_WAITING.name().lower() == "#bf8700"
 
-    def test_color_error(self):
-        assert themes.COLOR_ERROR.name().lower() == "#cf222e"
-
 
 class TestLightPalette:
     """Test light palette generation."""

@@ -165,7 +165,6 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._connection_active = False  # Track if sync is running
         # Controls gated off by the binary's capabilities; never re-enabled
         # by the LAN-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
@@ -356,9 +355,7 @@ class SettingsDialog(QDialog):
         if isinstance(parent, QWidget):
             parent.hide()
         self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
-        self.show_log_panel, self._lbl_show_log = _replace_checkbox_with_toggle(
-            self, "showLogPanel"
-        )
+        self.show_log_panel, _ = _replace_checkbox_with_toggle(self, "showLogPanel")
 
         # Appearance tab widgets
         self.theme_combo: QComboBox = self.findChild(QComboBox, "themeCombo")  # type: ignore[assignment]
@@ -1140,7 +1137,6 @@ class SettingsDialog(QDialog):
         Args:
             active: True if sync is running, False otherwise.
         """
-        self._connection_active = active
 
         # Show/hide the info banner
         self._connection_banner.setVisible(active)
@@ -1248,9 +1244,7 @@ class ApiKeyDialog(QDialog):
         self._api_key_edit.setText(current_key)
 
         # Buttons
-        self._save_btn = self._button_box.addButton(
-            tr("apikey.save"), QDialogButtonBox.ButtonRole.AcceptRole
-        )
+        self._button_box.addButton(tr("apikey.save"), QDialogButtonBox.ButtonRole.AcceptRole)
         self._cancel_btn = self._button_box.addButton(
             tr("apikey.cancel"), QDialogButtonBox.ButtonRole.RejectRole
         )
@@ -1274,10 +1268,6 @@ class ApiKeyDialog(QDialog):
                 tr("apikey.title"),
                 tr("apikey.prompt"),
             )
-
-    def get_api_key(self) -> str:
-        """Return the entered API key."""
-        return self._api_key_edit.text().strip()
 
 
 # ─── LAN Key Dialog ─────────────────────────────────────────────────────────
@@ -1317,9 +1307,7 @@ class LanKeyDialog(QDialog):
         self._lan_key_edit.setText(current_key)
 
         # Buttons
-        self._save_btn = self._button_box.addButton(
-            tr("lanauth.save"), QDialogButtonBox.ButtonRole.AcceptRole
-        )
+        self._button_box.addButton(tr("lanauth.save"), QDialogButtonBox.ButtonRole.AcceptRole)
         self._cancel_btn = self._button_box.addButton(
             tr("lanauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
         )
@@ -1342,10 +1330,6 @@ class LanKeyDialog(QDialog):
                 tr("lanauth.title"),
                 tr("lanauth.prompt"),
             )
-
-    def get_lan_key(self) -> str:
-        """Return the entered LAN key."""
-        return self._lan_key_edit.text().strip()
 
 
 # ─── .hsyncignore Editor Dialog ─────────────────────────────────────────────
