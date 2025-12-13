@@ -14,3 +14,7 @@
 3. Try running the CLI client directly to isolate GUI vs. engine issues:
    ```bash
    hsync -s https://server:8765 -b mybucket -p /path -v
+
+## 💚 Solo project
+
+HSYNC is developed entirely by a single person in their spare time. Feature requests, bug reports, and pull requests are reviewed as soon as possible, but response times may vary. The developer does their best to maintain and improve the project — thank you for your patience and support!
