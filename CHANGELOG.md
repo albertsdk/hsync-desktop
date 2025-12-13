@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `0` = disabled, default 10 GB). Without a desktop-side passthrough, files
   larger than the client default would have been aborted with no way to
   raise the cap from the UI
+- **Delta transfer compatibility**: the desktop GUI is now compatible with
+  the delta transfer protocol (rsync-style block sync). No UI changes are
+  required — delta transfer is transparent to the user and automatically
+  reduces bandwidth for large files with small changes when both peers support
+  it. The capability negotiation ensures backward compatibility with older
+  clients/servers.
 
 ### Changed
 - **Deps**: Updated development and transitive dependencies: cffi 2.1.0,
