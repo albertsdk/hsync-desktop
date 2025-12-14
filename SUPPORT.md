@@ -13,7 +13,7 @@
 2. Verify the `hsync` binary is correctly discovered (check Settings → Connection).
 3. Try running the CLI client directly to isolate GUI vs. engine issues:
    ```bash
-   hsync -s https://server:8765 -b mybucket -p /path -v
+   hsync -s https://server:9753 -b mybucket -p /path -v
 
 ## 💚 Solo project
 
