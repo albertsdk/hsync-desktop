@@ -1,13 +1,5 @@
 # HSYNC Desktop
 
-> [!WARNING]
-> **HSYNC manipulates files and directories** — it creates, overwrites, moves, and deletes data.
-> Misconfiguration, software defects, or other unforeseen conditions may lead to **data loss or
-> corruption**. **Use at your own risk and always keep verified, independent backups.**
-> The software is provided "as is", without warranty of any kind — see the full
-> [Disclaimer](#disclaimer) and [License](#license) below.
-
-
 **HSYNC Desktop** is the graphical application for Windows, macOS, and Linux. It
 gives you a visual interface to control the HSYNC Client: start or stop sync,
 monitor transfer progress, adjust settings, and get desktop notifications — all
@@ -17,6 +9,13 @@ without touching the command line.
 > versioned contract. See the
 > [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/0004-desktop-subprocess-contract.md).
+
+> [!WARNING]
+> **HSYNC manipulates files and directories** — it creates, overwrites, moves, and deletes data.
+> Misconfiguration, software defects, or other unforeseen conditions may lead to **data loss or
+> corruption**. **Use at your own risk and always keep verified, independent backups.**
+> The software is provided "as is", without warranty of any kind — see the full
+> [Disclaimer](#disclaimer) and [License](#license) below.
 
 ---
 
