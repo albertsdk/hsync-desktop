@@ -139,7 +139,6 @@ translations: dict[str, str] = {
     "settings.max_download_size": "Max inbound file size:",
     "settings.disabled": "Disabled",
     "settings.filter_path": "Sync only a specific subfolder:",
-    "settings.sync_hidden": "Sync hidden files",
     "settings.ignore_patterns": "Extra ignore patterns:",
     "settings.edit_hsyncignore": "Edit .hsyncignore…",
     "settings.group.path_bucket": "Path & Bucket",
@@ -191,7 +190,6 @@ translations: dict[str, str] = {
     "tip.dry_run": "Show what would be done without making any changes",
     "tip.auto_sync": "Automatically start synchronization when the application launches",
     "tip.filter_path": "Only sync files within this subdirectory path",
-    "tip.sync_hidden": "Include hidden/system files in sync (disables built-in filters)",
     "tip.ignore_patterns": "Comma-separated extra gitignore-style patterns (layered on .hsyncignore)",
     "tip.edit_hsyncignore": "Edit the .hsyncignore file at the root of the shared folder",
     # .hsyncignore editor dialog

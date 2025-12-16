@@ -128,7 +128,6 @@ translations: dict[str, str] = {
     "settings.max_download_size": "Taille max. des fichiers entrants :",
     "settings.disabled": "Désactivé",
     "settings.filter_path": "Filtre de chemin :",
-    "settings.sync_hidden": "Synchroniser les fichiers cachés",
     "settings.ignore_patterns": "Motifs d'exclusion supplémentaires :",
     "settings.edit_hsyncignore": "Modifier .hsyncignore…",
     "settings.group.path_bucket": "Chemin et bucket",
@@ -219,7 +218,6 @@ translations: dict[str, str] = {
     "tip.min_free_disk_space": "Espace disque minimum requis avant de démarrer la synchronisation (0 = désactivé)",
     "tip.max_download_size": "Taille maximale d'un fichier entrant (téléchargement ou envoi LAN reçu), appliquée comme plafond absolu en plus de la taille déclarée par le pair (0 = désactivé)",
     "tip.filter_path": "Synchroniser uniquement les fichiers dont le chemin contient cette chaîne",
-    "tip.sync_hidden": "Inclure les fichiers cachés/système dans la synchronisation (désactive les filtres intégrés)",
     "tip.ignore_patterns": "Motifs gitignore supplémentaires séparés par des virgules (combinés avec .hsyncignore)",
     "tip.edit_hsyncignore": "Modifier le fichier .hsyncignore à la racine du dossier partagé",
     # Éditeur .hsyncignore
