@@ -7,7 +7,7 @@ without touching the command line.
 
 > The desktop drives the `hsync` client as a subprocess over an explicit,
 > versioned contract. See the
-> [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/README.md) — in
+> [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/0004-desktop-subprocess-contract.md).
 
 > [!WARNING]
