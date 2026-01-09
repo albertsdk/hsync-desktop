@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="480">
+</p>
+
 # HSYNC Desktop
 
 **HSYNC Desktop** is the graphical application for Windows, macOS, and Linux. It
