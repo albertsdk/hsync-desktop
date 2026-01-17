@@ -9,10 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Max inbound file size setting**: new *Advanced* spinbox controlling the
-  client `--max-download-size` flag (absolute cap on a single inbound file,
+  client `--max-inbound-size` flag (absolute cap on a single inbound file,
   `0` = disabled, default 10 GB). Without a desktop-side passthrough, files
   larger than the client default would have been aborted with no way to
   raise the cap from the UI
+
+### Changed
+- **Setting/flag rename**: the max inbound file size setting now passes
+  `--max-inbound-size` (renamed from `--max-download-size` in the client).
+  The QSettings key changed from `sync/max_download_size` to
+  `sync/max_inbound_size`. Existing custom values reset to the default
+  (10 GB) on upgrade.
 - **Delta transfer compatibility**: the desktop GUI is now compatible with
   the delta transfer protocol (rsync-style block sync). No UI changes are
   required — delta transfer is transparent to the user and automatically

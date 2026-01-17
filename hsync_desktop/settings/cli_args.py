@@ -23,7 +23,7 @@ from PySide6.QtCore import QSettings
 from hsync_desktop.config import (
     DEFAULT_BUCKET,
     DEFAULT_GROUP,
-    DEFAULT_MAX_DOWNLOAD_SIZE,
+    DEFAULT_MAX_INBOUND_SIZE,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -148,9 +148,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     args += ["--min-free-disk-space", str(min_free)]
 
     # Validate max inbound file size (absolute anti-bomb cap)
-    max_dl = cast(int, s.value("sync/max_download_size", DEFAULT_MAX_DOWNLOAD_SIZE, int))
+    max_dl = cast(int, s.value("sync/max_inbound_size", DEFAULT_MAX_INBOUND_SIZE, int))
     max_dl = max(0, min(max_dl, 10_000_000))  # Clamp to 0-10000000 MB
-    args += ["--max-download-size", str(max_dl)]
+    args += ["--max-inbound-size", str(max_dl)]
 
     if s.value(
         "sync/ignore_delete", False, bool

@@ -42,9 +42,9 @@ DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
 DEFAULT_MIN_FREE_DISK_SPACE = 500  # MB
-# Absolute cap on a single inbound file (--max-download-size); mirrors the
+# Absolute cap on a single inbound file (--max-inbound-size); mirrors the
 # client CLI default. 0 = disabled.
-DEFAULT_MAX_DOWNLOAD_SIZE = 10240  # MB
+DEFAULT_MAX_INBOUND_SIZE = 10240  # MB
 DEFAULT_IGNORE_PATTERNS = ""
 
 # LAN defaults
