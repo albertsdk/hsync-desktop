@@ -51,6 +51,7 @@ Build a standalone binary with:
 | Document | What it covers |
 | -------- | -------------- |
 | [usage.md](usage.md) | Configure connection, run and watch syncs, manage secrets, tray & themes. |
+| [log-labels.md](log-labels.md) | Action labels shown in the log panel and what they mean. |
 
 ## Related projects
 
