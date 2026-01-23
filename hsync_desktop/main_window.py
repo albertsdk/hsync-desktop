@@ -936,7 +936,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:
-        """Handle the [NO_MASTER] warning (no node will serve files)."""
+        """Handle the [NO MASTER] warning (no node will serve files)."""
         msg = tr("notif.no_master_msg")
         if self._notifier:
             self._notifier.warning(tr("notif.no_master_title"), msg)
