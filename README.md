@@ -31,10 +31,6 @@ without touching the command line.
 
 ---
 
-<!-- GitHub auto-generates the table of contents from the section headings above. -->
-
----
-
 ## Features
 
 - 🖥️ Real-time log viewer with scrolling output
