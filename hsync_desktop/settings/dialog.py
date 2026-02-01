@@ -853,6 +853,16 @@ class SettingsDialog(QDialog):
             )
             return
 
+        # Validate URL scheme and format to prevent SSRF via file://,
+        # localhost probes, or other unexpected schemes.
+        if not url.startswith("https://"):
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                "The server URL must start with 'https://'.",
+            )
+            return
+
         # Normalize URL
         base = url.rstrip("/")
         health_url = f"{base}/health"
