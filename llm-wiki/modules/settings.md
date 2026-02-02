@@ -1,4 +1,4 @@
-# hsync-desktop — Settings, config & CLI args
+# HSYNC Desktop — Settings, config & CLI args
 
 How the GUI persists user config and turns it into the binary's command line.
 

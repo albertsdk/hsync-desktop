@@ -1,4 +1,4 @@
-# hsync-desktop — Agent Wiki (index)
+# HSYNC Desktop — Agent Wiki (index)
 
 PySide6/Qt desktop GUI. It does **not** reimplement sync: it launches the
 `hsync` **client binary** as a subprocess, feeds it CLI args built from the
