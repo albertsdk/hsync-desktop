@@ -14,7 +14,6 @@ without touching the command line.
 > [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
 
-> [!NOTE]
 >  👉 **Remember:** keep verified backups of your data when before new
 > synchronization tools. 😉
 
