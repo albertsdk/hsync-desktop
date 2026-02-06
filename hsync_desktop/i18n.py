@@ -91,6 +91,14 @@ def register_language_callback(callback: Callable[[], None]) -> None:
         _language_change_callbacks.append(callback)
 
 
+def unregister_language_callback(callback: Callable[[], None]) -> None:
+    """Unregister a previously registered language-change callback."""
+    try:
+        _language_change_callbacks.remove(callback)
+    except ValueError:
+        pass
+
+
 def tr(key: str) -> str:
     """Translate a key to the current language. Falls back to English."""
     lang_dict = _translations.get(_current_lang, {})

@@ -96,7 +96,10 @@ class TestCallbacks:
             callback_called.append(True)
 
         i18n.register_language_callback(my_callback)
-        assert my_callback in i18n._language_change_callbacks
+        try:
+            assert my_callback in i18n._language_change_callbacks
+        finally:
+            i18n.unregister_language_callback(my_callback)
 
 
 class TestLanguageFunctions:
