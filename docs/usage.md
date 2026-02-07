@@ -79,5 +79,5 @@ listings or logs. Use the key dialogs to replace a key at any time.
 - **Peers not found in LAN Mode** — ensure all devices are on the same subnet
   with mDNS allowed through the firewall, and share the same LAN key.
 
-See the [client documentation](../../hsync-client/docs/README.md) for the
+See the [client documentation](https://github.com/albertobasso/hsync-client/blob/main/docs/README.md) for the
 underlying sync behaviour and modes.
