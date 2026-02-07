@@ -39,6 +39,7 @@ from hsync_desktop.i18n import (
 from hsync_desktop.icons import icon
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
@@ -95,8 +96,23 @@ class SettingsDialog(QDialog):
         """Load UI from .ui file and setup widget references."""
         load_ui_widget("settings_dialog", self)
 
+        # Replace the QCheckBox placeholder with ToggleSwitch
+        checkbox_placeholder = self.findChild(QCheckBox, "advancedMode")
+        if checkbox_placeholder and checkbox_placeholder.parentWidget():
+            parent_widget = checkbox_placeholder.parentWidget()
+            parent_layout = parent_widget.layout()
+            if parent_layout:
+                index = parent_layout.indexOf(checkbox_placeholder)
+                checkbox_placeholder.setParent(None)  # Remove from layout
+                self._advanced_mode = ToggleSwitch()
+                parent_layout.addWidget(self._advanced_mode)  # Add at end (after label)
+            else:
+                self._advanced_mode = ToggleSwitch()
+        else:
+            self._advanced_mode = ToggleSwitch()  # Fallback
+
         # Get widget references from .ui file
-        self._advanced_mode: QCheckBox = self.findChild(QCheckBox, "advancedMode")  # type: ignore[assignment]
+        self._lbl_advanced: QLabel = self.findChild(QLabel, "lblAdvanced")  # type: ignore[assignment]
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
@@ -159,8 +175,9 @@ class SettingsDialog(QDialog):
         """Apply i18n translations to UI elements."""
         self.setWindowTitle(tr("settings.title"))
 
-        # Advanced mode toggle
-        self._advanced_mode.setText(tr("settings.mode_advanced"))
+        # Advanced mode toggle label
+        if self._lbl_advanced:
+            self._lbl_advanced.setText(tr("settings.mode_advanced"))
 
         # Tab titles
         self._tabs.setTabText(0, tr("settings.connection"))
