@@ -193,7 +193,7 @@
       <item>
        <widget class="QLabel" name="statusLabel">
         <property name="styleSheet">
-         <string>font-weight: bold; font-size: 11px;</string>
+         <string notr="true">font-weight: bold; font-size: 12px;</string>
         </property>
         <property name="text">
          <string>Disconnected</string>
@@ -219,7 +219,7 @@
       <item>
        <widget class="QLabel" name="roleLabel">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>⬡ Client</string>
@@ -245,7 +245,7 @@
       <item>
        <widget class="QLabel" name="bucketLabel">
         <property name="styleSheet">
-         <string>font-weight: bold; font-size: 11px;</string>
+         <string notr="true">font-weight: bold; font-size: 12px;</string>
         </property>
         <property name="text">
          <string>–</string>
@@ -297,7 +297,7 @@
       <item>
        <widget class="QLabel" name="lblPeers">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>Peers:</string>
@@ -307,7 +307,7 @@
       <item>
        <widget class="QLabel" name="peersLabel">
         <property name="styleSheet">
-         <string>font-weight: bold; font-size: 11px;</string>
+         <string notr="true">font-weight: bold; font-size: 12px;</string>
         </property>
         <property name="text">
          <string>0</string>
@@ -333,7 +333,7 @@
       <item>
        <widget class="QLabel" name="lblSent">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>↑</string>
@@ -343,7 +343,7 @@
       <item>
        <widget class="QLabel" name="sentLabel">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>0 (0 B)</string>
@@ -369,7 +369,7 @@
       <item>
        <widget class="QLabel" name="lblRecv">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>↓</string>
@@ -379,7 +379,7 @@
       <item>
        <widget class="QLabel" name="recvLabel">
         <property name="styleSheet">
-         <string>font-size: 11px;</string>
+         <string notr="true">font-size: 12px;</string>
         </property>
         <property name="text">
          <string>0 (0 B)</string>

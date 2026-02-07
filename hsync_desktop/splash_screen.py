@@ -8,16 +8,17 @@
 Welcome splash screen shown at application startup.
 
 Displays the application name, version, and auto-dismisses after a few seconds.
+UI is loaded from ui/splash_screen.ui (Qt Designer).
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QWidget
 
 from hsync_desktop import __version__
 from hsync_desktop.i18n import tr
+from hsync_desktop.ui.loader import load_ui_widget
 
 
 class SplashScreen(QWidget):
@@ -32,47 +33,23 @@ class SplashScreen(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setFixedSize(380, 200)
-        self._build_ui()
 
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 30, 30, 30)
+        # Load UI from .ui file
+        load_ui_widget("splash_screen", self)
 
-        # Application name
-        name_label = QLabel(tr("app.name"))
-        name_font = QFont()
-        name_font.setPointSize(22)
-        name_font.setBold(True)
-        name_label.setFont(name_font)
-        name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(name_label)
+        # Get widget references
+        self._lbl_app_name: QLabel = self.findChild(QLabel, "lblAppName")  # type: ignore[assignment]
+        self._lbl_welcome: QLabel = self.findChild(QLabel, "lblWelcome")  # type: ignore[assignment]
+        self._lbl_version: QLabel = self.findChild(QLabel, "lblVersion")  # type: ignore[assignment]
 
-        layout.addSpacing(8)
+        # Set translated texts
+        self._apply_translations()
 
-        # Welcome message
-        welcome_label = QLabel(tr("app.welcome"))
-        welcome_font = QFont()
-        welcome_font.setPointSize(11)
-        welcome_label.setFont(welcome_font)
-        welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(welcome_label)
-
-        layout.addSpacing(12)
-
-        # Version
-        version_text = tr("app.version").format(version=__version__)
-        version_label = QLabel(version_text)
-        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setStyleSheet("color: gray;")
-        layout.addWidget(version_label)
-
-        self.setStyleSheet(
-            "SplashScreen {"
-            "  background-color: palette(window);"
-            "  border: 1px solid palette(mid);"
-            "  border-radius: 10px;"
-            "}"
-        )
+    def _apply_translations(self) -> None:
+        """Apply i18n translations to UI elements."""
+        self._lbl_app_name.setText(tr("app.name"))
+        self._lbl_welcome.setText(tr("app.welcome"))
+        self._lbl_version.setText(tr("app.version").format(version=__version__))
 
     def show_and_dismiss(self, duration_ms: int = 3000) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""
