@@ -17,6 +17,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 
+from hsync_desktop.i18n import tr
 from hsync_desktop.themes import COLOR_CONNECTED, COLOR_DISCONNECTED, COLOR_WAITING
 
 
@@ -61,32 +62,32 @@ class SystemTray(QSystemTrayIcon):
 
         # Context menu
         menu = QMenu()
-        self._act_show = QAction("Show", menu)
+        self._act_show = QAction(tr("tray.show"), menu)
         self._act_show.triggered.connect(self.toggle_window.emit)
         menu.addAction(self._act_show)
         menu.addSeparator()
 
-        self._act_start = QAction("Start", menu)
+        self._act_start = QAction(tr("tray.start"), menu)
         self._act_start.triggered.connect(self.start_requested.emit)
         menu.addAction(self._act_start)
 
-        self._act_stop = QAction("Stop", menu)
+        self._act_stop = QAction(tr("tray.stop"), menu)
         self._act_stop.triggered.connect(self.stop_requested.emit)
         self._act_stop.setEnabled(False)
         menu.addAction(self._act_stop)
 
-        self._act_sync = QAction("Sync Now", menu)
+        self._act_sync = QAction(tr("tray.sync"), menu)
         self._act_sync.triggered.connect(self.sync_requested.emit)
         self._act_sync.setEnabled(False)
         menu.addAction(self._act_sync)
 
         menu.addSeparator()
-        self._act_settings = QAction("Settings…", menu)
+        self._act_settings = QAction(tr("tray.settings"), menu)
         self._act_settings.triggered.connect(self.settings_requested.emit)
         menu.addAction(self._act_settings)
 
         menu.addSeparator()
-        act_quit = QAction("Quit", menu)
+        act_quit = QAction(tr("tray.quit"), menu)
         act_quit.triggered.connect(self.quit_requested.emit)
         menu.addAction(act_quit)
 
@@ -97,25 +98,27 @@ class SystemTray(QSystemTrayIcon):
 
     def update_status(self, status: str) -> None:
         """Update tray icon and tooltip based on connection status."""
-        labels = {
-            "connected": "Connected",
-            "disconnected": "Disconnected",
-            "connecting": "Connecting…",
-            "waiting": "Waiting…",
-            "error": "Error",
+        i18n_map = {
+            "connected": "status.connected",
+            "disconnected": "status.disconnected",
+            "connecting": "status.connecting",
+            "waiting": "status.waiting",
+            "error": "status.error",
         }
         icon_key = "connected" if status == "connected" else (
             "waiting" if status in ("connecting", "waiting") else "disconnected"
         )
         self.setIcon(self._icons[icon_key])
-        self.setToolTip(f"HSYNC Desktop - {labels.get(status, status)}")
+        key = i18n_map.get(status, status)
+        self.setToolTip(f"HSYNC Desktop - {tr(key)}")
 
     def set_running(self, running: bool) -> None:
         """Update menu items based on running state."""
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
         self._act_sync.setEnabled(running)
-        self._act_show.setText("Show" if not self.parent() or not self.parent().isVisible() else "Hide")
+        visible = self.parent() and self.parent().isVisible()
+        self._act_show.setText(tr("tray.hide") if visible else tr("tray.show"))
 
     # ── Slots ────────────────────────────────────────────────────────────
 

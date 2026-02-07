@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsDialog</class>
+ <widget class="QDialog" name="SettingsDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>520</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>520</width>
+    <height>400</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Settings</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <!-- Mode toggle row -->
+   <item>
+    <layout class="QHBoxLayout" name="modeLayout">
+     <item>
+      <spacer name="modeSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="lblMode">
+       <property name="text">
+        <string>Mode:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="modeCombo">
+       <item>
+        <property name="text">
+         <string>Default</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Advanced</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <!-- Tab Widget -->
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <!-- Tab: Connection -->
+     <widget class="QWidget" name="tabConnection">
+      <attribute name="title">
+       <string>Connection</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="network-wired"/>
+      </attribute>
+      <layout class="QFormLayout" name="formConnection">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblServerUrl">
+         <property name="text">
+          <string>Server URL:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="serverUrl">
+         <property name="placeholderText">
+          <string>https://server.example.com</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblApiKey">
+         <property name="text">
+          <string>API Key:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="apiKey">
+         <property name="echoMode">
+          <enum>QLineEdit::Password</enum>
+         </property>
+         <property name="placeholderText">
+          <string>(optional)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QCheckBox" name="insecure">
+         <property name="text">
+          <string>Skip SSL verification</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblCaCert">
+         <property name="text">
+          <string>CA Certificate:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="caCert">
+         <property name="placeholderText">
+          <string>/path/to/ca.pem</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblHttpTimeout">
+         <property name="text">
+          <string>HTTP Timeout:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QSpinBox" name="httpTimeout">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>300</number>
+         </property>
+         <property name="value">
+          <number>30</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <!-- Tab: Sync -->
+     <widget class="QWidget" name="tabSync">
+      <attribute name="title">
+       <string>Sync</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="emblem-synchronizing"/>
+      </attribute>
+      <layout class="QFormLayout" name="formSync">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblBucket">
+         <property name="text">
+          <string>Bucket:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="bucket">
+         <property name="placeholderText">
+          <string>my-bucket</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QCheckBox" name="continuous">
+         <property name="text">
+          <string>Watch for changes</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QCheckBox" name="ignoreDelete">
+         <property name="text">
+          <string>Ignore deletions</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblResync">
+         <property name="text">
+          <string>Resync interval:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QSpinBox" name="resync">
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>3600</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+         <property name="specialValueText">
+          <string>Disabled</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblRetryDelay">
+         <property name="text">
+          <string>Retry delay:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QSpinBox" name="retryDelay">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>60</number>
+         </property>
+         <property name="value">
+          <number>5</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblStabilityDelay">
+         <property name="text">
+          <string>Stability delay:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QSpinBox" name="stabilityDelay">
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>60</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+         <property name="specialValueText">
+          <string>Auto</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="lblMaxWait">
+         <property name="text">
+          <string>Max wait:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QSpinBox" name="maxWait">
+         <property name="minimum">
+          <number>10</number>
+         </property>
+         <property name="maximum">
+          <number>3600</number>
+         </property>
+         <property name="value">
+          <number>120</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="lblFilterPath">
+         <property name="text">
+          <string>Filter path:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QLineEdit" name="filterPath">
+         <property name="placeholderText">
+          <string>(optional)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1">
+        <widget class="QCheckBox" name="noCompression">
+         <property name="text">
+          <string>Disable compression</string>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1">
+        <widget class="QCheckBox" name="dryRun">
+         <property name="text">
+          <string>Dry run (preview only)</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <!-- Tab: LAN -->
+     <widget class="QWidget" name="tabLan">
+      <attribute name="title">
+       <string>LAN Mode</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="network-workgroup"/>
+      </attribute>
+      <layout class="QFormLayout" name="formLan">
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="lanMode">
+         <property name="text">
+          <string>Enable LAN mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblLanGroup">
+         <property name="text">
+          <string>LAN Group:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="lanGroup">
+         <property name="placeholderText">
+          <string>my-group</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblLanKey">
+         <property name="text">
+          <string>LAN Key:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="lanKey">
+         <property name="echoMode">
+          <enum>QLineEdit::Password</enum>
+         </property>
+         <property name="placeholderText">
+          <string>(optional)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblLanPort">
+         <property name="text">
+          <string>LAN Port:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QSpinBox" name="lanPort">
+         <property name="minimum">
+          <number>0</number>
+         </property>
+         <property name="maximum">
+          <number>65535</number>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="specialValueText">
+          <string>Auto</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblDiscoveryTimeout">
+         <property name="text">
+          <string>Discovery timeout:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QSpinBox" name="discoveryTimeout">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>120</number>
+         </property>
+         <property name="value">
+          <number>10</number>
+         </property>
+         <property name="suffix">
+          <string> s</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QCheckBox" name="lanHttps">
+         <property name="text">
+          <string>Use HTTPS</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QCheckBox" name="lanPersistent">
+         <property name="text">
+          <string>Persistent mode</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <!-- Tab: Log -->
+     <widget class="QWidget" name="tabLog">
+      <attribute name="title">
+       <string>Log</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="utilities-log-viewer"/>
+      </attribute>
+      <layout class="QFormLayout" name="formLog">
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="verbose">
+         <property name="text">
+          <string>Verbose output</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QCheckBox" name="quiet">
+         <property name="text">
+          <string>Quiet mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblLogfile">
+         <property name="text">
+          <string>Log file:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="logfile">
+         <property name="placeholderText">
+          <string>/path/to/logfile.log</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <!-- Tab: Appearance -->
+     <widget class="QWidget" name="tabAppearance">
+      <attribute name="title">
+       <string>Appearance</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="preferences-desktop-theme"/>
+      </attribute>
+      <layout class="QFormLayout" name="formAppearance">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblTheme">
+         <property name="text">
+          <string>Theme:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="themeCombo">
+         <item>
+          <property name="text">
+           <string>Light</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Dark</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblLanguage">
+         <property name="text">
+          <string>Language:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="langCombo">
+         <item>
+          <property name="text">
+           <string>English</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Italiano</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Deutsch</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Français</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Español</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QCheckBox" name="notificationsEnabled">
+         <property name="text">
+          <string>Enable notifications</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QCheckBox" name="tooltipsEnabled">
+         <property name="text">
+          <string>Show tooltips</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <!-- Button Box -->
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>SettingsDialog</receiver>
+   <slot>accept()</slot>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>SettingsDialog</receiver>
+   <slot>reject()</slot>
+  </connection>
+ </connections>
+</ui>
+

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Qt Resource Collection file for HSYNC Desktop.
+  
+  This file defines resources (icons, images, etc.) that can be embedded
+  in the application and accessed via the Qt resource system.
+  
+  Usage in Python:
+    from PySide6.QtGui import QIcon
+    icon = QIcon(":/icons/app_icon.png")
+  
+  To compile this file to Python:
+    pyside6-rcc resources.qrc -o resources_rc.py
+  
+  Then import in your application:
+    import hsync_desktop.resources.resources_rc
+-->
+<RCC>
+  <qresource prefix="/icons">
+    <!-- Application icons -->
+    <!-- <file alias="app_icon.png">icons/app_icon.png</file> -->
+    <!-- <file alias="app_icon.svg">icons/app_icon.svg</file> -->
+    
+    <!-- Status icons -->
+    <!-- <file alias="connected.svg">icons/connected.svg</file> -->
+    <!-- <file alias="disconnected.svg">icons/disconnected.svg</file> -->
+    <!-- <file alias="syncing.svg">icons/syncing.svg</file> -->
+    
+    <!-- Action icons -->
+    <!-- <file alias="start.svg">icons/start.svg</file> -->
+    <!-- <file alias="stop.svg">icons/stop.svg</file> -->
+    <!-- <file alias="settings.svg">icons/settings.svg</file> -->
+    <!-- <file alias="browse.svg">icons/browse.svg</file> -->
+  </qresource>
+  
+  <qresource prefix="/images">
+    <!-- Splash screen background -->
+    <!-- <file alias="splash_bg.png">images/splash_bg.png</file> -->
+  </qresource>
+  
+  <qresource prefix="/styles">
+    <!-- Custom stylesheets -->
+    <!-- <file alias="light.qss">styles/light.qss</file> -->
+    <!-- <file alias="dark.qss">styles/dark.qss</file> -->
+  </qresource>
+</RCC>
+
