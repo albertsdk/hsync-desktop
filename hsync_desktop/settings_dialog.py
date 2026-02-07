@@ -16,12 +16,15 @@ UI is loaded from ui/settings_dialog.ui (Qt Designer).
 
 from __future__ import annotations
 
+from typing import cast
+
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -97,19 +100,19 @@ class SettingsDialog(QDialog):
         load_ui_widget("settings_dialog", self)
 
         # Replace the QCheckBox placeholder with ToggleSwitch
+        # Find the modeLayout (QHBoxLayout) that contains the checkbox
+        mode_layout: QHBoxLayout | None = self.findChild(QHBoxLayout, "modeLayout")  # type: ignore[assignment]
         checkbox_placeholder = self.findChild(QCheckBox, "advancedMode")
-        if checkbox_placeholder and checkbox_placeholder.parentWidget():
-            parent_widget = checkbox_placeholder.parentWidget()
-            parent_layout = parent_widget.layout()
-            if parent_layout:
-                index = parent_layout.indexOf(checkbox_placeholder)
-                checkbox_placeholder.setParent(None)  # Remove from layout
-                self._advanced_mode = ToggleSwitch()
-                parent_layout.addWidget(self._advanced_mode)  # Add at end (after label)
-            else:
-                self._advanced_mode = ToggleSwitch()
+
+        if mode_layout and checkbox_placeholder:
+            index = mode_layout.indexOf(checkbox_placeholder)
+            mode_layout.removeWidget(checkbox_placeholder)
+            checkbox_placeholder.deleteLater()
+            self._advanced_mode = ToggleSwitch(self)
+            mode_layout.insertWidget(index, self._advanced_mode)
         else:
-            self._advanced_mode = ToggleSwitch()  # Fallback
+            # Fallback
+            self._advanced_mode = ToggleSwitch(self)
 
         # Get widget references from .ui file
         self._lbl_advanced: QLabel = self.findChild(QLabel, "lblAdvanced")  # type: ignore[assignment]
@@ -347,7 +350,7 @@ class SettingsDialog(QDialog):
 
     def _tips_enabled(self) -> bool:
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        return s.value("appearance/tooltips", True, bool)
+        return bool(s.value("appearance/tooltips", True, bool))
 
     # ── Save / Load ──────────────────────────────────────────────────────
 
@@ -397,35 +400,35 @@ class SettingsDialog(QDialog):
     def load(self) -> None:
         """Restore settings from QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        self.server_url.setText(s.value("connection/server_url", "", str))
-        self.api_key.setText(s.value("connection/api_key", "", str))
-        self.insecure.setChecked(s.value("connection/insecure", False, bool))
-        self.ca_cert.setText(s.value("connection/ca_cert", "", str))
-        self.http_timeout.setValue(s.value("connection/http_timeout", 30, int))
-        self.bucket.setText(s.value("sync/bucket", DEFAULT_BUCKET, str))
-        self.continuous.setChecked(s.value("sync/continuous", True, bool))  # default ON
-        self.resync.setValue(s.value("sync/resync", 0, int))
-        self.retry_delay.setValue(s.value("sync/retry_delay", 5, int))
-        self.stability_delay.setValue(s.value("sync/stability_delay", 0, int))
-        self.max_wait.setValue(s.value("sync/max_wait", 120, int))
-        self.ignore_delete.setChecked(s.value("sync/ignore_delete", True, bool))  # default ON
-        self.filter_path.setText(s.value("sync/filter_path", "", str))
-        self.no_compression.setChecked(s.value("sync/no_compression", False, bool))
-        self.dry_run.setChecked(s.value("sync/dry_run", False, bool))
-        self.lan_mode.setChecked(s.value("lan/enabled", False, bool))
-        self.lan_group.setText(s.value("lan/group", DEFAULT_GROUP, str))
-        self.lan_key.setText(s.value("lan/key", "", str))
-        self.lan_port.setValue(s.value("lan/port", 0, int))
-        self.discovery_timeout.setValue(s.value("lan/discovery_timeout", 10, int))
-        self.lan_https.setChecked(s.value("lan/https", True, bool))
-        self.lan_persistent.setChecked(s.value("lan/persistent", True, bool))
-        self.verbose.setChecked(s.value("output/verbose", False, bool))
-        self.quiet.setChecked(s.value("output/quiet", False, bool))
-        self.logfile.setText(s.value("output/logfile", "", str))
+        self.server_url.setText(str(s.value("connection/server_url", "", str)))
+        self.api_key.setText(str(s.value("connection/api_key", "", str)))
+        self.insecure.setChecked(bool(s.value("connection/insecure", False, bool)))
+        self.ca_cert.setText(str(s.value("connection/ca_cert", "", str)))
+        self.http_timeout.setValue(cast(int, s.value("connection/http_timeout", 30, int)))
+        self.bucket.setText(str(s.value("sync/bucket", DEFAULT_BUCKET, str)))
+        self.continuous.setChecked(bool(s.value("sync/continuous", True, bool)))  # default ON
+        self.resync.setValue(cast(int, s.value("sync/resync", 0, int)))
+        self.retry_delay.setValue(cast(int, s.value("sync/retry_delay", 5, int)))
+        self.stability_delay.setValue(cast(int, s.value("sync/stability_delay", 0, int)))
+        self.max_wait.setValue(cast(int, s.value("sync/max_wait", 120, int)))
+        self.ignore_delete.setChecked(bool(s.value("sync/ignore_delete", True, bool)))  # default ON
+        self.filter_path.setText(str(s.value("sync/filter_path", "", str)))
+        self.no_compression.setChecked(bool(s.value("sync/no_compression", False, bool)))
+        self.dry_run.setChecked(bool(s.value("sync/dry_run", False, bool)))
+        self.lan_mode.setChecked(bool(s.value("lan/enabled", False, bool)))
+        self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
+        self.lan_key.setText(str(s.value("lan/key", "", str)))
+        self.lan_port.setValue(cast(int, s.value("lan/port", 0, int)))
+        self.discovery_timeout.setValue(cast(int, s.value("lan/discovery_timeout", 10, int)))
+        self.lan_https.setChecked(bool(s.value("lan/https", True, bool)))
+        self.lan_persistent.setChecked(bool(s.value("lan/persistent", True, bool)))
+        self.verbose.setChecked(bool(s.value("output/verbose", False, bool)))
+        self.quiet.setChecked(bool(s.value("output/quiet", False, bool)))
+        self.logfile.setText(str(s.value("output/logfile", "", str)))
         theme = s.value("appearance/theme", THEME_LIGHT, str)
         self.theme_combo.setCurrentIndex(1 if theme == THEME_DARK else 0)
         self.notifications_enabled.setChecked(
-            s.value("appearance/notifications", True, bool)
+            bool(s.value("appearance/notifications", True, bool))
         )
         # Language
         saved_lang = s.value("appearance/language", get_language(), str)
@@ -434,7 +437,7 @@ class SettingsDialog(QDialog):
                 self.lang_combo.setCurrentIndex(i)
                 break
         # Tooltips
-        self.tooltips_enabled.setChecked(s.value("appearance/tooltips", True, bool))
+        self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", True, bool)))
         # Mode
         advanced = s.value("settings/mode_advanced", False, bool)
         self._advanced_mode.setChecked(bool(advanced))
@@ -470,11 +473,11 @@ def build_hsync_args(local_path: str) -> list[str]:
     # Sync
     if s.value("sync/continuous", True, bool):
         args.append("-w")
-    resync = s.value("sync/resync", 0, int)
+    resync = cast(int, s.value("sync/resync", 0, int))
     if resync > 0:
         args += ["-i", str(resync)]
     args += ["--retry-delay", str(s.value("sync/retry_delay", 5, int))]
-    sd = s.value("sync/stability_delay", 0, int)
+    sd = cast(int, s.value("sync/stability_delay", 0, int))
     if sd > 0:
         args += ["--stability-delay", str(sd)]
     args += ["--max-wait-timeout", str(s.value("sync/max_wait", 120, int))]
@@ -518,10 +521,10 @@ def build_hsync_args(local_path: str) -> list[str]:
 def get_saved_theme() -> str:
     """Return the persisted theme name."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    return s.value("appearance/theme", THEME_LIGHT, str)
+    return str(s.value("appearance/theme", THEME_LIGHT, str))
 
 
 def are_notifications_enabled() -> bool:
     """Return whether notifications are enabled."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    return s.value("appearance/notifications", True, bool)
+    return bool(s.value("appearance/notifications", True, bool))
