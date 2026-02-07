@@ -37,24 +37,10 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="lblMode">
+      <widget class="QCheckBox" name="advancedMode">
        <property name="text">
-        <string>Mode:</string>
+        <string>Advanced Mode</string>
        </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="modeCombo">
-       <item>
-        <property name="text">
-         <string>Default</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Advanced</string>
-        </property>
-       </item>
       </widget>
      </item>
     </layout>
