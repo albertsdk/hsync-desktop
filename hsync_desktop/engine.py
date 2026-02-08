@@ -61,6 +61,14 @@ _RE_WAITING = re.compile(r"Waiting for peers|No peers found|Searching for peers"
 _RE_SYNC_COMPLETE = re.compile(r"Sync complete|All files in sync|Initial sync complete", re.I)
 _RE_ERROR = re.compile(r"ERROR:\s*(.+)")
 
+# Preview status patterns (emitted by SIGUSR1 preview)
+_RE_PREVIEW_START = re.compile(r"--- Preview \(dry-run\) ---")
+_RE_PREVIEW_END = re.compile(r"--- End Preview ---")
+_RE_SYNCED = re.compile(r'\[SYNCED\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
+_RE_TO_DOWNLOAD = re.compile(r'\[TO_DOWNLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
+_RE_TO_UPLOAD = re.compile(r'\[TO_UPLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
+_RE_TO_DELETE = re.compile(r'\[TO_DELETE\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
+
 
 def _parse_size(text: str | None) -> int:
     """Parse human-readable size like '1.2 MB' to bytes."""
@@ -123,6 +131,12 @@ class HsyncEngine(QObject):
     error_occurred = Signal(str)            # error message
     process_finished = Signal(int, str)     # exit code, exit status description
 
+    # Preview signals (emitted during dry-run preview)
+    preview_started = Signal()                      # preview scan started
+    preview_ended = Signal()                        # preview scan ended
+    file_status = Signal(str, str, int)             # status, filepath, size
+    # status can be: "synced", "to_download", "to_upload", "to_delete"
+
     # ── Lifecycle ────────────────────────────────────────────────────────
 
     def __init__(self, binary_path: str | None = None, parent: QObject | None = None):
@@ -133,6 +147,7 @@ class HsyncEngine(QObject):
         self._is_master = False
         self._peers = 0
         self._status = "disconnected"
+        self._in_preview = False
         self.stats = TransferStats()
 
     # ── Properties ───────────────────────────────────────────────────────
@@ -282,6 +297,35 @@ class HsyncEngine(QObject):
         # Strip ANSI escape codes for pattern matching
         clean = re.sub(r"\x1b\[[0-9;]*m", "", line)
 
+        # Preview start/end
+        if _RE_PREVIEW_START.search(clean):
+            self._in_preview = True
+            self.preview_started.emit()
+            return
+        if _RE_PREVIEW_END.search(clean):
+            self._in_preview = False
+            self.preview_ended.emit()
+            return
+
+        # Preview file status messages
+        if self._in_preview:
+            m = _RE_SYNCED.search(clean)
+            if m:
+                self.file_status.emit("synced", m.group(1), _parse_size(m.group(2)))
+                return
+            m = _RE_TO_DOWNLOAD.search(clean)
+            if m:
+                self.file_status.emit("to_download", m.group(1), _parse_size(m.group(2)))
+                return
+            m = _RE_TO_UPLOAD.search(clean)
+            if m:
+                self.file_status.emit("to_upload", m.group(1), _parse_size(m.group(2)))
+                return
+            m = _RE_TO_DELETE.search(clean)
+            if m:
+                self.file_status.emit("to_delete", m.group(1), _parse_size(m.group(2)))
+                return
+
         # Peer count
         m = _RE_PEERS.search(clean)
         if m:
@@ -310,21 +354,21 @@ class HsyncEngine(QObject):
         if m:
             self.group_detected.emit(m.group(1))
 
-        # Downloads
+        # Downloads (actual transfer complete)
         m = _RE_DOWNLOAD.search(clean)
         if m:
             self.stats.files_received += 1
             self.stats.bytes_received += _parse_size(m.group(2))
             self.file_transferred.emit("↓", m.group(1).strip())
 
-        # Uploads
+        # Uploads (actual transfer complete)
         m = _RE_UPLOAD.search(clean)
         if m:
             self.stats.files_sent += 1
             self.stats.bytes_sent += _parse_size(m.group(2))
             self.file_transferred.emit("↑", m.group(1).strip())
 
-        # Removals
+        # Removals (actual deletion)
         m = _RE_REMOVE.search(clean)
         if m:
             self.file_transferred.emit("✕", m.group(1).strip())

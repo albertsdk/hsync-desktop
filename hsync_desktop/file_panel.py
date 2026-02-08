@@ -17,13 +17,14 @@ Shows real-time file transfers in a sortable table with:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import QObject, QThread, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -32,9 +33,12 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMenu,
+    QProgressBar,
     QSplitter,
+    QStyle,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -44,10 +48,35 @@ from hsync_desktop.i18n import tr
 
 class TransferStatus(Enum):
     """Status of a file transfer."""
-    QUEUED = "queued"
-    TRANSFERRING = "transferring"
-    COMPLETED = "completed"
+    LOCAL = "local"              # File exists locally, status unknown
+    SYNCED = "synced"            # File is in sync (no action needed)
+    TO_DOWNLOAD = "to_download"  # File needs to be downloaded
+    TO_UPLOAD = "to_upload"      # File needs to be uploaded
+    TO_DELETE = "to_delete"      # File will be deleted
+    DOWNLOADING = "downloading"  # File is being downloaded
+    UPLOADING = "uploading"      # File is being uploaded
+    DELETED = "deleted"          # File was deleted (shown briefly before removal)
+    QUEUED = "queued"            # Legacy: file is queued for transfer
+    TRANSFERRING = "transferring"  # Legacy: file is being transferred
+    COMPLETED = "completed"      # File transfer completed
     ERROR = "error"
+
+
+# Status colors for the file table
+STATUS_COLORS = {
+    TransferStatus.LOCAL: QColor(128, 128, 128),       # Gray
+    TransferStatus.SYNCED: QColor(76, 175, 80),        # Green (#4caf50)
+    TransferStatus.TO_DOWNLOAD: QColor(0, 188, 212),   # Cyan (#00bcd4)
+    TransferStatus.TO_UPLOAD: QColor(255, 152, 0),     # Orange (#ff9800)
+    TransferStatus.TO_DELETE: QColor(244, 67, 54),     # Red (#f44336)
+    TransferStatus.DOWNLOADING: QColor(33, 150, 243),  # Blue (#2196f3)
+    TransferStatus.UPLOADING: QColor(255, 193, 7),     # Amber (#ffc107)
+    TransferStatus.DELETED: QColor(244, 67, 54),       # Red (#f44336)
+    TransferStatus.QUEUED: QColor(128, 128, 128),      # Gray
+    TransferStatus.TRANSFERRING: QColor(33, 150, 243), # Blue (#2196f3)
+    TransferStatus.COMPLETED: QColor(76, 175, 80),     # Green (#4caf50)
+    TransferStatus.ERROR: QColor(244, 67, 54),         # Red (#f44336)
+}
 
 
 @dataclass
@@ -128,9 +157,174 @@ _COLUMN_KEYS = [
     "file.status",
 ]
 
+# Batch size for async file loading
+_FILE_BATCH_SIZE = 50
+
+
+class DirectoryScanWorker(QObject):
+    """Worker that scans a directory in a background thread."""
+
+    # Emits a batch of (filepath, size) tuples
+    files_found = Signal(list)
+    # Emits (processed_count, total_count) for progress
+    progress = Signal(int, int)
+    # Emitted when scan is complete
+    finished = Signal()
+
+    def __init__(self, directory: str) -> None:
+        super().__init__()
+        self._directory = directory
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Request cancellation of the scan."""
+        self._cancelled = True
+
+    def _count_files(self) -> int:
+        """Quick count of files (without reading sizes)."""
+        count = 0
+        for root, dirs, files in os.walk(self._directory):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            if self._cancelled:
+                return 0
+            for f in files:
+                if not f.startswith("."):
+                    count += 1
+        return count
+
+    @Slot()
+    def run(self) -> None:
+        """Scan the directory and emit files in batches."""
+        if not self._directory or not os.path.isdir(self._directory):
+            self.finished.emit()
+            return
+
+        # First pass: count files for progress
+        total = self._count_files()
+        if self._cancelled or total == 0:
+            self.finished.emit()
+            return
+
+        self.progress.emit(0, total)
+
+        base_path = Path(self._directory)
+        batch: list[tuple[str, int]] = []
+        processed = 0
+
+        for root, dirs, files in os.walk(self._directory):
+            # Skip hidden directories
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+
+            if self._cancelled:
+                break
+
+            for filename in files:
+                if self._cancelled:
+                    break
+
+                # Skip hidden files
+                if filename.startswith("."):
+                    continue
+
+                full_path = Path(root) / filename
+                try:
+                    size = full_path.stat().st_size
+                except OSError:
+                    size = 0
+
+                # Get relative path from base directory
+                try:
+                    rel_path = str(full_path.relative_to(base_path))
+                except ValueError:
+                    rel_path = str(full_path)
+
+                batch.append((rel_path, size))
+                processed += 1
+
+                # Emit batch when full
+                if len(batch) >= _FILE_BATCH_SIZE:
+                    self.files_found.emit(batch)
+                    self.progress.emit(processed, total)
+                    batch = []
+
+        # Emit remaining files
+        if batch and not self._cancelled:
+            self.files_found.emit(batch)
+            self.progress.emit(processed, total)
+
+        self.finished.emit()
+
+
+class LoadingOverlay(QWidget):
+    """Semi-transparent overlay with progress indicator."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setAutoFillBackground(True)
+
+        # Semi-transparent background
+        palette = self.palette()
+        bg_color = palette.color(palette.ColorRole.Window)
+        bg_color.setAlpha(200)
+        palette.setColor(palette.ColorRole.Window, bg_color)
+        self.setPalette(palette)
+
+        # Layout
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Container for centered content
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        container_layout.setSpacing(10)
+
+        # Loading label
+        self._label = QLabel(tr("loading.files"))
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        font = self._label.font()
+        font.setPointSize(12)
+        self._label.setFont(font)
+        container_layout.addWidget(self._label)
+
+        # Progress bar
+        self._progress = QProgressBar()
+        self._progress.setMinimum(0)
+        self._progress.setMaximum(100)
+        self._progress.setValue(0)
+        self._progress.setMinimumWidth(250)
+        self._progress.setMaximumWidth(350)
+        self._progress.setTextVisible(True)
+        self._progress.setFormat("%p% (%v / %m)")
+        container_layout.addWidget(self._progress)
+
+        layout.addWidget(container)
+        self.hide()
+
+    def set_progress(self, current: int, total: int) -> None:
+        """Update progress bar."""
+        self._progress.setMaximum(total)
+        self._progress.setValue(current)
+        # Update label with count
+        self._label.setText(f"{tr('loading.files')} ({current}/{total})")
+
+    def show_loading(self) -> None:
+        """Show the overlay."""
+        self._progress.setValue(0)
+        self._label.setText(tr("loading.files"))
+        self.show()
+        self.raise_()
+
+    def hide_loading(self) -> None:
+        """Hide the overlay."""
+        self.hide()
+
 
 class FileDetailPanel(QFrame):
     """Collapsible panel showing detailed file information."""
+
+    close_requested = Signal()  # Emitted when close button is clicked
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -144,12 +338,26 @@ class FileDetailPanel(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        # Title
+        # Header with title and close button
+        header = QHBoxLayout()
         title = QLabel(tr("detail.title"))
         title_font = QFont()
         title_font.setBold(True)
         title.setFont(title_font)
-        layout.addWidget(title)
+        header.addWidget(title)
+        header.addStretch()
+
+        # Close button with standard icon
+        close_btn = QToolButton()
+        close_btn.setAutoRaise(True)
+        style = self.style()
+        if style:
+            close_btn.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton))
+        close_btn.setToolTip(tr("action.close"))
+        close_btn.clicked.connect(self._on_close)
+        header.addWidget(close_btn)
+
+        layout.addLayout(header)
 
         # Form layout for details
         form = QFormLayout()
@@ -191,6 +399,14 @@ class FileDetailPanel(QFrame):
         self._lbl_direction.setText(f"{transfer.direction} {tr(dir_key)}")
 
         status_map = {
+            TransferStatus.LOCAL: "detail.local",
+            TransferStatus.SYNCED: "detail.synced",
+            TransferStatus.TO_DOWNLOAD: "detail.to_download",
+            TransferStatus.TO_UPLOAD: "detail.to_upload",
+            TransferStatus.TO_DELETE: "detail.to_delete",
+            TransferStatus.DOWNLOADING: "detail.downloading",
+            TransferStatus.UPLOADING: "detail.uploading",
+            TransferStatus.DELETED: "detail.deleted",
             TransferStatus.QUEUED: "detail.pending",
             TransferStatus.TRANSFERRING: "detail.transferring",
             TransferStatus.COMPLETED: "detail.completed",
@@ -202,6 +418,10 @@ class FileDetailPanel(QFrame):
         self._lbl_ip.setText(transfer.client_ip or "—")
         self.show()
 
+    def _on_close(self) -> None:
+        """Handle close button click."""
+        self.close_requested.emit()
+
     def clear(self) -> None:
         """Clear and hide the panel."""
         self.hide()
@@ -211,10 +431,13 @@ class FileTransferTable(QTableWidget):
     """Sortable table showing file transfers."""
 
     row_selected = Signal(object)  # Emits FileTransfer or None
+    row_deselected = Signal()      # Emitted when clicking on already selected row
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer
+        self._row_index: Dict[str, int] = {}  # filepath -> row index for fast lookup
+        self._last_selected_row: int = -1
         self._setup_table()
 
     def _setup_table(self) -> None:
@@ -243,6 +466,7 @@ class FileTransferTable(QTableWidget):
         header.customContextMenuRequested.connect(self._show_header_context_menu)
 
         self.itemSelectionChanged.connect(self._on_selection_changed)
+        self.cellClicked.connect(self._on_cell_clicked)
 
     def _show_header_context_menu(self, pos) -> None:
         """Show context menu to toggle column visibility."""
@@ -263,6 +487,17 @@ class FileTransferTable(QTableWidget):
         """Toggle visibility of a column."""
         self.horizontalHeader().setSectionHidden(col, not visible)
 
+    def _on_cell_clicked(self, row: int, _col: int) -> None:
+        """Handle cell click to detect re-click on same row."""
+        if row == self._last_selected_row:
+            # Clicking on already selected row - deselect and hide panel
+            self._last_selected_row = -1
+            self.clearSelection()
+            self.row_deselected.emit()
+        else:
+            # Clicking on a different row - update tracking
+            self._last_selected_row = row
+
     def _on_selection_changed(self) -> None:
         rows = self.selectionModel().selectedRows()
         if rows:
@@ -275,8 +510,6 @@ class FileTransferTable(QTableWidget):
                 full_path = f"{path}/{name}" if path else name
                 transfer = self._transfers.get(full_path)
                 self.row_selected.emit(transfer)
-        else:
-            self.row_selected.emit(None)
 
     def add_transfer(self, transfer: FileTransfer) -> None:
         """Add or update a transfer in the table."""
@@ -312,25 +545,121 @@ class FileTransferTable(QTableWidget):
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
         self._transfers.clear()
+        self._row_index.clear()
         self.setRowCount(0)
+
+    def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
+        """Add multiple transfers efficiently with UI updates disabled."""
+        if not transfers:
+            return
+
+        self.setUpdatesEnabled(False)
+        self.setSortingEnabled(False)
+        try:
+            for transfer in transfers:
+                self._transfers[transfer.filepath] = transfer
+                self._add_row_fast(transfer)
+        finally:
+            self.setSortingEnabled(True)
+            self.setUpdatesEnabled(True)
+
+    def _add_row_fast(self, transfer: FileTransfer) -> None:
+        """Add a new row without searching for existing (for batch insert)."""
+        row = self.rowCount()
+        self.insertRow(row)
+        self._row_index[transfer.filepath] = row
+        self._populate_row(row, transfer)
+
+    def update_file_status(self, filepath: str, status: str, size: int = 0) -> None:
+        """
+        Update or add a file with the given status from preview.
+
+        Args:
+            filepath: Path of the file
+            status: Status string ("synced", "to_download", "to_upload", "to_delete")
+            size: File size in bytes
+        """
+        status_mapping = {
+            "synced": TransferStatus.SYNCED,
+            "to_download": TransferStatus.TO_DOWNLOAD,
+            "to_upload": TransferStatus.TO_UPLOAD,
+            "to_delete": TransferStatus.TO_DELETE,
+        }
+        transfer_status = status_mapping.get(status, TransferStatus.LOCAL)
+
+        # Determine direction based on status
+        if status == "to_download":
+            direction = "↓"
+        elif status == "to_upload":
+            direction = "↑"
+        elif status == "to_delete":
+            direction = "✕"
+        else:
+            direction = "—"
+
+        if filepath in self._transfers:
+            # Update existing transfer
+            t = self._transfers[filepath]
+            t.status = transfer_status
+            t.direction = direction
+            if size:
+                t.size = size
+        else:
+            # Create new transfer entry
+            t = FileTransfer(
+                filepath=filepath,
+                direction=direction,
+                size=size,
+                status=transfer_status,
+            )
+            self._transfers[filepath] = t
+        self._refresh_row(t)
+
+    def mark_deleted(self, filepath: str) -> None:
+        """
+        Mark a file as deleted and schedule its removal from the table.
+
+        The row will be shown with DELETED status for 3 seconds before being removed.
+        """
+        if filepath in self._transfers:
+            t = self._transfers[filepath]
+            t.status = TransferStatus.DELETED
+            t.direction = "✕"
+            self._refresh_row(t)
+            # Schedule removal after 3 seconds
+            QTimer.singleShot(3000, lambda: self._remove_file(filepath))
+
+    def _remove_file(self, filepath: str) -> None:
+        """Remove a file from the table."""
+        if filepath not in self._transfers:
+            return
+
+        row = self._row_index.get(filepath, -1)
+        if row >= 0:
+            self.removeRow(row)
+            # Update indices for rows after the removed one
+            del self._row_index[filepath]
+            for path, r in self._row_index.items():
+                if r > row:
+                    self._row_index[path] = r - 1
+
+        # Remove from internal dict
+        del self._transfers[filepath]
 
     def _refresh_row(self, transfer: FileTransfer) -> None:
         """Refresh or create a row for the given transfer."""
-        # Find existing row
-        row = -1
-        for r in range(self.rowCount()):
-            path_item = self.item(r, COL_PATH)
-            name_item = self.item(r, COL_NAME)
-            if path_item and name_item:
-                full = f"{path_item.text()}/{name_item.text()}" if path_item.text() else name_item.text()
-                if full == transfer.filepath:
-                    row = r
-                    break
+        # Use index for fast lookup
+        row = self._row_index.get(transfer.filepath, -1)
 
         if row < 0:
             row = self.rowCount()
             self.insertRow(row)
+            self._row_index[transfer.filepath] = row
 
+        self._populate_row(row, transfer)
+
+    def _populate_row(self, row: int, transfer: FileTransfer) -> None:
+        """Populate a row with transfer data."""
         # Direction with color
         dir_item = QTableWidgetItem(transfer.direction)
         dir_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -360,6 +689,14 @@ class FileTransferTable(QTableWidget):
 
         # Status
         status_map = {
+            TransferStatus.LOCAL: tr("detail.local"),
+            TransferStatus.SYNCED: tr("detail.synced"),
+            TransferStatus.TO_DOWNLOAD: tr("detail.to_download"),
+            TransferStatus.TO_UPLOAD: tr("detail.to_upload"),
+            TransferStatus.TO_DELETE: tr("detail.to_delete"),
+            TransferStatus.DOWNLOADING: tr("detail.downloading"),
+            TransferStatus.UPLOADING: tr("detail.uploading"),
+            TransferStatus.DELETED: tr("detail.deleted"),
             TransferStatus.QUEUED: tr("detail.pending"),
             TransferStatus.TRANSFERRING: tr("detail.transferring"),
             TransferStatus.COMPLETED: tr("detail.completed"),
@@ -367,13 +704,12 @@ class FileTransferTable(QTableWidget):
         }
         self.setItem(row, COL_STATUS, QTableWidgetItem(status_map.get(transfer.status, "?")))
 
-        # Gray text for queued items
-        if transfer.status == TransferStatus.QUEUED:
-            gray = QColor(128, 128, 128)
-            for col in range(self.columnCount()):
-                item = self.item(row, col)
-                if item:
-                    item.setForeground(gray)
+        # Apply status color to all cells in the row
+        color = STATUS_COLORS.get(transfer.status, QColor(128, 128, 128))
+        for col in range(self.columnCount()):
+            item = self.item(row, col)
+            if item:
+                item.setForeground(color)
 
 
 class FilePanel(QWidget):
@@ -387,6 +723,8 @@ class FilePanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._scan_thread: QThread | None = None
+        self._scan_worker: DirectoryScanWorker | None = None
         self._build_ui()
         self._connect_signals()
 
@@ -398,9 +736,23 @@ class FilePanel(QWidget):
         # Main splitter for table + detail panel
         self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
 
+        # Container for table + overlay
+        self._table_container = QWidget()
+        table_layout = QVBoxLayout(self._table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
         # File table
         self._table = FileTransferTable()
-        self._splitter.addWidget(self._table)
+        table_layout.addWidget(self._table)
+
+        # Loading overlay (positioned over table)
+        self._loading_overlay = LoadingOverlay(self._table_container)
+
+        # Install event filter to resize overlay when container resizes
+        self._table_container.installEventFilter(self)
+
+        self._splitter.addWidget(self._table_container)
 
         # Detail panel (collapsible)
         self._detail = FileDetailPanel()
@@ -415,6 +767,8 @@ class FilePanel(QWidget):
 
     def _connect_signals(self) -> None:
         self._table.row_selected.connect(self._on_row_selected)
+        self._table.row_deselected.connect(self._hide_detail_panel)
+        self._detail.close_requested.connect(self._hide_detail_panel)
 
     @Slot(object)
     def _on_row_selected(self, transfer: FileTransfer | None) -> None:
@@ -424,8 +778,14 @@ class FilePanel(QWidget):
             sizes = self._splitter.sizes()
             if sizes[1] == 0:
                 self._splitter.setSizes([600, 250])
-        else:
-            self._detail.clear()
+
+    @Slot()
+    def _hide_detail_panel(self) -> None:
+        """Hide the detail panel and clear selection."""
+        self._detail.clear()
+        self._splitter.setSizes([800, 0])
+        self._table.clearSelection()
+        self._table._last_selected_row = -1
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -448,9 +808,111 @@ class FilePanel(QWidget):
         self._table.mark_completed(filepath, size, direction)
 
     def clear(self) -> None:
-        """Clear all transfers."""
+        """Clear all transfers and stop any ongoing scan."""
+        self._stop_scan()
         self._table.clear_transfers()
         self._detail.clear()
+
+    def load_local_files(self, directory: str) -> None:
+        """Load all files from a local directory into the table.
+
+        Recursively scans the directory in a background thread and adds
+        files with LOCAL status in batches to avoid blocking the UI.
+
+        Args:
+            directory: Path to the local directory to scan.
+        """
+        # Cancel any ongoing scan
+        self._stop_scan()
+        self.clear()
+
+        if not directory or not os.path.isdir(directory):
+            return
+
+        # Show loading overlay
+        self._show_loading()
+
+        # Create worker and thread
+        self._scan_thread = QThread()
+        self._scan_worker = DirectoryScanWorker(directory)
+        self._scan_worker.moveToThread(self._scan_thread)
+
+        # Connect signals
+        self._scan_thread.started.connect(self._scan_worker.run)
+        self._scan_worker.files_found.connect(self._on_files_found)
+        self._scan_worker.progress.connect(self._on_scan_progress)
+        self._scan_worker.finished.connect(self._on_scan_finished)
+
+        # Start scanning
+        self._scan_thread.start()
+
+    def _stop_scan(self) -> None:
+        """Stop any ongoing directory scan."""
+        self._hide_loading()
+        if self._scan_worker:
+            self._scan_worker.cancel()
+        if self._scan_thread and self._scan_thread.isRunning():
+            self._scan_thread.quit()
+            self._scan_thread.wait(1000)  # Wait up to 1 second
+        self._scan_thread = None
+        self._scan_worker = None
+
+    @Slot(list)
+    def _on_files_found(self, files: list[tuple[str, int]]) -> None:
+        """Handle a batch of files from the scanner."""
+        transfers = [
+            FileTransfer(
+                filepath=filepath,
+                direction="—",  # No direction for local files
+                size=size,
+                bytes_transferred=0,
+                status=TransferStatus.LOCAL,
+            )
+            for filepath, size in files
+        ]
+        self._table.add_transfers_batch(transfers)
+
+    @Slot()
+    def _on_scan_finished(self) -> None:
+        """Handle scan completion."""
+        self._hide_loading()
+        if self._scan_thread:
+            self._scan_thread.quit()
+            self._scan_thread.wait()
+        self._scan_thread = None
+        self._scan_worker = None
+
+    @Slot(int, int)
+    def _on_scan_progress(self, current: int, total: int) -> None:
+        """Update the loading overlay progress."""
+        self._loading_overlay.set_progress(current, total)
+
+    def _show_loading(self) -> None:
+        """Show the loading overlay."""
+        # Resize overlay to match table container
+        self._loading_overlay.setGeometry(self._table_container.rect())
+        self._loading_overlay.show_loading()
+
+    def _hide_loading(self) -> None:
+        """Hide the loading overlay."""
+        self._loading_overlay.hide_loading()
+
+    def eventFilter(self, watched: QObject, event) -> bool:
+        """Filter events to resize overlay when container resizes."""
+        from PySide6.QtCore import QEvent
+
+        if watched == self._table_container and event.type() == QEvent.Type.Resize:
+            if self._loading_overlay.isVisible():
+                self._loading_overlay.setGeometry(self._table_container.rect())
+        return super().eventFilter(watched, event)
+
+    def update_file_status(self, filepath: str, status: str, size: int = 0) -> None:
+        """Update or add a file with status from preview."""
+        self._table.update_file_status(filepath, status, size)
+
+    def mark_deleted(self, filepath: str) -> None:
+        """Mark a file as deleted (will be removed after delay)."""
+        self._table.mark_deleted(filepath)
 
     @property
     def table(self) -> FileTransferTable:

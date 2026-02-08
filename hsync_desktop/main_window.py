@@ -132,9 +132,12 @@ class MainWindow(QMainWindow):
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
 
-        # Restore saved path
+        # Restore saved path and load files
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        self._path_edit.setText(str(s.value("path/local", "", str)))
+        saved_path = str(s.value("path/local", "", str))
+        self._path_edit.setText(saved_path)
+        if saved_path:
+            self._load_local_files(saved_path)
 
         # Apply translations
         self._apply_translations()
@@ -183,6 +186,10 @@ class MainWindow(QMainWindow):
         e.sync_completed.connect(lambda: self._notifier.sync_complete())
         e.error_occurred.connect(lambda msg: self._notifier.error(tr("notif.error"), msg))
         e.process_finished.connect(self._on_process_finished)
+        # Preview signals
+        e.preview_started.connect(self._on_preview_started)
+        e.preview_ended.connect(self._on_preview_ended)
+        e.file_status.connect(self._on_file_status)
 
         # Tray signals
         t = self._tray
@@ -261,6 +268,10 @@ class MainWindow(QMainWindow):
 
         if status == "disconnected":
             self._notifier.connection_lost()
+        elif status == "connected":
+            # Auto-run preview when connected to show file status
+            if self._engine.is_running:
+                self._engine.preview()
 
     @Slot(int)
     def _on_peers(self, count: int) -> None:
@@ -286,9 +297,30 @@ class MainWindow(QMainWindow):
         self._recv_label.setText(
             f"{st.files_received} ({_format_bytes(st.bytes_received)})"
         )
-        # Notify only on download complete (not upload)
+        # Update file panel with actual transfer
         if direction == "↓":
             self._notifier.download_complete(filename)
+            self._file_panel.update_file_status(filename, "synced")
+        elif direction == "↑":
+            self._file_panel.update_file_status(filename, "synced")
+        elif direction == "✕":
+            # File was deleted - show briefly then remove
+            self._file_panel.mark_deleted(filename)
+
+    @Slot()
+    def _on_preview_started(self) -> None:
+        """Handle preview scan started."""
+        self._append_log("--- Updating file status... ---")
+
+    @Slot()
+    def _on_preview_ended(self) -> None:
+        """Handle preview scan ended."""
+        self._append_log("--- File status updated ---")
+
+    @Slot(str, str, int)
+    def _on_file_status(self, status: str, filepath: str, size: int) -> None:
+        """Handle file status from preview."""
+        self._file_panel.update_file_status(filepath, status, size)
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
@@ -375,6 +407,12 @@ class MainWindow(QMainWindow):
         d = QFileDialog.getExistingDirectory(self, tr("label.path"))
         if d:
             self._path_edit.setText(d)
+            self._load_local_files(d)
+
+    def _load_local_files(self, path: str) -> None:
+        """Load files from the selected directory into the file panel."""
+        if path:
+            self._file_panel.load_local_files(path)
 
     def _open_settings(self) -> None:
         dlg = SettingsDialog(self)
