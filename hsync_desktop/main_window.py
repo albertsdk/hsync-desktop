@@ -41,6 +41,7 @@ from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
+from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings_dialog import (
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -48,6 +49,7 @@ from hsync_desktop.settings_dialog import (
     build_hsync_args,
     get_saved_theme,
     are_notifications_enabled,
+    is_log_panel_visible,
 )
 from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
@@ -78,6 +80,12 @@ class MainWindow(QMainWindow):
         self._notifier = NotificationManager(tray)
         self._notifier.enabled = are_notifications_enabled()
         self._user_stopped = False  # track if stop was user-initiated
+
+        # Preview statistics tracking
+        self._preview_stats = PreviewStats()
+        self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
+        self._pending_sync_path: str = ""  # Path saved for actual sync after preview
+        self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
 
         self._load_ui()
         self._connect_signals()
@@ -131,6 +139,9 @@ class MainWindow(QMainWindow):
             self._main_splitter.insertWidget(idx, self._file_panel)
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
+
+        # Apply log panel visibility setting
+        self._apply_log_visibility()
 
         # Restore saved path and load files
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
@@ -297,30 +308,84 @@ class MainWindow(QMainWindow):
         self._recv_label.setText(
             f"{st.files_received} ({_format_bytes(st.bytes_received)})"
         )
+        # Convert absolute path to relative path for table lookup
+        base_path = self._path_edit.text().strip()
+        rel_path = filename
+        if base_path and filename.startswith(base_path):
+            rel_path = filename[len(base_path):].lstrip("/\\")
         # Update file panel with actual transfer
         if direction == "↓":
             self._notifier.download_complete(filename)
-            self._file_panel.update_file_status(filename, "synced")
+            self._file_panel.update_file_status(rel_path, "synced")
         elif direction == "↑":
-            self._file_panel.update_file_status(filename, "synced")
+            self._file_panel.update_file_status(rel_path, "synced")
         elif direction == "✕":
             # File was deleted - show briefly then remove
-            self._file_panel.mark_deleted(filename)
+            self._file_panel.mark_deleted(rel_path)
 
     @Slot()
     def _on_preview_started(self) -> None:
         """Handle preview scan started."""
         self._append_log("--- Updating file status... ---")
+        # Reset preview statistics
+        self._preview_stats.reset()
 
     @Slot()
     def _on_preview_ended(self) -> None:
         """Handle preview scan ended."""
         self._append_log("--- File status updated ---")
+        # Show summary dialog if awaiting sync confirmation
+        if self._awaiting_preview_for_sync:
+            self._awaiting_preview_for_sync = False
+            self._show_preview_summary()
 
     @Slot(str, str, int)
     def _on_file_status(self, status: str, filepath: str, size: int) -> None:
         """Handle file status from preview."""
-        self._file_panel.update_file_status(filepath, status, size)
+        # Convert absolute path to relative path for table lookup
+        base_path = self._path_edit.text().strip()
+        rel_path = filepath
+        if base_path and filepath.startswith(base_path):
+            rel_path = filepath[len(base_path):].lstrip("/\\")
+        self._file_panel.update_file_status(rel_path, status, size)
+        # Accumulate preview statistics
+        if status == "to_download":
+            self._preview_stats.to_download += 1
+            self._preview_stats.download_size += size
+        elif status == "to_upload":
+            self._preview_stats.to_upload += 1
+            self._preview_stats.upload_size += size
+        elif status == "to_delete":
+            self._preview_stats.to_delete += 1
+        elif status == "synced":
+            self._preview_stats.synced += 1
+
+    def _show_preview_summary(self) -> None:
+        """Show the preview summary dialog and start sync if confirmed."""
+        dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
+        if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
+            if self._is_dry_run_preview:
+                # Started in dry-run mode - stop and restart in normal mode
+                self._engine.stop()
+                # Build args without dry-run
+                args = build_hsync_args(self._pending_sync_path, force_dry_run=False)
+                if self._engine.start(args):
+                    self._btn_sync.setEnabled(True)
+                    self._btn_preview.setEnabled(True)
+            else:
+                # SIGUSR1 preview - just trigger sync
+                self._engine.force_sync()
+            self._is_dry_run_preview = False
+        else:
+            if self._is_dry_run_preview:
+                # User cancelled - stop the dry-run process
+                self._engine.stop()
+                # Reset UI state
+                self._btn_start.setEnabled(True)
+                self._btn_stop.setEnabled(False)
+                self._tray.set_running(False)
+            # If SIGUSR1 preview, just close dialog - process keeps running
+            self._is_dry_run_preview = False
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
@@ -366,7 +431,8 @@ class MainWindow(QMainWindow):
         if not local_path:
             self._append_log("⚠ Please select a local directory first.")
             return
-        args = build_hsync_args(local_path)
+        # Start in dry-run mode first to show preview
+        args = build_hsync_args(local_path, force_dry_run=True)
         if not args:
             self._append_log("⚠ Please configure a bucket name in Settings.")
             return
@@ -376,11 +442,15 @@ class MainWindow(QMainWindow):
         self._file_panel.clear()  # Clear file panel on new sync
         self._user_stopped = False
         self._notifier.user_stopped = False
+        # Set flags to show preview summary when dry-run completes
+        self._awaiting_preview_for_sync = True
+        self._is_dry_run_preview = True  # We're in dry-run mode for initial preview
+        self._pending_sync_path = local_path  # Save path for actual sync
         if self._engine.start(args):
             self._btn_start.setEnabled(False)
             self._btn_stop.setEnabled(True)
-            self._btn_sync.setEnabled(True)
-            self._btn_preview.setEnabled(True)
+            self._btn_sync.setEnabled(False)  # Disable until preview completes
+            self._btn_preview.setEnabled(False)
             self._tray.set_running(True)
 
     def _on_stop(self) -> None:
@@ -401,6 +471,9 @@ class MainWindow(QMainWindow):
             self._append_log("⚠ Please start synchronization first.")
             return
         self._append_log(f"--- {tr('preview.title')} ---")
+        # Set flags to show preview summary when preview completes
+        self._awaiting_preview_for_sync = True
+        self._is_dry_run_preview = False  # SIGUSR1 preview, not dry-run mode
         self._engine.preview()
 
     def _browse_path(self) -> None:
@@ -422,6 +495,23 @@ class MainWindow(QMainWindow):
             if app:
                 apply_theme(app, theme)  # type: ignore[arg-type]
             self._notifier.enabled = are_notifications_enabled()
+            self._apply_log_visibility()
+
+    def _apply_log_visibility(self) -> None:
+        """Show or hide the log panel based on settings."""
+        show_log = is_log_panel_visible()
+        if show_log:
+            self._log_view.show()
+            # Restore splitter sizes if log was hidden
+            sizes = self._main_splitter.sizes()
+            if sizes[1] == 0:
+                self._main_splitter.setSizes([400, 200])
+        else:
+            self._log_view.hide()
+            # Give all space to file panel
+            sizes = self._main_splitter.sizes()
+            total = sum(sizes)
+            self._main_splitter.setSizes([total, 0])
 
     # ── Window management ────────────────────────────────────────────────
 

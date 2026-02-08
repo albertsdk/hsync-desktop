@@ -428,6 +428,16 @@
          </property>
         </widget>
        </item>
+       <item row="7" column="1">
+        <widget class="QCheckBox" name="forceMaster">
+         <property name="text">
+          <string>Force master</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <!-- Tab: Log -->
@@ -464,6 +474,16 @@
         <widget class="QLineEdit" name="logfile">
          <property name="placeholderText">
           <string>/path/to/logfile.log</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QCheckBox" name="showLogPanel">
+         <property name="text">
+          <string>Show log panel</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>

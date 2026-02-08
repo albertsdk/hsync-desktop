@@ -61,7 +61,7 @@ def init_language() -> None:
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     saved = s.value("appearance/language", "", str)
     if saved and saved in SUPPORTED_LANGUAGES:
-        _current_lang = saved
+        _current_lang = str(saved)
     else:
         _current_lang = _detect_system_language()
 
@@ -215,6 +215,7 @@ _EN: Dict[str, str] = {
     "settings.discovery_timeout": "Discovery timeout:",
     "settings.lan_https": "Use HTTPS",
     "settings.lan_persistent": "Persistent mode",
+    "settings.force_master": "Force master",
     # Settings log
     "settings.verbose": "Verbose (debug) output",
     "settings.quiet": "Quiet (suppress output)",
@@ -249,6 +250,7 @@ _EN: Dict[str, str] = {
     "tip.discovery_timeout": "Time to wait for peer discovery",
     "tip.lan_https": "Use encrypted HTTPS for LAN transfers",
     "tip.lan_persistent": "Keep searching for peers even when none are found",
+    "tip.force_master": "Always elect this client as master in LAN mode",
     "tip.verbose": "Enable detailed debug-level logging",
     "tip.quiet": "Suppress all log output",
     "tip.logfile": "Write log output to a file",
@@ -344,6 +346,21 @@ _EN: Dict[str, str] = {
     "disclaimer.title": "Disclaimer",
     "disclaimer.message": "The use of this software is entirely at the user's own risk. The author and any contributors assume no responsibility for any damage caused by its use.\n\nBy clicking OK, you acknowledge that you have read and understood this disclaimer.",
     "disclaimer.dont_show": "Don't show this message again",
+    # Preview Summary Dialog
+    "preview_summary.title": "Sync Preview",
+    "preview_summary.downloads": "Downloads",
+    "preview_summary.uploads": "Uploads",
+    "preview_summary.files": "files",
+    "preview_summary.total_size": "Total size",
+    "preview_summary.estimated_time": "Estimated time",
+    "preview_summary.seconds": "sec",
+    "preview_summary.minutes": "min",
+    "preview_summary.hours": "h",
+    "preview_summary.cancel": "Cancel",
+    "preview_summary.sync": "Synchronize",
+    "preview_summary.scanning": "Scanning...",
+    # Settings appearance - log panel
+    "settings.show_log": "Show log panel",
 }
 
 _IT: Dict[str, str] = {
@@ -438,6 +455,7 @@ _IT: Dict[str, str] = {
     "settings.discovery_timeout": "Timeout scoperta:",
     "settings.lan_https": "Usa HTTPS",
     "settings.lan_persistent": "Modalità persistente",
+    "settings.force_master": "Forza master",
     "settings.verbose": "Output verboso (debug)",
     "settings.quiet": "Silenzioso (sopprimi output)",
     "settings.logfile": "File di log:",
@@ -518,6 +536,7 @@ _IT: Dict[str, str] = {
     "tip.discovery_timeout": "Tempo di attesa per la scoperta dei peer LAN",
     "tip.lan_https": "Usa HTTPS per i trasferimenti LAN (più sicuro)",
     "tip.lan_persistent": "Resta in esecuzione e attendi nuovi peer indefinitamente",
+    "tip.force_master": "Eleggi sempre questo client come master in modalità LAN",
     "tip.verbose": "Mostra informazioni di debug dettagliate nel log",
     "tip.quiet": "Sopprimi la maggior parte dell'output tranne gli errori",
     "tip.logfile": "Scrivi anche l'output del log in questo file",
@@ -528,6 +547,21 @@ _IT: Dict[str, str] = {
     "disclaimer.title": "Avviso",
     "disclaimer.message": "L'uso di questo software è interamente a rischio dell'utente. L'autore e gli eventuali contributori non si assumono alcuna responsabilità per eventuali danni causati dal suo utilizzo.\n\nCliccando OK, confermi di aver letto e compreso questo avviso.",
     "disclaimer.dont_show": "Non mostrare più questo messaggio",
+    # Preview Summary Dialog
+    "preview_summary.title": "Anteprima Sincronizzazione",
+    "preview_summary.downloads": "Download",
+    "preview_summary.uploads": "Upload",
+    "preview_summary.files": "file",
+    "preview_summary.total_size": "Dimensione totale",
+    "preview_summary.estimated_time": "Tempo stimato",
+    "preview_summary.seconds": "sec",
+    "preview_summary.minutes": "min",
+    "preview_summary.hours": "h",
+    "preview_summary.cancel": "Annulla",
+    "preview_summary.sync": "Sincronizza",
+    "preview_summary.scanning": "Scansione in corso...",
+    # Settings appearance - log panel
+    "settings.show_log": "Visualizza pannello log",
 }
 
 _DE: Dict[str, str] = {
@@ -622,6 +656,7 @@ _DE: Dict[str, str] = {
     "settings.discovery_timeout": "Erkennungs-Timeout:",
     "settings.lan_https": "HTTPS verwenden",
     "settings.lan_persistent": "Persistenter Modus",
+    "settings.force_master": "Master erzwingen",
     "settings.verbose": "Ausführliche Ausgabe (Debug)",
     "settings.quiet": "Leise (Ausgabe unterdrücken)",
     "settings.logfile": "Logdatei:",
@@ -702,6 +737,7 @@ _DE: Dict[str, str] = {
     "tip.discovery_timeout": "Wartezeit für die Erkennung von LAN-Peers",
     "tip.lan_https": "HTTPS für LAN-Übertragungen verwenden (sicherer)",
     "tip.lan_persistent": "Weiterlaufen und unbegrenzt auf neue Peers warten",
+    "tip.force_master": "Diesen Client immer als Master im LAN-Modus wählen",
     "tip.verbose": "Detaillierte Debug-Informationen im Log anzeigen",
     "tip.quiet": "Die meiste Ausgabe unterdrücken, außer Fehler",
     "tip.logfile": "Log-Ausgabe zusätzlich in diese Datei schreiben",
@@ -712,6 +748,21 @@ _DE: Dict[str, str] = {
     "disclaimer.title": "Haftungsausschluss",
     "disclaimer.message": "Die Nutzung dieser Software erfolgt vollständig auf eigene Gefahr des Benutzers. Der Autor und etwaige Mitwirkende übernehmen keine Verantwortung für Schäden, die durch ihre Nutzung entstehen.\n\nMit Klick auf OK bestätigen Sie, dass Sie diesen Hinweis gelesen und verstanden haben.",
     "disclaimer.dont_show": "Diese Meldung nicht mehr anzeigen",
+    # Preview Summary Dialog
+    "preview_summary.title": "Sync-Vorschau",
+    "preview_summary.downloads": "Downloads",
+    "preview_summary.uploads": "Uploads",
+    "preview_summary.files": "Dateien",
+    "preview_summary.total_size": "Gesamtgröße",
+    "preview_summary.estimated_time": "Geschätzte Zeit",
+    "preview_summary.seconds": "Sek",
+    "preview_summary.minutes": "Min",
+    "preview_summary.hours": "Std",
+    "preview_summary.cancel": "Abbrechen",
+    "preview_summary.sync": "Synchronisieren",
+    "preview_summary.scanning": "Scannen...",
+    # Settings appearance - log panel
+    "settings.show_log": "Log-Panel anzeigen",
 }
 
 _FR: Dict[str, str] = {
@@ -806,6 +857,7 @@ _FR: Dict[str, str] = {
     "settings.discovery_timeout": "Délai de découverte :",
     "settings.lan_https": "Utiliser HTTPS",
     "settings.lan_persistent": "Mode persistant",
+    "settings.force_master": "Forcer maître",
     "settings.verbose": "Sortie détaillée (debug)",
     "settings.quiet": "Silencieux (supprimer la sortie)",
     "settings.logfile": "Fichier de log :",
@@ -886,6 +938,7 @@ _FR: Dict[str, str] = {
     "tip.discovery_timeout": "Temps d'attente pour la découverte des pairs LAN",
     "tip.lan_https": "Utiliser HTTPS pour les transferts LAN (plus sécurisé)",
     "tip.lan_persistent": "Continuer à fonctionner et attendre de nouveaux pairs indéfiniment",
+    "tip.force_master": "Toujours élire ce client comme maître en mode LAN",
     "tip.verbose": "Afficher les informations de débogage détaillées dans le journal",
     "tip.quiet": "Supprimer la plupart des sorties sauf les erreurs",
     "tip.logfile": "Écrire aussi la sortie du journal dans ce fichier",
@@ -896,6 +949,21 @@ _FR: Dict[str, str] = {
     "disclaimer.title": "Avertissement",
     "disclaimer.message": "L'utilisation de ce logiciel est entièrement aux risques de l'utilisateur. L'auteur et les éventuels contributeurs n'assument aucune responsabilité pour les dommages causés par son utilisation.\n\nEn cliquant sur OK, vous reconnaissez avoir lu et compris cet avertissement.",
     "disclaimer.dont_show": "Ne plus afficher ce message",
+    # Preview Summary Dialog
+    "preview_summary.title": "Aperçu de synchronisation",
+    "preview_summary.downloads": "Téléchargements",
+    "preview_summary.uploads": "Envois",
+    "preview_summary.files": "fichiers",
+    "preview_summary.total_size": "Taille totale",
+    "preview_summary.estimated_time": "Temps estimé",
+    "preview_summary.seconds": "sec",
+    "preview_summary.minutes": "min",
+    "preview_summary.hours": "h",
+    "preview_summary.cancel": "Annuler",
+    "preview_summary.sync": "Synchroniser",
+    "preview_summary.scanning": "Analyse en cours...",
+    # Settings appearance - log panel
+    "settings.show_log": "Afficher le panneau de log",
 }
 
 _ES: Dict[str, str] = {
@@ -990,6 +1058,7 @@ _ES: Dict[str, str] = {
     "settings.discovery_timeout": "Timeout de descubrimiento:",
     "settings.lan_https": "Usar HTTPS",
     "settings.lan_persistent": "Modo persistente",
+    "settings.force_master": "Forzar maestro",
     "settings.verbose": "Salida detallada (debug)",
     "settings.quiet": "Silencioso (suprimir salida)",
     "settings.logfile": "Archivo de log:",
@@ -1070,6 +1139,7 @@ _ES: Dict[str, str] = {
     "tip.discovery_timeout": "Tiempo de espera para descubrir peers LAN",
     "tip.lan_https": "Usar HTTPS para transferencias LAN (más seguro)",
     "tip.lan_persistent": "Seguir ejecutándose y esperar nuevos peers indefinidamente",
+    "tip.force_master": "Siempre elegir este cliente como maestro en modo LAN",
     "tip.verbose": "Mostrar información de depuración detallada en el log",
     "tip.quiet": "Suprimir la mayor parte de la salida excepto errores",
     "tip.logfile": "Escribir también la salida del log en este archivo",
@@ -1080,6 +1150,21 @@ _ES: Dict[str, str] = {
     "disclaimer.title": "Aviso",
     "disclaimer.message": "El uso de este software es bajo la exclusiva responsabilidad del usuario. El autor y los posibles colaboradores no asumen ninguna responsabilidad por los daños causados por su uso.\n\nAl hacer clic en Aceptar, reconoce que ha leído y comprendido este aviso.",
     "disclaimer.dont_show": "No mostrar este mensaje de nuevo",
+    # Preview Summary Dialog
+    "preview_summary.title": "Vista previa de sincronización",
+    "preview_summary.downloads": "Descargas",
+    "preview_summary.uploads": "Subidas",
+    "preview_summary.files": "archivos",
+    "preview_summary.total_size": "Tamaño total",
+    "preview_summary.estimated_time": "Tiempo estimado",
+    "preview_summary.seconds": "seg",
+    "preview_summary.minutes": "min",
+    "preview_summary.hours": "h",
+    "preview_summary.cancel": "Cancelar",
+    "preview_summary.sync": "Sincronizar",
+    "preview_summary.scanning": "Escaneando...",
+    # Settings appearance - log panel
+    "settings.show_log": "Mostrar panel de log",
 }
 
 

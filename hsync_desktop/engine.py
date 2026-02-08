@@ -71,12 +71,13 @@ _RE_TO_DELETE = re.compile(r'\[TO_DELETE\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
 
 
 def _parse_size(text: str | None) -> int:
-    """Parse human-readable size like '1.2 MB' to bytes."""
+    """Parse human-readable size like '1.2MB' or '1.2 MB' to bytes."""
     if not text:
         return 0
     text = text.strip()
-    multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
-    for suffix, mult in multipliers.items():
+    # Check longer suffixes first to avoid "KB" matching "B" first
+    multipliers = [("GB", 1024**3), ("MB", 1024**2), ("KB", 1024), ("B", 1)]
+    for suffix, mult in multipliers:
         if text.upper().endswith(suffix):
             try:
                 return int(float(text[: -len(suffix)].strip()) * mult)
