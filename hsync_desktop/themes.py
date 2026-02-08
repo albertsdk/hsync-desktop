@@ -12,12 +12,31 @@ for a modern, consistent look across platforms.
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
 
 # Theme identifiers
 THEME_LIGHT = "light"
 THEME_DARK = "dark"
+
+
+def detect_system_theme() -> str:
+    """Detect the system's color scheme (light or dark).
+
+    Uses Qt's styleHints().colorScheme() which works cross-platform
+    on Windows, macOS, and Linux (Qt 6.5+).
+
+    Returns:
+        THEME_DARK if the system is in dark mode, THEME_LIGHT otherwise.
+    """
+    try:
+        color_scheme = QGuiApplication.styleHints().colorScheme()
+        if color_scheme == Qt.ColorScheme.Dark:
+            return THEME_DARK
+    except AttributeError:
+        # Fallback for older Qt versions without colorScheme()
+        pass
+    return THEME_LIGHT
 
 # ─── Color Palette ───────────────────────────────────────────────────────────
 
@@ -30,7 +49,7 @@ def _get_system_accent() -> QColor:
     global _system_accent
     if _system_accent is None:
         app = QApplication.instance()
-        if app:
+        if app and isinstance(app, QApplication):
             # Get highlight color from system palette before we override it
             _system_accent = app.palette().color(QPalette.ColorRole.Highlight)
         else:

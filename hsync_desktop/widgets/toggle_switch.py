@@ -108,8 +108,8 @@ class ToggleSwitch(QAbstractButton):
         # Dimensions
         w = self.width()
         h = self.height()
-        track_height = h * 0.6
-        track_radius = track_height / 2
+        track_height = h * 0.8
+        track_radius = track_height / 4
         thumb_diameter = h * 0.8
         margin = (h - track_height) / 2
 
@@ -138,16 +138,29 @@ class ToggleSwitch(QAbstractButton):
         thumb_margin = (h - thumb_diameter) / 2
         thumb_travel = w - thumb_diameter - 2 * thumb_margin
         thumb_x = thumb_margin + self._thumb_position * thumb_travel
-        thumb_y = (h - thumb_diameter) / 2
+
+        # Thumb dimensions: slightly wider rectangle with rounded corners
+        thumb_width = thumb_diameter * 0.9
+        thumb_height = thumb_diameter * 0.7
+        thumb_radius = thumb_height / 3
+        thumb_y_centered = (h - thumb_height) / 2
 
         # Draw thumb shadow
         shadow_color = QColor(0, 0, 0, 40)
         painter.setBrush(QBrush(shadow_color))
-        painter.drawEllipse(int(thumb_x + 1), int(thumb_y + 1), int(thumb_diameter), int(thumb_diameter))
+        painter.drawRoundedRect(
+            int(thumb_x + 1), int(thumb_y_centered + 1),
+            int(thumb_width), int(thumb_height),
+            thumb_radius, thumb_radius
+        )
 
         # Draw thumb
         painter.setBrush(QBrush(thumb_color))
-        painter.drawEllipse(int(thumb_x), int(thumb_y), int(thumb_diameter), int(thumb_diameter))
+        painter.drawRoundedRect(
+            int(thumb_x), int(thumb_y_centered),
+            int(thumb_width), int(thumb_height),
+            thumb_radius, thumb_radius
+        )
 
         painter.end()
 

@@ -14,12 +14,15 @@ Supported languages: English, Italian, German, French, Spanish.
 from __future__ import annotations
 
 import locale
-from typing import Dict
+from typing import Callable, Dict, List
 
 from PySide6.QtCore import QSettings
 
 SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
+
+# Callbacks to notify when language changes
+_language_change_callbacks: List[Callable[[], None]] = []
 
 # Language codes
 LANG_EN = "en"
@@ -64,17 +67,35 @@ def init_language() -> None:
 
 
 def set_language(lang: str) -> None:
-    """Set the current language."""
+    """Set the current language and notify all registered callbacks."""
     global _current_lang
-    if lang in SUPPORTED_LANGUAGES:
+    if lang in SUPPORTED_LANGUAGES and lang != _current_lang:
         _current_lang = lang
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         s.setValue("appearance/language", lang)
+        # Notify all registered callbacks
+        for callback in _language_change_callbacks:
+            try:
+                callback()
+            except Exception:
+                pass  # Don't let one callback break others
 
 
 def get_language() -> str:
     """Get the current language code."""
     return _current_lang
+
+
+def register_language_callback(callback: Callable[[], None]) -> None:
+    """Register a callback to be called when the language changes."""
+    if callback not in _language_change_callbacks:
+        _language_change_callbacks.append(callback)
+
+
+def unregister_language_callback(callback: Callable[[], None]) -> None:
+    """Unregister a language change callback."""
+    if callback in _language_change_callbacks:
+        _language_change_callbacks.remove(callback)
 
 
 def tr(key: str) -> str:

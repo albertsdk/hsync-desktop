@@ -17,7 +17,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 
-from hsync_desktop.i18n import tr
+from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.themes import COLOR_CONNECTED, COLOR_DISCONNECTED, COLOR_WAITING
 
 
@@ -87,17 +87,24 @@ class SystemTray(QSystemTrayIcon):
         menu.addAction(self._act_settings)
 
         menu.addSeparator()
-        act_quit = QAction(tr("tray.quit"), menu)
-        act_quit.triggered.connect(self.quit_requested.emit)
-        menu.addAction(act_quit)
+        self._act_quit = QAction(tr("tray.quit"), menu)
+        self._act_quit.triggered.connect(self.quit_requested.emit)
+        menu.addAction(self._act_quit)
 
         self.setContextMenu(menu)
         self.activated.connect(self._on_activated)
+
+        # Track current status for tooltip updates
+        self._current_status = "disconnected"
+
+        # Register for language change notifications
+        register_language_callback(self._apply_translations)
 
     # ── Public helpers ───────────────────────────────────────────────────
 
     def update_status(self, status: str) -> None:
         """Update tray icon and tooltip based on connection status."""
+        self._current_status = status
         i18n_map = {
             "connected": "status.connected",
             "disconnected": "status.disconnected",
@@ -119,6 +126,25 @@ class SystemTray(QSystemTrayIcon):
         self._act_sync.setEnabled(running)
         visible = self.parent() and self.parent().isVisible()
         self._act_show.setText(tr("tray.hide") if visible else tr("tray.show"))
+
+    def _apply_translations(self) -> None:
+        """Apply i18n translations to menu items."""
+        self._act_show.setText(tr("tray.show"))
+        self._act_start.setText(tr("tray.start"))
+        self._act_stop.setText(tr("tray.stop"))
+        self._act_sync.setText(tr("tray.sync"))
+        self._act_settings.setText(tr("tray.settings"))
+        self._act_quit.setText(tr("tray.quit"))
+        # Update tooltip with current status
+        i18n_map = {
+            "connected": "status.connected",
+            "disconnected": "status.disconnected",
+            "connecting": "status.connecting",
+            "waiting": "status.waiting",
+            "error": "status.error",
+        }
+        key = i18n_map.get(self._current_status, self._current_status)
+        self.setToolTip(f"HSYNC Desktop - {tr(key)}")
 
     # ── Slots ────────────────────────────────────────────────────────────
 
