@@ -25,12 +25,14 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QSpinBox,
     QTabWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -146,6 +148,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._advanced = False  # Start in default mode
+        self._connection_active = False  # Track if sync is running
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
@@ -177,6 +180,32 @@ class SettingsDialog(QDialog):
         self._lbl_advanced: QLabel = self.findChild(QLabel, "lblAdvanced")  # type: ignore[assignment]
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
+
+        # Create info banner for when connection is active (hidden by default)
+        self._connection_banner = QFrame(self)
+        self._connection_banner.setObjectName("connectionBanner")
+        self._connection_banner.setStyleSheet(
+            "QFrame#connectionBanner { "
+            "background-color: #fff3cd; "
+            "border: 1px solid #ffc107; "
+            "border-radius: 4px; "
+            "padding: 8px; "
+            "}"
+        )
+        banner_layout = QHBoxLayout(self._connection_banner)
+        banner_layout.setContentsMargins(8, 4, 8, 4)
+        self._banner_icon = QLabel("⚠️")
+        self._banner_text = QLabel()
+        self._banner_text.setWordWrap(True)
+        self._banner_text.setStyleSheet("color: #856404;")
+        banner_layout.addWidget(self._banner_icon)
+        banner_layout.addWidget(self._banner_text, 1)
+        self._connection_banner.hide()
+
+        # Insert banner at the top of the main layout
+        main_layout: QVBoxLayout = self.findChild(QVBoxLayout, "mainLayout")  # type: ignore[assignment]
+        if main_layout:
+            main_layout.insertWidget(0, self._connection_banner)
 
         # Connection tab widgets
         self.server_url: QLineEdit = self.findChild(QLineEdit, "serverUrl")  # type: ignore[assignment]
@@ -510,6 +539,77 @@ class SettingsDialog(QDialog):
         advanced = s.value("settings/mode_advanced", False, bool)
         self._advanced_mode.setChecked(bool(advanced))
         self._advanced = bool(advanced)
+
+    # ── Connection-active state management ────────────────────────────────
+
+    def set_connection_active(self, active: bool) -> None:
+        """Enable or disable settings that cannot be changed during sync.
+
+        When sync is running, connection-critical settings are disabled
+        (grayed out) to prevent confusing the user with changes that
+        won't take effect until the next sync.
+
+        Args:
+            active: True if sync is running, False otherwise.
+        """
+        self._connection_active = active
+
+        # Show/hide the info banner
+        self._connection_banner.setVisible(active)
+        if active:
+            self._banner_text.setText(tr("settings.connection_active_warning"))
+
+        # Tooltip to show on disabled widgets
+        disabled_tip = tr("tip.disabled_during_sync") if active else ""
+
+        # List of widgets to disable during active connection
+        # Connection tab - all settings affect how we connect
+        connection_widgets: list[QWidget] = [
+            self.server_url,
+            self.api_key,
+            self.insecure,
+            self.ca_cert,
+            self.http_timeout,
+        ]
+
+        # Sync tab - all settings affect sync behavior
+        sync_widgets: list[QWidget] = [
+            self.bucket,
+            self.continuous,
+            self.ignore_delete,
+            self.resync,
+            self.retry_delay,
+            self.stability_delay,
+            self.max_wait,
+            self.filter_path,
+            self.no_compression,
+            self.dry_run,
+        ]
+
+        # LAN tab - all settings affect LAN mode behavior
+        lan_widgets: list[QWidget] = [
+            self.lan_mode,
+            self.lan_group,
+            self.lan_key,
+            self.lan_port,
+            self.discovery_timeout,
+            self.lan_https,
+            self.lan_persistent,
+            self.force_master,
+        ]
+
+        # Combine all widgets that should be disabled
+        all_disabled_widgets = connection_widgets + sync_widgets + lan_widgets
+
+        for widget in all_disabled_widgets:
+            widget.setEnabled(not active)
+            # Set tooltip explaining why it's disabled
+            if active:
+                widget.setToolTip(disabled_tip)
+
+        # Re-apply normal tooltips when connection is not active
+        if not active:
+            self._apply_tooltips()
 
 
 # ─── Utility: build CLI args from QSettings ─────────────────────────────────
