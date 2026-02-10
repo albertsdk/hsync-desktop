@@ -54,7 +54,7 @@ class SplashScreen(QWidget):
         self._lbl_welcome.setText(tr("app.welcome"))
         self._lbl_version.setText(tr("app.version").format(version=__version__))
 
-    def show_and_dismiss(self, duration_ms: int = 3000) -> None:
+    def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""
         self.show()
         # Center on screen
