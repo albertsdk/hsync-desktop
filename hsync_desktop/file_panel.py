@@ -676,6 +676,14 @@ class FileTransferTable(QTableWidget):
         self._click_timer.setInterval(QApplication.doubleClickInterval())
         self._click_timer.timeout.connect(self._on_single_click_confirmed)
         self._pending_click_row: int = -1
+
+        # Debounce timer for refresh_view during batch loading
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(100)  # 100ms debounce
+        self._refresh_timer.timeout.connect(self._do_refresh_view)
+        self._refresh_pending = False
+
         self._setup_table()
 
     def _setup_table(self) -> None:
@@ -966,8 +974,24 @@ class FileTransferTable(QTableWidget):
             "status_priority": status_priority,
         }
 
+    def _schedule_refresh(self) -> None:
+        """Schedule a debounced refresh of the view."""
+        self._refresh_pending = True
+        if not self._refresh_timer.isActive():
+            self._refresh_timer.start()
+
+    def _do_refresh_view(self) -> None:
+        """Execute the pending refresh (called by debounce timer)."""
+        if self._refresh_pending:
+            self._refresh_pending = False
+            self.refresh_view()
+
     def refresh_view(self) -> None:
         """Refresh the table to show items at the current navigation level."""
+        # Cancel any pending debounced refresh since we're refreshing now
+        self._refresh_timer.stop()
+        self._refresh_pending = False
+
         self.setUpdatesEnabled(False)
         self.setSortingEnabled(False)
         try:
@@ -1478,12 +1502,13 @@ class FileTransferTable(QTableWidget):
         self.refresh_view()
 
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
-        """Add multiple transfers efficiently with UI updates disabled."""
+        """Add multiple transfers efficiently with debounced UI refresh."""
         if not transfers:
             return
         for transfer in transfers:
             self._transfers[transfer.filepath] = transfer
-        self.refresh_view()
+        # Use debounced refresh to avoid excessive UI updates during batch loading
+        self._schedule_refresh()
 
     def update_file_status(
         self,
@@ -1951,6 +1976,8 @@ class FilePanel(QWidget):
             self._scan_thread.wait()
         self._scan_thread = None
         self._scan_worker = None
+        # Final refresh to ensure all files are displayed
+        self._table.refresh_view()
         # Start periodic consistency check
         if self._current_directory:
             self._consistency_timer.start(self.CONSISTENCY_CHECK_INTERVAL_MS)
