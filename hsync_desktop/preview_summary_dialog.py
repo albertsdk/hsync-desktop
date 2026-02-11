@@ -34,6 +34,7 @@ class PreviewStats:
     to_download: int = 0
     to_upload: int = 0
     to_delete: int = 0
+    to_rename: int = 0
     synced: int = 0
     download_size: int = 0
     upload_size: int = 0
@@ -43,6 +44,7 @@ class PreviewStats:
         self.to_download = 0
         self.to_upload = 0
         self.to_delete = 0
+        self.to_rename = 0
         self.synced = 0
         self.download_size = 0
         self.upload_size = 0
@@ -112,6 +114,8 @@ class PreviewSummaryDialog(QDialog):
         self._val_upload_time: QLabel = self.findChild(QLabel, "valUploadTime")  # type: ignore[assignment]
         self._lbl_deletions: QLabel = self.findChild(QLabel, "lblDeletions")  # type: ignore[assignment]
         self._val_delete_count: QLabel = self.findChild(QLabel, "valDeleteCount")  # type: ignore[assignment]
+        self._lbl_renames: QLabel = self.findChild(QLabel, "lblRenames")  # type: ignore[assignment]
+        self._val_rename_count: QLabel = self.findChild(QLabel, "valRenameCount")  # type: ignore[assignment]
         self._lbl_synced: QLabel = self.findChild(QLabel, "lblSynced")  # type: ignore[assignment]
         self._val_synced_count: QLabel = self.findChild(QLabel, "valSyncedCount")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
@@ -129,6 +133,7 @@ class PreviewSummaryDialog(QDialog):
         self._lbl_upload_size.setText(f"  {tr('preview_summary.total_size')}:")
         self._lbl_upload_time.setText(f"  {tr('preview_summary.estimated_time')}:")
         self._lbl_deletions.setText(f"<b>{tr('preview_summary.deletions')}:</b>")
+        self._lbl_renames.setText(f"<b>{tr('preview_summary.renames')}:</b>")
         self._lbl_synced.setText(f"<b>{tr('preview_summary.synced')}:</b>")
 
         # Values
@@ -143,6 +148,7 @@ class PreviewSummaryDialog(QDialog):
         self._val_upload_time.setText(_format_time(ul_time))
 
         self._val_delete_count.setText(f"{self._stats.to_delete} {files}")
+        self._val_rename_count.setText(f"{self._stats.to_rename} {files}")
         self._val_synced_count.setText(f"{self._stats.synced} {files}")
 
         # Buttons – show OK only when nothing to sync, else Cancel/Sync
@@ -150,6 +156,7 @@ class PreviewSummaryDialog(QDialog):
             self._stats.to_download > 0
             or self._stats.to_upload > 0
             or self._stats.to_delete > 0
+            or self._stats.to_rename > 0
         )
 
         if has_work:

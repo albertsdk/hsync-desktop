@@ -58,6 +58,7 @@ class TransferStatus(Enum):
     TO_DELETE = "to_delete"      # File will be deleted
     DOWNLOADING = "downloading"  # File is being downloaded
     UPLOADING = "uploading"      # File is being uploaded
+    TO_RENAME = "to_rename"      # File will be renamed (same content, different path)
     DELETED = "deleted"          # File was deleted (shown briefly before removal)
     QUEUED = "queued"            # Legacy: file is queued for transfer
     TRANSFERRING = "transferring"  # Legacy: file is being transferred
@@ -72,6 +73,7 @@ STATUS_COLORS = {
     TransferStatus.TO_DOWNLOAD: QColor(0, 188, 212),   # Cyan (#00bcd4)
     TransferStatus.TO_UPLOAD: QColor(255, 152, 0),     # Orange (#ff9800)
     TransferStatus.TO_DELETE: QColor(244, 67, 54),     # Red (#f44336)
+    TransferStatus.TO_RENAME: QColor(156, 39, 176),    # Purple (#9c27b0)
     TransferStatus.DOWNLOADING: QColor(33, 150, 243),  # Blue (#2196f3)
     TransferStatus.UPLOADING: QColor(255, 193, 7),     # Amber (#ffc107)
     TransferStatus.DELETED: QColor(244, 67, 54),       # Red (#f44336)
@@ -190,6 +192,7 @@ _NO_PROGRESS_STATUSES = {
     TransferStatus.LOCAL,
     TransferStatus.SYNCED,
     TransferStatus.TO_DELETE,
+    TransferStatus.TO_RENAME,
     TransferStatus.DELETED,
     TransferStatus.ERROR,
 }
@@ -447,6 +450,7 @@ class FileDetailPanel:
             TransferStatus.TO_DOWNLOAD: "detail.to_download",
             TransferStatus.TO_UPLOAD: "detail.to_upload",
             TransferStatus.TO_DELETE: "detail.to_delete",
+            TransferStatus.TO_RENAME: "detail.to_rename",
             TransferStatus.DOWNLOADING: "detail.downloading",
             TransferStatus.UPLOADING: "detail.uploading",
             TransferStatus.DELETED: "detail.deleted",
@@ -487,6 +491,7 @@ class FileTransferTable(QTableWidget):
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSortingEnabled(True)
         self.setAlternatingRowColors(True)
+        self.verticalHeader().setVisible(False)
 
         # Column sizing and behavior
         header = self.horizontalHeader()
@@ -647,6 +652,7 @@ class FileTransferTable(QTableWidget):
             "to_download": TransferStatus.TO_DOWNLOAD,
             "to_upload": TransferStatus.TO_UPLOAD,
             "to_delete": TransferStatus.TO_DELETE,
+            "to_rename": TransferStatus.TO_RENAME,
         }
         transfer_status = status_mapping.get(status, TransferStatus.LOCAL)
 
@@ -657,6 +663,8 @@ class FileTransferTable(QTableWidget):
             direction = "↑"
         elif status == "to_delete":
             direction = "✕"
+        elif status == "to_rename":
+            direction = "⇄"
         else:
             direction = "—"
 
@@ -829,6 +837,7 @@ class FileTransferTable(QTableWidget):
             TransferStatus.TO_DOWNLOAD: tr("detail.to_download"),
             TransferStatus.TO_UPLOAD: tr("detail.to_upload"),
             TransferStatus.TO_DELETE: tr("detail.to_delete"),
+            TransferStatus.TO_RENAME: tr("detail.to_rename"),
             TransferStatus.DOWNLOADING: tr("detail.downloading"),
             TransferStatus.UPLOADING: tr("detail.uploading"),
             TransferStatus.DELETED: tr("detail.deleted"),
