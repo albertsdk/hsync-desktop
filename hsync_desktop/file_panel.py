@@ -9,8 +9,8 @@ File transfer panel for HSYNC Desktop.
 
 Shows real-time file transfers in a sortable table with:
 - Direction icon (download/upload)
-- Path and filename in separate columns
-- Size, remaining, ETA, status
+- Name (full relative path)
+- Size, progress bar, estimated time, status
 - Queued files shown in gray
 - Collapsible detail panel on row click
 """
@@ -19,23 +19,25 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-from PySide6.QtCore import QObject, QThread, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QAction, QColor, QFont
+from PySide6.QtCore import QLocale, QObject, QThread, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
-    QFormLayout,
+    QApplication,
     QFrame,
-    QHBoxLayout,
     QHeaderView,
     QLabel,
     QMenu,
     QProgressBar,
     QSplitter,
     QStyle,
+    QStyleOptionProgressBar,
+    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -43,7 +45,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.i18n import tr
+from hsync_desktop.i18n import get_language, register_language_callback, tr
+from hsync_desktop.ui.loader import load_ui_widget
 
 
 class TransferStatus(Enum):
@@ -88,6 +91,7 @@ class FileTransfer:
     bytes_transferred: int = 0
     start_time: float = field(default_factory=time)
     status: TransferStatus = TransferStatus.QUEUED
+    mtime: float = 0.0  # Last modification time (epoch seconds)
     client_cid: str = ""
     client_ip: str = ""
 
@@ -129,7 +133,7 @@ def _format_size(n: int) -> str:
 def _format_eta(seconds: Optional[float]) -> str:
     """Format ETA as human-readable string."""
     if seconds is None:
-        return "—"
+        return ""
     if seconds < 60:
         return f"{int(seconds)}s"
     if seconds < 3600:
@@ -137,25 +141,81 @@ def _format_eta(seconds: Optional[float]) -> str:
     return f"{int(seconds // 3600)}h {int((seconds % 3600) // 60)}m"
 
 
+def _format_mtime(epoch: float) -> str:
+    """Format modification time as locale-aware human-readable string.
+
+    * Today → "oggi 14:30" (or translated equivalent)
+    * Yesterday → "ieri 09:15"
+    * Other dates → "8 feb 2026 11:00" using locale month abbreviations
+    * Time part is always HH:MM in 24-hour format.
+    """
+    if epoch <= 0:
+        return "—"
+    dt = datetime.fromtimestamp(epoch)
+    now = datetime.now()
+    time_str = dt.strftime("%H:%M")
+
+    days_ago = (now.date() - dt.date()).days
+    if days_ago == 0:
+        return f"{tr('date.today')} {time_str}"
+    if days_ago == 1:
+        return f"{tr('date.yesterday')} {time_str}"
+
+    # Use QLocale for locale-aware abbreviated month name
+    locale = QLocale(get_language())
+    month = locale.monthName(dt.month, QLocale.FormatType.ShortFormat).lower()
+    return f"{dt.day} {month} {dt.year} {time_str}"
+
+
 # Column indices and translation keys
-COL_DIRECTION = 0
-COL_PATH = 1
-COL_NAME = 2
-COL_SIZE = 3
-COL_REMAINING = 4
-COL_ETA = 5
-COL_STATUS = 6
+COL_NAME = 0
+COL_SIZE = 1
+COL_MODIFIED = 2
+COL_PROGRESS = 3
+COL_ETA = 4
+COL_STATUS = 5
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
-    "file.direction",
-    "file.path",
     "file.name",
     "file.size",
-    "file.remaining",
+    "file.modified",
+    "file.progress",
     "file.eta",
     "file.status",
 ]
+
+# Statuses where no progress bar should be shown
+_NO_PROGRESS_STATUSES = {
+    TransferStatus.LOCAL,
+    TransferStatus.SYNCED,
+    TransferStatus.TO_DELETE,
+    TransferStatus.DELETED,
+    TransferStatus.ERROR,
+}
+
+
+class ProgressBarDelegate(QStyledItemDelegate):
+    """Custom delegate that renders a progress bar with centered percentage."""
+
+    def paint(self, painter, option, index):
+        progress = index.data(Qt.ItemDataRole.UserRole)
+        if progress is None or progress < 0:
+            return  # Nothing to paint
+
+        opt = QStyleOptionProgressBar()
+        opt.rect = option.rect
+        opt.minimum = 0
+        opt.maximum = 100
+        opt.progress = progress
+        opt.text = f"{progress}%"
+        opt.textVisible = True
+
+        style = QApplication.style()
+        if style:
+            style.drawControl(
+                QStyle.ControlElement.CE_ProgressBar, opt, painter
+            )
 
 # Batch size for async file loading
 _FILE_BATCH_SIZE = 50
@@ -208,7 +268,7 @@ class DirectoryScanWorker(QObject):
         self.progress.emit(0, total)
 
         base_path = Path(self._directory)
-        batch: list[tuple[str, int]] = []
+        batch: list[tuple[str, int, float]] = []
         processed = 0
 
         for root, dirs, files in os.walk(self._directory):
@@ -228,9 +288,12 @@ class DirectoryScanWorker(QObject):
 
                 full_path = Path(root) / filename
                 try:
-                    size = full_path.stat().st_size
+                    stat = full_path.stat()
+                    size = stat.st_size
+                    mtime = stat.st_mtime
                 except OSError:
                     size = 0
+                    mtime = 0.0
 
                 # Get relative path from base directory
                 try:
@@ -238,7 +301,7 @@ class DirectoryScanWorker(QObject):
                 except ValueError:
                     rel_path = str(full_path)
 
-                batch.append((rel_path, size))
+                batch.append((rel_path, size, mtime))
                 processed += 1
 
                 # Emit batch when full
@@ -321,82 +384,62 @@ class LoadingOverlay(QWidget):
         self.hide()
 
 
-class FileDetailPanel(QFrame):
-    """Collapsible panel showing detailed file information."""
+class FileDetailPanel:
+    """Wrapper around the detail panel QFrame loaded from .ui file."""
 
-    close_requested = Signal()  # Emitted when close button is clicked
+    def __init__(self, frame: QFrame) -> None:
+        self._frame = frame
+        self._frame.hide()  # Hidden by default
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setMinimumWidth(220)
-        self.setMaximumWidth(300)
-        self._build_ui()
-        self.hide()  # Hidden by default
+        # Get widget references from .ui
+        self._lbl_title: QLabel = frame.findChild(QLabel, "lblDetailTitle")  # type: ignore[assignment]
+        self._btn_close: QToolButton = frame.findChild(QToolButton, "btnDetailClose")  # type: ignore[assignment]
+        self._lbl_filepath: QLabel = frame.findChild(QLabel, "valFilepath")  # type: ignore[assignment]
+        self._lbl_filename: QLabel = frame.findChild(QLabel, "valFilename")  # type: ignore[assignment]
+        self._lbl_size: QLabel = frame.findChild(QLabel, "valSize")  # type: ignore[assignment]
+        self._lbl_modified: QLabel = frame.findChild(QLabel, "valModified")  # type: ignore[assignment]
+        self._lbl_status: QLabel = frame.findChild(QLabel, "valStatus")  # type: ignore[assignment]
+        self._lbl_cid: QLabel = frame.findChild(QLabel, "valCid")  # type: ignore[assignment]
+        self._lbl_ip: QLabel = frame.findChild(QLabel, "valIp")  # type: ignore[assignment]
 
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
+        # Label widgets for translation
+        self._lbl_filepath_label: QLabel = frame.findChild(QLabel, "lblFilepath")  # type: ignore[assignment]
+        self._lbl_filename_label: QLabel = frame.findChild(QLabel, "lblFilename")  # type: ignore[assignment]
+        self._lbl_size_label: QLabel = frame.findChild(QLabel, "lblSize")  # type: ignore[assignment]
+        self._lbl_modified_label: QLabel = frame.findChild(QLabel, "lblModified")  # type: ignore[assignment]
+        self._lbl_status_label: QLabel = frame.findChild(QLabel, "lblStatus")  # type: ignore[assignment]
+        self._lbl_cid_label: QLabel = frame.findChild(QLabel, "lblCid")  # type: ignore[assignment]
+        self._lbl_ip_label: QLabel = frame.findChild(QLabel, "lblIp")  # type: ignore[assignment]
 
-        # Header with title and close button
-        header = QHBoxLayout()
-        title = QLabel(tr("detail.title"))
-        title_font = QFont()
-        title_font.setBold(True)
-        title.setFont(title_font)
-        header.addWidget(title)
-        header.addStretch()
-
-        # Close button with standard icon
-        close_btn = QToolButton()
-        close_btn.setAutoRaise(True)
-        style = self.style()
+        # Set close button icon
+        style = frame.style()
         if style:
-            close_btn.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton))
-        close_btn.setToolTip(tr("action.close"))
-        close_btn.clicked.connect(self._on_close)
-        header.addWidget(close_btn)
+            self._btn_close.setIcon(
+                style.standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton)
+            )
 
-        layout.addLayout(header)
+        # Apply translations
+        self._apply_translations()
+        register_language_callback(self._apply_translations)
 
-        # Form layout for details
-        form = QFormLayout()
-        form.setSpacing(8)
-
-        self._lbl_filepath = QLabel("—")
-        self._lbl_filepath.setWordWrap(True)
-        form.addRow(tr("detail.filepath"), self._lbl_filepath)
-
-        self._lbl_filename = QLabel("—")
-        form.addRow(tr("detail.filename"), self._lbl_filename)
-
-        self._lbl_size = QLabel("—")
-        form.addRow(tr("detail.size"), self._lbl_size)
-
-        self._lbl_direction = QLabel("—")
-        form.addRow(tr("detail.direction"), self._lbl_direction)
-
-        self._lbl_status = QLabel("—")
-        form.addRow(tr("detail.status"), self._lbl_status)
-
-        # Client info section
-        self._lbl_cid = QLabel("—")
-        form.addRow(tr("detail.client_cid"), self._lbl_cid)
-
-        self._lbl_ip = QLabel("—")
-        form.addRow(tr("detail.client_ip"), self._lbl_ip)
-
-        layout.addLayout(form)
-        layout.addStretch()
+    def _apply_translations(self) -> None:
+        """Apply i18n translations to detail panel labels."""
+        self._lbl_title.setText(tr("detail.title"))
+        self._btn_close.setToolTip(tr("action.close"))
+        self._lbl_filepath_label.setText(tr("detail.filepath"))
+        self._lbl_filename_label.setText(tr("detail.filename"))
+        self._lbl_size_label.setText(tr("detail.size"))
+        self._lbl_modified_label.setText(tr("detail.modified"))
+        self._lbl_status_label.setText(tr("detail.status"))
+        self._lbl_cid_label.setText(tr("detail.client_cid"))
+        self._lbl_ip_label.setText(tr("detail.client_ip"))
 
     def show_transfer(self, transfer: FileTransfer) -> None:
         """Display details for the given transfer."""
-        self._lbl_filepath.setText(transfer.filepath)
+        self._lbl_filepath.setText(transfer.path or "—")
         self._lbl_filename.setText(transfer.filename)
-        self._lbl_size.setText(_format_size(transfer.size) if transfer.size else "—")
-
-        dir_key = "detail.download" if transfer.direction == "↓" else "detail.upload"
-        self._lbl_direction.setText(f"{transfer.direction} {tr(dir_key)}")
+        self._lbl_size.setText(_format_size(transfer.size))
+        self._lbl_modified.setText(_format_mtime(transfer.mtime))
 
         status_map = {
             TransferStatus.LOCAL: "detail.local",
@@ -413,18 +456,13 @@ class FileDetailPanel(QFrame):
             TransferStatus.ERROR: "status.error",
         }
         self._lbl_status.setText(tr(status_map.get(transfer.status, "status.unknown")))
-
         self._lbl_cid.setText(transfer.client_cid or "—")
         self._lbl_ip.setText(transfer.client_ip or "—")
-        self.show()
-
-    def _on_close(self) -> None:
-        """Handle close button click."""
-        self.close_requested.emit()
+        self._frame.show()
 
     def clear(self) -> None:
         """Clear and hide the panel."""
-        self.hide()
+        self._frame.hide()
 
 
 class FileTransferTable(QTableWidget):
@@ -453,13 +491,16 @@ class FileTransferTable(QTableWidget):
         # Column sizing and behavior
         header = self.horizontalHeader()
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
-        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_PATH, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_REMAINING, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.ResizeToContents)
+
+        # Progress bar delegate and default column width
+        self.setItemDelegateForColumn(COL_PROGRESS, ProgressBarDelegate(self))
+        header.resizeSection(COL_PROGRESS, 130)
 
         # Enable context menu on header for column visibility
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -502,13 +543,10 @@ class FileTransferTable(QTableWidget):
         rows = self.selectionModel().selectedRows()
         if rows:
             row = rows[0].row()
-            filepath_item = self.item(row, COL_PATH)
             name_item = self.item(row, COL_NAME)
-            if filepath_item and name_item:
-                path = filepath_item.text()
-                name = name_item.text()
-                full_path = f"{path}/{name}" if path else name
-                transfer = self._transfers.get(full_path)
+            if name_item:
+                filepath = name_item.text()
+                transfer = self._transfers.get(filepath)
                 self.row_selected.emit(transfer)
 
     def add_transfer(self, transfer: FileTransfer) -> None:
@@ -548,6 +586,20 @@ class FileTransferTable(QTableWidget):
         self._row_index.clear()
         self.setRowCount(0)
 
+    def reset_all_to_local(self) -> None:
+        """Reset every file's status to LOCAL (connection lost)."""
+        for transfer in self._transfers.values():
+            transfer.status = TransferStatus.LOCAL
+            transfer.direction = "—"
+            transfer.bytes_transferred = 0
+        # Bulk-refresh all visible rows
+        self.setUpdatesEnabled(False)
+        try:
+            for transfer in self._transfers.values():
+                self._refresh_row(transfer)
+        finally:
+            self.setUpdatesEnabled(True)
+
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
         """Add multiple transfers efficiently with UI updates disabled."""
         if not transfers:
@@ -570,7 +622,15 @@ class FileTransferTable(QTableWidget):
         self._row_index[transfer.filepath] = row
         self._populate_row(row, transfer)
 
-    def update_file_status(self, filepath: str, status: str, size: int = 0) -> None:
+    def update_file_status(
+        self,
+        filepath: str,
+        status: str,
+        size: int = 0,
+        mtime: float = 0.0,
+        client_cid: str = "",
+        client_ip: str = "",
+    ) -> None:
         """
         Update or add a file with the given status from preview.
 
@@ -578,6 +638,9 @@ class FileTransferTable(QTableWidget):
             filepath: Path of the file
             status: Status string ("synced", "to_download", "to_upload", "to_delete")
             size: File size in bytes
+            mtime: Last modification time (epoch seconds)
+            client_cid: Client identifier for this session
+            client_ip: Server/peer IP address
         """
         status_mapping = {
             "synced": TransferStatus.SYNCED,
@@ -604,6 +667,12 @@ class FileTransferTable(QTableWidget):
             t.direction = direction
             if size:
                 t.size = size
+            if mtime:
+                t.mtime = mtime
+            if client_cid:
+                t.client_cid = client_cid
+            if client_ip:
+                t.client_ip = client_ip
         else:
             # Create new transfer entry
             t = FileTransfer(
@@ -611,6 +680,9 @@ class FileTransferTable(QTableWidget):
                 direction=direction,
                 size=size,
                 status=transfer_status,
+                mtime=mtime,
+                client_cid=client_cid,
+                client_ip=client_ip,
             )
             self._transfers[filepath] = t
         self._refresh_row(t)
@@ -646,6 +718,56 @@ class FileTransferTable(QTableWidget):
         # Remove from internal dict
         del self._transfers[filepath]
 
+    def rename_file(
+        self,
+        old_path: str,
+        new_path: str,
+        mtime: float = 0.0,
+        client_cid: str = "",
+        client_ip: str = "",
+    ) -> None:
+        """
+        Handle a file rename: remove the old entry and add/update the new one as synced.
+
+        Args:
+            old_path: Previous relative file path.
+            new_path: New relative file path.
+            mtime: Last modification time (epoch seconds) of the new file.
+            client_cid: Client identifier for this session.
+            client_ip: Server/peer IP address.
+        """
+        # Carry over size from old entry if available
+        old_size = 0
+        if old_path in self._transfers:
+            old_size = self._transfers[old_path].size
+            self._remove_file(old_path)
+
+        # Add or update the new entry as synced
+        if new_path in self._transfers:
+            t = self._transfers[new_path]
+            t.status = TransferStatus.SYNCED
+            t.direction = "⇄"
+            if old_size:
+                t.size = old_size
+            if mtime:
+                t.mtime = mtime
+            if client_cid:
+                t.client_cid = client_cid
+            if client_ip:
+                t.client_ip = client_ip
+        else:
+            t = FileTransfer(
+                filepath=new_path,
+                direction="⇄",
+                size=old_size,
+                status=TransferStatus.SYNCED,
+                mtime=mtime,
+                client_cid=client_cid,
+                client_ip=client_ip,
+            )
+            self._transfers[new_path] = t
+        self._refresh_row(t)
+
     def remove_transfer(self, filepath: str) -> None:
         """Remove a transfer from the table immediately."""
         self._remove_file(filepath)
@@ -664,32 +786,41 @@ class FileTransferTable(QTableWidget):
 
     def _populate_row(self, row: int, transfer: FileTransfer) -> None:
         """Populate a row with transfer data."""
-        # Direction with color
-        dir_item = QTableWidgetItem(transfer.direction)
-        dir_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        color = QColor("#00bcd4") if transfer.direction == "↓" else QColor("#4caf50")
-        dir_item.setForeground(color)
-        self.setItem(row, COL_DIRECTION, dir_item)
+        # Name (full relative path)
+        self.setItem(row, COL_NAME, QTableWidgetItem(transfer.filepath))
 
-        # Path and name
-        self.setItem(row, COL_PATH, QTableWidgetItem(transfer.path))
-        self.setItem(row, COL_NAME, QTableWidgetItem(transfer.filename))
+        # Size (right-aligned)
+        size_text = _format_size(transfer.size)
+        size_item = QTableWidgetItem(size_text)
+        size_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_SIZE, size_item)
 
-        # Size
-        size_text = _format_size(transfer.size) if transfer.size else "—"
-        self.setItem(row, COL_SIZE, QTableWidgetItem(size_text))
+        # Modification date (right-aligned)
+        mtime_item = QTableWidgetItem(_format_mtime(transfer.mtime))
+        mtime_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_MODIFIED, mtime_item)
 
-        # Remaining
-        if transfer.status == TransferStatus.COMPLETED:
-            remain_text = "—"
-        elif transfer.remaining > 0:
-            remain_text = _format_size(transfer.remaining)
+        # Progress (rendered by ProgressBarDelegate via UserRole data)
+        progress_item = QTableWidgetItem()
+        if transfer.status in _NO_PROGRESS_STATUSES:
+            progress_item.setData(Qt.ItemDataRole.UserRole, -1)
+        elif transfer.size > 0:
+            pct = int(transfer.bytes_transferred / transfer.size * 100)
+            progress_item.setData(Qt.ItemDataRole.UserRole, pct)
         else:
-            remain_text = "—"
-        self.setItem(row, COL_REMAINING, QTableWidgetItem(remain_text))
+            progress_item.setData(Qt.ItemDataRole.UserRole, 0)
+        self.setItem(row, COL_PROGRESS, progress_item)
 
-        # ETA
-        self.setItem(row, COL_ETA, QTableWidgetItem(_format_eta(transfer.eta_seconds)))
+        # ETA (right-aligned)
+        eta_item = QTableWidgetItem(_format_eta(transfer.eta_seconds))
+        eta_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_ETA, eta_item)
 
         # Status
         status_map = {
@@ -734,6 +865,7 @@ class FilePanel(QWidget):
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
         self._current_directory: str = ""
+        self._scan_generation: int = 0  # Guards against stale scan batches
         # Timer for periodic directory consistency check
         self._consistency_timer = QTimer(self)
         self._consistency_timer.timeout.connect(self._check_directory_consistency)
@@ -741,22 +873,27 @@ class FilePanel(QWidget):
         self._connect_signals()
 
     def _build_ui(self) -> None:
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        # Load structure from .ui file
+        load_ui_widget("file_panel", self)
 
-        # Main splitter for table + detail panel
-        self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        # Get widget references from .ui
+        self._splitter: QSplitter = self.findChild(QSplitter, "splitter")  # type: ignore[assignment]
 
-        # Container for table + overlay
+        # Replace the QTableWidget from .ui with our custom FileTransferTable
+        ui_table: QTableWidget = self.findChild(QTableWidget, "transferTable")  # type: ignore[assignment]
+        self._table = FileTransferTable()
+        table_idx = self._splitter.indexOf(ui_table)
+
+        # Wrap table in a container for the loading overlay
         self._table_container = QWidget()
         table_layout = QVBoxLayout(self._table_container)
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
-
-        # File table
-        self._table = FileTransferTable()
         table_layout.addWidget(self._table)
+
+        # Remove the .ui table and insert our container
+        ui_table.setParent(None)  # type: ignore[call-overload]
+        self._splitter.insertWidget(table_idx, self._table_container)
 
         # Loading overlay (positioned over table)
         self._loading_overlay = LoadingOverlay(self._table_container)
@@ -764,23 +901,24 @@ class FilePanel(QWidget):
         # Install event filter to resize overlay when container resizes
         self._table_container.installEventFilter(self)
 
-        self._splitter.addWidget(self._table_container)
-
-        # Detail panel (collapsible)
-        self._detail = FileDetailPanel()
-        self._splitter.addWidget(self._detail)
+        # Detail panel: wrap the QFrame from .ui
+        detail_frame: QFrame = self.findChild(QFrame, "detailPanel")  # type: ignore[assignment]
+        self._detail = FileDetailPanel(detail_frame)
 
         # Set initial sizes (table takes most space)
         self._splitter.setSizes([800, 0])
         self._splitter.setCollapsible(0, False)
         self._splitter.setCollapsible(1, True)
 
-        layout.addWidget(self._splitter)
-
     def _connect_signals(self) -> None:
         self._table.row_selected.connect(self._on_row_selected)
         self._table.row_deselected.connect(self._hide_detail_panel)
-        self._detail.close_requested.connect(self._hide_detail_panel)
+        self._detail._btn_close.clicked.connect(self._on_detail_close)
+
+    @Slot()
+    def _on_detail_close(self) -> None:
+        """Handle detail panel close button click."""
+        self._hide_detail_panel()
 
     @Slot(object)
     def _on_row_selected(self, transfer: FileTransfer | None) -> None:
@@ -826,6 +964,11 @@ class FilePanel(QWidget):
         self._table.clear_transfers()
         self._detail.clear()
 
+    def reset_all_to_local(self) -> None:
+        """Reset all file statuses to LOCAL (e.g. when connection is lost)."""
+        self._table.reset_all_to_local()
+        self._detail.clear()
+
     def load_local_files(self, directory: str) -> None:
         """Load all files from a local directory into the table.
 
@@ -847,6 +990,10 @@ class FilePanel(QWidget):
         # Save current directory for consistency checks
         self._current_directory = directory
 
+        # Bump generation so any queued signals from the previous scan are ignored
+        self._scan_generation += 1
+        current_gen = self._scan_generation
+
         # Show loading overlay
         self._show_loading()
 
@@ -855,9 +1002,11 @@ class FilePanel(QWidget):
         self._scan_worker = DirectoryScanWorker(directory)
         self._scan_worker.moveToThread(self._scan_thread)
 
-        # Connect signals
+        # Connect signals (capture current_gen for stale-batch guard)
         self._scan_thread.started.connect(self._scan_worker.run)
-        self._scan_worker.files_found.connect(self._on_files_found)
+        self._scan_worker.files_found.connect(
+            lambda files, g=current_gen: self._on_files_found(files, g)
+        )
         self._scan_worker.progress.connect(self._on_scan_progress)
         self._scan_worker.finished.connect(self._on_scan_finished)
 
@@ -875,9 +1024,13 @@ class FilePanel(QWidget):
         self._scan_thread = None
         self._scan_worker = None
 
-    @Slot(list)
-    def _on_files_found(self, files: list[tuple[str, int]]) -> None:
-        """Handle a batch of files from the scanner."""
+    def _on_files_found(self, files: list[tuple[str, int, float]], generation: int) -> None:
+        """Handle a batch of files from the scanner.
+
+        Ignores batches from a previous (stale) scan by checking the generation counter.
+        """
+        if generation != self._scan_generation:
+            return  # Stale batch from a cancelled scan — discard
         transfers = [
             FileTransfer(
                 filepath=filepath,
@@ -885,8 +1038,9 @@ class FilePanel(QWidget):
                 size=size,
                 bytes_transferred=0,
                 status=TransferStatus.LOCAL,
+                mtime=mtime,
             )
-            for filepath, size in files
+            for filepath, size, mtime in files
         ]
         self._table.add_transfers_batch(transfers)
 
@@ -966,15 +1120,19 @@ class FilePanel(QWidget):
         for rel_path in new_files:
             full_path = base_path / rel_path
             try:
-                size = full_path.stat().st_size
+                stat = full_path.stat()
+                size = stat.st_size
+                mtime = stat.st_mtime
             except OSError:
                 size = 0
+                mtime = 0.0
             transfer = FileTransfer(
                 filepath=rel_path,
                 direction="—",
                 size=size,
                 bytes_transferred=0,
                 status=TransferStatus.LOCAL,
+                mtime=mtime,
             )
             self._table.add_transfer(transfer)
 
@@ -986,13 +1144,38 @@ class FilePanel(QWidget):
             if transfer and transfer.status == TransferStatus.LOCAL:
                 self._table.remove_transfer(rel_path)
 
-    def update_file_status(self, filepath: str, status: str, size: int = 0) -> None:
+    def update_file_status(
+        self,
+        filepath: str,
+        status: str,
+        size: int = 0,
+        mtime: float = 0.0,
+        client_cid: str = "",
+        client_ip: str = "",
+    ) -> None:
         """Update or add a file with status from preview."""
-        self._table.update_file_status(filepath, status, size)
+        self._table.update_file_status(
+            filepath, status, size, mtime=mtime,
+            client_cid=client_cid, client_ip=client_ip,
+        )
 
     def mark_deleted(self, filepath: str) -> None:
         """Mark a file as deleted (will be removed after delay)."""
         self._table.mark_deleted(filepath)
+
+    def rename_file(
+        self,
+        old_path: str,
+        new_path: str,
+        mtime: float = 0.0,
+        client_cid: str = "",
+        client_ip: str = "",
+    ) -> None:
+        """Handle a file rename in the table."""
+        self._table.rename_file(
+            old_path, new_path, mtime=mtime,
+            client_cid=client_cid, client_ip=client_ip,
+        )
 
     @property
     def table(self) -> FileTransferTable:

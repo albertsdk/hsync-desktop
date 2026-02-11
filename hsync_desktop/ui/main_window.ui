@@ -62,22 +62,12 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="btnSync">
+       <widget class="QPushButton" name="btnRefresh">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Sync Now</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="btnPreview">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Preview</string>
+         <string>Refresh</string>
         </property>
        </widget>
       </item>

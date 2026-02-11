@@ -39,6 +39,9 @@ UI_FILES = {
     "settings_dialog": UI_DIR / "settings_dialog.ui",
     "splash_screen": UI_DIR / "splash_screen.ui",
     "file_panel": UI_DIR / "file_panel.ui",
+    "preview_summary_dialog": UI_DIR / "preview_summary_dialog.ui",
+    "api_key_dialog": UI_DIR / "api_key_dialog.ui",
+    "lan_key_dialog": UI_DIR / "lan_key_dialog.ui",
 }
 
 
@@ -47,7 +50,8 @@ def get_ui_path(name: str) -> Path:
     
     Args:
         name: Name of the UI file (without extension).
-              One of: main_window, settings_dialog, splash_screen, file_panel
+              One of: main_window, settings_dialog, splash_screen, file_panel,
+              preview_summary_dialog, api_key_dialog, lan_key_dialog
     
     Returns:
         Path to the .ui file.

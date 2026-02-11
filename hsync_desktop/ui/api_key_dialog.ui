@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ApiKeyDialog</class>
+ <widget class="QDialog" name="ApiKeyDialog">
+  <property name="minimumSize">
+   <size>
+    <width>400</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="spacing"><number>12</number></property>
+   <!-- Error message -->
+   <item>
+    <widget class="QLabel" name="lblError">
+     <property name="text"><string>Error</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+     <property name="styleSheet"><string>color: #dc3545; font-weight: bold;</string></property>
+    </widget>
+   </item>
+   <!-- Prompt -->
+   <item>
+    <widget class="QLabel" name="lblPrompt">
+     <property name="text"><string>Prompt</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+    </widget>
+   </item>
+   <!-- Form layout with key input -->
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblKeyLabel">
+       <property name="text"><string>API Key:</string></property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="editApiKey">
+       <property name="echoMode"><enum>QLineEdit::Password</enum></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <!-- Button box -->
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
+

@@ -64,9 +64,8 @@ def main() -> int:
     splash.finished.connect(activate_window)
     splash.show_and_dismiss(3000)
 
-    # Show tray and window
+    # Show tray (window will be shown when splash screen finishes)
     tray.show()
-    window.show()
 
     return app.exec()
 

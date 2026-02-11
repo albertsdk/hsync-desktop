@@ -9,7 +9,6 @@ Settings dialog for HSYNC Desktop.
 
 Organized into sections matching hsync-client CLI option groups:
 Connection, Sync, LAN Mode, Log, Appearance.
-Supports Default (minimal) and Advanced (all options) modes.
 
 UI is loaded from ui/settings_dialog.ui (Qt Designer).
 """
@@ -42,6 +41,7 @@ from hsync_desktop.i18n import (
     set_language,
     tr,
 )
+from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.icons import icon
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.ui.loader import load_ui_widget
@@ -121,39 +121,13 @@ def _replace_checkbox_with_toggle(
 class SettingsDialog(QDialog):
     """Modal settings dialog with tabbed sections."""
 
-    # List of advanced-only widgets: (widget_name, label_name or None)
-    _ADVANCED_WIDGETS = [
-        # Connection tab
-        ("insecure", None),
-        ("caCert", "lblCaCert"),
-        ("httpTimeout", "lblHttpTimeout"),
-        # Sync tab
-        ("resync", "lblResync"),
-        ("retryDelay", "lblRetryDelay"),
-        ("stabilityDelay", "lblStabilityDelay"),
-        ("maxWait", "lblMaxWait"),
-        ("filterPath", "lblFilterPath"),
-        ("noCompression", None),
-        ("dryRun", None),
-        # LAN tab
-        ("lanPort", "lblLanPort"),
-        ("discoveryTimeout", "lblDiscoveryTimeout"),
-        ("lanHttps", None),
-        ("lanPersistent", None),
-        # Log tab
-        ("quiet", None),
-        ("logfile", "lblLogfile"),
-    ]
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._advanced = False  # Start in default mode
         self._connection_active = False  # Track if sync is running
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
         self._connect_signals()  # Connect signals AFTER loading to avoid spurious events
-        self._apply_mode()
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 
@@ -161,23 +135,7 @@ class SettingsDialog(QDialog):
         """Load UI from .ui file and setup widget references."""
         load_ui_widget("settings_dialog", self)
 
-        # Replace the QCheckBox placeholder with ToggleSwitch
-        # Find the modeLayout (QHBoxLayout) that contains the checkbox
-        mode_layout: QHBoxLayout | None = self.findChild(QHBoxLayout, "modeLayout")  # type: ignore[assignment]
-        checkbox_placeholder = self.findChild(QCheckBox, "advancedMode")
-
-        if mode_layout and checkbox_placeholder:
-            index = mode_layout.indexOf(checkbox_placeholder)
-            mode_layout.removeWidget(checkbox_placeholder)
-            checkbox_placeholder.deleteLater()
-            self._advanced_mode = ToggleSwitch(self)
-            mode_layout.insertWidget(index, self._advanced_mode)
-        else:
-            # Fallback
-            self._advanced_mode = ToggleSwitch(self)
-
         # Get widget references from .ui file
-        self._lbl_advanced: QLabel = self.findChild(QLabel, "lblAdvanced")  # type: ignore[assignment]
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
@@ -225,6 +183,7 @@ class SettingsDialog(QDialog):
         self.filter_path: QLineEdit = self.findChild(QLineEdit, "filterPath")  # type: ignore[assignment]
         self.no_compression, self._lbl_no_compression = _replace_checkbox_with_toggle(self, "noCompression")
         self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
+        self.auto_sync, self._lbl_auto_sync = _replace_checkbox_with_toggle(self, "autoSync")
 
         # LAN tab widgets
         self.lan_mode, self._lbl_lan_mode = _replace_checkbox_with_toggle(self, "lanMode")
@@ -238,7 +197,15 @@ class SettingsDialog(QDialog):
 
         # Log tab widgets
         self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
+        # NOTE: Quiet mode is hidden because hsync-desktop depends on parsing
+        # stdout for status updates, file transfers, auth errors, etc.
         self.quiet, self._lbl_quiet = _replace_checkbox_with_toggle(self, "quiet")
+        self.quiet.hide()
+        self._lbl_quiet.hide()
+        # Hide the parent container if it exists
+        parent = self.quiet.parent()
+        if isinstance(parent, QWidget):
+            parent.hide()
         self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
         self.show_log_panel, self._lbl_show_log = _replace_checkbox_with_toggle(self, "showLogPanel")
 
@@ -267,10 +234,6 @@ class SettingsDialog(QDialog):
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
         self.setWindowTitle(tr("settings.title"))
-
-        # Advanced mode toggle label
-        if self._lbl_advanced:
-            self._lbl_advanced.setText(tr("settings.mode_advanced"))
 
         # Tab titles
         self._tabs.setTabText(0, tr("settings.connection"))
@@ -317,6 +280,7 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.filter_path"))
         self._lbl_no_compression.setText(tr("settings.no_compression"))
         self._lbl_dry_run.setText(tr("settings.dry_run"))
+        self._lbl_auto_sync.setText(tr("settings.auto_sync"))
 
         # LAN tab labels
         self._lbl_lan_mode.setText(tr("settings.lan_mode"))
@@ -355,6 +319,14 @@ class SettingsDialog(QDialog):
         self._lbl_notifications.setText(tr("settings.notifications"))
         self._lbl_tooltips.setText(tr("settings.tooltips"))
 
+        # Button box
+        ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_btn:
+            ok_btn.setText(tr("settings.save"))
+        cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setText(tr("settings.cancel"))
+
     def _apply_tooltips(self) -> None:
         """Apply tooltips to widgets if enabled."""
         tips = self._tips_enabled()
@@ -377,6 +349,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.filter_path, "tip.filter_path", tips)
         _maybe_tip(self.no_compression, "tip.no_compression", tips)
         _maybe_tip(self.dry_run, "tip.dry_run", tips)
+        _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
 
         # LAN tab
         _maybe_tip(self.lan_mode, "tip.lan_mode", tips)
@@ -401,27 +374,9 @@ class SettingsDialog(QDialog):
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
-        self._advanced_mode.toggled.connect(self._on_mode_changed)
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
-
-    # ── Mode toggle ─────────────────────────────────────────────────────
-
-    def _on_mode_changed(self, checked: bool) -> None:
-        self._advanced = checked
-        self._apply_mode()
-
-    def _apply_mode(self) -> None:
-        """Show/hide advanced widgets based on mode."""
-        for widget_name, label_name in self._ADVANCED_WIDGETS:
-            widget = self.findChild(QWidget, widget_name)
-            if widget:
-                widget.setVisible(self._advanced)
-            if label_name:
-                label = self.findChild(QLabel, label_name)
-                if label:
-                    label.setVisible(self._advanced)
 
     def _on_ignore_delete_toggled(self, checked: bool) -> None:
         """Show a warning when the user disables ignore-delete."""
@@ -454,7 +409,7 @@ class SettingsDialog(QDialog):
         """Persist all settings to QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         s.setValue("connection/server_url", self.server_url.text())
-        s.setValue("connection/api_key", self.api_key.text())
+        s.setValue("connection/api_key", encrypt_value(self.api_key.text()))
         s.setValue("connection/insecure", self.insecure.isChecked())
         s.setValue("connection/ca_cert", self.ca_cert.text())
         s.setValue("connection/http_timeout", self.http_timeout.value())
@@ -468,6 +423,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/filter_path", self.filter_path.text())
         s.setValue("sync/no_compression", self.no_compression.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
+        s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("lan/enabled", self.lan_mode.isChecked())
         s.setValue("lan/group", self.lan_group.text())
         s.setValue("lan/key", self.lan_key.text())
@@ -489,13 +445,12 @@ class SettingsDialog(QDialog):
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
         s.setValue("appearance/show_log", self.show_log_panel.isChecked())
-        s.setValue("settings/mode_advanced", self._advanced_mode.isChecked())
 
     def load(self) -> None:
         """Restore settings from QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         self.server_url.setText(str(s.value("connection/server_url", "", str)))
-        self.api_key.setText(str(s.value("connection/api_key", "", str)))
+        self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", False, bool)))
         self.ca_cert.setText(str(s.value("connection/ca_cert", "", str)))
         self.http_timeout.setValue(cast(int, s.value("connection/http_timeout", 30, int)))
@@ -509,6 +464,7 @@ class SettingsDialog(QDialog):
         self.filter_path.setText(str(s.value("sync/filter_path", "", str)))
         self.no_compression.setChecked(bool(s.value("sync/no_compression", False, bool)))
         self.dry_run.setChecked(bool(s.value("sync/dry_run", False, bool)))
+        self.auto_sync.setChecked(bool(s.value("sync/auto_sync", False, bool)))
         self.lan_mode.setChecked(bool(s.value("lan/enabled", False, bool)))
         self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
         self.lan_key.setText(str(s.value("lan/key", "", str)))
@@ -535,10 +491,6 @@ class SettingsDialog(QDialog):
         self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", True, bool)))
         # Show log panel (default: hidden)
         self.show_log_panel.setChecked(bool(s.value("appearance/show_log", False, bool)))
-        # Mode
-        advanced = s.value("settings/mode_advanced", False, bool)
-        self._advanced_mode.setChecked(bool(advanced))
-        self._advanced = bool(advanced)
 
     # ── Connection-active state management ────────────────────────────────
 
@@ -612,6 +564,143 @@ class SettingsDialog(QDialog):
             self._apply_tooltips()
 
 
+# ─── API Key Dialog ─────────────────────────────────────────────────────────
+
+
+class ApiKeyDialog(QDialog):
+    """Dialog to prompt for API key when authentication fails."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._load_ui()
+        self._populate()
+
+    def _load_ui(self) -> None:
+        """Load UI from .ui file and setup widget references."""
+        load_ui_widget("api_key_dialog", self)
+
+        self.setWindowTitle(tr("apikey.title"))
+
+        # Get widget references from .ui
+        self._lbl_error: QLabel = self.findChild(QLabel, "lblError")  # type: ignore[assignment]
+        self._lbl_prompt: QLabel = self.findChild(QLabel, "lblPrompt")  # type: ignore[assignment]
+        self._lbl_key_label: QLabel = self.findChild(QLabel, "lblKeyLabel")  # type: ignore[assignment]
+        self._api_key_edit: QLineEdit = self.findChild(QLineEdit, "editApiKey")  # type: ignore[assignment]
+        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
+
+    def _populate(self) -> None:
+        """Populate labels with translated text and load current values."""
+        self._lbl_error.setText(tr("apikey.error_message"))
+        self._lbl_prompt.setText(tr("apikey.prompt"))
+        self._lbl_key_label.setText(tr("apikey.label"))
+        self._api_key_edit.setPlaceholderText(tr("apikey.label"))
+
+        # Load current API key if any
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        current_key = decrypt_value(str(s.value("connection/api_key", "", str)))
+        self._api_key_edit.setText(current_key)
+
+        # Buttons
+        self._save_btn = self._button_box.addButton(
+            tr("apikey.save"), QDialogButtonBox.ButtonRole.AcceptRole
+        )
+        self._cancel_btn = self._button_box.addButton(
+            tr("apikey.cancel"), QDialogButtonBox.ButtonRole.RejectRole
+        )
+        self._button_box.accepted.connect(self._on_save)
+        self._button_box.rejected.connect(self.reject)
+
+        # Focus on input
+        self._api_key_edit.setFocus()
+
+    def _on_save(self) -> None:
+        """Save the API key and accept the dialog."""
+        api_key = self._api_key_edit.text().strip()
+        if api_key:
+            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+            s.setValue("connection/api_key", encrypt_value(api_key))
+            self.accept()
+        else:
+            # Show warning if empty
+            QMessageBox.warning(
+                self,
+                tr("apikey.title"),
+                tr("apikey.prompt"),
+            )
+
+    def get_api_key(self) -> str:
+        """Return the entered API key."""
+        return self._api_key_edit.text().strip()
+
+
+# ─── LAN Key Dialog ─────────────────────────────────────────────────────────
+
+
+class LanKeyDialog(QDialog):
+    """Dialog to prompt for LAN key when LAN authentication fails."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._load_ui()
+        self._populate()
+
+    def _load_ui(self) -> None:
+        """Load UI from .ui file and setup widget references."""
+        load_ui_widget("lan_key_dialog", self)
+
+        self.setWindowTitle(tr("lanauth.title"))
+
+        # Get widget references from .ui
+        self._lbl_error: QLabel = self.findChild(QLabel, "lblError")  # type: ignore[assignment]
+        self._lbl_prompt: QLabel = self.findChild(QLabel, "lblPrompt")  # type: ignore[assignment]
+        self._lbl_key_label: QLabel = self.findChild(QLabel, "lblKeyLabel")  # type: ignore[assignment]
+        self._lan_key_edit: QLineEdit = self.findChild(QLineEdit, "editLanKey")  # type: ignore[assignment]
+        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
+
+    def _populate(self) -> None:
+        """Populate labels with translated text and load current values."""
+        self._lbl_error.setText(tr("lanauth.error_message"))
+        self._lbl_prompt.setText(tr("lanauth.prompt"))
+        self._lbl_key_label.setText(tr("lanauth.label"))
+        self._lan_key_edit.setPlaceholderText(tr("lanauth.label"))
+
+        # Load current LAN key if any
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        current_key = str(s.value("lan/key", "", str))
+        self._lan_key_edit.setText(current_key)
+
+        # Buttons
+        self._save_btn = self._button_box.addButton(
+            tr("lanauth.save"), QDialogButtonBox.ButtonRole.AcceptRole
+        )
+        self._cancel_btn = self._button_box.addButton(
+            tr("lanauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
+        )
+        self._button_box.accepted.connect(self._on_save)
+        self._button_box.rejected.connect(self.reject)
+
+        # Focus on input
+        self._lan_key_edit.setFocus()
+
+    def _on_save(self) -> None:
+        """Save the LAN key and accept the dialog."""
+        lan_key = self._lan_key_edit.text().strip()
+        if lan_key:
+            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+            s.setValue("lan/key", lan_key)
+            self.accept()
+        else:
+            QMessageBox.warning(
+                self,
+                tr("lanauth.title"),
+                tr("lanauth.prompt"),
+            )
+
+    def get_lan_key(self) -> str:
+        """Return the entered LAN key."""
+        return self._lan_key_edit.text().strip()
+
+
 # ─── Utility: build CLI args from QSettings ─────────────────────────────────
 
 def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
@@ -681,11 +770,13 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             args.append("--force-master")
 
     # Output – always use --no-color for machine-friendly parsing
+    # NOTE: We intentionally NEVER pass -q (quiet) because hsync-desktop
+    # depends on parsing stdout for status updates, file transfers,
+    # authentication errors, etc. Quiet mode would break all UI feedback.
     args.append("--no-color")
     if s.value("output/verbose", False, bool):
         args.append("-v")
-    if s.value("output/quiet", False, bool):
-        args.append("-q")
+    # Quiet mode is ignored - see note above
     logfile = s.value("output/logfile", "", str)
     if logfile:
         args += ["-o", logfile]
@@ -711,3 +802,9 @@ def is_log_panel_visible() -> bool:
     """Return whether the log panel should be visible (default: hidden)."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("appearance/show_log", False, bool))
+
+
+def is_auto_sync_enabled() -> bool:
+    """Return whether auto-sync on startup is enabled (default: disabled)."""
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return bool(s.value("sync/auto_sync", False, bool))
