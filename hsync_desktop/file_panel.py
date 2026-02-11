@@ -728,7 +728,9 @@ class FileTransferTable(QTableWidget):
         """Return the FileTransfer for the given row, or None."""
         name_item = self.item(row, COL_NAME)
         if name_item:
-            return self._transfers.get(name_item.text())
+            key = name_item.text()
+            # Try exact match first, then with trailing "/" (directory marker)
+            return self._transfers.get(key) or self._transfers.get(key + "/")
         return None
 
     def _absolute_path(self, transfer: FileTransfer) -> str:
@@ -746,9 +748,12 @@ class FileTransferTable(QTableWidget):
         if not transfer:
             return
 
+        is_dir = transfer.filepath.endswith("/")
+
         menu = QMenu(self)
         menu.addAction(tr("ctx.open"), lambda: self._ctx_open(transfer))
-        menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
+        if not is_dir:
+            menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
         menu.addSeparator()
         menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
         menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
@@ -851,6 +856,19 @@ class FileTransferTable(QTableWidget):
         )
         if not dest_dir:
             return
+
+        # Confirmation dialog
+        display_name = transfer.filepath.rstrip("/")
+        answer = QMessageBox.question(
+            self,
+            tr("ctx.confirm_copy_title"),
+            tr("ctx.confirm_copy").format(name=display_name, dest=dest_dir),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
         try:
             if os.path.isdir(abs_path):
                 dir_name = os.path.basename(abs_path.rstrip("/"))
@@ -919,7 +937,18 @@ class FileTransferTable(QTableWidget):
             )
 
     def _ctx_trash(self, transfer: FileTransfer) -> None:
-        """Move the file to the system trash."""
+        """Move the file to the system trash (with confirmation)."""
+        display_name = transfer.filepath.rstrip("/")
+        answer = QMessageBox.question(
+            self,
+            tr("ctx.confirm_trash_title"),
+            tr("ctx.confirm_trash").format(name=display_name),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
         abs_path = self._absolute_path(transfer)
         system = platform.system()
         try:
@@ -1223,8 +1252,9 @@ class FileTransferTable(QTableWidget):
         )
         self.setItem(row, COL_ICON, icon_item)
 
-        # Name (full relative path)
-        self.setItem(row, COL_NAME, QTableWidgetItem(transfer.filepath))
+        # Name (full relative path, strip trailing "/" for display)
+        display_name = transfer.filepath.rstrip("/")
+        self.setItem(row, COL_NAME, QTableWidgetItem(display_name))
 
         # Type
         self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))

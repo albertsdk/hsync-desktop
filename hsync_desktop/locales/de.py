@@ -240,5 +240,9 @@ translations: dict[str, str] = {
     "ctx.error_rename": "Datei kann nicht umbenannt werden: {error}",
     "ctx.error_trash": "Kann nicht in den Papierkorb verschoben werden: {error}",
     "ctx.copy_dialog_title": "Kopieren nach…",
+    "ctx.confirm_copy_title": "Kopieren bestätigen",
+    "ctx.confirm_copy": "«{name}» nach «{dest}» kopieren?",
+    "ctx.confirm_trash_title": "Löschen bestätigen",
+    "ctx.confirm_trash": "«{name}» in den Papierkorb verschieben?",
 }
 
