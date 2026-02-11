@@ -18,6 +18,9 @@ Shows real-time file transfers in a sortable table with:
 from __future__ import annotations
 
 import os
+import platform
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -25,14 +28,20 @@ from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-from PySide6.QtCore import QLocale, QObject, QThread, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QAction, QColor
+from PySide6.QtCore import QLocale, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
     QFrame,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMenu,
+    QMessageBox,
     QProgressBar,
     QSplitter,
     QStyle,
@@ -46,6 +55,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import get_language, register_language_callback, tr
+from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.ui.loader import load_ui_widget
 
 
@@ -170,22 +180,93 @@ def _format_mtime(epoch: float) -> str:
 
 
 # Column indices and translation keys
-COL_NAME = 0
-COL_SIZE = 1
-COL_MODIFIED = 2
-COL_PROGRESS = 3
-COL_ETA = 4
-COL_STATUS = 5
+COL_ICON = 0
+COL_NAME = 1
+COL_SIZE = 2
+COL_TYPE = 3
+COL_MODIFIED = 4
+COL_PROGRESS = 5
+COL_ETA = 6
+COL_STATUS = 7
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
+    "",            # icon column — no header text
     "file.name",
     "file.size",
+    "file.type",
     "file.modified",
     "file.progress",
     "file.eta",
     "file.status",
 ]
+
+# ── File type classification ──────────────────────────────────────────
+# Maps file extensions to (icon_name, translation_key) pairs.
+# icon_name is a FreeDesktop icon name used with QIcon.fromTheme().
+# Directories are handled separately.
+
+_FILE_TYPE_MAP: dict[str, tuple[str, str]] = {}
+
+_TYPE_DEFINITIONS: list[tuple[str, str, list[str]]] = [
+    ("image-x-generic", "ftype.image", [
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico",
+        ".tiff", ".tif", ".heic", ".heif", ".avif", ".raw", ".cr2", ".nef",
+    ]),
+    ("audio-x-generic", "ftype.audio", [
+        ".mp3", ".wav", ".flac", ".ogg", ".aac", ".wma", ".m4a", ".opus",
+        ".aiff", ".alac", ".mid", ".midi",
+    ]),
+    ("video-x-generic", "ftype.video", [
+        ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v",
+        ".mpeg", ".mpg", ".3gp", ".ts",
+    ]),
+    ("x-office-spreadsheet", "ftype.spreadsheet", [
+        ".xls", ".xlsx", ".ods", ".csv", ".tsv", ".numbers",
+    ]),
+    ("x-office-presentation", "ftype.presentation", [
+        ".ppt", ".pptx", ".odp", ".key",
+    ]),
+    ("x-office-document", "ftype.document", [
+        ".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".md", ".tex",
+        ".epub", ".pages", ".log",
+    ]),
+    ("package-x-generic", "ftype.archive", [
+        ".zip", ".tar", ".gz", ".bz2", ".xz", ".rar", ".7z", ".zst",
+        ".tgz", ".tbz2", ".iso", ".dmg", ".deb", ".rpm",
+    ]),
+    ("text-x-script", "ftype.code", [
+        ".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".scss",
+        ".java", ".c", ".cpp", ".h", ".hpp", ".cs", ".go", ".rs", ".rb",
+        ".php", ".swift", ".kt", ".lua", ".sh", ".bash", ".zsh", ".ps1",
+        ".sql", ".r", ".m", ".pl", ".scala", ".zig", ".nim", ".dart",
+        ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
+    ]),
+    ("application-certificate", "ftype.key", [
+        ".pem", ".crt", ".cer", ".key", ".p12", ".pfx", ".jks",
+    ]),
+    ("font-x-generic", "ftype.font", [
+        ".ttf", ".otf", ".woff", ".woff2", ".eot",
+    ]),
+    ("application-x-executable", "ftype.executable", [
+        ".exe", ".msi", ".app", ".bin", ".run", ".appimage",
+    ]),
+]
+
+for _icon_name, _key, _exts in _TYPE_DEFINITIONS:
+    for _ext in _exts:
+        _FILE_TYPE_MAP[_ext] = (_icon_name, _key)
+
+
+def _classify_file(filepath: str) -> tuple[str, str]:
+    """Return (icon_name, type_translation_key) for a filepath.
+
+    icon_name is a FreeDesktop icon name suitable for get_icon().
+    """
+    if filepath.endswith("/"):
+        return ("folder", "ftype.folder")
+    ext = Path(filepath).suffix.lower()
+    return _FILE_TYPE_MAP.get(ext, ("text-x-generic", "ftype.other"))
 
 # Statuses where no progress bar should be shown
 _NO_PROGRESS_STATUSES = {
@@ -244,14 +325,19 @@ class DirectoryScanWorker(QObject):
         self._cancelled = True
 
     def _count_files(self) -> int:
-        """Quick count of files (without reading sizes)."""
+        """Quick count of files and empty directories (without reading sizes)."""
         count = 0
         for root, dirs, files in os.walk(self._directory):
             dirs[:] = [d for d in dirs if not d.startswith(".")]
             if self._cancelled:
                 return 0
-            for f in files:
-                if not f.startswith("."):
+            visible_files = [f for f in files if not f.startswith(".")]
+            count += len(visible_files)
+            # Count this directory as an entry if it has no visible files
+            # and no visible subdirectories (i.e. it's a leaf empty dir)
+            if not visible_files and not dirs:
+                # Don't count the root directory itself
+                if root != self._directory:
                     count += 1
         return count
 
@@ -281,13 +367,31 @@ class DirectoryScanWorker(QObject):
             if self._cancelled:
                 break
 
-            for filename in files:
+            visible_files = [f for f in files if not f.startswith(".")]
+
+            # Emit empty directory entry (leaf dir with no visible content)
+            if not visible_files and not dirs and root != self._directory:
+                dir_path = Path(root)
+                try:
+                    rel_dir = str(dir_path.relative_to(base_path))
+                except ValueError:
+                    rel_dir = str(dir_path)
+                try:
+                    mtime = dir_path.stat().st_mtime
+                except OSError:
+                    mtime = 0.0
+                # Trailing "/" marks it as a directory entry
+                batch.append((rel_dir + "/", 0, mtime))
+                processed += 1
+                if len(batch) >= _FILE_BATCH_SIZE:
+                    self.files_found.emit(batch)
+                    self.progress.emit(processed, total)
+                    batch = []
+                continue
+
+            for filename in visible_files:
                 if self._cancelled:
                     break
-
-                # Skip hidden files
-                if filename.startswith("."):
-                    continue
 
                 full_path = Path(root) / filename
                 try:
@@ -393,6 +497,7 @@ class FileDetailPanel:
     def __init__(self, frame: QFrame) -> None:
         self._frame = frame
         self._frame.hide()  # Hidden by default
+        self._base_directory: str = ""
 
         # Get widget references from .ui
         self._lbl_title: QLabel = frame.findChild(QLabel, "lblDetailTitle")  # type: ignore[assignment]
@@ -413,6 +518,13 @@ class FileDetailPanel:
         self._lbl_status_label: QLabel = frame.findChild(QLabel, "lblStatus")  # type: ignore[assignment]
         self._lbl_cid_label: QLabel = frame.findChild(QLabel, "lblCid")  # type: ignore[assignment]
         self._lbl_ip_label: QLabel = frame.findChild(QLabel, "lblIp")  # type: ignore[assignment]
+
+        # Make filepath label clickable via <a href> + linkActivated signal
+        self._lbl_filepath.setTextInteractionFlags(
+            Qt.TextInteractionFlag.LinksAccessibleByMouse
+        )
+        self._lbl_filepath.setOpenExternalLinks(False)
+        self._lbl_filepath.linkActivated.connect(self._on_filepath_clicked)
 
         # Set close button icon
         style = frame.style()
@@ -437,9 +549,27 @@ class FileDetailPanel:
         self._lbl_cid_label.setText(tr("detail.client_cid"))
         self._lbl_ip_label.setText(tr("detail.client_ip"))
 
+    def set_base_directory(self, directory: str) -> None:
+        """Set the base directory for resolving absolute file paths."""
+        self._base_directory = directory
+
     def show_transfer(self, transfer: FileTransfer) -> None:
         """Display details for the given transfer."""
-        self._lbl_filepath.setText(transfer.path or "—")
+        rel_path = transfer.path
+        # Determine the directory to open on click
+        if rel_path:
+            abs_dir = os.path.join(self._base_directory, rel_path)
+            display = rel_path
+        else:
+            abs_dir = self._base_directory
+            display = "."
+        self._current_abs_dir = abs_dir
+        # Render as clickable HTML link (Qt handles underline + color)
+        escaped = display.replace("&", "&amp;").replace("<", "&lt;")
+        self._lbl_filepath.setText(
+            f'<a href="file://{abs_dir}">{escaped}</a>'
+        )
+
         self._lbl_filename.setText(transfer.filename)
         self._lbl_size.setText(_format_size(transfer.size))
         self._lbl_modified.setText(_format_mtime(transfer.mtime))
@@ -464,8 +594,16 @@ class FileDetailPanel:
         self._lbl_ip.setText(transfer.client_ip or "—")
         self._frame.show()
 
+    def _on_filepath_clicked(self, _link: str) -> None:
+        """Open the file's directory in the system file manager."""
+        abs_dir = getattr(self, "_current_abs_dir", "")
+        if abs_dir and os.path.isdir(abs_dir):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(abs_dir))
+
     def clear(self) -> None:
         """Clear and hide the panel."""
+        self._current_abs_dir = ""
+        self._lbl_filepath.setText("—")
         self._frame.hide()
 
 
@@ -474,16 +612,24 @@ class FileTransferTable(QTableWidget):
 
     row_selected = Signal(object)  # Emits FileTransfer or None
     row_deselected = Signal()      # Emitted when clicking on already selected row
+    properties_requested = Signal(object)  # Emits FileTransfer for properties panel
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer
         self._row_index: Dict[str, int] = {}  # filepath -> row index for fast lookup
         self._last_selected_row: int = -1
+        self._base_directory: str = ""
+        # Timer to distinguish single-click from double-click
+        self._click_timer = QTimer(self)
+        self._click_timer.setSingleShot(True)
+        self._click_timer.setInterval(QApplication.doubleClickInterval())
+        self._click_timer.timeout.connect(self._on_single_click_confirmed)
+        self._pending_click_row: int = -1
         self._setup_table()
 
     def _setup_table(self) -> None:
-        headers = [tr(key) for key in _COLUMN_KEYS]
+        headers = [tr(key) if key else "" for key in _COLUMN_KEYS]
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -492,11 +638,16 @@ class FileTransferTable(QTableWidget):
         self.setSortingEnabled(True)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
+        from PySide6.QtCore import QSize
+        self.setIconSize(QSize(16, 16))
 
         # Column sizing and behavior
         header = self.horizontalHeader()
+        header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
+        header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
@@ -511,8 +662,12 @@ class FileTransferTable(QTableWidget):
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(self._show_header_context_menu)
 
-        self.itemSelectionChanged.connect(self._on_selection_changed)
+        # Enable context menu on table rows
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_file_context_menu)
+
         self.cellClicked.connect(self._on_cell_clicked)
+        self.cellDoubleClicked.connect(self._on_cell_double_clicked)
 
     def _show_header_context_menu(self, pos) -> None:
         """Show context menu to toggle column visibility."""
@@ -520,6 +675,8 @@ class FileTransferTable(QTableWidget):
         header = self.horizontalHeader()
 
         for col, key in enumerate(_COLUMN_KEYS):
+            if not key:
+                continue  # Skip icon column (no header text, always visible)
             action = QAction(tr(key), menu)
             action.setCheckable(True)
             action.setChecked(not header.isSectionHidden(col))
@@ -534,25 +691,286 @@ class FileTransferTable(QTableWidget):
         self.horizontalHeader().setSectionHidden(col, not visible)
 
     def _on_cell_clicked(self, row: int, _col: int) -> None:
-        """Handle cell click to detect re-click on same row."""
+        """Defer single-click action to distinguish from double-click."""
+        self._pending_click_row = row
+        self._click_timer.start()
+
+    def _on_single_click_confirmed(self) -> None:
+        """Handle confirmed single click: toggle selection on re-click."""
+        row = self._pending_click_row
         if row == self._last_selected_row:
-            # Clicking on already selected row - deselect and hide panel
+            # Re-click on same row → deselect
             self._last_selected_row = -1
             self.clearSelection()
             self.row_deselected.emit()
         else:
-            # Clicking on a different row - update tracking
+            # New row clicked → keep it selected
             self._last_selected_row = row
-
-    def _on_selection_changed(self) -> None:
-        rows = self.selectionModel().selectedRows()
-        if rows:
-            row = rows[0].row()
-            name_item = self.item(row, COL_NAME)
-            if name_item:
-                filepath = name_item.text()
-                transfer = self._transfers.get(filepath)
+            # Notify that a new row was selected (used to update open panel)
+            transfer = self._get_transfer_at_row(row)
+            if transfer:
                 self.row_selected.emit(transfer)
+
+    def _on_cell_double_clicked(self, row: int, _col: int) -> None:
+        """Handle double-click: cancel pending single-click and open the file."""
+        self._click_timer.stop()
+        # Ensure the row stays selected
+        self._last_selected_row = row
+        transfer = self._get_transfer_at_row(row)
+        if transfer:
+            self._ctx_open(transfer)
+
+    def set_base_directory(self, directory: str) -> None:
+        """Set the base directory for resolving absolute file paths."""
+        self._base_directory = directory
+
+    def _get_transfer_at_row(self, row: int) -> FileTransfer | None:
+        """Return the FileTransfer for the given row, or None."""
+        name_item = self.item(row, COL_NAME)
+        if name_item:
+            return self._transfers.get(name_item.text())
+        return None
+
+    def _absolute_path(self, transfer: FileTransfer) -> str:
+        """Build the absolute path of a transfer's file."""
+        return os.path.join(self._base_directory, transfer.filepath)
+
+    # ── File context menu ─────────────────────────────────────────────────
+
+    def _show_file_context_menu(self, pos) -> None:
+        """Show right-click context menu for a file row."""
+        index = self.indexAt(pos)
+        if not index.isValid():
+            return
+        transfer = self._get_transfer_at_row(index.row())
+        if not transfer:
+            return
+
+        menu = QMenu(self)
+        menu.addAction(tr("ctx.open"), lambda: self._ctx_open(transfer))
+        menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
+        menu.addSeparator()
+        menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
+        menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
+        menu.addSeparator()
+        menu.addAction(tr("ctx.trash"), lambda: self._ctx_trash(transfer))
+        menu.addSeparator()
+        menu.addAction(tr("ctx.properties"), lambda: self._ctx_properties(transfer))
+        menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _ctx_open(self, transfer: FileTransfer) -> None:
+        """Open the file with the system default application."""
+        abs_path = self._absolute_path(transfer)
+        try:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"),
+                tr("ctx.error_open").format(error=str(exc)),
+            )
+
+    def _ctx_open_with(self, transfer: FileTransfer) -> None:
+        """Open the system 'Open With' dialog for the file."""
+        abs_path = self._absolute_path(transfer)
+        system = platform.system()
+        try:
+            if system == "Linux":
+                self._open_with_linux(abs_path)
+            elif system == "Darwin":
+                # AppleScript: present the "choose application" dialog
+                script = (
+                    f'set theFile to POSIX file "{abs_path}"\n'
+                    f'set theApp to choose application with prompt '
+                    f'"Open With" as alias\n'
+                    f'tell application (POSIX path of (theApp as text))\n'
+                    f'  open theFile\n'
+                    f'end tell'
+                )
+                subprocess.Popen(
+                    ["osascript", "-e", script],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif system == "Windows":
+                # Windows "Open with" dialog
+                subprocess.Popen(
+                    ["rundll32.exe", "shell32.dll,OpenAs_RunDLL", abs_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"),
+                tr("ctx.error_open_with").format(error=str(exc)),
+            )
+
+    @staticmethod
+    def _open_with_linux(abs_path: str) -> None:
+        """Open the 'Open With' app chooser via the XDG Desktop Portal.
+
+        Uses PySide6's QtDBus to call
+        org.freedesktop.portal.OpenURI.OpenFile with ask=true,
+        which presents the desktop's application chooser dialog.
+        """
+        from PySide6.QtDBus import (
+            QDBusConnection,
+            QDBusMessage,
+            QDBusUnixFileDescriptor,
+        )
+
+        fd = os.open(abs_path, os.O_RDONLY)
+        try:
+            descriptor = QDBusUnixFileDescriptor(fd)
+        finally:
+            os.close(fd)
+
+        msg = QDBusMessage.createMethodCall(
+            "org.freedesktop.portal.Desktop",       # service
+            "/org/freedesktop/portal/desktop",       # path
+            "org.freedesktop.portal.OpenURI",        # interface
+            "OpenFile",                              # method
+        )
+        msg.setArguments([
+            "",                          # parent_window (empty string)
+            descriptor,                  # fd  (h — unix file descriptor)
+            {"ask": True},               # options a{sv}
+        ])
+
+        bus = QDBusConnection.sessionBus()
+        reply = bus.call(msg)
+        if reply.type() == QDBusMessage.MessageType.ErrorMessage:
+            raise RuntimeError(reply.errorMessage())
+
+    def _ctx_copy_to(self, transfer: FileTransfer) -> None:
+        """Copy the file or directory to a user-chosen directory."""
+        abs_path = self._absolute_path(transfer)
+        dest_dir = QFileDialog.getExistingDirectory(
+            self, tr("ctx.copy_dialog_title"), os.path.dirname(abs_path),
+        )
+        if not dest_dir:
+            return
+        try:
+            if os.path.isdir(abs_path):
+                dir_name = os.path.basename(abs_path.rstrip("/"))
+                shutil.copytree(abs_path, os.path.join(dest_dir, dir_name))
+            else:
+                shutil.copy2(abs_path, dest_dir)
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"),
+                tr("ctx.error_copy").format(error=str(exc)),
+            )
+
+    def _ctx_rename(self, transfer: FileTransfer) -> None:
+        """Show a rename dialog and rename the file on disk."""
+        abs_path = self._absolute_path(transfer)
+        old_name = transfer.filename
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(tr("ctx.rename_title"))
+        form = QFormLayout(dlg)
+        line_edit = QLineEdit(old_name)
+        form.addRow(tr("ctx.rename_label"), line_edit)
+        buttons = QDialogButtonBox()
+        rename_btn = buttons.addButton(
+            tr("ctx.rename_btn"), QDialogButtonBox.ButtonRole.AcceptRole,
+        )
+        buttons.addButton(
+            tr("action.cancel"), QDialogButtonBox.ButtonRole.RejectRole,
+        )
+        buttons.rejected.connect(dlg.reject)
+        rename_btn.clicked.connect(dlg.accept)
+        form.addRow(buttons)
+
+        # Select the name part without the extension for easier editing
+        dot_idx = old_name.rfind(".")
+        if dot_idx > 0:
+            line_edit.setSelection(0, dot_idx)
+        else:
+            line_edit.selectAll()
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        new_name = line_edit.text().strip()
+        if not new_name or new_name == old_name:
+            return
+        new_abs = os.path.join(os.path.dirname(abs_path), new_name)
+        try:
+            os.rename(abs_path, new_abs)
+            # Update internal data: build new relative filepath
+            parent = transfer.path
+            new_rel = os.path.join(parent, new_name) if parent else new_name
+            old_rel = transfer.filepath
+            # Update transfers dict
+            del self._transfers[old_rel]
+            transfer.filepath = new_rel
+            self._transfers[new_rel] = transfer
+            # Update row_index
+            if old_rel in self._row_index:
+                row = self._row_index.pop(old_rel)
+                self._row_index[new_rel] = row
+            self._refresh_row(transfer)
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"),
+                tr("ctx.error_rename").format(error=str(exc)),
+            )
+
+    def _ctx_trash(self, transfer: FileTransfer) -> None:
+        """Move the file to the system trash."""
+        abs_path = self._absolute_path(transfer)
+        system = platform.system()
+        try:
+            if system == "Linux":
+                # Use gio trash (available on most Linux desktops)
+                subprocess.run(
+                    ["gio", "trash", abs_path],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+            elif system == "Darwin":
+                # macOS: use osascript to move to trash
+                subprocess.run(
+                    [
+                        "osascript", "-e",
+                        f'tell application "Finder" to delete '
+                        f'(POSIX file "{abs_path}" as alias)',
+                    ],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+            elif system == "Windows":
+                # Windows: use PowerShell to recycle
+                ps_cmd = (
+                    f'Add-Type -AssemblyName Microsoft.VisualBasic; '
+                    f'[Microsoft.VisualBasic.FileIO.FileSystem]'
+                    f'::DeleteFile("{abs_path}", "OnlyErrorDialogs", '
+                    f'"SendToRecycleBin")'
+                )
+                subprocess.run(
+                    ["powershell", "-Command", ps_cmd],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+            else:
+                raise OSError("Unsupported platform for trash operation")
+
+            # Remove from table after successful trash
+            self._remove_file(transfer.filepath)
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"),
+                tr("ctx.error_trash").format(error=str(exc)),
+            )
+
+    def _ctx_properties(self, transfer: FileTransfer) -> None:
+        """Open the properties (detail) panel for the file."""
+        self.properties_requested.emit(transfer)
 
     def add_transfer(self, transfer: FileTransfer) -> None:
         """Add or update a transfer in the table."""
@@ -794,11 +1212,25 @@ class FileTransferTable(QTableWidget):
 
     def _populate_row(self, row: int, transfer: FileTransfer) -> None:
         """Populate a row with transfer data."""
+        is_dir = transfer.filepath.endswith("/")
+
+        # Icon (centered)
+        icon_name, type_key = _classify_file(transfer.filepath)
+        icon_item = QTableWidgetItem()
+        icon_item.setIcon(get_icon(icon_name))
+        icon_item.setTextAlignment(
+            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.setItem(row, COL_ICON, icon_item)
+
         # Name (full relative path)
         self.setItem(row, COL_NAME, QTableWidgetItem(transfer.filepath))
 
-        # Size (right-aligned)
-        size_text = _format_size(transfer.size)
+        # Type
+        self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))
+
+        # Size (right-aligned) — empty for directories
+        size_text = "" if is_dir else _format_size(transfer.size)
         size_item = QTableWidgetItem(size_text)
         size_item.setTextAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -920,8 +1352,9 @@ class FilePanel(QWidget):
         self._splitter.setCollapsible(1, True)
 
     def _connect_signals(self) -> None:
-        self._table.row_selected.connect(self._on_row_selected)
         self._table.row_deselected.connect(self._hide_detail_panel)
+        self._table.row_selected.connect(self._on_row_selected)
+        self._table.properties_requested.connect(self._on_properties_requested)
         self._detail._btn_close.clicked.connect(self._on_detail_close)
 
     @Slot()
@@ -931,9 +1364,15 @@ class FilePanel(QWidget):
 
     @Slot(object)
     def _on_row_selected(self, transfer: FileTransfer | None) -> None:
+        """Update the detail panel if it is already visible."""
+        if transfer and self._splitter.sizes()[1] > 0:
+            self._detail.show_transfer(transfer)
+
+    @Slot(object)
+    def _on_properties_requested(self, transfer: FileTransfer | None) -> None:
+        """Show the detail/properties panel for the given transfer."""
         if transfer:
             self._detail.show_transfer(transfer)
-            # Show detail panel if hidden
             sizes = self._splitter.sizes()
             if sizes[1] == 0:
                 self._splitter.setSizes([600, 250])
@@ -996,8 +1435,10 @@ class FilePanel(QWidget):
             self._current_directory = ""
             return
 
-        # Save current directory for consistency checks
+        # Save current directory for consistency checks, context menu, and detail panel
         self._current_directory = directory
+        self._table.set_base_directory(directory)
+        self._detail.set_base_directory(directory)
 
         # Bump generation so any queued signals from the previous scan are ignored
         self._scan_generation += 1
@@ -1101,16 +1542,22 @@ class FilePanel(QWidget):
             self._consistency_timer.stop()
             return
 
-        # Get current files in directory (quick scan without sizes for comparison)
+        # Get current files and empty directories (quick scan for comparison)
         current_files: set[str] = set()
         base_path = Path(self._current_directory)
         try:
             for root, dirs, files in os.walk(self._current_directory):
                 # Skip hidden directories
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
-                for f in files:
-                    if f.startswith("."):
-                        continue
+                visible_files = [f for f in files if not f.startswith(".")]
+                # Track empty leaf directories
+                if not visible_files and not dirs and root != self._current_directory:
+                    try:
+                        rel_dir = str(Path(root).relative_to(base_path))
+                        current_files.add(rel_dir + "/")
+                    except ValueError:
+                        pass
+                for f in visible_files:
                     full_path = Path(root) / f
                     try:
                         rel_path = str(full_path.relative_to(base_path))
@@ -1128,9 +1575,10 @@ class FilePanel(QWidget):
         new_files = current_files - table_files
         for rel_path in new_files:
             full_path = base_path / rel_path
+            is_dir_entry = rel_path.endswith("/")
             try:
                 stat = full_path.stat()
-                size = stat.st_size
+                size = 0 if is_dir_entry else stat.st_size
                 mtime = stat.st_mtime
             except OSError:
                 size = 0

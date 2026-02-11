@@ -46,6 +46,20 @@ _FALLBACK_MAP: dict[str, str] = {
     "media-playback-start": "media-playback-start.svg",
     "media-playback-stop": "media-playback-stop.svg",
     "preferences-system": "preferences-system.svg",
+    # File type icons (FreeDesktop MIME type names)
+    "folder": "folder.svg",
+    "image-x-generic": "image-x-generic.svg",
+    "audio-x-generic": "audio-x-generic.svg",
+    "video-x-generic": "video-x-generic.svg",
+    "x-office-spreadsheet": "x-office-spreadsheet.svg",
+    "x-office-presentation": "x-office-presentation.svg",
+    "x-office-document": "x-office-document.svg",
+    "package-x-generic": "package-x-generic.svg",
+    "text-x-script": "text-x-script.svg",
+    "application-certificate": "application-certificate.svg",
+    "font-x-generic": "font-x-generic.svg",
+    "application-x-executable": "application-x-executable.svg",
+    "text-x-generic": "text-x-generic.svg",
 }
 
 
