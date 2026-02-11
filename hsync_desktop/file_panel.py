@@ -1915,7 +1915,6 @@ class FilePanel(QWidget):
 
         # Bump generation so any queued signals from the previous scan are ignored
         self._scan_generation += 1
-        current_gen = self._scan_generation
 
         # Show loading overlay
         self._show_loading()
@@ -1925,12 +1924,10 @@ class FilePanel(QWidget):
         self._scan_worker = DirectoryScanWorker(directory)
         self._scan_worker.moveToThread(self._scan_thread)
 
-        # Connect signals (capture current_gen for stale-batch guard)
-        # Use QueuedConnection to ensure slots run in the main GUI thread
+        # Connect signals with QueuedConnection to ensure slots run in main GUI thread
         self._scan_thread.started.connect(self._scan_worker.run)
         self._scan_worker.files_found.connect(
-            lambda files, g=current_gen: self._on_files_found(files, g),
-            Qt.ConnectionType.QueuedConnection
+            self._on_files_found, Qt.ConnectionType.QueuedConnection
         )
         self._scan_worker.progress.connect(
             self._on_scan_progress, Qt.ConnectionType.QueuedConnection
@@ -1953,13 +1950,16 @@ class FilePanel(QWidget):
         self._scan_thread = None
         self._scan_worker = None
 
-    def _on_files_found(self, files: list[tuple[str, int, float]], generation: int) -> None:
+    @Slot(list)
+    def _on_files_found(self, files: list[tuple[str, int, float]]) -> None:
         """Handle a batch of files from the scanner.
 
-        Ignores batches from a previous (stale) scan by checking the generation counter.
+        Stale batches are ignored because _stop_scan() disconnects signals
+        and clears the worker before a new scan starts.
         """
-        if generation != self._scan_generation:
-            return  # Stale batch from a cancelled scan — discard
+        # If no active scan, ignore (shouldn't happen with proper cleanup)
+        if self._scan_worker is None:
+            return
         transfers = [
             FileTransfer(
                 filepath=filepath,
