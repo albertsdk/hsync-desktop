@@ -244,5 +244,23 @@ translations: dict[str, str] = {
     "ctx.confirm_copy": "«{name}» nach «{dest}» kopieren?",
     "ctx.confirm_trash_title": "Löschen bestätigen",
     "ctx.confirm_trash": "«{name}» in den Papierkorb verschieben?",
+    # Ordnernavigation
+    "folder.items": "{count} Elemente",
+    "folder.status.error": "Fehler",
+    "folder.status.syncing": "Synchronisiere",
+    "folder.status.to_sync": "Zu synchronisieren",
+    "folder.status.completed": "Abgeschlossen",
+    "folder.status.synced": "Synchronisiert",
+    "folder.status.local": "Lokal",
+    "nav.back": "Zurück",
+    "nav.forward": "Vorwärts",
+    "nav.up": "Nach oben",
+    "nav.root": "Stammordner",
+    # Dialog-Schaltflächen
+    "btn.yes": "Ja",
+    "btn.no": "Nein",
+    # Überschreiben-Bestätigung
+    "ctx.confirm_overwrite_title": "Überschreiben bestätigen",
+    "ctx.confirm_overwrite": "«{name}» existiert bereits in «{dest}». Überschreiben?",
 }
 

@@ -7,13 +7,13 @@
 """
 Icon management for HSYNC Desktop.
 
-Provides cross-platform icon support:
-- On Linux with icon themes: uses system icons via QIcon.fromTheme()
-- On Windows/macOS or when theme icons unavailable: uses bundled fallback icons
+Provides cross-platform icon support with consistent appearance:
+- Always uses bundled SVG icons when available for uniformity across platforms
+- Falls back to system theme icons only when no bundled icon exists
 
 Usage:
     from hsync_desktop.icons import icon
-    
+
     btn.setIcon(icon("network-wired"))
     tab.setIcon(icon("emblem-synchronizing"))
 """
@@ -21,10 +21,57 @@ Usage:
 from __future__ import annotations
 
 import sys
-from functools import lru_cache
 from pathlib import Path
 
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QByteArray
+from PySide6.QtGui import QIcon, QPalette, QPixmap
+from PySide6.QtWidgets import QApplication
+
+
+def _is_dark_theme() -> bool:
+    """Check if the current application theme is dark.
+
+    Compares the text color luminance with the background color luminance.
+    """
+    app = QApplication.instance()
+    if not app or not isinstance(app, QApplication):
+        return False
+    palette = app.palette()
+    bg = palette.color(QPalette.ColorRole.Window)
+    # Use luminance formula: darker backgrounds have lower luminance
+    luminance = 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue()
+    return luminance < 128
+
+
+def _load_themed_svg(svg_path: Path) -> QIcon:
+    """Load an SVG file and replace 'currentColor' with theme-appropriate color.
+
+    Args:
+        svg_path: Path to the SVG file
+
+    Returns:
+        QIcon with the themed SVG
+    """
+    try:
+        svg_content = svg_path.read_text(encoding="utf-8")
+    except OSError:
+        return QIcon()
+
+    # Choose color based on theme
+    # Light theme: dark gray (#424242), Dark theme: light gray (#e0e0e0)
+    color = "#e0e0e0" if _is_dark_theme() else "#424242"
+
+    # Replace currentColor with the appropriate color
+    themed_svg = svg_content.replace("currentColor", color)
+
+    # Create QIcon from the modified SVG content
+    pixmap = QPixmap()
+    pixmap.loadFromData(QByteArray(themed_svg.encode("utf-8")))
+    if pixmap.isNull():
+        # Fallback: try loading the original file
+        return QIcon(str(svg_path))
+
+    return QIcon(pixmap)
 
 # Directory containing fallback icons
 ICONS_DIR = Path(__file__).parent / "resources" / "icons"
@@ -46,6 +93,12 @@ _FALLBACK_MAP: dict[str, str] = {
     "media-playback-start": "media-playback-start.svg",
     "media-playback-stop": "media-playback-stop.svg",
     "preferences-system": "preferences-system.svg",
+    # Navigation icons
+    "go-previous": "go-previous.svg",
+    "go-next": "go-next.svg",
+    "go-up": "go-up.svg",
+    # Window icons
+    "window-close": "window-close.svg",
     # File type icons (FreeDesktop MIME type names)
     "folder": "folder.svg",
     "image-x-generic": "image-x-generic.svg",
@@ -82,37 +135,57 @@ def _has_icon_theme() -> bool:
     return True
 
 
-@lru_cache(maxsize=64)
+# Cache for icons, keyed by (name, is_dark_theme)
+_icon_cache: dict[tuple[str, bool], QIcon] = {}
+
+
 def icon(name: str) -> QIcon:
-    """Get an icon by FreeDesktop name with automatic fallback.
-    
-    On platforms with icon themes (Linux/KDE/GNOME), uses the system icon.
-    On other platforms, uses bundled fallback icons if available.
-    
+    """Get an icon by FreeDesktop name.
+
+    Always uses bundled icons when available for cross-platform consistency.
+    SVG icons are themed based on the current application theme (light/dark).
+    Falls back to system theme icons if no bundled icon exists.
+
     Args:
         name: FreeDesktop icon name (e.g., "network-wired")
-    
+
     Returns:
         QIcon instance (may be null if no icon found)
-    
+
     Example:
         btn.setIcon(icon("network-wired"))
     """
-    # Try system theme first (fast path on Linux)
-    if _has_icon_theme():
-        theme_icon = QIcon.fromTheme(name)
-        if not theme_icon.isNull():
-            return theme_icon
-    
-    # Fallback to bundled icon
+    is_dark = _is_dark_theme()
+    cache_key = (name, is_dark)
+
+    if cache_key in _icon_cache:
+        return _icon_cache[cache_key]
+
+    # Always prefer bundled icons for cross-platform uniformity
     fallback_name = _FALLBACK_MAP.get(name)
     if fallback_name:
         fallback_path = ICONS_DIR / fallback_name
         if fallback_path.exists():
-            return QIcon(str(fallback_path))
-    
+            result = _load_themed_svg(fallback_path)
+            _icon_cache[cache_key] = result
+            return result
+
+    # Fallback to system theme if no bundled icon
+    if _has_icon_theme():
+        theme_icon = QIcon.fromTheme(name)
+        if not theme_icon.isNull():
+            _icon_cache[cache_key] = theme_icon
+            return theme_icon
+
     # Last resort: try fromTheme anyway (might work on some systems)
-    return QIcon.fromTheme(name)
+    result = QIcon.fromTheme(name)
+    _icon_cache[cache_key] = result
+    return result
+
+
+def clear_icon_cache() -> None:
+    """Clear the icon cache. Call this when the theme changes."""
+    _icon_cache.clear()
 
 
 def has_icon(name: str) -> bool:

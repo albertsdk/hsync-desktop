@@ -267,5 +267,23 @@ translations: dict[str, str] = {
     "ctx.confirm_copy": "Copy «{name}» to «{dest}»?",
     "ctx.confirm_trash_title": "Confirm Deletion",
     "ctx.confirm_trash": "Move «{name}» to trash?",
+    # Folder navigation
+    "folder.items": "{count} items",
+    "folder.status.error": "Error",
+    "folder.status.syncing": "Syncing",
+    "folder.status.to_sync": "To sync",
+    "folder.status.completed": "Completed",
+    "folder.status.synced": "Synced",
+    "folder.status.local": "Local",
+    "nav.back": "Back",
+    "nav.forward": "Forward",
+    "nav.up": "Up",
+    "nav.root": "Root",
+    # Dialog buttons
+    "btn.yes": "Yes",
+    "btn.no": "No",
+    # Overwrite confirmation
+    "ctx.confirm_overwrite_title": "Confirm overwrite",
+    "ctx.confirm_overwrite": "«{name}» already exists in «{dest}». Overwrite?",
 }
 

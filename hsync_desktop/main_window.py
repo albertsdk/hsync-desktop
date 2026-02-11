@@ -146,6 +146,29 @@ class MainWindow(QMainWindow):
         self._path_label.setOpenExternalLinks(False)
         self._path_label.linkActivated.connect(self._on_path_clicked)
         self._local_path: str = ""
+
+        # Add folder icon label before path label
+        from hsync_desktop.icons import icon as get_icon
+        self._path_icon_label = QLabel(self.centralWidget())
+        self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        self._path_icon_label.setFixedSize(20, 20)
+        self._path_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._path_icon_label.hide()  # Hidden until path is set
+        # Insert icon label before path label in the actionBarLayout
+        # The actionBarLayout is a nested layout inside rootLayout (centralWidget's layout)
+        root_layout: QVBoxLayout | None = self.centralWidget().layout()  # type: ignore[assignment]
+        if root_layout:
+            # First item in rootLayout should be actionBarLayout (QHBoxLayout)
+            first_item = root_layout.itemAt(0)
+            if first_item:
+                action_bar_layout = first_item.layout()
+                if isinstance(action_bar_layout, QHBoxLayout):
+                    # Find index of path_label and insert icon before it
+                    for i in range(action_bar_layout.count()):
+                        item = action_bar_layout.itemAt(i)
+                        if item and item.widget() == self._path_label:
+                            action_bar_layout.insertWidget(i, self._path_icon_label)
+                            break
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
         self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -693,17 +716,22 @@ class MainWindow(QMainWindow):
 
     def _update_path_display(self) -> None:
         """Update the path label display."""
+        from hsync_desktop.icons import icon as get_icon
         if self._local_path:
+            # Update icon (may have changed with theme)
+            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
+            self._path_icon_label.show()
             link_color = self._path_label.palette().color(
                 self._path_label.palette().ColorRole.Link
             ).name()
             self._path_label.setText(
-                f'📂 <a href="open" style="color:{link_color}; text-decoration:none;">'
+                f'<a href="open" style="color:{link_color}; text-decoration:none;">'
                 f'{self._local_path}</a>'
             )
             self._path_label.setToolTip(self._local_path)
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
+            self._path_icon_label.hide()
             mid = self._path_label.palette().color(
                 self._path_label.palette().ColorRole.PlaceholderText
             ).name()
@@ -839,8 +867,19 @@ class MainWindow(QMainWindow):
             app = QApplication.instance()
             if app:
                 apply_theme(app, theme)  # type: ignore[arg-type]
+                self._refresh_icons_for_theme()
             self._notifier.enabled = are_notifications_enabled()
             self._apply_log_visibility()
+
+    def _refresh_icons_for_theme(self) -> None:
+        """Refresh all icons after theme change."""
+        from hsync_desktop.icons import clear_icon_cache, icon as get_icon
+        clear_icon_cache()
+        # Refresh path icon
+        if self._local_path:
+            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        # Refresh file panel icons
+        self._file_panel.refresh_icons_for_theme()
 
     def _apply_log_visibility(self) -> None:
         """Show or hide the log panel based on settings."""
