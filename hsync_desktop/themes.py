@@ -131,11 +131,17 @@ QPushButton {{
     border-radius: 6px;
     min-height: 28px;
 }}
+QPushButton:disabled {{
+    color: {disabled_text};
+}}
 QPushButton:hover {{
     background-color: {btn_hover};
 }}
 QPushButton:pressed {{
     background-color: {btn_pressed};
+}}
+QToolButton:disabled {{
+    color: {disabled_text};
 }}
 QPushButton#primaryButton {{
     background-color: {accent};
@@ -147,6 +153,7 @@ QPushButton#primaryButton:hover {{
 }}
 QGroupBox {{
     font-weight: bold;
+    background-color: transparent;
     border: 1px solid {border};
     border-radius: 6px;
     margin-top: 12px;
@@ -167,6 +174,54 @@ QPlainTextEdit#logViewer {{
 QStatusBar {{
     border-top: 1px solid {border};
 }}
+QMenuBar {{
+    padding: 2px 0px;
+}}
+QMenuBar::item {{
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+}}
+QMenuBar::item:selected {{
+    background-color: {menu_hover};
+}}
+QMenuBar::item:pressed {{
+    background-color: {accent};
+    color: #FFFFFF;
+}}
+QMenuBar::item:disabled {{
+    color: {disabled_text};
+}}
+QMenu {{
+    padding: 4px 0px;
+}}
+QMenu::item {{
+    padding: 6px 24px;
+    border: none;
+    border-radius: 4px;
+    margin: 2px 4px;
+}}
+QMenu::item:selected {{
+    background-color: {menu_hover};
+}}
+QMenu::item:disabled {{
+    color: {disabled_text};
+}}
+QLineEdit:disabled {{
+    color: {disabled_text};
+}}
+QSpinBox:disabled {{
+    color: {disabled_text};
+}}
+QComboBox:disabled {{
+    color: {disabled_text};
+}}
+QCheckBox:disabled {{
+    color: {disabled_text};
+}}
+QLabel:disabled {{
+    color: {disabled_text};
+}}
 """
 
 
@@ -174,6 +229,8 @@ def _light_qss() -> str:
     return _COMMON_QSS.format(
         border="#D0D0D0", btn_hover="#DCDCDC", btn_pressed="#C8C8C8",
         accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
+        disabled_text="#A0A0A0",
+        menu_hover="#E0E0E0",
     )
 
 
@@ -181,6 +238,8 @@ def _dark_qss() -> str:
     return _COMMON_QSS.format(
         border="#404040", btn_hover="#3A3A3A", btn_pressed="#454545",
         accent=_get_system_accent().name(), accent_hover=_get_accent_hover().name(),
+        disabled_text="#606060",
+        menu_hover="#3A3A3A",
     )
 
 

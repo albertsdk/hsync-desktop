@@ -97,6 +97,10 @@ _FALLBACK_MAP: dict[str, str] = {
     "go-previous": "go-previous.svg",
     "go-next": "go-next.svg",
     "go-up": "go-up.svg",
+    # Sync direction icons
+    "sync-bidirectional": "sync-bidirectional.svg",
+    "sync-upload": "sync-upload.svg",
+    "sync-download": "sync-download.svg",
     # Window icons
     "window-close": "window-close.svg",
     # File type icons (FreeDesktop MIME type names)

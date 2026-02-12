@@ -344,6 +344,14 @@ class HsyncEngine(QObject):
         """Trigger a preview (dry-run) by sending a PREVIEW command via stdin."""
         self._send_command({"cmd": "PREVIEW"})
 
+    def set_sync_direction(self, direction: str) -> None:
+        """Change the sync direction at runtime via stdin command.
+
+        Args:
+            direction: One of "bidirectional", "upload-only", "download-only".
+        """
+        self._send_command({"cmd": "SET_SYNC_DIRECTION", "direction": direction})
+
     # ── Stdin command channel ────────────────────────────────────────
 
     def _send_command(self, cmd: dict) -> None:
