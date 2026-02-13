@@ -1106,7 +1106,7 @@ class MainWindow(QMainWindow):
             lan_enabled = bool(s.value("lan/enabled", False, bool))
             if lan_enabled:
                 self._remote_icon.setPixmap(
-                    get_icon("network-workgroup").pixmap(16, 16)
+                    get_icon("network-lan").pixmap(16, 16)
                 )
                 group = str(s.value("lan/group", "", str))
                 self._remote_label.setText(f"LAN ({group})" if group else "LAN")
@@ -1116,7 +1116,7 @@ class MainWindow(QMainWindow):
                 self._group_label.hide()
             else:
                 self._remote_icon.setPixmap(
-                    get_icon("network-wired").pixmap(16, 16)
+                    get_icon("network-cloud").pixmap(16, 16)
                 )
                 server_ip = self._engine.server_ip if self._engine.server_ip else ""
                 if not server_ip:

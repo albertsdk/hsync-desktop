@@ -245,8 +245,8 @@ class SettingsDialog(QDialog):
 
         # Set tab icons programmatically (theme icons don't work cross-platform)
         self._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
-        self._tabs.setTabIcon(1, icon("network-wired"))         # Server Mode (second)
-        self._tabs.setTabIcon(2, icon("network-workgroup"))
+        self._tabs.setTabIcon(1, icon("network-cloud"))         # Server Mode (second)
+        self._tabs.setTabIcon(2, icon("network-lan"))
         self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
         self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
 
