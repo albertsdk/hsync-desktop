@@ -117,6 +117,9 @@ _FALLBACK_MAP: dict[str, str] = {
     "font-x-generic": "font-x-generic.svg",
     "application-x-executable": "application-x-executable.svg",
     "text-x-generic": "text-x-generic.svg",
+    # Role icons
+    "role-master": "role-master.svg",
+    "role-client": "role-client.svg",
 }
 
 

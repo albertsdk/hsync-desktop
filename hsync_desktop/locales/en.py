@@ -20,8 +20,8 @@ translations: dict[str, str] = {
     "status.error": "Error",
     "status.unknown": "Unknown",
     # Roles
-    "role.master": "★ Master",
-    "role.client": "⬡ Client",
+    "role.master": "Master",
+    "role.client": "Client",
     "role.master_tip": "This client is the master",
     "role.client_tip": "This client is a slave",
     # Labels

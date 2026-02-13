@@ -205,6 +205,14 @@ class MainWindow(QMainWindow):
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
         self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
+        # Add role icon before roleLabel in the bottom bar layout
+        self._role_icon = QLabel()
+        self._role_icon.setFixedSize(16, 16)
+        bottom_layout: QHBoxLayout = self.findChild(QHBoxLayout, "bottomBarLayout")  # type: ignore[assignment]
+        if bottom_layout:
+            role_idx = bottom_layout.indexOf(self._role_label)
+            if role_idx >= 0:
+                bottom_layout.insertWidget(role_idx, self._role_icon)
         self._bucket_label: QLabel = self.findChild(QLabel, "bucketLabel")  # type: ignore[assignment]
         self._group_label: QLabel = self.findChild(QLabel, "groupLabel")  # type: ignore[assignment]
         self._lbl_peers: QLabel = self.findChild(QLabel, "lblPeers")  # type: ignore[assignment]
@@ -267,6 +275,9 @@ class MainWindow(QMainWindow):
         self._status_label.setText(tr("status.disconnected"))
         self._role_label.setText(tr("role.client"))
         self._role_label.setToolTip(tr("role.client_tip"))
+        from hsync_desktop.icons import icon as get_icon
+        self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
+        self._role_icon.setToolTip(tr("role.client_tip"))
         self._lbl_peers.setText(tr("label.peers"))
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
@@ -712,13 +723,18 @@ class MainWindow(QMainWindow):
 
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
+        from hsync_desktop.icons import icon as get_icon
         if is_master:
             self._role_label.setText(tr("role.master"))
             self._role_label.setToolTip(tr("role.master_tip"))
+            self._role_icon.setPixmap(get_icon("role-master").pixmap(16, 16))
+            self._role_icon.setToolTip(tr("role.master_tip"))
             self._notifier.became_master()
         else:
             self._role_label.setText(tr("role.client"))
             self._role_label.setToolTip(tr("role.client_tip"))
+            self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
+            self._role_icon.setToolTip(tr("role.client_tip"))
 
     @Slot(str)
     def _on_group_detected(self, group: str) -> None:
@@ -1067,7 +1083,7 @@ class MainWindow(QMainWindow):
 
         if self._local_path:
             # ── Folder icon + path label ──────────────────────────────
-            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
+            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(24, 24))
             self._path_icon_label.show()
             display_path = self._simplify_path(self._local_path)
             # Elide the path if it's too long (max ~300px)
@@ -1098,7 +1114,7 @@ class MainWindow(QMainWindow):
                 "download-only": tr("menu.sync.direction.download_only"),
             }
             icon_name = dir_icon_map.get(direction, "sync-bidirectional")
-            self._sync_dir_icon.setPixmap(get_icon(icon_name).pixmap(16, 16))
+            self._sync_dir_icon.setPixmap(get_icon(icon_name).pixmap(24, 24))
             self._sync_dir_icon.setToolTip(dir_tip_map.get(direction, ""))
             self._sync_dir_icon.show()
 
@@ -1106,7 +1122,7 @@ class MainWindow(QMainWindow):
             lan_enabled = bool(s.value("lan/enabled", False, bool))
             if lan_enabled:
                 self._remote_icon.setPixmap(
-                    get_icon("network-lan").pixmap(16, 16)
+                    get_icon("network-lan").pixmap(24, 24)
                 )
                 group = str(s.value("lan/group", "", str))
                 self._remote_label.setText(f"LAN ({group})" if group else "LAN")
@@ -1116,7 +1132,7 @@ class MainWindow(QMainWindow):
                 self._group_label.hide()
             else:
                 self._remote_icon.setPixmap(
-                    get_icon("network-cloud").pixmap(16, 16)
+                    get_icon("network-cloud").pixmap(24, 24)
                 )
                 server_ip = self._engine.server_ip if self._engine.server_ip else ""
                 if not server_ip:
@@ -1294,6 +1310,10 @@ class MainWindow(QMainWindow):
         self._btn_start.setIcon(get_icon("media-playback-start"))
         self._btn_stop.setIcon(get_icon("media-playback-stop"))
         self._btn_refresh.setIcon(get_icon("view-refresh"))
+        # Refresh role icon
+        current_role = self._role_label.text()
+        role_name = "role-master" if current_role == tr("role.master") else "role-client"
+        self._role_icon.setPixmap(get_icon(role_name).pixmap(16, 16))
         # Refresh path display (includes folder, sync direction, and remote icons)
         self._update_path_display()
         # Refresh file panel icons
