@@ -165,6 +165,8 @@ translations: dict[str, str] = {
     "notif.master_elected": "Master eletto",
     "notif.master_elected_msg": "Questo client è ora il master",
     "notif.process_crashed": "Il processo di sincronizzazione si è interrotto inaspettatamente (codice uscita {code})",
+    "notif.path_not_found": "Percorso non trovato",
+    "notif.path_not_found_msg": "La cartella condivisa '{path}' non esiste. Verifica il percorso nelle impostazioni.",
     "notif.master_conflict_title": "Conflitto Master",
     "notif.master_conflict_lost": "Un altro master {cid} all'indirizzo {ip} ha priorità (avviato prima). Questo client opererà come slave.",
     "notif.master_conflict_won": "Il peer {cid} all'indirizzo {ip} ha anch'esso force_master attivo. Questo client vince (avviato prima).",

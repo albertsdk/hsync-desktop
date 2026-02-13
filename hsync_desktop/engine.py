@@ -74,6 +74,7 @@ _RE_DISCONNECTED = re.compile(
 _RE_SYNC_COMPLETE = re.compile(r"Sync complete|All files in sync|Initial sync complete", re.I)
 _RE_ERROR = re.compile(r"ERROR:\s*(.+)")
 _RE_AUTH_ERROR = re.compile(r"Invalid API key|API key required|Authentication.*failed|401.*Unauthorized", re.I)
+_RE_PATH_NOT_FOUND = re.compile(r"Directory '(.+?)' does not exist")
 
 # Master conflict patterns
 _RE_MASTER_CONFLICT = re.compile(
@@ -166,6 +167,7 @@ class HsyncEngine(QObject):
     sync_completed = Signal()               # a full sync cycle finished
     error_occurred = Signal(str)            # error message
     auth_error_occurred = Signal(str)       # authentication error (invalid/missing API key)
+    path_not_found = Signal(str)            # shared path does not exist
     process_finished = Signal(int, str)     # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
 
@@ -549,6 +551,13 @@ class HsyncEngine(QObject):
         m = _RE_MASTER_TAKEOVER.search(clean)
         if m:
             self.master_conflict.emit("takeover", m.group(1), m.group(2))
+
+        # Path-not-found error (check before generic errors)
+        m = _RE_PATH_NOT_FOUND.search(clean)
+        if m:
+            self.path_not_found.emit(m.group(1))
+            self._set_status("error")
+            return
 
         # Authentication errors (check before generic errors)
         if _RE_AUTH_ERROR.search(clean):

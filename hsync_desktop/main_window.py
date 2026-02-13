@@ -556,6 +556,7 @@ class MainWindow(QMainWindow):
         e.directory_created.connect(self._on_directory_created)
         e.sync_completed.connect(lambda: self._notifier.sync_complete())
         e.error_occurred.connect(lambda msg: self._notifier.error(tr("notif.error"), msg))
+        e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
         e.process_finished.connect(self._on_process_finished)
@@ -952,6 +953,29 @@ class MainWindow(QMainWindow):
                 tr("notif.error"),
                 tr("notif.process_crashed").replace("{code}", str(code)),
             )
+
+    @Slot(str)
+    def _on_path_not_found(self, path: str) -> None:
+        """Handle shared path not found error."""
+        self._engine.stop()
+        self._reset_ui_stopped()
+        self._append_log(
+            f"⚠ {tr('notif.path_not_found_msg').replace('{path}', path)}"
+        )
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("notif.error"))
+        msg.setText(tr("notif.path_not_found_msg").replace("{path}", path))
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Open | QMessageBox.StandardButton.Close
+        )
+        open_btn = msg.button(QMessageBox.StandardButton.Open)
+        open_btn.setText(tr("menu.settings"))
+        close_btn = msg.button(QMessageBox.StandardButton.Close)
+        close_btn.setText(tr("action.close"))
+        msg.setDefaultButton(QMessageBox.StandardButton.Open)
+        if msg.exec() == QMessageBox.StandardButton.Open:
+            self._open_settings(initial_tab=0)
 
     @Slot(str)
     def _on_auth_error(self, _error_msg: str) -> None:

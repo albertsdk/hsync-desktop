@@ -165,6 +165,8 @@ translations: dict[str, str] = {
     "notif.master_elected": "Maître élu",
     "notif.master_elected_msg": "Ce client est maintenant le maître",
     "notif.process_crashed": "Le processus de synchronisation s'est terminé de manière inattendue (code de sortie {code})",
+    "notif.path_not_found": "Chemin introuvable",
+    "notif.path_not_found_msg": "Le dossier partagé '{path}' n'existe pas. Vérifiez le chemin dans les paramètres.",
     "notif.master_conflict_title": "Conflit de Maître",
     "notif.master_conflict_lost": "Un autre maître {cid} à l'adresse {ip} a la priorité (démarré plus tôt). Ce client fonctionnera comme esclave.",
     "notif.master_conflict_won": "Le pair {cid} à l'adresse {ip} a également force_master activé. Ce client gagne (démarré plus tôt).",
