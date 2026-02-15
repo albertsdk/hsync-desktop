@@ -28,7 +28,7 @@ from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-from PySide6.QtCore import QLocale, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QLocale, QMutex, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -662,6 +662,7 @@ class FileTransferTable(QTableWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._transfers: Dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
+        self._transfers_mutex = QMutex()  # Protects _transfers dict
         self._row_index: Dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         self._base_directory: str = ""
@@ -1943,11 +1944,29 @@ class FilePanel(QWidget):
     def _stop_scan(self) -> None:
         """Stop any ongoing directory scan."""
         self._hide_loading()
+        
+        # Disconnect signals to prevent late callbacks from stale scans
         if self._scan_worker:
+            try:
+                self._scan_worker.files_found.disconnect()
+            except RuntimeError:
+                pass  # Already disconnected
+            try:
+                self._scan_worker.progress.disconnect()
+            except RuntimeError:
+                pass
+            try:
+                self._scan_worker.finished.disconnect()
+            except RuntimeError:
+                pass
             self._scan_worker.cancel()
+            self._scan_worker.deleteLater()
+        
         if self._scan_thread and self._scan_thread.isRunning():
             self._scan_thread.quit()
             self._scan_thread.wait(1000)  # Wait up to 1 second
+            self._scan_thread.deleteLater()
+        
         self._scan_thread = None
         self._scan_worker = None
 
