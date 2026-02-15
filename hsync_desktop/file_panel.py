@@ -28,7 +28,7 @@ from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-from PySide6.QtCore import QLocale, QMutex, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QLocale, QMutex, QMutexLocker, QObject, QThread, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -1457,38 +1457,42 @@ class FileTransferTable(QTableWidget):
 
     def add_transfer(self, transfer: FileTransfer) -> None:
         """Add or update a transfer in the table."""
-        self._transfers[transfer.filepath] = transfer
+        with QMutexLocker(self._transfers_mutex):
+            self._transfers[transfer.filepath] = transfer
         self.refresh_view()
 
     def update_transfer_status(self, filepath: str, status: TransferStatus) -> None:
         """Update the status of a transfer."""
-        if filepath in self._transfers:
-            self._transfers[filepath].status = status
-            self.refresh_view()
+        with QMutexLocker(self._transfers_mutex):
+            if filepath in self._transfers:
+                self._transfers[filepath].status = status
+        self.refresh_view()
 
     def mark_completed(self, filepath: str, size: int = 0, direction: str = "↓") -> None:
         """Mark a transfer as completed, creating it if it doesn't exist."""
-        if filepath in self._transfers:
-            t = self._transfers[filepath]
-            t.status = TransferStatus.COMPLETED
-            if size:
-                t.size = size
-                t.bytes_transferred = size
-        else:
-            # Create a new transfer entry for the completed file
-            t = FileTransfer(
-                filepath=filepath,
-                direction=direction,
-                size=size,
-                bytes_transferred=size,
-                status=TransferStatus.COMPLETED,
-            )
-            self._transfers[filepath] = t
+        with QMutexLocker(self._transfers_mutex):
+            if filepath in self._transfers:
+                t = self._transfers[filepath]
+                t.status = TransferStatus.COMPLETED
+                if size:
+                    t.size = size
+                    t.bytes_transferred = size
+            else:
+                # Create a new transfer entry for the completed file
+                t = FileTransfer(
+                    filepath=filepath,
+                    direction=direction,
+                    size=size,
+                    bytes_transferred=size,
+                    status=TransferStatus.COMPLETED,
+                )
+                self._transfers[filepath] = t
         self.refresh_view()
 
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
-        self._transfers.clear()
+        with QMutexLocker(self._transfers_mutex):
+            self._transfers.clear()
         self._row_index.clear()
         self._current_path = ""
         self._nav_history = [""]
@@ -1497,18 +1501,20 @@ class FileTransferTable(QTableWidget):
 
     def reset_all_to_local(self) -> None:
         """Reset every file's status to LOCAL (connection lost)."""
-        for transfer in self._transfers.values():
-            transfer.status = TransferStatus.LOCAL
-            transfer.direction = "—"
-            transfer.bytes_transferred = 0
+        with QMutexLocker(self._transfers_mutex):
+            for transfer in self._transfers.values():
+                transfer.status = TransferStatus.LOCAL
+                transfer.direction = "—"
+                transfer.bytes_transferred = 0
         self.refresh_view()
 
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
         """Add multiple transfers efficiently with debounced UI refresh."""
         if not transfers:
             return
-        for transfer in transfers:
-            self._transfers[transfer.filepath] = transfer
+        with QMutexLocker(self._transfers_mutex):
+            for transfer in transfers:
+                self._transfers[transfer.filepath] = transfer
         # Use debounced refresh to avoid excessive UI updates during batch loading
         self._schedule_refresh()
 
@@ -1553,31 +1559,32 @@ class FileTransferTable(QTableWidget):
         else:
             direction = "—"
 
-        if filepath in self._transfers:
-            # Update existing transfer
-            t = self._transfers[filepath]
-            t.status = transfer_status
-            t.direction = direction
-            if size:
-                t.size = size
-            if mtime:
-                t.mtime = mtime
-            if client_cid:
-                t.client_cid = client_cid
-            if client_ip:
-                t.client_ip = client_ip
-        else:
-            # Create new transfer entry
-            t = FileTransfer(
-                filepath=filepath,
-                direction=direction,
-                size=size,
-                status=transfer_status,
-                mtime=mtime,
-                client_cid=client_cid,
-                client_ip=client_ip,
-            )
-            self._transfers[filepath] = t
+        with QMutexLocker(self._transfers_mutex):
+            if filepath in self._transfers:
+                # Update existing transfer
+                t = self._transfers[filepath]
+                t.status = transfer_status
+                t.direction = direction
+                if size:
+                    t.size = size
+                if mtime:
+                    t.mtime = mtime
+                if client_cid:
+                    t.client_cid = client_cid
+                if client_ip:
+                    t.client_ip = client_ip
+            else:
+                # Create new transfer entry
+                t = FileTransfer(
+                    filepath=filepath,
+                    direction=direction,
+                    size=size,
+                    status=transfer_status,
+                    mtime=mtime,
+                    client_cid=client_cid,
+                    client_ip=client_ip,
+                )
+                self._transfers[filepath] = t
         self.refresh_view()
 
     def mark_deleted(self, filepath: str) -> None:
@@ -1586,19 +1593,21 @@ class FileTransferTable(QTableWidget):
 
         The row will be shown with DELETED status for 3 seconds before being removed.
         """
-        if filepath in self._transfers:
-            t = self._transfers[filepath]
-            t.status = TransferStatus.DELETED
-            t.direction = "✕"
-            self.refresh_view()
-            # Schedule removal after 3 seconds
-            QTimer.singleShot(3000, lambda: self._remove_file(filepath))
+        with QMutexLocker(self._transfers_mutex):
+            if filepath in self._transfers:
+                t = self._transfers[filepath]
+                t.status = TransferStatus.DELETED
+                t.direction = "✕"
+        self.refresh_view()
+        # Schedule removal after 3 seconds
+        QTimer.singleShot(3000, lambda: self._remove_file(filepath))
 
     def _remove_file(self, filepath: str) -> None:
         """Remove a file from the table."""
-        if filepath not in self._transfers:
-            return
-        del self._transfers[filepath]
+        with QMutexLocker(self._transfers_mutex):
+            if filepath not in self._transfers:
+                return
+            del self._transfers[filepath]
         self.refresh_view()
 
     def rename_file(
@@ -1621,34 +1630,35 @@ class FileTransferTable(QTableWidget):
         """
         # Carry over size from old entry if available
         old_size = 0
-        if old_path in self._transfers:
-            old_size = self._transfers[old_path].size
-            del self._transfers[old_path]
+        with QMutexLocker(self._transfers_mutex):
+            if old_path in self._transfers:
+                old_size = self._transfers[old_path].size
+                del self._transfers[old_path]
 
-        # Add or update the new entry as synced
-        if new_path in self._transfers:
-            t = self._transfers[new_path]
-            t.status = TransferStatus.SYNCED
-            t.direction = "⇄"
-            if old_size:
-                t.size = old_size
-            if mtime:
-                t.mtime = mtime
-            if client_cid:
-                t.client_cid = client_cid
-            if client_ip:
-                t.client_ip = client_ip
-        else:
-            t = FileTransfer(
-                filepath=new_path,
-                direction="⇄",
-                size=old_size,
-                status=TransferStatus.SYNCED,
-                mtime=mtime,
-                client_cid=client_cid,
-                client_ip=client_ip,
-            )
-            self._transfers[new_path] = t
+            # Add or update the new entry as synced
+            if new_path in self._transfers:
+                t = self._transfers[new_path]
+                t.status = TransferStatus.SYNCED
+                t.direction = "⇄"
+                if old_size:
+                    t.size = old_size
+                if mtime:
+                    t.mtime = mtime
+                if client_cid:
+                    t.client_cid = client_cid
+                if client_ip:
+                    t.client_ip = client_ip
+            else:
+                t = FileTransfer(
+                    filepath=new_path,
+                    direction="⇄",
+                    size=old_size,
+                    status=TransferStatus.SYNCED,
+                    mtime=mtime,
+                    client_cid=client_cid,
+                    client_ip=client_ip,
+                )
+                self._transfers[new_path] = t
         self.refresh_view()
 
     def remove_transfer(self, filepath: str) -> None:

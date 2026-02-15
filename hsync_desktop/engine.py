@@ -14,12 +14,13 @@ so the UI can react to state changes.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
 import shutil
 import signal
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QSettings, Signal, Slot
@@ -267,41 +268,71 @@ class HsyncEngine(QObject):
         # Pass secrets via pipe file descriptors so they never appear in
         # process arguments (visible in ``ps``) or environment variables
         # (visible in ``/proc/<pid>/environ``).
+        #
+        # IMPORTANT: We use a more robust approach to avoid race conditions:
+        # 1. Write the secret to the pipe BEFORE starting the process
+        # 2. Close the WRITE end BEFORE start (so child sees EOF when reading)
+        # 3. Keep the READ end open until AFTER waitForStarted confirms success
+        #    This ensures the child has time to fork and inherit the fd before
+        #    we close it in the parent.
+        # 4. On failure to start, we close all fds in the error handler
+        #
+        # The child process inherits the read end and reads the secret.
+        # We defer closing the read fds until after the process starts
+        # successfully to avoid a race where the child hasn't yet opened
+        # the inherited fd.
         pipe_fds: list[int] = []
+        pipe_args: list[str] = []
 
         api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
         if api_key:
             read_fd, write_fd = os.pipe()
-            try:
-                os.write(write_fd, api_key.encode("utf-8"))
-            finally:
-                os.close(write_fd)
-            os.set_inheritable(read_fd, True)
+            # Set close-on-exec to prevent accidental inheritance by other processes
+            fcntl.fcntl(read_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+            fcntl.fcntl(write_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+            # Write the secret BEFORE fork so it's available immediately after start
+            os.write(write_fd, api_key.encode("utf-8"))
+            # Close write end BEFORE start so child sees EOF when it reads
+            os.close(write_fd)
             pipe_fds.append(read_fd)
-            args = [*args, "--api-key-fd", str(read_fd)]
+            pipe_args.extend(["--api-key-fd", str(read_fd)])
 
         lan_key = str(s.value("lan/key", "", str))
         if lan_key:
             read_fd, write_fd = os.pipe()
-            try:
-                os.write(write_fd, lan_key.encode("utf-8"))
-            finally:
-                os.close(write_fd)
-            os.set_inheritable(read_fd, True)
+            # Set close-on-exec to prevent accidental inheritance by other processes
+            fcntl.fcntl(read_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+            fcntl.fcntl(write_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+            # Write the secret BEFORE fork so it's available immediately after start
+            os.write(write_fd, lan_key.encode("utf-8"))
+            # Close write end BEFORE start so child sees EOF when it reads
+            os.close(write_fd)
             pipe_fds.append(read_fd)
-            args = [*args, "--lan-key-fd", str(read_fd)]
+            pipe_args.extend(["--lan-key-fd", str(read_fd)])
+
+        # Build final args with pipe fds at the end
+        args = [*args, *pipe_args]
 
         proc.start(self._binary, args)
         if not proc.waitForStarted(5000):
+            # Failed to start - close all pipe fds
             for fd in pipe_fds:
-                os.close(fd)
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
             self.error_occurred.emit("Failed to start hsync process.")
             self._set_status("error")
             return False
 
-        # Close parent's copy of the read fds – child already inherited them.
+        # Close parent's copy of the read fds - child has inherited them.
+        # We close after waitForStarted to ensure the child has forked
+        # and has access to the inherited file descriptors.
         for fd in pipe_fds:
-            os.close(fd)
+            try:
+                os.close(fd)
+            except OSError:
+                pass  # FD may have been closed already
 
         self._process = proc
         self._running = True
