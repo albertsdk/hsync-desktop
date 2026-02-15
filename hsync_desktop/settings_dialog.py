@@ -44,6 +44,31 @@ from hsync_desktop.i18n import (
     set_language,
     tr,
 )
+from hsync_desktop.config import (
+    DEFAULT_BUCKET,
+    DEFAULT_GROUP,
+    DEFAULT_CONTINUOUS,
+    DEFAULT_IGNORE_DELETE,
+    DEFAULT_SYNC_DIRECTION,
+    DEFAULT_RESYNC_INTERVAL,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_STABILITY_DELAY,
+    DEFAULT_MAX_WAIT,
+    DEFAULT_LAN_PORT,
+    DEFAULT_DISCOVERY_TIMEOUT,
+    DEFAULT_LAN_HTTPS,
+    DEFAULT_LAN_PERSISTENT,
+    DEFAULT_FORCE_MASTER,
+    DEFAULT_VERBOSE,
+    DEFAULT_QUIET,
+    DEFAULT_LOGFILE,
+    DEFAULT_SHOW_LOG_PANEL,
+    DEFAULT_THEME,
+    DEFAULT_NOTIFICATIONS,
+    DEFAULT_TOOLTIPS,
+    DEFAULT_LANGUAGE,
+    DEFAULT_HTTP_TIMEOUT,
+)
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.icons import icon
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
@@ -52,10 +77,6 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
-
-# Default values
-DEFAULT_BUCKET = "my-bucket"
-DEFAULT_GROUP = "my-group"
 
 
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
@@ -700,15 +721,15 @@ class SettingsDialog(QDialog):
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", False, bool)))
         self.ca_cert.setText(str(s.value("connection/ca_cert", "", str)))
-        self.http_timeout.setValue(cast(int, s.value("connection/http_timeout", 30, int)))
+        self.http_timeout.setValue(cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int)))
         self.bucket.setText(str(s.value("sync/bucket", DEFAULT_BUCKET, str)))
-        self.continuous.setChecked(bool(s.value("sync/continuous", True, bool)))  # default ON
-        self.resync.setValue(cast(int, s.value("sync/resync", 0, int)))
-        self.retry_delay.setValue(cast(int, s.value("sync/retry_delay", 5, int)))
-        self.stability_delay.setValue(cast(int, s.value("sync/stability_delay", 0, int)))
-        self.max_wait.setValue(cast(int, s.value("sync/max_wait", 120, int)))
-        self.ignore_delete.setChecked(bool(s.value("sync/ignore_delete", True, bool)))  # default ON
-        saved_dir = s.value("sync/direction", "bidirectional", str)
+        self.continuous.setChecked(bool(s.value("sync/continuous", DEFAULT_CONTINUOUS, bool)))
+        self.resync.setValue(cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int)))
+        self.retry_delay.setValue(cast(int, s.value("sync/retry_delay", DEFAULT_RETRY_DELAY, int)))
+        self.stability_delay.setValue(cast(int, s.value("sync/stability_delay", DEFAULT_STABILITY_DELAY, int)))
+        self.max_wait.setValue(cast(int, s.value("sync/max_wait", DEFAULT_MAX_WAIT, int)))
+        self.ignore_delete.setChecked(bool(s.value("sync/ignore_delete", DEFAULT_IGNORE_DELETE, bool)))
+        saved_dir = s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str)
         for i in range(self.sync_direction_combo.count()):
             if self.sync_direction_combo.itemData(i) == saved_dir:
                 self.sync_direction_combo.setCurrentIndex(i)
@@ -720,18 +741,18 @@ class SettingsDialog(QDialog):
         self.lan_mode.setChecked(bool(s.value("lan/enabled", False, bool)))
         self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
         self.lan_key.setText(str(s.value("lan/key", "", str)))
-        self.lan_port.setValue(cast(int, s.value("lan/port", 0, int)))
-        self.discovery_timeout.setValue(cast(int, s.value("lan/discovery_timeout", 10, int)))
-        self.lan_https.setChecked(bool(s.value("lan/https", True, bool)))
-        self.lan_persistent.setChecked(bool(s.value("lan/persistent", True, bool)))
-        self.force_master.setChecked(bool(s.value("lan/force_master", False, bool)))
-        self.verbose.setChecked(bool(s.value("output/verbose", False, bool)))
-        self.quiet.setChecked(bool(s.value("output/quiet", False, bool)))
-        self.logfile.setText(str(s.value("output/logfile", "", str)))
+        self.lan_port.setValue(cast(int, s.value("lan/port", DEFAULT_LAN_PORT, int)))
+        self.discovery_timeout.setValue(cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int)))
+        self.lan_https.setChecked(bool(s.value("lan/https", DEFAULT_LAN_HTTPS, bool)))
+        self.lan_persistent.setChecked(bool(s.value("lan/persistent", DEFAULT_LAN_PERSISTENT, bool)))
+        self.force_master.setChecked(bool(s.value("lan/force_master", DEFAULT_FORCE_MASTER, bool)))
+        self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
+        self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
+        self.logfile.setText(str(s.value("output/logfile", DEFAULT_LOGFILE, str)))
         theme = s.value("appearance/theme", detect_system_theme(), str)
         self.theme_combo.setCurrentIndex(1 if theme == THEME_DARK else 0)
         self.notifications_enabled.setChecked(
-            bool(s.value("appearance/notifications", True, bool))
+            bool(s.value("appearance/notifications", DEFAULT_NOTIFICATIONS, bool))
         )
         # Language
         saved_lang = s.value("appearance/language", get_language(), str)
@@ -740,9 +761,9 @@ class SettingsDialog(QDialog):
                 self.lang_combo.setCurrentIndex(i)
                 break
         # Tooltips
-        self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", True, bool)))
+        self.tooltips_enabled.setChecked(bool(s.value("appearance/tooltips", DEFAULT_TOOLTIPS, bool)))
         # Show log panel (default: hidden)
-        self.show_log_panel.setChecked(bool(s.value("appearance/show_log", False, bool)))
+        self.show_log_panel.setChecked(bool(s.value("appearance/show_log", DEFAULT_SHOW_LOG_PANEL, bool)))
         # Apply LAN mode state to Server Mode tab
         self._on_lan_mode_toggled(self.lan_mode.isChecked())
 

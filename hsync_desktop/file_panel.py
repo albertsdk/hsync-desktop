@@ -55,6 +55,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.config import FILE_BATCH_SIZE
 from hsync_desktop.i18n import get_language, register_language_callback, tr
 from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.ui.loader import load_ui_widget
@@ -321,8 +322,8 @@ class CenteredIconDelegate(QStyledItemDelegate):
             icon.paint(painter, x, y, icon_size.width(), icon_size.height())
 
 
-# Batch size for async file loading
-_FILE_BATCH_SIZE = 50
+# Batch size for async file loading (from config)
+_FILE_BATCH_SIZE = FILE_BATCH_SIZE
 
 
 def _confirm_dialog(
