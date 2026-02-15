@@ -458,156 +458,195 @@ class HsyncEngine(QObject):
             self.log_received.emit(f"[PARSE ERROR] {line[:100]}")
 
     def _parse_line_inner(self, line: str) -> None:
-        """Internal method to parse a single log line."""
-        # Strip ANSI escape codes for pattern matching
-        clean = re.sub(r"\x1b\[[0-9;]*m", "", line)
+        """Internal method to parse a single log line.
+        
+        Optimized with early returns and ordered pattern matching
+        to minimize regex operations per line.
+        """
+        # Quick check: if line starts with common prefixes, skip expensive patterns
+        # This is a fast filter before doing regex matching
+        first_char = line[0] if line else ""
+        
+        # Strip ANSI escape codes for pattern matching (only if needed)
+        clean = line
+        if "\x1b[" in line:
+            clean = re.sub(r"\x1b\[[0-9;]*m", "", line)
 
-        # Preview start/end
-        if _RE_PREVIEW_START.search(clean):
-            self._in_preview = True
-            self.preview_started.emit()
-            return
-        if _RE_PREVIEW_END.search(clean):
-            self._in_preview = False
-            self.preview_ended.emit()
-            return
-
-        # Preview file status messages
+        # Preview mode takes priority - most lines during preview are preview-related
         if self._in_preview:
-            m = _RE_SYNCED.search(clean)
-            if m:
-                self.file_status.emit("synced", m.group(1), _parse_size(m.group(2)))
-                return
-            m = _RE_TO_DOWNLOAD.search(clean)
-            if m:
-                self.file_status.emit("to_download", m.group(1), _parse_size(m.group(2)))
-                return
-            m = _RE_TO_UPLOAD.search(clean)
-            if m:
-                self.file_status.emit("to_upload", m.group(1), _parse_size(m.group(2)))
-                return
-            m = _RE_TO_RENAME.search(clean)
-            if m:
-                self.file_rename_status.emit(m.group(1), m.group(2), _parse_size(m.group(3)))
-                return
-            m = _RE_TO_DELETE.search(clean)
-            if m:
-                self.file_status.emit("to_delete", m.group(1), _parse_size(m.group(2)))
+            # Try more common patterns first for efficiency
+            if clean[0:2] == "[]":  # Most common: [SYNCED], [TO_DOWNLOAD], [TO_UPLOAD]
+                # Try each preview pattern
+                m = _RE_SYNCED.search(clean)
+                if m:
+                    self.file_status.emit("synced", m.group(1), _parse_size(m.group(2)))
+                    return
+                m = _RE_TO_DOWNLOAD.search(clean)
+                if m:
+                    self.file_status.emit("to_download", m.group(1), _parse_size(m.group(2)))
+                    return
+                m = _RE_TO_UPLOAD.search(clean)
+                if m:
+                    self.file_status.emit("to_upload", m.group(1), _parse_size(m.group(2)))
+                    return
+                m = _RE_TO_DELETE.search(clean)
+                if m:
+                    self.file_status.emit("to_delete", m.group(1), _parse_size(m.group(2)))
+                    return
+                m = _RE_TO_RENAME.search(clean)
+                if m:
+                    self.file_rename_status.emit(m.group(1), m.group(2), _parse_size(m.group(3)))
+                    return
+            # Check for preview end
+            if clean.startswith("---"):
+                if _RE_PREVIEW_END.search(clean):
+                    self._in_preview = False
+                    self.preview_ended.emit()
+                    return
+            return  # In preview mode, ignore other patterns
+
+        # Non-preview mode: check for preview start first
+        if clean.startswith("---"):
+            if _RE_PREVIEW_START.search(clean):
+                self._in_preview = True
+                self.preview_started.emit()
                 return
 
-        # Session CID
-        m = _RE_SESSION_CID.search(clean)
-        if m:
-            self._cid = m.group(1)
+        # High-priority patterns (most common in normal operation)
+        # Connection status - very common
+        if clean.startswith("Connected") or clean.startswith("WebSocket") or clean.startswith("Initial"):
+            if _RE_CONNECTED.search(clean):
+                self._set_status("connected")
+                return
+        if clean.startswith("Waiting") or clean.startswith("No peers") or clean.startswith("Searching"):
+            if _RE_WAITING.search(clean):
+                self._set_status("waiting")
+                return
+        if clean.startswith("WebSocket") or clean.startswith("Connection") or clean.startswith("All peers"):
+            if _RE_DISCONNECTED.search(clean):
+                self._set_status("waiting")
+                return
 
-        # Server / master URL → extract hostname for IP display
-        m = _RE_SERVER_URL.search(clean)
-        if not m:
-            m = _RE_MASTER_URL.search(clean)
-        if m:
-            from urllib.parse import urlparse
-            parsed = urlparse(m.group(1))
-            self._server_ip = parsed.hostname or ""
+        # Sync complete - common
+        if clean.startswith("Sync") or clean.startswith("All files"):
+            if _RE_SYNC_COMPLETE.search(clean):
+                self.sync_completed.emit()
+                return
 
-        # Directory creation
-        m = _RE_DIR_CREATE.search(clean)
-        if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-            self.directory_created.emit(m.group(1).strip())
+        # Transfer patterns - common during sync
+        if "[" in clean:
+            bracket_pos = clean.find("[")
+            prefix = clean[bracket_pos:bracket_pos+10] if len(clean) > bracket_pos + 10 else clean[bracket_pos:]
+            
+            if "DOWNLOAD" in prefix:
+                m = _RE_DOWNLOAD.search(clean)
+                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
+                    self.stats.files_received += 1
+                    self.stats.bytes_received += _parse_size(m.group(2))
+                    self.file_transferred.emit("↓", m.group(1).strip())
+                    return
+            elif "UPLOAD" in prefix:
+                m = _RE_UPLOAD.search(clean)
+                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
+                    self.stats.files_sent += 1
+                    self.stats.bytes_sent += _parse_size(m.group(2))
+                    self.file_transferred.emit("↑", m.group(1).strip())
+                    return
+            elif "DELETE" in prefix:
+                m = _RE_REMOVE.search(clean)
+                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
+                    self.file_transferred.emit("✕", m.group(1).strip())
+                    return
+            elif "RENAME" in prefix or "CREATE" in prefix:
+                m = _RE_RENAME.search(clean)
+                if m:
+                    self.file_renamed.emit(m.group(1).strip(), m.group(2).strip())
+                    return
+                m = _RE_DIR_CREATE.search(clean)
+                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
+                    self.directory_created.emit(m.group(1).strip())
+                    return
 
-        # Peer count
+        # Error patterns - check early for errors
+        if clean.startswith("ERROR") or "ERROR:" in clean[:50]:
+            m = _RE_ERROR.search(clean)
+            if m:
+                self.error_occurred.emit(m.group(1))
+                return
+
+        # Master/slave detection - less common but important
+        if "master" in clean.lower() or "slave" in clean.lower():
+            if _RE_MASTER.search(clean):
+                if not self._is_master:
+                    self._is_master = True
+                    self.master_changed.emit(True)
+                return
+            if _RE_SLAVE.search(clean):
+                if self._is_master:
+                    self._is_master = False
+                    self.master_changed.emit(False)
+                return
+
+        # Less common patterns - check individually
         m = _RE_PEERS.search(clean)
         if m:
             count = int(m.group(1))
             if count != self._peers:
                 self._peers = count
                 self.peers_changed.emit(count)
+            return
 
-        # Master / slave detection
-        if _RE_MASTER.search(clean):
-            if not self._is_master:
-                self._is_master = True
-                self.master_changed.emit(True)
-        elif _RE_SLAVE.search(clean):
-            if self._is_master:
-                self._is_master = False
-                self.master_changed.emit(False)
+        m = _RE_SESSION_CID.search(clean)
+        if m:
+            self._cid = m.group(1)
+            return
 
-        # Bucket name
         m = _RE_BUCKET.search(clean)
         if m:
             self.bucket_detected.emit(m.group(1))
+            return
 
-        # Group name
         m = _RE_GROUP.search(clean)
         if m:
             self.group_detected.emit(m.group(1))
-
-        # Downloads (actual transfer complete)
-        m = _RE_DOWNLOAD.search(clean)
-        if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-            self.stats.files_received += 1
-            self.stats.bytes_received += _parse_size(m.group(2))
-            self.file_transferred.emit("↓", m.group(1).strip())
-
-        # Uploads (actual transfer complete)
-        m = _RE_UPLOAD.search(clean)
-        if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-            self.stats.files_sent += 1
-            self.stats.bytes_sent += _parse_size(m.group(2))
-            self.file_transferred.emit("↑", m.group(1).strip())
-
-        # Renames (file/directory renamed)
-        m = _RE_RENAME.search(clean)
-        if m:
-            self.file_renamed.emit(m.group(1).strip(), m.group(2).strip())
             return
 
-        # Removals (actual deletion)
-        m = _RE_REMOVE.search(clean)
-        if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-            self.file_transferred.emit("✕", m.group(1).strip())
+        # Server / master URL
+        if "Checking server" in clean or "Connecting to master" in clean:
+            m = _RE_SERVER_URL.search(clean)
+            if not m:
+                m = _RE_MASTER_URL.search(clean)
+            if m:
+                from urllib.parse import urlparse
+                parsed = urlparse(m.group(1))
+                self._server_ip = parsed.hostname or ""
+                return
 
-        # Connection status
-        if _RE_CONNECTED.search(clean):
-            self._set_status("connected")
-        elif _RE_DISCONNECTED.search(clean):
-            self._set_status("waiting")
-        elif _RE_WAITING.search(clean):
-            self._set_status("waiting")
+        # Master conflict
+        if "MASTER_CONFLICT" in clean or "MASTER_TAKEOVER" in clean:
+            m = _RE_MASTER_CONFLICT.search(clean)
+            if m:
+                ctype = "conflict_won" if "This client wins" in clean else "conflict_lost"
+                self.master_conflict.emit(ctype, m.group(1), m.group(2))
+                return
+            m = _RE_MASTER_TAKEOVER.search(clean)
+            if m:
+                self.master_conflict.emit("takeover", m.group(1), m.group(2))
+                return
 
-        # Sync complete
-        if _RE_SYNC_COMPLETE.search(clean):
-            self.sync_completed.emit()
+        # Path not found
+        if "Directory" in clean and "does not exist" in clean:
+            m = _RE_PATH_NOT_FOUND.search(clean)
+            if m:
+                self.path_not_found.emit(m.group(1))
+                self._set_status("error")
+                return
 
-        # Master conflict warnings
-        m = _RE_MASTER_CONFLICT.search(clean)
-        if m:
-            # Determine conflict subtype from log message
-            if "This client wins" in clean:
-                ctype = "conflict_won"
-            else:
-                ctype = "conflict_lost"
-            self.master_conflict.emit(ctype, m.group(1), m.group(2))
-        m = _RE_MASTER_TAKEOVER.search(clean)
-        if m:
-            self.master_conflict.emit("takeover", m.group(1), m.group(2))
-
-        # Path-not-found error (check before generic errors)
-        m = _RE_PATH_NOT_FOUND.search(clean)
-        if m:
-            self.path_not_found.emit(m.group(1))
-            self._set_status("error")
-            return
-
-        # Authentication errors (check before generic errors)
-        if _RE_AUTH_ERROR.search(clean):
-            self._auth_error_active = True
-            self.auth_error_occurred.emit(clean)
-            self._set_status("error")
-            return
-
-        # Errors
-        m = _RE_ERROR.search(clean)
-        if m and "ERROR" in clean:
-            self.error_occurred.emit(m.group(1))
+        # Authentication errors
+        if "API key" in clean or "Authentication" in clean or "401" in clean:
+            if _RE_AUTH_ERROR.search(clean):
+                self._auth_error_active = True
+                self.auth_error_occurred.emit(clean)
+                self._set_status("error")
+                return
 

@@ -378,26 +378,31 @@ class MainWindow(QMainWindow):
         self._menu_file = menubar.addMenu(tr("menu.file"))
 
         self._act_file_open = QAction(tr("menu.file.open"), self)
+        self._act_file_open.setShortcut("Return")  # Enter key
         self._act_file_open.triggered.connect(self._menu_file_open)
         self._menu_file.addAction(self._act_file_open)
 
         self._act_file_open_with = QAction(tr("menu.file.open_with"), self)
+        self._act_file_open_with.setShortcut("Ctrl+O")
         self._act_file_open_with.triggered.connect(self._menu_file_open_with)
         self._menu_file.addAction(self._act_file_open_with)
 
         self._menu_file.addSeparator()
 
         self._act_file_copy_to = QAction(tr("menu.file.copy_to"), self)
+        self._act_file_copy_to.setShortcut("Ctrl+Shift+C")
         self._act_file_copy_to.triggered.connect(self._menu_file_copy_to)
         self._menu_file.addAction(self._act_file_copy_to)
 
         self._act_file_rename = QAction(tr("menu.file.rename"), self)
+        self._act_file_rename.setShortcut("F2")
         self._act_file_rename.triggered.connect(self._menu_file_rename)
         self._menu_file.addAction(self._act_file_rename)
 
         self._menu_file.addSeparator()
 
         self._act_file_trash = QAction(tr("menu.file.trash"), self)
+        self._act_file_trash.setShortcut("Delete")
         self._act_file_trash.triggered.connect(self._menu_file_trash)
         self._menu_file.addAction(self._act_file_trash)
 
