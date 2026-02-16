@@ -50,13 +50,7 @@ class PreviewStats:
         self.upload_size = 0
 
 
-def _format_bytes(n: int) -> str:
-    """Format bytes into human-readable string."""
-    for unit in ("B", "KB", "MB", "GB"):
-        if abs(n) < 1024:
-            return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
-        n /= 1024  # type: ignore[assignment]
-    return f"{n:.1f} TB"
+from hsync_desktop.utils import format_bytes
 
 
 def _format_time(seconds: float) -> str:
@@ -138,12 +132,12 @@ class PreviewSummaryDialog(QDialog):
 
         # Values
         self._val_download_count.setText(f"{self._stats.to_download} {files}")
-        self._val_download_size.setText(_format_bytes(self._stats.download_size))
+        self._val_download_size.setText(format_bytes(self._stats.download_size))
         dl_time = self._stats.download_size / self._network_speed
         self._val_download_time.setText(_format_time(dl_time))
 
         self._val_upload_count.setText(f"{self._stats.to_upload} {files}")
-        self._val_upload_size.setText(_format_bytes(self._stats.upload_size))
+        self._val_upload_size.setText(format_bytes(self._stats.upload_size))
         ul_time = self._stats.upload_size / self._network_speed
         self._val_upload_time.setText(_format_time(ul_time))
 
