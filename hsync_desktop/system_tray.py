@@ -62,7 +62,7 @@ class SystemTray(QSystemTrayIcon):
 
         # Context menu
         menu = QMenu()
-        self._act_show = QAction(tr("tray.show"), menu)
+        self._act_show = QAction(tr("tray.minimize"), menu)
         self._act_show.triggered.connect(self.toggle_window.emit)
         menu.addAction(self._act_show)
         menu.addSeparator()
@@ -132,11 +132,13 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.setEnabled(enabled)
         parent = self.parent()
         visible = isinstance(parent, QWidget) and parent.isVisible()
-        self._act_show.setText(tr("tray.hide") if visible else tr("tray.show"))
+        self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to menu items."""
-        self._act_show.setText(tr("tray.show"))
+        parent = self.parent()
+        visible = isinstance(parent, QWidget) and parent.isVisible()
+        self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
         self._act_stop.setText(tr("tray.stop"))
         self._act_refresh.setText(tr("tray.refresh"))
