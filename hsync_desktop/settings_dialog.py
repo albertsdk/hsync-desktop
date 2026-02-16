@@ -12,6 +12,8 @@ has been moved to hsync_desktop.settings package.
 """
 
 from hsync_desktop.settings.cli_args import (
+    SETTINGS_APP,
+    SETTINGS_ORG,
     are_notifications_enabled,
     build_hsync_args,
     get_saved_theme,
@@ -28,6 +30,8 @@ __all__ = [
     "ApiKeyDialog",
     "LanKeyDialog",
     "SettingsDialog",
+    "SETTINGS_ORG",
+    "SETTINGS_APP",
     "are_notifications_enabled",
     "build_hsync_args",
     "get_saved_theme",
