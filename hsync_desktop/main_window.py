@@ -99,13 +99,14 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 class MainWindow(QMainWindow):
     """Primary application window."""
 
-    def __init__(self, engine: HsyncEngine, tray: SystemTray) -> None:
+    def __init__(self, engine: HsyncEngine, tray: SystemTray | None = None) -> None:
         super().__init__()
 
         self._engine = engine
         self._tray = tray
-        self._notifier = NotificationManager(tray)
-        self._notifier.enabled = are_notifications_enabled()
+        self._notifier = NotificationManager(tray) if tray else None  # type: ignore[arg-type]
+        if self._notifier:
+            self._notifier.enabled = are_notifications_enabled()
         self._user_stopped = False  # track if stop was user-initiated
 
         # Preview statistics tracking
@@ -454,7 +455,8 @@ class MainWindow(QMainWindow):
         can_start = not is_running and has_path
         self._act_start.setEnabled(can_start)
         self._btn_start.setEnabled(can_start)
-        self._tray.set_start_enabled(can_start)
+        if self._tray:
+            self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running)
         self._act_refresh.setEnabled(is_running and self._btn_refresh.isEnabled())
         self._apply_button_styles()
@@ -576,8 +578,10 @@ class MainWindow(QMainWindow):
         e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
-        e.sync_completed.connect(lambda: self._notifier.sync_complete())
-        e.error_occurred.connect(lambda msg: self._notifier.error(tr("notif.error"), msg))
+        if self._notifier:
+            notifier = self._notifier
+            e.sync_completed.connect(lambda: notifier.sync_complete())
+            e.error_occurred.connect(lambda msg: notifier.error(tr("notif.error"), msg))
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
@@ -592,14 +596,7 @@ class MainWindow(QMainWindow):
         self._file_panel._table.row_selected.connect(self._on_file_selection_changed)
         self._file_panel._table.row_deselected.connect(lambda: self._set_file_menu_enabled(False))
 
-        # Tray signals
-        t = self._tray
-        t.toggle_window.connect(self._toggle_visibility)
-        t.start_requested.connect(self._on_start)
-        t.stop_requested.connect(self._on_stop)
-        t.refresh_requested.connect(self._on_refresh)
-        t.settings_requested.connect(self._open_settings)
-        t.quit_requested.connect(self._quit)
+        # Tray signals are connected in main.py after _tray is set
 
     # ── Slots ────────────────────────────────────────────────────────────
 
@@ -660,11 +657,12 @@ class MainWindow(QMainWindow):
         key, color = i18n_map.get(status, ("status.unknown", COLOR_DISCONNECTED))
         self._status_dot.setStyleSheet(f"color: {color.name()}; font-size: 14px;")
         self._status_label.setText(tr(key))
-        self._tray.update_status(status)
+        if self._tray:
+            self._tray.update_status(status)
 
         if status in ("disconnected", "waiting"):
             self._file_panel.reset_all_to_local()
-            if status == "disconnected":
+            if status == "disconnected" and self._notifier:
                 self._notifier.connection_lost()
         elif status == "connected":
             self._hide_info_banner()
@@ -728,7 +726,8 @@ class MainWindow(QMainWindow):
     @Slot(int)
     def _on_peers(self, count: int) -> None:
         self._peers_label.setText(str(count))
-        self._notifier.peer_joined(count)
+        if self._notifier:
+            self._notifier.peer_joined(count)
 
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
@@ -739,7 +738,8 @@ class MainWindow(QMainWindow):
             self._role_label.setToolTip(tr("role.master_tip"))
             self._role_icon.setPixmap(get_icon("role-master").pixmap(16, 16))
             self._role_icon.setToolTip(tr("role.master_tip"))
-            self._notifier.became_master()
+            if self._notifier:
+                self._notifier.became_master()
         else:
             self._role_label.setText(tr("role.client"))
             self._role_label.setToolTip(tr("role.client_tip"))
@@ -779,7 +779,8 @@ class MainWindow(QMainWindow):
         client_ip = self._engine.server_ip
         # Update file panel with actual transfer
         if direction == "↓":
-            self._notifier.download_complete(filename)
+            if self._notifier:
+                self._notifier.download_complete(filename)
             self._file_panel.update_file_status(
                 rel_path,
                 "synced",
@@ -887,7 +888,8 @@ class MainWindow(QMainWindow):
             msg = (
                 tr("notif.master_takeover").replace("{cid}", peer_cid).replace("{ip}", peer_address)
             )
-        self._notifier.warning(tr("notif.master_conflict_title"), msg)
+        if self._notifier:
+            self._notifier.warning(tr("notif.master_conflict_title"), msg)
         self._append_log(f"⚠ {msg}")
 
     @Slot()
@@ -970,7 +972,8 @@ class MainWindow(QMainWindow):
                 # Reset UI state
                 self._btn_start.setEnabled(bool(self._local_path))
                 self._btn_stop.setEnabled(False)
-                self._tray.set_running(False)
+                if self._tray:
+                    self._tray.set_running(False)
                 self._set_path_editable(True)
                 self._apply_button_styles()
                 self._update_menu_state()
@@ -982,7 +985,8 @@ class MainWindow(QMainWindow):
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)
-        self._tray.set_running(False)
+        if self._tray:
+            self._tray.set_running(False)
         self._set_path_editable(True)
         self._hide_info_banner()
         self._apply_button_styles()
@@ -992,10 +996,11 @@ class MainWindow(QMainWindow):
         # Notify only for truly unexpected crashes (not user stop, auth error,
         # force sync, app quit, etc.)
         if desc == "crashed" and not self._user_stopped:
-            self._notifier.error(
-                tr("notif.error"),
-                tr("notif.process_crashed").replace("{code}", str(code)),
-            )
+            if self._notifier:
+                self._notifier.error(
+                    tr("notif.error"),
+                    tr("notif.process_crashed").replace("{code}", str(code)),
+                )
 
     @Slot(str)
     def _on_path_not_found(self, path: str) -> None:
@@ -1063,7 +1068,8 @@ class MainWindow(QMainWindow):
                     self._btn_start.setEnabled(False)
                     self._btn_stop.setEnabled(True)
                     self._btn_refresh.setEnabled(False)
-                    self._tray.set_running(True)
+                    if self._tray:
+                        self._tray.set_running(True)
                     self._set_path_editable(False)
                     self._apply_button_styles()
                     return
@@ -1075,7 +1081,8 @@ class MainWindow(QMainWindow):
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)
-        self._tray.set_running(False)
+        if self._tray:
+            self._tray.set_running(False)
         self._hide_info_banner()
         self._set_path_editable(True)
         self._apply_button_styles()
@@ -1311,7 +1318,8 @@ class MainWindow(QMainWindow):
         self._log_view.clear()
         self._file_panel.load_local_files(local_path)
         self._user_stopped = False
-        self._notifier.user_stopped = False
+        if self._notifier:
+            self._notifier.user_stopped = False
         # Set flags to show preview summary when dry-run completes
         self._awaiting_preview_for_sync = True
         self._is_dry_run_preview = True  # We're in dry-run mode for initial preview
@@ -1320,14 +1328,16 @@ class MainWindow(QMainWindow):
             self._btn_start.setEnabled(False)
             self._btn_stop.setEnabled(True)
             self._btn_refresh.setEnabled(False)  # Disable until preview completes
-            self._tray.set_running(True)
+            if self._tray:
+                self._tray.set_running(True)
             self._set_path_editable(False)
             self._apply_button_styles()
             self._update_menu_state()
 
     def _on_stop(self) -> None:
         self._user_stopped = True
-        self._notifier.user_stopped = True
+        if self._notifier:
+            self._notifier.user_stopped = True
         self._engine.stop()
 
     def _on_refresh(self) -> None:
@@ -1364,7 +1374,8 @@ class MainWindow(QMainWindow):
             if app:
                 apply_theme(app, theme)  # type: ignore[arg-type]
                 self._refresh_icons_for_theme()
-            self._notifier.enabled = are_notifications_enabled()
+            if self._notifier:
+                self._notifier.enabled = are_notifications_enabled()
             self._apply_log_visibility()
             # Reload path in case it changed in settings
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
@@ -1421,6 +1432,9 @@ class MainWindow(QMainWindow):
             self.show()
             self.raise_()
             self.activateWindow()
+        # Update tray menu text after visibility change
+        if self._tray:
+            self._tray._apply_translations()
 
     def _quit(self) -> None:
         """Quit the application properly."""
@@ -1443,12 +1457,13 @@ class MainWindow(QMainWindow):
                 return
             self._engine.stop()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
-        self._tray.hide()
+        if self._tray:
+            self._tray.hide()
         QApplication.quit()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Minimize to tray instead of closing (no notification)."""
-        if self._tray.isVisible():
+        if self._tray and self._tray.isVisible():
             event.ignore()
             self.hide()
         else:
