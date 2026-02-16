@@ -1495,6 +1495,8 @@ class MainWindow(QMainWindow):
         if self._tray and self._tray.isVisible():
             event.ignore()
             self.hide()
+            # Update tray menu to show "Show" instead of "Minimize"
+            self._tray._apply_translations()
         else:
             # No tray available – actually close
             self._quit()
