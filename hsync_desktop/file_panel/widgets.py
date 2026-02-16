@@ -985,8 +985,14 @@ class FileTransferTable(QTableWidget):
         new_abs = os.path.join(os.path.dirname(abs_path), new_name)
         try:
             os.rename(abs_path, new_abs)
+            # Handle directories: filepath ends with "/"
+            is_dir = transfer.filepath.endswith("/")
             parent = transfer.path
-            new_rel = os.path.join(parent, new_name) if parent else new_name
+            new_rel = (
+                (parent + new_name + "/")
+                if is_dir
+                else (os.path.join(parent, new_name) if parent else new_name)
+            )
             old_rel = transfer.filepath
             del self._transfers[old_rel]
             transfer.filepath = new_rel
