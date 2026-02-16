@@ -982,7 +982,10 @@ class FileTransferTable(QTableWidget):
         new_name = line_edit.text().strip()
         if not new_name or new_name == old_name:
             return
-        new_abs = os.path.join(os.path.dirname(abs_path), new_name)
+        # Fix: rstrip trailing slash from abs_path before dirname
+        # Otherwise for directories, dirname removes the slash and join creates wrong path
+        abs_path_rstripped = abs_path.rstrip("/")
+        new_abs = os.path.join(os.path.dirname(abs_path_rstripped), new_name)
         try:
             os.rename(abs_path, new_abs)
             # Handle directories: filepath ends with "/"
