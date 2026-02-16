@@ -21,6 +21,8 @@ from PySide6.QtCore import QSettings
 from hsync_desktop.config import (
     DEFAULT_BUCKET,
     DEFAULT_GROUP,
+    SETTINGS_APP,
+    SETTINGS_ORG,
 )
 from hsync_desktop.settings.validators import (
     _validate_bucket,
@@ -29,9 +31,6 @@ from hsync_desktop.settings.validators import (
     _validate_url,
 )
 from hsync_desktop.themes import detect_system_theme
-
-SETTINGS_ORG = "HSYNC"
-SETTINGS_APP = "HSYNCDesktop"
 
 
 def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:

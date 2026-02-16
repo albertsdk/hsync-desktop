@@ -11,6 +11,8 @@ Provides settings dialog, validators, and CLI argument builder.
 """
 
 from hsync_desktop.settings.cli_args import (
+    SETTINGS_APP,
+    SETTINGS_ORG,
     are_notifications_enabled,
     build_hsync_args,
     get_saved_theme,
@@ -23,6 +25,8 @@ __all__ = [
     "ApiKeyDialog",
     "LanKeyDialog",
     "SettingsDialog",
+    "SETTINGS_ORG",
+    "SETTINGS_APP",
     "are_notifications_enabled",
     "build_hsync_args",
     "get_saved_theme",

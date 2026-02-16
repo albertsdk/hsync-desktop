@@ -18,6 +18,11 @@ APP_NAME = "HSYNC Desktop"
 APP_ORG = "HSYNC"
 APP_ID = "HSYNCDesktop"
 
+# QSettings organization and application name
+# These are used by QSettings to store application settings
+SETTINGS_ORG = "HSYNC"
+SETTINGS_APP = "HSYNCDesktop"
+
 # Default sync settings
 DEFAULT_BUCKET = "my-bucket"
 DEFAULT_GROUP = "my-group"

@@ -65,6 +65,8 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
     DEFAULT_VERBOSE,
+    SETTINGS_APP,
+    SETTINGS_ORG,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.i18n import (
@@ -77,9 +79,6 @@ from hsync_desktop.icons import icon
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
-
-SETTINGS_ORG = "HSYNC"
-SETTINGS_APP = "HSYNCDesktop"
 
 
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
