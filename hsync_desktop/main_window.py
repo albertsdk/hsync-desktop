@@ -1226,18 +1226,18 @@ class MainWindow(QMainWindow):
         self._btn_start.setStyleSheet(
             _BTN_START_ACTIVE if self._btn_start.isEnabled() else _BTN_IDLE
         )
-        # Start icon: white when sync stopped, dark when running (light theme only)
+        # Start icon: white when enabled (sync stopped), dark when disabled (sync running)
         if is_light_theme:
-            start_icon_color = "#424242" if self._btn_start.isEnabled() else "#FFFFFF"
+            start_icon_color = "#FFFFFF" if self._btn_start.isEnabled() else "#424242"
             self._btn_start.setIcon(themed_icon("media-playback-start", start_icon_color))
         else:
             self._btn_start.setIcon(get_icon("media-playback-start"))
 
         # Stop button: red background, white icon when enabled
         self._btn_stop.setStyleSheet(_BTN_STOP_ACTIVE if self._btn_stop.isEnabled() else _BTN_IDLE)
-        # Stop icon: white when sync running, dark when stopped (light theme only)
+        # Stop icon: white when enabled (sync running), dark when disabled (sync stopped)
         if is_light_theme:
-            stop_icon_color = "#424242" if self._btn_stop.isEnabled() else "#FFFFFF"
+            stop_icon_color = "#FFFFFF" if self._btn_stop.isEnabled() else "#424242"
             self._btn_stop.setIcon(themed_icon("media-playback-stop", stop_icon_color))
         else:
             self._btn_stop.setIcon(get_icon("media-playback-stop"))
