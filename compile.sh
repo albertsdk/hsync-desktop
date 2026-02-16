@@ -112,20 +112,30 @@ get_version() {
 }
 
 bundle_client() {
+    local add_data_args=()
+
     if [[ -f "${CLIENT_BINARY}" ]]; then
         log_step "Bundling hsync-client binary..."
         mkdir -p hsync_desktop/bin
         cp "${CLIENT_BINARY}" hsync_desktop/bin/hsync
         chmod +x hsync_desktop/bin/hsync
         log_ok "Bundled hsync-client"
-        # Output ONLY the --add-data argument to stdout (no log messages)
-        echo "--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin"
+        add_data_args+=("--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin")
     else
         log_warn "hsync-client binary not found at ${CLIENT_BINARY}"
         log_info "Desktop will search PATH for 'hsync' at runtime"
-        # Output empty string to stdout
-        echo ""
     fi
+
+    # Always include UI files in the bundle
+    add_data_args+=("--add-data=hsync_desktop/ui:hsync_desktop/ui")
+
+    # Include icons in the bundle
+    add_data_args+=("--add-data=hsync_desktop/resources/icons:hsync_desktop/resources/icons")
+
+    # Output all --add-data arguments separated by newlines using printf
+    for arg in "${add_data_args[@]}"; do
+        echo "${arg}"
+    done
 }
 
 build_binary() {
@@ -135,12 +145,11 @@ build_binary() {
 
     [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
 
-    local add_data
-    # Capture ONLY stdout from bundle_client (logs go to stderr)
-    add_data="$(bundle_client)"
-
-    local extra_args=()
-    [[ -n "${add_data}" ]] && extra_args+=("${add_data}")
+    # Build extra arguments from bundle_client
+    local -a extra_args=()
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] && extra_args+=("${line}")
+    done < <(bundle_client)
 
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
         --clean --onefile --strip \
