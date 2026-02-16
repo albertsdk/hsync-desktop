@@ -70,7 +70,7 @@ def main() -> int:
         window.raise_()
         window.activateWindow()
         # Update tray menu text when window becomes visible
-        tray._apply_translations()
+        tray.set_window_visible(True)
 
     single_instance.activate_requested.connect(activate_window)
 

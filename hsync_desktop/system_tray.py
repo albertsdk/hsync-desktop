@@ -60,9 +60,12 @@ class SystemTray(QSystemTrayIcon):
         self.setIcon(self._icons["disconnected"])
         self.setToolTip("HSYNC Desktop - Disconnected")
 
+        # Track whether the main window is currently visible
+        self._window_visible = False
+
         # Context menu
         menu = QMenu()
-        self._act_show = QAction(tr("tray.minimize"), menu)
+        self._act_show = QAction(tr("tray.show"), menu)
         self._act_show.triggered.connect(self.toggle_window.emit)
         menu.addAction(self._act_show)
         menu.addSeparator()
@@ -127,18 +130,18 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.setEnabled(running)
         self._act_refresh.setEnabled(running)
 
+    def set_window_visible(self, visible: bool) -> None:
+        """Update the Show/Minimize action text based on window visibility."""
+        self._window_visible = visible
+        self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
+
     def set_start_enabled(self, enabled: bool) -> None:
         """Enable or disable the Start action in the tray menu."""
         self._act_start.setEnabled(enabled)
-        parent = self.parent()
-        visible = isinstance(parent, QWidget) and parent.isVisible()
-        self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to menu items."""
-        parent = self.parent()
-        visible = isinstance(parent, QWidget) and parent.isVisible()
-        self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
+        self._act_show.setText(tr("tray.minimize") if self._window_visible else tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
         self._act_stop.setText(tr("tray.stop"))
         self._act_refresh.setText(tr("tray.refresh"))
