@@ -87,4 +87,3 @@ class NotificationManager:
 
     def became_master(self) -> None:
         self.info(tr("notif.master_elected"), tr("notif.master_elected_msg"))
-

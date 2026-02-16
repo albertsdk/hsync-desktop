@@ -73,6 +73,7 @@ def _load_themed_svg(svg_path: Path) -> QIcon:
 
     return QIcon(pixmap)
 
+
 # Directory containing fallback icons
 ICONS_DIR = Path(__file__).parent / "resources" / "icons"
 
@@ -125,20 +126,20 @@ _FALLBACK_MAP: dict[str, str] = {
 
 def _has_icon_theme() -> bool:
     """Check if the system has a usable icon theme.
-    
+
     Returns True on Linux with a desktop environment,
     False on Windows/macOS or headless Linux.
     """
     # Windows and macOS don't have FreeDesktop icon themes
     if sys.platform in ("win32", "darwin"):
         return False
-    
+
     # On Linux, check if there's a theme set
     theme = QIcon.themeName()
     if not theme or theme == "hicolor":
         # hicolor is the fallback theme with minimal icons
         return False
-    
+
     return True
 
 
@@ -197,10 +198,10 @@ def clear_icon_cache() -> None:
 
 def has_icon(name: str) -> bool:
     """Check if an icon is available (either from theme or fallback).
-    
+
     Args:
         name: FreeDesktop icon name
-    
+
     Returns:
         True if the icon exists and can be loaded
     """
@@ -209,7 +210,7 @@ def has_icon(name: str) -> bool:
 
 def set_fallback_theme_path() -> None:
     """Add the bundled icons directory to the icon theme search path.
-    
+
     Call this once at application startup to ensure fallback icons
     are found even when using QIcon.fromTheme() directly.
     """
@@ -219,4 +220,3 @@ def set_fallback_theme_path() -> None:
         if icons_str not in paths:
             paths.append(icons_str)
             QIcon.setThemeSearchPaths(paths)
-

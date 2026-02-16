@@ -14,7 +14,7 @@ Supported languages: English, Italian, German, French, Spanish.
 from __future__ import annotations
 
 import locale
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 from PySide6.QtCore import QSettings
 
@@ -22,7 +22,7 @@ SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
 
 # Callbacks to notify when language changes
-_language_change_callbacks: List[Callable[[], None]] = []
+_language_change_callbacks: list[Callable[[], None]] = []
 
 # Language codes
 LANG_EN = "en"
@@ -40,7 +40,7 @@ SUPPORTED_LANGUAGES = {
 }
 
 _current_lang: str = LANG_EN
-_translations: Dict[str, Dict[str, str]] = {}
+_translations: dict[str, dict[str, str]] = {}
 
 
 def _detect_system_language() -> str:
@@ -111,7 +111,7 @@ def tr(key: str) -> str:
 
 # ─── Load translations from locale modules ──────────────────────────────────
 
-from hsync_desktop.locales import EN, IT, DE, FR, ES
+from hsync_desktop.locales import DE, EN, ES, FR, IT
 
 _translations = {
     LANG_EN: EN,

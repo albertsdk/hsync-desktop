@@ -20,12 +20,11 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QPoint, QSettings, QTimer, Qt, Slot
+from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
-    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -35,7 +34,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -46,14 +44,14 @@ from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings_dialog import (
-    ApiKeyDialog,
-    LanKeyDialog,
     SETTINGS_APP,
     SETTINGS_ORG,
+    ApiKeyDialog,
+    LanKeyDialog,
     SettingsDialog,
+    are_notifications_enabled,
     build_hsync_args,
     get_saved_theme,
-    are_notifications_enabled,
     is_auto_sync_enabled,
     is_log_panel_visible,
 )
@@ -141,8 +139,10 @@ class MainWindow(QMainWindow):
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
         self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
         # Set icons for action buttons (icon-only, no text)
-        from hsync_desktop.icons import icon as get_icon
         from PySide6.QtCore import QSize
+
+        from hsync_desktop.icons import icon as get_icon
+
         icon_size = QSize(18, 18)
         for btn, ico_name in (
             (self._btn_start, "media-playback-start"),
@@ -276,6 +276,7 @@ class MainWindow(QMainWindow):
         self._role_label.setText(tr("role.client"))
         self._role_label.setToolTip(tr("role.client_tip"))
         from hsync_desktop.icons import icon as get_icon
+
         self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
         self._role_icon.setToolTip(tr("role.client_tip"))
         self._lbl_peers.setText(tr("label.peers"))
@@ -494,13 +495,15 @@ class MainWindow(QMainWindow):
         if not transfer:
             # Synthesized folder — create a virtual transfer
             from hsync_desktop.file_panel import COL_NAME, FileTransfer, TransferStatus
+
             name_item = table.item(row, COL_NAME)
             if not name_item:
                 return None
             display_name = name_item.text()
             folder_path = (
                 f"{table._current_path}/{display_name}/"
-                if table._current_path else f"{display_name}/"
+                if table._current_path
+                else f"{display_name}/"
             )
             transfer = FileTransfer(
                 filepath=folder_path,
@@ -543,11 +546,13 @@ class MainWindow(QMainWindow):
     def _open_documentation(self) -> None:
         """Open the documentation URL in the default browser."""
         from PySide6.QtCore import QUrl
+
         QDesktopServices.openUrl(QUrl("https://docs.hsync.app"))
 
     def _show_about(self) -> None:
         """Show the splash screen as an About dialog."""
         from hsync_desktop.splash_screen import SplashScreen
+
         about = SplashScreen(self)
         about.show_as_about()
 
@@ -584,9 +589,7 @@ class MainWindow(QMainWindow):
 
         # File panel selection signals for menu state
         self._file_panel._table.row_selected.connect(self._on_file_selection_changed)
-        self._file_panel._table.row_deselected.connect(
-            lambda: self._set_file_menu_enabled(False)
-        )
+        self._file_panel._table.row_deselected.connect(lambda: self._set_file_menu_enabled(False))
 
         # Tray signals
         t = self._tray
@@ -729,6 +732,7 @@ class MainWindow(QMainWindow):
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
         from hsync_desktop.icons import icon as get_icon
+
         if is_master:
             self._role_label.setText(tr("role.master"))
             self._role_label.setToolTip(tr("role.master_tip"))
@@ -754,17 +758,13 @@ class MainWindow(QMainWindow):
     @Slot(str, str)
     def _on_file_transferred(self, direction: str, filename: str) -> None:
         st = self._engine.stats
-        self._sent_label.setText(
-            f"{st.files_sent} ({_format_bytes(st.bytes_sent)})"
-        )
-        self._recv_label.setText(
-            f"{st.files_received} ({_format_bytes(st.bytes_received)})"
-        )
+        self._sent_label.setText(f"{st.files_sent} ({_format_bytes(st.bytes_sent)})")
+        self._recv_label.setText(f"{st.files_received} ({_format_bytes(st.bytes_received)})")
         # Convert absolute path to relative path for table lookup
         base_path = self._local_path
         rel_path = filename
         if base_path and filename.startswith(base_path):
-            rel_path = filename[len(base_path):].lstrip("/\\")
+            rel_path = filename[len(base_path) :].lstrip("/\\")
         # Read current mtime from filesystem for the transferred file
         mtime = 0.0
         if direction in ("↓", "↑") and base_path:
@@ -780,13 +780,19 @@ class MainWindow(QMainWindow):
         if direction == "↓":
             self._notifier.download_complete(filename)
             self._file_panel.update_file_status(
-                rel_path, "synced", mtime=mtime,
-                client_cid=client_cid, client_ip=client_ip,
+                rel_path,
+                "synced",
+                mtime=mtime,
+                client_cid=client_cid,
+                client_ip=client_ip,
             )
         elif direction == "↑":
             self._file_panel.update_file_status(
-                rel_path, "synced", mtime=mtime,
-                client_cid=client_cid, client_ip=client_ip,
+                rel_path,
+                "synced",
+                mtime=mtime,
+                client_cid=client_cid,
+                client_ip=client_ip,
             )
         elif direction == "✕":
             # File was deleted - show briefly then remove
@@ -800,9 +806,9 @@ class MainWindow(QMainWindow):
         new_rel = new_path
         if base_path:
             if old_path.startswith(base_path):
-                old_rel = old_path[len(base_path):].lstrip("/\\")
+                old_rel = old_path[len(base_path) :].lstrip("/\\")
             if new_path.startswith(base_path):
-                new_rel = new_path[len(base_path):].lstrip("/\\")
+                new_rel = new_path[len(base_path) :].lstrip("/\\")
         # Read mtime of the renamed file from filesystem
         mtime = 0.0
         if base_path:
@@ -815,8 +821,11 @@ class MainWindow(QMainWindow):
         client_cid = self._engine.cid
         client_ip = self._engine.server_ip
         self._file_panel.rename_file(
-            old_rel, new_rel, mtime=mtime,
-            client_cid=client_cid, client_ip=client_ip,
+            old_rel,
+            new_rel,
+            mtime=mtime,
+            client_cid=client_cid,
+            client_ip=client_ip,
         )
 
     @Slot(str)
@@ -825,7 +834,7 @@ class MainWindow(QMainWindow):
         base_path = self._local_path
         rel_path = dirpath
         if base_path and dirpath.startswith(base_path):
-            rel_path = dirpath[len(base_path):].lstrip("/\\")
+            rel_path = dirpath[len(base_path) :].lstrip("/\\")
         # Read directory metadata from filesystem
         mtime = 0.0
         if base_path:
@@ -839,8 +848,12 @@ class MainWindow(QMainWindow):
         client_ip = self._engine.server_ip
         # Add directory to file panel as synced
         self._file_panel.update_file_status(
-            rel_path, "synced", size=0, mtime=mtime,
-            client_cid=client_cid, client_ip=client_ip,
+            rel_path,
+            "synced",
+            size=0,
+            mtime=mtime,
+            client_cid=client_cid,
+            client_ip=client_ip,
         )
 
     @Slot(str, str, str)
@@ -860,9 +873,7 @@ class MainWindow(QMainWindow):
             )
         else:  # takeover
             msg = (
-                tr("notif.master_takeover")
-                .replace("{cid}", peer_cid)
-                .replace("{ip}", peer_address)
+                tr("notif.master_takeover").replace("{cid}", peer_cid).replace("{ip}", peer_address)
             )
         self._notifier.warning(tr("notif.master_conflict_title"), msg)
         self._append_log(f"⚠ {msg}")
@@ -890,7 +901,7 @@ class MainWindow(QMainWindow):
         base_path = self._local_path
         rel_path = filepath
         if base_path and filepath.startswith(base_path):
-            rel_path = filepath[len(base_path):].lstrip("/\\")
+            rel_path = filepath[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(rel_path, status, size)
         # Accumulate preview statistics
         if status == "to_download":
@@ -910,7 +921,7 @@ class MainWindow(QMainWindow):
         base_path = self._local_path
         rel_old = old_path
         if base_path and old_path.startswith(base_path):
-            rel_old = old_path[len(base_path):].lstrip("/\\")
+            rel_old = old_path[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(rel_old, "to_rename", size)
         self._preview_stats.to_rename += 1
 
@@ -918,8 +929,7 @@ class MainWindow(QMainWindow):
         """Show the preview summary dialog and start sync if confirmed."""
         s = self._preview_stats
         nothing_to_sync = (
-            s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0
-            and s.to_rename == 0
+            s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0 and s.to_rename == 0
         )
 
         if nothing_to_sync:
@@ -980,16 +990,12 @@ class MainWindow(QMainWindow):
         """Handle shared path not found error."""
         self._engine.stop()
         self._reset_ui_stopped()
-        self._append_log(
-            f"⚠ {tr('notif.path_not_found_msg').replace('{path}', path)}"
-        )
+        self._append_log(f"⚠ {tr('notif.path_not_found_msg').replace('{path}', path)}")
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(tr("notif.error"))
         msg.setText(tr("notif.path_not_found_msg").replace("{path}", path))
-        msg.setStandardButtons(
-            QMessageBox.StandardButton.Open | QMessageBox.StandardButton.Close
-        )
+        msg.setStandardButtons(QMessageBox.StandardButton.Open | QMessageBox.StandardButton.Close)
         open_btn = msg.button(QMessageBox.StandardButton.Open)
         open_btn.setText(tr("menu.settings"))
         close_btn = msg.button(QMessageBox.StandardButton.Close)
@@ -1077,9 +1083,10 @@ class MainWindow(QMainWindow):
     def _simplify_path(path: str) -> str:
         """Replace the user's HOME prefix with ~ for a shorter display."""
         from pathlib import Path as _Path
+
         home = str(_Path.home())
         if path.startswith(home):
-            return "~" + path[len(home):]
+            return "~" + path[len(home) :]
         return path
 
     def _update_path_display(self) -> None:
@@ -1095,12 +1102,11 @@ class MainWindow(QMainWindow):
             max_path_px = 300
             fm = QFontMetrics(self._path_label.font())
             elided = fm.elidedText(display_path, Qt.TextElideMode.ElideMiddle, max_path_px)
-            link_color = self._path_label.palette().color(
-                self._path_label.palette().ColorRole.Link
-            ).name()
+            link_color = (
+                self._path_label.palette().color(self._path_label.palette().ColorRole.Link).name()
+            )
             self._path_label.setText(
-                f'<a href="open" style="color:{link_color}; text-decoration:none;">'
-                f'{elided}</a>'
+                f'<a href="open" style="color:{link_color}; text-decoration:none;">{elided}</a>'
             )
             self._path_label.setToolTip(self._local_path)
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1126,9 +1132,7 @@ class MainWindow(QMainWindow):
             # ── Remote endpoint icon + label ──────────────────────────
             lan_enabled = bool(s.value("lan/enabled", False, bool))
             if lan_enabled:
-                self._remote_icon.setPixmap(
-                    get_icon("network-lan").pixmap(24, 24)
-                )
+                self._remote_icon.setPixmap(get_icon("network-lan").pixmap(24, 24))
                 group = str(s.value("lan/group", "", str))
                 self._remote_label.setText(f"LAN ({group})" if group else "LAN")
                 self._remote_icon.setToolTip(tr("label.remote_lan_tip"))
@@ -1136,14 +1140,13 @@ class MainWindow(QMainWindow):
                 # Group name shown next to LAN label — hide from bottom bar
                 self._group_label.hide()
             else:
-                self._remote_icon.setPixmap(
-                    get_icon("network-cloud").pixmap(24, 24)
-                )
+                self._remote_icon.setPixmap(get_icon("network-cloud").pixmap(24, 24))
                 server_ip = self._engine.server_ip if self._engine.server_ip else ""
                 if not server_ip:
                     server_url = str(s.value("connection/server_url", "", str))
                     if server_url:
                         from urllib.parse import urlparse
+
                         parsed = urlparse(server_url)
                         server_ip = parsed.hostname or ""
                 self._remote_label.setText(server_ip if server_ip else tr("label.remote_server"))
@@ -1158,12 +1161,12 @@ class MainWindow(QMainWindow):
             self._sync_dir_icon.hide()
             self._remote_icon.hide()
             self._remote_label.hide()
-            link_color = self._path_label.palette().color(
-                self._path_label.palette().ColorRole.Link
-            ).name()
+            link_color = (
+                self._path_label.palette().color(self._path_label.palette().ColorRole.Link).name()
+            )
             self._path_label.setText(
                 f'<a href="settings" style="color:{link_color}; text-decoration:none;">'
-                f'{tr("label.path_placeholder")}</a>'
+                f"{tr('label.path_placeholder')}</a>"
             )
             self._path_label.setToolTip(tr("label.path_placeholder_tip"))
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1174,6 +1177,7 @@ class MainWindow(QMainWindow):
             self._open_settings(initial_tab=0)
         elif self._local_path and os.path.isdir(self._local_path):
             from PySide6.QtCore import QUrl
+
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
     def _apply_button_styles(self) -> None:
@@ -1181,9 +1185,7 @@ class MainWindow(QMainWindow):
         self._btn_start.setStyleSheet(
             _BTN_START_ACTIVE if self._btn_start.isEnabled() else _BTN_IDLE
         )
-        self._btn_stop.setStyleSheet(
-            _BTN_STOP_ACTIVE if self._btn_stop.isEnabled() else _BTN_IDLE
-        )
+        self._btn_stop.setStyleSheet(_BTN_STOP_ACTIVE if self._btn_stop.isEnabled() else _BTN_IDLE)
         self._btn_refresh.setStyleSheet(
             _BTN_REFRESH_ACTIVE if self._btn_refresh.isEnabled() else _BTN_IDLE
         )
@@ -1200,9 +1202,7 @@ class MainWindow(QMainWindow):
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(tr("disclaimer.title"))
         msg.setText(tr("disclaimer.message"))
-        msg.setStandardButtons(
-            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-        )
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
         cancel_btn = msg.button(QMessageBox.StandardButton.Cancel)
         if cancel_btn:
             cancel_btn.setText(tr("action.cancel"))
@@ -1266,9 +1266,7 @@ class MainWindow(QMainWindow):
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(tr("notif.deletion_risk"))
         msg.setText(tr("notif.deletion_risk_msg").replace("{reason}", reason))
-        msg.setStandardButtons(
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         yes_btn = msg.button(QMessageBox.StandardButton.Yes)
         if yes_btn:
             yes_btn.setText(tr("action.yes"))
@@ -1368,7 +1366,9 @@ class MainWindow(QMainWindow):
 
     def _refresh_icons_for_theme(self) -> None:
         """Refresh all icons after theme change."""
-        from hsync_desktop.icons import clear_icon_cache, icon as get_icon
+        from hsync_desktop.icons import clear_icon_cache
+        from hsync_desktop.icons import icon as get_icon
+
         clear_icon_cache()
         # Refresh button icons
         self._btn_start.setIcon(get_icon("media-playback-start"))
@@ -1430,9 +1430,7 @@ class MainWindow(QMainWindow):
             if msg.exec() != QMessageBox.StandardButton.Yes:
                 return
             self._engine.stop()
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
-            "window/geometry", self.saveGeometry()
-        )
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
         self._tray.hide()
         QApplication.quit()
 

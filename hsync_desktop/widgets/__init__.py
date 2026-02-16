@@ -9,4 +9,3 @@
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 __all__ = ["ToggleSwitch"]
-

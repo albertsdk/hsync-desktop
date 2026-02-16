@@ -172,4 +172,3 @@ class PreviewSummaryDialog(QDialog):
             self._ok_btn.setDefault(True)
             self._button_box.addButton(self._ok_btn, QDialogButtonBox.ButtonRole.RejectRole)
             self._ok_btn.clicked.connect(self.reject)
-

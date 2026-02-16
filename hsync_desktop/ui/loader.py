@@ -16,11 +16,11 @@ For production, consider pre-compiling .ui files using:
 
 Example usage:
     from hsync_desktop.ui.loader import load_ui, load_ui_widget
-    
+
     # Load as a new widget
     window = load_ui("main_window")
     window.show()
-    
+
     # Load into an existing widget (for subclassing)
     class MyWindow(QMainWindow):
         def __init__(self):
@@ -45,11 +45,11 @@ UI_DIR = Path(__file__).parent
 
 class UiLoader(QUiLoader):
     """Custom UI loader that can load into an existing widget."""
-    
+
     def __init__(self, base_instance: QWidget | None = None) -> None:
         super().__init__(base_instance)
         self._base_instance = base_instance
-    
+
     def createWidget(
         self,
         class_name: str,
@@ -65,14 +65,14 @@ class UiLoader(QUiLoader):
 
 def load_ui(name: str) -> QWidget:
     """Load a .ui file and return the created widget.
-    
+
     Args:
         name: Name of the UI file (without .ui extension).
               One of: main_window, settings_dialog, splash_screen, file_panel
-    
+
     Returns:
         The top-level widget defined in the .ui file.
-    
+
     Raises:
         FileNotFoundError: If the .ui file doesn't exist.
         RuntimeError: If the .ui file couldn't be loaded.
@@ -80,11 +80,11 @@ def load_ui(name: str) -> QWidget:
     ui_path = UI_DIR / f"{name}.ui"
     if not ui_path.exists():
         raise FileNotFoundError(f"UI file not found: {ui_path}")
-    
+
     ui_file = QFile(str(ui_path))
     if not ui_file.open(QIODevice.OpenModeFlag.ReadOnly):
         raise RuntimeError(f"Cannot open UI file: {ui_path}")
-    
+
     try:
         loader = QUiLoader()
         widget = loader.load(ui_file)
@@ -97,14 +97,14 @@ def load_ui(name: str) -> QWidget:
 
 def load_ui_widget(name: str, widget: QWidget) -> None:
     """Load a .ui file into an existing widget instance.
-    
+
     This is useful when subclassing a widget and wanting to load
     the UI definition into `self`.
-    
+
     Args:
         name: Name of the UI file (without .ui extension).
         widget: The widget instance to load the UI into.
-    
+
     Raises:
         FileNotFoundError: If the .ui file doesn't exist.
         RuntimeError: If the .ui file couldn't be loaded.
@@ -112,14 +112,13 @@ def load_ui_widget(name: str, widget: QWidget) -> None:
     ui_path = UI_DIR / f"{name}.ui"
     if not ui_path.exists():
         raise FileNotFoundError(f"UI file not found: {ui_path}")
-    
+
     ui_file = QFile(str(ui_path))
     if not ui_file.open(QIODevice.OpenModeFlag.ReadOnly):
         raise RuntimeError(f"Cannot open UI file: {ui_path}")
-    
+
     try:
         loader = UiLoader(widget)
         loader.load(ui_file)
     finally:
         ui_file.close()
-

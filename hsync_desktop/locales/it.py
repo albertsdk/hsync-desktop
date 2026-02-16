@@ -144,7 +144,7 @@ translations: dict[str, str] = {
     "warn.ignore_delete_title": "Attenzione",
     "warn.ignore_delete_msg": "Disabilitando questa opzione, le eliminazioni VERRANNO propagate. Se un file viene eliminato su un dispositivo, verrà eliminato anche su tutti i dispositivi sincronizzati. Sei sicuro?",
     "warn.force_master_title": "Incompatibilità impostazioni",
-    "warn.force_master_msg": "L'opzione \"Forza master\" è incompatibile con una direzione di sincronizzazione diversa da bidirezionale. Il master LAN opera sempre in modalità bidirezionale.\n\nVuoi reimpostare la direzione a bidirezionale?",
+    "warn.force_master_msg": 'L\'opzione "Forza master" è incompatibile con una direzione di sincronizzazione diversa da bidirezionale. Il master LAN opera sempre in modalità bidirezionale.\n\nVuoi reimpostare la direzione a bidirezionale?',
     "settings.connection_active_warning": "Alcune impostazioni sono disabilitate durante la sincronizzazione. Ferma la sincronizzazione per modificarle.",
     "tip.disabled_during_sync": "Questa impostazione non può essere modificata durante la sincronizzazione.",
     "tray.show": "Mostra",
@@ -314,4 +314,3 @@ translations: dict[str, str] = {
     "menu.help.docs": "Documentazione",
     "menu.help.about": "Informazioni su HSYNC Desktop",
 }
-

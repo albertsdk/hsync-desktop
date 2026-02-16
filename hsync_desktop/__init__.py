@@ -7,4 +7,3 @@
 """HSYNC Desktop - Cross-platform GUI for HSYNC Client."""
 
 __version__ = "1.0.0"
-

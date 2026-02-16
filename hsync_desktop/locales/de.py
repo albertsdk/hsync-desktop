@@ -144,7 +144,7 @@ translations: dict[str, str] = {
     "warn.ignore_delete_title": "Warnung",
     "warn.ignore_delete_msg": "Wenn Sie diese Option deaktivieren, werden Löschungen weitergegeben. Wird eine Datei auf einem Gerät gelöscht, wird sie auch auf allen synchronisierten Geräten gelöscht. Sind Sie sicher?",
     "warn.force_master_title": "Einstellungsinkompatibilität",
-    "warn.force_master_msg": "Die Option \"Master erzwingen\" ist inkompatibel mit einer anderen Synchronisierungsrichtung als bidirektional. Der LAN-Master arbeitet immer im bidirektionalen Modus.\n\nMöchten Sie die Richtung auf bidirektional zurücksetzen?",
+    "warn.force_master_msg": 'Die Option "Master erzwingen" ist inkompatibel mit einer anderen Synchronisierungsrichtung als bidirektional. Der LAN-Master arbeitet immer im bidirektionalen Modus.\n\nMöchten Sie die Richtung auf bidirektional zurücksetzen?',
     "settings.connection_active_warning": "Einige Einstellungen sind während der Synchronisierung deaktiviert. Stoppen Sie die Synchronisierung, um sie zu ändern.",
     "tip.disabled_during_sync": "Diese Einstellung kann während der Synchronisierung nicht geändert werden.",
     "tray.show": "Anzeigen",
@@ -314,4 +314,3 @@ translations: dict[str, str] = {
     "menu.help.docs": "Dokumentation",
     "menu.help.about": "Über HSYNC Desktop",
 }
-

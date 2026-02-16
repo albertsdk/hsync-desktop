@@ -193,7 +193,7 @@ translations: dict[str, str] = {
     "warn.ignore_delete_title": "Warning",
     "warn.ignore_delete_msg": "Disabling this option means that file deletions WILL be propagated. If a file is deleted on one device, it will also be deleted on all synced devices. Are you sure?",
     "warn.force_master_title": "Settings incompatibility",
-    "warn.force_master_msg": "The \"Force master\" option is incompatible with a sync direction other than bidirectional. The LAN master always operates in bidirectional mode.\n\nDo you want to reset the direction to bidirectional?",
+    "warn.force_master_msg": 'The "Force master" option is incompatible with a sync direction other than bidirectional. The LAN master always operates in bidirectional mode.\n\nDo you want to reset the direction to bidirectional?',
     # Connection active warnings
     "settings.connection_active_warning": "Some settings are disabled while synchronization is running. Stop the sync to modify them.",
     "tip.disabled_during_sync": "This setting cannot be changed while synchronization is running.",
@@ -337,4 +337,3 @@ translations: dict[str, str] = {
     "menu.help.docs": "Documentation",
     "menu.help.about": "About HSYNC Desktop",
 }
-
