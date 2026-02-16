@@ -97,6 +97,9 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 class MainWindow(QMainWindow):
     """Primary application window."""
 
+    # Cache for findChild results to avoid repeated lookups
+    _child_cache: dict[str, object] = {}
+
     def __init__(self, engine: HsyncEngine, tray: SystemTray | None = None) -> None:
         super().__init__()
 
@@ -106,6 +109,8 @@ class MainWindow(QMainWindow):
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
         self._user_stopped = False  # track if stop was user-initiated
+        # Clear child cache on new instance
+        MainWindow._child_cache.clear()
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()
