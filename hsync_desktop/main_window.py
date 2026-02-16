@@ -27,7 +27,6 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QFontMetrics,
-    QPalette,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -1208,19 +1207,7 @@ class MainWindow(QMainWindow):
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
-        from hsync_desktop.icons import icon as get_icon
         from hsync_desktop.icons import themed_icon
-
-        # Determine icon colors based on theme
-        # Light theme: icons change color based on button state
-        # Dark theme: icons always white
-        app = QApplication.instance()
-        is_light_theme = False
-        if app:
-            palette = app.palette()
-            bg = palette.color(QPalette.ColorRole.Window)
-            luminance = 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue()
-            is_light_theme = luminance >= 128
 
         # Start button: green background when enabled
         self._btn_start.setStyleSheet(
@@ -1239,6 +1226,9 @@ class MainWindow(QMainWindow):
         self._btn_refresh.setStyleSheet(
             _BTN_REFRESH_ACTIVE if self._btn_refresh.isEnabled() else _BTN_IDLE
         )
+        # Refresh icon: white when enabled, dark when disabled
+        refresh_icon_color = "#FFFFFF" if self._btn_refresh.isEnabled() else "#424242"
+        self._btn_refresh.setIcon(themed_icon("view-refresh", refresh_icon_color))
 
     # ── Actions ──────────────────────────────────────────────────────────
 
@@ -1420,7 +1410,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_icons_for_theme(self) -> None:
         """Refresh all icons after theme change."""
-        from hsync_desktop.icons import clear_icon_cache, themed_icon
+        from hsync_desktop.icons import clear_icon_cache
         from hsync_desktop.icons import icon as get_icon
 
         clear_icon_cache()
