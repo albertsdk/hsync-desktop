@@ -35,6 +35,7 @@ translations: dict[str, str] = {
     "label.remote_lan_tip": "Syncing over local network (LAN)",
     "label.sent": "↑ Sent:",
     "label.received": "↓ Received:",
+    "label.files": "files",
     "label.files_fmt": "{count} files ({size})",
     # Buttons
     "btn.start": "▶  Start",
