@@ -166,6 +166,13 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         if s.value("lan/force_master", False, bool):
             args.append("--force-master")
 
+    # Bandwidth limits
+    upload_bps, download_bps = get_bandwidth_limits()
+    if upload_bps is not None:
+        args += ["--max-bandwidth-upload", str(upload_bps)]
+    if download_bps is not None:
+        args += ["--max-bandwidth-download", str(download_bps)]
+
     # Always skip CLI confirmation prompts – hsync-desktop handles
     # deletion-risk confirmation via its own dialog.
     args.append("--yes")
@@ -212,3 +219,41 @@ def is_auto_sync_enabled() -> bool:
     """Return whether auto-sync on startup is enabled (default: disabled)."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("sync/auto_sync", False, bool))
+
+
+def get_bandwidth_limits() -> tuple[int | None, int | None]:
+    """Return the saved bandwidth limits (upload, download) in bytes/sec.
+
+    Returns:
+        Tuple of (upload_bps, download_bps) where None means unlimited.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    upload = s.value("sync/bandwidth_upload", None)
+    download = s.value("sync/bandwidth_download", None)
+
+    # Convert from MB/s to bytes/s if stored as float
+    if upload is not None:
+        upload = int(cast(float, upload) * 1024 * 1024)
+    if download is not None:
+        download = int(cast(float, download) * 1024 * 1024)
+
+    return upload, download
+
+
+def save_bandwidth_limits(upload_mbps: float | None, download_mbps: float | None) -> None:
+    """Save bandwidth limits to QSettings.
+
+    Args:
+        upload_mbps: Upload limit in MB/s, or None for unlimited.
+        download_mbps: Download limit in MB/s, or None for unlimited.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    if upload_mbps is not None and upload_mbps > 0:
+        s.setValue("sync/bandwidth_upload", upload_mbps)
+    else:
+        s.remove("sync/bandwidth_upload")
+
+    if download_mbps is not None and download_mbps > 0:
+        s.setValue("sync/bandwidth_download", download_mbps)
+    else:
+        s.remove("sync/bandwidth_download")

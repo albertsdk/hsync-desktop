@@ -338,4 +338,15 @@ translations: dict[str, str] = {
     "menu.help": "&Help",
     "menu.help.docs": "Documentation",
     "menu.help.about": "About HSYNC Desktop",
+    # Bandwidth dialog
+    "bandwidth.title": "Bandwidth Limits",
+    "bandwidth.upload": "Upload",
+    "bandwidth.download": "Download",
+    "bandwidth.limit_enabled": "Limit speed",
+    "bandwidth.warning_active": "Synchronization is active. New settings will be applied to the next transferred files.",
+    "bandwidth.info": "Set the maximum upload and download speed. Leave disabled for unlimited speed.",
+    "bandwidth.apply": "Apply",
+    "bandwidth.click_to_edit": "Click to edit bandwidth limits",
+    "bandwidth.applied": "Bandwidth limits updated: upload {upload} MB/s, download {download} MB/s",
+    "bandwidth.saved": "Bandwidth limits saved: upload {upload} MB/s, download {download} MB/s",
 }

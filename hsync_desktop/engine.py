@@ -395,6 +395,20 @@ class HsyncEngine(QObject):
         """
         self._send_command({"cmd": "SET_SYNC_DIRECTION", "direction": direction})
 
+    def set_bandwidth(self, upload: int | None, download: int | None) -> None:
+        """Change bandwidth limits at runtime via stdin command.
+
+        Args:
+            upload: Maximum upload bandwidth in bytes per second, or None for unlimited.
+            download: Maximum download bandwidth in bytes per second, or None for unlimited.
+        """
+        cmd: dict = {"cmd": "SET_BANDWIDTH"}
+        # Send 0 for unlimited so the handler clears previous limits;
+        # omitting the field would leave old limits in place.
+        cmd["upload"] = upload if upload is not None else 0
+        cmd["download"] = download if download is not None else 0
+        self._send_command(cmd)
+
     # ── Stdin command channel ────────────────────────────────────────
 
     def _send_command(self, cmd: dict) -> None:

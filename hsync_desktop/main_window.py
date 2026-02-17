@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
@@ -227,6 +228,15 @@ class MainWindow(QMainWindow):
         self._sent_label: QLabel = self.findChild(QLabel, "sentLabel")  # type: ignore[assignment]
         self._lbl_recv: QLabel = self.findChild(QLabel, "lblRecv")  # type: ignore[assignment]
         self._recv_label: QLabel = self.findChild(QLabel, "recvLabel")  # type: ignore[assignment]
+
+        # Make bandwidth labels clickable
+        self._sent_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sent_label.setToolTip(tr("bandwidth.click_to_edit"))
+        self._recv_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._recv_label.setToolTip(tr("bandwidth.click_to_edit"))
+        # Connect bandwidth label click handlers
+        self._sent_label.mousePressEvent = self._on_bandwidth_click  # type: ignore[assignment]
+        self._recv_label.mousePressEvent = self._on_bandwidth_click  # type: ignore[assignment]
 
         # Replace filePanelPlaceholder with actual FilePanel
         placeholder: QWidget = self.findChild(QWidget, "filePanelPlaceholder")  # type: ignore[assignment]
@@ -1203,6 +1213,36 @@ class MainWindow(QMainWindow):
             from PySide6.QtCore import QUrl
 
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
+
+    def _on_bandwidth_click(self, event) -> None:
+        """Handle clicks on the bandwidth labels (sent/recv)."""
+        # Check if sync is active
+        sync_active = self._engine.is_running
+
+        # Show bandwidth dialog
+        dlg = BandwidthDialog(self, sync_active=sync_active)
+        if dlg.exec() == BandwidthDialog.DialogCode.Accepted:
+            upload_mbps, download_mbps = dlg.get_bandwidth_values()
+
+            # Convert MB/s to bytes/s
+            upload_bps = int(upload_mbps * 1024 * 1024) if upload_mbps else None
+            download_bps = int(download_mbps * 1024 * 1024) if download_mbps else None
+
+            # Format human-readable values for log
+            upload_display = f"{upload_mbps}" if upload_mbps else "∞"
+            download_display = f"{download_mbps}" if download_mbps else "∞"
+
+            # If sync is running, send the new limits via stdin command
+            if self._engine.is_running:
+                self._engine.set_bandwidth(upload_bps, download_bps)
+                self._append_log(
+                    f"ℹ {tr('bandwidth.applied').format(upload=upload_display, download=download_display)}"
+                )
+            else:
+                # If sync is not running, just save settings for next start
+                self._append_log(
+                    f"ℹ {tr('bandwidth.saved').format(upload=upload_display, download=download_display)}"
+                )
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""

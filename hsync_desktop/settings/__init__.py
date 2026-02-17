@@ -15,9 +15,11 @@ from hsync_desktop.settings.cli_args import (
     SETTINGS_ORG,
     are_notifications_enabled,
     build_hsync_args,
+    get_bandwidth_limits,
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    save_bandwidth_limits,
 )
 from hsync_desktop.settings.dialog import ApiKeyDialog, LanKeyDialog, SettingsDialog
 
@@ -29,7 +31,9 @@ __all__ = [
     "SETTINGS_APP",
     "are_notifications_enabled",
     "build_hsync_args",
+    "get_bandwidth_limits",
     "get_saved_theme",
     "is_auto_sync_enabled",
     "is_log_panel_visible",
+    "save_bandwidth_limits",
 ]
