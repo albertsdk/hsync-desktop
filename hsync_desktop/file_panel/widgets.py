@@ -372,6 +372,10 @@ class FileTransferTable(QTableWidget):
         self._refresh_timer.timeout.connect(self._do_refresh_view)
         self._refresh_pending = False
 
+        # Cache for computed items at current level to avoid redundant computation
+        self._cached_items: list[tuple[str, FileTransfer | None, dict]] | None = None
+        self._cached_path: str = ""
+
         self._setup_table()
 
     def _setup_table(self) -> None:
@@ -658,6 +662,15 @@ class FileTransferTable(QTableWidget):
         self._refresh_timer.stop()
         self._refresh_pending = False
 
+        # Use cached items if path hasn't changed and cache is valid
+        if self._cached_path != self._current_path or self._cached_items is None:
+            self._cached_path = self._current_path
+            self._cached_items = self._get_items_at_current_level()
+
+        items = self._cached_items
+        if items is None:
+            return
+
         self.setUpdatesEnabled(False)
         self.setSortingEnabled(False)
         try:
@@ -665,7 +678,6 @@ class FileTransferTable(QTableWidget):
             self._row_index.clear()
             self._last_selected_row = -1
 
-            items = self._get_items_at_current_level()
             for display_name, transfer, folder_data in items:
                 row = self.rowCount()
                 self.insertRow(row)
@@ -1000,6 +1012,7 @@ class FileTransferTable(QTableWidget):
             del self._transfers[old_rel]
             transfer.filepath = new_rel
             self._transfers[new_rel] = transfer
+            self._cached_items = None  # Invalidate cache
             self.refresh_view()
         except Exception as exc:
             QMessageBox.warning(
@@ -1059,6 +1072,7 @@ class FileTransferTable(QTableWidget):
         """Add or update a transfer in the table."""
         with QMutexLocker(self._transfers_mutex):
             self._transfers[transfer.filepath] = transfer
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def update_transfer_status(self, filepath: str, status: TransferStatus) -> None:
@@ -1086,12 +1100,14 @@ class FileTransferTable(QTableWidget):
                     status=TransferStatus.COMPLETED,
                 )
                 self._transfers[filepath] = t
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
         with QMutexLocker(self._transfers_mutex):
             self._transfers.clear()
+        self._cached_items = None  # Invalidate cache
         self._row_index.clear()
         self._current_path = ""
         self._nav_history = [""]
@@ -1105,6 +1121,7 @@ class FileTransferTable(QTableWidget):
                 transfer.status = TransferStatus.LOCAL
                 transfer.direction = "—"
                 transfer.bytes_transferred = 0
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
@@ -1114,6 +1131,7 @@ class FileTransferTable(QTableWidget):
         with QMutexLocker(self._transfers_mutex):
             for transfer in transfers:
                 self._transfers[transfer.filepath] = transfer
+        self._cached_items = None  # Invalidate cache
         self._schedule_refresh()
 
     def update_file_status(
@@ -1170,6 +1188,7 @@ class FileTransferTable(QTableWidget):
                     client_ip=client_ip,
                 )
                 self._transfers[filepath] = t
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def mark_deleted(self, filepath: str) -> None:
@@ -1188,6 +1207,7 @@ class FileTransferTable(QTableWidget):
             if filepath not in self._transfers:
                 return
             del self._transfers[filepath]
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def rename_file(
@@ -1227,6 +1247,7 @@ class FileTransferTable(QTableWidget):
                     client_ip=client_ip,
                 )
                 self._transfers[new_path] = t
+        self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
     def remove_transfer(self, filepath: str) -> None:
