@@ -113,6 +113,7 @@ translations: dict[str, str] = {
     "settings.api_key": "API Key:",
     "settings.insecure": "Skip SSL verification",
     "settings.ca_cert": "CA Certificate:",
+    "settings.server_cert_fingerprint": "Server Certificate Fingerprint:",
     "settings.http_timeout": "HTTP Timeout:",
     # Settings sync
     "settings.bucket": "Bucket:",
@@ -163,6 +164,7 @@ translations: dict[str, str] = {
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Skip SSL/TLS certificate verification (insecure)",
     "tip.ca_cert": "Path to a custom CA certificate for self-signed server certs",
+    "tip.server_cert_fingerprint": "SHA-256 fingerprint of the server certificate for verification (hex string)",
     "tip.http_timeout": "Maximum time to wait for HTTP requests (seconds)",
     "tip.bucket": "The remote bucket name for synchronization",
     "tip.watch": "Continuously watch for local file changes and sync automatically",

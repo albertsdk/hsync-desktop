@@ -61,6 +61,7 @@ from hsync_desktop.config import (
     DEFAULT_QUIET,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
+    DEFAULT_SERVER_CERT_FINGERPRINT,
     DEFAULT_SHOW_LOG_PANEL,
     DEFAULT_STABILITY_DELAY,
     DEFAULT_SYNC_DIRECTION,
@@ -227,6 +228,12 @@ class SettingsDialog(QDialog):
         self.ca_cert: QLineEdit = self.findChild(QLineEdit, "caCert")  # type: ignore[assignment]
         self.http_timeout: QSpinBox = self.findChild(QSpinBox, "httpTimeout")  # type: ignore[assignment]
 
+        # Add server_cert_fingerprint field dynamically (after ca_cert)
+        self.server_cert_fingerprint = QLineEdit(self)
+        self.server_cert_fingerprint.setObjectName("serverCertFingerprint")
+        self.server_cert_fingerprint.setPlaceholderText("SHA-256 hex fingerprint")
+        self._lbl_cert_fingerprint = QLabel(self)
+
         self.resync: QSpinBox = self.findChild(QSpinBox, "resync")  # type: ignore[assignment]
         self.retry_delay: QSpinBox = self.findChild(QSpinBox, "retryDelay")  # type: ignore[assignment]
         self.stability_delay: QSpinBox = self.findChild(QSpinBox, "stabilityDelay")  # type: ignore[assignment]
@@ -315,11 +322,20 @@ class SettingsDialog(QDialog):
         self._lan_banner.hide()
 
         # Insert LAN banner at the top of the Server Mode (tabConnection) layout
+        # Also insert server_cert_fingerprint field after ca_cert
         conn_tab = self._tabs.widget(1)
         if conn_tab:
             conn_layout = conn_tab.layout()
             if isinstance(conn_layout, QFormLayout):
                 conn_layout.insertRow(0, self._lan_banner)
+                # Insert server_cert_fingerprint after http_timeout row
+                for row in range(conn_layout.rowCount()):
+                    item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    if item and item.widget() == self.http_timeout:
+                        conn_layout.insertRow(
+                            row + 1, self._lbl_cert_fingerprint, self.server_cert_fingerprint
+                        )
+                        break
 
         # Setup language combo with proper data
         self.lang_combo.clear()
@@ -705,6 +721,7 @@ class SettingsDialog(QDialog):
         s.setValue("connection/api_key", encrypt_value(self.api_key.text()))
         s.setValue("connection/insecure", self.insecure.isChecked())
         s.setValue("connection/ca_cert", self.ca_cert.text())
+        s.setValue("connection/server_cert_fingerprint", self.server_cert_fingerprint.text())
         s.setValue("connection/http_timeout", self.http_timeout.value())
         s.setValue("sync/bucket", self.bucket.text())
         s.setValue("sync/continuous", self.continuous.isChecked())
@@ -751,6 +768,9 @@ class SettingsDialog(QDialog):
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", DEFAULT_INSECURE, bool)))
         self.ca_cert.setText(str(s.value("connection/ca_cert", DEFAULT_CA_CERT, str)))
+        self.server_cert_fingerprint.setText(
+            str(s.value("connection/server_cert_fingerprint", DEFAULT_SERVER_CERT_FINGERPRINT, str))
+        )
         self.http_timeout.setValue(
             cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int))
         )
