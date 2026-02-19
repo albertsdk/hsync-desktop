@@ -115,6 +115,11 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     max_wait = max(10, min(max_wait, 3600))  # Clamp to 10-3600 seconds
     args += ["--max-wait-timeout", str(max_wait)]
 
+    # Validate min free disk space
+    min_free = cast(int, s.value("sync/min_free_disk_space", 500, int))
+    min_free = max(0, min(min_free, 100_000))  # Clamp to 0-100000 MB
+    args += ["--min-free-disk-space", str(min_free)]
+
     if s.value("sync/ignore_delete", True, bool):
         args.append("--ignore-delete")
 

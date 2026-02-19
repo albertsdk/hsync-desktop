@@ -129,6 +129,8 @@ translations: dict[str, str] = {
     "settings.no_compression": "Disable compression",
     "settings.dry_run": "Dry run (no changes)",
     "settings.auto_sync": "Auto-sync on startup",
+    "settings.min_free_disk_space": "Min free disk space:",
+    "settings.disabled": "Disabled",
     "settings.filter_path": "Filter path:",
     "settings.group.path_bucket": "Path & Bucket",
     "settings.group.sync_mode": "Sync Mode",
@@ -171,6 +173,7 @@ translations: dict[str, str] = {
     "tip.ignore_delete": "Do not propagate file deletions — useful for backup scenarios",
     "tip.shared_path": "The local folder to synchronize",
     "tip.sync_direction": "Sync direction: bidirectional, upload only, or download only",
+    "tip.min_free_disk_space": "Minimum free disk space required before starting sync (0 = disabled)",
     "tip.no_compression": "Disable zstd compression for file transfers",
     "tip.dry_run": "Show what would be done without making any changes",
     "tip.auto_sync": "Automatically start synchronization when the application launches",
@@ -349,4 +352,7 @@ translations: dict[str, str] = {
     "bandwidth.click_to_edit": "Click to edit bandwidth limits",
     "bandwidth.applied": "Bandwidth limits updated: upload {upload} MB/s, download {download} MB/s",
     "bandwidth.saved": "Bandwidth limits saved: upload {upload} MB/s, download {download} MB/s",
+    # Disk space errors
+    "error.insufficient_disk_space": "Insufficient Disk Space",
+    "error.insufficient_disk_space_msg": "At least {required} MB of free disk space is required to start sync.\nAvailable: {available} MB.",
 }

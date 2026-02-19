@@ -118,6 +118,8 @@ translations: dict[str, str] = {
     "settings.no_compression": "Disabilita compressione",
     "settings.dry_run": "Esecuzione simulata (nessuna modifica)",
     "settings.auto_sync": "Sincronizzazione automatica all'avvio",
+    "settings.min_free_disk_space": "Spazio disco minimo:",
+    "settings.disabled": "Disabilitato",
     "settings.filter_path": "Filtra percorso:",
     "settings.group.path_bucket": "Percorso e bucket",
     "settings.group.sync_mode": "Modalità di sincronizzazione",
@@ -193,6 +195,7 @@ translations: dict[str, str] = {
     "tip.retry_delay": "Tempo di attesa prima di riprovare dopo un errore",
     "tip.stability_delay": "Attesa dopo l'ultima modifica prima di sincronizzare (0 = auto)",
     "tip.max_wait": "Tempo massimo di attesa per il completamento di un trasferimento",
+    "tip.min_free_disk_space": "Spazio disco minimo necessario prima di avviare la sincronizzazione (0 = disabilitato)",
     "tip.filter_path": "Sincronizza solo file il cui percorso contiene questa stringa",
     "tip.no_compression": "Disabilita la compressione durante il trasferimento",
     "tip.dry_run": "Mostra le modifiche senza effettuarle realmente",
@@ -326,4 +329,7 @@ translations: dict[str, str] = {
     "bandwidth.click_to_edit": "Clicca per modificare i limiti di banda",
     "bandwidth.applied": "Limiti di banda aggiornati: upload {upload} MB/s, download {download} MB/s",
     "bandwidth.saved": "Limiti di banda salvati: upload {upload} MB/s, download {download} MB/s",
+    # Errori spazio disco
+    "error.insufficient_disk_space": "Spazio su disco insufficiente",
+    "error.insufficient_disk_space_msg": "Sono necessari almeno {required} MB di spazio libero per avviare la sincronizzazione.\nDisponibili: {available} MB.",
 }
