@@ -58,6 +58,11 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 qt_api = "pyside6"
+filterwarnings = [
+    "default::Warning:hsync_desktop.*",
+    "default::Warning:tests.*",
+    "ignore::Warning",
+]
 
 [tool.coverage.run]
 omit = [
