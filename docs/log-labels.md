@@ -7,14 +7,14 @@ lists what you can see.
 
 > The complete, cross-project catalog (descriptions, color categories, and which
 > project emits each label) lives in
-> [`hsync-common/docs/log-labels.md`](../../hsync-common/docs/log-labels.md).
+> [`hsync-common/docs/log-labels.md`](https://github.com/albertobasso/hsync-common/blob/main/docs/log-labels.md).
 > The full set of client labels is documented in
-> [`hsync-client/docs/log-labels.md`](../../hsync-client/docs/log-labels.md).
+> [`hsync-client/docs/log-labels.md`](https://github.com/albertobasso/hsync-client/blob/main/docs/log-labels.md).
 
 ## Client labels (engine subprocess)
 
 The desktop log panel shows whatever the underlying `hsync-client` engine
-emits. See [the client label reference](../../hsync-client/docs/log-labels.md)
+emits. See [the client label reference](https://github.com/albertobasso/hsync-client/blob/main/docs/log-labels.md)
 for the full list and meanings — sync operations, preview (dry-run), LAN
 client/master operations, and security/warning labels are all surfaced here and
 colored by the same categories.
@@ -42,5 +42,5 @@ set):
 ## Related
 
 - [Usage](usage.md)
-- [Client label reference](../../hsync-client/docs/log-labels.md)
-- [Canonical label catalog](../../hsync-common/docs/log-labels.md)
+- [Client label reference](https://github.com/albertobasso/hsync-client/blob/main/docs/log-labels.md)
+- [Canonical label catalog](https://github.com/albertobasso/hsync-common/blob/main/docs/log-labels.md)
