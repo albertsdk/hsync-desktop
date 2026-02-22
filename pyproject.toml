@@ -59,9 +59,13 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 qt_api = "pyside6"
 filterwarnings = [
+    "error::DeprecationWarning:hsync_desktop.*",
+    "error::DeprecationWarning:tests.*",
     "default::Warning:hsync_desktop.*",
     "default::Warning:tests.*",
-    "ignore::Warning",
+    "ignore::urllib3.exceptions.InsecureRequestWarning",
+    "ignore::DeprecationWarning:pathspec.*",
+    "ignore::DeprecationWarning:watchdog.*",
 ]
 
 [tool.coverage.run]
