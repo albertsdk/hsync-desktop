@@ -198,6 +198,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Aucun maître n'a été élu. Tous les pairs détectés sont peut-être configurés en never-master ; aucun nœud ne servira les fichiers et la synchronisation ne peut pas se poursuivre.",
     "notif.sync_paused_title": "Sync en pause (garde de suppression)",
     "notif.sync_paused_msg": "Une garde de sécurité a bloqué {deletes} suppression(s) ce cycle ({reason}). Aucun fichier n'a été supprimé. Vérifiez que le maître/la source est correct, puis reprenez si c'est attendu.",
+    "notif.conflict_resolved_title": "Conflit de Fichier Résolu",
+    "notif.conflict_resolved_msg": "{file} a été modifié des deux côtés. La version distante a été conservée ; votre version locale a été sauvegardée sous {conflict_copy}.",
     "preview.title": "Aperçu de la synchronisation",
     "preview.no_actions": "Aucune action à effectuer — tout est synchronisé.",
     "tip.server_url": "URL du serveur hsync (laisser vide pour le mode LAN uniquement)",

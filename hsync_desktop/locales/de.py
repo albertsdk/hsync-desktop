@@ -198,6 +198,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Es wurde kein Master gewählt. Alle erkannten Peers sind möglicherweise als Never-Master konfiguriert, sodass kein Knoten Dateien bereitstellt und die Synchronisierung nicht fortgesetzt werden kann.",
     "notif.sync_paused_title": "Sync pausiert (Löschschutz)",
     "notif.sync_paused_msg": "Ein Sicherheitsschutz hat in diesem Zyklus {deletes} Löschung(en) blockiert ({reason}). Es wurden keine Dateien entfernt. Prüfe, ob Master/Quelle korrekt ist, und setze dann fort, falls dies erwartet wird.",
+    "notif.conflict_resolved_title": "Dateikonflikt gelöst",
+    "notif.conflict_resolved_msg": "{file} wurde auf beiden Seiten geändert. Die Remote-Version wurde beibehalten; Ihre lokale Version wurde als {conflict_copy} gespeichert.",
     "preview.title": "Synchronisationsvorschau",
     "preview.no_actions": "Keine Aktionen erforderlich — alles ist synchronisiert.",
     "tip.server_url": "URL des hsync-Servers (leer lassen für reinen LAN-Modus)",
