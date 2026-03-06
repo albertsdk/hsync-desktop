@@ -309,7 +309,8 @@ class SettingsDialog(QDialog):
         hl_never_master.addStretch()
         fm_container = self.force_master.parent()
         if isinstance(fm_container, QWidget):
-            fm_layout = fm_container.parent().layout() if fm_container.parent() else None
+            fm_parent = fm_container.parent()
+            fm_layout = fm_parent.layout() if isinstance(fm_parent, QWidget) else None
             if isinstance(fm_layout, QFormLayout):
                 for row in range(fm_layout.rowCount()):
                     item = fm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)

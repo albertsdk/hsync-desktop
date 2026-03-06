@@ -998,7 +998,7 @@ class FileTransferTable(QTableWidget):
         # escape from the sync directory.
         if (
             os.path.sep in new_name
-            or os.path.altsep in new_name
+            or (os.path.altsep is not None and os.path.altsep in new_name)
             or ".." in new_name
             or "\x00" in new_name
         ):
