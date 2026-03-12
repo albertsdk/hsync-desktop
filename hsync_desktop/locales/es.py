@@ -188,7 +188,7 @@ translations: dict[str, str] = {
     "notif.version_mismatch_msg": "El cliente hsync incluido ({binary}) tiene una versión mayor diferente a la de esta app ({expected}). La sincronización podría no funcionar correctamente. Recompile ambos componentes juntos.",
     "notif.deletion_risk": "Riesgo de eliminación de archivos",
     "notif.deletion_risk_msg": "La carpeta compartida no está vacía y la configuración de sincronización actual podría ELIMINAR archivos locales.\n\nMotivo: {reason}\n\n¿Desea continuar?",
-    "notif.deletion_risk_lan": "Modo LAN sin force-master: el par maestro es la fuente autorizada y los archivos locales que no estén en el maestro serán eliminados",
+    "notif.deletion_risk_lan": "Modo LAN sin force-master: los archivos locales que no estén en el maestro elegido podrían ser eliminados",
     "notif.deletion_risk_download": "Modo solo descarga: las eliminaciones remotas se aplicarán localmente y los archivos que solo existen localmente podrían ser eliminados",
     "notif.master_conflict_title": "Conflicto de Master",
     "notif.master_conflict_lost": "Otro master {cid} en {ip} tiene prioridad (iniciado antes). Este cliente operará como esclavo.",
