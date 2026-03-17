@@ -8,12 +8,14 @@
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
+from PySide6.QtCore import QProcessEnvironment
 
 from hsync_desktop.engine import (
     _EXPECTED_VERSION,
     _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
+    apply_settings_env,
     check_binary_compatibility,
     find_hsync_binary,
     get_binary_capabilities,
@@ -182,6 +184,56 @@ class TestCheckBinaryCompatibility:
 
         monkeypatch.setattr(engine, "get_binary_version", lambda p: None)
         assert check_binary_compatibility("/fake/hsync") == (True, None)
+
+
+class _EnvFakeSettings:
+    """Minimal QSettings stand-in for ``apply_settings_env`` (dict-backed)."""
+
+    def __init__(self, values: dict[str, object]) -> None:
+        self._values = values
+
+    def value(self, key: str, default: object = None, type_: object = None) -> object:
+        return self._values.get(key, default)
+
+
+class TestApplySettingsEnv:
+    """The engine injects the GUI-configured env vars into the subprocess."""
+
+    def _env_with(self, values: dict[str, object]) -> QProcessEnvironment:
+        env = QProcessEnvironment()
+        apply_settings_env(env, _EnvFakeSettings(values))
+        return env
+
+    def test_ntp_hosts_inserted_when_set(self):
+        env = self._env_with({"lan/ntp_hosts": "ntp.local:123, ntp2.local"})
+        assert env.value("HSYNC_NTP_HOSTS") == "ntp.local:123, ntp2.local"
+
+    def test_ntp_hosts_blank_is_skipped(self):
+        # A blank value must not insert an empty env var: the client then
+        # falls back to its own defaults.
+        env = self._env_with({"lan/ntp_hosts": "   "})
+        assert not env.contains("HSYNC_NTP_HOSTS")
+
+    def test_ntp_hosts_missing_is_skipped(self):
+        env = self._env_with({})
+        assert not env.contains("HSYNC_NTP_HOSTS")
+
+    def test_server_url_inserted_when_set(self):
+        env = self._env_with({"connection/server_url": "https://srv.example"})
+        assert env.value("HSYNC_SERVER") == "https://srv.example"
+
+    def test_no_values_inserts_nothing(self):
+        env = self._env_with({})
+        assert not env.contains("HSYNC_SERVER")
+        assert not env.contains("HSYNC_NTP_HOSTS")
+
+    def test_gui_value_overrides_ambient(self):
+        # The GUI setting is the user's explicit choice: insert() overwrites
+        # any pre-existing ambient value.
+        env = QProcessEnvironment()
+        env.insert("HSYNC_NTP_HOSTS", "ambient.local")
+        apply_settings_env(env, _EnvFakeSettings({"lan/ntp_hosts": "gui.local"}))
+        assert env.value("HSYNC_NTP_HOSTS") == "gui.local"
 
 
 class TestGetBinaryCapabilities:

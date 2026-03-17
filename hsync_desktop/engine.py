@@ -96,6 +96,30 @@ def _platform_tag() -> str:
     return f"{system}-{arch}"
 
 
+def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
+    """Insert the GUI-configured environment variables into *env*.
+
+    Reads the QSettings values that hsync-client consumes from the process
+    environment (no CLI flag exists for them) and inserts them when set:
+
+    * ``HSYNC_SERVER`` (``connection/server_url``) — already mirrored by
+      ``-s`` in the CLI args, kept for consistency with the client's env
+      fallback;
+    * ``HSYNC_NTP_HOSTS`` (``lan/ntp_hosts``, ADR-0023) — SNTP host list for
+      the LAN-mode clock-offset probe.
+
+    ``insert()`` overwrites any pre-existing value: the GUI setting is the
+    user's explicit choice and wins over the ambient environment.
+    """
+    server_url = str(s.value("connection/server_url", "", str)).strip()
+    if server_url:
+        env.insert("HSYNC_SERVER", server_url)
+    # ADR-0023: SNTP host list for LAN-mode clock correction.
+    ntp_hosts = str(s.value("lan/ntp_hosts", "", str)).strip()
+    if ntp_hosts:
+        env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
+
+
 def find_hsync_binary() -> str | None:
     """Locate the hsync binary: bundled → PATH → sibling project dist (platform-aware)."""
     bin_name = "hsync.exe" if sys.platform == "win32" else "hsync"
@@ -301,9 +325,7 @@ class HsyncEngine(QObject):
         # picks up values configured in the desktop GUI.
         env = QProcessEnvironment.systemEnvironment()
         s = QSettings("HSYNC", "HSYNCDesktop")
-        server_url = s.value("connection/server_url", "", str)
-        if server_url:
-            env.insert("HSYNC_SERVER", str(server_url))
+        apply_settings_env(env, s)
         proc.setProcessEnvironment(env)
 
         # Pass secrets via pipe file descriptors so they never appear in

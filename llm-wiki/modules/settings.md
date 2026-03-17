@@ -6,9 +6,10 @@ How the GUI persists user config and turns it into the binary's command line.
 
 Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 (`:17`–`:24`), server defaults (`:27`–`:35`), sync defaults (`:38`–`:52`), LAN
-defaults (`:55`–`:62`, incl. `DEFAULT_LAN_REQUIRE_PAIRING:62`). These seed
-`QSettings` and the dialog. `DEFAULT_NO_COMPRESSION` (`:46`) exists only to
-migrate the legacy key into `DEFAULT_COMPRESSION_ENABLED` (`:47`).
+defaults (`:55`–`:63`, incl. `DEFAULT_LAN_REQUIRE_PAIRING:62` and
+`DEFAULT_NTP_HOSTS:63`). These seed `QSettings` and the dialog.
+`DEFAULT_NO_COMPRESSION` (`:46`) exists only to migrate the legacy key into
+`DEFAULT_COMPRESSION_ENABLED` (`:47`).
 
 ## settings/dialog.py — the settings UI
 
@@ -25,6 +26,15 @@ migrate the legacy key into `DEFAULT_COMPRESSION_ENABLED` (`:47`).
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
+
+**NTP hosts (ADR-0023)**: `ntp_hosts` (`dialog.py:297`, dynamic widget injected
+after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
+`lan/ntp_hosts` QSettings key (`:1024` / `:1107`); the label comes from
+`settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all 5 locales). It is
+an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
+NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
+`apply_settings_env` (`engine.py:99`, called at `engine.py:328`). Empty = the
+client's built-in defaults.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
 `_validate_bucket` (`:34`), `_validate_url` (`:52`), `_validate_group_name`

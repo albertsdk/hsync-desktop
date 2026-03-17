@@ -56,6 +56,11 @@ DEFAULT_LAN_PERSISTENT = True
 DEFAULT_FORCE_MASTER = False
 DEFAULT_NEVER_MASTER = False
 DEFAULT_LAN_REQUIRE_PAIRING = False
+# Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the
+# HSYNC_NTP_HOSTS environment variable. Empty = client defaults
+# (pool.ntp.org, time.cloudflare.com, time.google.com); entries may carry a
+# port override (host:port).
+DEFAULT_NTP_HOSTS = ""
 
 # Output defaults
 DEFAULT_VERBOSE = False

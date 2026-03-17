@@ -69,6 +69,7 @@ from hsync_desktop.config import (
     DEFAULT_NEVER_MASTER,
     DEFAULT_NO_COMPRESSION,
     DEFAULT_NOTIFICATIONS,
+    DEFAULT_NTP_HOSTS,
     DEFAULT_QUIET,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
@@ -289,6 +290,24 @@ class SettingsDialog(QDialog):
         self.lan_key: QLineEdit = self.findChild(QLineEdit, "lanKey")  # type: ignore[assignment]
         self.lan_port: QSpinBox = self.findChild(QSpinBox, "lanPort")  # type: ignore[assignment]
         self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
+
+        # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
+        # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
+        # no .ui counterpart; inserted right after the discovery_timeout row.
+        self.ntp_hosts = QLineEdit(self)
+        self.ntp_hosts.setObjectName("ntpHosts")
+        self.ntp_hosts.setPlaceholderText("pool.ntp.org, time.cloudflare.com, time.google.com")
+        self._lbl_ntp_hosts = QLabel(self)
+        disc_container = self.discovery_timeout.parent()
+        if isinstance(disc_container, QWidget):
+            disc_layout = disc_container.layout()
+            if isinstance(disc_layout, QFormLayout):
+                for row in range(disc_layout.rowCount()):
+                    item = disc_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    if item and item.widget() is self.discovery_timeout:
+                        disc_layout.insertRow(row + 1, self._lbl_ntp_hosts, self.ntp_hosts)
+                        break
+
         self.lan_persistent, self._lbl_lan_persistent = _replace_checkbox_with_toggle(
             self, "lanPersistent"
         )
@@ -601,6 +620,7 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.discovery_timeout"))
+        self._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
         self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
         self._lbl_force_master.setText(tr("settings.force_master"))
         self._lbl_never_master.setText(tr("settings.never_master"))
@@ -669,6 +689,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.lan_key, "tip.lan_key", tips)
         _maybe_tip(self.lan_port, "tip.lan_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
+        _maybe_tip(self.ntp_hosts, "tip.ntp_hosts", tips)
         _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
@@ -814,6 +835,7 @@ class SettingsDialog(QDialog):
             self.lan_key,
             self.lan_port,
             self.discovery_timeout,
+            self.ntp_hosts,
             self.lan_persistent,
             self.force_master,
             self.never_master,
@@ -999,6 +1021,7 @@ class SettingsDialog(QDialog):
         s.setValue("lan/key", self.lan_key.text())
         s.setValue("lan/port", self.lan_port.value())
         s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
+        s.setValue("lan/ntp_hosts", self.ntp_hosts.text())
         s.setValue("lan/persistent", self.lan_persistent.isChecked())
         s.setValue("lan/force_master", self.force_master.isChecked())
         s.setValue("lan/never_master", self.never_master.isChecked())
@@ -1081,6 +1104,7 @@ class SettingsDialog(QDialog):
         self.discovery_timeout.setValue(
             cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
         )
+        self.ntp_hosts.setText(str(s.value("lan/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
         self.lan_persistent.setChecked(
             bool(s.value("lan/persistent", DEFAULT_LAN_PERSISTENT, bool))
         )
@@ -1178,6 +1202,7 @@ class SettingsDialog(QDialog):
             self.lan_key,
             self.lan_port,
             self.discovery_timeout,
+            self.ntp_hosts,
             self.lan_persistent,
             self.force_master,
             self.never_master,

@@ -44,6 +44,11 @@ For **LAN Mode** (peer-to-peer on the same network, no server):
 - **Force master / Never master** — control master election for this device.
 - **Require pairing** — only sync with explicitly paired peers.
 - **LAN key** — shared secret for the LAN group (see *Secrets*).
+- **NTP servers** — comma-separated list of SNTP servers used by the client in
+  LAN mode to measure the clock offset used for chronological conflict
+  resolution. Leave empty to use the built-in defaults
+  (`pool.ntp.org`, `time.cloudflare.com`, `time.google.com`). Entries may
+  carry a port override, e.g. `ntp.local:123`.
 
 > Controls for features your installed `hsync` binary does not support are
 > automatically disabled, with a tooltip explaining why.
