@@ -14,7 +14,7 @@ without touching the command line.
 > [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
 
->  👉 **Remember:** keep verified backups of your data when before new
+>  👉 **Remember:** keep verified backups of your data before trying new
 > synchronization tools. 😉
 
 ---
@@ -41,7 +41,7 @@ without touching the command line.
 - 👀 Sync preview/summary dialog before applying changes
 - 🚦 Bandwidth-limit dialog (transfer throttling)
 - 🔔 Desktop push notifications for key events (configurable)
-- ⚙️ Settings dialog organized by category (Connection, Sync, LAN, Output, Appearance)
+- ⚙️ Settings dialog organized by category (Sync, Server Mode, LAN Mode, Log, Appearance)
 - 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
 - 🌍 Multi-language UI (EN/IT/DE/ES/FR)
 - 🌙 Light and dark themes
@@ -100,7 +100,7 @@ and bundles it into the resulting executable when found.
 
 All settings are managed through the GUI Settings dialog and persisted via QSettings.
 
-### Connection
+### Server Mode
 
 | Setting | Description |
 |---------|-------------|
@@ -129,6 +129,15 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 | Shared Secret | Authentication key for LAN peers |
 | HTTPS | Use encrypted LAN connections |
 | Persistent | Stay active waiting for peers |
+
+### Log
+
+| Setting | Description |
+|---------|-------------|
+| Verbose output | Enable verbose (debug-level) logging |
+| Quiet mode | Suppress non-warning output |
+| Log file | Path to the log file |
+| Show log panel | Toggle the in-app log viewer |
 
 ### Appearance
 
