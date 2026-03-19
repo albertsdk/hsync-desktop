@@ -6,20 +6,20 @@ workflow for the HSYNC desktop GUI (PySide6).
 ## Prerequisites
 
 - Python `>=3.12,<3.15` (lint/CI target: **3.13**)
-- [Poetry](https://python-poetry.org/) for dependency management
+- A committed virtualenv at `.venv/` (no Poetry required)
 - A checkout of [`hsync-common`](../hsync-common) as a **sibling directory**
   (declared as a Poetry path dependency)
 
 ## Setup
 
-```bash
-poetry install
-```
+The project ships a committed virtualenv at `.venv/`. All tooling is invoked
+through it as `.venv/bin/python -m <tool>` — exactly as the root `Makefile`
+does. No Poetry installation is required.
 
 ## Running
 
 ```bash
-poetry run hsync-desktop
+.venv/bin/python -m hsync_desktop
 ```
 
 ## Building the Binary
@@ -34,8 +34,8 @@ This project uses [ruff](https://docs.astral.sh/ruff/) for linting and
 formatting (line length 100, target `py313`), enforced via pre-commit hooks.
 
 ```bash
-poetry run ruff check --fix .
-poetry run ruff format .
+.venv/bin/python -m ruff check --fix .
+.venv/bin/python -m ruff format .
 ```
 
 ## Pre-commit Workflow
@@ -45,8 +45,8 @@ auto-fixes files, the commit aborts because files changed — **this is expected
 not a failure**. Re-stage and commit again:
 
 ```bash
-poetry run ruff check --fix .
-poetry run ruff format .
+.venv/bin/python -m ruff check --fix .
+.venv/bin/python -m ruff format .
 git add -A
 git commit -m "type(scope): message"
 # if hooks modified files and the commit aborted, re-stage and retry:
@@ -56,10 +56,23 @@ git commit -m "type(scope): message"
 
 ## Tests & Type Checking
 
+GUI tests use pytest-qt and need a display: always set
+`QT_QPA_PLATFORM=offscreen` (this is what `make test-python` does).
+
 ```bash
-poetry run pytest      # GUI tests use pytest-qt
-poetry run mypy .
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest
+.venv/bin/python -m mypy hsync_desktop
 ```
+
+## Documentation
+
+HSYNC maintains two documentation sets that must stay in sync with the code:
+
+- `llm-wiki/` — internal agent knowledge base (architecture, modules, data models)
+- `docs/` — end-user technical documentation
+
+Any change that affects architecture, contracts, configuration, or behavior
+must update the relevant files in both sets within the same change.
 
 ## Commit Messages
 
