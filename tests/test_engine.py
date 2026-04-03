@@ -178,10 +178,10 @@ class TestRegexPatterns:
         assert _RE_MASTER.search("elected as master") is not None
 
     def test_slave_pattern(self):
-        """Test _RE_SLAVE pattern."""
+        """Test _RE_CLIENT pattern."""
         assert _RE_SLAVE.search("Master is at 192.168.1.1") is not None
         assert _RE_SLAVE.search("Connecting to master") is not None
-        assert _RE_SLAVE.search("I am a slave") is not None
+        assert _RE_SLAVE.search("I am a client") is not None
 
     def test_bucket_pattern(self):
         """Test _RE_BUCKET pattern."""
