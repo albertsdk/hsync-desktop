@@ -745,11 +745,11 @@ class MainWindow(QMainWindow):
         """Hide the info banner."""
         self._info_banner.hide()
 
-    @Slot(int)
-    def _on_peers(self, count: int) -> None:
-        self._peers_label.setText(str(count))
+    @Slot(int, int)
+    def _on_peers(self, connected: int, total: int) -> None:
+        self._peers_label.setText(f"{connected}/{total}")
         if self._notifier:
-            self._notifier.peer_joined(count)
+            self._notifier.peer_joined(connected, total)
 
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:

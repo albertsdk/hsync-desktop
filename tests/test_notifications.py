@@ -177,7 +177,7 @@ class TestNotificationManager:
 
         manager = NotificationManager(tray_icon)
 
-        manager.peer_joined(3)
+        manager.peer_joined(3, 5)
 
         tray_icon.showMessage.assert_called_once()
 

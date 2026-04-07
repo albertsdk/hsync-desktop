@@ -220,7 +220,7 @@ class HsyncEngine(QObject):
     # ── Signals ──────────────────────────────────────────────────────────
     log_received = Signal(str)  # raw log line
     status_changed = Signal(str)  # disconnected|connecting|connected|waiting|error
-    peers_changed = Signal(int)  # number of alive peers
+    peers_changed = Signal(int, int)  # connected clients, total clients (self included)
     master_changed = Signal(bool)  # True ⇒ this client is master
     bucket_detected = Signal(str)  # bucket name
     group_detected = Signal(str)  # LAN group name
@@ -256,6 +256,7 @@ class HsyncEngine(QObject):
         self._stopping = False  # True when stop() was called programmatically
         self._is_master = False
         self._peers = 0
+        self._peers_total = 0
         self._status = "disconnected"
         self._cid = ""
         self._server_ip = ""
@@ -312,6 +313,7 @@ class HsyncEngine(QObject):
         self.stats.reset()
         self._is_master = False
         self._peers = 0
+        self._peers_total = 0
         self._stopping = False
         self._set_status("connecting")
 
@@ -597,10 +599,12 @@ class HsyncEngine(QObject):
             if name == UiEventName.status:
                 self._set_status(str(event.get("status", "")))
             elif name == UiEventName.peers:
-                count = int(event.get("count", 0))
-                if count != self._peers:
-                    self._peers = count
-                    self.peers_changed.emit(count)
+                connected = int(event.get("connected", 0))
+                total = int(event.get("total", 0))
+                if (connected, total) != (self._peers, self._peers_total):
+                    self._peers = connected
+                    self._peers_total = total
+                    self.peers_changed.emit(connected, total)
             elif name == UiEventName.role:
                 is_master = bool(event.get("is_master", False))
                 if is_master != self._is_master:

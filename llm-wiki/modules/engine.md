@@ -51,7 +51,7 @@ command line (`:315`):
 
 | `UiEventName` | Signal | Line |
 | ------------- | ------ | ---- |
-| `status` / `peers` / `role` | `status_changed` / `peers_changed` / `master_changed` | `:581`/`:583`/`:588` |
+| `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` | `:581`/`:583`/`:588` |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip | `:593`–`:599` |
 | `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` | `:603`–`:611` |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:617`/`:619`/`:625` |

@@ -314,10 +314,10 @@ class TestHandleEvent:
 
     def test_peers_event_dedupes(self, engine):
         out = _capture(engine.peers_changed)
-        engine._handle_event(build_event(UiEventName.peers, count=3))
-        engine._handle_event(build_event(UiEventName.peers, count=3))
-        engine._handle_event(build_event(UiEventName.peers, count=5))
-        assert out == [(3,), (5,)]
+        engine._handle_event(build_event(UiEventName.peers, total=5, connected=3))
+        engine._handle_event(build_event(UiEventName.peers, total=5, connected=3))
+        engine._handle_event(build_event(UiEventName.peers, total=5, connected=5))
+        assert out == [(3, 5), (5, 5)]
 
     def test_role_event_dedupes(self, engine):
         out = _capture(engine.master_changed)
@@ -458,5 +458,5 @@ class TestHandleEvent:
     def test_malformed_event_does_not_raise(self, engine):
         # A wrong-typed payload is swallowed (logged) rather than crashing.
         logs = _capture(engine.log_received)
-        engine._handle_event({"schema_version": 1, "ts": "x", "event": "peers", "count": "NaN"})
+        engine._handle_event({"schema_version": 1, "ts": "x", "event": "peers", "connected": "NaN"})
         assert any("EVENT ERROR" in args[0] for args in logs)

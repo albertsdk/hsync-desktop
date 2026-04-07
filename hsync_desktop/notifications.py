@@ -76,8 +76,12 @@ class NotificationManager:
         msg = tr("notif.sync_complete_msg")
         self.info(tr("notif.sync_complete"), msg)
 
-    def peer_joined(self, count: int) -> None:
-        msg = tr("notif.peer_update_msg").replace("{count}", str(count))
+    def peer_joined(self, connected: int, total: int) -> None:
+        msg = (
+            tr("notif.peer_update_msg")
+            .replace("{connected}", str(connected))
+            .replace("{total}", str(total))
+        )
         self.info(tr("notif.peer_update"), msg)
 
     def connection_lost(self) -> None:

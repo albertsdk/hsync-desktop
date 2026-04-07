@@ -244,7 +244,7 @@ translations: dict[str, str] = {
     "notif.sync_complete": "Sync Complete",
     "notif.sync_complete_msg": "All files in sync",
     "notif.peer_update": "Peer Update",
-    "notif.peer_update_msg": "{count} peer(s) connected",
+    "notif.peer_update_msg": "{connected}/{total} clients connected",
     "notif.connection_lost": "Disconnected",
     "notif.connection_lost_msg": "Connection to peers lost",
     "notif.master_elected": "Master Elected",

@@ -177,7 +177,7 @@ translations: dict[str, str] = {
     "notif.sync_complete": "Synchronisation abgeschlossen",
     "notif.sync_complete_msg": "Alle Dateien sind synchronisiert",
     "notif.peer_update": "Peer-Update",
-    "notif.peer_update_msg": "{count} Peer(s) verbunden",
+    "notif.peer_update_msg": "{connected}/{total} Geräte verbunden",
     "notif.connection_lost": "Getrennt",
     "notif.connection_lost_msg": "Verbindung zu Peers verloren",
     "notif.master_elected": "Master gewählt",
