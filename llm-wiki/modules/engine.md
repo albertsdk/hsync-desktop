@@ -33,15 +33,18 @@ State accessors: `is_running` (`:249`), `is_master` (`:253`), `peer_count`
 
 ## Secrets & event channel (pipe FDs, never argv)
 
-`start` (`engine.py:282`) builds inheritable pipes so secrets never hit the
-command line (`:315`):
+`start` (`engine.py:302`) builds inheritable pipes so secrets never hit the
+command line:
 
-- `--api-key-fd` (`:345`) and `--lan-key-fd` (`:358`): secret written to the
-  write end, read end inherited by the child (`FD_CLOEXEC` on parent ends).
-- `--events-json-fd` (`:366`): child writes JSON-Lines events to the inherited
-  write end; the parent keeps the read end (`_events_read_fd`, `:242`) watched by
-  a `QSocketNotifier` (`_events_notifier`, `:243`). On start failure all FDs are
-  closed (`:374`).
+- `write_secret_pipe` (`engine.py`): write secret, close write end, mark the
+  read fd inheritable (`os.set_inheritable`). Python 3.4+ fds are CLOEXEC by
+  default; without this the QProcess child would see a closed `--api-key-fd` /
+  `--lan-key-fd`.
+- `--api-key-fd` / `--lan-key-fd`: values from `decrypt_value` on
+  `connection/api_key` and `lan/key` (both Fernet at rest).
+- `--events-json-fd`: child writes JSON-Lines; parent watches the read end.
+  Same inheritable requirement as the secret read fds. On start failure all
+  FDs are closed.
 
 ## Event → Signal bridge
 

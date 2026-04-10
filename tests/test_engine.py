@@ -6,6 +6,8 @@
 
 """Tests for hsync_desktop.engine module."""
 
+import os
+
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
 from PySide6.QtCore import QProcessEnvironment
@@ -20,6 +22,7 @@ from hsync_desktop.engine import (
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
+    write_secret_pipe,
 )
 
 
@@ -460,3 +463,16 @@ class TestHandleEvent:
         logs = _capture(engine.log_received)
         engine._handle_event({"schema_version": 1, "ts": "x", "event": "peers", "connected": "NaN"})
         assert any("EVENT ERROR" in args[0] for args in logs)
+
+
+class TestWriteSecretPipe:
+    """Secret pipe fds must survive QProcess fork+exec (not CLOEXEC)."""
+
+    def test_read_fd_is_inheritable_and_delivers_eof(self):
+        fd = write_secret_pipe("secret-value")
+        try:
+            assert os.get_inheritable(fd) is True
+            assert os.read(fd, 64) == b"secret-value"
+            assert os.read(fd, 64) == b""
+        finally:
+            os.close(fd)

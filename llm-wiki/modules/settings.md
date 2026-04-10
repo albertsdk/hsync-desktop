@@ -67,8 +67,11 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:2
 Secrets stored in `QSettings` are Fernet-encrypted with a machine-derived key:
 `encrypt_value` (`crypto.py:110`) / `decrypt_value` (`:118`); key derivation
 `_derive_key` (`:86`) from `_get_machine_id` (`:40`) + `_APP_SALT` (`:33`);
-stored values carry the `_ENC_PREFIX` (`:37`) marker. Plaintext secrets only ever
-leave via the engine's pipe FDs.
+stored values carry the `_ENC_PREFIX` (`:37`) marker. **Both** the API key
+(`connection/api_key`) and the LAN key (`lan/key`) go through encrypt/decrypt
+on save/load (`dialog.py`). `decrypt_value` still accepts a legacy plaintext
+value (no prefix) so an existing unencrypted LAN key is readable until the
+next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 ## i18n.py — localization
 

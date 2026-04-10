@@ -1018,7 +1018,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
         s.setValue("lan/enabled", self.lan_mode.isChecked())
         s.setValue("lan/group", self.lan_group.text())
-        s.setValue("lan/key", self.lan_key.text())
+        s.setValue("lan/key", encrypt_value(self.lan_key.text()))
         s.setValue("lan/port", self.lan_port.value())
         s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
         s.setValue("lan/ntp_hosts", self.ntp_hosts.text())
@@ -1099,7 +1099,7 @@ class SettingsDialog(QDialog):
         )
         self.lan_mode.setChecked(bool(s.value("lan/enabled", DEFAULT_LAN_ENABLED, bool)))
         self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
-        self.lan_key.setText(str(s.value("lan/key", DEFAULT_LAN_KEY, str)))
+        self.lan_key.setText(decrypt_value(str(s.value("lan/key", DEFAULT_LAN_KEY, str))))
         self.lan_port.setValue(cast(int, s.value("lan/port", DEFAULT_LAN_PORT, int)))
         self.discovery_timeout.setValue(
             cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
@@ -1321,7 +1321,7 @@ class LanKeyDialog(QDialog):
 
         # Load current LAN key if any
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        current_key = str(s.value("lan/key", "", str))
+        current_key = decrypt_value(str(s.value("lan/key", "", str)))
         self._lan_key_edit.setText(current_key)
 
         # Buttons
@@ -1340,7 +1340,7 @@ class LanKeyDialog(QDialog):
         lan_key = self._lan_key_edit.text().strip()
         if lan_key:
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            s.setValue("lan/key", lan_key)
+            s.setValue("lan/key", encrypt_value(lan_key))
             self.accept()
         else:
             QMessageBox.warning(

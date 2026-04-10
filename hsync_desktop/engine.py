@@ -15,7 +15,6 @@ The merged stdout/stderr stream is captured purely as a diagnostic log feed.
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import re
@@ -37,6 +36,26 @@ from PySide6.QtCore import (
 )
 
 from hsync_desktop.crypto import decrypt_value
+
+
+def write_secret_pipe(secret: str) -> int:
+    """Write *secret* into a pipe; return the inheritable read fd.
+
+    The write end is closed before return so a reader sees EOF after the
+    bytes. The read end is marked inheritable for QProcess fork+exec
+    (Python 3.4+ file descriptors are close-on-exec by default). The
+    parent must close the returned fd after the child has started.
+
+    Consumers: ``HsyncEngine.start`` (``--api-key-fd`` / ``--lan-key-fd``).
+    """
+    read_fd, write_fd = os.pipe()
+    os.set_inheritable(read_fd, True)
+    try:
+        os.write(write_fd, secret.encode("utf-8"))
+    finally:
+        os.close(write_fd)
+    return read_fd
+
 
 # ─── Stats dataclass ────────────────────────────────────────────────────────
 
@@ -334,51 +353,27 @@ class HsyncEngine(QObject):
         # process arguments (visible in ``ps``) or environment variables
         # (visible in ``/proc/<pid>/environ``).
         #
-        # IMPORTANT: We use a more robust approach to avoid race conditions:
-        # 1. Write the secret to the pipe BEFORE starting the process
-        # 2. Close the WRITE end BEFORE start (so child sees EOF when reading)
-        # 3. Keep the READ end open until AFTER waitForStarted confirms success
-        #    This ensures the child has time to fork and inherit the fd before
-        #    we close it in the parent.
-        # 4. On failure to start, we close all fds in the error handler
-        #
-        # The child process inherits the read end and reads the secret.
-        # We defer closing the read fds until after the process starts
-        # successfully to avoid a race where the child hasn't yet opened
-        # the inherited fd.
+        # write_secret_pipe marks the read end inheritable (required for
+        # QProcess fork+exec) and closes the write end so the child sees
+        # EOF. The parent keeps the read fd until waitForStarted succeeds.
         pipe_fds: list[int] = []
         pipe_args: list[str] = []
 
         api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
         if api_key:
-            read_fd, write_fd = os.pipe()
-            # Set close-on-exec to prevent accidental inheritance by other processes
-            fcntl.fcntl(read_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
-            fcntl.fcntl(write_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
-            # Write the secret BEFORE fork so it's available immediately after start
-            os.write(write_fd, api_key.encode("utf-8"))
-            # Close write end BEFORE start so child sees EOF when it reads
-            os.close(write_fd)
+            read_fd = write_secret_pipe(api_key)
             pipe_fds.append(read_fd)
             pipe_args.extend(["--api-key-fd", str(read_fd)])
 
-        lan_key = str(s.value("lan/key", "", str))
+        lan_key = decrypt_value(str(s.value("lan/key", "", str)))
         if lan_key:
-            read_fd, write_fd = os.pipe()
-            # Set close-on-exec to prevent accidental inheritance by other processes
-            fcntl.fcntl(read_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
-            fcntl.fcntl(write_fd, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
-            # Write the secret BEFORE fork so it's available immediately after start
-            os.write(write_fd, lan_key.encode("utf-8"))
-            # Close write end BEFORE start so child sees EOF when it reads
-            os.close(write_fd)
+            read_fd = write_secret_pipe(lan_key)
             pipe_fds.append(read_fd)
             pipe_args.extend(["--lan-key-fd", str(read_fd)])
 
         # Structured-event channel: the child writes JSON-Lines status events to
-        # the write end, which it inherits across exec. Unlike the CLOEXEC secret
-        # pipes above, this fd must be explicitly marked inheritable so QProcess'
-        # fork+exec child keeps it open.
+        # the write end, which it inherits across exec. Same inheritable
+        # requirement as the secret read fds (Python 3.4+ fds are CLOEXEC).
         events_read_fd, events_write_fd = os.pipe()
         os.set_inheritable(events_write_fd, True)
         pipe_args.extend(["--events-json-fd", str(events_write_fd)])
