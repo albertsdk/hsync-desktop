@@ -76,8 +76,8 @@ class TransferStats:
 
 # Sentinel filename and protocol version – imported from the shared library
 # (single source of truth).
+from hsync_common.constants import HSYNC_VERSION as _EXPECTED_VERSION
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
-from hsync_common.constants import VERSION as _EXPECTED_VERSION
 from hsync_common.protocol.capabilities import CapabilitiesDoc, parse_capabilities
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 

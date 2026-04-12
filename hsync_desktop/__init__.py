@@ -6,4 +6,4 @@
 
 """HSYNC Desktop - Cross-platform GUI for HSYNC Client."""
 
-from hsync_common.constants import VERSION as __version__
+from hsync_common.constants import HSYNC_VERSION as __version__
