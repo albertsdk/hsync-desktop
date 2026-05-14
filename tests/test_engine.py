@@ -12,6 +12,7 @@ from hsync_desktop.engine import (
     _HSYNCKEEP,
     _RE_AUTH_ERROR,
     _RE_BUCKET,
+    _RE_CLIENT,
     _RE_CONNECTED,
     _RE_DIR_CREATE,
     _RE_DISCONNECTED,
@@ -31,7 +32,6 @@ from hsync_desktop.engine import (
     _RE_RENAME,
     _RE_SERVER_URL,
     _RE_SESSION_CID,
-    _RE_SLAVE,
     _RE_SYNC_COMPLETE,
     _RE_SYNCED,
     _RE_TO_DELETE,
@@ -177,11 +177,11 @@ class TestRegexPatterns:
         assert _RE_MASTER.search("This client is the master") is not None
         assert _RE_MASTER.search("elected as master") is not None
 
-    def test_slave_pattern(self):
+    def test_client_pattern(self):
         """Test _RE_CLIENT pattern."""
-        assert _RE_SLAVE.search("Master is at 192.168.1.1") is not None
-        assert _RE_SLAVE.search("Connecting to master") is not None
-        assert _RE_SLAVE.search("I am a client") is not None
+        assert _RE_CLIENT.search("Master is at 192.168.1.1") is not None
+        assert _RE_CLIENT.search("Connecting to master") is not None
+        assert _RE_CLIENT.search("I am a client") is not None
 
     def test_bucket_pattern(self):
         """Test _RE_BUCKET pattern."""

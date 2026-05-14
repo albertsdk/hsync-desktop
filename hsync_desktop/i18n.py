@@ -45,7 +45,7 @@ _translations: dict[str, dict[str, str]] = {}
 def _detect_system_language() -> str:
     """Detect system language and return matching supported language code."""
     try:
-        lang_code = locale.getdefaultlocale()[0] or ""
+        lang_code = locale.getlocale()[0] or ""
         lang_prefix = lang_code[:2].lower()
         if lang_prefix in SUPPORTED_LANGUAGES:
             return lang_prefix
