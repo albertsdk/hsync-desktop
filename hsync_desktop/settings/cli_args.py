@@ -138,7 +138,12 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         if validated_filter:
             args += ["--filter-path", validated_filter]
 
-    if s.value("sync/no_compression", False, bool):
+    # Read new key; fall back to inverted legacy key for migration
+    if s.contains("sync/compression_enabled"):
+        compression_on = bool(s.value("sync/compression_enabled", True, bool))
+    else:
+        compression_on = not bool(s.value("sync/no_compression", False, bool))
+    if not compression_on:
         args.append("--no-compression")
     if force_dry_run or s.value("sync/dry_run", False, bool):
         args.append("-n")

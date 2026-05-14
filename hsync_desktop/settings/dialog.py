@@ -39,6 +39,7 @@ from hsync_desktop.config import (
     DEFAULT_AUTO_SYNC,
     DEFAULT_BUCKET,
     DEFAULT_CA_CERT,
+    DEFAULT_COMPRESSION_ENABLED,
     DEFAULT_CONTINUOUS,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_DRY_RUN,
@@ -244,7 +245,7 @@ class SettingsDialog(QDialog):
         self.min_free_disk_space.setRange(0, 100_000)
         self.min_free_disk_space.setSuffix(" MB")
         self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
-        self.no_compression, self._lbl_no_compression = _replace_checkbox_with_toggle(
+        self.compression_enabled, self._lbl_compression_enabled = _replace_checkbox_with_toggle(
             self, "noCompression"
         )
         self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
@@ -373,7 +374,7 @@ class SettingsDialog(QDialog):
         # Toggle switch containers (toggle.parent() == container QWidget)
         cont_continuous: QWidget = self.continuous.parent()  # type: ignore[assignment]
         cont_ignore: QWidget = self.ignore_delete.parent()  # type: ignore[assignment]
-        cont_no_comp: QWidget = self.no_compression.parent()  # type: ignore[assignment]
+        cont_no_comp: QWidget = self.compression_enabled.parent()  # type: ignore[assignment]
         cont_dry_run: QWidget = self.dry_run.parent()  # type: ignore[assignment]
         cont_auto_sync: QWidget = self.auto_sync.parent()  # type: ignore[assignment]
 
@@ -488,7 +489,7 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.filter_path"))
         self._lbl_min_free_disk_space.setText(tr("settings.min_free_disk_space"))
         self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
-        self._lbl_no_compression.setText(tr("settings.no_compression"))
+        self._lbl_compression_enabled.setText(tr("settings.compression_enabled"))
         self._lbl_dry_run.setText(tr("settings.dry_run"))
         self._lbl_auto_sync.setText(tr("settings.auto_sync"))
 
@@ -559,7 +560,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.max_wait, "tip.max_wait", tips)
         _maybe_tip(self.min_free_disk_space, "tip.min_free_disk_space", tips)
         _maybe_tip(self.filter_path, "tip.filter_path", tips)
-        _maybe_tip(self.no_compression, "tip.no_compression", tips)
+        _maybe_tip(self.compression_enabled, "tip.compression_enabled", tips)
         _maybe_tip(self.dry_run, "tip.dry_run", tips)
         _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
 
@@ -733,7 +734,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/direction", self.sync_direction_combo.currentData() or "bidirectional")
         s.setValue("sync/min_free_disk_space", self.min_free_disk_space.value())
         s.setValue("sync/filter_path", self.filter_path.text())
-        s.setValue("sync/no_compression", self.no_compression.isChecked())
+        s.setValue("sync/compression_enabled", self.compression_enabled.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("lan/enabled", self.lan_mode.isChecked())
@@ -794,9 +795,15 @@ class SettingsDialog(QDialog):
             cast(int, s.value("sync/min_free_disk_space", DEFAULT_MIN_FREE_DISK_SPACE, int))
         )
         self.filter_path.setText(str(s.value("sync/filter_path", DEFAULT_FILTER_PATH, str)))
-        self.no_compression.setChecked(
-            bool(s.value("sync/no_compression", DEFAULT_NO_COMPRESSION, bool))
-        )
+        # Read new key; fall back to inverted legacy key for migration
+        if s.contains("sync/compression_enabled"):
+            self.compression_enabled.setChecked(
+                bool(s.value("sync/compression_enabled", DEFAULT_COMPRESSION_ENABLED, bool))
+            )
+        else:
+            # Migrate from legacy no_compression (inverted logic)
+            legacy = bool(s.value("sync/no_compression", DEFAULT_NO_COMPRESSION, bool))
+            self.compression_enabled.setChecked(not legacy)
         self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
         self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
         self.lan_mode.setChecked(bool(s.value("lan/enabled", DEFAULT_LAN_ENABLED, bool)))
@@ -887,7 +894,7 @@ class SettingsDialog(QDialog):
             self.max_wait,
             self.min_free_disk_space,
             self.filter_path,
-            self.no_compression,
+            self.compression_enabled,
             self.dry_run,
         ]
 
