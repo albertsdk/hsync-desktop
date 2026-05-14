@@ -115,6 +115,11 @@ translations: dict[str, str] = {
     "settings.ca_cert": "CA Certificate:",
     "settings.server_cert_fingerprint": "Server Certificate Fingerprint:",
     "settings.http_timeout": "HTTP Timeout:",
+    "settings.test_connection": "Test Connection",
+    "settings.test_connection_title": "Connection Test",
+    "settings.test_connection_success": "✓ Server reachable — connection OK",
+    "settings.test_connection_failure": "✗ Server not reachable. Check the URL and your network.",
+    "settings.test_connection_no_url": "Enter a Server URL first.",
     # Settings sync
     "settings.bucket": "Remote Folder:",
     "settings.watch": "Real-time sync",
