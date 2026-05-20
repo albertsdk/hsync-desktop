@@ -17,7 +17,8 @@
 #   - Run 'poetry install' before first build
 #
 # Output:
-#   - dist/hsync-desktop   Standalone executable binary
+#   - dist/<os>-<arch>/hsync-desktop[.exe]   Standalone platform-aware executable
+#     e.g. dist/linux-amd64/hsync-desktop, dist/darwin-arm64/hsync-desktop
 #
 # Author: Alberto Basso
 # =============================================================================
@@ -30,13 +31,36 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Platform detection (OS + architecture) — must match hsync-client/compile.sh
+# Normalize OS name: linux | darwin | windows
+case "$(uname -s)" in
+    Linux*)               readonly OS_NAME="linux" ;;
+    Darwin*)              readonly OS_NAME="darwin" ;;
+    MINGW*|CYGWIN*|MSYS*) readonly OS_NAME="windows" ;;
+    *)                    readonly OS_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')" ;;
+esac
+
+# Normalize architecture: amd64 | arm64 | armv7 | x86 | ...
+case "$(uname -m)" in
+    x86_64|amd64)   readonly ARCH_NAME="amd64" ;;
+    aarch64|arm64)  readonly ARCH_NAME="arm64" ;;
+    armv7l|armv7)   readonly ARCH_NAME="armv7" ;;
+    i386|i686)      readonly ARCH_NAME="x86" ;;
+    *)              readonly ARCH_NAME="$(uname -m)" ;;
+esac
+
+readonly PLATFORM="${OS_NAME}-${ARCH_NAME}"
+
 readonly APP_NAME="hsync-desktop"
 readonly ENTRY_POINT="hsync_desktop/main.py"
-readonly OUTPUT_DIR="dist"
+readonly BIN_EXT="$([[ "${OS_NAME}" == "windows" ]] && echo ".exe" || echo "")"
+readonly OUTPUT_BASE="dist"
+readonly OUTPUT_DIR="${OUTPUT_BASE}/${PLATFORM}"
 readonly BUILD_DIR="build"
 readonly VENV_DIR=".venv"
 readonly PYINSTALLER="${VENV_DIR}/bin/pyinstaller"
-readonly CLIENT_BINARY="../hsync-client/dist/hsync"
+# Client binary path is platform-specific (matches hsync-client/compile.sh output)
+readonly CLIENT_BINARY="../hsync-client/dist/${PLATFORM}/hsync${BIN_EXT}"
 
 # -----------------------------------------------------------------------------
 # Colors (disabled if not a terminal)
@@ -85,14 +109,15 @@ ${BOLD}Examples:${RESET}
     ./compile.sh --clean   # Clean and rebuild
 
 ${BOLD}Output:${RESET}
-    ${OUTPUT_DIR}/${APP_NAME}   Standalone executable
+    ${OUTPUT_DIR}/${APP_NAME}${BIN_EXT}   Standalone executable (platform: ${PLATFORM})
 EOF
 }
 
 clean_artifacts() {
     log_step "Cleaning build artifacts..."
     local cleaned=0
-    for d in "${BUILD_DIR}" "${OUTPUT_DIR}"; do
+    # Clean the whole dist/ tree so stale platform directories don't accumulate
+    for d in "${BUILD_DIR}" "${OUTPUT_BASE}"; do
         [[ -d "${d}" ]] && rm -rf "${d}" && ((cleaned++))
     done
     [[ -f "${APP_NAME}.spec" ]] && rm -f "${APP_NAME}.spec" && ((cleaned++))
@@ -141,7 +166,7 @@ bundle_client() {
 build_binary() {
     local version
     version="$(get_version)"
-    log_step "Building ${APP_NAME} v${version}..."
+    log_step "Building ${APP_NAME} v${version} for ${PLATFORM}..."
 
     [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
 
@@ -154,6 +179,7 @@ build_binary() {
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
         --clean --onefile --strip \
         --name "${APP_NAME}" \
+        --distpath "${OUTPUT_DIR}" \
         --log-level ERROR \
         --hidden-import "PySide6.QtCore" \
         --hidden-import "PySide6.QtGui" \
@@ -166,9 +192,10 @@ build_binary() {
         "${extra_args[@]}" \
         "${ENTRY_POINT}"
 
-    if [[ -f "${OUTPUT_DIR}/${APP_NAME}" ]]; then
+    local bin_path="${OUTPUT_DIR}/${APP_NAME}${BIN_EXT}"
+    if [[ -f "${bin_path}" ]]; then
         local size
-        size="$(du -h "${OUTPUT_DIR}/${APP_NAME}" | cut -f1)"
+        size="$(du -h "${bin_path}" | cut -f1)"
 
         # Clean up temp files
         rm -rf "${BUILD_DIR}" "${APP_NAME}.spec" 2>/dev/null || true
@@ -176,13 +203,14 @@ build_binary() {
         echo
         log_ok "Build successful!"
         echo
-        echo -e "  ${BOLD}Binary:${RESET}  ${OUTPUT_DIR}/${APP_NAME}"
-        echo -e "  ${BOLD}Size:${RESET}    ${size}"
-        echo -e "  ${BOLD}Version:${RESET} ${version}"
+        echo -e "  ${BOLD}Binary:${RESET}   ${bin_path}"
+        echo -e "  ${BOLD}Platform:${RESET} ${PLATFORM}"
+        echo -e "  ${BOLD}Size:${RESET}     ${size}"
+        echo -e "  ${BOLD}Version:${RESET}  ${version}"
         echo
-        echo -e "${DIM}Run with: ./${OUTPUT_DIR}/${APP_NAME}${RESET}"
+        echo -e "${DIM}Run with: ./${bin_path}${RESET}"
     else
-        log_error "Build failed: output binary not found"
+        log_error "Build failed: output binary not found at ${bin_path}"
         exit 1
     fi
 }

@@ -46,9 +46,12 @@ poetry install
 
 # Compile the desktop binary
 ./compile.sh
+# Binary output: dist/<os>-<arch>/hsync-desktop  (e.g. dist/linux-amd64/hsync-desktop)
 ```
 
-The build script automatically bundles the `hsync-client` binary if found at `../hsync-client/dist/hsync`.
+Both compile scripts detect the current platform automatically using `uname`.
+The desktop build looks for the client binary at `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
+and bundles it into the resulting executable when found.
 
 ### Build Options
 
@@ -102,9 +105,10 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 
 The application searches for the `hsync` binary in this order:
 
-1. **Bundled**: `hsync_desktop/bin/hsync` (included in compiled builds)
+1. **Bundled**: `hsync_desktop/bin/hsync[.exe]` (included in compiled builds)
 2. **System PATH**: `which hsync`
-3. **Sibling project**: `../hsync-client/dist/hsync` (development)
+3. **Sibling project** (development): `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
+   — the platform tag (e.g. `linux-amd64`, `darwin-arm64`) is detected at runtime
 
 ## Project Structure
 

@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import signal
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -134,21 +135,53 @@ def _parse_size(text: str | None) -> int:
 # ─── Default binary discovery ───────────────────────────────────────────────
 
 
+def _platform_tag() -> str:
+    """Return the platform tag used by both compile scripts (e.g. 'linux-amd64')."""
+    import platform as _platform
+
+    system = _platform.system().lower()
+    if system.startswith("mingw") or system.startswith("cygwin") or system.startswith("msys"):
+        system = "windows"
+    elif system not in ("linux", "darwin", "windows"):
+        pass  # keep as-is
+
+    machine = _platform.machine().lower()
+    arch_map = {
+        "x86_64": "amd64",
+        "amd64": "amd64",
+        "aarch64": "arm64",
+        "arm64": "arm64",
+        "armv7l": "armv7",
+        "armv7": "armv7",
+        "i386": "x86",
+        "i686": "x86",
+    }
+    arch = arch_map.get(machine, machine)
+    return f"{system}-{arch}"
+
+
 def find_hsync_binary() -> str | None:
-    """Locate the hsync binary: bundled → PATH → sibling project dist."""
+    """Locate the hsync binary: bundled → PATH → sibling project dist (platform-aware)."""
+    bin_name = "hsync.exe" if sys.platform == "win32" else "hsync"
+
     # 1. Bundled alongside this package
     pkg_dir = Path(__file__).resolve().parent
-    bundled = pkg_dir / "bin" / "hsync"
+    bundled = pkg_dir / "bin" / bin_name
     if bundled.is_file() and os.access(bundled, os.X_OK):
         return str(bundled)
+
     # 2. On PATH
     on_path = shutil.which("hsync")
     if on_path:
         return on_path
-    # 3. Sibling project dist/
-    sibling = pkg_dir.parent.parent / "hsync-client" / "dist" / "hsync"
+
+    # 3. Sibling project dist/<os>-<arch>/hsync (development / source tree)
+    platform_tag = _platform_tag()
+    client_root = pkg_dir.parent.parent / "hsync-client"
+    sibling = client_root / "dist" / platform_tag / bin_name
     if sibling.is_file() and os.access(sibling, os.X_OK):
         return str(sibling)
+
     return None
 
 
