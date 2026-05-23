@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import cast
 
+from hsync_common.constants import HSYNCIGNORE_FILENAME
 from PySide6.QtCore import QSettings, QThread, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -30,6 +32,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QSpinBox,
     QTabWidget,
@@ -51,6 +54,7 @@ from hsync_desktop.config import (
     DEFAULT_GROUP,
     DEFAULT_HTTP_TIMEOUT,
     DEFAULT_IGNORE_DELETE,
+    DEFAULT_IGNORE_PATTERNS,
     DEFAULT_INSECURE,
     DEFAULT_LAN_ENABLED,
     DEFAULT_LAN_HTTPS,
@@ -69,6 +73,7 @@ from hsync_desktop.config import (
     DEFAULT_SHOW_LOG_PANEL,
     DEFAULT_STABILITY_DELAY,
     DEFAULT_SYNC_DIRECTION,
+    DEFAULT_SYNC_HIDDEN,
     DEFAULT_TOOLTIPS,
     DEFAULT_VERBOSE,
     SETTINGS_APP,
@@ -254,6 +259,17 @@ class SettingsDialog(QDialog):
         self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
         self.auto_sync, self._lbl_auto_sync = _replace_checkbox_with_toggle(self, "autoSync")
 
+        # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
+        self.sync_hidden = ToggleSwitch(self)
+        self.sync_hidden.setObjectName("syncHidden")
+        self._lbl_sync_hidden = QLabel(self)
+        self.ignore_patterns = QLineEdit(self)
+        self.ignore_patterns.setObjectName("ignorePatterns")
+        self.ignore_patterns.setPlaceholderText("*.log, /build/, /dist/")
+        self._lbl_ignore_patterns = QLabel(self)
+        self.btn_edit_hsyncignore = QPushButton(self)
+        self.btn_edit_hsyncignore.setObjectName("btnEditHsyncignore")
+
         # Reorganize sync tab into grouped sections
         self._reorganize_sync_tab()
 
@@ -435,6 +451,21 @@ class SettingsDialog(QDialog):
         f4.addRow(lbl_filter, self.filter_path)
         f4.addRow("", cont_no_comp)
         f4.addRow("", cont_dry_run)
+
+        # Sync hidden toggle (switch + label container, like other toggles)
+        cont_sync_hidden = QWidget(self)
+        hl_sync_hidden = QHBoxLayout(cont_sync_hidden)
+        hl_sync_hidden.setContentsMargins(0, 0, 0, 0)
+        hl_sync_hidden.addWidget(self.sync_hidden)
+        hl_sync_hidden.addWidget(self._lbl_sync_hidden)
+        hl_sync_hidden.addStretch()
+        f4.addRow("", cont_sync_hidden)
+
+        # Extra ignore patterns
+        f4.addRow(self._lbl_ignore_patterns, self.ignore_patterns)
+
+        # Edit .hsyncignore button (no left label, like a regular action)
+        f4.addRow("", self.btn_edit_hsyncignore)
         vbox.addWidget(self._grp_advanced)
 
         vbox.addStretch()
@@ -501,6 +532,9 @@ class SettingsDialog(QDialog):
         self._lbl_compression_enabled.setText(tr("settings.compression_enabled"))
         self._lbl_dry_run.setText(tr("settings.dry_run"))
         self._lbl_auto_sync.setText(tr("settings.auto_sync"))
+        self._lbl_sync_hidden.setText(tr("settings.sync_hidden"))
+        self._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
+        self.btn_edit_hsyncignore.setText(tr("settings.edit_hsyncignore"))
 
         # Sync tab group box titles
         self._grp_path.setTitle(tr("settings.group.path_bucket"))
@@ -572,6 +606,9 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.compression_enabled, "tip.compression_enabled", tips)
         _maybe_tip(self.dry_run, "tip.dry_run", tips)
         _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
+        _maybe_tip(self.sync_hidden, "tip.sync_hidden", tips)
+        _maybe_tip(self.ignore_patterns, "tip.ignore_patterns", tips)
+        _maybe_tip(self.btn_edit_hsyncignore, "tip.edit_hsyncignore", tips)
 
         # Server Mode tab
         _maybe_tip(self.server_url, "tip.server_url", tips)
@@ -607,8 +644,22 @@ class SettingsDialog(QDialog):
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
+        self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
+
+    def _on_edit_hsyncignore(self) -> None:
+        """Open the .hsyncignore editor for the currently configured shared folder."""
+        shared = self.shared_path.text().strip()
+        if not shared:
+            QMessageBox.warning(
+                self,
+                tr("hsyncignore.title"),
+                tr("hsyncignore.no_path_warning"),
+            )
+            return
+        dlg = HsyncIgnoreEditorDialog(Path(shared), self)
+        dlg.exec()
 
     def _on_ignore_delete_toggled(self, checked: bool) -> None:
         """Show a warning when the user disables ignore-delete."""
@@ -795,6 +846,8 @@ class SettingsDialog(QDialog):
         s.setValue("sync/compression_enabled", self.compression_enabled.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
+        s.setValue("sync/sync_hidden", self.sync_hidden.isChecked())
+        s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
         s.setValue("lan/enabled", self.lan_mode.isChecked())
         s.setValue("lan/group", self.lan_group.text())
         s.setValue("lan/key", self.lan_key.text())
@@ -864,6 +917,10 @@ class SettingsDialog(QDialog):
             self.compression_enabled.setChecked(not legacy)
         self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
         self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
+        self.sync_hidden.setChecked(bool(s.value("sync/sync_hidden", DEFAULT_SYNC_HIDDEN, bool)))
+        self.ignore_patterns.setText(
+            str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
+        )
         self.lan_mode.setChecked(bool(s.value("lan/enabled", DEFAULT_LAN_ENABLED, bool)))
         self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
         self.lan_key.setText(str(s.value("lan/key", DEFAULT_LAN_KEY, str)))
@@ -954,6 +1011,9 @@ class SettingsDialog(QDialog):
             self.filter_path,
             self.compression_enabled,
             self.dry_run,
+            self.sync_hidden,
+            self.ignore_patterns,
+            self.btn_edit_hsyncignore,
         ]
 
         # LAN tab - all settings affect LAN mode behavior
@@ -1119,3 +1179,70 @@ class LanKeyDialog(QDialog):
     def get_lan_key(self) -> str:
         """Return the entered LAN key."""
         return self._lan_key_edit.text().strip()
+
+
+# ─── .hsyncignore Editor Dialog ─────────────────────────────────────────────
+
+
+class HsyncIgnoreEditorDialog(QDialog):
+    """Simple text editor for the `.hsyncignore` file at the bucket root."""
+
+    def __init__(self, bucket_root: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._bucket_root = bucket_root
+        self._target = bucket_root / HSYNCIGNORE_FILENAME
+
+        self.setWindowTitle(tr("hsyncignore.title"))
+        self.resize(560, 420)
+
+        layout = QVBoxLayout(self)
+        self._lbl_desc = QLabel(tr("hsyncignore.description"), self)
+        self._lbl_desc.setWordWrap(True)
+        layout.addWidget(self._lbl_desc)
+
+        self._editor = QPlainTextEdit(self)
+        self._editor.setPlaceholderText("# Example:\n# /build/\n# *.log\n# !important.log\n")
+        layout.addWidget(self._editor, 1)
+
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        save_btn = button_box.button(QDialogButtonBox.StandardButton.Save)
+        if save_btn:
+            save_btn.setText(tr("hsyncignore.save"))
+        cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setText(tr("hsyncignore.cancel"))
+        button_box.accepted.connect(self._on_save)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+        self._load_file()
+
+    def _load_file(self) -> None:
+        """Load the existing .hsyncignore content, if any."""
+        if not self._target.exists():
+            return
+        try:
+            self._editor.setPlainText(self._target.read_text(encoding="utf-8"))
+        except OSError as exc:
+            QMessageBox.warning(
+                self,
+                tr("hsyncignore.title"),
+                tr("hsyncignore.read_error").format(error=exc),
+            )
+
+    def _on_save(self) -> None:
+        """Write the editor content to the .hsyncignore file."""
+        try:
+            self._bucket_root.mkdir(parents=True, exist_ok=True)
+            self._target.write_text(self._editor.toPlainText(), encoding="utf-8")
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                tr("hsyncignore.title"),
+                tr("hsyncignore.write_error").format(error=exc),
+            )
+            return
+        self.accept()
