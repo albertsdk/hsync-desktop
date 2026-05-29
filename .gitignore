@@ -65,6 +65,9 @@ hsync_desktop/bin/
 # Kilo
 .kilo
 
- # Cache
- .mypy_cache
- .ruff_cache
+# Cache
+.mypy_cache
+.ruff_cache
+
+# HSYNC
+.hsynckeep
