@@ -643,6 +643,7 @@ class SettingsDialog(QDialog):
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
+        self.lan_https.toggled.connect(self._on_lan_https_toggled)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self._button_box.accepted.connect(self._on_accept)
@@ -741,6 +742,37 @@ class SettingsDialog(QDialog):
                 if lbl is not self._lbl_lan_mode:
                     lbl.setEnabled(checked)
 
+        # The shared secret is only usable over HTTPS; keep its gate in sync.
+        self._apply_lan_key_gate()
+
+    def _on_lan_https_toggled(self, _checked: bool) -> None:
+        """Re-apply the shared-secret gate when LAN HTTPS changes."""
+        self._apply_lan_key_gate()
+
+    def _apply_lan_key_gate(self) -> None:
+        """Disable the LAN shared secret unless LAN HTTPS is enabled.
+
+        Mirrors the client config rule that drops ``lan_key`` when HTTPS
+        is off: a shared secret must never travel over plain HTTP.
+        """
+        lan_on = self.lan_mode.isChecked()
+        https_on = self.lan_https.isChecked()
+        enabled = lan_on and https_on
+        self.lan_key.setEnabled(enabled)
+        lbl = self.findChild(QLabel, "lblLanKey")
+        if lbl:
+            lbl.setEnabled(enabled)
+        if lan_on and not https_on:
+            tip = tr("tip.lan_key_https_required")
+            self.lan_key.setToolTip(tip)
+            if lbl:
+                lbl.setToolTip(tip)
+        else:
+            restore = tr("tip.lan_key") if self._tips_enabled() else ""
+            self.lan_key.setToolTip(restore)
+            if lbl:
+                lbl.setToolTip("")
+
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
         url = self.server_url.text().strip()
@@ -820,8 +852,42 @@ class SettingsDialog(QDialog):
                     self.sync_direction_combo.setCurrentIndex(0)
                 else:
                     return  # Go back to dialog
+        # Validate: the API key is never sent over an unencrypted channel.
+        if not self._confirm_insecure_api_key():
+            return  # Go back to dialog
         self.save()
         self.accept()
+
+    def _confirm_insecure_api_key(self) -> bool:
+        """Warn when the API key would travel over an insecure channel.
+
+        Mirrors the client gate that aborts when an API key is paired with
+        an ``http://`` URL or with SSL verification disabled. Returns True
+        to proceed with saving, False to return to the dialog.
+        """
+        if self.lan_mode.isChecked():
+            return True  # Server-mode settings are unused in LAN mode
+        if not self.api_key.text().strip():
+            return True
+        url = self.server_url.text().strip().lower()
+        insecure_url = url.startswith("http://")
+        if not (insecure_url or self.insecure.isChecked()):
+            return True
+        msg = QMessageBox(
+            QMessageBox.Icon.Warning,
+            tr("warn.api_key_insecure_title"),
+            tr("warn.api_key_insecure_msg"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self,
+        )
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+        return msg.exec() == QMessageBox.StandardButton.Yes
 
     def save(self) -> None:
         """Persist all settings to QSettings."""
