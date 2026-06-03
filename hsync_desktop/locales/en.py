@@ -248,6 +248,8 @@ translations: dict[str, str] = {
     "notif.process_crashed": "The sync process terminated unexpectedly (exit code {code})",
     "notif.path_not_found": "Path not found",
     "notif.path_not_found_msg": "The shared folder '{path}' does not exist. Check the path in Settings.",
+    "notif.version_mismatch": "Version Mismatch",
+    "notif.version_mismatch_msg": "The bundled hsync client ({binary}) has a different major version than this app ({expected}). Synchronization may not work correctly. Rebuild both components together.",
     "notif.deletion_risk": "File Deletion Risk",
     "notif.deletion_risk_msg": "The shared folder is not empty and the current sync settings could DELETE local files.\n\nReason: {reason}\n\nDo you want to continue?",
     "notif.deletion_risk_lan": "LAN mode without force-master: the master peer is the source of truth and local files not present on the master will be deleted",

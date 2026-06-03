@@ -182,6 +182,8 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Il processo di sincronizzazione si è interrotto inaspettatamente (codice uscita {code})",
     "notif.path_not_found": "Percorso non trovato",
     "notif.path_not_found_msg": "La cartella condivisa '{path}' non esiste. Verifica il percorso nelle impostazioni.",
+    "notif.version_mismatch": "Versioni non compatibili",
+    "notif.version_mismatch_msg": "Il client hsync incluso ({binary}) ha una versione major diversa da questa app ({expected}). La sincronizzazione potrebbe non funzionare correttamente. Ricompila entrambi i componenti insieme.",
     "notif.deletion_risk": "Rischio eliminazione file",
     "notif.deletion_risk_msg": "La cartella condivisa non è vuota e le impostazioni di sincronizzazione correnti potrebbero ELIMINARE file locali.\n\nMotivo: {reason}\n\nVuoi continuare?",
     "notif.deletion_risk_lan": "Modalità LAN senza force-master: il peer master è la fonte autorevole e i file locali non presenti sul master verranno eliminati",

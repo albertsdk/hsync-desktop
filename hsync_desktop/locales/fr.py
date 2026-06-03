@@ -182,6 +182,8 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Le processus de synchronisation s'est terminé de manière inattendue (code de sortie {code})",
     "notif.path_not_found": "Chemin introuvable",
     "notif.path_not_found_msg": "Le dossier partagé '{path}' n'existe pas. Vérifiez le chemin dans les paramètres.",
+    "notif.version_mismatch": "Versions incompatibles",
+    "notif.version_mismatch_msg": "Le client hsync inclus ({binary}) a une version majeure différente de cette application ({expected}). La synchronisation peut ne pas fonctionner correctement. Recompilez les deux composants ensemble.",
     "notif.deletion_risk": "Risque de suppression de fichiers",
     "notif.deletion_risk_msg": "Le dossier partagé n'est pas vide et les paramètres de synchronisation actuels pourraient SUPPRIMER des fichiers locaux.\n\nRaison : {reason}\n\nVoulez-vous continuer ?",
     "notif.deletion_risk_lan": "Mode LAN sans force-master : le pair maître est la source de référence et les fichiers locaux absents du maître seront supprimés",
