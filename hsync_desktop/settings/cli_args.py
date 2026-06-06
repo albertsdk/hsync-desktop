@@ -118,9 +118,10 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     http_timeout = max(1, min(http_timeout, 300))  # Clamp to 1-300 seconds
     args += ["--timeout", str(http_timeout)]
 
-    # Sync
-    if s.value("sync/continuous", True, bool):
-        args.append("-w")
+    # Sync. Continuous/daemon mode is the client default: only the one-shot
+    # opt-out is emitted.
+    if not s.value("sync/continuous", True, bool):
+        args.append("--once")
     resync = cast(int, s.value("sync/resync", 0, int))
     resync = max(0, min(resync, 86400))  # Clamp to 0-24 hours
     if resync > 0:
@@ -210,8 +211,6 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             validated_grp = DEFAULT_GROUP
         args += ["--lan-group", validated_grp]
 
-        if not s.value("lan/persistent", True, bool):
-            args.append("--no-lan-persistent")
         if s.value("lan/force_master", False, bool):
             args.append("--force-master")
         if s.value("lan/never_master", False, bool):

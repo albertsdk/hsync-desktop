@@ -59,7 +59,6 @@ from hsync_desktop.config import (
     DEFAULT_INSECURE,
     DEFAULT_LAN_ENABLED,
     DEFAULT_LAN_KEY,
-    DEFAULT_LAN_PERSISTENT,
     DEFAULT_LAN_PORT,
     DEFAULT_LAN_REQUIRE_PAIRING,
     DEFAULT_LOGFILE,
@@ -308,9 +307,6 @@ class SettingsDialog(QDialog):
                         disc_layout.insertRow(row + 1, self._lbl_ntp_hosts, self.ntp_hosts)
                         break
 
-        self.lan_persistent, self._lbl_lan_persistent = _replace_checkbox_with_toggle(
-            self, "lanPersistent"
-        )
         self.force_master, self._lbl_force_master = _replace_checkbox_with_toggle(
             self, "forceMaster"
         )
@@ -621,7 +617,6 @@ class SettingsDialog(QDialog):
         if lbl:
             lbl.setText(tr("settings.discovery_timeout"))
         self._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
-        self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
         self._lbl_force_master.setText(tr("settings.force_master"))
         self._lbl_never_master.setText(tr("settings.never_master"))
         self._lbl_require_pairing.setText(tr("settings.require_pairing"))
@@ -690,7 +685,6 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.lan_port, "tip.lan_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
         _maybe_tip(self.ntp_hosts, "tip.ntp_hosts", tips)
-        _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
         _maybe_tip(self.require_pairing, "tip.require_pairing", tips)
@@ -836,7 +830,6 @@ class SettingsDialog(QDialog):
             self.lan_port,
             self.discovery_timeout,
             self.ntp_hosts,
-            self.lan_persistent,
             self.force_master,
             self.never_master,
             self.require_pairing,
@@ -1022,7 +1015,6 @@ class SettingsDialog(QDialog):
         s.setValue("lan/port", self.lan_port.value())
         s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
         s.setValue("lan/ntp_hosts", self.ntp_hosts.text())
-        s.setValue("lan/persistent", self.lan_persistent.isChecked())
         s.setValue("lan/force_master", self.force_master.isChecked())
         s.setValue("lan/never_master", self.never_master.isChecked())
         s.setValue("lan/require_pairing", self.require_pairing.isChecked())
@@ -1105,9 +1097,6 @@ class SettingsDialog(QDialog):
             cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
         )
         self.ntp_hosts.setText(str(s.value("lan/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
-        self.lan_persistent.setChecked(
-            bool(s.value("lan/persistent", DEFAULT_LAN_PERSISTENT, bool))
-        )
         self.force_master.setChecked(bool(s.value("lan/force_master", DEFAULT_FORCE_MASTER, bool)))
         self.never_master.setChecked(bool(s.value("lan/never_master", DEFAULT_NEVER_MASTER, bool)))
         self.require_pairing.setChecked(
@@ -1203,7 +1192,6 @@ class SettingsDialog(QDialog):
             self.lan_port,
             self.discovery_timeout,
             self.ntp_hosts,
-            self.lan_persistent,
             self.force_master,
             self.never_master,
             self.require_pairing,

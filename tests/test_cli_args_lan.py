@@ -7,9 +7,9 @@
 """Tests for hsync_desktop.settings.cli_args LAN argument emission.
 
 These tests cover the contract between the desktop settings UI and the
-``hsync`` CLI binary, with a focus on the ``LAN_PERSISTENT`` flag whose
-behaviour was clarified as a result of the slave one-shot / continuous
-sync alignment across all clients (CLI, Desktop, Android).
+``hsync`` CLI binary, including the one-shot / continuous sync alignment
+across all clients (CLI, Desktop, Android): ``--once`` is the single
+one-shot selector emitted when continuous sync is disabled.
 """
 
 from __future__ import annotations
@@ -52,43 +52,22 @@ def _build_args(values: dict[str, Any], local_path: str = "") -> list[str]:
         return cli_args.build_hsync_args(local_path=local_path)
 
 
-class TestLanPersistentFlag:
-    """Regression tests for the LAN_PERSISTENT user-facing setting."""
+class TestContinuousMapping:
+    """Continuous mode is the client default: no -w exists anymore."""
 
-    def test_persistent_default_true_omits_flag(self):
-        """With LAN enabled and persistent left at default (True) no flag is emitted."""
-        args = _build_args(
-            {
-                "lan/enabled": True,
-                # lan/persistent intentionally omitted -> default True
-            }
-        )
+    def test_continuous_default_emits_no_flag(self):
+        """sync/continuous True (default) must not emit any mode flag."""
+        args = _build_args({"sync/continuous": True})
 
-        assert "--lan-mode" in args
-        assert "--no-lan-persistent" not in args, (
-            "Default persistent=True must not emit --no-lan-persistent"
-        )
+        assert "-w" not in args
+        assert "--once" not in args
 
-    def test_persistent_true_omits_flag(self):
-        """Explicit persistent=True must not emit --no-lan-persistent."""
-        args = _build_args({"lan/enabled": True, "lan/persistent": True})
+    def test_continuous_false_emits_once(self):
+        """sync/continuous False maps to the one-shot --once flag."""
+        args = _build_args({"sync/continuous": False})
 
-        assert "--no-lan-persistent" not in args
-
-    def test_persistent_false_emits_no_lan_persistent(self):
-        """Explicit persistent=False must emit --no-lan-persistent."""
-        args = _build_args({"lan/enabled": True, "lan/persistent": False})
-
-        assert "--no-lan-persistent" in args
-
-    def test_persistent_flag_not_emitted_when_lan_disabled(self):
-        """LAN disabled: persistent flag must be skipped along with all other LAN args."""
-        args = _build_args({"lan/enabled": False, "lan/persistent": False})
-
-        assert "--lan-mode" not in args
-        assert "--no-lan-persistent" not in args, (
-            "LAN section must not emit any flag when lan/enabled is False"
-        )
+        assert "--once" in args
+        assert "-w" not in args
 
 
 class TestLanSectionConsistency:
@@ -102,7 +81,7 @@ class TestLanSectionConsistency:
                 "lan/port": 9000,
                 "lan/discovery_timeout": 15,
                 "lan/group": "test-group",
-                "lan/persistent": False,  # emits --no-lan-persistent
+                "sync/continuous": False,  # emits --once
                 "lan/force_master": True,  # emits --force-master
             }
         )
@@ -113,7 +92,7 @@ class TestLanSectionConsistency:
             "--lan-port",
             "--discovery-timeout",
             "--lan-group",
-            "--no-lan-persistent",
+            "--once",
             "--force-master",
         ):
             assert args.count(flag) == 1, f"Expected exactly one occurrence of {flag}"
@@ -123,20 +102,20 @@ class TestLanSectionConsistency:
         assert args[args.index("--discovery-timeout") + 1] == "15"
         assert args[args.index("--lan-group") + 1] == "test-group"
 
-    def test_persistent_and_force_master_are_independent(self):
-        """The --no-lan-persistent and --force-master flags do not influence each other."""
-        # persistent disabled, force_master off
+    def test_one_shot_and_force_master_are_independent(self):
+        """The --once and --force-master flags do not influence each other."""
+        # one-shot enabled, force_master off
         args_a = _build_args(
-            {"lan/enabled": True, "lan/persistent": False, "lan/force_master": False}
+            {"lan/enabled": True, "sync/continuous": False, "lan/force_master": False}
         )
-        assert "--no-lan-persistent" in args_a
+        assert "--once" in args_a
         assert "--force-master" not in args_a
 
-        # persistent enabled, force_master on
+        # continuous enabled, force_master on
         args_b = _build_args(
-            {"lan/enabled": True, "lan/persistent": True, "lan/force_master": True}
+            {"lan/enabled": True, "sync/continuous": True, "lan/force_master": True}
         )
-        assert "--no-lan-persistent" not in args_b
+        assert "--once" not in args_b
         assert "--force-master" in args_b
 
 
