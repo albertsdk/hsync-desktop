@@ -13,6 +13,8 @@ and utility functions to read common settings.
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 from typing import cast
 
@@ -24,6 +26,30 @@ from hsync_desktop.config import (
     SETTINGS_APP,
     SETTINGS_ORG,
 )
+
+
+def secure_config_file() -> None:
+    """Restrict the QSettings config file to owner-only access (0600).
+
+    On POSIX systems the native QSettings backend writes a plain-text file under
+    ``~/.config`` with umask-derived permissions (typically world-readable
+    ``0644``). Secrets are Fernet-encrypted, but the file is still restricted so
+    other local users cannot read the configuration. QSaveFile preserves the
+    existing file's permissions on subsequent writes, so this only needs to run
+    once the file exists (at startup and after the settings dialog saves).
+    """
+    if os.name != "posix":
+        return
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    s.sync()
+    path = s.fileName()
+    try:
+        if path and os.path.exists(path):
+            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass
+
+
 from hsync_desktop.settings.validators import (
     _validate_bucket,
     _validate_group_name,

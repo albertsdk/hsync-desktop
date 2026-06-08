@@ -20,6 +20,7 @@ from hsync_desktop.settings.cli_args import (
     is_auto_sync_enabled,
     is_log_panel_visible,
     save_bandwidth_limits,
+    secure_config_file,
 )
 from hsync_desktop.settings.dialog import ApiKeyDialog, LanKeyDialog, SettingsDialog
 
@@ -36,4 +37,5 @@ __all__ = [
     "is_auto_sync_enabled",
     "is_log_panel_visible",
     "save_bandwidth_limits",
+    "secure_config_file",
 ]

@@ -19,6 +19,7 @@ from hsync_desktop.settings.cli_args import (
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    secure_config_file,
 )
 from hsync_desktop.settings.dialog import (
     ApiKeyDialog,
@@ -37,4 +38,5 @@ __all__ = [
     "get_saved_theme",
     "is_auto_sync_enabled",
     "is_log_panel_visible",
+    "secure_config_file",
 ]
