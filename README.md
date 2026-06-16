@@ -7,18 +7,23 @@ Cross-platform desktop GUI for HSYNC Client, built with PySide6 (Qt 6).
 - 🖥️ Real-time log viewer with scrolling output
 - 📊 Status panel: connection state, master/client role, bucket, group, peers
 - 📈 Transfer statistics (files and bytes sent/received)
+- 📂 File transfer panel with per-file progress, status and ETA
 - ▶️ Start/Stop/Sync controls with local directory selector
+- 👀 Sync preview/summary dialog before applying changes
+- 🚦 Bandwidth-limit dialog (transfer throttling)
 - 🔔 Desktop push notifications for key events (configurable)
 - ⚙️ Settings dialog organized by category (Connection, Sync, LAN, Output, Appearance)
 - 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
+- 🌍 Multi-language UI (EN/IT/DE/ES/FR)
 - 🌙 Light and dark themes
 - 📌 System tray integration with context menu
+- 🔒 Single-instance lock and splash screen on startup
 - 💾 Persistent settings and window geometry via QSettings
 
 ## Requirements
 
 For building:
-- Python ≥3.12, <3.14
+- Python ≥3.12, <3.15
 - Poetry (for dependency management)
 
 For running:
@@ -121,10 +126,24 @@ hsync-desktop/
 │   ├── main.py               # Application entry point
 │   ├── engine.py             # hsync-client subprocess bridge
 │   ├── main_window.py        # Main window UI
-│   ├── settings_dialog.py    # Settings dialog with tabs
+│   ├── settings_dialog.py    # Settings dialog (delegates to settings/)
+│   ├── settings/             # Settings dialog, CLI args, validators
+│   ├── file_panel/           # File transfer panel (models, widgets, workers)
+│   ├── widgets/              # Custom widgets (progress bar, toggle switch)
+│   ├── bandwidth_dialog.py   # Bandwidth-limit dialog
+│   ├── preview_summary_dialog.py # Sync preview/summary dialog
+│   ├── splash_screen.py      # Startup splash screen
+│   ├── single_instance.py    # Single-instance lock
 │   ├── system_tray.py        # System tray icon and menu
 │   ├── notifications.py      # Desktop notification manager
 │   ├── themes.py             # Light/dark theme management
+│   ├── i18n.py               # Translation helpers
+│   ├── locales/              # Translations (en, it, de, es, fr)
+│   ├── config.py             # Settings persistence (QSettings)
+│   ├── crypto.py             # Secret encryption helpers
+│   ├── icons.py / utils.py   # Icon and utility helpers
+│   ├── ui/                   # Qt Designer .ui files + loader
+│   ├── bin/                  # Bundled hsync binary (compiled builds)
 │   └── resources/            # Icons and assets
 ├── tests/                    # Test files
 ├── compile.sh                # Build script (PyInstaller)
@@ -132,10 +151,10 @@ hsync-desktop/
 └── README.md
 ```
 
-## License
-
-MPL-2.0 - See [LICENSE](../LICENSE) for details.
-
 ## Version
 
 1.0.0
+
+## License
+
+[Mozilla Public License 2.0](LICENSE)
