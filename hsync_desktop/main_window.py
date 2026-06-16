@@ -258,10 +258,10 @@ class MainWindow(QMainWindow):
 
         # Info banner (hidden by default, shown during reconnection)
         self._info_banner = self._create_info_banner()
-        root_layout: QVBoxLayout = self.findChild(QVBoxLayout, "rootLayout")  # type: ignore[assignment]
-        if root_layout:
+        banner_root_layout: QVBoxLayout = self.findChild(QVBoxLayout, "rootLayout")  # type: ignore[assignment]
+        if banner_root_layout:
             # Insert between action bar (index 0) and mainSplitter (index 1)
-            root_layout.insertWidget(1, self._info_banner)
+            banner_root_layout.insertWidget(1, self._info_banner)
 
         # Apply log panel visibility setting
         self._apply_log_visibility()
@@ -1059,7 +1059,7 @@ class MainWindow(QMainWindow):
         if lan_enabled:
             # LAN mode: show LAN key dialog
             self._append_log(f"⚠ {tr('lanauth.error_message')}")
-            dlg = LanKeyDialog(self)
+            dlg: LanKeyDialog | ApiKeyDialog = LanKeyDialog(self)
             if dlg.exec() == LanKeyDialog.DialogCode.Accepted:
                 self._append_log(f"--- {tr('lanauth.retrying')} ---")
                 self._retry_after_auth_fix()
