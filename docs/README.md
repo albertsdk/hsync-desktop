@@ -53,7 +53,7 @@ Build a standalone binary with:
 | [usage.md](usage.md) | Configure connection, run and watch syncs, manage secrets, tray & themes. |
 | [log-labels.md](log-labels.md) | Action labels shown in the log panel and what they mean. |
 
-## Related projects
+## Associated Ecosystem Components
 
 - [HSYNC Common](https://github.com/albertobasso/hsync-common/blob/main/README.md) - Shared models, constants, and utilities used by the client
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)

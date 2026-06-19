@@ -14,8 +14,7 @@ without touching the command line.
 > [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
 
->  👉 **Remember:** keep verified backups of your data before trying new
-> synchronization tools. 😉
+> 👉 **Operational Advisory:** As with any automated filesystem mutation utility, administrators are strongly advised to maintain validated, independent backups prior to initial deployment in production environments.
 
 ---
 
@@ -155,7 +154,7 @@ The application searches for the `hsync` binary in this order:
 3. **Sibling project** (development): `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
    — the platform tag (e.g. `linux-amd64`, `darwin-arm64`) is detected at runtime
 
-### Related projects
+### Associated Ecosystem Components
 
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
 - [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
