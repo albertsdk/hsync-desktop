@@ -138,6 +138,35 @@ class TestLanSectionConsistency:
         assert "--no-lan-persistent" in args_b
 
 
+class TestNeverMasterFlag:
+    """Coverage for the --never-master user-facing setting."""
+
+    def test_never_master_default_omits_flag(self):
+        """With LAN enabled and never_master left at default, no flag is emitted."""
+        args = _build_args({"lan/enabled": True})
+
+        assert "--never-master" not in args
+
+    def test_never_master_false_omits_flag(self):
+        """Explicit never_master=False must not emit --never-master."""
+        args = _build_args({"lan/enabled": True, "lan/never_master": False})
+
+        assert "--never-master" not in args
+
+    def test_never_master_true_emits_flag(self):
+        """Explicit never_master=True must emit --never-master exactly once."""
+        args = _build_args({"lan/enabled": True, "lan/never_master": True})
+
+        assert args.count("--never-master") == 1
+
+    def test_never_master_flag_not_emitted_when_lan_disabled(self):
+        """LAN disabled: never-master flag must be skipped with the rest of the block."""
+        args = _build_args({"lan/enabled": False, "lan/never_master": True})
+
+        assert "--lan-mode" not in args
+        assert "--never-master" not in args
+
+
 class TestSyncHiddenAndIgnorePatterns:
     """Coverage for --sync-hidden and --ignore-patterns emission."""
 

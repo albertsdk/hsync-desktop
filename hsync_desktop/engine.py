@@ -91,6 +91,10 @@ _RE_MASTER_CONFLICT = re.compile(
 )
 _RE_MASTER_TAKEOVER = re.compile(r"\[MASTER_TAKEOVER\].*?peer\s+(\S+)\s+at\s+(\S+)")
 
+# No-master warning: emitted when no master is elected (e.g. every peer is
+# configured with --never-master) after the client's warning timeout.
+_RE_NO_MASTER = re.compile(r"\[NO_MASTER\]\s*(.*)")
+
 # Session CID pattern
 _RE_SESSION_CID = re.compile(r"Session CID:\s*(\S+)")
 
@@ -254,6 +258,7 @@ class HsyncEngine(QObject):
     path_not_found = Signal(str)  # shared path does not exist
     process_finished = Signal(int, str)  # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
+    no_master_warning = Signal(str)  # no master elected (all peers never-master)
 
     # Preview signals (emitted during dry-run preview)
     preview_started = Signal()  # preview scan started
@@ -764,6 +769,13 @@ class HsyncEngine(QObject):
             m = _RE_MASTER_TAKEOVER.search(clean)
             if m:
                 self.master_conflict.emit("takeover", m.group(1), m.group(2))
+                return
+
+        # No master elected (e.g. all peers configured with --never-master)
+        if "NO_MASTER" in clean:
+            m = _RE_NO_MASTER.search(clean)
+            if m:
+                self.no_master_warning.emit(m.group(1).strip())
                 return
 
         # Path not found

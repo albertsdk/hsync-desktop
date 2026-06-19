@@ -154,6 +154,7 @@ translations: dict[str, str] = {
     "settings.lan_https": "Use HTTPS",
     "settings.lan_persistent": "Persistent mode",
     "settings.force_master": "Force primary role",
+    "settings.never_master": "Never become primary",
     # Settings log
     "settings.verbose": "Verbose (debug) output",
     "settings.quiet": "Quiet (suppress output)",
@@ -208,6 +209,7 @@ translations: dict[str, str] = {
     "tip.lan_https": "Use encrypted HTTPS for LAN transfers",
     "tip.lan_persistent": "Keep searching for peers even when none are found",
     "tip.force_master": "Always elect this client as master in LAN mode",
+    "tip.never_master": "Prevent this client from ever becoming master; it always stays a client",
     "tip.verbose": "Enable detailed debug-level logging",
     "tip.quiet": "Suppress all log output",
     "tip.logfile": "Write log output to a file",
@@ -258,6 +260,8 @@ translations: dict[str, str] = {
     "notif.master_conflict_lost": "Another master {cid} at {ip} has priority (started earlier). This client will operate as client.",
     "notif.master_conflict_won": "Peer {cid} at {ip} also has force_master enabled. This client wins (started earlier).",
     "notif.master_takeover": "Peer {cid} at {ip} has force_master enabled and is taking over as master. This client will switch to client.",
+    "notif.no_master_title": "No master elected",
+    "notif.no_master_msg": "No master has been elected. All discovered peers may be configured as never-master, so no node will serve files and synchronization cannot proceed.",
     # Preview
     "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",

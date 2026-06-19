@@ -25,6 +25,7 @@ from hsync_desktop.engine import (
     _RE_MASTER_CONFLICT,
     _RE_MASTER_TAKEOVER,
     _RE_MASTER_URL,
+    _RE_NO_MASTER,
     _RE_PATH_NOT_FOUND,
     _RE_PEERS,
     _RE_PREVIEW_END,
@@ -274,6 +275,15 @@ class TestRegexPatterns:
         """Test _RE_MASTER_TAKEOVER pattern."""
         match = _RE_MASTER_TAKEOVER.search("[MASTER_TAKEOVER] peer abc123 at 192.168.1.1")
         assert match is not None
+
+    def test_no_master_pattern(self):
+        """Test _RE_NO_MASTER pattern."""
+        match = _RE_NO_MASTER.search(
+            "[NO_MASTER] No master elected after 60s. All discovered peers "
+            "may be configured with --never-master."
+        )
+        assert match is not None
+        assert match.group(1).startswith("No master elected")
 
     def test_session_cid_pattern(self):
         """Test _RE_SESSION_CID pattern."""

@@ -611,6 +611,7 @@ class MainWindow(QMainWindow):
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
+        e.no_master_warning.connect(self._on_no_master_warning)
         e.process_finished.connect(self._on_process_finished)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
@@ -916,6 +917,14 @@ class MainWindow(QMainWindow):
             )
         if self._notifier:
             self._notifier.warning(tr("notif.master_conflict_title"), msg)
+        self._append_log(f"⚠ {msg}")
+
+    @Slot(str)
+    def _on_no_master_warning(self, _detail: str) -> None:
+        """Handle the [NO_MASTER] warning (no node will serve files)."""
+        msg = tr("notif.no_master_msg")
+        if self._notifier:
+            self._notifier.warning(tr("notif.no_master_title"), msg)
         self._append_log(f"⚠ {msg}")
 
     @Slot()
