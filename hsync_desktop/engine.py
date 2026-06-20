@@ -7,9 +7,11 @@
 """
 HSYNC Engine - subprocess bridge to hsync-client.
 
-Manages the hsync-client binary as a child process, captures its
-stdout/stderr in real-time, parses log output and emits Qt signals
-so the UI can react to state changes.
+Manages the hsync-client binary as a child process and consumes the structured
+JSON-Lines status events it publishes on a dedicated pipe (``--events-json-fd``),
+mapping each event to a Qt signal so the UI can react to state changes
+(DESIGN_REVIEW §3 / P0-B). The merged stdout/stderr stream is captured purely as
+a diagnostic log feed.
 """
 
 from __future__ import annotations
@@ -25,7 +27,15 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QSettings, Signal, Slot
+from PySide6.QtCore import (
+    QObject,
+    QProcess,
+    QProcessEnvironment,
+    QSettings,
+    QSocketNotifier,
+    Signal,
+    Slot,
+)
 
 from hsync_desktop.crypto import decrypt_value
 
@@ -50,93 +60,12 @@ class TransferStats:
 # (single source of truth).
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
 from hsync_common.constants import VERSION as _EXPECTED_VERSION
+from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 
-# ─── Log-line regex patterns ────────────────────────────────────────────────
-
-# Timestamp prefix: 2024-01-15T10:30:45.123Z - [PID] LEVEL: msg
-_RE_LOG = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s*-\s*"
-    r"\[(\d+)\]\s*"
-    r"(\w+):\s*(.*)$"
-)
-
-_RE_PEERS = re.compile(r"Discovered\s+(\d+)\s+peer")
-_RE_MASTER = re.compile(
-    r"I am the (?:new )?master|This client is the master|elected as master", re.I
-)
-_RE_CLIENT = re.compile(r"Master is |Connecting to master|I am a client", re.I)
-_RE_BUCKET = re.compile(r"bucket\s+'([^']+)'", re.I)
-_RE_GROUP = re.compile(r"group\s*=\s*'([^']+)'", re.I)
-_RE_DOWNLOAD = re.compile(r'\[DOWNLOAD\s*\]\s*"(.+?)"\s+(\S+)\s*$')
-_RE_UPLOAD = re.compile(r'\[UPLOAD\s*\]\s*"(.+?)"\s+(\S+)\s*$')
-_RE_REMOVE = re.compile(r'\[DELETE\s*\]\s*"(.+?)"')
-_RE_RENAME = re.compile(r'\[(?:LAN )?RENAME\s*\]\s*"(.+?)"\s*->\s*"(.+?)"')
-_RE_CONNECTED = re.compile(r"Connected to server|WebSocket connected|Initial sync complete", re.I)
-_RE_WAITING = re.compile(r"Waiting for peers|No peers found|Searching for peers", re.I)
-_RE_DISCONNECTED = re.compile(
-    r"WebSocket disconnected|Connection closed|WebSocket connection ended|"
-    r"All peers disconnected|re-entering discovery loop",
-    re.I,
-)
-_RE_SYNC_COMPLETE = re.compile(r"Sync complete|All files in sync|Initial sync complete", re.I)
-_RE_ERROR = re.compile(r"ERROR:\s*(.+)")
-_RE_AUTH_ERROR = re.compile(
-    r"Invalid API key|API key required|Authentication.*failed|401.*Unauthorized", re.I
-)
-_RE_PATH_NOT_FOUND = re.compile(r"Directory '(.+?)' does not exist")
-
-# Master conflict patterns
-_RE_MASTER_CONFLICT = re.compile(
-    r"\[MASTER_CONFLICT\].*?(?:another master|peer)\s+(\S+)\s+at\s+(\S+)"
-)
-_RE_MASTER_TAKEOVER = re.compile(r"\[MASTER_TAKEOVER\].*?peer\s+(\S+)\s+at\s+(\S+)")
-
-# No-master warning: emitted when no master is elected (e.g. every peer is
-# configured with --never-master) after the client's warning timeout.
-_RE_NO_MASTER = re.compile(r"\[NO_MASTER\]\s*(.*)")
-
-# Session CID pattern
-_RE_SESSION_CID = re.compile(r"Session CID:\s*(\S+)")
-
-# Server URL patterns – extract hostname for the detail panel
-_RE_SERVER_URL = re.compile(r"Checking server connectivity:\s*(https?://\S+)", re.I)
-_RE_MASTER_URL = re.compile(r"Connecting to master:.*?at\s+(https?://\S+)", re.I)
-
-# Directory creation patterns
-_RE_DIR_CREATE = re.compile(r'\[(?:LAN )?CREATE\s*\]\s*"(.+?)"')
-
-# Preview status patterns (emitted by PREVIEW stdin command)
-_RE_PREVIEW_START = re.compile(r"--- Preview \(dry-run\) ---")
-_RE_PREVIEW_END = re.compile(r"--- End Preview ---")
-
-# Transfer progress patterns (real-time progress updates)
-# Matches lines like: [DOWNLOADING] "file.txt" 50% (1.5MB/3.0MB)
-_RE_DOWNLOAD_PROGRESS = re.compile(r'\[DOWNLOADING\s*\]\s*"(.+?)"\s+(\d+)%\s+\((\d+)/(\d+)\)')
-_RE_UPLOAD_PROGRESS = re.compile(r'\[UPLOADING\s*\]\s*"(.+?)"\s+(\d+)%\s+\((\d+)/(\d+)\)')
-_RE_SYNCED = re.compile(r'\[SYNCED\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
-_RE_TO_DOWNLOAD = re.compile(r'\[TO_DOWNLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
-_RE_TO_UPLOAD = re.compile(r'\[TO_UPLOAD\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
-_RE_TO_DELETE = re.compile(r'\[TO_DELETE\s*\]\s*"(.+?)"\s*\(([^)]+)\)')
-_RE_TO_RENAME = re.compile(r'\[TO_RENAME\s*\]\s*"(.+?)"\s*->\s*"(.+?)"\s*\(([^)]+)\)')
-
-
-def _parse_size(text: str | None) -> int:
-    """Parse human-readable size like '1.2MB' or '1.2 MB' to bytes."""
-    if not text:
-        return 0
-    text = text.strip()
-    # Check longer suffixes first to avoid "KB" matching "B" first
-    multipliers = [("GB", 1024**3), ("MB", 1024**2), ("KB", 1024), ("B", 1)]
-    for suffix, mult in multipliers:
-        if text.upper().endswith(suffix):
-            try:
-                return int(float(text[: -len(suffix)].strip()) * mult)
-            except ValueError:
-                return 0
-    try:
-        return int(float(text))
-    except ValueError:
-        return 0
+# Status parsing is no longer regex-based: the child publishes structured
+# JSON-Lines events over ``--events-json-fd`` and the engine maps each one to a
+# Qt signal in ``_handle_event`` (DESIGN_REVIEW §3 / P0-B). The merged
+# stdout/stderr stream is kept purely as a diagnostic log feed.
 
 
 # ─── Default binary discovery ───────────────────────────────────────────────
@@ -283,6 +212,11 @@ class HsyncEngine(QObject):
         self._cid = ""
         self._server_ip = ""
         self.stats = TransferStats()
+        # Structured-event channel: parent end of the events pipe plus the
+        # notifier/buffer used to turn inbound JSON-Lines into Qt signals.
+        self._events_read_fd: int | None = None
+        self._events_notifier: QSocketNotifier | None = None
+        self._events_buf = ""
 
     # ── Properties ───────────────────────────────────────────────────────
 
@@ -398,13 +332,21 @@ class HsyncEngine(QObject):
             pipe_fds.append(read_fd)
             pipe_args.extend(["--lan-key-fd", str(read_fd)])
 
+        # Structured-event channel: the child writes JSON-Lines status events to
+        # the write end, which it inherits across exec. Unlike the CLOEXEC secret
+        # pipes above, this fd must be explicitly marked inheritable so QProcess'
+        # fork+exec child keeps it open.
+        events_read_fd, events_write_fd = os.pipe()
+        os.set_inheritable(events_write_fd, True)
+        pipe_args.extend(["--events-json-fd", str(events_write_fd)])
+
         # Build final args with pipe fds at the end
         args = [*args, *pipe_args]
 
         proc.start(self._binary, args)
         if not proc.waitForStarted(5000):
-            # Failed to start - close all pipe fds
-            for fd in pipe_fds:
+            # Failed to start - close all pipe fds (secrets + events)
+            for fd in (*pipe_fds, events_read_fd, events_write_fd):
                 try:
                     os.close(fd)
                 except OSError:
@@ -421,6 +363,14 @@ class HsyncEngine(QObject):
                 os.close(fd)
             except OSError:
                 pass  # FD may have been closed already
+
+        # The child now owns the events write end; close the parent's copy so a
+        # child exit surfaces as EOF, then watch the read end for inbound events.
+        try:
+            os.close(events_write_fd)
+        except OSError:
+            pass
+        self._open_events_channel(events_read_fd)
 
         self._process = proc
         self._running = True
@@ -504,6 +454,9 @@ class HsyncEngine(QObject):
 
     @Slot()
     def _on_stdout(self) -> None:
+        # The merged stdout/stderr stream is now purely a diagnostic log feed;
+        # all UI state transitions arrive on the structured events channel
+        # (see ``_on_events_available`` / ``_handle_event``).
         if not self._process:
             return
         data = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
@@ -511,11 +464,11 @@ class HsyncEngine(QObject):
             line = line.rstrip()
             if line:
                 self.log_received.emit(line)
-                self._parse_line(line)
 
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         self._running = False
+        self._close_events_channel()
         if exit_status == QProcess.ExitStatus.NormalExit:
             desc = "normal"
         elif self._stopping:
@@ -543,253 +496,162 @@ class HsyncEngine(QObject):
         self.error_occurred.emit(mapping.get(error, "Unknown error"))
         self._set_status("error")
 
-    # ── Log parsing ──────────────────────────────────────────────────────
+    # ── Status helper ─────────────────────────────────────────────────────
 
     def _set_status(self, status: str) -> None:
         if status != self._status:
             self._status = status
             self.status_changed.emit(status)
 
-    def _parse_line(self, line: str) -> None:
-        """Parse a single log line and emit signals as needed."""
+    # ── Structured events channel ─────────────────────────────────────────
+
+    def _open_events_channel(self, read_fd: int) -> None:
+        """Start watching the parent end of the events pipe for JSON-Lines."""
+        self._events_read_fd = read_fd
+        self._events_buf = ""
+        notifier = QSocketNotifier(read_fd, QSocketNotifier.Type.Read, self)
+        notifier.activated.connect(self._on_events_available)
+        notifier.setEnabled(True)
+        self._events_notifier = notifier
+
+    def _close_events_channel(self) -> None:
+        """Tear down the events notifier and close the read fd (idempotent)."""
+        if self._events_notifier is not None:
+            self._events_notifier.setEnabled(False)
+            self._events_notifier.deleteLater()
+            self._events_notifier = None
+        if self._events_read_fd is not None:
+            try:
+                os.close(self._events_read_fd)
+            except OSError:
+                pass
+            self._events_read_fd = None
+        self._events_buf = ""
+
+    @Slot()
+    def _on_events_available(self) -> None:
+        """Drain the events pipe and dispatch each complete JSON-Lines record."""
+        fd = self._events_read_fd
+        if fd is None:
+            return
         try:
-            self._parse_line_inner(line)
-        except Exception:
-            # Log parsing errors should not crash the engine
-            # Just log and continue processing
-            self.log_received.emit(f"[PARSE ERROR] {line[:100]}")
+            chunk = os.read(fd, 65536)
+        except (BlockingIOError, InterruptedError):
+            return
+        except OSError:
+            self._close_events_channel()
+            return
+        if not chunk:
+            # EOF: the child closed its write end (it exited or finished).
+            self._close_events_channel()
+            return
+        self._events_buf += chunk.decode("utf-8", errors="replace")
+        *lines, self._events_buf = self._events_buf.split("\n")
+        for line in lines:
+            event = parse_event_line(line)
+            if event is not None:
+                self._handle_event(event)
 
-    def _parse_line_inner(self, line: str) -> None:
-        """Internal method to parse a single log line.
+    def _handle_event(self, event: UiEventDict) -> None:
+        """Translate one structured client event into Qt signal(s).
 
-        Optimized with early returns and ordered pattern matching
-        to minimize regex operations per line.
+        Mirrors the former regex parser 1:1 — each event name maps to the same
+        signal/payload the GUI already consumes. A malformed event is logged but
+        never crashes the engine.
         """
-        # Quick check: if line starts with common prefixes, skip expensive patterns
-        # This is a fast filter before doing regex matching
-        first_char = line[0] if line else ""
-
-        # Strip ANSI escape codes for pattern matching (only if needed)
-        clean = line
-        if "\x1b[" in line:
-            clean = re.sub(r"\x1b\[[0-9;]*m", "", line)
-
-        # Preview mode takes priority - most lines during preview are preview-related
-        if self._in_preview:
-            # Try more common patterns first for efficiency
-            if clean[0:2] == "[]":  # Most common: [SYNCED], [TO_DOWNLOAD], [TO_UPLOAD]
-                # Try each preview pattern
-                m = _RE_SYNCED.search(clean)
-                if m:
-                    self.file_status.emit("synced", m.group(1), _parse_size(m.group(2)))
-                    return
-                m = _RE_TO_DOWNLOAD.search(clean)
-                if m:
-                    self.file_status.emit("to_download", m.group(1), _parse_size(m.group(2)))
-                    return
-                m = _RE_TO_UPLOAD.search(clean)
-                if m:
-                    self.file_status.emit("to_upload", m.group(1), _parse_size(m.group(2)))
-                    return
-                m = _RE_TO_DELETE.search(clean)
-                if m:
-                    self.file_status.emit("to_delete", m.group(1), _parse_size(m.group(2)))
-                    return
-                m = _RE_TO_RENAME.search(clean)
-                if m:
-                    self.file_rename_status.emit(m.group(1), m.group(2), _parse_size(m.group(3)))
-                    return
-            # Check for preview end
-            if clean.startswith("---"):
-                if _RE_PREVIEW_END.search(clean):
-                    self._in_preview = False
-                    self.preview_ended.emit()
-                    return
-            return  # In preview mode, ignore other patterns
-
-        # Non-preview mode: check for preview start first
-        if clean.startswith("---"):
-            if _RE_PREVIEW_START.search(clean):
-                self._in_preview = True
-                self.preview_started.emit()
-                return
-
-        # High-priority patterns (most common in normal operation)
-        # Connection status - very common
-        if (
-            clean.startswith("Connected")
-            or clean.startswith("WebSocket")
-            or clean.startswith("Initial")
-        ):
-            if _RE_CONNECTED.search(clean):
-                self._set_status("connected")
-                return
-        if (
-            clean.startswith("Waiting")
-            or clean.startswith("No peers")
-            or clean.startswith("Searching")
-        ):
-            if _RE_WAITING.search(clean):
-                self._set_status("waiting")
-                return
-        if (
-            clean.startswith("WebSocket")
-            or clean.startswith("Connection")
-            or clean.startswith("All peers")
-        ):
-            if _RE_DISCONNECTED.search(clean):
-                self._set_status("waiting")
-                return
-
-        # Sync complete - common
-        if clean.startswith("Sync") or clean.startswith("All files"):
-            if _RE_SYNC_COMPLETE.search(clean):
-                self.sync_completed.emit()
-                return
-
-        # Transfer patterns - common during sync
-        if "[" in clean:
-            bracket_pos = clean.find("[")
-            prefix = (
-                clean[bracket_pos : bracket_pos + 10]
-                if len(clean) > bracket_pos + 10
-                else clean[bracket_pos:]
-            )
-
-            if "DOWNLOAD" in prefix:
-                m = _RE_DOWNLOAD.search(clean)
-                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-                    self.stats.files_received += 1
-                    self.stats.bytes_received += _parse_size(m.group(2))
-                    self.file_transferred.emit("↓", m.group(1).strip())
-                    return
-            elif "UPLOAD" in prefix:
-                m = _RE_UPLOAD.search(clean)
-                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-                    self.stats.files_sent += 1
-                    self.stats.bytes_sent += _parse_size(m.group(2))
-                    self.file_transferred.emit("↑", m.group(1).strip())
-                    return
-            elif "DELETE" in prefix:
-                m = _RE_REMOVE.search(clean)
-                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-                    self.file_transferred.emit("✕", m.group(1).strip())
-                    return
-            elif "DOWNLOADING" in prefix:
-                # Check for real-time progress update
-                m = _RE_DOWNLOAD_PROGRESS.search(clean)
-                if m:
-                    filepath = m.group(1).strip()
-                    bytes_transferred = int(m.group(3))
-                    total_bytes = int(m.group(4))
-                    self.file_progress.emit(filepath, bytes_transferred, total_bytes)
-                    return
-            elif "UPLOADING" in prefix:
-                # Check for real-time progress update
-                m = _RE_UPLOAD_PROGRESS.search(clean)
-                if m:
-                    filepath = m.group(1).strip()
-                    bytes_transferred = int(m.group(3))
-                    total_bytes = int(m.group(4))
-                    self.file_progress.emit(filepath, bytes_transferred, total_bytes)
-                    return
-            elif "RENAME" in prefix or "CREATE" in prefix:
-                m = _RE_RENAME.search(clean)
-                if m:
-                    self.file_renamed.emit(m.group(1).strip(), m.group(2).strip())
-                    return
-                m = _RE_DIR_CREATE.search(clean)
-                if m and not m.group(1).strip().endswith(_HSYNCKEEP):
-                    self.directory_created.emit(m.group(1).strip())
-                    return
-
-        # Error patterns - check early for errors
-        if clean.startswith("ERROR") or "ERROR:" in clean[:50]:
-            m = _RE_ERROR.search(clean)
-            if m:
-                self.error_occurred.emit(m.group(1))
-                return
-
-        # Master/client detection - less common but important
-        if "master" in clean.lower() or "client" in clean.lower():
-            if _RE_MASTER.search(clean):
-                if not self._is_master:
-                    self._is_master = True
-                    self.master_changed.emit(True)
-                return
-            if _RE_CLIENT.search(clean):
-                if self._is_master:
-                    self._is_master = False
-                    self.master_changed.emit(False)
-                return
-
-        # Less common patterns - check individually
-        m = _RE_PEERS.search(clean)
-        if m:
-            count = int(m.group(1))
-            if count != self._peers:
-                self._peers = count
-                self.peers_changed.emit(count)
-            return
-
-        m = _RE_SESSION_CID.search(clean)
-        if m:
-            self._cid = m.group(1)
-            return
-
-        m = _RE_BUCKET.search(clean)
-        if m:
-            self.bucket_detected.emit(m.group(1))
-            return
-
-        m = _RE_GROUP.search(clean)
-        if m:
-            self.group_detected.emit(m.group(1))
-            return
-
-        # Server / master URL
-        if "Checking server" in clean or "Connecting to master" in clean:
-            m = _RE_SERVER_URL.search(clean)
-            if not m:
-                m = _RE_MASTER_URL.search(clean)
-            if m:
+        name = event.get("event")
+        try:
+            if name == UiEventName.status:
+                self._set_status(str(event.get("status", "")))
+            elif name == UiEventName.peers:
+                count = int(event.get("count", 0))
+                if count != self._peers:
+                    self._peers = count
+                    self.peers_changed.emit(count)
+            elif name == UiEventName.role:
+                is_master = bool(event.get("is_master", False))
+                if is_master != self._is_master:
+                    self._is_master = is_master
+                    self.master_changed.emit(is_master)
+            elif name == UiEventName.bucket:
+                self.bucket_detected.emit(str(event.get("bucket", "")))
+            elif name == UiEventName.group:
+                self.group_detected.emit(str(event.get("group", "")))
+            elif name == UiEventName.session:
+                self._cid = str(event.get("cid", ""))
+            elif name == UiEventName.server:
                 from urllib.parse import urlparse
 
-                parsed = urlparse(m.group(1))
-                self._server_ip = parsed.hostname or ""
-                return
-
-        # Master conflict
-        if "MASTER_CONFLICT" in clean or "MASTER_TAKEOVER" in clean:
-            m = _RE_MASTER_CONFLICT.search(clean)
-            if m:
-                ctype = "conflict_won" if "This client wins" in clean else "conflict_lost"
-                self.master_conflict.emit(ctype, m.group(1), m.group(2))
-                return
-            m = _RE_MASTER_TAKEOVER.search(clean)
-            if m:
-                self.master_conflict.emit("takeover", m.group(1), m.group(2))
-                return
-
-        # No master elected (e.g. all peers configured with --never-master)
-        if "NO_MASTER" in clean:
-            m = _RE_NO_MASTER.search(clean)
-            if m:
-                self.no_master_warning.emit(m.group(1).strip())
-                return
-
-        # Path not found
-        if "Directory" in clean and "does not exist" in clean:
-            m = _RE_PATH_NOT_FOUND.search(clean)
-            if m:
-                self.path_not_found.emit(m.group(1))
-                self._set_status("error")
-                return
-
-        # Authentication errors
-        if "API key" in clean or "Authentication" in clean or "401" in clean:
-            if _RE_AUTH_ERROR.search(clean):
+                self._server_ip = urlparse(str(event.get("url", ""))).hostname or ""
+            elif name == UiEventName.transfer:
+                self._handle_transfer(event)
+            elif name == UiEventName.rename:
+                self.file_renamed.emit(str(event.get("src", "")), str(event.get("dst", "")))
+            elif name == UiEventName.dir_created:
+                path = str(event.get("path", ""))
+                if not path.endswith(_HSYNCKEEP):
+                    self.directory_created.emit(path)
+            elif name == UiEventName.progress:
+                self.file_progress.emit(
+                    str(event.get("file", "")),
+                    int(event.get("transferred", 0)),
+                    int(event.get("total", 0)),
+                )
+            elif name == UiEventName.sync_complete:
+                self.sync_completed.emit()
+            elif name == UiEventName.error:
+                self.error_occurred.emit(str(event.get("message", "")))
+            elif name == UiEventName.auth_error:
                 self._auth_error_active = True
-                self.auth_error_occurred.emit(clean)
+                self.auth_error_occurred.emit(str(event.get("message", "")))
                 self._set_status("error")
-                return
+            elif name == UiEventName.path_not_found:
+                self.path_not_found.emit(str(event.get("path", "")))
+                self._set_status("error")
+            elif name == UiEventName.master_conflict:
+                self.master_conflict.emit(
+                    str(event.get("conflict_type", "")),
+                    str(event.get("peer_cid", "")),
+                    str(event.get("peer_address", "")),
+                )
+            elif name == UiEventName.no_master:
+                self.no_master_warning.emit(str(event.get("message", "")))
+            elif name == UiEventName.preview_start:
+                self._in_preview = True
+                self.preview_started.emit()
+            elif name == UiEventName.preview_end:
+                self._in_preview = False
+                self.preview_ended.emit()
+            elif name == UiEventName.file_status:
+                self.file_status.emit(
+                    str(event.get("state", "")),
+                    str(event.get("file", "")),
+                    int(event.get("size", 0)),
+                )
+            elif name == UiEventName.rename_status:
+                self.file_rename_status.emit(
+                    str(event.get("src", "")),
+                    str(event.get("dst", "")),
+                    int(event.get("size", 0)),
+                )
+        except Exception:
+            # A malformed payload must never take down the engine.
+            self.log_received.emit(f"[EVENT ERROR] {str(event)[:100]}")
+
+    def _handle_transfer(self, event: UiEventDict) -> None:
+        """Update transfer stats and emit ``file_transferred`` for a transfer."""
+        file = str(event.get("file", ""))
+        if file.endswith(_HSYNCKEEP):
+            return
+        op = str(event.get("op", ""))
+        size = int(event.get("size", 0))
+        if op == "download":
+            self.stats.files_received += 1
+            self.stats.bytes_received += size
+            self.file_transferred.emit("↓", file)
+        elif op == "upload":
+            self.stats.files_sent += 1
+            self.stats.bytes_sent += size
+            self.file_transferred.emit("↑", file)
+        elif op == "delete":
+            self.file_transferred.emit("✕", file)
