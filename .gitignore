@@ -61,3 +61,6 @@ Thumbs.db
 # Poetry lock (optional - comment if you want to commit poetry.lock)
 # poetry.lock
 hsync_desktop/bin/
+
+# Claude
+CLAUDE.md
