@@ -163,6 +163,7 @@ translations: dict[str, str] = {
     "warn.api_key_insecure_msg": "La clé API ne sera pas envoyée sur une connexion non sécurisée (http:// ou avec la vérification SSL désactivée), et la synchronisation échouera. Utilisez une URL de serveur https:// avec un certificat valide.\n\nEnregistrer quand même ?",
     "settings.connection_active_warning": "Certains paramètres sont désactivés pendant la synchronisation. Arrêtez la synchronisation pour les modifier.",
     "tip.disabled_during_sync": "Ce paramètre ne peut pas être modifié pendant la synchronisation.",
+    "tip.capability_unsupported": "Cette option n'est pas prise en charge par le binaire hsync installé.",
     "tray.show": "Afficher",
     "tray.hide": "Masquer",
     "tray.minimize": "Réduire dans la barre des tâches",

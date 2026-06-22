@@ -229,6 +229,7 @@ translations: dict[str, str] = {
     # Connection active warnings
     "settings.connection_active_warning": "Some settings are disabled while synchronization is running. Stop the sync to modify them.",
     "tip.disabled_during_sync": "This setting cannot be changed while synchronization is running.",
+    "tip.capability_unsupported": "This option is not supported by the installed hsync binary.",
     # Tray menu
     "tray.show": "Show",
     "tray.hide": "Hide",
