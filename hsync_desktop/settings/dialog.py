@@ -61,6 +61,7 @@ from hsync_desktop.config import (
     DEFAULT_LAN_KEY,
     DEFAULT_LAN_PERSISTENT,
     DEFAULT_LAN_PORT,
+    DEFAULT_LAN_REQUIRE_PAIRING,
     DEFAULT_LOGFILE,
     DEFAULT_MAX_WAIT,
     DEFAULT_MIN_FREE_DISK_SPACE,
@@ -308,6 +309,28 @@ class SettingsDialog(QDialog):
                     item = fm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                     if item and item.widget() is fm_container:
                         fm_layout.insertRow(row + 1, "", cont_never_master)
+                        break
+
+        # Require Pairing toggle (dynamic, no .ui counterpart) – strict TOFU:
+        # refuse a first-seen master certificate until confirmed out of band.
+        # Inserted right after the never_master row.
+        self.require_pairing = ToggleSwitch(self)
+        self.require_pairing.setObjectName("requirePairing")
+        self._lbl_require_pairing = QLabel(self)
+        cont_require_pairing = QWidget(self)
+        hl_require_pairing = QHBoxLayout(cont_require_pairing)
+        hl_require_pairing.setContentsMargins(0, 0, 0, 0)
+        hl_require_pairing.addWidget(self.require_pairing)
+        hl_require_pairing.addWidget(self._lbl_require_pairing)
+        hl_require_pairing.addStretch()
+        nm_container = cont_never_master.parent()
+        if isinstance(nm_container, QWidget):
+            nm_layout = nm_container.layout()
+            if isinstance(nm_layout, QFormLayout):
+                for row in range(nm_layout.rowCount()):
+                    item = nm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    if item and item.widget() is cont_never_master:
+                        nm_layout.insertRow(row + 1, "", cont_require_pairing)
                         break
 
         # Log tab widgets
@@ -583,6 +606,7 @@ class SettingsDialog(QDialog):
         self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
         self._lbl_force_master.setText(tr("settings.force_master"))
         self._lbl_never_master.setText(tr("settings.never_master"))
+        self._lbl_require_pairing.setText(tr("settings.require_pairing"))
 
         # Log tab labels
         self._lbl_verbose.setText(tr("settings.verbose"))
@@ -651,6 +675,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
+        _maybe_tip(self.require_pairing, "tip.require_pairing", tips)
 
         # Log tab
         _maybe_tip(self.verbose, "tip.verbose", tips)
@@ -759,6 +784,7 @@ class SettingsDialog(QDialog):
             self.lan_persistent,
             self.force_master,
             self.never_master,
+            self.require_pairing,
         ]
         for widget in lan_sub_widgets:
             widget.setEnabled(checked)
@@ -965,6 +991,7 @@ class SettingsDialog(QDialog):
         s.setValue("lan/persistent", self.lan_persistent.isChecked())
         s.setValue("lan/force_master", self.force_master.isChecked())
         s.setValue("lan/never_master", self.never_master.isChecked())
+        s.setValue("lan/require_pairing", self.require_pairing.isChecked())
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
@@ -1047,6 +1074,9 @@ class SettingsDialog(QDialog):
         )
         self.force_master.setChecked(bool(s.value("lan/force_master", DEFAULT_FORCE_MASTER, bool)))
         self.never_master.setChecked(bool(s.value("lan/never_master", DEFAULT_NEVER_MASTER, bool)))
+        self.require_pairing.setChecked(
+            bool(s.value("lan/require_pairing", DEFAULT_LAN_REQUIRE_PAIRING, bool))
+        )
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
         self.logfile.setText(str(s.value("output/logfile", DEFAULT_LOGFILE, str)))
@@ -1141,6 +1171,7 @@ class SettingsDialog(QDialog):
             self.lan_persistent,
             self.force_master,
             self.never_master,
+            self.require_pairing,
         ]
 
         # Combine all widgets that should be disabled
