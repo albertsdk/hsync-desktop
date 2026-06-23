@@ -6,8 +6,6 @@
 
 """Tests for hsync_desktop.utils module."""
 
-import pytest
-
 from hsync_desktop.utils import format_bytes
 
 

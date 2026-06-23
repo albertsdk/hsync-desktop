@@ -6,9 +6,8 @@
 
 """Tests for hsync_desktop.single_instance module."""
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 from PySide6.QtCore import QByteArray
 
 

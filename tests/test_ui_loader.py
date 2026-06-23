@@ -8,8 +8,6 @@
 
 from pathlib import Path
 
-import pytest
-
 
 class TestUiLoader:
     """Test UiLoader class."""
@@ -30,12 +28,6 @@ class TestUiLoader:
 
 class TestLoadFunctions:
     """Test load functions exist."""
-
-    def test_load_ui_function_exists(self):
-        """Test load_ui function exists."""
-        from hsync_desktop.ui.loader import load_ui
-
-        assert callable(load_ui)
 
     def test_load_ui_widget_function_exists(self):
         """Test load_ui_widget function exists."""

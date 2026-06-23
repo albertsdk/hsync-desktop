@@ -6,10 +6,6 @@
 
 """Tests for hsync_desktop.splash_screen module."""
 
-from pathlib import Path
-
-import pytest
-
 
 class TestSplashScreen:
     """Test SplashScreen class."""

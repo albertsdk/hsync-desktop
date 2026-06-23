@@ -229,29 +229,3 @@ def _get_icon_impl(name: str, custom_color: str | None) -> QIcon:
 def clear_icon_cache() -> None:
     """Clear the icon cache. Call this when the theme changes."""
     _icon_cache.clear()
-
-
-def has_icon(name: str) -> bool:
-    """Check if an icon is available (either from theme or fallback).
-
-    Args:
-        name: FreeDesktop icon name
-
-    Returns:
-        True if the icon exists and can be loaded
-    """
-    return not icon(name).isNull()
-
-
-def set_fallback_theme_path() -> None:
-    """Add the bundled icons directory to the icon theme search path.
-
-    Call this once at application startup to ensure fallback icons
-    are found even when using QIcon.fromTheme() directly.
-    """
-    if ICONS_DIR.exists():
-        paths = QIcon.themeSearchPaths()
-        icons_str = str(ICONS_DIR)
-        if icons_str not in paths:
-            paths.append(icons_str)
-            QIcon.setThemeSearchPaths(paths)

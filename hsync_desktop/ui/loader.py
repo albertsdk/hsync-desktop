@@ -15,11 +15,7 @@ For production, consider pre-compiling .ui files using:
     python scripts/compile_ui.py
 
 Example usage:
-    from hsync_desktop.ui.loader import load_ui, load_ui_widget
-
-    # Load as a new widget
-    window = load_ui("main_window")
-    window.show()
+    from hsync_desktop.ui.loader import load_ui_widget
 
     # Load into an existing widget (for subclassing)
     class MyWindow(QMainWindow):
@@ -79,38 +75,6 @@ class UiLoader(QUiLoader):
             # This is the top-level widget - return our base instance
             return self._base_instance
         return super().createWidget(class_name, parent, name)
-
-
-def load_ui(name: str) -> QWidget:
-    """Load a .ui file and return the created widget.
-
-    Args:
-        name: Name of the UI file (without .ui extension).
-              One of: main_window, settings_dialog, splash_screen, file_panel
-
-    Returns:
-        The top-level widget defined in the .ui file.
-
-    Raises:
-        FileNotFoundError: If the .ui file doesn't exist.
-        RuntimeError: If the .ui file couldn't be loaded.
-    """
-    ui_path = UI_DIR / f"{name}.ui"
-    if not ui_path.exists():
-        raise FileNotFoundError(f"UI file not found: {ui_path}")
-
-    ui_file = QFile(str(ui_path))
-    if not ui_file.open(QIODevice.OpenModeFlag.ReadOnly):
-        raise RuntimeError(f"Cannot open UI file: {ui_path}")
-
-    try:
-        loader = QUiLoader()
-        widget = loader.load(ui_file)
-        if widget is None:
-            raise RuntimeError(f"Failed to load UI file: {ui_path}")
-        return widget
-    finally:
-        ui_file.close()
 
 
 def load_ui_widget(name: str, widget: QWidget) -> None:

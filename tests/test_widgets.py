@@ -8,8 +8,6 @@
 
 from pathlib import Path
 
-import pytest
-
 
 class TestWidgetsModule:
     """Test widgets module imports."""

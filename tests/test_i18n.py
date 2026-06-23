@@ -98,16 +98,6 @@ class TestCallbacks:
         i18n.register_language_callback(my_callback)
         assert my_callback in i18n._language_change_callbacks
 
-    def test_unregister_language_callback(self):
-        """Should be able to unregister a callback."""
-
-        def my_callback():
-            pass
-
-        i18n.register_language_callback(my_callback)
-        i18n.unregister_language_callback(my_callback)
-        assert my_callback not in i18n._language_change_callbacks
-
 
 class TestLanguageFunctions:
     """Test language get/set functions."""

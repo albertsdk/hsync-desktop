@@ -97,55 +97,6 @@ class TransferProgressBar(QWidget):
             return f"{hours}:{minutes:02d}:{secs:02d}"
         return f"{minutes}:{secs:02d}"
 
-    def update_progress(
-        self,
-        files_done: int,
-        total_files: int,
-        bytes_done: int,
-        total_bytes: int,
-        speed_bps: float,
-    ) -> None:
-        """Update the progress display.
-
-        Args:
-            files_done: Number of files completed
-            total_files: Total number of files to transfer
-            bytes_done: Number of bytes transferred
-            total_bytes: Total bytes to transfer
-            speed_bps: Transfer speed in bytes per second
-        """
-        # Update progress bar
-        if total_bytes > 0:
-            percentage = min(int(bytes_done / total_bytes * 100), 100)
-        elif total_files > 0:
-            percentage = min(int(files_done / total_files * 100), 100)
-        else:
-            percentage = 0
-        self._progress_bar.setValue(percentage)
-        self.progress_changed.emit(percentage)
-
-        # Update files label
-        self._files_label.setText(f"{files_done}/{total_files} {tr('label.files')}")
-
-        # Update bytes label
-        self._bytes_label.setText(
-            f"{self._format_bytes(bytes_done)} / {self._format_bytes(total_bytes)}"
-        )
-
-        # Update speed label
-        if speed_bps > 0:
-            self._speed_label.setText(f"{self._format_bytes(int(speed_bps))}/s")
-        else:
-            self._speed_label.setText("0 B/s")
-
-        # Update ETA
-        if speed_bps > 0 and total_bytes > bytes_done:
-            remaining_bytes = total_bytes - bytes_done
-            eta_seconds = remaining_bytes / speed_bps
-            self._eta_label.setText(self._format_eta(eta_seconds))
-        else:
-            self._eta_label.setText("--:--")
-
     def reset(self) -> None:
         """Reset the progress display to initial state."""
         self._progress_bar.setValue(0)

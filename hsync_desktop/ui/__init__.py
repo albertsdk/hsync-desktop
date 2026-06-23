@@ -44,21 +44,3 @@ UI_FILES = {
     "lan_key_dialog": UI_DIR / "lan_key_dialog.ui",
     "bandwidth_dialog": UI_DIR / "bandwidth_dialog.ui",
 }
-
-
-def get_ui_path(name: str) -> Path:
-    """Get the path to a .ui file by name.
-
-    Args:
-        name: Name of the UI file (without extension).
-              One of: main_window, settings_dialog, splash_screen, file_panel,
-              preview_summary_dialog, api_key_dialog, lan_key_dialog,
-              bandwidth_dialog
-
-    Returns:
-        Path to the .ui file.
-
-    Raises:
-        KeyError: If the UI file name is not found.
-    """
-    return UI_FILES[name]

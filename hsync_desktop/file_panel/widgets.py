@@ -1445,12 +1445,6 @@ class FilePanel(QWidget):
         )
         self._table.add_transfer(transfer)
 
-    def start_transfer(self, filepath: str) -> None:
-        self._table.update_transfer_status(filepath, TransferStatus.TRANSFERRING)
-
-    def complete_transfer(self, filepath: str, size: int = 0, direction: str = "↓") -> None:
-        self._table.mark_completed(filepath, size, direction)
-
     def clear(self) -> None:
         self._consistency_timer.stop()
         self._stop_scan()
