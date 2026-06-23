@@ -207,6 +207,7 @@ class HsyncEngine(QObject):
     file_progress = Signal(str, int, int)  # filepath, bytes_transferred, total_bytes
     sync_completed = Signal()  # a full sync cycle finished
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
+    sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files (§12)
     error_occurred = Signal(str)  # error message
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     path_not_found = Signal(str)  # shared path does not exist
@@ -621,6 +622,12 @@ class HsyncEngine(QObject):
                     str(event.get("op", "")),
                     str(event.get("file", "")),
                     str(event.get("message", "")),
+                )
+            elif name == UiEventName.sync_paused:
+                self.sync_paused.emit(
+                    str(event.get("reason", "")),
+                    int(event.get("deletes", 0)),
+                    int(event.get("local", 0)),
                 )
             elif name == UiEventName.error:
                 self.error_occurred.emit(str(event.get("message", "")))

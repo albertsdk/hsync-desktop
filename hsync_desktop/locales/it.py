@@ -197,6 +197,8 @@ translations: dict[str, str] = {
     "notif.master_takeover": "Il peer {cid} all'indirizzo {ip} ha force_master attivo e sta assumendo il ruolo di master. Questo client passerà a client.",
     "notif.no_master_title": "Nessun master eletto",
     "notif.no_master_msg": "Nessun master è stato eletto. Tutti i peer rilevati potrebbero essere configurati come never-master, quindi nessun nodo servirà i file e la sincronizzazione non può procedere.",
+    "notif.sync_paused_title": "Sync in pausa (guard cancellazioni)",
+    "notif.sync_paused_msg": "Un guard di sicurezza ha bloccato {deletes} cancellazione/i in questo ciclo ({reason}). Nessun file è stato rimosso. Verifica che il master/sorgente sia corretto, poi riprendi se è previsto.",
     "preview.title": "Anteprima sincronizzazione",
     "preview.no_actions": "Nessuna azione da eseguire — tutto è sincronizzato.",
     "tip.server_url": "URL del server hsync (lasciare vuoto per modalità solo LAN)",

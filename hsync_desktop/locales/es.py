@@ -197,6 +197,8 @@ translations: dict[str, str] = {
     "notif.master_takeover": "El par {cid} en {ip} tiene force_master activado y está asumiendo el rol de master. Este cliente pasará a esclavo.",
     "notif.no_master_title": "Ningún maestro elegido",
     "notif.no_master_msg": "No se ha elegido ningún maestro. Es posible que todos los pares detectados estén configurados como never-master, por lo que ningún nodo servirá archivos y la sincronización no puede continuar.",
+    "notif.sync_paused_title": "Sync en pausa (guarda de borrado)",
+    "notif.sync_paused_msg": "Una guarda de seguridad bloqueó {deletes} borrado(s) en este ciclo ({reason}). No se eliminó ningún archivo. Verifica que el maestro/origen sea correcto y reanuda si es lo esperado.",
     "preview.title": "Vista previa de sincronización",
     "preview.no_actions": "No hay acciones a realizar — todo está sincronizado.",
     "tip.server_url": "URL del servidor hsync (dejar vacío para modo solo LAN)",

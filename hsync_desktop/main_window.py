@@ -612,6 +612,7 @@ class MainWindow(QMainWindow):
         e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
         e.transfer_failed.connect(self._on_transfer_failed)
+        e.sync_paused.connect(self._on_sync_paused)
         e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
@@ -920,6 +921,18 @@ class MainWindow(QMainWindow):
         self._append_log(f"✕ {arrow} {filepath}: {message}")
         if self._notifier:
             self._notifier.error(tr("notif.error"), message)
+
+    @Slot(str, int, int)
+    def _on_sync_paused(self, reason: str, deletes: int, _local: int) -> None:
+        """Surface the mass-deletion guard pausing the delete phase (§12)."""
+        msg = (
+            tr("notif.sync_paused_msg")
+            .replace("{deletes}", str(deletes))
+            .replace("{reason}", reason)
+        )
+        if self._notifier:
+            self._notifier.warning(tr("notif.sync_paused_title"), msg)
+        self._append_log(f"⚠ {msg}")
 
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:

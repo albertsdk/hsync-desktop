@@ -265,6 +265,8 @@ translations: dict[str, str] = {
     "notif.master_takeover": "Peer {cid} at {ip} has force_master enabled and is taking over as master. This client will switch to client.",
     "notif.no_master_title": "No master elected",
     "notif.no_master_msg": "No master has been elected. All discovered peers may be configured as never-master, so no node will serve files and synchronization cannot proceed.",
+    "notif.sync_paused_title": "Sync paused (deletion guard)",
+    "notif.sync_paused_msg": "A safety guard blocked {deletes} deletion(s) this cycle ({reason}). No files were removed. Verify the master/source is correct, then resume if this is expected.",
     # Preview
     "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",
