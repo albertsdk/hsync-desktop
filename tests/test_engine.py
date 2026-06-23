@@ -185,7 +185,7 @@ class TestCheckBinaryCompatibility:
 
 
 class TestGetBinaryCapabilities:
-    """Test get_binary_capabilities function (DESIGN_REVIEW §8)."""
+    """Test get_binary_capabilities function."""
 
     def test_parses_valid_document(self, monkeypatch):
         """A well-formed --capabilities-json payload is parsed into a document."""
