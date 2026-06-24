@@ -58,7 +58,6 @@ from hsync_desktop.config import (
     DEFAULT_IGNORE_PATTERNS,
     DEFAULT_INSECURE,
     DEFAULT_LAN_ENABLED,
-    DEFAULT_LAN_HTTPS,
     DEFAULT_LAN_KEY,
     DEFAULT_LAN_PERSISTENT,
     DEFAULT_LAN_PORT,
@@ -289,7 +288,6 @@ class SettingsDialog(QDialog):
         self.lan_key: QLineEdit = self.findChild(QLineEdit, "lanKey")  # type: ignore[assignment]
         self.lan_port: QSpinBox = self.findChild(QSpinBox, "lanPort")  # type: ignore[assignment]
         self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
-        self.lan_https, self._lbl_lan_https = _replace_checkbox_with_toggle(self, "lanHttps")
         self.lan_persistent, self._lbl_lan_persistent = _replace_checkbox_with_toggle(
             self, "lanPersistent"
         )
@@ -609,7 +607,6 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.discovery_timeout"))
-        self._lbl_lan_https.setText(tr("settings.lan_https"))
         self._lbl_lan_persistent.setText(tr("settings.lan_persistent"))
         self._lbl_force_master.setText(tr("settings.force_master"))
         self._lbl_never_master.setText(tr("settings.never_master"))
@@ -678,7 +675,6 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.lan_key, "tip.lan_key", tips)
         _maybe_tip(self.lan_port, "tip.lan_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
-        _maybe_tip(self.lan_https, "tip.lan_https", tips)
         _maybe_tip(self.lan_persistent, "tip.lan_persistent", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
@@ -738,7 +734,6 @@ class SettingsDialog(QDialog):
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
-        self.lan_https.toggled.connect(self._on_lan_https_toggled)
         self.force_master.toggled.connect(self._on_force_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
@@ -825,7 +820,6 @@ class SettingsDialog(QDialog):
             self.lan_key,
             self.lan_port,
             self.discovery_timeout,
-            self.lan_https,
             self.lan_persistent,
             self.force_master,
             self.never_master,
@@ -841,13 +835,6 @@ class SettingsDialog(QDialog):
                 if lbl is not self._lbl_lan_mode:
                     lbl.setEnabled(checked and lbl not in self._unsupported_labels)
 
-        # The shared secret is only usable over HTTPS; keep its gate in sync.
-        self._apply_lan_key_gate()
-
-    def _on_lan_https_toggled(self, _checked: bool) -> None:
-        """Re-apply the shared-secret gate when LAN HTTPS changes."""
-        self._apply_lan_key_gate()
-
     def _on_force_master_toggled(self, checked: bool) -> None:
         """Force-master and never-master are mutually exclusive."""
         if checked and self.never_master.isChecked():
@@ -861,30 +848,6 @@ class SettingsDialog(QDialog):
             self.force_master.blockSignals(True)
             self.force_master.setChecked(False)
             self.force_master.blockSignals(False)
-
-    def _apply_lan_key_gate(self) -> None:
-        """Disable the LAN shared secret unless LAN HTTPS is enabled.
-
-        Mirrors the client config rule that drops ``lan_key`` when HTTPS
-        is off: a shared secret must never travel over plain HTTP.
-        """
-        lan_on = self.lan_mode.isChecked()
-        https_on = self.lan_https.isChecked()
-        enabled = lan_on and https_on
-        self.lan_key.setEnabled(enabled)
-        lbl = self.findChild(QLabel, "lblLanKey")
-        if lbl:
-            lbl.setEnabled(enabled)
-        if lan_on and not https_on:
-            tip = tr("tip.lan_key_https_required")
-            self.lan_key.setToolTip(tip)
-            if lbl:
-                lbl.setToolTip(tip)
-        else:
-            restore = tr("tip.lan_key") if self._tips_enabled() else ""
-            self.lan_key.setToolTip(restore)
-            if lbl:
-                lbl.setToolTip("")
 
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
@@ -1032,7 +995,6 @@ class SettingsDialog(QDialog):
         s.setValue("lan/key", self.lan_key.text())
         s.setValue("lan/port", self.lan_port.value())
         s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
-        s.setValue("lan/https", self.lan_https.isChecked())
         s.setValue("lan/persistent", self.lan_persistent.isChecked())
         s.setValue("lan/force_master", self.force_master.isChecked())
         s.setValue("lan/never_master", self.never_master.isChecked())
@@ -1113,7 +1075,6 @@ class SettingsDialog(QDialog):
         self.discovery_timeout.setValue(
             cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
         )
-        self.lan_https.setChecked(bool(s.value("lan/https", DEFAULT_LAN_HTTPS, bool)))
         self.lan_persistent.setChecked(
             bool(s.value("lan/persistent", DEFAULT_LAN_PERSISTENT, bool))
         )
@@ -1212,7 +1173,6 @@ class SettingsDialog(QDialog):
             self.lan_key,
             self.lan_port,
             self.discovery_timeout,
-            self.lan_https,
             self.lan_persistent,
             self.force_master,
             self.never_master,

@@ -64,3 +64,10 @@ hsync_desktop/bin/
 
 # Claude
 CLAUDE.md
+
+# Kilo
+.kilo
+
+ # Cache
+ .mypy_cache
+ .ruff_cache

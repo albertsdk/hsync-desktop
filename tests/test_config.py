@@ -100,9 +100,6 @@ class TestLanDefaults:
     def test_default_discovery_timeout(self):
         assert config.DEFAULT_DISCOVERY_TIMEOUT == 10
 
-    def test_default_lan_https(self):
-        assert config.DEFAULT_LAN_HTTPS is True
-
     def test_default_lan_persistent(self):
         assert config.DEFAULT_LAN_PERSISTENT is True
 

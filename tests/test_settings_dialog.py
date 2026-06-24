@@ -6,11 +6,8 @@
 
 """Tests for the SettingsDialog security gates.
 
-Covers the two security constraints added to the desktop settings:
+Covers the API-key security constraint of the desktop settings:
 
-* ``_apply_lan_key_gate`` - the LAN shared secret is only editable when
-  both LAN mode and LAN HTTPS are enabled (a secret must never travel
-  over plain HTTP).
 * ``_confirm_insecure_api_key`` - the API key is never sent over an
   ``http://`` URL or with SSL verification disabled without an explicit
   user confirmation.
@@ -19,7 +16,7 @@ Covers the two security constraints added to the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QLabel, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -31,38 +28,6 @@ def dialog(qtbot):
     dlg = SettingsDialog()
     qtbot.addWidget(dlg)
     return dlg
-
-
-class TestLanKeyGate:
-    """The shared secret field follows the LAN_HTTPS state."""
-
-    def test_enabled_when_lan_and_https(self, dialog):
-        dialog.lan_mode.setChecked(True)
-        dialog.lan_https.setChecked(True)
-        dialog._apply_lan_key_gate()
-        assert dialog.lan_key.isEnabled()
-
-    def test_disabled_without_https(self, dialog):
-        dialog.lan_mode.setChecked(True)
-        dialog.lan_https.setChecked(False)
-        dialog._apply_lan_key_gate()
-        assert not dialog.lan_key.isEnabled()
-        assert dialog.lan_key.toolTip() == tr("tip.lan_key_https_required")
-
-    def test_disabled_when_lan_off(self, dialog):
-        dialog.lan_mode.setChecked(False)
-        dialog.lan_https.setChecked(True)
-        dialog._apply_lan_key_gate()
-        assert not dialog.lan_key.isEnabled()
-
-    def test_label_disabled_without_https(self, dialog):
-        lbl = dialog.findChild(QLabel, "lblLanKey")
-        if lbl is None:
-            pytest.skip("lblLanKey is not present in the .ui file")
-        dialog.lan_mode.setChecked(True)
-        dialog.lan_https.setChecked(False)
-        dialog._apply_lan_key_gate()
-        assert not lbl.isEnabled()
 
 
 class TestInsecureApiKeyGate:

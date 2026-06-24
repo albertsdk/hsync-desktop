@@ -206,8 +206,6 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             validated_grp = DEFAULT_GROUP
         args += ["--lan-group", validated_grp]
 
-        if not s.value("lan/https", True, bool):
-            args.append("--no-lan-https")
         if not s.value("lan/persistent", True, bool):
             args.append("--no-lan-persistent")
         if s.value("lan/force_master", False, bool):
