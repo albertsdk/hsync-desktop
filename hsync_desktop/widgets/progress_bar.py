@@ -78,25 +78,6 @@ class TransferProgressBar(QWidget):
         # Stretch to push everything to the left
         layout.addStretch()
 
-    def _format_bytes(self, n: float) -> str:
-        """Format bytes into human-readable string."""
-        for unit in ("B", "KB", "MB", "GB", "TB"):
-            if abs(n) < 1024:
-                return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
-            n /= 1024
-        return f"{n:.1f} PB"
-
-    def _format_eta(self, seconds: float) -> str:
-        """Format seconds into ETA string."""
-        if seconds < 0 or seconds > 86400 * 7:  # > 1 week
-            return "--:--"
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        if hours > 0:
-            return f"{hours}:{minutes:02d}:{secs:02d}"
-        return f"{minutes}:{secs:02d}"
-
     def reset(self) -> None:
         """Reset the progress display to initial state."""
         self._progress_bar.setValue(0)

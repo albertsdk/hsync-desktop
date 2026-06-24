@@ -13,8 +13,9 @@ Contains validators for paths, URLs, bucket names, and group names.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from urllib.parse import urlparse
+
+from hsync_common.path_validation import is_valid_bucket_name, safe_resolve_path
 
 
 def _validate_path(path: str, allow_absolute: bool = True) -> str | None:
@@ -27,30 +28,14 @@ def _validate_path(path: str, allow_absolute: bool = True) -> str | None:
     Returns:
         The validated path if safe, None otherwise.
     """
-    if not path:
-        return None
-
-    # Remove null bytes
-    path = path.replace("\x00", "")
-
-    # Resolve the path and check it's within expected bounds
-    try:
-        resolved = Path(path).resolve()
-    except (OSError, ValueError):
-        return None
-
-    # If absolute paths not allowed, ensure it's relative
-    if not allow_absolute and resolved.is_absolute():
-        return None
-
-    return str(resolved)
+    return safe_resolve_path(path, allow_absolute=allow_absolute)
 
 
 def _validate_bucket(bucket: str) -> str | None:
-    """Validate a bucket name.
+    """Validate a bucket name against the canonical HSYNC pattern.
 
-    Bucket names should only contain alphanumeric characters,
-    dashes, underscores, and periods.
+    Bucket names must be alphanumeric, may contain hyphens and underscores in
+    the middle, and cannot start or end with a hyphen or underscore.
     """
     if not bucket:
         return None
@@ -58,9 +43,7 @@ def _validate_bucket(bucket: str) -> str | None:
     # Remove null bytes
     bucket = bucket.replace("\x00", "")
 
-    # Bucket name pattern: lowercase alphanumeric, dashes, underscores, periods
-    # Must start and end with alphanumeric
-    if re.match(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$", bucket):
+    if is_valid_bucket_name(bucket):
         return bucket
 
     return None

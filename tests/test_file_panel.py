@@ -6,6 +6,9 @@
 
 """Tests for hsync_desktop.file_panel module."""
 
+from hsync_common.format import format_bytes as _format_size
+from hsync_common.format import format_duration
+
 from hsync_desktop.file_panel import (
     _FILE_TYPE_MAP,
     _NO_PROGRESS_STATUSES,
@@ -13,9 +16,12 @@ from hsync_desktop.file_panel import (
     FileTransfer,
     TransferStatus,
     _classify_file,
-    _format_eta,
-    _format_size,
 )
+
+
+def _format_eta(seconds):
+    """Adapter: file panel ETA uses the compact duration style."""
+    return format_duration(seconds, style="compact")
 
 
 class TestTransferStatus:
