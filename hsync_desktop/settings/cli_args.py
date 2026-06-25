@@ -74,7 +74,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         ValueError: If input validation fails.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    args: list[str] = []
+    lan_enabled = bool(s.value("lan/enabled", False, bool))
+    args: list[str] = ["lan" if lan_enabled else "server"]
 
     # Validate local_path - must be a valid directory
     if local_path:
@@ -97,26 +98,27 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if local_path:
         args += ["-p", local_path]
 
-    # Connection - validate URL
-    url_raw = str(s.value("connection/server_url", "", str))
-    validated_url = _validate_url(url_raw)
-    if validated_url:
-        args += ["-s", validated_url]
-    if s.value("connection/insecure", False, bool):
-        args.append("--insecure")
+    # Connection (server subcommand only) - validate URL
+    if not lan_enabled:
+        url_raw = str(s.value("connection/server_url", "", str))
+        validated_url = _validate_url(url_raw)
+        if validated_url:
+            args += ["-s", validated_url]
+        if s.value("connection/insecure", False, bool):
+            args.append("--insecure")
 
-    # CA cert - validate it exists if specified
-    ca_raw = str(s.value("connection/ca_cert", "", str))
-    if ca_raw:
-        # Only add if file exists and path is safe
-        ca_path = _validate_path(ca_raw, allow_absolute=True)
-        if ca_path and Path(ca_path).exists():
-            args += ["--ca-cert", ca_path]
+        # CA cert - validate it exists if specified
+        ca_raw = str(s.value("connection/ca_cert", "", str))
+        if ca_raw:
+            # Only add if file exists and path is safe
+            ca_path = _validate_path(ca_raw, allow_absolute=True)
+            if ca_path and Path(ca_path).exists():
+                args += ["--ca-cert", ca_path]
 
     # Validate HTTP timeout is in reasonable range
     http_timeout = cast(int, s.value("connection/http_timeout", 30, int))
     http_timeout = max(1, min(http_timeout, 300))  # Clamp to 1-300 seconds
-    args += ["--timeout", str(http_timeout)]
+    args += ["--http-timeout", str(http_timeout)]
 
     # Sync. Continuous/daemon mode is the client default: only the one-shot
     # opt-out is emitted.
@@ -171,14 +173,17 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if filter_path_raw:
         validated_filter = _validate_path(filter_path_raw)
         if validated_filter:
-            args += ["--filter-path", validated_filter]
+            args += ["--subdir", validated_filter]
 
     # Sync hidden files (default False: hidden/system files are excluded)
 
     # Extra ignore patterns (comma-separated, layered on .hsyncignore)
     ignore_patterns_raw = str(s.value("sync/ignore_patterns", "", str)).strip()
     if ignore_patterns_raw:
-        args += ["--ignore-patterns", ignore_patterns_raw]
+        for pattern in ignore_patterns_raw.split(","):
+            pattern = pattern.strip()
+            if pattern:
+                args += ["--ignore-pattern", pattern]
 
     # Read new key; fall back to inverted legacy key for migration
     if s.contains("sync/compression_enabled"):
@@ -191,8 +196,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         args.append("-n")
 
     # LAN
-    if s.value("lan/enabled", False, bool):
-        args.append("--lan-mode")
+    if lan_enabled:
         port = cast(int, s.value("lan/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range
         if port:
@@ -221,9 +225,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # Bandwidth limits
     upload_bps, download_bps = get_bandwidth_limits()
     if upload_bps is not None:
-        args += ["--max-bandwidth-upload", str(upload_bps)]
+        args += ["--limit-upload", str(upload_bps)]
     if download_bps is not None:
-        args += ["--max-bandwidth-download", str(download_bps)]
+        args += ["--limit-download", str(download_bps)]
 
     # Always skip CLI confirmation prompts – hsync-desktop handles
     # deletion-risk confirmation via its own dialog.
@@ -242,7 +246,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if logfile_raw:
         validated_logfile = _validate_path(logfile_raw, allow_absolute=True)
         if validated_logfile:
-            args += ["-o", validated_logfile]
+            args += ["--log-file", validated_logfile]
 
     return args
 

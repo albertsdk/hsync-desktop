@@ -54,8 +54,9 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:2
 `--insecure` (`:105`),
 `--ignore-delete` (`:152`), compression flags
 (`:184`/`:186`), the advanced numeric caps (`--min-free-disk-space`,
-`--max-inbound-size`), and the LAN block (`--lan-mode:194`,
-`--force-master`, `--never-master`, `--require-pairing`). One-shot is
+`--max-inbound-size`), and the LAN block (the `lan`/`server` subcommand is the
+first token, then `--force-master`, `--never-master`, `--require-pairing`).
+One-shot is
 expressed only via the global `sync/continuous` setting, which maps to
 `--once` (`:124`). Secrets are
 **not** here — they go through engine pipe FDs.

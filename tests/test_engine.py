@@ -250,13 +250,17 @@ class TestGetBinaryCapabilities:
 
         from hsync_desktop import engine
 
-        doc = build_capabilities(app_version="1.2.3", cli_options=["--lan-mode"])
+        doc = build_capabilities(
+            app_version="1.2.3",
+            subcommands=["lan"],
+            cli_options_by_subcommand={"lan": ["--force-master"]},
+        )
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout=json.dumps(doc))
         )
         parsed = get_binary_capabilities("/fake/hsync")
         assert parsed is not None
-        assert parsed["cli_options"] == ["--lan-mode"]
+        assert parsed["cli_options"] == {"lan": ["--force-master"]}
 
     def test_no_binary_returns_none(self, monkeypatch):
         """Missing binary yields no capabilities."""

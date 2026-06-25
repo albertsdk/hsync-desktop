@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
-from hsync_common.protocol.capabilities import supports_cli_option
+from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from PySide6.QtCore import QSettings, QThread, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -709,22 +709,23 @@ class SettingsDialog(QDialog):
         """Gate LAN controls by the binary's advertised capabilities.
 
         Reads the capabilities document from the configured hsync binary and
-        disables any LAN toggle whose CLI flag the binary does not support, so
-        the UI can never offer a control the client cannot honour. An unknown
-        document (missing binary or parse failure) conservatively leaves every
-        control enabled.
+        disables any LAN toggle the binary does not support — the ``lan``
+        subcommand gates the whole block, and each remaining toggle is gated by
+        the flag the ``lan`` subcommand advertises. The UI can never offer a
+        control the client cannot honour. An unknown document (missing binary
+        or parse failure) conservatively leaves every control enabled.
         """
         doc = get_binary_capabilities()
         if doc is None:
             return
+        lan_supported = supports_subcommand(doc, "lan")
         gated: list[tuple[str, ToggleSwitch, QLabel]] = [
-            ("--lan-mode", self.lan_mode, self._lbl_lan_mode),
             ("--force-master", self.force_master, self._lbl_force_master),
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
         ]
         for flag, widget, label in gated:
-            if supports_cli_option(doc, flag):
+            if lan_supported and supports_cli_option(doc, flag, subcommand="lan"):
                 continue
             self._unsupported_widgets.add(widget)
             self._unsupported_labels.add(label)
@@ -735,6 +736,17 @@ class SettingsDialog(QDialog):
             widget.setEnabled(False)
             label.setEnabled(False)
             widget.setToolTip(tr("tip.capability_unsupported"))
+        if not lan_supported:
+            # The lan subcommand itself is the master gate for the LAN tab.
+            self._unsupported_widgets.add(self.lan_mode)
+            self._unsupported_labels.add(self._lbl_lan_mode)
+            if self.lan_mode.isChecked():
+                self.lan_mode.blockSignals(True)
+                self.lan_mode.setChecked(False)
+                self.lan_mode.blockSignals(False)
+            self.lan_mode.setEnabled(False)
+            self._lbl_lan_mode.setEnabled(False)
+            self.lan_mode.setToolTip(tr("tip.capability_unsupported"))
         # Refresh dependent enable-state with the new gates in effect.
         self._on_lan_mode_toggled(self.lan_mode.isChecked())
 

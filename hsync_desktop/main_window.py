@@ -187,7 +187,8 @@ class MainWindow(QMainWindow):
 
         # Insert widgets into the actionBarLayout
         # Layout order: ... [folder-icon] [path-label] [sync-dir-icon] [remote-icon] [remote-label] [browse-btn] ...
-        root_layout: QVBoxLayout | None = self.centralWidget().layout()  # type: ignore[assignment]
+        central = self.centralWidget()
+        root_layout = central.layout() if central is not None else None
         if root_layout:
             first_item = root_layout.itemAt(0)
             if first_item:

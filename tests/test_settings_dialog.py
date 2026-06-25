@@ -85,20 +85,26 @@ class TestInsecureApiKeyGate:
 class TestCapabilityGating:
     """LAN toggles are gated by the binary's advertised capabilities."""
 
-    def _make_dialog(self, qtbot, monkeypatch, cli_options):
-        """Build a dialog whose binary advertises exactly ``cli_options``."""
+    def _make_dialog(self, qtbot, monkeypatch, lan_supported=True, lan_flags=()):
+        """Build a dialog whose binary advertises the ``lan`` subcommand with
+        exactly ``lan_flags`` (or no ``lan`` subcommand when ``lan_supported``
+        is False)."""
         from hsync_common.protocol.capabilities import build_capabilities
 
         from hsync_desktop.settings import dialog as dialog_mod
 
-        doc = build_capabilities(app_version="1.0.0", cli_options=cli_options)
+        doc = build_capabilities(
+            app_version="1.0.0",
+            subcommands=["lan"] if lan_supported else ["server"],
+            cli_options_by_subcommand={"lan": list(lan_flags)} if lan_supported else {},
+        )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: doc)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
         return dlg
 
     def test_unsupported_flag_disables_widget_and_label(self, qtbot, monkeypatch):
-        dlg = self._make_dialog(qtbot, monkeypatch, cli_options=["--lan-mode", "--force-master"])
+        dlg = self._make_dialog(qtbot, monkeypatch, lan_flags=["--force-master"])
         dlg.lan_mode.setChecked(True)
         assert not dlg.never_master.isEnabled()
         assert not dlg.require_pairing.isEnabled()
@@ -109,7 +115,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            cli_options=["--lan-mode", "--force-master", "--never-master", "--require-pairing"],
+            lan_flags=["--force-master", "--never-master", "--require-pairing"],
         )
         dlg.lan_mode.setChecked(True)
         assert dlg.force_master.isEnabled()
@@ -118,7 +124,7 @@ class TestCapabilityGating:
         assert not dlg._unsupported_widgets
 
     def test_lan_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
-        dlg = self._make_dialog(qtbot, monkeypatch, cli_options=["--force-master"])
+        dlg = self._make_dialog(qtbot, monkeypatch, lan_supported=False)
         assert not dlg.lan_mode.isEnabled()
         assert dlg.lan_mode.toolTip() == tr("tip.capability_unsupported")
 
@@ -142,7 +148,9 @@ class TestCapabilityGating:
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
         dlg.never_master.setChecked(True)
-        doc = build_capabilities(app_version="1.0.0", cli_options=["--lan-mode"])
+        doc = build_capabilities(
+            app_version="1.0.0", subcommands=["lan"], cli_options_by_subcommand={"lan": []}
+        )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: doc)
         dlg._apply_capabilities()
         assert not dlg.never_master.isChecked()
@@ -152,7 +160,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            cli_options=["--lan-mode", "--force-master", "--never-master"],
+            lan_flags=["--force-master", "--never-master"],
         )
         dlg.lan_mode.setChecked(True)
         assert not dlg.require_pairing.isEnabled()

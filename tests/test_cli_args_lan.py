@@ -88,7 +88,7 @@ class TestLanSectionConsistency:
 
         # Each LAN flag appears exactly once.
         for flag in (
-            "--lan-mode",
+            "lan",
             "--lan-port",
             "--discovery-timeout",
             "--lan-group",
@@ -144,7 +144,7 @@ class TestNeverMasterFlag:
         """LAN disabled: never-master flag must be skipped with the rest of the block."""
         args = _build_args({"lan/enabled": False, "lan/never_master": True})
 
-        assert "--lan-mode" not in args
+        assert args[0] == "server"
         assert "--never-master" not in args
 
 
@@ -173,31 +173,32 @@ class TestRequirePairingFlag:
         """LAN disabled: require-pairing flag must be skipped with the rest of the block."""
         args = _build_args({"lan/enabled": False, "lan/require_pairing": True})
 
-        assert "--lan-mode" not in args
+        assert args[0] == "server"
         assert "--require-pairing" not in args
 
 
 class TestIgnorePatterns:
-    """Coverage for --ignore-patterns emission."""
+    """Coverage for --ignore-pattern emission."""
 
     def test_ignore_patterns_default_omits_flag(self):
-        """Empty/missing ignore patterns must not emit --ignore-patterns."""
+        """Empty/missing ignore patterns must not emit --ignore-pattern."""
         args = _build_args({})
 
-        assert "--ignore-patterns" not in args
+        assert "--ignore-pattern" not in args
 
     def test_ignore_patterns_empty_string_omits_flag(self):
-        """Whitespace-only patterns must not emit --ignore-patterns."""
+        """Whitespace-only patterns must not emit --ignore-pattern."""
         args = _build_args({"sync/ignore_patterns": "   "})
 
-        assert "--ignore-patterns" not in args
+        assert "--ignore-pattern" not in args
 
     def test_ignore_patterns_value_emits_flag(self):
-        """A non-empty patterns string is passed verbatim to --ignore-patterns."""
+        """A non-empty patterns string is emitted as repeated --ignore-pattern flags."""
         args = _build_args({"sync/ignore_patterns": "*.log,/build/,/dist/"})
 
-        assert "--ignore-patterns" in args
-        assert args[args.index("--ignore-patterns") + 1] == "*.log,/build/,/dist/"
+        assert args.count("--ignore-pattern") == 3
+        values = [args[i + 1] for i, a in enumerate(args) if a == "--ignore-pattern"]
+        assert values == ["*.log", "/build/", "/dist/"]
 
 
 class TestMaxDownloadSizeFlag:

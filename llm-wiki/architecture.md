@@ -34,7 +34,8 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
 2. **Probe capabilities**: `get_binary_capabilities` (`:143`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
 3. **Build args**: `build_hsync_args` (`cli_args.py:62`) maps every persisted
-   setting to a flag (`--lan-mode`, `--require-pairing`, `--yes`, …).
+   setting to the `lan`/`server` subcommand plus its flags (`--require-pairing`,
+   `--yes`, …).
 4. **Spawn**: `HsyncEngine.start` (`engine.py:282`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.
 5. **Bridge events**: each JSON-Lines `UiEventName` is mapped to a typed Qt

@@ -359,14 +359,19 @@ class HsyncEngine(QObject):
         pipe_fds: list[int] = []
         pipe_args: list[str] = []
 
+        # Secret fds are subcommand-specific: the server subcommand reads the
+        # API key and the lan subcommand reads the LAN key. Injecting the wrong
+        # fd would make the child fail with an unknown-option error.
+        mode = args[0] if args else ""
+
         api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
-        if api_key:
+        if api_key and mode == "server":
             read_fd = write_secret_pipe(api_key)
             pipe_fds.append(read_fd)
             pipe_args.extend(["--api-key-fd", str(read_fd)])
 
         lan_key = decrypt_value(str(s.value("lan/key", "", str)))
-        if lan_key:
+        if lan_key and mode == "lan":
             read_fd = write_secret_pipe(lan_key)
             pipe_fds.append(read_fd)
             pipe_args.extend(["--lan-key-fd", str(read_fd)])
