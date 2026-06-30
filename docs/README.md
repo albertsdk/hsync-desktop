@@ -1,0 +1,35 @@
+# HSYNC Desktop — Documentation
+
+HSYNC Desktop is a cross-platform graphical front-end for the HSYNC file
+synchronization client. It does not implement sync itself: it drives the
+bundled `hsync` client binary, builds its command line from a friendly settings
+dialog, and shows live progress, transfers and logs in a native window with a
+system-tray icon.
+
+Use it when you want HSYNC's Server Mode or peer-to-peer LAN Mode without
+touching the command line.
+
+## Install & quickstart
+
+```bash
+cd hsync-desktop
+poetry install          # first time only
+poetry run hsync-desktop
+```
+
+On first launch, open **Settings**, fill in your sync folder, bucket and mode
+(Server or LAN), then start a sync. See [usage.md](usage.md) for the full
+walkthrough.
+
+## Documentation map
+
+| Document | What it covers |
+| -------- | -------------- |
+| [usage.md](usage.md) | Configure connection, run and watch syncs, manage secrets, tray & themes. |
+
+## Related projects
+
+- [hsync-client](../../hsync-client/docs/README.md) — the sync engine this GUI drives.
+- [hsync-server](../../hsync-server/docs/README.md) — the central server for Server Mode.
+- [hsync-android](../../hsync-android/docs/README.md) — the Android app.
+- [hsync-common](../../hsync-common/docs/README.md) — shared models and protocol.
