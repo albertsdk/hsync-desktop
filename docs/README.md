@@ -9,6 +9,12 @@ system-tray icon.
 Use it when you want HSYNC's Server Mode or peer-to-peer LAN Mode without
 touching the command line.
 
+## Where to start
+
+- **End user?** → [Download a binary](#install--quickstart) and run it — no build required.
+- **Building from source?** → Follow the [developer instructions](#install--quickstart) below.
+- **Need help with settings?** → See the [Usage Guide](usage.md).
+
 ## Install & quickstart
 
 ### For end users
