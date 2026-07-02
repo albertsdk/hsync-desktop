@@ -11,15 +11,34 @@ touching the command line.
 
 ## Install & quickstart
 
+### For end users
+
+Download the prebuilt binary for your platform from the
+[Releases page](https://github.com/albertobasso/hsync-desktop/releases) (when
+available). Extract the archive and run the `hsync-desktop` executable — it
+bundles the HSYNC Client binary, so no additional installation is required.
+
+> Prebuilt binaries are a planned feature and not yet available in every
+> release. In the meantime, use the developer instructions below.
+
+On first launch, open **Settings**, fill in your sync folder, bucket and mode
+(Server or LAN), then start a sync. See [usage.md](usage.md) for the full
+walkthrough.
+
+### For developers (build from source)
+
 ```bash
 cd hsync-desktop
 poetry install          # first time only
 poetry run hsync-desktop
 ```
 
-On first launch, open **Settings**, fill in your sync folder, bucket and mode
-(Server or LAN), then start a sync. See [usage.md](usage.md) for the full
-walkthrough.
+Build a standalone binary with:
+
+```bash
+./compile.sh
+# Binary output: dist/<os>-<arch>/hsync-desktop
+```
 
 ## Documentation map
 

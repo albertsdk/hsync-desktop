@@ -7,14 +7,39 @@
 > The software is provided "as is", without warranty of any kind — see the full
 > [Disclaimer](#disclaimer) and [License](#license) below.
 
----
 
-Cross-platform desktop GUI for HSYNC Client, built with PySide6 (Qt 6).
+**HSYNC Desktop** is the graphical application for Windows, macOS, and Linux. It
+gives you a visual interface to control the HSYNC Client: start or stop sync,
+monitor transfer progress, adjust settings, and get desktop notifications — all
+without touching the command line.
 
 > The desktop drives the `hsync` client as a subprocess over an explicit,
 > versioned contract. See the
 > [Architecture Decision Records](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/README.md) — in
 > particular the [desktop ↔ client subprocess contract](https://github.com/albertobasso/hsync-common/blob/main/docs/adr/0004-desktop-subprocess-contract.md).
+
+---
+
+**Quick navigation:**
+- **New to HSync?** Start with the [Features](#features) overview above and [Quick Start](#quick-start)
+- **Ready to build from source?** Jump to [Build](#build)
+- **Want to contribute?** See [Contributing](CONTRIBUTING.md)
+- **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
+
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Build](#build)
+- [Configuration](#configuration)
+- [hsync Binary Discovery](#hsync-binary-discovery)
+- [Project Structure](#project-structure)
+- [Version](#version)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
+---
 
 ## Features
 
