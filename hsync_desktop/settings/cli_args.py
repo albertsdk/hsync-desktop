@@ -200,7 +200,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         port = cast(int, s.value("lan/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range
         if port:
-            args += ["--lan-port", str(port)]
+            args += ["--listen-port", str(port)]
 
         # Validate discovery timeout
         discovery_timeout = cast(int, s.value("lan/discovery_timeout", 10, int))
@@ -213,7 +213,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         validated_grp = _validate_group_name(grp)
         if validated_grp is None:
             validated_grp = DEFAULT_GROUP
-        args += ["--lan-group", validated_grp]
+        args += ["--group", validated_grp]
 
         if s.value("lan/force_master", False, bool):
             args.append("--force-master")

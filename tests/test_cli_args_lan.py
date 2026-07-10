@@ -89,18 +89,18 @@ class TestLanSectionConsistency:
         # Each LAN flag appears exactly once.
         for flag in (
             "lan",
-            "--lan-port",
+            "--listen-port",
             "--discovery-timeout",
-            "--lan-group",
+            "--group",
             "--once",
             "--force-master",
         ):
             assert args.count(flag) == 1, f"Expected exactly one occurrence of {flag}"
 
         # Argument values follow their flag.
-        assert args[args.index("--lan-port") + 1] == "9000"
+        assert args[args.index("--listen-port") + 1] == "9000"
         assert args[args.index("--discovery-timeout") + 1] == "15"
-        assert args[args.index("--lan-group") + 1] == "test-group"
+        assert args[args.index("--group") + 1] == "test-group"
 
     def test_one_shot_and_force_master_are_independent(self):
         """The --once and --force-master flags do not influence each other."""
