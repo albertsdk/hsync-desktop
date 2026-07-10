@@ -456,6 +456,18 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.no_master, elapsed=60))
         assert len(out) == 1
 
+    def test_duplicate_identity_event(self, engine):
+        out = _capture(engine.duplicate_identity)
+        engine._handle_event(
+            build_event(
+                UiEventName.duplicate_identity,
+                peer_cid="cid1",
+                peer_address="1.2.3.4",
+                message="duplicate",
+            )
+        )
+        assert out == [("cid1", "1.2.3.4")]
+
     def test_unknown_event_is_ignored(self, engine):
         # Should not raise and should emit nothing observable.
         out = _capture(engine.status_changed)

@@ -257,6 +257,7 @@ class HsyncEngine(QObject):
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
+    duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
 
     # Preview signals (emitted during dry-run preview)
     preview_started = Signal()  # preview scan started
@@ -669,6 +670,11 @@ class HsyncEngine(QObject):
                 )
             elif name == UiEventName.no_master:
                 self.no_master_warning.emit(str(event.get("message", "")))
+            elif name == UiEventName.duplicate_identity:
+                self.duplicate_identity.emit(
+                    str(event.get("peer_cid", "")),
+                    str(event.get("peer_address", "")),
+                )
             elif name == UiEventName.preview_start:
                 self.preview_started.emit()
             elif name == UiEventName.preview_end:

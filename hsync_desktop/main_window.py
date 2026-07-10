@@ -625,6 +625,7 @@ class MainWindow(QMainWindow):
         e.auth_error_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
         e.no_master_warning.connect(self._on_no_master_warning)
+        e.duplicate_identity.connect(self._on_duplicate_identity)
         e.process_finished.connect(self._on_process_finished)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
@@ -941,6 +942,15 @@ class MainWindow(QMainWindow):
         msg = tr("notif.no_master_msg")
         if self._notifier:
             self._notifier.warning(tr("notif.no_master_title"), msg)
+        self._append_log(f"⚠ {msg}")
+
+    @Slot(str, str)
+    def _on_duplicate_identity(self, peer_cid: str, peer_address: str) -> None:
+        """Handle a duplicated device identity (cloned HSYNC_DEVICE_DIR)."""
+        peer = peer_address or "?"
+        msg = tr("notif.duplicate_identity_msg").replace("{cid}", peer_cid).replace("{ip}", peer)
+        if self._notifier:
+            self._notifier.warning(tr("notif.duplicate_identity_title"), msg)
         self._append_log(f"⚠ {msg}")
 
     @Slot()

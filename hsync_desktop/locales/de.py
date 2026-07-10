@@ -194,6 +194,8 @@ translations: dict[str, str] = {
     "notif.master_conflict_lost": "Ein anderer Master {cid} unter {ip} hat Vorrang (früher gestartet). Dieser Client wird als Client arbeiten.",
     "notif.master_conflict_won": "Peer {cid} unter {ip} hat ebenfalls force_master aktiviert. Dieser Client gewinnt (früher gestartet).",
     "notif.master_takeover": "Peer {cid} unter {ip} hat force_master aktiviert und übernimmt die Master-Rolle. Dieser Client wird zum Client.",
+    "notif.duplicate_identity_title": "Doppelte Geräteidentität",
+    "notif.duplicate_identity_msg": "Zwei Geräte melden dieselbe Geräte-ID ({cid}). Jede Maschine benötigt eine eigene Identität: das Geräteverzeichnis (HSYNC_DEVICE_DIR) nicht zwischen Maschinen kopieren.",
     "notif.no_master_title": "Kein Master gewählt",
     "notif.no_master_msg": "Es wurde kein Master gewählt. Alle erkannten Peers sind möglicherweise als Never-Master konfiguriert, sodass kein Knoten Dateien bereitstellt und die Synchronisierung nicht fortgesetzt werden kann.",
     "notif.sync_paused_title": "Sync pausiert (Löschschutz)",

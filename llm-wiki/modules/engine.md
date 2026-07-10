@@ -60,6 +60,7 @@ command line:
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:617`/`:619`/`:625` |
 | `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:631`/`:633`/`:637` |
 | `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` | `:640`/`:646` |
+| `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` | `:656` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals | `:648`–`:660` |
 
 Full signal list: `engine.py:197`–`:222`. Event names + payload shape are SSOT in
