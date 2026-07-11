@@ -55,7 +55,6 @@ from hsync_desktop.settings.validators import (
     _validate_bucket,
     _validate_group_name,
     _validate_path,
-    _validate_url,
 )
 from hsync_desktop.themes import detect_system_theme
 
@@ -98,12 +97,11 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if local_path:
         args += ["-p", local_path]
 
-    # Connection (server subcommand only) - validate URL
+    # Connection (server subcommand only). The server endpoint travels on the
+    # environment channel (engine.apply_settings_env exports HSYNC_SERVER from
+    # the same setting): the client CLI takes the bare host + --port and has no
+    # URL flag, so the validated full URL is passed unchanged via env.
     if not lan_enabled:
-        url_raw = str(s.value("connection/server_url", "", str))
-        validated_url = _validate_url(url_raw)
-        if validated_url:
-            args += ["-s", validated_url]
         if s.value("connection/insecure", False, bool):
             args.append("--insecure")
 

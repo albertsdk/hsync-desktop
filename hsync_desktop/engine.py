@@ -121,9 +121,9 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     Reads the QSettings values that hsync-client consumes from the process
     environment (no CLI flag exists for them) and inserts them when set:
 
-    * ``HSYNC_SERVER`` (``connection/server_url``) — already mirrored by
-      ``-s`` in the CLI args, kept for consistency with the client's env
-      fallback;
+    * ``HSYNC_SERVER`` (``connection/server_url``) — the server-endpoint
+      channel: the client CLI takes the bare host, so the full (validated)
+      URL travels through the environment;
     * ``HSYNC_NTP_HOSTS`` (``lan/ntp_hosts``, ADR-0023) — SNTP host list for
       the LAN-mode clock-offset probe.
 

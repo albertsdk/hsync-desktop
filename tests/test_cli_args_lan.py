@@ -223,6 +223,27 @@ class TestMaxDownloadSizeFlag:
         idx = args.index("--max-inbound-size")
         assert args[idx + 1] == "10000000"
 
+
+class TestServerUrlViaEnvOnly:
+    """The server endpoint is env-only: the client CLI takes the bare host and
+    has no URL flag, so a stored server_url must never hit the command line
+    (engine.apply_settings_env exports it as HSYNC_SERVER instead)."""
+
+    def test_server_mode_emits_no_url_flag(self):
+        """LAN disabled + stored URL: neither the URL nor any -s/--server flag
+        is emitted (the endpoint travels via HSYNC_SERVER)."""
+        args = _build_args(
+            {
+                "lan/enabled": False,
+                "connection/server_url": "https://hsync.example.com:9753",
+            }
+        )
+
+        assert args[0] == "server"
+        assert "-s" not in args
+        assert "--server" not in args
+        assert "https://hsync.example.com:9753" not in args
+
     def test_zero_means_disabled_and_is_emitted(self):
         args = _build_args({"sync/max_inbound_size": 0})
 
