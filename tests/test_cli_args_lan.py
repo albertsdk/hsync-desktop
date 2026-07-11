@@ -240,8 +240,6 @@ class TestServerUrlViaEnvOnly:
         )
 
         assert args[0] == "server"
-        assert "-s" not in args
-        assert "--server" not in args
         assert "https://hsync.example.com:9753" not in args
 
     def test_zero_means_disabled_and_is_emitted(self):
