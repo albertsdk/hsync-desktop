@@ -3,8 +3,8 @@
 ## How to get help
 
 - **[Documentation](docs/README.md)** — usage guide and related project links.
-- **[HSYNC Client issues](https://github.com/albertobasso/hsync-client/issues)** — for issues with the underlying sync engine.
-- **[GitHub Issues](https://github.com/albertobasso/hsync-desktop/issues)** — bug reports and feature requests for the desktop GUI.
+- **[HSYNC Client issues](https://github.com/albertosdk/hsync-client/issues)** — for issues with the underlying sync engine.
+- **[GitHub Issues](https://github.com/albertosdk/hsync-desktop/issues)** — bug reports and feature requests for the desktop GUI.
 - **[Security Policy](SECURITY.md)** — how to report security vulnerabilities privately.
 
 ## Before asking for help

@@ -586,7 +586,7 @@ class MainWindow(QMainWindow):
         """Open the project page on GitHub in the default browser."""
         from PySide6.QtCore import QUrl
 
-        QDesktopServices.openUrl(QUrl("https://github.com/albertobasso/hsync-desktop"))
+        QDesktopServices.openUrl(QUrl("https://github.com/albertosdk/hsync-desktop"))
 
     def _show_about(self) -> None:
         """Show the splash screen as an About dialog."""

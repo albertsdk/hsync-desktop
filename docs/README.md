@@ -20,7 +20,7 @@ touching the command line.
 ### For end users
 
 Download the prebuilt binary for your platform from the
-[Releases page](https://github.com/albertobasso/hsync-desktop/releases) (when
+[Releases page](https://github.com/albertosdk/hsync-desktop/releases) (when
 available). Extract the archive and run the `hsync-desktop` executable — it
 bundles the HSYNC Client binary, so no additional installation is required.
 
@@ -55,10 +55,10 @@ Build a standalone binary with:
 
 ## Associated Ecosystem Components
 
-- [HSYNC Common](https://github.com/albertobasso/hsync-common/blob/main/README.md) - Shared models, constants, and utilities used by the client
-- [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
-- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
-- [HSYNC Android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — the Android app *(in development)*.
+- [HSYNC Common](https://github.com/albertosdk/hsync-common/blob/main/README.md) - Shared models, constants, and utilities used by the client
+- [HSYNC Client](https://github.com/albertosdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](https://github.com/albertosdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
+- [HSYNC Android](https://github.com/albertosdk/hsync-android/blob/main/docs/README.md) — the Android app *(in development)*.
 
 > **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
 > are still under active development and are not yet ready for production use.
