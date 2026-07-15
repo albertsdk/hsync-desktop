@@ -33,7 +33,7 @@ For **Server Mode** (sync against a central HSYNC server):
 - **Ignore patterns** — extra gitignore-style exclusion patterns.
 - **Compression** — toggle transfer compression.
 - **Delta transfer** — enabled by default for large files; see the
-  [Delta Transfer Guide](https://github.com/albertosdk/hsync-server/blob/main/docs/delta-transfer.md)
+  [Delta Transfer Guide](https://github.com/albertsdk/hsync-server/blob/main/docs/delta-transfer.md)
   for details.
 - **`.hsyncignore` editor** — edit ignore patterns for the selected folder.
 
@@ -87,5 +87,5 @@ listings or logs. Use the key dialogs to replace a key at any time.
 - **Peers not found in LAN Mode** — ensure all devices are on the same subnet
   with mDNS allowed through the firewall, and share the same LAN key.
 
-See the [client documentation](https://github.com/albertosdk/hsync-client/blob/main/docs/README.md) for the
+See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the
 underlying sync behaviour and modes.

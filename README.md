@@ -11,8 +11,8 @@ without touching the command line.
 
 > The desktop drives the `hsync` client as a subprocess over an explicit,
 > versioned contract. See the
-> [Architecture Decision Records](https://github.com/albertosdk/hsync-common/blob/main/docs/internal/adr/README.md) — in
-> particular the [desktop ↔ client subprocess contract](https://github.com/albertosdk/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
+> [Architecture Decision Records](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/README.md) — in
+> particular the [desktop ↔ client subprocess contract](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
 
 > 👉 **Operational Advisory:** As with any automated filesystem mutation utility, administrators are strongly advised to maintain validated, independent backups prior to initial deployment in production environments.
 
@@ -55,7 +55,7 @@ For building:
 - Poetry (for dependency management)
 
 For running:
-- The compiled `hsync` binary from [hsync-client](https://github.com/albertosdk/hsync-client)
+- The compiled `hsync` binary from [hsync-client](https://github.com/albertsdk/hsync-client)
 
 ## Quick Start
 
@@ -156,10 +156,10 @@ The application searches for the `hsync` binary in this order:
 
 ### Associated Ecosystem Components
 
-- [HSYNC Client](https://github.com/albertosdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
-- [HSYNC Server](https://github.com/albertosdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
-- [HSYNC Desktop](https://github.com/albertosdk/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
-- [HSYNC Android](https://github.com/albertosdk/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.
+- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
+- [HSYNC Desktop](https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
+- [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.
 
 > **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
 > are still under active development and are not yet ready for production use.
@@ -168,7 +168,7 @@ The application searches for the `hsync` binary in this order:
 
 To report a vulnerability, please use GitHub's **Private Vulnerability Reporting**:
 
-👉 **[Report a vulnerability](https://github.com/albertosdk/hsync-desktop/security/advisories/new)**
+👉 **[Report a vulnerability](https://github.com/albertsdk/hsync-desktop/security/advisories/new)**
 
 See our [Security Policy](SECURITY.md) for supported versions and hardening
 recommendations.
