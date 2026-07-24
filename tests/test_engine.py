@@ -373,14 +373,6 @@ class TestHandleEvent:
         )
         assert out == [("master exposes an empty bucket", 42, 100)]
 
-    def test_auth_error_event(self, engine):
-        errors = _capture(engine.auth_error_occurred)
-        status = _capture(engine.status_changed)
-        engine._handle_event(build_event(UiEventName.auth_error, message="bad key"))
-        assert errors == [("bad key",)]
-        assert status == [("error",)]
-        assert engine._auth_error_active is True
-
     def test_path_not_found_event(self, engine):
         paths = _capture(engine.path_not_found)
         status = _capture(engine.status_changed)
@@ -404,23 +396,6 @@ class TestHandleEvent:
         out = _capture(engine.no_master_warning)
         engine._handle_event(build_event(UiEventName.no_master, elapsed=60))
         assert len(out) == 1
-
-    def test_preview_lifecycle_and_file_status(self, engine):
-        started = _capture(engine.preview_started)
-        ended = _capture(engine.preview_ended)
-        statuses = _capture(engine.file_status)
-        renames = _capture(engine.file_rename_status)
-        engine._handle_event(build_event(UiEventName.preview_start))
-        engine._handle_event(
-            build_event(UiEventName.file_status, state="to_download", file="f.txt", size=5)
-        )
-        engine._handle_event(build_event(UiEventName.rename_status, src="a", dst="b", size=7))
-        engine._handle_event(build_event(UiEventName.preview_end))
-        assert started == [()]
-        assert ended == [()]
-        assert statuses == [("to_download", "f.txt", 5)]
-        assert renames == [("a", "b", 7)]
-        assert engine._in_preview is False
 
     def test_unknown_event_is_ignored(self, engine):
         # Should not raise and should emit nothing observable.

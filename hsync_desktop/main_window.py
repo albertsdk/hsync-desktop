@@ -1024,7 +1024,7 @@ class MainWindow(QMainWindow):
                 self._btn_stop.setEnabled(False)
                 if self._tray:
                     self._tray.set_running(False)
-                self._set_path_editable(True)
+                self._set_path_editable()
                 self._apply_button_styles()
                 self._update_menu_state()
             # If stdin preview, just close dialog - process keeps running
@@ -1037,7 +1037,7 @@ class MainWindow(QMainWindow):
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        self._set_path_editable(True)
+        self._set_path_editable()
         self._hide_info_banner()
         self._apply_button_styles()
         self._update_menu_state()
@@ -1120,7 +1120,7 @@ class MainWindow(QMainWindow):
                     self._btn_refresh.setEnabled(False)
                     if self._tray:
                         self._tray.set_running(True)
-                    self._set_path_editable(False)
+                    self._set_path_editable()
                     self._apply_button_styles()
                     return
         self._hide_info_banner()
@@ -1134,11 +1134,11 @@ class MainWindow(QMainWindow):
         if self._tray:
             self._tray.set_running(False)
         self._hide_info_banner()
-        self._set_path_editable(True)
+        self._set_path_editable()
         self._apply_button_styles()
         self._update_menu_state()
 
-    def _set_path_editable(self, editable: bool) -> None:
+    def _set_path_editable(self) -> None:
         """Path editing is now handled in Settings dialog — no-op."""
         pass
 
@@ -1487,7 +1487,7 @@ class MainWindow(QMainWindow):
             self._btn_refresh.setEnabled(False)  # Disable until preview completes
             if self._tray:
                 self._tray.set_running(True)
-            self._set_path_editable(False)
+            self._set_path_editable()
             self._apply_button_styles()
             self._update_menu_state()
 

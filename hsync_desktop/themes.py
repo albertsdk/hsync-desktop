@@ -68,7 +68,6 @@ def _get_accent_hover() -> QColor:
 COLOR_CONNECTED = QColor("#2EA043")
 COLOR_DISCONNECTED = QColor("#CF222E")
 COLOR_WAITING = QColor("#BF8700")
-COLOR_ERROR = QColor("#CF222E")
 
 
 def _build_light_palette() -> QPalette:
