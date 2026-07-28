@@ -9,7 +9,7 @@
 | ------ | ---- | ---- |
 | `find_hsync_binary` | `engine.py:99` | locate bundled (`:106`) or sibling (`:118`) executable |
 | `get_binary_version` | `:124` | run `--version`, parse |
-| `get_binary_capabilities` | `:143` | run `--capabilities-json` → `parse_capabilities` (common SSOT) |
+| `get_binary_capabilities` | `:143` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
 | `check_binary_compatibility` | `:166` | gate UI on protocol/app compatibility |
 | `_platform_tag` | `:74` | OS/arch tag for bundled-binary lookup |
 
@@ -64,6 +64,16 @@ Full signal list: `engine.py:197`–`:222`. Event names + payload shape are SSOT
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
 
 `TransferStats` (`engine.py:45`) accumulates per-session counters (`reset:53`).
+
+## Delta transfer compatibility
+
+The desktop GUI is **compatible with delta transfer** (rsync-style block sync)
+without requiring UI changes. Delta transfer is transparent to the user: when both
+the client and server/master support the `delta` capability, large files with small
+changes are transferred more efficiently by sending only changed blocks. The
+capability is negotiated automatically via `--capabilities-json`; no desktop-side
+configuration is needed. Falls back to full transfer if delta is not supported or
+fails.
 
 > Contract rule (ADR 0004): never bypass this bridge by importing client code —
 > see [decisions.md](../decisions.md).
