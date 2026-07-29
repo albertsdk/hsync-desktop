@@ -32,6 +32,9 @@ For **Server Mode** (sync against a central HSYNC server):
 - **Ignore deletions** — never propagate deletes (safe default for the NAS role).
 - **Sync hidden files** — include dot-files.
 - **Compression** — toggle transfer compression.
+- **Delta transfer** — enabled by default for large files; see the
+  [Delta Transfer Guide](https://github.com/albertobasso/hsync-server/blob/main/docs/delta-transfer.md)
+  for details.
 - **`.hsyncignore` editor** — edit ignore patterns for the selected folder.
 
 ### LAN tab
