@@ -128,6 +128,7 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 | Re-sync interval | Force full sync every N seconds |
 | Ignore deletions | Backup mode |
 | Compression | Enable/disable transfer compression |
+| Delta transfer | Rsync-style block sync for large files (enabled by default) |
 
 ### LAN Mode
 
