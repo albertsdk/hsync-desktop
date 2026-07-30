@@ -21,7 +21,7 @@ Open **Settings**. The dialog is organised into three tabs.
 ### Server tab
 For **Server Mode** (sync against a central HSYNC server):
 
-- **Server URL** — e.g. `https://my-nas:8765`.
+- **Server URL** — e.g. `https://my-nas:9753`.
 - **Bucket** — the remote bucket name to sync into.
 - **API key** — click to enter or replace it (see *Secrets* below).
 - **Insecure** — accept self-signed TLS certificates (use only on trusted networks).
