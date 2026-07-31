@@ -33,7 +33,6 @@ without touching the command line.
 - [Build](#build)
 - [Configuration](#configuration)
 - [hsync Binary Discovery](#hsync-binary-discovery)
-- [Project Structure](#project-structure)
 - [Version](#version)
 - [License](#license)
 - [Disclaimer](#disclaimer)
@@ -154,49 +153,6 @@ The application searches for the `hsync` binary in this order:
 2. **System PATH**: `which hsync`
 3. **Sibling project** (development): `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
    — the platform tag (e.g. `linux-amd64`, `darwin-arm64`) is detected at runtime
-
-## Project Structure
-
-```
-hsync-desktop/
-├── hsync_desktop/
-│   ├── __init__.py           # Package version
-│   ├── __main__.py           # Module entry point
-│   ├── main.py               # Application entry point
-│   ├── engine.py             # hsync-client subprocess bridge
-│   ├── main_window.py        # Main window UI
-│   ├── settings_dialog.py    # Settings dialog (delegates to settings/)
-│   ├── settings/             # Settings dialog, CLI args, validators
-│   ├── file_panel/           # File transfer panel (models, widgets, workers)
-│   ├── widgets/              # Custom widgets (progress bar, toggle switch)
-│   ├── bandwidth_dialog.py   # Bandwidth-limit dialog
-│   ├── preview_summary_dialog.py # Sync preview/summary dialog
-│   ├── splash_screen.py      # Startup splash screen
-│   ├── single_instance.py    # Single-instance lock
-│   ├── system_tray.py        # System tray icon and menu
-│   ├── notifications.py      # Desktop notification manager
-│   ├── themes.py             # Light/dark theme management
-│   ├── i18n.py               # Translation helpers
-│   ├── locales/              # Translations (en, it, de, es, fr)
-│   ├── config.py             # Settings persistence (QSettings)
-│   ├── crypto.py             # Secret encryption helpers
-│   ├── icons.py / utils.py   # Icon and utility helpers
-│   ├── ui/                   # Qt Designer .ui files + loader
-│   ├── bin/                  # Bundled hsync binary (compiled builds)
-│   └── resources/            # Icons and assets
-├── tests/                    # Test files
-├── compile.sh                # Build script (PyInstaller)
-├── pyproject.toml            # Project configuration
-└── README.md
-```
-
-## Version
-
-1.0.0
-
-## License
-
-[Mozilla Public License 2.0](LICENSE)
 
 ## Disclaimer
 
