@@ -30,7 +30,7 @@ For **Server Mode** (sync against a central HSYNC server):
 - **Local folder** — the directory to keep in sync.
 - **Watch / auto-sync** — keep syncing automatically as files change.
 - **Ignore deletions** — never propagate deletes (safe default for the NAS role).
-- **Sync hidden files** — include dot-files.
+- **Ignore patterns** — extra gitignore-style exclusion patterns.
 - **Compression** — toggle transfer compression.
 - **Delta transfer** — enabled by default for large files; see the
   [Delta Transfer Guide](https://github.com/albertobasso/hsync-server/blob/main/docs/delta-transfer.md)

@@ -128,7 +128,6 @@ translations: dict[str, str] = {
     "settings.max_download_size": "Max. eingehende Dateigröße:",
     "settings.disabled": "Deaktiviert",
     "settings.filter_path": "Pfadfilter:",
-    "settings.sync_hidden": "Versteckte Dateien synchronisieren",
     "settings.ignore_patterns": "Zusätzliche Ignorier-Muster:",
     "settings.edit_hsyncignore": ".hsyncignore bearbeiten…",
     "settings.group.path_bucket": "Pfad & Bucket",
@@ -219,7 +218,6 @@ translations: dict[str, str] = {
     "tip.min_free_disk_space": "Mindestens erforderlicher freier Speicherplatz vor der Synchronisation (0 = deaktiviert)",
     "tip.max_download_size": "Maximale Größe einer einzelnen eingehenden Datei (Download oder empfangener LAN-Upload), als absolute Obergrenze zusätzlich zur peer-deklarierten Größe (0 = deaktiviert)",
     "tip.filter_path": "Nur Dateien synchronisieren, deren Pfad diese Zeichenfolge enthält",
-    "tip.sync_hidden": "Versteckte/System-Dateien in die Synchronisierung einbeziehen (deaktiviert integrierte Filter)",
     "tip.ignore_patterns": "Zusätzliche gitignore-Muster, durch Komma getrennt (kombiniert mit .hsyncignore)",
     "tip.edit_hsyncignore": "Die Datei .hsyncignore im Stammverzeichnis des freigegebenen Ordners bearbeiten",
     # .hsyncignore-Editor

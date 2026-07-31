@@ -173,8 +173,6 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             args += ["--filter-path", validated_filter]
 
     # Sync hidden files (default False: hidden/system files are excluded)
-    if s.value("sync/sync_hidden", False, bool):
-        args.append("--sync-hidden")
 
     # Extra ignore patterns (comma-separated, layered on .hsyncignore)
     ignore_patterns_raw = str(s.value("sync/ignore_patterns", "", str)).strip()

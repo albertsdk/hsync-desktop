@@ -198,27 +198,8 @@ class TestRequirePairingFlag:
         assert "--require-pairing" not in args
 
 
-class TestSyncHiddenAndIgnorePatterns:
-    """Coverage for --sync-hidden and --ignore-patterns emission."""
-
-    def test_sync_hidden_default_omits_flag(self):
-        """Without an explicit value, --sync-hidden must not be emitted."""
-        args = _build_args({})
-
-        assert "--sync-hidden" not in args
-
-    def test_sync_hidden_false_omits_flag(self):
-        """Explicit False must not emit --sync-hidden."""
-        args = _build_args({"sync/sync_hidden": False})
-
-        assert "--sync-hidden" not in args
-
-    def test_sync_hidden_true_emits_flag(self):
-        """Explicit True must emit --sync-hidden."""
-        args = _build_args({"sync/sync_hidden": True})
-
-        assert "--sync-hidden" in args
-        assert args.count("--sync-hidden") == 1
+class TestIgnorePatterns:
+    """Coverage for --ignore-patterns emission."""
 
     def test_ignore_patterns_default_omits_flag(self):
         """Empty/missing ignore patterns must not emit --ignore-patterns."""
