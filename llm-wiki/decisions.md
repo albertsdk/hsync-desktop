@@ -2,16 +2,16 @@
 
 Ecosystem ADRs are SSOT in `hsync-common`
 ([decisions index](../../hsync-common/llm-wiki/decisions.md) →
-`hsync-common/docs/adr/`). This page maps the ADRs that govern the GUI to the
+`hsync-common/docs/internal/adr/`). This page maps the ADRs that govern the GUI to the
 **desktop code**, plus desktop-only rules.
 
 ## ADR → desktop code
 
 | ADR | Desktop implementation |
 | --- | ---------------------- |
-| [0004 desktop-subprocess-contract](../../hsync-common/docs/adr/0004-desktop-subprocess-contract.md) | the whole `engine.py`: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine.py:572`), stdin commands (`engine.py:459`) |
-| [0005 protocol-versioning](../../hsync-common/docs/adr/0005-protocol-versioning.md) | `check_binary_compatibility` (`engine.py:166`) gates the UI on the binary's protocol/app version |
-| [0001 server-vs-lan-modes](../../hsync-common/docs/adr/0001-server-vs-lan-modes.md) | LAN block in the settings dialog + `--lan-mode`/master flags in `cli_args.py:190`+ |
+| [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine.py`: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine.py:572`), stdin commands (`engine.py:459`) |
+| [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `check_binary_compatibility` (`engine.py:166`) gates the UI on the binary's protocol/app version |
+| [0001 server-vs-lan-modes](../../hsync-common/docs/internal/adr/0001-server-vs-lan-modes.md) | LAN block in the settings dialog + `--lan-mode`/master flags in `cli_args.py:190`+ |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in
