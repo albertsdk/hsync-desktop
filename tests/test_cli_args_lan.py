@@ -222,31 +222,31 @@ class TestIgnorePatterns:
 
 
 class TestMaxDownloadSizeFlag:
-    """--max-download-size passthrough (absolute anti-bomb cap)."""
+    """--max-inbound-size passthrough (absolute anti-bomb cap)."""
 
     def test_default_value_emitted(self):
         """Without a stored value the desktop default (10 GB) is passed."""
         args = _build_args({})
 
-        idx = args.index("--max-download-size")
+        idx = args.index("--max-inbound-size")
         assert args[idx + 1] == "10240"
 
     def test_stored_value_emitted(self):
-        args = _build_args({"sync/max_download_size": 51200})
+        args = _build_args({"sync/max_inbound_size": 51200})
 
-        idx = args.index("--max-download-size")
+        idx = args.index("--max-inbound-size")
         assert args[idx + 1] == "51200"
 
     def test_value_clamped_to_valid_range(self):
-        args = _build_args({"sync/max_download_size": 99_000_000})
+        args = _build_args({"sync/max_inbound_size": 99_000_000})
 
-        idx = args.index("--max-download-size")
+        idx = args.index("--max-inbound-size")
         assert args[idx + 1] == "10000000"
 
     def test_zero_means_disabled_and_is_emitted(self):
-        args = _build_args({"sync/max_download_size": 0})
+        args = _build_args({"sync/max_inbound_size": 0})
 
-        idx = args.index("--max-download-size")
+        idx = args.index("--max-inbound-size")
         assert args[idx + 1] == "0"
 
 
