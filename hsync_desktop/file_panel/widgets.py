@@ -993,6 +993,21 @@ class FileTransferTable(QTableWidget):
         new_name = line_edit.text().strip()
         if not new_name or new_name == old_name:
             return
+        # Reject names that contain path separators or traversal components
+        # (slash, backslash, "..", null byte), preventing arbitrary filesystem
+        # escape from the sync directory.
+        if (
+            os.path.sep in new_name
+            or os.path.altsep in new_name
+            or ".." in new_name
+            or "\x00" in new_name
+        ):
+            QMessageBox.warning(
+                self,
+                "Invalid Name",
+                "The file name cannot contain path separators or traversal sequences.",
+            )
+            return
         # Fix: rstrip trailing slash from abs_path before dirname
         # Otherwise for directories, dirname removes the slash and join creates wrong path
         abs_path_rstripped = abs_path.rstrip("/")
