@@ -1,4 +1,4 @@
-# hsync-desktop — UI (window, panels, presentation)
+# HSYNC Desktop — UI (window, panels, presentation)
 
 Qt widgets that render engine state. All UI mutation stays on the main thread,
 driven by `HsyncEngine` signals (see [engine.md](engine.md)).

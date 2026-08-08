@@ -1,4 +1,4 @@
-# hsync-desktop — Architecture
+# HSYNC Desktop — Architecture
 
 A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 **presentation + configuration**; all sync logic lives in the subprocess.

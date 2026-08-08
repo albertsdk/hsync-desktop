@@ -1,4 +1,4 @@
-# hsync-desktop — Data models & state
+# HSYNC Desktop — Data models & state
 
 The desktop holds only **view-state**: it has no wire/sync models. Protocol types
 it reads are imported from `hsync-common`; the rest are local UI dataclasses/enums.

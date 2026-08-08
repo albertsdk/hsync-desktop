@@ -1,4 +1,4 @@
-# hsync-desktop — Engine (subprocess bridge)
+# HSYNC Desktop — Engine (subprocess bridge)
 
 `engine.py` is the only module that talks to the `hsync` binary. It owns the
 `QProcess`, the secret/event pipes, and the event→signal translation.
