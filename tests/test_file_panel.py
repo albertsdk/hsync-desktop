@@ -107,28 +107,28 @@ class TestFormatSize:
 
     def test_bytes(self):
         """Test bytes formatting."""
-        assert _format_size(0) == "0 B"
-        assert _format_size(100) == "100 B"
-        assert _format_size(512) == "512 B"
+        assert _format_size(0) == "0B"
+        assert _format_size(100) == "100B"
+        assert _format_size(512) == "512B"
 
     def test_kilobytes(self):
         """Test kilobytes formatting."""
-        assert _format_size(1024) == "1.0 KB"
-        assert _format_size(1536) == "1.5 KB"
-        assert _format_size(10240) == "10.0 KB"
+        assert _format_size(1024) == "1.0KB"
+        assert _format_size(1536) == "1.5KB"
+        assert _format_size(10240) == "10.0KB"
 
     def test_megabytes(self):
         """Test megabytes formatting."""
-        assert _format_size(1048576) == "1.0 MB"
-        assert _format_size(1572864) == "1.5 MB"
+        assert _format_size(1048576) == "1.0MB"
+        assert _format_size(1572864) == "1.5MB"
 
     def test_gigabytes(self):
         """Test gigabytes formatting."""
-        assert _format_size(1073741824) == "1.0 GB"
+        assert _format_size(1073741824) == "1.0GB"
 
     def test_terabytes(self):
         """Test terabytes formatting."""
-        assert _format_size(1099511627776) == "1.0 TB"
+        assert _format_size(1099511627776) == "1.0TB"
 
 
 class TestFormatEta:
