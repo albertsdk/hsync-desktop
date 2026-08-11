@@ -198,6 +198,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "No se ha elegido ningún maestro. Es posible que todos los pares detectados estén configurados como never-master, por lo que ningún nodo servirá archivos y la sincronización no puede continuar.",
     "notif.sync_paused_title": "Sync en pausa (guarda de borrado)",
     "notif.sync_paused_msg": "Una guarda de seguridad bloqueó {deletes} borrado(s) en este ciclo ({reason}). No se eliminó ningún archivo. Verifica que el maestro/origen sea correcto y reanuda si es lo esperado.",
+    "notif.conflict_resolved_title": "Conflicto de Archivo Resuelto",
+    "notif.conflict_resolved_msg": "{file} fue modificado en ambos lados. Se mantuvo la versión remota; su versión local se guardó como {conflict_copy}.",
     "preview.title": "Vista previa de sincronización",
     "preview.no_actions": "No hay acciones a realizar — todo está sincronizado.",
     "tip.server_url": "URL del servidor hsync (dejar vacío para modo solo LAN)",

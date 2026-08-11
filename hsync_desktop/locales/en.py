@@ -264,6 +264,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "No master has been elected. All discovered peers may be configured as never-master, so no node will serve files and synchronization cannot proceed.",
     "notif.sync_paused_title": "Sync paused (deletion guard)",
     "notif.sync_paused_msg": "A safety guard blocked {deletes} deletion(s) this cycle ({reason}). No files were removed. Verify the master/source is correct, then resume if this is expected.",
+    "notif.conflict_resolved_title": "File Conflict Resolved",
+    "notif.conflict_resolved_msg": "{file} was modified on both sides. The remote version was kept; your local version was saved as {conflict_copy}.",
     # Preview
     "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",

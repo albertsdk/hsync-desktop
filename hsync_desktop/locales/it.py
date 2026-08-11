@@ -198,6 +198,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Nessun master è stato eletto. Tutti i peer rilevati potrebbero essere configurati come never-master, quindi nessun nodo servirà i file e la sincronizzazione non può procedere.",
     "notif.sync_paused_title": "Sync in pausa (guard cancellazioni)",
     "notif.sync_paused_msg": "Un guard di sicurezza ha bloccato {deletes} cancellazione/i in questo ciclo ({reason}). Nessun file è stato rimosso. Verifica che il master/sorgente sia corretto, poi riprendi se è previsto.",
+    "notif.conflict_resolved_title": "Conflitto di File Risolto",
+    "notif.conflict_resolved_msg": "{file} è stato modificato su entrambi i lati. La versione remota è stata mantenuta; la tua versione locale è stata salvata come {conflict_copy}.",
     "preview.title": "Anteprima sincronizzazione",
     "preview.no_actions": "Nessuna azione da eseguire — tutto è sincronizzato.",
     "tip.server_url": "URL del server hsync (lasciare vuoto per modalità solo LAN)",

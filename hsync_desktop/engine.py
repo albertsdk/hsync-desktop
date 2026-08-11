@@ -213,6 +213,7 @@ class HsyncEngine(QObject):
     process_finished = Signal(int, str)  # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
+    conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
 
     # Preview signals (emitted during dry-run preview)
     preview_started = Signal()  # preview scan started
@@ -620,6 +621,11 @@ class HsyncEngine(QObject):
                     str(event.get("reason", "")),
                     int(event.get("deletes", 0)),
                     int(event.get("local", 0)),
+                )
+            elif name == UiEventName.conflict_resolved:
+                self.conflict_resolved.emit(
+                    str(event.get("file", "")),
+                    str(event.get("conflict_copy", "")),
                 )
             elif name == UiEventName.error:
                 self.error_occurred.emit(str(event.get("message", "")))
