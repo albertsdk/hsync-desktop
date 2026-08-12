@@ -46,7 +46,7 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libdbus-1-3
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
