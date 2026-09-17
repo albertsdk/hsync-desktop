@@ -7,11 +7,24 @@
 
 | Symbol | Line | Role |
 | ------ | ---- | ---- |
-| `find_hsync_binary` | `engine.py:99` | locate bundled (`:106`) or sibling (`:118`) executable |
-| `get_binary_version` | `:124` | run `--version`, parse |
-| `get_binary_capabilities` | `:143` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
-| `check_binary_compatibility` | `:166` | gate UI on protocol/app compatibility |
-| `_platform_tag` | `:74` | OS/arch tag for bundled-binary lookup |
+| `find_hsync_binary` | `engine.py:145` | locate bundled or sibling executable |
+| `_parse_version` | `:170` | extract `X.Y.Z` from `--version` output (shared by sync + async paths) |
+| `get_binary_version` | `:176` | run `--version`, parse (pure, uncached) |
+| `get_binary_capabilities` | `:194` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
+| `is_binary_version_compatible` | `:225` | pure major-version comparison |
+| `get_binary_version_cached` | `:290` | `get_binary_version` + QSettings cache keyed by `(path, size, mtime_ns)` |
+| `get_binary_capabilities_cached` | `:301` | `get_binary_capabilities` + QSettings cache (only parsed docs are stored) |
+| `BinaryVersionProbe` | `:324` | async `QProcess` resolver for `--version` (cache hit emits synchronously; hung binary killed after 5 s) |
+| `_probe_settings` | `:236` | QSettings accessor (patchable in tests) |
+| `_platform_tag` | `:96` | OS/arch tag for bundled-binary lookup |
+
+The version/capabilities probes are cached in `QSettings(SETTINGS_ORG,
+SETTINGS_APP)` under `binary/version_cache` / `binary/capabilities_cache`. An
+entry is fresh only while the on-disk binary's `(size, mtime_ns)` match the
+values captured at probe time, so a replaced bundled binary invalidates the
+cache. `main.py` resolves the version via `BinaryVersionProbe` (non-blocking);
+the settings dialog uses the synchronous cached `get_binary_capabilities_cached`
+to gate controls at first paint.
 
 ## HsyncEngine lifecycle
 

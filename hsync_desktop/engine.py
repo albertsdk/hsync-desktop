@@ -24,6 +24,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from PySide6.QtCore import (
     QObject,
@@ -31,10 +32,12 @@ from PySide6.QtCore import (
     QProcessEnvironment,
     QSettings,
     QSocketNotifier,
+    QTimer,
     Signal,
     Slot,
 )
 
+from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.crypto import decrypt_value
 
 
@@ -164,6 +167,12 @@ def find_hsync_binary() -> str | None:
     return None
 
 
+def _parse_version(output: str) -> str | None:
+    """Extract the ``X.Y.Z`` version from ``--version`` output, or None."""
+    match = re.search(r"(\d+\.\d+\.\d+)", output)
+    return match.group(1) if match else None
+
+
 def get_binary_version(binary_path: str) -> str | None:
     """Return the semantic version reported by the hsync binary, or None.
 
@@ -179,8 +188,7 @@ def get_binary_version(binary_path: str) -> str | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    match = re.search(r"(\d+\.\d+\.\d+)", f"{result.stdout}\n{result.stderr}")
-    return match.group(1) if match else None
+    return _parse_version(f"{result.stdout}\n{result.stderr}")
 
 
 def get_binary_capabilities(binary_path: str | None = None) -> CapabilitiesDoc | None:
@@ -194,6 +202,14 @@ def get_binary_capabilities(binary_path: str | None = None) -> CapabilitiesDoc |
     path = binary_path or find_hsync_binary()
     if not path:
         return None
+    raw = _get_binary_capabilities_raw(path)
+    if raw is None:
+        return None
+    return parse_capabilities(raw)
+
+
+def _get_binary_capabilities_raw(path: str) -> str | None:
+    """Run ``<path> --capabilities-json`` and return the raw stdout, or None."""
     try:
         result = subprocess.run(
             [path, "--capabilities-json"],
@@ -203,26 +219,178 @@ def get_binary_capabilities(binary_path: str | None = None) -> CapabilitiesDoc |
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    return parse_capabilities(result.stdout)
+    return result.stdout
 
 
-def check_binary_compatibility(binary_path: str | None = None) -> tuple[bool, str | None]:
-    """Check the hsync binary version against the desktop's expected version.
+def is_binary_version_compatible(binary_version: str) -> bool:
+    """Return True when *binary_version* shares the desktop's major version."""
+    return binary_version.split(".")[0] == _EXPECTED_VERSION.split(".")[0]
 
-    Returns ``(is_compatible, binary_version)``. Compatibility follows the same
-    Semver rule used across HSYNC: only a different *major* version is
-    incompatible. When the binary is missing or its version cannot be
-    determined the result is treated as compatible (best-effort), so startup is
-    never blocked by a parse failure.
+
+# ─── Binary-probe cache (QSettings) ──────────────────────────────────────────
+
+_VERSION_CACHE_KEY = "binary/version_cache"
+_CAPABILITIES_CACHE_KEY = "binary/capabilities_cache"
+
+
+def _probe_settings() -> QSettings:
+    """Return the QSettings used for binary-probe caching (patchable in tests)."""
+    return QSettings(SETTINGS_ORG, SETTINGS_APP)
+
+
+def _binary_stat(path: str) -> tuple[int, int] | None:
+    """Return the ``(size, mtime_ns)`` of *path*, or None if it cannot be stat'd."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_size, st.st_mtime_ns)
+
+
+def _read_probe_cache(key: str, path: str) -> str | None:
+    """Return the cached raw value for *key* if it still matches *path*.
+
+    The entry is considered fresh only while the on-disk binary's
+    ``(size, mtime_ns)`` match the values captured at caching time, so a
+    replaced bundled binary can never be served a stale probe result.
+    """
+    stat = _binary_stat(path)
+    if stat is None:
+        return None
+    size, mtime_ns = stat
+    raw_value = _probe_settings().value(key, "")
+    raw = raw_value if isinstance(raw_value, str) else ""
+    try:
+        payload = json.loads(raw) if raw else None
+    except (ValueError, TypeError):
+        return None
+    if (
+        isinstance(payload, dict)
+        and payload.get("path") == path
+        and payload.get("size") == size
+        and payload.get("mtime_ns") == mtime_ns
+    ):
+        value = payload.get("value")
+        return value if isinstance(value, str) else None
+    return None
+
+
+def _write_probe_cache(key: str, path: str, value: str) -> None:
+    """Persist *value* for *key* together with the current ``(size, mtime_ns)``."""
+    stat = _binary_stat(path)
+    if stat is None:
+        return
+    size, mtime_ns = stat
+    _probe_settings().setValue(
+        key,
+        json.dumps({"path": path, "size": size, "mtime_ns": mtime_ns, "value": value}),
+    )
+
+
+def get_binary_version_cached(binary_path: str) -> str | None:
+    """Return ``get_binary_version(binary_path)`` with a QSettings-backed cache."""
+    cached = _read_probe_cache(_VERSION_CACHE_KEY, binary_path)
+    if cached is not None:
+        return cached
+    version = get_binary_version(binary_path)
+    if version is not None:
+        _write_probe_cache(_VERSION_CACHE_KEY, binary_path, version)
+    return version
+
+
+def get_binary_capabilities_cached(binary_path: str | None = None) -> CapabilitiesDoc | None:
+    """Return ``get_binary_capabilities`` with a QSettings-backed cache.
+
+    Only a successfully parsed document is cached; a cache hit that no longer
+    parses falls through to a fresh probe (never serving a corrupt value).
     """
     path = binary_path or find_hsync_binary()
     if not path:
-        return (True, None)
-    binary_version = get_binary_version(path)
-    if not binary_version:
-        return (True, None)
-    is_compatible = binary_version.split(".")[0] == _EXPECTED_VERSION.split(".")[0]
-    return (is_compatible, binary_version)
+        return None
+    raw = _read_probe_cache(_CAPABILITIES_CACHE_KEY, path)
+    if raw is not None:
+        doc = parse_capabilities(raw)
+        if doc is not None:
+            return doc
+    raw = _get_binary_capabilities_raw(path)
+    if raw is None:
+        return None
+    doc = parse_capabilities(raw)
+    if doc is not None:
+        _write_probe_cache(_CAPABILITIES_CACHE_KEY, path, raw)
+    return doc
+
+
+class BinaryVersionProbe(QObject):
+    """Resolve the bundled binary's version without blocking the event loop.
+
+    On a cache hit the result is emitted immediately (synchronously); on a miss a
+    ``QProcess`` runs ``--version`` in the background and emits when it finishes,
+    persisting the result so subsequent launches are instant. A hung binary is
+    killed after ``_VERSION_PROBE_TIMEOUT_MS`` and the result degrades to ``""``
+    (treated as compatible), mirroring the synchronous probe's 5 s timeout.
+    """
+
+    finished = Signal(str)  # the version string, or "" when undeterminable
+
+    _VERSION_PROBE_TIMEOUT_MS = 5000
+
+    def __init__(self, binary_path: str | None, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._binary_path = binary_path
+        self._path: str | None = None
+        self._process: QProcess | None = None
+        self._done = False
+        self._timeout = QTimer(self)
+        self._timeout.setSingleShot(True)
+        self._timeout.setInterval(self._VERSION_PROBE_TIMEOUT_MS)
+        self._timeout.timeout.connect(self._on_timeout)
+
+    def start(self) -> None:
+        path = self._binary_path or find_hsync_binary()
+        if not path:
+            self._done = True
+            self.finished.emit("")
+            return
+        self._path = path
+        cached = _read_probe_cache(_VERSION_CACHE_KEY, path)
+        if cached is not None:
+            self._done = True
+            self.finished.emit(cached)
+            return
+        process = QProcess(self)
+        self._process = process
+        process.setProgram(path)
+        process.setArguments(["--version"])
+        process.finished.connect(self._on_finished)
+        process.start()
+        self._timeout.start()
+
+    @Slot()
+    def _finish(self, version: str) -> None:
+        if self._done:
+            return
+        self._done = True
+        self._timeout.stop()
+        self.finished.emit(version)
+
+    @Slot()
+    def _on_finished(self) -> None:
+        process = self._process
+        if process is None:
+            return
+        stdout = cast(bytes, process.readAllStandardOutput().data()).decode(errors="replace")
+        stderr = cast(bytes, process.readAllStandardError().data()).decode(errors="replace")
+        version = _parse_version(f"{stdout}\n{stderr}") or ""
+        if version and self._path:
+            _write_probe_cache(_VERSION_CACHE_KEY, self._path, version)
+        self._finish(version)
+
+    @Slot()
+    def _on_timeout(self) -> None:
+        if self._process is not None and self._process.state() != QProcess.ProcessState.NotRunning:
+            self._process.kill()
+        self._finish("")
 
 
 # ─── Engine ──────────────────────────────────────────────────────────────────

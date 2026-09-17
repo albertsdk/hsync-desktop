@@ -29,9 +29,11 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
    Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine.py:572)
 ```
 
-1. **Discover binary**: `find_hsync_binary` (`engine.py:99`), version/compat via
-   `get_binary_version` (`:124`) + `check_binary_compatibility` (`:166`).
-2. **Probe capabilities**: `get_binary_capabilities` (`:143`) →
+1. **Discover binary**: `find_hsync_binary` (`engine.py:145`), version via
+   `get_binary_version` (`:176`), compatibility via
+   `is_binary_version_compatible` (`:225`); at startup the version is resolved
+   asynchronously by `BinaryVersionProbe` (`:324`) and cached in QSettings.
+2. **Probe capabilities**: `get_binary_capabilities` (`:194`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
 3. **Build args**: `build_hsync_args` (`cli_args.py:62`) maps every persisted
    setting to the `lan`/`server` subcommand plus its flags (`--require-pairing`,

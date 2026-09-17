@@ -82,7 +82,7 @@ from hsync_desktop.config import (
     SETTINGS_ORG,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
-from hsync_desktop.engine import get_binary_capabilities
+from hsync_desktop.engine import get_binary_capabilities_cached
 from hsync_desktop.i18n import (
     SUPPORTED_LANGUAGES,
     get_language,
@@ -715,7 +715,7 @@ class SettingsDialog(QDialog):
         control the client cannot honour. An unknown document (missing binary
         or parse failure) conservatively leaves every control enabled.
         """
-        doc = get_binary_capabilities()
+        doc = get_binary_capabilities_cached()
         if doc is None:
             return
         lan_supported = supports_subcommand(doc, "lan")

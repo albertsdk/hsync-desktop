@@ -18,10 +18,10 @@ from hsync_desktop.engine import (
     HsyncEngine,
     TransferStats,
     apply_settings_env,
-    check_binary_compatibility,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
+    is_binary_version_compatible,
     write_secret_pipe,
 )
 
@@ -154,39 +154,152 @@ class TestGetBinaryVersion:
         assert get_binary_version("/fake/hsync") is None
 
 
-class TestCheckBinaryCompatibility:
-    """Test check_binary_compatibility function."""
+class TestIsBinaryVersionCompatible:
+    """Test the is_binary_version_compatible predicate."""
 
-    def test_no_binary_is_compatible(self, monkeypatch):
-        """Missing binary is treated as compatible with no version."""
-        from hsync_desktop import engine
-
-        monkeypatch.setattr(engine, "find_hsync_binary", lambda: None)
-        assert check_binary_compatibility() == (True, None)
-
-    def test_same_major_is_compatible(self, monkeypatch):
-        """Same major version as expected is compatible."""
-        from hsync_desktop import engine
-
+    def test_same_major_is_compatible(self):
+        """A version sharing the desktop's major is compatible."""
         major = _EXPECTED_VERSION.split(".")[0]
-        same_major = f"{major}.99.99"
-        monkeypatch.setattr(engine, "get_binary_version", lambda p: same_major)
-        assert check_binary_compatibility("/fake/hsync") == (True, same_major)
+        assert is_binary_version_compatible(f"{major}.99.99") is True
 
-    def test_different_major_is_incompatible(self, monkeypatch):
+    def test_different_major_is_incompatible(self):
         """A different major version is incompatible."""
-        from hsync_desktop import engine
-
         bumped = f"{int(_EXPECTED_VERSION.split('.')[0]) + 1}.0.0"
-        monkeypatch.setattr(engine, "get_binary_version", lambda p: bumped)
-        assert check_binary_compatibility("/fake/hsync") == (False, bumped)
+        assert is_binary_version_compatible(bumped) is False
 
-    def test_unparseable_version_is_compatible(self, monkeypatch):
-        """When the binary version cannot be determined, do not block startup."""
+
+class TestBinaryProbeCache:
+    """QSettings-backed caching for the binary version/capabilities probes."""
+
+    def _patch_settings(self, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
         from hsync_desktop import engine
 
-        monkeypatch.setattr(engine, "get_binary_version", lambda p: None)
-        assert check_binary_compatibility("/fake/hsync") == (True, None)
+        settings = QSettings(str(tmp_path / "probe.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(engine, "_probe_settings", lambda: settings)
+        return settings
+
+    def _make_binary(self, tmp_path, content: str = "x") -> str:
+        bin_path = tmp_path / "hsync"
+        bin_path.write_text(content)
+        return str(bin_path)
+
+    def test_version_cache_miss_then_hit(self, tmp_path, monkeypatch):
+        """A stable binary is probed once; the second call is a cache hit."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        calls = {"n": 0}
+
+        def fake_version(p):
+            calls["n"] += 1
+            return "1.2.3"
+
+        monkeypatch.setattr(engine, "get_binary_version", fake_version)
+        assert engine.get_binary_version_cached(path) == "1.2.3"
+        assert calls["n"] == 1
+        assert engine.get_binary_version_cached(path) == "1.2.3"
+        assert calls["n"] == 1
+
+    def test_version_cache_invalidated_on_size_change(self, tmp_path, monkeypatch):
+        """Replacing the binary (size change) forces a fresh probe."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        calls = {"n": 0}
+
+        def fake_version(p):
+            calls["n"] += 1
+            return "1.2.3"
+
+        monkeypatch.setattr(engine, "get_binary_version", fake_version)
+        engine.get_binary_version_cached(path)
+        with open(path, "a") as fh:
+            fh.write("more")
+        engine.get_binary_version_cached(path)
+        assert calls["n"] == 2
+
+    def test_version_cache_does_not_store_none(self, tmp_path, monkeypatch):
+        """A failed probe (None) is never cached."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        calls = {"n": 0}
+
+        def fake_version(p):
+            calls["n"] += 1
+            return None
+
+        monkeypatch.setattr(engine, "get_binary_version", fake_version)
+        assert engine.get_binary_version_cached(path) is None
+        assert engine.get_binary_version_cached(path) is None
+        assert calls["n"] == 2
+
+    def test_capabilities_cache_hit_skips_probe(self, tmp_path, monkeypatch):
+        """A parsed capabilities document is cached; a hit skips the subprocess."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        raw = '{"schema_version": 2, "app_version": "1.0.0"}'
+        doc = {"schema_version": 2, "app_version": "1.0.0"}
+        calls = {"n": 0}
+
+        def fake_raw(p):
+            calls["n"] += 1
+            return raw
+
+        monkeypatch.setattr(engine, "_get_binary_capabilities_raw", fake_raw)
+        monkeypatch.setattr(engine, "parse_capabilities", lambda text: doc if text == raw else None)
+        assert engine.get_binary_capabilities_cached(path) == doc
+        assert calls["n"] == 1
+        assert engine.get_binary_capabilities_cached(path) == doc
+        assert calls["n"] == 1
+
+    def test_binary_version_probe_cache_hit_emits_synchronously(self, tmp_path, monkeypatch):
+        """A cache hit resolves without spawning a QProcess."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        monkeypatch.setattr(engine, "get_binary_version", lambda p: "3.1.4")
+        engine.get_binary_version_cached(path)  # prime the cache
+        received = []
+        probe = engine.BinaryVersionProbe(path)
+        probe.finished.connect(received.append)
+        probe.start()
+        assert received == ["3.1.4"]
+
+    def test_binary_version_probe_qprocess(self, tmp_path, monkeypatch, qtbot):
+        """A cache miss spawns a QProcess and emits the parsed version."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        stub = tmp_path / "stub"
+        stub.write_text("#!/bin/sh\necho 'hsync 9.8.7'\n")
+        stub.chmod(0o755)
+        probe = engine.BinaryVersionProbe(str(stub))
+        with qtbot.waitSignal(probe.finished, timeout=5000) as blocker:
+            probe.start()
+        assert blocker.args == ["9.8.7"]
+
+    def test_binary_version_probe_timeout(self, tmp_path, monkeypatch, qtbot):
+        """A hung binary is killed and the probe degrades to an empty version."""
+        from hsync_desktop import engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        stub = tmp_path / "stub"
+        stub.write_text("#!/bin/sh\nsleep 10\n")
+        stub.chmod(0o755)
+        monkeypatch.setattr(engine.BinaryVersionProbe, "_VERSION_PROBE_TIMEOUT_MS", 100)
+        probe = engine.BinaryVersionProbe(str(stub))
+        with qtbot.waitSignal(probe.finished, timeout=3000) as blocker:
+            probe.start()
+        assert blocker.args == [""]
 
 
 class _EnvFakeSettings:

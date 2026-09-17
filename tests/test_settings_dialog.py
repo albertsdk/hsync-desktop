@@ -98,7 +98,7 @@ class TestCapabilityGating:
             subcommands=["lan"] if lan_supported else ["server"],
             cli_options_by_subcommand={"lan": list(lan_flags)} if lan_supported else {},
         )
-        monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: doc)
+        monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
         return dlg
@@ -131,7 +131,7 @@ class TestCapabilityGating:
     def test_unknown_capabilities_leave_controls_enabled(self, qtbot, monkeypatch):
         from hsync_desktop.settings import dialog as dialog_mod
 
-        monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: None)
+        monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: None)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
         dlg.lan_mode.setChecked(True)
@@ -144,14 +144,14 @@ class TestCapabilityGating:
 
         from hsync_desktop.settings import dialog as dialog_mod
 
-        monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: None)
+        monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: None)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
         dlg.never_master.setChecked(True)
         doc = build_capabilities(
             app_version="1.0.0", subcommands=["lan"], cli_options_by_subcommand={"lan": []}
         )
-        monkeypatch.setattr(dialog_mod, "get_binary_capabilities", lambda: doc)
+        monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
         dlg._apply_capabilities()
         assert not dlg.never_master.isChecked()
         assert not dlg.never_master.isEnabled()

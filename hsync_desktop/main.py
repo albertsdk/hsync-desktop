@@ -15,7 +15,7 @@ import sys
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from hsync_desktop import __version__
-from hsync_desktop.engine import HsyncEngine, check_binary_compatibility
+from hsync_desktop.engine import BinaryVersionProbe, HsyncEngine, is_binary_version_compatible
 from hsync_desktop.i18n import init_language, tr
 from hsync_desktop.main_window import MainWindow
 from hsync_desktop.notifications import NotificationManager
@@ -58,18 +58,6 @@ def main() -> int:
     # Create core components
     engine = HsyncEngine()
 
-    # Warn if the bundled hsync-client binary is a different major version than
-    # this GUI. The two are built and shipped together; a major mismatch means
-    # the CLI contract the engine relies on may have changed (version coupling).
-    is_compatible, binary_version = check_binary_compatibility(engine.binary_path)
-    if not is_compatible and binary_version:
-        QMessageBox.warning(
-            None,
-            tr("notif.version_mismatch"),
-            tr("notif.version_mismatch_msg")
-            .replace("{binary}", binary_version)
-            .replace("{expected}", __version__),
-        )
     # First create window, then pass it to tray
     window = MainWindow(engine, None)  # temp: no tray yet
     tray = SystemTray(window)
@@ -102,6 +90,26 @@ def main() -> int:
 
     # Show tray (window will be shown when splash screen finishes)
     tray.show()
+
+    # Warn if the bundled hsync-client binary is a different major version than
+    # this GUI. The two are built and shipped together; a major mismatch means
+    # the CLI contract the engine relies on may have changed (version coupling).
+    # The probe runs asynchronously (QProcess, cached in QSettings), so it never
+    # blocks startup: the warning appears once the result is available.
+    probe = BinaryVersionProbe(engine.binary_path, window)
+
+    def _warn_on_mismatch(binary_version: str) -> None:
+        if binary_version and not is_binary_version_compatible(binary_version):
+            QMessageBox.warning(
+                None,
+                tr("notif.version_mismatch"),
+                tr("notif.version_mismatch_msg")
+                .replace("{binary}", binary_version)
+                .replace("{expected}", __version__),
+            )
+
+    probe.finished.connect(_warn_on_mismatch)
+    probe.start()
 
     return app.exec()
 
