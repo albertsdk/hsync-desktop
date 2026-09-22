@@ -24,21 +24,21 @@ from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 _language_change_callbacks: list[Callable[[], None]] = []
 
 # Language codes
-LANG_EN = "en"
-LANG_IT = "it"
-LANG_DE = "de"
-LANG_FR = "fr"
-LANG_ES = "es"
+P2PG_EN = "en"
+P2PG_IT = "it"
+P2PG_DE = "de"
+P2PG_FR = "fr"
+P2PG_ES = "es"
 
 SUPPORTED_LANGUAGES = {
-    LANG_EN: "English",
-    LANG_IT: "Italiano",
-    LANG_DE: "Deutsch",
-    LANG_FR: "Français",
-    LANG_ES: "Español",
+    P2PG_EN: "English",
+    P2PG_IT: "Italiano",
+    P2PG_DE: "Deutsch",
+    P2PG_FR: "Français",
+    P2PG_ES: "Español",
 }
 
-_current_lang: str = LANG_EN
+_current_lang: str = P2PG_EN
 _translations: dict[str, dict[str, str]] = {}
 
 
@@ -51,7 +51,7 @@ def _detect_system_language() -> str:
             return lang_prefix
     except Exception:
         pass
-    return LANG_EN
+    return P2PG_EN
 
 
 def init_language() -> None:
@@ -106,7 +106,7 @@ def tr(key: str) -> str:
     if result is not None:
         return result
     # Fallback to English
-    en_dict = _translations.get(LANG_EN, {})
+    en_dict = _translations.get(P2PG_EN, {})
     return en_dict.get(key, key)
 
 
@@ -115,9 +115,9 @@ def tr(key: str) -> str:
 from hsync_desktop.locales import DE, EN, ES, FR, IT
 
 _translations = {
-    LANG_EN: EN,
-    LANG_IT: IT,
-    LANG_DE: DE,
-    LANG_FR: FR,
-    LANG_ES: ES,
+    P2PG_EN: EN,
+    P2PG_IT: IT,
+    P2PG_DE: DE,
+    P2PG_FR: FR,
+    P2PG_ES: ES,
 }

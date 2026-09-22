@@ -49,7 +49,7 @@ def write_secret_pipe(secret: str) -> int:
     (Python 3.4+ file descriptors are close-on-exec by default). The
     parent must close the returned fd after the child has started.
 
-    Consumers: ``HsyncEngine.start`` (``--api-key-fd`` / ``--lan-key-fd``).
+    Consumers: ``HsyncEngine.start`` (``--api-key-fd`` / ``--p2p-key-fd``).
     """
     read_fd, write_fd = os.pipe()
     os.set_inheritable(read_fd, True)
@@ -127,7 +127,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     * ``HSYNC_SERVER`` (``connection/server_url``) — the server-endpoint
       channel: the client CLI takes the bare host, so the full (validated)
       URL travels through the environment;
-    * ``HSYNC_NTP_HOSTS`` (``lan/ntp_hosts``, ADR-0023) — SNTP host list for
+    * ``HSYNC_NTP_HOSTS`` (``p2p/ntp_hosts``, ADR-0023) — SNTP host list for
       the LAN-mode clock-offset probe.
 
     ``insert()`` overwrites any pre-existing value: the GUI setting is the
@@ -137,9 +137,20 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     if server_url:
         env.insert("HSYNC_SERVER", server_url)
     # ADR-0023: SNTP host list for LAN-mode clock correction.
-    ntp_hosts = str(s.value("lan/ntp_hosts", "", str)).strip()
+    ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
+    # Cross-network discovery: the bootnode travels through the environment
+    # (the client CLI takes a bare positional, but HSYNC_BOOTNODE is the
+    # documented equivalent and needs no argument plumbing). UPnP is sent
+    # explicitly so the user's choice wins over the plan default.
+    bootnode = str(s.value("p2p/bootnode", "", str)).strip()
+    if bootnode:
+        env.insert("HSYNC_BOOTNODE", bootnode)
+        env.insert(
+            "HSYNC_UPNP_ENABLED",
+            "true" if bool(s.value("p2p/upnp_enabled", True, bool)) else "false",
+        )
 
 
 def find_hsync_binary() -> str | None:
@@ -410,7 +421,8 @@ class HsyncEngine(QObject):
     peers_changed = Signal(int, int)  # connected clients, total clients (self included)
     master_changed = Signal(bool)  # True ⇒ this client is master
     bucket_detected = Signal(str)  # bucket name
-    group_detected = Signal(str)  # LAN group name
+    group_detected = Signal(str)  # p2p group name
+    discovery_changed = Signal(str, str)  # plan ("mdns"|"bootnode"), bootnode host ("" with mDNS)
     file_transferred = Signal(str, str)  # direction ("↓"|"↑"|"✕"), filename
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
@@ -529,7 +541,7 @@ class HsyncEngine(QObject):
         pipe_args: list[str] = []
 
         # Secret fds are subcommand-specific: the server subcommand reads the
-        # API key and the lan subcommand reads the LAN key. Injecting the wrong
+        # API key and the p2p subcommand reads the p2p key. Injecting the wrong
         # fd would make the child fail with an unknown-option error.
         mode = args[0] if args else ""
 
@@ -539,11 +551,11 @@ class HsyncEngine(QObject):
             pipe_fds.append(read_fd)
             pipe_args.extend(["--api-key-fd", str(read_fd)])
 
-        lan_key = decrypt_value(str(s.value("lan/key", "", str)))
-        if lan_key and mode == "lan":
-            read_fd = write_secret_pipe(lan_key)
+        p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
+        if p2p_key and mode == "p2p":
+            read_fd = write_secret_pipe(p2p_key)
             pipe_fds.append(read_fd)
-            pipe_args.extend(["--lan-key-fd", str(read_fd)])
+            pipe_args.extend(["--p2p-key-fd", str(read_fd)])
 
         # Structured-event channel: the child writes JSON-Lines status events to
         # the write end, which it inherits across exec. Same inheritable
@@ -783,6 +795,10 @@ class HsyncEngine(QObject):
                 self.bucket_detected.emit(str(event.get("bucket", "")))
             elif name == UiEventName.group:
                 self.group_detected.emit(str(event.get("group", "")))
+            elif name == UiEventName.discovery:
+                self.discovery_changed.emit(
+                    str(event.get("plan", "")), str(event.get("bootnode", ""))
+                )
             elif name == UiEventName.session:
                 self._cid = str(event.get("cid", ""))
             elif name == UiEventName.server:

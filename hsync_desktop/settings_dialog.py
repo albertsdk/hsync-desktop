@@ -23,13 +23,13 @@ from hsync_desktop.settings.cli_args import (
 )
 from hsync_desktop.settings.dialog import (
     ApiKeyDialog,
-    LanKeyDialog,
+    P2PKeyDialog,
     SettingsDialog,
 )
 
 __all__ = [
     "ApiKeyDialog",
-    "LanKeyDialog",
+    "P2PKeyDialog",
     "SettingsDialog",
     "SETTINGS_ORG",
     "SETTINGS_APP",

@@ -36,7 +36,7 @@ events it reads are the **contract** owned by the `hsync` client
   internals (ADR 0004).
 - **Capability-gated UI**: probe `--capabilities-json` and disable controls the
   binary does not support (§8).
-- **Secrets via pipe FDs**: API/LAN keys are written to inherited pipes
-  (`--api-key-fd` / `--lan-key-fd`), never argv; at rest they are Fernet-encrypted
+- **Secrets via pipe FDs**: API/p2p keys are written to inherited pipes
+  (`--api-key-fd` / `--p2p-key-fd`), never argv; at rest they are Fernet-encrypted
   in `QSettings` (`crypto.py`).
 - **i18n lock-step**: every user string exists in all 5 locales (en/it/de/es/fr).

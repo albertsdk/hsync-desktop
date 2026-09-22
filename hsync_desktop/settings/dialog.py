@@ -7,7 +7,7 @@
 """
 Dialog classes for HSYNC Desktop settings.
 
-Contains SettingsDialog, ApiKeyDialog, and LanKeyDialog.
+Contains SettingsDialog, ApiKeyDialog, and P2PKeyDialog.
 """
 
 from __future__ import annotations
@@ -57,10 +57,6 @@ from hsync_desktop.config import (
     DEFAULT_IGNORE_DELETE,
     DEFAULT_IGNORE_PATTERNS,
     DEFAULT_INSECURE,
-    DEFAULT_LAN_ENABLED,
-    DEFAULT_LAN_KEY,
-    DEFAULT_LAN_PORT,
-    DEFAULT_LAN_REQUIRE_PAIRING,
     DEFAULT_LOGFILE,
     DEFAULT_MAX_INBOUND_SIZE,
     DEFAULT_MAX_WAIT,
@@ -69,6 +65,12 @@ from hsync_desktop.config import (
     DEFAULT_NO_COMPRESSION,
     DEFAULT_NOTIFICATIONS,
     DEFAULT_NTP_HOSTS,
+    DEFAULT_P2P_BOOTNODE,
+    DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_KEY,
+    DEFAULT_P2P_PORT,
+    DEFAULT_P2P_REQUIRE_PAIRING,
+    DEFAULT_P2P_UPNP_ENABLED,
     DEFAULT_QUIET,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
@@ -99,6 +101,20 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
     """Set tooltip on *widget* from i18n *key* only when *enabled*."""
     widget.setToolTip(tr(key) if enabled else "")
+
+
+def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
+    """Insert a QFormLayout row right after the row holding ``anchor``."""
+    container = anchor.parent()
+    layout = container.layout() if isinstance(container, QWidget) else None
+    if not isinstance(layout, QFormLayout):
+        return False
+    for row in range(layout.rowCount()):
+        item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+        if item and item.widget() is anchor:
+            layout.insertRow(row + 1, label, field)
+            return True
+    return False
 
 
 def _replace_checkbox_with_toggle(
@@ -283,12 +299,32 @@ class SettingsDialog(QDialog):
         # Reorganize sync tab into grouped sections
         self._reorganize_sync_tab()
 
-        # LAN tab widgets
-        self.lan_mode, self._lbl_lan_mode = _replace_checkbox_with_toggle(self, "lanMode")
-        self.lan_group: QLineEdit = self.findChild(QLineEdit, "lanGroup")  # type: ignore[assignment]
-        self.lan_key: QLineEdit = self.findChild(QLineEdit, "lanKey")  # type: ignore[assignment]
-        self.lan_port: QSpinBox = self.findChild(QSpinBox, "lanPort")  # type: ignore[assignment]
+        # p2p tab widgets
+        self.p2p_mode, self._lbl_p2p_mode = _replace_checkbox_with_toggle(self, "p2pMode")
+        self.p2p_group: QLineEdit = self.findChild(QLineEdit, "p2pGroup")  # type: ignore[assignment]
+        self.p2p_key: QLineEdit = self.findChild(QLineEdit, "p2pKey")  # type: ignore[assignment]
+        self.p2p_port: QSpinBox = self.findChild(QSpinBox, "p2pPort")  # type: ignore[assignment]
         self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
+
+        # Bootnode (optional) – cross-network discovery through a boot/1 node.
+        # Dynamic, no .ui counterpart; inserted right after the group row.
+        self.p2p_bootnode = QLineEdit(self)
+        self.p2p_bootnode.setObjectName("p2pBootnode")
+        self.p2p_bootnode.setPlaceholderText("boot.example.net")
+        self._lbl_p2p_bootnode = QLabel(self)
+        _insert_row_after(self.p2p_group, self._lbl_p2p_bootnode, self.p2p_bootnode)
+
+        # UPnP toggle for the master TCP port (only effective with a bootnode).
+        self.p2p_upnp = ToggleSwitch(self)
+        self.p2p_upnp.setObjectName("p2pUpnp")
+        self._lbl_p2p_upnp = QLabel(self)
+        upnp_container = QWidget(self)
+        hl_upnp = QHBoxLayout(upnp_container)
+        hl_upnp.setContentsMargins(0, 0, 0, 0)
+        hl_upnp.addWidget(self.p2p_upnp)
+        hl_upnp.addWidget(self._lbl_p2p_upnp)
+        hl_upnp.addStretch()
+        _insert_row_after(self.p2p_bootnode, QLabel(""), upnp_container)
 
         # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
         # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
@@ -382,30 +418,30 @@ class SettingsDialog(QDialog):
         # Set tab icons programmatically (theme icons don't work cross-platform)
         self._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
         self._tabs.setTabIcon(1, icon("network-cloud"))  # Server Mode (second)
-        self._tabs.setTabIcon(2, icon("network-lan"))
+        self._tabs.setTabIcon(2, icon("network-p2p"))
         self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
         self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
 
         # Create info banner for Server Mode tab when LAN is active (hidden by default)
-        self._lan_banner = QFrame(self)
-        self._lan_banner.setObjectName("lanBanner")
-        self._lan_banner.setStyleSheet(
-            "QFrame#lanBanner { "
+        self._p2p_banner = QFrame(self)
+        self._p2p_banner.setObjectName("p2pBanner")
+        self._p2p_banner.setStyleSheet(
+            "QFrame#p2pBanner { "
             "background-color: #fff3cd; "
             "border: 1px solid #ffc107; "
             "border-radius: 4px; "
             "padding: 8px; "
             "}"
         )
-        lan_banner_layout = QHBoxLayout(self._lan_banner)
-        lan_banner_layout.setContentsMargins(8, 4, 8, 4)
-        self._lan_banner_icon = QLabel("⚠️")
-        self._lan_banner_text = QLabel()
-        self._lan_banner_text.setWordWrap(True)
-        self._lan_banner_text.setStyleSheet("color: #856404;")
-        lan_banner_layout.addWidget(self._lan_banner_icon)
-        lan_banner_layout.addWidget(self._lan_banner_text, 1)
-        self._lan_banner.hide()
+        p2p_banner_layout = QHBoxLayout(self._p2p_banner)
+        p2p_banner_layout.setContentsMargins(8, 4, 8, 4)
+        self._p2p_banner_icon = QLabel("⚠️")
+        self._p2p_banner_text = QLabel()
+        self._p2p_banner_text.setWordWrap(True)
+        self._p2p_banner_text.setStyleSheet("color: #856404;")
+        p2p_banner_layout.addWidget(self._p2p_banner_icon)
+        p2p_banner_layout.addWidget(self._p2p_banner_text, 1)
+        self._p2p_banner.hide()
 
         # Insert LAN banner at the top of the Server Mode (tabConnection) layout
         # Also insert server_cert_fingerprint field and Test Connection button
@@ -416,7 +452,7 @@ class SettingsDialog(QDialog):
         if conn_tab:
             conn_layout = conn_tab.layout()
             if isinstance(conn_layout, QFormLayout):
-                conn_layout.insertRow(0, self._lan_banner)
+                conn_layout.insertRow(0, self._p2p_banner)
                 # Insert server_cert_fingerprint after http_timeout row,
                 # then Test Connection button after cert fingerprint
                 for row in range(conn_layout.rowCount()):
@@ -536,7 +572,7 @@ class SettingsDialog(QDialog):
         # Tab titles
         self._tabs.setTabText(0, tr("settings.sync"))
         self._tabs.setTabText(1, tr("settings.server_mode"))
-        self._tabs.setTabText(2, tr("settings.lan"))
+        self._tabs.setTabText(2, tr("settings.p2p"))
         self._tabs.setTabText(3, tr("settings.log"))
         self._tabs.setTabText(4, tr("settings.appearance"))
 
@@ -602,17 +638,19 @@ class SettingsDialog(QDialog):
         self._grp_timing.setTitle(tr("settings.group.timing"))
         self._grp_advanced.setTitle(tr("settings.group.advanced"))
 
-        # LAN tab labels
-        self._lbl_lan_mode.setText(tr("settings.lan_mode"))
-        lbl = self.findChild(QLabel, "lblLanGroup")  # type: ignore[assignment]
+        # p2p tab labels
+        self._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
+        lbl = self.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
         if lbl:
-            lbl.setText(tr("settings.lan_group"))
-        lbl = self.findChild(QLabel, "lblLanKey")  # type: ignore[assignment]
+            lbl.setText(tr("settings.p2p_group"))
+        lbl = self.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
         if lbl:
-            lbl.setText(tr("settings.lan_key"))
-        lbl = self.findChild(QLabel, "lblLanPort")  # type: ignore[assignment]
+            lbl.setText(tr("settings.p2p_key"))
+        lbl = self.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
         if lbl:
-            lbl.setText(tr("settings.lan_port"))
+            lbl.setText(tr("settings.p2p_port"))
+        self._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
+        self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.discovery_timeout"))
@@ -636,7 +674,7 @@ class SettingsDialog(QDialog):
         self.theme_combo.setItemText(1, tr("settings.theme_dark"))
         lbl = self.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
         if lbl:
-            lbl.setText(tr("settings.language"))
+            lbl.setText(tr("settings.p2pguage"))
         self._lbl_notifications.setText(tr("settings.notifications"))
         self._lbl_tooltips.setText(tr("settings.tooltips"))
 
@@ -678,11 +716,11 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
         _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
 
-        # LAN tab
-        _maybe_tip(self.lan_mode, "tip.lan_mode", tips)
-        _maybe_tip(self.lan_group, "tip.lan_group", tips)
-        _maybe_tip(self.lan_key, "tip.lan_key", tips)
-        _maybe_tip(self.lan_port, "tip.lan_port", tips)
+        # p2p tab
+        _maybe_tip(self.p2p_mode, "tip.p2p_mode", tips)
+        _maybe_tip(self.p2p_group, "tip.p2p_group", tips)
+        _maybe_tip(self.p2p_key, "tip.p2p_key", tips)
+        _maybe_tip(self.p2p_port, "tip.p2p_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
         _maybe_tip(self.ntp_hosts, "tip.ntp_hosts", tips)
         _maybe_tip(self.force_master, "tip.force_master", tips)
@@ -709,23 +747,24 @@ class SettingsDialog(QDialog):
         """Gate LAN controls by the binary's advertised capabilities.
 
         Reads the capabilities document from the configured hsync binary and
-        disables any LAN toggle the binary does not support — the ``lan``
+        disables any p2p toggle the binary does not support — the ``p2p``
         subcommand gates the whole block, and each remaining toggle is gated by
-        the flag the ``lan`` subcommand advertises. The UI can never offer a
+        the flag the ``p2p`` subcommand advertises. The UI can never offer a
         control the client cannot honour. An unknown document (missing binary
         or parse failure) conservatively leaves every control enabled.
         """
         doc = get_binary_capabilities_cached()
         if doc is None:
             return
-        lan_supported = supports_subcommand(doc, "lan")
+        p2p_supported = supports_subcommand(doc, "p2p")
         gated: list[tuple[str, ToggleSwitch, QLabel]] = [
             ("--force-master", self.force_master, self._lbl_force_master),
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
+            ("--no-upnp", self.p2p_upnp, self._lbl_p2p_upnp),
         ]
         for flag, widget, label in gated:
-            if lan_supported and supports_cli_option(doc, flag, subcommand="lan"):
+            if p2p_supported and supports_cli_option(doc, flag, subcommand="p2p"):
                 continue
             self._unsupported_widgets.add(widget)
             self._unsupported_labels.add(label)
@@ -736,25 +775,33 @@ class SettingsDialog(QDialog):
             widget.setEnabled(False)
             label.setEnabled(False)
             widget.setToolTip(tr("tip.capability_unsupported"))
-        if not lan_supported:
-            # The lan subcommand itself is the master gate for the LAN tab.
-            self._unsupported_widgets.add(self.lan_mode)
-            self._unsupported_labels.add(self._lbl_lan_mode)
-            if self.lan_mode.isChecked():
-                self.lan_mode.blockSignals(True)
-                self.lan_mode.setChecked(False)
-                self.lan_mode.blockSignals(False)
-            self.lan_mode.setEnabled(False)
-            self._lbl_lan_mode.setEnabled(False)
-            self.lan_mode.setToolTip(tr("tip.capability_unsupported"))
+        # The bootnode host field belongs to the bootnode discovery plan: gate it
+        # on the plan's ``--port`` flag (the positional is not in cli_options).
+        if not (p2p_supported and supports_cli_option(doc, "--port", subcommand="p2p")):
+            self._unsupported_widgets.add(self.p2p_bootnode)
+            self._unsupported_labels.add(self._lbl_p2p_bootnode)
+            self.p2p_bootnode.setEnabled(False)
+            self._lbl_p2p_bootnode.setEnabled(False)
+            self.p2p_bootnode.setToolTip(tr("tip.capability_unsupported"))
+        if not p2p_supported:
+            # The p2p subcommand itself is the master gate for the p2p tab.
+            self._unsupported_widgets.add(self.p2p_mode)
+            self._unsupported_labels.add(self._lbl_p2p_mode)
+            if self.p2p_mode.isChecked():
+                self.p2p_mode.blockSignals(True)
+                self.p2p_mode.setChecked(False)
+                self.p2p_mode.blockSignals(False)
+            self.p2p_mode.setEnabled(False)
+            self._lbl_p2p_mode.setEnabled(False)
+            self.p2p_mode.setToolTip(tr("tip.capability_unsupported"))
         # Refresh dependent enable-state with the new gates in effect.
-        self._on_lan_mode_toggled(self.lan_mode.isChecked())
+        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
-        self.lan_mode.toggled.connect(self._on_lan_mode_toggled)
+        self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
         self.force_master.toggled.connect(self._on_force_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
@@ -808,13 +855,13 @@ class SettingsDialog(QDialog):
         if folder:
             self.shared_path.setText(folder)
 
-    def _on_lan_mode_toggled(self, checked: bool) -> None:
-        """Enable/disable Server Mode tab widgets when LAN mode changes,
-        and enable/disable LAN tab widgets based on LAN mode state."""
+    def _on_p2p_mode_toggled(self, checked: bool) -> None:
+        """Enable/disable Server Mode tab widgets when p2p mode changes,
+        and enable/disable p2p tab widgets based on p2p mode state."""
         # Show/hide the LAN banner on Server Mode tab
-        self._lan_banner.setVisible(checked)
+        self._p2p_banner.setVisible(checked)
         if checked:
-            self._lan_banner_text.setText(tr("settings.lan_disables_server"))
+            self._p2p_banner_text.setText(tr("settings.p2p_disables_server"))
 
         # Disable/enable all Server Mode tab widgets
         server_widgets: list[QWidget] = [
@@ -832,28 +879,30 @@ class SettingsDialog(QDialog):
         conn_tab = self._tabs.widget(1)
         if conn_tab:
             for lbl in conn_tab.findChildren(QLabel):
-                if lbl not in (self._lan_banner_icon, self._lan_banner_text):
+                if lbl not in (self._p2p_banner_icon, self._p2p_banner_text):
                     lbl.setEnabled(not checked)
 
-        # Enable/disable LAN tab widgets (except the lan_mode toggle itself)
-        lan_sub_widgets: list[QWidget] = [
-            self.lan_group,
-            self.lan_key,
-            self.lan_port,
+        # Enable/disable p2p tab widgets (except the p2p_mode toggle itself)
+        p2p_sub_widgets: list[QWidget] = [
+            self.p2p_group,
+            self.p2p_bootnode,
+            self.p2p_upnp,
+            self.p2p_key,
+            self.p2p_port,
             self.discovery_timeout,
             self.ntp_hosts,
             self.force_master,
             self.never_master,
             self.require_pairing,
         ]
-        for widget in lan_sub_widgets:
+        for widget in p2p_sub_widgets:
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
 
-        # Also enable/disable the labels in the LAN tab (except lan_mode label)
-        lan_tab = self._tabs.widget(2)
-        if lan_tab:
-            for lbl in lan_tab.findChildren(QLabel):
-                if lbl is not self._lbl_lan_mode:
+        # Also enable/disable the labels in the p2p tab (except p2p_mode label)
+        p2p_tab = self._tabs.widget(2)
+        if p2p_tab:
+            for lbl in p2p_tab.findChildren(QLabel):
+                if lbl is not self._lbl_p2p_mode:
                     lbl.setEnabled(checked and lbl not in self._unsupported_labels)
 
     def _on_force_master_toggled(self, checked: bool) -> None:
@@ -972,8 +1021,8 @@ class SettingsDialog(QDialog):
         an ``http://`` URL or with SSL verification disabled. Returns True
         to proceed with saving, False to return to the dialog.
         """
-        if self.lan_mode.isChecked():
-            return True  # Server-mode settings are unused in LAN mode
+        if self.p2p_mode.isChecked():
+            return True  # Server-mode settings are unused in p2p mode
         if not self.api_key.text().strip():
             return True
         url = self.server_url.text().strip().lower()
@@ -1021,15 +1070,17 @@ class SettingsDialog(QDialog):
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
-        s.setValue("lan/enabled", self.lan_mode.isChecked())
-        s.setValue("lan/group", self.lan_group.text())
-        s.setValue("lan/key", encrypt_value(self.lan_key.text()))
-        s.setValue("lan/port", self.lan_port.value())
-        s.setValue("lan/discovery_timeout", self.discovery_timeout.value())
-        s.setValue("lan/ntp_hosts", self.ntp_hosts.text())
-        s.setValue("lan/force_master", self.force_master.isChecked())
-        s.setValue("lan/never_master", self.never_master.isChecked())
-        s.setValue("lan/require_pairing", self.require_pairing.isChecked())
+        s.setValue("p2p/enabled", self.p2p_mode.isChecked())
+        s.setValue("p2p/group", self.p2p_group.text())
+        s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
+        s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
+        s.setValue("p2p/key", encrypt_value(self.p2p_key.text()))
+        s.setValue("p2p/port", self.p2p_port.value())
+        s.setValue("p2p/discovery_timeout", self.discovery_timeout.value())
+        s.setValue("p2p/ntp_hosts", self.ntp_hosts.text())
+        s.setValue("p2p/force_master", self.force_master.isChecked())
+        s.setValue("p2p/never_master", self.never_master.isChecked())
+        s.setValue("p2p/require_pairing", self.require_pairing.isChecked())
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
@@ -1101,18 +1152,20 @@ class SettingsDialog(QDialog):
         self.ignore_patterns.setText(
             str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
         )
-        self.lan_mode.setChecked(bool(s.value("lan/enabled", DEFAULT_LAN_ENABLED, bool)))
-        self.lan_group.setText(str(s.value("lan/group", DEFAULT_GROUP, str)))
-        self.lan_key.setText(decrypt_value(str(s.value("lan/key", DEFAULT_LAN_KEY, str))))
-        self.lan_port.setValue(cast(int, s.value("lan/port", DEFAULT_LAN_PORT, int)))
+        self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
+        self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
+        self.p2p_bootnode.setText(str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)))
+        self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
+        self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
+        self.p2p_port.setValue(cast(int, s.value("p2p/port", DEFAULT_P2P_PORT, int)))
         self.discovery_timeout.setValue(
-            cast(int, s.value("lan/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
+            cast(int, s.value("p2p/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
         )
-        self.ntp_hosts.setText(str(s.value("lan/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
-        self.force_master.setChecked(bool(s.value("lan/force_master", DEFAULT_FORCE_MASTER, bool)))
-        self.never_master.setChecked(bool(s.value("lan/never_master", DEFAULT_NEVER_MASTER, bool)))
+        self.ntp_hosts.setText(str(s.value("p2p/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
+        self.force_master.setChecked(bool(s.value("p2p/force_master", DEFAULT_FORCE_MASTER, bool)))
+        self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
         self.require_pairing.setChecked(
-            bool(s.value("lan/require_pairing", DEFAULT_LAN_REQUIRE_PAIRING, bool))
+            bool(s.value("p2p/require_pairing", DEFAULT_P2P_REQUIRE_PAIRING, bool))
         )
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
@@ -1136,8 +1189,8 @@ class SettingsDialog(QDialog):
         self.show_log_panel.setChecked(
             bool(s.value("appearance/show_log", DEFAULT_SHOW_LOG_PANEL, bool))
         )
-        # Apply LAN mode state to Server Mode tab
-        self._on_lan_mode_toggled(self.lan_mode.isChecked())
+        # Apply p2p mode state to Server Mode tab
+        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
     # ── Connection-active state management ────────────────────────────────
 
@@ -1196,12 +1249,14 @@ class SettingsDialog(QDialog):
             self.btn_edit_hsyncignore,
         ]
 
-        # LAN tab - all settings affect LAN mode behavior
-        lan_widgets: list[QWidget] = [
-            self.lan_mode,
-            self.lan_group,
-            self.lan_key,
-            self.lan_port,
+        # p2p tab - all settings affect p2p mode behavior
+        p2p_widgets: list[QWidget] = [
+            self.p2p_mode,
+            self.p2p_group,
+            self.p2p_bootnode,
+            self.p2p_upnp,
+            self.p2p_key,
+            self.p2p_port,
             self.discovery_timeout,
             self.ntp_hosts,
             self.force_master,
@@ -1210,7 +1265,7 @@ class SettingsDialog(QDialog):
         ]
 
         # Combine all widgets that should be disabled
-        all_disabled_widgets = connection_widgets + sync_widgets + lan_widgets
+        all_disabled_widgets = connection_widgets + sync_widgets + p2p_widgets
 
         for widget in all_disabled_widgets:
             widget.setEnabled(not active and widget not in self._unsupported_widgets)
@@ -1221,8 +1276,8 @@ class SettingsDialog(QDialog):
         # Re-apply normal tooltips and LAN-mode state when connection is not active
         if not active:
             self._apply_tooltips()
-            # Re-apply LAN mode state so sub-widgets stay disabled if LAN is off
-            self._on_lan_mode_toggled(self.lan_mode.isChecked())
+            # Re-apply p2p mode state so sub-widgets stay disabled if LAN is off
+            self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
 
 # ─── API Key Dialog ─────────────────────────────────────────────────────────
@@ -1288,11 +1343,11 @@ class ApiKeyDialog(QDialog):
             )
 
 
-# ─── LAN Key Dialog ─────────────────────────────────────────────────────────
+# ─── p2p Key Dialog ─────────────────────────────────────────────────────────
 
 
-class LanKeyDialog(QDialog):
-    """Dialog to prompt for LAN key when LAN authentication fails."""
+class P2PKeyDialog(QDialog):
+    """Dialog to prompt for p2p key when p2p authentication fails."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1301,52 +1356,52 @@ class LanKeyDialog(QDialog):
 
     def _load_ui(self) -> None:
         """Load UI from .ui file and setup widget references."""
-        load_ui_widget("lan_key_dialog", self)
+        load_ui_widget("p2p_key_dialog", self)
 
-        self.setWindowTitle(tr("lanauth.title"))
+        self.setWindowTitle(tr("p2pauth.title"))
 
         # Get widget references from .ui
         self._lbl_error: QLabel = self.findChild(QLabel, "lblError")  # type: ignore[assignment]
         self._lbl_prompt: QLabel = self.findChild(QLabel, "lblPrompt")  # type: ignore[assignment]
         self._lbl_key_label: QLabel = self.findChild(QLabel, "lblKeyLabel")  # type: ignore[assignment]
-        self._lan_key_edit: QLineEdit = self.findChild(QLineEdit, "editLanKey")  # type: ignore[assignment]
+        self._p2p_key_edit: QLineEdit = self.findChild(QLineEdit, "editP2PKey")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
     def _populate(self) -> None:
         """Populate labels with translated text and load current values."""
-        self._lbl_error.setText(tr("lanauth.error_message"))
-        self._lbl_prompt.setText(tr("lanauth.prompt"))
-        self._lbl_key_label.setText(tr("lanauth.label"))
-        self._lan_key_edit.setPlaceholderText(tr("lanauth.label"))
+        self._lbl_error.setText(tr("p2pauth.error_message"))
+        self._lbl_prompt.setText(tr("p2pauth.prompt"))
+        self._lbl_key_label.setText(tr("p2pauth.label"))
+        self._p2p_key_edit.setPlaceholderText(tr("p2pauth.label"))
 
-        # Load current LAN key if any
+        # Load current p2p key if any
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        current_key = decrypt_value(str(s.value("lan/key", "", str)))
-        self._lan_key_edit.setText(current_key)
+        current_key = decrypt_value(str(s.value("p2p/key", "", str)))
+        self._p2p_key_edit.setText(current_key)
 
         # Buttons
-        self._button_box.addButton(tr("lanauth.save"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self._button_box.addButton(tr("p2pauth.save"), QDialogButtonBox.ButtonRole.AcceptRole)
         self._cancel_btn = self._button_box.addButton(
-            tr("lanauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
+            tr("p2pauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
         )
         self._button_box.accepted.connect(self._on_save)
         self._button_box.rejected.connect(self.reject)
 
         # Focus on input
-        self._lan_key_edit.setFocus()
+        self._p2p_key_edit.setFocus()
 
     def _on_save(self) -> None:
-        """Save the LAN key and accept the dialog."""
-        lan_key = self._lan_key_edit.text().strip()
-        if lan_key:
+        """Save the p2p key and accept the dialog."""
+        p2p_key = self._p2p_key_edit.text().strip()
+        if p2p_key:
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            s.setValue("lan/key", encrypt_value(lan_key))
+            s.setValue("p2p/key", encrypt_value(p2p_key))
             self.accept()
         else:
             QMessageBox.warning(
                 self,
-                tr("lanauth.title"),
-                tr("lanauth.prompt"),
+                tr("p2pauth.title"),
+                tr("p2pauth.prompt"),
             )
 
 

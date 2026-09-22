@@ -19,22 +19,31 @@ defaults (`:55`–`:63`, incl. `DEFAULT_LAN_REQUIRE_PAIRING:62` and
 | `_replace_checkbox_with_toggle` | `:104` | swap checkboxes for `ToggleSwitch` widgets |
 | `_maybe_tip` | `:99` | attach capability/disabled tooltip |
 | `ApiKeyDialog` | `:1201` | enter/replace the server API key (secret) |
-| `LanKeyDialog` | `:1270` | enter/replace the LAN key (secret) |
+| `P2pKeyDialog` | `:1270` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `:1338` | edit `.hsyncignore` patterns |
 
-**Capability gating (§8)**: LAN toggles (`lan_mode`, `force_master`,
+**Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`dialog.py:297`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
-`lan/ntp_hosts` QSettings key (`:1024` / `:1107`); the label comes from
+`p2p/ntp_hosts` QSettings key (`:1024` / `:1107`); the label comes from
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all 5 locales). It is
 an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine.py:99`, called at `engine.py:328`). Empty = the
 client's built-in defaults.
+
+**Bootnode (C2)**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
+group row via `_insert_row_after`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded
+under `p2p/bootnode` / `p2p/upnp_enabled`; labels from `settings.p2p_bootnode` /
+`settings.p2p_upnp` (5 locales). Like NTP hosts this is env-driven (the client
+positional exists, but `HSYNC_BOOTNODE` is the documented equivalent needing no
+argument plumbing): `apply_settings_env` inserts `HSYNC_BOOTNODE` (bare host)
+and `HSYNC_UPNP_ENABLED` (the user's explicit choice) only when a bootnode is
+set. Empty bootnode = mDNS-only discovery.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
 `_validate_bucket` (`:34`), `_validate_url` (`:52`), `_validate_group_name`
@@ -54,7 +63,7 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:2
 `--insecure` (`:105`),
 `--ignore-delete` (`:152`), compression flags
 (`:184`/`:186`), the advanced numeric caps (`--min-free-disk-space`,
-`--max-inbound-size`), and the LAN block (the `lan`/`server` subcommand is the
+`--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the
 first token, then `--force-master`, `--never-master`, `--require-pairing`).
 One-shot is
 expressed only via the global `sync/continuous` setting, which maps to
@@ -71,9 +80,9 @@ Secrets stored in `QSettings` are Fernet-encrypted with a machine-derived key:
 `encrypt_value` (`crypto.py:110`) / `decrypt_value` (`:118`); key derivation
 `_derive_key` (`:86`) from `_get_machine_id` (`:40`) + `_APP_SALT` (`:33`);
 stored values carry the `_ENC_PREFIX` (`:37`) marker. **Both** the API key
-(`connection/api_key`) and the LAN key (`lan/key`) go through encrypt/decrypt
+(`connection/api_key`) and the p2p key (`p2p/key`) go through encrypt/decrypt
 on save/load (`dialog.py`). `decrypt_value` still accepts a legacy plaintext
-value (no prefix) so an existing unencrypted LAN key is readable until the
+value (no prefix) so an existing unencrypted p2p key is readable until the
 next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 ## i18n.py — localization

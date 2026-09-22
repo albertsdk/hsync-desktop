@@ -69,7 +69,7 @@ def _validate_url(url: str) -> str | None:
 
 
 def _validate_group_name(group: str) -> str | None:
-    """Validate a LAN group name.
+    """Validate a p2p group name.
 
     Group names should be alphanumeric with limited special characters.
     """

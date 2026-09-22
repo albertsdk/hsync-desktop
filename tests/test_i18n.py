@@ -19,11 +19,11 @@ class TestConstants:
         assert i18n.SETTINGS_APP == "HSYNCDesktop"
 
     def test_language_codes(self):
-        assert i18n.LANG_EN == "en"
-        assert i18n.LANG_IT == "it"
-        assert i18n.LANG_DE == "de"
-        assert i18n.LANG_FR == "fr"
-        assert i18n.LANG_ES == "es"
+        assert i18n.P2PG_EN == "en"
+        assert i18n.P2PG_IT == "it"
+        assert i18n.P2PG_DE == "de"
+        assert i18n.P2PG_FR == "fr"
+        assert i18n.P2PG_ES == "es"
 
     def test_supported_languages(self):
         expected = {
@@ -41,15 +41,15 @@ class TestTranslations:
 
     def test_translations_loaded(self):
         """Verify translations are loaded for all supported languages."""
-        assert i18n.LANG_EN in i18n._translations
-        assert i18n.LANG_IT in i18n._translations
-        assert i18n.LANG_DE in i18n._translations
-        assert i18n.LANG_FR in i18n._translations
-        assert i18n.LANG_ES in i18n._translations
+        assert i18n.P2PG_EN in i18n._translations
+        assert i18n.P2PG_IT in i18n._translations
+        assert i18n.P2PG_DE in i18n._translations
+        assert i18n.P2PG_FR in i18n._translations
+        assert i18n.P2PG_ES in i18n._translations
 
     def test_english_translations_not_empty(self):
         """English translations should not be empty."""
-        en_dict = i18n._translations.get(i18n.LANG_EN, {})
+        en_dict = i18n._translations.get(i18n.P2PG_EN, {})
         assert len(en_dict) > 0
 
     def test_all_languages_have_same_keys(self):
@@ -60,7 +60,7 @@ class TestTranslations:
             keys_by_lang[lang] = set(lang_dict.keys())
 
         # All should have the same keys as English
-        en_keys = keys_by_lang.get(i18n.LANG_EN, set())
+        en_keys = keys_by_lang.get(i18n.P2PG_EN, set())
         for lang, keys in keys_by_lang.items():
             assert keys == en_keys, f"{lang} has different keys than English"
 

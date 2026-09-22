@@ -37,15 +37,22 @@ For **Server Mode** (sync against a central HSYNC server):
   for details.
 - **`.hsyncignore` editor** — edit ignore patterns for the selected folder.
 
-### LAN tab
-For **LAN Mode** (peer-to-peer on the same network, no server):
+### p2p tab
+For **p2p Mode** (peer-to-peer, no server):
 
-- **LAN mode** — enable peer discovery via mDNS.
+- **p2p mode** — enable peer discovery.
 - **Force master / Never master** — control master election for this device.
 - **Require pairing** — only sync with explicitly paired peers.
-- **LAN key** — shared secret for the LAN group (see *Secrets*).
+- **p2p key** — shared secret for the p2p group (see *Secrets*).
+- **Bootnode (optional)** — hostname of a `boot/1` bootstrap node, for syncing
+  with devices that are **not** on the same local network. Leave it empty to use
+  mDNS discovery on the local network only; the hostname is passed to the client
+  as `HSYNC_BOOTNODE` (a bare host: no scheme and no port).
+- **Map port with UPnP** — let the client map its master TCP port on the router
+  so peers reached through a bootnode can dial it. It only takes effect when a
+  bootnode is set; without a mapping the device stays slave-only.
 - **NTP servers** — comma-separated list of SNTP servers used by the client in
-  LAN mode to measure the clock offset used for chronological conflict
+  p2p mode to measure the clock offset used for chronological conflict
   resolution. Leave empty to use the built-in defaults
   (`pool.ntp.org`, `time.cloudflare.com`, `time.google.com`). Entries may
   carry a port override, e.g. `ntp.local:123`.

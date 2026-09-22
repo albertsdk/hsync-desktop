@@ -22,11 +22,11 @@ from hsync_desktop.settings.cli_args import (
     save_bandwidth_limits,
     secure_config_file,
 )
-from hsync_desktop.settings.dialog import ApiKeyDialog, LanKeyDialog, SettingsDialog
+from hsync_desktop.settings.dialog import ApiKeyDialog, P2PKeyDialog, SettingsDialog
 
 __all__ = [
     "ApiKeyDialog",
-    "LanKeyDialog",
+    "P2PKeyDialog",
     "SettingsDialog",
     "SETTINGS_ORG",
     "SETTINGS_APP",

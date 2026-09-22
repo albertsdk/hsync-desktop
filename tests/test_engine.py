@@ -321,13 +321,13 @@ class TestApplySettingsEnv:
         return env
 
     def test_ntp_hosts_inserted_when_set(self):
-        env = self._env_with({"lan/ntp_hosts": "ntp.local:123, ntp2.local"})
+        env = self._env_with({"p2p/ntp_hosts": "ntp.local:123, ntp2.local"})
         assert env.value("HSYNC_NTP_HOSTS") == "ntp.local:123, ntp2.local"
 
     def test_ntp_hosts_blank_is_skipped(self):
         # A blank value must not insert an empty env var: the client then
         # falls back to its own defaults.
-        env = self._env_with({"lan/ntp_hosts": "   "})
+        env = self._env_with({"p2p/ntp_hosts": "   "})
         assert not env.contains("HSYNC_NTP_HOSTS")
 
     def test_ntp_hosts_missing_is_skipped(self):
@@ -338,17 +338,32 @@ class TestApplySettingsEnv:
         env = self._env_with({"connection/server_url": "https://srv.example"})
         assert env.value("HSYNC_SERVER") == "https://srv.example"
 
+    def test_bootnode_inserted_with_upnp_choice(self):
+        env = self._env_with({"p2p/bootnode": "boot.example.net", "p2p/upnp_enabled": False})
+        assert env.value("HSYNC_BOOTNODE") == "boot.example.net"
+        assert env.value("HSYNC_UPNP_ENABLED") == "false"
+
+    def test_bootnode_defaults_upnp_on(self):
+        env = self._env_with({"p2p/bootnode": "boot.example.net"})
+        assert env.value("HSYNC_UPNP_ENABLED") == "true"
+
+    def test_bootnode_blank_is_skipped(self):
+        env = self._env_with({"p2p/bootnode": "   "})
+        assert not env.contains("HSYNC_BOOTNODE")
+        assert not env.contains("HSYNC_UPNP_ENABLED")
+
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
         assert not env.contains("HSYNC_SERVER")
         assert not env.contains("HSYNC_NTP_HOSTS")
+        assert not env.contains("HSYNC_BOOTNODE")
 
     def test_gui_value_overrides_ambient(self):
         # The GUI setting is the user's explicit choice: insert() overwrites
         # any pre-existing ambient value.
         env = QProcessEnvironment()
         env.insert("HSYNC_NTP_HOSTS", "ambient.local")
-        apply_settings_env(env, _EnvFakeSettings({"lan/ntp_hosts": "gui.local"}))
+        apply_settings_env(env, _EnvFakeSettings({"p2p/ntp_hosts": "gui.local"}))
         assert env.value("HSYNC_NTP_HOSTS") == "gui.local"
 
 
@@ -365,15 +380,15 @@ class TestGetBinaryCapabilities:
 
         doc = build_capabilities(
             app_version="1.2.3",
-            subcommands=["lan"],
-            cli_options_by_subcommand={"lan": ["--force-master"]},
+            subcommands=["p2p"],
+            cli_options_by_subcommand={"p2p": ["--force-master"]},
         )
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout=json.dumps(doc))
         )
         parsed = get_binary_capabilities("/fake/hsync")
         assert parsed is not None
-        assert parsed["cli_options"] == {"lan": ["--force-master"]}
+        assert parsed["cli_options"] == {"p2p": ["--force-master"]}
 
     def test_no_binary_returns_none(self, monkeypatch):
         """Missing binary yields no capabilities."""
@@ -445,6 +460,14 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.role, is_master=True))
         engine._handle_event(build_event(UiEventName.role, is_master=False))
         assert out == [(True,), (False,)]
+
+    def test_discovery_event(self, engine):
+        out = _capture(engine.discovery_changed)
+        engine._handle_event(
+            build_event(UiEventName.discovery, plan="bootnode", bootnode="boot.example.net")
+        )
+        engine._handle_event(build_event(UiEventName.discovery, plan="mdns"))
+        assert out == [("bootnode", "boot.example.net"), ("mdns", "")]
 
     def test_bucket_and_group_events(self, engine):
         buckets = _capture(engine.bucket_detected)

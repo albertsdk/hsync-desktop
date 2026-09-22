@@ -70,25 +70,25 @@ class TestContinuousMapping:
         assert "-w" not in args
 
 
-class TestLanSectionConsistency:
+class TestP2PSectionConsistency:
     """Cross-flag consistency of the LAN argument block."""
 
-    def test_lan_block_emits_expected_flags_when_fully_enabled(self):
+    def test_p2p_block_emits_expected_flags_when_fully_enabled(self):
         """A fully populated LAN config produces all expected flags exactly once."""
         args = _build_args(
             {
-                "lan/enabled": True,
-                "lan/port": 9000,
-                "lan/discovery_timeout": 15,
-                "lan/group": "test-group",
+                "p2p/enabled": True,
+                "p2p/port": 9000,
+                "p2p/discovery_timeout": 15,
+                "p2p/group": "test-group",
                 "sync/continuous": False,  # emits --once
-                "lan/force_master": True,  # emits --force-master
+                "p2p/force_master": True,  # emits --force-master
             }
         )
 
         # Each LAN flag appears exactly once.
         for flag in (
-            "lan",
+            "p2p",
             "--listen-port",
             "--discovery-timeout",
             "--group",
@@ -106,14 +106,14 @@ class TestLanSectionConsistency:
         """The --once and --force-master flags do not influence each other."""
         # one-shot enabled, force_master off
         args_a = _build_args(
-            {"lan/enabled": True, "sync/continuous": False, "lan/force_master": False}
+            {"p2p/enabled": True, "sync/continuous": False, "p2p/force_master": False}
         )
         assert "--once" in args_a
         assert "--force-master" not in args_a
 
         # continuous enabled, force_master on
         args_b = _build_args(
-            {"lan/enabled": True, "sync/continuous": True, "lan/force_master": True}
+            {"p2p/enabled": True, "sync/continuous": True, "p2p/force_master": True}
         )
         assert "--once" not in args_b
         assert "--force-master" in args_b
@@ -123,26 +123,26 @@ class TestNeverMasterFlag:
     """Coverage for the --never-master user-facing setting."""
 
     def test_never_master_default_omits_flag(self):
-        """With LAN enabled and never_master left at default, no flag is emitted."""
-        args = _build_args({"lan/enabled": True})
+        """With p2p enabled and never_master left at default, no flag is emitted."""
+        args = _build_args({"p2p/enabled": True})
 
         assert "--never-master" not in args
 
     def test_never_master_false_omits_flag(self):
         """Explicit never_master=False must not emit --never-master."""
-        args = _build_args({"lan/enabled": True, "lan/never_master": False})
+        args = _build_args({"p2p/enabled": True, "p2p/never_master": False})
 
         assert "--never-master" not in args
 
     def test_never_master_true_emits_flag(self):
         """Explicit never_master=True must emit --never-master exactly once."""
-        args = _build_args({"lan/enabled": True, "lan/never_master": True})
+        args = _build_args({"p2p/enabled": True, "p2p/never_master": True})
 
         assert args.count("--never-master") == 1
 
-    def test_never_master_flag_not_emitted_when_lan_disabled(self):
+    def test_never_master_flag_not_emitted_when_p2p_disabled(self):
         """LAN disabled: never-master flag must be skipped with the rest of the block."""
-        args = _build_args({"lan/enabled": False, "lan/never_master": True})
+        args = _build_args({"p2p/enabled": False, "p2p/never_master": True})
 
         assert args[0] == "server"
         assert "--never-master" not in args
@@ -152,26 +152,26 @@ class TestRequirePairingFlag:
     """Coverage for the --require-pairing (strict pairing) user-facing setting."""
 
     def test_require_pairing_default_omits_flag(self):
-        """With LAN enabled and require_pairing left at default, no flag is emitted."""
-        args = _build_args({"lan/enabled": True})
+        """With p2p enabled and require_pairing left at default, no flag is emitted."""
+        args = _build_args({"p2p/enabled": True})
 
         assert "--require-pairing" not in args
 
     def test_require_pairing_false_omits_flag(self):
         """Explicit require_pairing=False must not emit --require-pairing."""
-        args = _build_args({"lan/enabled": True, "lan/require_pairing": False})
+        args = _build_args({"p2p/enabled": True, "p2p/require_pairing": False})
 
         assert "--require-pairing" not in args
 
     def test_require_pairing_true_emits_flag(self):
         """Explicit require_pairing=True must emit --require-pairing exactly once."""
-        args = _build_args({"lan/enabled": True, "lan/require_pairing": True})
+        args = _build_args({"p2p/enabled": True, "p2p/require_pairing": True})
 
         assert args.count("--require-pairing") == 1
 
-    def test_require_pairing_flag_not_emitted_when_lan_disabled(self):
+    def test_require_pairing_flag_not_emitted_when_p2p_disabled(self):
         """LAN disabled: require-pairing flag must be skipped with the rest of the block."""
-        args = _build_args({"lan/enabled": False, "lan/require_pairing": True})
+        args = _build_args({"p2p/enabled": False, "p2p/require_pairing": True})
 
         assert args[0] == "server"
         assert "--require-pairing" not in args
@@ -234,7 +234,7 @@ class TestServerUrlViaEnvOnly:
         is emitted (the endpoint travels via HSYNC_SERVER)."""
         args = _build_args(
             {
-                "lan/enabled": False,
+                "p2p/enabled": False,
                 "connection/server_url": "https://hsync.example.com:9753",
             }
         )

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>LanKeyDialog</class>
- <widget class="QDialog" name="LanKeyDialog">
+ <class>P2PKeyDialog</class>
+ <widget class="QDialog" name="P2PKeyDialog">
   <property name="minimumSize">
    <size>
     <width>400</width>
@@ -33,11 +33,11 @@
     <layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
       <widget class="QLabel" name="lblKeyLabel">
-       <property name="text"><string>LAN Key:</string></property>
+       <property name="text"><string>p2p Key:</string></property>
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QLineEdit" name="editLanKey">
+      <widget class="QLineEdit" name="editP2PKey">
        <property name="echoMode"><enum>QLineEdit::Password</enum></property>
       </widget>
      </item>

@@ -33,20 +33,20 @@ def dialog(qtbot):
 class TestInsecureApiKeyGate:
     """The API key is gated against insecure transports."""
 
-    def test_skipped_in_lan_mode(self, dialog):
-        dialog.lan_mode.setChecked(True)
+    def test_skipped_in_p2p_mode(self, dialog):
+        dialog.p2p_mode.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
 
     def test_allowed_when_api_key_empty(self, dialog):
-        dialog.lan_mode.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
         dialog.api_key.setText("")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
 
     def test_allowed_when_https_and_verify(self, dialog):
-        dialog.lan_mode.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("https://host")
         dialog.insecure.setChecked(False)
@@ -54,14 +54,14 @@ class TestInsecureApiKeyGate:
 
     def test_warns_on_http_url_and_user_cancels(self, dialog, monkeypatch):
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
-        dialog.lan_mode.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is False
 
     def test_warns_on_http_url_and_user_proceeds(self, dialog, monkeypatch):
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.Yes)
-        dialog.lan_mode.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
@@ -74,7 +74,7 @@ class TestInsecureApiKeyGate:
             return QMessageBox.StandardButton.No
 
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
-        dialog.lan_mode.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("https://host")
         dialog.insecure.setChecked(True)
@@ -83,11 +83,11 @@ class TestInsecureApiKeyGate:
 
 
 class TestCapabilityGating:
-    """LAN toggles are gated by the binary's advertised capabilities."""
+    """p2p toggles are gated by the binary's advertised capabilities."""
 
-    def _make_dialog(self, qtbot, monkeypatch, lan_supported=True, lan_flags=()):
-        """Build a dialog whose binary advertises the ``lan`` subcommand with
-        exactly ``lan_flags`` (or no ``lan`` subcommand when ``lan_supported``
+    def _make_dialog(self, qtbot, monkeypatch, p2p_supported=True, p2p_flags=()):
+        """Build a dialog whose binary advertises the ``p2p`` subcommand with
+        exactly ``p2p_flags`` (or no ``p2p`` subcommand when ``p2p_supported``
         is False)."""
         from hsync_common.protocol.capabilities import build_capabilities
 
@@ -95,8 +95,8 @@ class TestCapabilityGating:
 
         doc = build_capabilities(
             app_version="1.0.0",
-            subcommands=["lan"] if lan_supported else ["server"],
-            cli_options_by_subcommand={"lan": list(lan_flags)} if lan_supported else {},
+            subcommands=["p2p"] if p2p_supported else ["server"],
+            cli_options_by_subcommand={"p2p": list(p2p_flags)} if p2p_supported else {},
         )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
         dlg = SettingsDialog()
@@ -104,8 +104,8 @@ class TestCapabilityGating:
         return dlg
 
     def test_unsupported_flag_disables_widget_and_label(self, qtbot, monkeypatch):
-        dlg = self._make_dialog(qtbot, monkeypatch, lan_flags=["--force-master"])
-        dlg.lan_mode.setChecked(True)
+        dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--force-master"])
+        dlg.p2p_mode.setChecked(True)
         assert not dlg.never_master.isEnabled()
         assert not dlg.require_pairing.isEnabled()
         assert not dlg._lbl_never_master.isEnabled()
@@ -115,18 +115,38 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            lan_flags=["--force-master", "--never-master", "--require-pairing"],
+            p2p_flags=[
+                "--force-master",
+                "--never-master",
+                "--require-pairing",
+                "--port",
+                "--no-upnp",
+            ],
         )
-        dlg.lan_mode.setChecked(True)
+        dlg.p2p_mode.setChecked(True)
         assert dlg.force_master.isEnabled()
         assert dlg.never_master.isEnabled()
         assert dlg.require_pairing.isEnabled()
+        assert dlg.p2p_bootnode.isEnabled()
+        assert dlg.p2p_upnp.isEnabled()
         assert not dlg._unsupported_widgets
 
-    def test_lan_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
-        dlg = self._make_dialog(qtbot, monkeypatch, lan_supported=False)
-        assert not dlg.lan_mode.isEnabled()
-        assert dlg.lan_mode.toolTip() == tr("tip.capability_unsupported")
+    def test_bootnode_field_gated_on_the_port_flag(self, qtbot, monkeypatch):
+        """The bootnode host/UPnP belong to the bootnode plan (its --port flag)."""
+        dlg = self._make_dialog(
+            qtbot, monkeypatch, p2p_flags=["--force-master", "--port", "--no-upnp"]
+        )
+        dlg.p2p_mode.setChecked(True)
+        assert dlg.p2p_bootnode.isEnabled()
+        dlg2 = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--force-master"])
+        dlg2.p2p_mode.setChecked(True)
+        assert not dlg2.p2p_bootnode.isEnabled()
+        assert dlg2.p2p_bootnode.toolTip() == tr("tip.capability_unsupported")
+
+    def test_p2p_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
+        dlg = self._make_dialog(qtbot, monkeypatch, p2p_supported=False)
+        assert not dlg.p2p_mode.isEnabled()
+        assert dlg.p2p_mode.toolTip() == tr("tip.capability_unsupported")
 
     def test_unknown_capabilities_leave_controls_enabled(self, qtbot, monkeypatch):
         from hsync_desktop.settings import dialog as dialog_mod
@@ -134,7 +154,7 @@ class TestCapabilityGating:
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: None)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
-        dlg.lan_mode.setChecked(True)
+        dlg.p2p_mode.setChecked(True)
         assert dlg.never_master.isEnabled()
         assert dlg.require_pairing.isEnabled()
         assert not dlg._unsupported_widgets
@@ -149,7 +169,7 @@ class TestCapabilityGating:
         qtbot.addWidget(dlg)
         dlg.never_master.setChecked(True)
         doc = build_capabilities(
-            app_version="1.0.0", subcommands=["lan"], cli_options_by_subcommand={"lan": []}
+            app_version="1.0.0", subcommands=["p2p"], cli_options_by_subcommand={"p2p": []}
         )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
         dlg._apply_capabilities()
@@ -160,7 +180,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            lan_flags=["--force-master", "--never-master"],
+            p2p_flags=["--force-master", "--never-master"],
         )
-        dlg.lan_mode.setChecked(True)
+        dlg.p2p_mode.setChecked(True)
         assert not dlg.require_pairing.isEnabled()

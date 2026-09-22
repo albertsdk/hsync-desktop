@@ -73,17 +73,17 @@ class TestSyncDefaults:
         assert config.DEFAULT_AUTO_SYNC is False
 
 
-class TestLanDefaults:
-    """Test LAN mode default values."""
+class TestP2PDefaults:
+    """Test p2p mode default values."""
 
-    def test_default_lan_enabled(self):
-        assert config.DEFAULT_LAN_ENABLED is False
+    def test_default_p2p_enabled(self):
+        assert config.DEFAULT_P2P_ENABLED is False
 
-    def test_default_lan_key(self):
-        assert config.DEFAULT_LAN_KEY == ""
+    def test_default_p2p_key(self):
+        assert config.DEFAULT_P2P_KEY == ""
 
-    def test_default_lan_port(self):
-        assert config.DEFAULT_LAN_PORT == 0
+    def test_default_p2p_port(self):
+        assert config.DEFAULT_P2P_PORT == 0
 
     def test_default_discovery_timeout(self):
         assert config.DEFAULT_DISCOVERY_TIMEOUT == 10

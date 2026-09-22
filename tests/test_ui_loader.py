@@ -75,11 +75,11 @@ class TestUiFiles:
 
         assert (UI_DIR / "api_key_dialog.ui").exists()
 
-    def test_lan_key_dialog_ui_exists(self):
-        """Test lan_key_dialog.ui exists."""
+    def test_p2p_key_dialog_ui_exists(self):
+        """Test p2p_key_dialog.ui exists."""
         from hsync_desktop.ui.loader import UI_DIR
 
-        assert (UI_DIR / "lan_key_dialog.ui").exists()
+        assert (UI_DIR / "p2p_key_dialog.ui").exists()
 
     def test_all_ui_files_are_readable(self):
         """Test all .ui files are readable."""

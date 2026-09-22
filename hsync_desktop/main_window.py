@@ -56,7 +56,7 @@ from hsync_desktop.settings_dialog import (
     SETTINGS_APP,
     SETTINGS_ORG,
     ApiKeyDialog,
-    LanKeyDialog,
+    P2PKeyDialog,
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
@@ -774,9 +774,9 @@ class MainWindow(QMainWindow):
     def _on_group_detected(self, group: str) -> None:
         """Update group label in bottom bar and LAN label in top bar."""
         self._group_label.setText(group)
-        # Also update the remote label if LAN mode is active
+        # Also update the remote label if p2p mode is active
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if bool(s.value("lan/enabled", False, bool)):
+        if bool(s.value("p2p/enabled", False, bool)):
             self._remote_label.setText(f"LAN ({group})" if group else "LAN")
             self._group_label.hide()
 
@@ -1089,14 +1089,14 @@ class MainWindow(QMainWindow):
         self._engine.stop()
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        lan_enabled = bool(s.value("lan/enabled", False, bool))
+        p2p_enabled = bool(s.value("p2p/enabled", False, bool))
 
-        if lan_enabled:
-            # LAN mode: show LAN key dialog
-            self._append_log(f"⚠ {tr('lanauth.error_message')}")
-            dlg: LanKeyDialog | ApiKeyDialog = LanKeyDialog(self)
-            if dlg.exec() == LanKeyDialog.DialogCode.Accepted:
-                self._append_log(f"--- {tr('lanauth.retrying')} ---")
+        if p2p_enabled:
+            # p2p mode: show p2p key dialog
+            self._append_log(f"⚠ {tr('p2pauth.error_message')}")
+            dlg: P2PKeyDialog | ApiKeyDialog = P2PKeyDialog(self)
+            if dlg.exec() == P2PKeyDialog.DialogCode.Accepted:
+                self._append_log(f"--- {tr('p2pauth.retrying')} ---")
                 self._retry_after_auth_fix()
             else:
                 self._reset_ui_stopped()
@@ -1210,13 +1210,13 @@ class MainWindow(QMainWindow):
             self._sync_dir_icon.show()
 
             # ── Remote endpoint icon + label ──────────────────────────
-            lan_enabled = bool(s.value("lan/enabled", False, bool))
-            if lan_enabled:
-                self._remote_icon.setPixmap(get_icon("network-lan").pixmap(24, 24))
-                group = str(s.value("lan/group", "", str))
+            p2p_enabled = bool(s.value("p2p/enabled", False, bool))
+            if p2p_enabled:
+                self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
+                group = str(s.value("p2p/group", "", str))
                 self._remote_label.setText(f"LAN ({group})" if group else "LAN")
-                self._remote_icon.setToolTip(tr("label.remote_lan_tip"))
-                self._remote_label.setToolTip(tr("label.remote_lan_tip"))
+                self._remote_icon.setToolTip(tr("label.remote_p2p_tip"))
+                self._remote_label.setToolTip(tr("label.remote_p2p_tip"))
                 # Group name shown next to LAN label — hide from bottom bar
                 self._group_label.hide()
             else:
@@ -1384,21 +1384,21 @@ class MainWindow(QMainWindow):
             return True
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        lan_mode = s.value("lan/enabled", False, bool)
-        force_master = s.value("lan/force_master", False, bool)
+        p2p_mode = s.value("p2p/enabled", False, bool)
+        force_master = s.value("p2p/force_master", False, bool)
         sync_dir = s.value("sync/direction", "bidirectional", str)
 
         # upload-only never deletes local files
         if sync_dir == "upload-only":
             return True
 
-        # force_master in LAN mode means this client is authoritative
-        if lan_mode and force_master:
+        # force_master in p2p mode means this client is authoritative
+        if p2p_mode and force_master:
             return True
 
         # Determine risk
-        if lan_mode and not force_master:
-            reason = tr("notif.deletion_risk_lan")
+        if p2p_mode and not force_master:
+            reason = tr("notif.deletion_risk_p2p")
         elif sync_dir == "download-only":
             reason = tr("notif.deletion_risk_download")
         else:

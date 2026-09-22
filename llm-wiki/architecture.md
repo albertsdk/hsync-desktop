@@ -23,7 +23,7 @@ SettingsDialog ──save──► QSettings (secrets Fernet-encrypted, crypto.p
 MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngine.start(args)
         │                                                   │
         │                          QProcess(hsync binary) ◄─┘
-        │                            │  secrets via --api-key-fd/--lan-key-fd pipes
+        │                            │  secrets via --api-key-fd/--p2p-key-fd pipes
         │                            │  events via --events-json-fd (JSON-Lines)
         ▼                            ▼
    Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine.py:572)
@@ -36,7 +36,7 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
 2. **Probe capabilities**: `get_binary_capabilities` (`:194`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
 3. **Build args**: `build_hsync_args` (`cli_args.py:62`) maps every persisted
-   setting to the `lan`/`server` subcommand plus its flags (`--require-pairing`,
+   setting to the `p2p`/`server` subcommand plus its flags (`--require-pairing`,
    `--yes`, …).
 4. **Spawn**: `HsyncEngine.start` (`engine.py:282`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.

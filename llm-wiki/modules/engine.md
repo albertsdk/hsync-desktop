@@ -52,9 +52,9 @@ command line:
 - `write_secret_pipe` (`engine.py`): write secret, close write end, mark the
   read fd inheritable (`os.set_inheritable`). Python 3.4+ fds are CLOEXEC by
   default; without this the QProcess child would see a closed `--api-key-fd` /
-  `--lan-key-fd`.
-- `--api-key-fd` / `--lan-key-fd`: values from `decrypt_value` on
-  `connection/api_key` and `lan/key` (both Fernet at rest).
+  `--p2p-key-fd`.
+- `--api-key-fd` / `--p2p-key-fd`: values from `decrypt_value` on
+  `connection/api_key` and `p2p/key` (both Fernet at rest).
 - `--events-json-fd`: child writes JSON-Lines; parent watches the read end.
   Same inheritable requirement as the secret read fds. On start failure all
   FDs are closed.
@@ -69,6 +69,7 @@ command line:
 | ------------- | ------ | ---- |
 | `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` | `:581`/`:583`/`:588` |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip | `:593`–`:599` |
+| `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup | `:798` |
 | `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` | `:603`–`:611` |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:617`/`:619`/`:625` |
 | `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:631`/`:633`/`:637` |

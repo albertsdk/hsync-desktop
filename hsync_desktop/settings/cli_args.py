@@ -73,8 +73,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         ValueError: If input validation fails.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    lan_enabled = bool(s.value("lan/enabled", False, bool))
-    args: list[str] = ["lan" if lan_enabled else "server"]
+    p2p_enabled = bool(s.value("p2p/enabled", False, bool))
+    args: list[str] = ["p2p" if p2p_enabled else "server"]
 
     # Validate local_path - must be a valid directory
     if local_path:
@@ -101,7 +101,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # environment channel (engine.apply_settings_env exports HSYNC_SERVER from
     # the same setting): the client CLI takes the bare host + --port and has no
     # URL flag, so the validated full URL is passed unchanged via env.
-    if not lan_enabled:
+    if not p2p_enabled:
         if s.value("connection/insecure", False, bool):
             args.append("--insecure")
 
@@ -194,30 +194,30 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         args.append("-n")
 
     # LAN
-    if lan_enabled:
-        port = cast(int, s.value("lan/port", 0, int))
+    if p2p_enabled:
+        port = cast(int, s.value("p2p/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range
         if port:
             args += ["--listen-port", str(port)]
 
         # Validate discovery timeout
-        discovery_timeout = cast(int, s.value("lan/discovery_timeout", 10, int))
+        discovery_timeout = cast(int, s.value("p2p/discovery_timeout", 10, int))
         discovery_timeout = max(1, min(discovery_timeout, 60))  # 1-60 seconds
         args += ["--discovery-timeout", str(discovery_timeout)]
 
-        # Validate LAN group
-        grp_raw = str(s.value("lan/group", DEFAULT_GROUP, str))
+        # Validate p2p group
+        grp_raw = str(s.value("p2p/group", DEFAULT_GROUP, str))
         grp = grp_raw or DEFAULT_GROUP
         validated_grp = _validate_group_name(grp)
         if validated_grp is None:
             validated_grp = DEFAULT_GROUP
         args += ["--group", validated_grp]
 
-        if s.value("lan/force_master", False, bool):
+        if s.value("p2p/force_master", False, bool):
             args.append("--force-master")
-        if s.value("lan/never_master", False, bool):
+        if s.value("p2p/never_master", False, bool):
             args.append("--never-master")
-        if s.value("lan/require_pairing", False, bool):
+        if s.value("p2p/require_pairing", False, bool):
             args.append("--require-pairing")
 
     # Bandwidth limits

@@ -87,7 +87,7 @@ _FALLBACK_MAP: dict[str, str] = {
     # Tab icons
     "network-cloud": "network-cloud.svg",
     "emblem-synchronizing": "emblem-synchronizing.svg",
-    "network-lan": "network-lan.svg",
+    "network-p2p": "network-p2p.svg",
     "utilities-log-viewer": "utilities-log-viewer.svg",
     "preferences-desktop-theme": "preferences-desktop-theme.svg",
     # Action icons

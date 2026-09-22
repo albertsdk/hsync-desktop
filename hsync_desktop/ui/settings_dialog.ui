@@ -322,44 +322,44 @@
       </layout>
      </widget>
      <!-- Tab: LAN -->
-     <widget class="QWidget" name="tabLan">
+     <widget class="QWidget" name="tabP2p">
       <attribute name="title">
-       <string>LAN Mode</string>
+       <string>p2p Mode</string>
       </attribute>
       <attribute name="icon">
-       <iconset theme="network-lan"/>
+       <iconset theme="network-p2p"/>
       </attribute>
-      <layout class="QFormLayout" name="formLan">
+      <layout class="QFormLayout" name="formP2p">
        <item row="0" column="1">
-        <widget class="QCheckBox" name="lanMode">
+        <widget class="QCheckBox" name="p2pMode">
          <property name="text">
-          <string>Enable LAN mode</string>
+          <string>Enable p2p mode</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
-        <widget class="QLabel" name="lblLanGroup">
+        <widget class="QLabel" name="lblP2pGroup">
          <property name="text">
           <string>LAN Group:</string>
          </property>
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QLineEdit" name="lanGroup">
+        <widget class="QLineEdit" name="p2pGroup">
          <property name="placeholderText">
           <string>my-group</string>
          </property>
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QLabel" name="lblLanKey">
+        <widget class="QLabel" name="lblP2pKey">
          <property name="text">
-          <string>LAN Key:</string>
+          <string>p2p Key:</string>
          </property>
         </widget>
        </item>
        <item row="2" column="1">
-        <widget class="QLineEdit" name="lanKey">
+        <widget class="QLineEdit" name="p2pKey">
          <property name="echoMode">
           <enum>QLineEdit::Password</enum>
          </property>
@@ -369,14 +369,14 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QLabel" name="lblLanPort">
+        <widget class="QLabel" name="lblP2pPort">
          <property name="text">
           <string>LAN Port:</string>
          </property>
         </widget>
        </item>
        <item row="3" column="1">
-        <widget class="QSpinBox" name="lanPort">
+        <widget class="QSpinBox" name="p2pPort">
          <property name="minimum">
           <number>0</number>
          </property>

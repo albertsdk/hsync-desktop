@@ -48,13 +48,19 @@ DEFAULT_MAX_INBOUND_SIZE = 10240  # MB
 DEFAULT_IGNORE_PATTERNS = ""
 
 # LAN defaults
-DEFAULT_LAN_ENABLED = False
-DEFAULT_LAN_KEY = ""
-DEFAULT_LAN_PORT = 0  # 0 = auto-assign
+DEFAULT_P2P_ENABLED = False
+DEFAULT_P2P_KEY = ""
+DEFAULT_P2P_PORT = 0  # 0 = auto-assign
 DEFAULT_DISCOVERY_TIMEOUT = 10
 DEFAULT_FORCE_MASTER = False
 DEFAULT_NEVER_MASTER = False
-DEFAULT_LAN_REQUIRE_PAIRING = False
+DEFAULT_P2P_REQUIRE_PAIRING = False
+# Optional bootnode host for cross-network discovery (bare hostname; empty =
+# mDNS-only). Passed to hsync-client via HSYNC_BOOTNODE.
+DEFAULT_P2P_BOOTNODE = ""
+# Map the master TCP port with UPnP when a bootnode is used. Passed via
+# HSYNC_UPNP_ENABLED; the client treats it as on only with a bootnode by default.
+DEFAULT_P2P_UPNP_ENABLED = True
 # Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the
 # HSYNC_NTP_HOSTS environment variable. Empty = client defaults
 # (pool.ntp.org, time.cloudflare.com, time.google.com); entries may carry a

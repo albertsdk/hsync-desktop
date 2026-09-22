@@ -11,7 +11,7 @@ Ecosystem ADRs are SSOT in `hsync-common`
 | --- | ---------------------- |
 | [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine.py`: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine.py:572`), stdin commands (`engine.py:459`) |
 | [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`engine.py:225`) + `BinaryVersionProbe` (`:324`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
-| [0001 server-vs-lan-modes](../../hsync-common/docs/internal/adr/0001-server-vs-lan-modes.md) | LAN block in the settings dialog + `lan`/`server` subcommand selection and master flags in `cli_args.py` |
+| [0001 server-vs-p2p-modes](../../hsync-common/docs/internal/adr/0001-server-vs-p2p-modes.md) | p2p block in the settings dialog + `p2p`/`server` subcommand selection and master flags in `cli_args.py` |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in
@@ -24,8 +24,8 @@ disable unsupported controls) is realized in
   coupling is through CLI flags + the event stream + stdin commands. New
   capabilities land in the client (and `hsync-common` vocabulary) first; the
   desktop only *consumes* them.
-- **Secrets never on argv**: API/LAN keys travel through inherited pipe FDs
-  (`--api-key-fd`/`--lan-key-fd`, `engine.py:315`+) and are Fernet-encrypted at
+- **Secrets never on argv**: API/p2p keys travel through inherited pipe FDs
+  (`--api-key-fd`/`--p2p-key-fd`, `engine.py:315`+) and are Fernet-encrypted at
   rest (`crypto.py`). The settings file is permission-restricted
   (`cli_args.secure_config_file`, `:31`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
