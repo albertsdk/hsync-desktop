@@ -44,7 +44,10 @@ For **p2p Mode** (peer-to-peer, no server):
 - **p2p mode** — enable peer discovery.
 - **Force master / Never master** — control master election for this device.
 - **Require pairing** — only sync with explicitly paired peers.
-- **p2p key** — shared secret for the p2p group (see *Secrets*).
+- **p2p key** — shared secret for the p2p group (see *Secrets*). With a bootnode it
+  is also the bootnode credential: set it to the same key the bootnode operator
+  configured, so the client can authenticate to a protected bucket or a private
+  node.
 - **Bootnode (optional)** — hostname of a `boot/1` bootstrap node, for syncing
   with devices that are **not** on the same local network. Leave it empty to use
   mDNS discovery on the local network only; the hostname is passed to the client

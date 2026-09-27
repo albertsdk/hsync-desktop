@@ -241,7 +241,7 @@ translations: dict[str, str] = {
     "tip.auto_sync": "Synchronisation automatisch beim Programmstart starten",
     "tip.p2p_mode": "Direkt mit Peers im lokalen Netzwerk synchronisieren, ohne Server",
     "tip.p2p_group": "Nur mit Peers in derselben Gruppe synchronisieren",
-    "tip.p2p_key": "Von allen Geräten der LAN-Gruppe gemeinsam genutztes Passwort; es muss auf jedem Gerät identisch sein.",
+    "tip.p2p_key": "Von allen Geräten der p2p-Gruppe gemeinsam genutztes Passwort; es muss auf jedem Gerät identisch sein. Mit einem Bootnode ist es zugleich der Gruppenschlüssel des Bootnodes: Es muss mit dem vom Betreiber konfigurierten Schlüssel für einen geschützten Bucket oder einen privaten Knoten übereinstimmen.",
     "tip.p2p_port": "Port für den LAN-Sync-Server (0 = automatisch)",
     "tip.discovery_timeout": "Wartezeit für die Erkennung von LAN-Peers",
     "tip.ntp_hosts": "Kommagetrennte SNTP-Server, die im LAN-Modus zur Messung des Uhrzeit-Offsets für die Konfliktlösung verwendet werden (leer = integrierte Standardwerte; Einträge können einen Port enthalten, z. B. host:port)",

@@ -241,7 +241,7 @@ translations: dict[str, str] = {
     "tip.auto_sync": "Avvia automaticamente la sincronizzazione all'avvio dell'applicazione",
     "tip.p2p_mode": "Sincronizza direttamente con i peer nella rete locale senza server",
     "tip.p2p_group": "Sincronizza solo con i peer nello stesso gruppo",
-    "tip.p2p_key": "Password condivisa da tutti i dispositivi del gruppo LAN; deve essere identica su ogni dispositivo.",
+    "tip.p2p_key": "Password condivisa da tutti i dispositivi del gruppo p2p; deve essere identica su ogni dispositivo. Con un bootnode è anche la chiave del bootnode: deve corrispondere a quella configurata dall'operatore per un bucket protetto o un nodo privato.",
     "tip.p2p_port": "Porta per il server di sincronizzazione LAN (0 = automatica)",
     "tip.discovery_timeout": "Tempo di ricerca dispositivi",
     "tip.ntp_hosts": "Server SNTP separati da virgola, usati in modalità LAN per calcolare l'offset di clock per la risoluzione dei conflitti (vuoto = valori predefiniti; le voci possono includere una porta, es. host:porta)",

@@ -206,7 +206,7 @@ translations: dict[str, str] = {
     "hsyncignore.write_error": "Could not write .hsyncignore: {error}",
     "tip.p2p_mode": "Enable peer-to-peer sync via LAN without a central server",
     "tip.p2p_group": "Group name to filter p2p peers",
-    "tip.p2p_key": "Password shared by all devices in the p2p group; it must be identical on every device.",
+    "tip.p2p_key": "Password shared by all devices in the p2p group; it must be identical on every device. With a bootnode it is also the bootnode group key, so it must match the operator's key for a protected bucket or a private node.",
     "tip.p2p_port": "Port for LAN master server (0 = auto)",
     "tip.discovery_timeout": "Device search time",
     "tip.ntp_hosts": "Comma-separated SNTP servers used in p2p mode to measure the clock offset for conflict resolution (empty = built-in defaults; entries may include a port, e.g. host:port)",
