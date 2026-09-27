@@ -91,7 +91,7 @@ listings or logs. Use the key dialogs to replace a key at any time.
   rebuild/update the client to enable it.
 - **TLS errors in Server Mode** — verify the URL and certificate; enable
   *Insecure* only on a trusted network for self-signed certificates.
-- **Peers not found in LAN Mode** — ensure all devices are on the same subnet
+- **Peers not found in P2P Mode** — ensure all devices are on the same subnet
   with mDNS allowed through the firewall, and share the same LAN key.
 
 See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the

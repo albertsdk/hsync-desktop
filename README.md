@@ -40,7 +40,7 @@ without touching the command line.
 - 👀 Sync preview/summary dialog before applying changes
 - 🚦 Bandwidth-limit dialog (transfer throttling)
 - 🔔 Desktop push notifications for key events (configurable)
-- ⚙️ Settings dialog organized by category (Sync, Server Mode, LAN Mode, Log, Appearance)
+- ⚙️ Settings dialog organized by category (Sync, Server Mode, P2P Mode, Log, Appearance)
 - 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
 - 🌍 Multi-language UI (EN/IT/DE/ES/FR)
 - 🌙 Light and dark themes
@@ -119,7 +119,7 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 | Compression | Enable/disable transfer compression |
 | Delta transfer | Rsync-style block sync for large files (enabled by default) |
 
-### LAN Mode
+### p2p Mode
 
 | Setting | Description |
 |---------|-------------|
@@ -156,7 +156,7 @@ The application searches for the `hsync` binary in this order:
 
 ### Associated Ecosystem Components
 
-- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and p2p Mode)
 - [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
 - [HSYNC Desktop](https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
 - [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.

@@ -6,7 +6,7 @@ bundled `hsync` client binary, builds its command line from a friendly settings
 dialog, and shows live progress, transfers and logs in a native window with a
 system-tray icon.
 
-Use it when you want HSYNC's Server Mode or peer-to-peer LAN Mode without
+Use it when you want HSYNC's Server Mode or peer-to-peer P2P Mode without
 touching the command line.
 
 ## Where to start
@@ -56,7 +56,7 @@ Build a standalone binary with:
 ## Associated Ecosystem Components
 
 - [HSYNC Common](https://github.com/albertsdk/hsync-common/blob/main/README.md) - Shared models, constants, and utilities used by the client
-- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and p2p Mode)
 - [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
 - [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/docs/README.md) — the Android app *(in development)*.
 

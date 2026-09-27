@@ -134,7 +134,7 @@ translations: dict[str, str] = {
     "settings.group.sync_mode": "Mode de synchronisation",
     "settings.group.timing": "Délais et intervalles",
     "settings.group.advanced": "Options avancées",
-    "settings.p2p_mode": "Activer le mode LAN P2P",
+    "settings.p2p_mode": "Activer le mode p2p",
     "settings.p2p_group": "Groupe :",
     "settings.p2p_bootnode": "Bootnode (facultatif) :",
     "settings.p2p_upnp": "Mapper le port via UPnP :",

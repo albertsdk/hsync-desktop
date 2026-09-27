@@ -21,7 +21,7 @@ A clear description of what you expected to happen.
 - OS: [e.g., Ubuntu 24.04, macOS 15, Windows 11]
 - HSYNC Desktop version: [e.g., 1.0.0]
 - Installation method: [binary / built from source]
-- Sync mode: [Server Mode / LAN Mode]
+- Sync mode: [Server Mode / P2P Mode]
 
 **Screenshots (for bugs)**
 If applicable, add screenshots to help explain the problem.
