@@ -25,6 +25,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
+from urllib.parse import urlparse
 
 from PySide6.QtCore import (
     QObject,
@@ -777,8 +778,59 @@ class HsyncEngine(QObject):
         """
         name = event.get("event")
         try:
+            # Branch order is deliberate: the high-frequency sync events
+            # (progress/transfer/file_status/rename_status...) are checked first
+            # so the common case does not walk a long if/elif chain. Branches are
+            # mutually exclusive on ``name``, so order never changes behaviour.
             if name == UiEventName.status:
                 self._set_status(str(event.get("status", "")))
+            elif name == UiEventName.progress:
+                self.file_progress.emit(
+                    str(event.get("file", "")),
+                    int(event.get("transferred", 0)),
+                    int(event.get("total", 0)),
+                )
+            elif name == UiEventName.transfer:
+                self._handle_transfer(event)
+            elif name == UiEventName.file_status:
+                self.file_status.emit(
+                    str(event.get("state", "")),
+                    str(event.get("file", "")),
+                    int(event.get("size", 0)),
+                )
+            elif name == UiEventName.rename_status:
+                self.file_rename_status.emit(
+                    str(event.get("src", "")),
+                    str(event.get("dst", "")),
+                    int(event.get("size", 0)),
+                )
+            elif name == UiEventName.rename:
+                self.file_renamed.emit(str(event.get("src", "")), str(event.get("dst", "")))
+            elif name == UiEventName.dir_created:
+                path = str(event.get("path", ""))
+                if not path.endswith(_HSYNCKEEP):
+                    self.directory_created.emit(path)
+            elif name == UiEventName.sync_complete:
+                self.sync_completed.emit()
+            elif name == UiEventName.transfer_failed:
+                self.transfer_failed.emit(
+                    str(event.get("op", "")),
+                    str(event.get("file", "")),
+                    str(event.get("message", "")),
+                )
+            elif name == UiEventName.conflict_resolved:
+                self.conflict_resolved.emit(
+                    str(event.get("file", "")),
+                    str(event.get("conflict_copy", "")),
+                )
+            elif name == UiEventName.error:
+                self.error_occurred.emit(str(event.get("message", "")))
+            elif name == UiEventName.sync_paused:
+                self.sync_paused.emit(
+                    str(event.get("reason", "")),
+                    int(event.get("deletes", 0)),
+                    int(event.get("local", 0)),
+                )
             elif name == UiEventName.peers:
                 connected = int(event.get("connected", 0))
                 total = int(event.get("total", 0))
@@ -802,44 +854,7 @@ class HsyncEngine(QObject):
             elif name == UiEventName.session:
                 self._cid = str(event.get("cid", ""))
             elif name == UiEventName.server:
-                from urllib.parse import urlparse
-
                 self._server_ip = urlparse(str(event.get("url", ""))).hostname or ""
-            elif name == UiEventName.transfer:
-                self._handle_transfer(event)
-            elif name == UiEventName.rename:
-                self.file_renamed.emit(str(event.get("src", "")), str(event.get("dst", "")))
-            elif name == UiEventName.dir_created:
-                path = str(event.get("path", ""))
-                if not path.endswith(_HSYNCKEEP):
-                    self.directory_created.emit(path)
-            elif name == UiEventName.progress:
-                self.file_progress.emit(
-                    str(event.get("file", "")),
-                    int(event.get("transferred", 0)),
-                    int(event.get("total", 0)),
-                )
-            elif name == UiEventName.sync_complete:
-                self.sync_completed.emit()
-            elif name == UiEventName.transfer_failed:
-                self.transfer_failed.emit(
-                    str(event.get("op", "")),
-                    str(event.get("file", "")),
-                    str(event.get("message", "")),
-                )
-            elif name == UiEventName.sync_paused:
-                self.sync_paused.emit(
-                    str(event.get("reason", "")),
-                    int(event.get("deletes", 0)),
-                    int(event.get("local", 0)),
-                )
-            elif name == UiEventName.conflict_resolved:
-                self.conflict_resolved.emit(
-                    str(event.get("file", "")),
-                    str(event.get("conflict_copy", "")),
-                )
-            elif name == UiEventName.error:
-                self.error_occurred.emit(str(event.get("message", "")))
             elif name == UiEventName.auth_error:
                 self.auth_error_occurred.emit(str(event.get("message", "")))
                 self._set_status("error")
@@ -863,18 +878,6 @@ class HsyncEngine(QObject):
                 self.preview_started.emit()
             elif name == UiEventName.preview_end:
                 self.preview_ended.emit()
-            elif name == UiEventName.file_status:
-                self.file_status.emit(
-                    str(event.get("state", "")),
-                    str(event.get("file", "")),
-                    int(event.get("size", 0)),
-                )
-            elif name == UiEventName.rename_status:
-                self.file_rename_status.emit(
-                    str(event.get("src", "")),
-                    str(event.get("dst", "")),
-                    int(event.get("size", 0)),
-                )
         except Exception:
             # A malformed payload must never take down the engine.
             self.log_received.emit(f"[EVENT ERROR] {str(event)[:100]}")
