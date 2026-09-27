@@ -72,7 +72,7 @@ class NotificationManager:
         msg = tr("notif.download_complete").replace("{filename}", filename)
         self.info(tr("notif.sync_complete"), msg)
 
-    def sync_complete(self, files: int = 0) -> None:
+    def sync_complete(self) -> None:
         msg = tr("notif.sync_complete_msg")
         self.info(tr("notif.sync_complete"), msg)
 

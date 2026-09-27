@@ -60,10 +60,7 @@ def _load_themed_svg(svg_path: Path, custom_color: str | None = None) -> QIcon:
 
     # Use custom color if provided, otherwise fall back to theme-based color
     # Light theme: dark gray (#424242), Dark theme: light gray (#e0e0e0)
-    if custom_color is None:
-        color = "#e0e0e0" if _is_dark_theme() else "#424242"
-    else:
-        color = custom_color
+    color = ("#e0e0e0" if _is_dark_theme() else "#424242") if custom_color is None else custom_color
 
     # Replace currentColor with the appropriate color
     themed_svg = svg_content.replace("currentColor", color)
@@ -140,11 +137,8 @@ def _has_icon_theme() -> bool:
 
     # On Linux, check if there's a theme set
     theme = QIcon.themeName()
-    if not theme or theme == "hicolor":
-        # hicolor is the fallback theme with minimal icons
-        return False
-
-    return True
+    # hicolor is the fallback theme with minimal icons
+    return bool(theme and theme != "hicolor")
 
 
 # Cache for icons, keyed by (name, is_dark_theme, custom_color)

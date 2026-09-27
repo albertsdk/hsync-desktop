@@ -13,7 +13,6 @@ Contains validators for paths, URLs, bucket names, and group names.
 from __future__ import annotations
 
 import re
-from urllib.parse import urlparse
 
 from hsync_common.path_validation import is_valid_bucket_name, safe_resolve_path
 
@@ -45,25 +44,6 @@ def _validate_bucket(bucket: str) -> str | None:
 
     if is_valid_bucket_name(bucket):
         return bucket
-
-    return None
-
-
-def _validate_url(url: str) -> str | None:
-    """Validate a URL for server connection."""
-    if not url:
-        return None
-
-    # Remove null bytes
-    url = url.replace("\x00", "")
-
-    try:
-        parsed = urlparse(url)
-        # Must have scheme and netloc
-        if parsed.scheme in ("http", "https") and parsed.netloc:
-            return url
-    except Exception:
-        pass
 
     return None
 

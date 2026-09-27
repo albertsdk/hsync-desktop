@@ -50,7 +50,7 @@ set — `HSYNC_BOOTNODE_FINGERPRINT` / `HSYNC_BOOTNODE_TOFU` for the ADR-0034
 trust pin/TOFU. Empty bootnode = mDNS-only discovery.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
-`_validate_bucket` (`:34`), `_validate_url` (`:52`), `_validate_group_name`
+`_validate_bucket` (`:33`), `_validate_group_name`
 (`:71`).
 
 ## settings/cli_args.py — config → flags (the contract)

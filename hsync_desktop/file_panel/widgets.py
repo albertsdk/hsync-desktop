@@ -511,7 +511,7 @@ class FileTransferTable(QTableWidget):
             return
         # Add to history (truncate forward history if navigating from middle)
         self._nav_index += 1
-        self._nav_history = self._nav_history[: self._nav_index] + [path]
+        self._nav_history = [*self._nav_history[: self._nav_index], path]
         self._current_path = path
         self.refresh_view()
         self.path_changed.emit(path)
@@ -563,10 +563,7 @@ class FileTransferTable(QTableWidget):
                     folder_files[top_part] = []
                 folder_files[top_part].append(transfer)
                 continue
-            if prefix:
-                remainder = filepath[prefix_len:]
-            else:
-                remainder = filepath
+            remainder = filepath[prefix_len:] if prefix else filepath
             remainder_clean = remainder.rstrip("/")
             if not remainder_clean:
                 continue
@@ -587,7 +584,7 @@ class FileTransferTable(QTableWidget):
                 items[folder_name] = (None, folder_data)
 
         def sort_key(item: tuple[str, tuple[FileTransfer | None, dict]]) -> tuple[int, str]:
-            name, (transfer, folder_data) = item
+            name, (transfer, _folder_data) = item
             is_folder = transfer is None or transfer.filepath.endswith("/")
             return (0 if is_folder else 1, name.lower())
 
@@ -627,11 +624,9 @@ class FileTransferTable(QTableWidget):
             if not f.filepath.endswith("/"):
                 total_size += f.size
                 total_transferred += f.bytes_transferred
-            if f.mtime > max_mtime:
-                max_mtime = f.mtime
+            max_mtime = max(max_mtime, f.mtime)
             p = priority_map.get(f.status, 100)
-            if p < status_priority:
-                status_priority = p
+            status_priority = min(status_priority, p)
 
         status_key = status_key_map.get(status_priority, "folder.status.local")
         progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
@@ -734,10 +729,7 @@ class FileTransferTable(QTableWidget):
         if is_folder:
             if folder_data:
                 status_priority = folder_data.get("status_priority", 100)
-                if status_priority == 2:
-                    progress = folder_data.get("progress", -1)
-                else:
-                    progress = -1
+                progress = folder_data.get("progress", -1) if status_priority == 2 else -1
             else:
                 progress = -1
             progress_item.setData(Qt.ItemDataRole.UserRole, progress)
@@ -1530,9 +1522,12 @@ class FilePanel(QWidget):
     def eventFilter(self, watched: QObject, event) -> bool:
         from PySide6.QtCore import QEvent
 
-        if watched == self._table_container and event.type() == QEvent.Type.Resize:
-            if self._loading_overlay.isVisible():
-                self._loading_overlay.setGeometry(self._table_container.rect())
+        if (
+            watched == self._table_container
+            and event.type() == QEvent.Type.Resize
+            and self._loading_overlay.isVisible()
+        ):
+            self._loading_overlay.setGeometry(self._table_container.rect())
         return super().eventFilter(watched, event)
 
     @Slot()

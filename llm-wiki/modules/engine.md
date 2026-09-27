@@ -70,10 +70,10 @@ command line:
 | `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` | `:581`/`:583`/`:588` |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip | `:593`–`:599` |
 | `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup | `:798` |
-| `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` | `:603`–`:611` |
-| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:617`/`:619`/`:625` |
-| `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:631`/`:633`/`:637` |
-| `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` | `:640`/`:646` |
+| `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` | `:612`–`:617` |
+| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:620`/`:613`/`:614` |
+| `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:621`/`:623`/`:622` |
+| `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` | `:624`/`:625` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` | `:656` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals | `:648`–`:660` |
 

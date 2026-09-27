@@ -61,11 +61,8 @@ class SingleInstance(QObject):
         # Remove stale socket file (Linux/macOS)
         QLocalServer.removeServer(self._SERVER_NAME)
 
-        if not self._server.listen(self._SERVER_NAME):
-            # Failed to start server - shouldn't happen normally
-            return False
-
-        return True
+        # Failure here shouldn't happen normally.
+        return bool(self._server.listen(self._SERVER_NAME))
 
     def _on_new_connection(self) -> None:
         """Handle incoming connection from another instance."""

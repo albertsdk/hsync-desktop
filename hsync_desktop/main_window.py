@@ -99,11 +99,11 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 class MainWindow(QMainWindow):
     """Primary application window."""
 
-    # Cache for findChild results to avoid repeated lookups
-    _child_cache: dict[str, object] = {}
-
     def __init__(self, engine: HsyncEngine, tray: SystemTray | None = None) -> None:
         super().__init__()
+
+        # Cache for findChild results to avoid repeated lookups.
+        self._child_cache: dict[str, object] = {}
 
         self._engine = engine
         self._tray = tray
@@ -111,8 +111,6 @@ class MainWindow(QMainWindow):
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
         self._user_stopped = False  # track if stop was user-initiated
-        # Clear child cache on new instance
-        MainWindow._child_cache.clear()
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()
@@ -609,7 +607,7 @@ class MainWindow(QMainWindow):
         e.status_changed.connect(self._on_status)
         e.peers_changed.connect(self._on_peers)
         e.master_changed.connect(self._on_master)
-        e.bucket_detected.connect(lambda b: self._bucket_label.setText(b))
+        e.bucket_detected.connect(self._bucket_label.setText)
         e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
         e.transfer_failed.connect(self._on_transfer_failed)
@@ -619,7 +617,7 @@ class MainWindow(QMainWindow):
         e.directory_created.connect(self._on_directory_created)
         if self._notifier:
             notifier = self._notifier
-            e.sync_completed.connect(lambda: notifier.sync_complete())
+            e.sync_completed.connect(notifier.sync_complete)
             e.error_occurred.connect(lambda msg: notifier.error(tr("notif.error"), msg))
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
@@ -1003,8 +1001,8 @@ class MainWindow(QMainWindow):
         elif status == "synced":
             self._preview_stats.synced += 1
 
-    @Slot(str, str, int)
-    def _on_file_rename_status(self, old_path: str, new_path: str, size: int) -> None:
+    @Slot(str, int)
+    def _on_file_rename_status(self, old_path: str, size: int) -> None:
         """Handle file rename status from preview."""
         base_path = self._local_path
         rel_old = old_path
@@ -1067,12 +1065,11 @@ class MainWindow(QMainWindow):
 
         # Notify only for truly unexpected crashes (not user stop, auth error,
         # force sync, app quit, etc.)
-        if desc == "crashed" and not self._user_stopped:
-            if self._notifier:
-                self._notifier.error(
-                    tr("notif.error"),
-                    tr("notif.process_crashed").replace("{code}", str(code)),
-                )
+        if desc == "crashed" and not self._user_stopped and self._notifier:
+            self._notifier.error(
+                tr("notif.error"),
+                tr("notif.process_crashed").replace("{code}", str(code)),
+            )
 
     @Slot(str)
     def _on_path_not_found(self, path: str) -> None:
@@ -1268,18 +1265,20 @@ class MainWindow(QMainWindow):
         """Event filter to handle clicks on bandwidth labels."""
         from PySide6.QtCore import QEvent
 
-        if event.type() == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton:
-                # Check if the clicked widget is one of our bandwidth labels
-                bandwidth_labels = [
-                    self._lbl_sent,
-                    self._sent_label,
-                    self._lbl_recv,
-                    self._recv_label,
-                ]
-                if obj in bandwidth_labels:
-                    self._show_bandwidth_dialog()
-                    return True
+        if (
+            event.type() == QEvent.Type.MouseButtonPress
+            and event.button() == Qt.MouseButton.LeftButton
+        ):
+            # Check if the clicked widget is one of our bandwidth labels
+            bandwidth_labels = [
+                self._lbl_sent,
+                self._sent_label,
+                self._lbl_recv,
+                self._recv_label,
+            ]
+            if obj in bandwidth_labels:
+                self._show_bandwidth_dialog()
+                return True
         return super().eventFilter(obj, event)
 
     def _show_bandwidth_dialog(self) -> None:

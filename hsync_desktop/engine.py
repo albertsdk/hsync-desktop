@@ -99,7 +99,7 @@ def _platform_tag() -> str:
     import platform as _platform
 
     system = _platform.system().lower()
-    if system.startswith("mingw") or system.startswith("cygwin") or system.startswith("msys"):
+    if system.startswith(("mingw", "cygwin", "msys")):
         system = "windows"
     elif system not in ("linux", "darwin", "windows"):
         pass  # keep as-is
@@ -202,6 +202,7 @@ def get_binary_version(binary_path: str) -> str | None:
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -232,6 +233,7 @@ def _get_binary_capabilities_raw(path: str) -> str | None:
             [path, "--capabilities-json"],
             capture_output=True,
             text=True,
+            check=False,
             timeout=5,
         )
     except (OSError, subprocess.SubprocessError):
@@ -682,8 +684,8 @@ class HsyncEngine(QObject):
         if not self._process:
             return
         data = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
-        for line in data.splitlines():
-            line = line.rstrip()
+        for raw_line in data.splitlines():
+            line = raw_line.rstrip()
             if line:
                 self.log_received.emit(line)
 

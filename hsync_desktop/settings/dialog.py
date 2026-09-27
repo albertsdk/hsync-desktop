@@ -982,7 +982,7 @@ class SettingsDialog(QDialog):
         try:
             timeout = max(5, self.http_timeout.value())
             req = urllib.request.Request(health_url, method="GET")
-            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
                 success = resp.status == 200
         except urllib.error.HTTPError as exc:
             success = exc.code == 200

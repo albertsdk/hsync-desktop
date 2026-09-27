@@ -25,11 +25,11 @@ from hsync_desktop.settings.cli_args import (
 from hsync_desktop.settings.dialog import ApiKeyDialog, P2PKeyDialog, SettingsDialog
 
 __all__ = [
+    "SETTINGS_APP",
+    "SETTINGS_ORG",
     "ApiKeyDialog",
     "P2PKeyDialog",
     "SettingsDialog",
-    "SETTINGS_ORG",
-    "SETTINGS_APP",
     "are_notifications_enabled",
     "build_hsync_args",
     "get_bandwidth_limits",

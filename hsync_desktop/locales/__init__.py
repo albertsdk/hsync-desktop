@@ -16,4 +16,4 @@ from hsync_desktop.locales.es import translations as ES
 from hsync_desktop.locales.fr import translations as FR
 from hsync_desktop.locales.it import translations as IT
 
-__all__ = ["EN", "IT", "DE", "FR", "ES"]
+__all__ = ["DE", "EN", "ES", "FR", "IT"]

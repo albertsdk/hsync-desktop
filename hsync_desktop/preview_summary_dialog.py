@@ -57,14 +57,13 @@ def _format_time(seconds: float) -> str:
     """Format seconds into human-readable time string."""
     if seconds < 60:
         return f"{int(seconds)} {tr('preview_summary.seconds')}"
-    elif seconds < 3600:
+    if seconds < 3600:
         mins = int(seconds / 60)
         secs = int(seconds % 60)
         return f"{mins} {tr('preview_summary.minutes')} {secs} {tr('preview_summary.seconds')}"
-    else:
-        hours = int(seconds / 3600)
-        mins = int((seconds % 3600) / 60)
-        return f"{hours} {tr('preview_summary.hours')} {mins} {tr('preview_summary.minutes')}"
+    hours = int(seconds / 3600)
+    mins = int((seconds % 3600) / 60)
+    return f"{hours} {tr('preview_summary.hours')} {mins} {tr('preview_summary.minutes')}"
 
 
 class PreviewSummaryDialog(QDialog):

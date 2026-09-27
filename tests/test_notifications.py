@@ -164,7 +164,7 @@ class TestNotificationManager:
 
         manager = NotificationManager(tray_icon)
 
-        manager.sync_complete(5)
+        manager.sync_complete()
 
         tray_icon.showMessage.assert_called_once()
 

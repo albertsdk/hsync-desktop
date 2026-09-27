@@ -98,7 +98,7 @@ class ToggleSwitch(QAbstractButton):
 
     # ── Painting ────────────────────────────────────────────────────────────
 
-    def paintEvent(self, event) -> None:  # noqa: ARG002
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

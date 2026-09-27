@@ -178,8 +178,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # Extra ignore patterns (comma-separated, layered on .hsyncignore)
     ignore_patterns_raw = str(s.value("sync/ignore_patterns", "", str)).strip()
     if ignore_patterns_raw:
-        for pattern in ignore_patterns_raw.split(","):
-            pattern = pattern.strip()
+        for raw_pattern in ignore_patterns_raw.split(","):
+            pattern = raw_pattern.strip()
             if pattern:
                 args += ["--ignore-pattern", pattern]
 
