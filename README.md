@@ -123,11 +123,14 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 
 | Setting | Description |
 |---------|-------------|
-| Enable LAN | Peer-to-peer mode without server |
-| Group | LAN group name |
-| Shared Secret | Authentication key for LAN peers |
-| HTTPS | Use encrypted LAN connections |
-| Persistent | Stay active waiting for peers |
+| Enable p2p | Peer-to-peer mode without a server |
+| Force master / Never master | Control master election for this device |
+| Require pairing | Only sync with explicitly paired peers |
+| p2p key | Shared secret for the p2p group |
+| Bootnode | Hostname of an optional `boot/1` node for cross-network discovery |
+| Bootnode fingerprint / Trust on first use | Pin the bootnode certificate (TOFU) |
+| Map port with UPnP | Map the master port so peers reached through a bootnode can dial it |
+| NTP servers | SNTP servers for p2p clock-offset measurement |
 
 ### Log
 

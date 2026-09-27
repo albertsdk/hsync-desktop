@@ -28,7 +28,7 @@ bundles the HSYNC Client binary, so no additional installation is required.
 > release. In the meantime, use the developer instructions below.
 
 On first launch, open **Settings**, fill in your sync folder, bucket and mode
-(Server or LAN), then start a sync. See [usage.md](usage.md) for the full
+(Server or p2p), then start a sync. See [usage.md](usage.md) for the full
 walkthrough.
 
 ### For developers (build from source)

@@ -16,7 +16,8 @@ tray — use the tray menu to show the window again or quit.
 
 ## Configuring a connection
 
-Open **Settings**. The dialog is organised into three tabs.
+Open **Settings**. The dialog is organised into tabs (Sync, Server Mode, p2p,
+Log and Appearance); the connection settings are described below.
 
 ### Server tab
 For **Server Mode** (sync against a central HSYNC server):
