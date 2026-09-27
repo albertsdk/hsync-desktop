@@ -776,7 +776,7 @@ class SettingsDialog(QDialog):
             label.setEnabled(False)
             widget.setToolTip(tr("tip.capability_unsupported"))
         # The bootnode host field belongs to the bootnode discovery plan: gate it
-        # on the plan's ``--port`` flag (the positional is not in cli_options).
+        # on its ``--port`` flag (the positional is not in cli_options).
         if not (p2p_supported and supports_cli_option(doc, "--port", subcommand="p2p")):
             self._unsupported_widgets.add(self.p2p_bootnode)
             self._unsupported_labels.add(self._lbl_p2p_bootnode)

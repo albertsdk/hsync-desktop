@@ -36,7 +36,7 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine.py:99`, called at `engine.py:328`). Empty = the
 client's built-in defaults.
 
-**Bootnode (C2)**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
+**Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded
 under `p2p/bootnode` / `p2p/upnp_enabled`; labels from `settings.p2p_bootnode` /
 `settings.p2p_upnp` (5 locales). Like NTP hosts this is env-driven (the client
