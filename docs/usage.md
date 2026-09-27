@@ -72,7 +72,7 @@ For **p2p Mode** (peer-to-peer, no server):
 
 ## Secrets
 
-API keys and LAN keys are entered through dedicated dialogs, never typed on a
+API keys and p2p keys are entered through dedicated dialogs, never typed on a
 command line. They are stored encrypted on disk (machine-derived key) and are
 handed to the engine over a private channel, so they never appear in process
 listings or logs. Use the key dialogs to replace a key at any time.
@@ -92,7 +92,8 @@ listings or logs. Use the key dialogs to replace a key at any time.
 - **TLS errors in Server Mode** — verify the URL and certificate; enable
   *Insecure* only on a trusted network for self-signed certificates.
 - **Peers not found in P2P Mode** — ensure all devices are on the same subnet
-  with mDNS allowed through the firewall, and share the same LAN key.
+  with mDNS allowed through the firewall, and share the same p2p key. For
+  devices on different networks, set a **Bootnode** in the p2p tab.
 
 See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the
 underlying sync behaviour and modes.
