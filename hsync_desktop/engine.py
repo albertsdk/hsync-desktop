@@ -152,6 +152,11 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
             "HSYNC_UPNP_ENABLED",
             "true" if bool(s.value("p2p/upnp_enabled", True, bool)) else "false",
         )
+        fingerprint = str(s.value("p2p/bootnode_fingerprint", "", str)).strip()
+        if fingerprint:
+            env.insert("HSYNC_BOOTNODE_FINGERPRINT", fingerprint)
+        if bool(s.value("p2p/bootnode_tofu", False, bool)):
+            env.insert("HSYNC_BOOTNODE_TOFU", "true")
 
 
 def find_hsync_binary() -> str | None:

@@ -137,6 +137,8 @@ translations: dict[str, str] = {
     "settings.p2p_mode": "Abilita Sincronizzazione Locale",
     "settings.p2p_group": "Nome Rete Locale:",
     "settings.p2p_bootnode": "Bootnode (opzionale):",
+    "settings.p2p_bootnode_fingerprint": "Fingerprint del bootnode:",
+    "settings.p2p_bootnode_tofu": "Fidati del bootnode al primo uso:",
     "settings.p2p_upnp": "Mappa la porta con UPnP:",
     "settings.p2p_key": "Password condivisa:",
     "settings.p2p_port": "Porta:",

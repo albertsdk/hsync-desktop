@@ -137,6 +137,8 @@ translations: dict[str, str] = {
     "settings.p2p_mode": "Habilitar modo p2p",
     "settings.p2p_group": "Grupo:",
     "settings.p2p_bootnode": "Bootnode (opcional):",
+    "settings.p2p_bootnode_fingerprint": "Huella del bootnode:",
+    "settings.p2p_bootnode_tofu": "Confiar en el bootnode en el primer uso:",
     "settings.p2p_upnp": "Asignar puerto con UPnP:",
     "settings.p2p_key": "Contraseña compartida:",
     "settings.p2p_port": "Puerto:",

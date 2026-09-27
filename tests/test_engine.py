@@ -352,6 +352,22 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_BOOTNODE")
         assert not env.contains("HSYNC_UPNP_ENABLED")
 
+    def test_bootnode_fingerprint_and_tofu_exported(self):
+        env = self._env_with(
+            {
+                "p2p/bootnode": "boot.example.net",
+                "p2p/bootnode_fingerprint": "sha256:0" * 1 + "0" * 63,
+                "p2p/bootnode_tofu": True,
+            }
+        )
+        assert env.value("HSYNC_BOOTNODE_FINGERPRINT") == "sha256:0" + "0" * 63
+        assert env.value("HSYNC_BOOTNODE_TOFU") == "true"
+
+    def test_bootnode_fingerprint_blank_is_skipped(self):
+        env = self._env_with({"p2p/bootnode": "boot.example.net", "p2p/bootnode_fingerprint": "  "})
+        assert not env.contains("HSYNC_BOOTNODE_FINGERPRINT")
+        assert not env.contains("HSYNC_BOOTNODE_TOFU")
+
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
         assert not env.contains("HSYNC_SERVER")

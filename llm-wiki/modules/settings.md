@@ -37,13 +37,17 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 client's built-in defaults.
 
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
-group row via `_insert_row_after`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded
-under `p2p/bootnode` / `p2p/upnp_enabled`; labels from `settings.p2p_bootnode` /
+group row via `_insert_row_after`) + `p2p_bootnode_fingerprint` (`QLineEdit`)
++ `p2p_bootnode_tofu` (`ToggleSwitch`) + `p2p_upnp` (`ToggleSwitch`),
+saved/loaded under `p2p/bootnode` / `p2p/bootnode_fingerprint` /
+`p2p/bootnode_tofu` / `p2p/upnp_enabled`; labels from `settings.p2p_bootnode` /
+`settings.p2p_bootnode_fingerprint` / `settings.p2p_bootnode_tofu` /
 `settings.p2p_upnp` (5 locales). Like NTP hosts this is env-driven (the client
 positional exists, but `HSYNC_BOOTNODE` is the documented equivalent needing no
-argument plumbing): `apply_settings_env` inserts `HSYNC_BOOTNODE` (bare host)
-and `HSYNC_UPNP_ENABLED` (the user's explicit choice) only when a bootnode is
-set. Empty bootnode = mDNS-only discovery.
+argument plumbing): `apply_settings_env` inserts `HSYNC_BOOTNODE` (bare host),
+`HSYNC_UPNP_ENABLED` (the user's explicit choice), and — when a bootnode is
+set — `HSYNC_BOOTNODE_FINGERPRINT` / `HSYNC_BOOTNODE_TOFU` for the ADR-0034
+trust pin/TOFU. Empty bootnode = mDNS-only discovery.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
 `_validate_bucket` (`:34`), `_validate_url` (`:52`), `_validate_group_name`

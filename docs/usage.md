@@ -48,6 +48,12 @@ For **p2p Mode** (peer-to-peer, no server):
   with devices that are **not** on the same local network. Leave it empty to use
   mDNS discovery on the local network only; the hostname is passed to the client
   as `HSYNC_BOOTNODE` (a bare host: no scheme and no port).
+- **Bootnode fingerprint** — the bootnode certificate fingerprint to pin
+  (`sha256:<hex>` or bare hex, comma-separated up to two for a rotation window).
+  Passed as `HSYNC_BOOTNODE_FINGERPRINT`; without it (or *Trust on first use*)
+  an unpinned self-signed bootnode is refused.
+- **Trust bootnode on first use** — remember the bootnode certificate the first
+  time it is seen and refuse a later mismatch. Passed as `HSYNC_BOOTNODE_TOFU`.
 - **Map port with UPnP** — let the client map its master TCP port on the router
   so peers reached through a bootnode can dial it. It only takes effect when a
   bootnode is set; without a mapping the device stays slave-only.
