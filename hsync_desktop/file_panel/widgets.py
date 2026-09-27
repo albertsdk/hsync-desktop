@@ -12,6 +12,7 @@ Contains custom delegates, loading overlay, detail panel, transfer table, and ma
 
 from __future__ import annotations
 
+import html
 import os
 import platform
 import shutil
@@ -20,7 +21,6 @@ from pathlib import Path
 
 from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
-    QLocale,
     QMutex,
     QMutexLocker,
     QObject,
@@ -57,6 +57,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     STATUS_COLORS,
@@ -293,7 +294,7 @@ class FileDetailPanel:
             display = "."
         self._current_abs_dir = abs_dir
         # Render as clickable HTML link (Qt handles underline + color)
-        escaped = display.replace("&", "&").replace("<", "<")
+        escaped = html.escape(display)
         self._lbl_filepath.setText(f'<a href="file://{abs_dir}">{escaped}</a>')
 
         self._lbl_filename.setText(transfer.filename)
@@ -693,12 +694,10 @@ class FileTransferTable(QTableWidget):
         is_folder = transfer is None or transfer.filepath.endswith("/")
 
         # Icon
-        if is_folder:
+        if transfer is None or transfer.filepath.endswith("/"):
             icon_name, type_key = "folder", "ftype.folder"
-        elif transfer is not None:
-            icon_name, type_key = _classify_file(transfer.filepath)
         else:
-            icon_name, type_key = "folder", "ftype.folder"
+            icon_name, type_key = _classify_file(transfer.filepath)
         icon_item = QTableWidgetItem()
         icon_item.setIcon(get_icon(icon_name))
         icon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -1267,8 +1266,6 @@ class FileTransferTable(QTableWidget):
 class FilePanel(QWidget):
     """Complete file transfer panel with table and collapsible detail panel."""
 
-    CONSISTENCY_CHECK_INTERVAL_MS = 5000
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scan_thread: QThread | None = None
@@ -1517,7 +1514,7 @@ class FilePanel(QWidget):
         self._scan_worker = None
         self._table.refresh_view()
         if self._current_directory:
-            self._consistency_timer.start(self.CONSISTENCY_CHECK_INTERVAL_MS)
+            self._consistency_timer.start(CONSISTENCY_CHECK_INTERVAL_MS)
 
     @Slot(int, int)
     def _on_scan_progress(self, current: int, total: int) -> None:

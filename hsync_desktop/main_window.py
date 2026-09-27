@@ -52,7 +52,7 @@ from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
-from hsync_desktop.settings_dialog import (
+from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
     ApiKeyDialog,
@@ -626,6 +626,7 @@ class MainWindow(QMainWindow):
         e.master_conflict.connect(self._on_master_conflict)
         e.no_master_warning.connect(self._on_no_master_warning)
         e.duplicate_identity.connect(self._on_duplicate_identity)
+        e.conflict_resolved.connect(self._on_conflict_resolved)
         e.process_finished.connect(self._on_process_finished)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
@@ -953,6 +954,18 @@ class MainWindow(QMainWindow):
             self._notifier.warning(tr("notif.duplicate_identity_title"), msg)
         self._append_log(f"⚠ {msg}")
 
+    @Slot(str, str)
+    def _on_conflict_resolved(self, filepath: str, conflict_copy: str) -> None:
+        """Handle a file conflict resolved by keeping the remote version."""
+        msg = (
+            tr("notif.conflict_resolved_msg")
+            .replace("{file}", filepath)
+            .replace("{conflict_copy}", conflict_copy)
+        )
+        if self._notifier:
+            self._notifier.info(tr("notif.conflict_resolved_title"), msg)
+        self._append_log(f"⚠ {msg}")
+
     @Slot()
     def _on_preview_started(self) -> None:
         """Handle preview scan started."""
@@ -1035,7 +1048,6 @@ class MainWindow(QMainWindow):
                 self._btn_stop.setEnabled(False)
                 if self._tray:
                     self._tray.set_running(False)
-                self._set_path_editable()
                 self._apply_button_styles()
                 self._update_menu_state()
             # If stdin preview, just close dialog - process keeps running
@@ -1048,7 +1060,6 @@ class MainWindow(QMainWindow):
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        self._set_path_editable()
         self._hide_info_banner()
         self._apply_button_styles()
         self._update_menu_state()
@@ -1119,21 +1130,19 @@ class MainWindow(QMainWindow):
         local_path = self._local_path
         if local_path:
             args = build_hsync_args(local_path, force_dry_run=True)
-            if args:
-                self._log_view.clear()
-                self._file_panel.load_local_files(local_path)
-                self._awaiting_preview_for_sync = True
-                self._is_dry_run_preview = True
-                self._pending_sync_path = local_path
-                if self._engine.start(args):
-                    self._btn_start.setEnabled(False)
-                    self._btn_stop.setEnabled(True)
-                    self._btn_refresh.setEnabled(False)
-                    if self._tray:
-                        self._tray.set_running(True)
-                    self._set_path_editable()
-                    self._apply_button_styles()
-                    return
+            self._log_view.clear()
+            self._file_panel.load_local_files(local_path)
+            self._awaiting_preview_for_sync = True
+            self._is_dry_run_preview = True
+            self._pending_sync_path = local_path
+            if self._engine.start(args):
+                self._btn_start.setEnabled(False)
+                self._btn_stop.setEnabled(True)
+                self._btn_refresh.setEnabled(False)
+                if self._tray:
+                    self._tray.set_running(True)
+                self._apply_button_styles()
+                return
         self._hide_info_banner()
         self._reset_ui_stopped()
 
@@ -1145,13 +1154,8 @@ class MainWindow(QMainWindow):
         if self._tray:
             self._tray.set_running(False)
         self._hide_info_banner()
-        self._set_path_editable()
         self._apply_button_styles()
         self._update_menu_state()
-
-    def _set_path_editable(self) -> None:
-        """Path editing is now handled in Settings dialog — no-op."""
-        pass
 
     def _set_path(self, path: str) -> None:
         """Set the local path and update the display."""
@@ -1477,9 +1481,6 @@ class MainWindow(QMainWindow):
 
         # Start in dry-run mode first to show preview
         args = build_hsync_args(local_path, force_dry_run=True)
-        if not args:
-            self._append_log("⚠ Please configure a bucket name in Settings.")
-            return
 
         # Persist path
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
@@ -1498,7 +1499,6 @@ class MainWindow(QMainWindow):
             self._btn_refresh.setEnabled(False)  # Disable until preview completes
             if self._tray:
                 self._tray.set_running(True)
-            self._set_path_editable()
             self._apply_button_styles()
             self._update_menu_state()
 

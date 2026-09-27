@@ -6,6 +6,8 @@
 
 """Tests for hsync_desktop.file_panel module."""
 
+from time import time
+
 from hsync_common.format import format_bytes as _format_size
 from hsync_common.format import format_duration
 
@@ -100,6 +102,38 @@ class TestFileTransfer:
             bytes_transferred=1000,
         )
         assert transfer.remaining == 0
+
+    def test_eta_seconds_active_download(self):
+        """ETA is computed while a download is in progress."""
+        transfer = FileTransfer(
+            filepath="test.txt",
+            direction="↓",
+            size=1000,
+            bytes_transferred=500,
+            status=TransferStatus.DOWNLOADING,
+            start_time=time() - 10,
+        )
+        eta = transfer.eta_seconds
+        assert eta is not None
+        assert 5 <= eta <= 15
+
+    def test_eta_seconds_none_when_inactive_or_no_progress(self):
+        """ETA is None for a non-active status or before any progress."""
+        queued = FileTransfer(
+            filepath="test.txt",
+            direction="↓",
+            size=1000,
+            bytes_transferred=500,
+            status=TransferStatus.QUEUED,
+        )
+        assert queued.eta_seconds is None
+        uploading = FileTransfer(
+            filepath="test.txt",
+            direction="↑",
+            size=1000,
+            status=TransferStatus.UPLOADING,
+        )
+        assert uploading.eta_seconds is None
 
 
 class TestFormatSize:

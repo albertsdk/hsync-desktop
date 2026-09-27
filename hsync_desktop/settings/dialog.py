@@ -19,7 +19,7 @@ from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
-from PySide6.QtCore import QSettings, QThread, QTimer
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,

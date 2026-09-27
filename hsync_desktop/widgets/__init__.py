@@ -6,7 +6,6 @@
 
 """Custom Qt widgets for hsync-desktop."""
 
-from hsync_desktop.widgets.progress_bar import TransferProgressBar
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
-__all__ = ["ToggleSwitch", "TransferProgressBar"]
+__all__ = ["ToggleSwitch"]

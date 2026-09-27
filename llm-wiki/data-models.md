@@ -29,7 +29,7 @@ Dataclass for one row in the transfer table.
 | `mtime` / `client_cid` / `client_ip` | metadata for detail pane |
 
 Derived: `filename` (`:84`), `path` (`:88`), `remaining` (`:93`), `eta_seconds`
-(`:97`).
+(`:97`, computed from the elapsed rate only while `DOWNLOADING`/`UPLOADING`).
 
 ### TransferStatus (`file_panel/models.py:23`)
 

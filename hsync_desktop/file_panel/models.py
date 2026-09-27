@@ -96,7 +96,9 @@ class FileTransfer:
 
     @property
     def eta_seconds(self) -> float | None:
-        if self.status != TransferStatus.TRANSFERRING or self.bytes_transferred == 0:
+        if self.status not in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING):
+            return None
+        if self.bytes_transferred == 0:
             return None
         elapsed = time() - self.start_time
         if elapsed <= 0:

@@ -62,7 +62,7 @@ class TestMainImports:
 
     def test_import_get_saved_theme(self):
         """Test get_saved_theme can be imported."""
-        from hsync_desktop.settings_dialog import get_saved_theme
+        from hsync_desktop.settings import get_saved_theme
 
         assert callable(get_saved_theme)
 

@@ -7,3 +7,5 @@
 """HSYNC Desktop - Cross-platform GUI for HSYNC Client."""
 
 from hsync_common.constants import HSYNC_VERSION as __version__
+
+__all__ = ["__version__"]

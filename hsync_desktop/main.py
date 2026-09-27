@@ -19,7 +19,7 @@ from hsync_desktop.engine import BinaryVersionProbe, HsyncEngine, is_binary_vers
 from hsync_desktop.i18n import init_language, tr
 from hsync_desktop.main_window import MainWindow
 from hsync_desktop.notifications import NotificationManager
-from hsync_desktop.settings_dialog import (
+from hsync_desktop.settings import (
     are_notifications_enabled,
     get_saved_theme,
     secure_config_file,
