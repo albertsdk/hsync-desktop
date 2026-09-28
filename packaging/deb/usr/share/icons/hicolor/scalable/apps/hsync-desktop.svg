@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HSYNC app icon: brand green rounded tile with the logomark knocked out in white.
+     Geometry mirrors the Android adaptive icon (72% mark scale, centered safe zone).
+     Export at 512x512 for the Play Store listing. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>HSYNC app icon</title>
+  <rect width="512" height="512" rx="112" ry="112" fill="#16A34A"/>
+  <g transform="translate(56.32,56.32) scale(0.78)" fill="#FFFFFF">
+    <!-- Left stem -->
+    <path d="M132,76 h48 a16,16 0 0 1 16,16 v328 a16,16 0 0 1 -16,16 h-48 a16,16 0 0 1 -16,-16 V92 a16,16 0 0 1 16,-16 z"/>
+    <!-- Right stem -->
+    <path d="M332,76 h48 a16,16 0 0 1 16,16 v328 a16,16 0 0 1 -16,16 h-48 a16,16 0 0 1 -16,-16 V92 a16,16 0 0 1 16,-16 z"/>
+    <!-- Double-headed sync arrow (crossbar) -->
+    <path d="M60,256 L140,192 L140,228 L372,228 L372,192 L452,256 L372,320 L372,284 L140,284 L140,320 Z"
+          stroke="#FFFFFF" stroke-width="24" stroke-linejoin="round"/>
+  </g>
+</svg>

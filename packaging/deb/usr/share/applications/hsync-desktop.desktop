@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=HSYNC
+GenericName=File Synchronization
+Comment=Sync your folders across devices
+Exec=hsync-desktop
+Icon=hsync-desktop
+Terminal=false
+Categories=Utility;Network;
+Keywords=sync;backup;p2p;lan;
+StartupWMClass=hsync-desktop

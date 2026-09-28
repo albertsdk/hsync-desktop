@@ -60,6 +60,17 @@ its dependencies inside the build container and needs Docker with
 Raspberry Pi OS only: PySide6 publishes no 32-bit (armhf) Linux wheels, so armhf
 is not supported. Run `./compile.sh --help` for the full option list.
 
+A Debian/Ubuntu package is produced with `./compile.sh --target deb` (host arch)
+or `--target deb-all` (amd64 + arm64). The `.deb` installs
+`/usr/bin/hsync-desktop`, a launcher entry and the app icon, and declares a
+dependency on `hsync-client` (the engine it drives):
+
+```bash
+./compile.sh --target deb
+sudo dpkg -i dist/deb/hsync-desktop_<ver>_<arch>.deb
+sudo apt install -f
+```
+
 ## Documentation map
 
 | Document | What it covers |

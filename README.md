@@ -114,6 +114,8 @@ desktop build looks for it at `../hsync-client/dist/rpi/arm64/hsync`.
 ./compile.sh                    # Native host build (default)
 ./compile.sh --clean            # Clean artifacts and rebuild
 ./compile.sh --target native    # Explicit native build
+./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
+./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
 ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
 ./compile.sh --version 1.2.3    # Override the reported version
 ./compile.sh --help             # Show help
