@@ -71,8 +71,10 @@ poetry run python -m hsync_desktop
 
 ## Build
 
+### Native (host OS/arch)
+
 ```bash
-# Compile hsync-client first (required)
+# Compile hsync-client first (required for a self-contained bundle)
 cd ../hsync-client && ./compile.sh && cd ../hsync-desktop
 
 # Install dependencies (first time only)
@@ -84,16 +86,40 @@ poetry install
 ```
 
 Both compile scripts detect the current platform automatically using `uname`.
-The desktop build looks for the client binary at `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
-and bundles it into the resulting executable when found.
+The desktop build looks for the client binary at
+`../hsync-client/dist/<os>-<arch>/hsync[.exe]` and bundles it into the resulting
+executable when found; when it is missing the build warns and the app falls back
+to the `hsync` binary on `PATH` at runtime.
+
+### Raspberry Pi OS (64-bit)
+
+```bash
+./compile.sh --target rpi
+# Binary output: dist/rpi/arm64/hsync-desktop  (Raspberry Pi OS 64-bit / aarch64)
+```
+
+The `rpi` target cross-builds the arm64 onefile binary inside an emulated Debian
+Bookworm container, so it requires Docker with `qemu-user-static` (binfmt)
+configured on the host. To bundle the client as well, build its arm64 Raspberry
+Pi binary first with `cd ../hsync-client && ./compile.sh --target rpi`; the
+desktop build looks for it at `../hsync-client/dist/rpi/arm64/hsync`.
+
+> **32-bit armhf is not supported for the GUI.** PySide6 publishes no armv7
+> Linux wheels, so the Qt desktop cannot be built for 32-bit Raspberry Pi OS;
+> only the 64-bit (arm64) target is produced.
 
 ### Build Options
 
 ```bash
-./compile.sh           # Build the binary
-./compile.sh --clean   # Clean artifacts and rebuild
-./compile.sh --help    # Show help
+./compile.sh                    # Native host build (default)
+./compile.sh --clean            # Clean artifacts and rebuild
+./compile.sh --target native    # Explicit native build
+./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
+./compile.sh --version 1.2.3    # Override the reported version
+./compile.sh --help             # Show help
 ```
+
+The version can also be set through the `HSYNC_VERSION` environment variable.
 
 ## Configuration
 

@@ -38,5 +38,15 @@ disable unsupported controls) is realized in
   asynchronously (`BinaryVersionProbe`, `engine.py:340`) and both probes are
   cached in `QSettings` keyed by the binary `(path, size, mtime_ns)`; a probe
   must never block the GUI startup path.
+- **Raspberry Pi GUI is arm64-only**: the `rpi` build target ships the
+  arm64 (64-bit) binary only. PySide6 publishes no armv7 Linux wheels, so the Qt
+  desktop cannot be built for 32-bit armhf; the target documents this instead of
+  failing. Cross-builds run in an emulated arm64 container from
+  `packaging/rpi/Dockerfile.builder` via `compile.sh --target rpi`. The builder
+  pins its build inputs: the privileged `qemu-user-static` binfmt image is
+  pulled by digest and Rust is installed from a SHA256-verified,
+  version-pinned `rustup-init`. Its base is the official multi-arch
+  `python:3.12-bookworm` image (prebuilt CPython), so the arm64 build does not
+  compile CPython under qemu-user.
 
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.

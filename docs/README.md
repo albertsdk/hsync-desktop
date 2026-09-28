@@ -46,6 +46,20 @@ Build a standalone binary with:
 # Binary output: dist/<os>-<arch>/hsync-desktop
 ```
 
+To build the 64-bit Raspberry Pi (arm64) binary from an amd64/arm64 host with
+Docker:
+
+```bash
+./compile.sh --target rpi
+# Binary output: dist/rpi/arm64/hsync-desktop
+```
+
+The native build needs `poetry install` first; the Raspberry Pi target installs
+its dependencies inside the build container and needs Docker with
+`qemu-user-static` (binfmt) configured. The desktop GUI is available for 64-bit
+Raspberry Pi OS only: PySide6 publishes no 32-bit (armhf) Linux wheels, so armhf
+is not supported. Run `./compile.sh --help` for the full option list.
+
 ## Documentation map
 
 | Document | What it covers |

@@ -59,3 +59,27 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
 See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 [modules/ui.md](modules/ui.md) for widgets, and
 [modules/settings.md](modules/settings.md) for config → args.
+
+## Build & packaging
+
+`compile.sh` exposes the uniform target interface shared with `hsync-client` and
+`hsync-bootnode`:
+
+| Target | Output | How |
+| ------ | ------ | --- |
+| `native` (default) | `dist/<os>-<arch>/hsync-desktop[.exe]` | host PyInstaller onefile; bundles `../hsync-client/dist/<os>-<arch>/hsync` when present |
+| `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
+
+- Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
+  `HSYNC_VERSION`), `-h/--help`.
+- Native and rpi share the PyInstaller flags and `--add-data` logic
+  (`_onefile_pyi_flags` `compile.sh:257`, `_add_data_args` `compile.sh:276`);
+  `build_binary` (`compile.sh:318`) and `build_rpi` (`compile.sh:371`) differ
+  only in the runner and output path.
+- **arm64-only rpi**: PySide6 publishes no armv7 Linux wheels, so the Qt GUI
+  cannot be built for 32-bit armhf. The `rpi` target produces arm64 only and
+  prints an informational note instead of failing.
+- `clean_artifacts` (`compile.sh:211`) removes the whole `dist/` tree (all
+  platform outputs including `dist/rpi`), `build` and the spec file.
+- Docker is required **only** inside `build_rpi`; the native target never calls
+  Docker.

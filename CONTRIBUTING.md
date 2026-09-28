@@ -25,8 +25,17 @@ does. No Poetry installation is required.
 ## Building the Binary
 
 ```bash
-./compile.sh    # build standalone binary (PyInstaller)
+./compile.sh                 # native host binary (PyInstaller onefile)
+./compile.sh --clean         # clean and rebuild
+./compile.sh --target rpi    # Raspberry Pi OS 64-bit (arm64) via Docker
 ```
+
+The native build bundles the `hsync` client binary from
+`../hsync-client/dist/<os>-<arch>/hsync[.exe]` when present. The `rpi` target
+cross-builds arm64 only and requires Docker with `qemu-user-static` (binfmt)
+configured; run `./compile.sh --help` for the full option list. PySide6 publishes
+no armv7 Linux wheels, so 32-bit Raspberry Pi OS (armhf) is not supported for the
+GUI.
 
 ## Code Style
 
