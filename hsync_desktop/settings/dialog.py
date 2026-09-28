@@ -67,7 +67,7 @@ from hsync_desktop.config import (
     DEFAULT_NTP_HOSTS,
     DEFAULT_P2P_BOOTNODE,
     DEFAULT_P2P_BOOTNODE_FINGERPRINT,
-    DEFAULT_P2P_BOOTNODE_TOFU,
+    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_KEY,
     DEFAULT_P2P_PORT,
@@ -316,7 +316,7 @@ class SettingsDialog(QDialog):
         self._lbl_p2p_bootnode = QLabel(self)
         _insert_row_after(self.p2p_group, self._lbl_p2p_bootnode, self.p2p_bootnode)
 
-        # Bootnode certificate fingerprint pin (ADR-0034) – dynamic, inserted
+        # Bootnode certificate fingerprint pin (ADR-0035) – dynamic, inserted
         # right after the bootnode row.
         self.p2p_bootnode_fingerprint = QLineEdit(self)
         self.p2p_bootnode_fingerprint.setObjectName("p2pBootnodeFingerprint")
@@ -328,17 +328,18 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode_fingerprint,
         )
 
-        # Trust the bootnode certificate on first use (ADR-0034).
-        self.p2p_bootnode_tofu = ToggleSwitch(self)
-        self.p2p_bootnode_tofu.setObjectName("p2pBootnodeTofu")
-        self._lbl_p2p_bootnode_tofu = QLabel(self)
-        tofu_container = QWidget(self)
-        hl_tofu = QHBoxLayout(tofu_container)
-        hl_tofu.setContentsMargins(0, 0, 0, 0)
-        hl_tofu.addWidget(self.p2p_bootnode_tofu)
-        hl_tofu.addWidget(self._lbl_p2p_bootnode_tofu)
-        hl_tofu.addStretch()
-        _insert_row_after(self.p2p_bootnode_fingerprint, QLabel(""), tofu_container)
+        # Trust policy (ADR-0035): how the client authenticates the bootnode.
+        self.p2p_bootnode_trust = QComboBox(self)
+        self.p2p_bootnode_trust.setObjectName("p2pBootnodeTrust")
+        self._lbl_p2p_bootnode_trust = QLabel(self)
+        trust_container = QWidget(self)
+        hl_trust = QHBoxLayout(trust_container)
+        hl_trust.setContentsMargins(0, 0, 0, 0)
+        hl_trust.addWidget(self.p2p_bootnode_trust)
+        hl_trust.addWidget(self._lbl_p2p_bootnode_trust)
+        hl_trust.addStretch()
+        self._populate_bootnode_trust()
+        _insert_row_after(self.p2p_bootnode_fingerprint, QLabel(""), trust_container)
 
         # UPnP toggle for the master TCP port (only effective with a bootnode).
         self.p2p_upnp = ToggleSwitch(self)
@@ -350,7 +351,7 @@ class SettingsDialog(QDialog):
         hl_upnp.addWidget(self.p2p_upnp)
         hl_upnp.addWidget(self._lbl_p2p_upnp)
         hl_upnp.addStretch()
-        _insert_row_after(tofu_container, QLabel(""), upnp_container)
+        _insert_row_after(trust_container, QLabel(""), upnp_container)
 
         # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
         # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
@@ -507,6 +508,20 @@ class SettingsDialog(QDialog):
         self.setFixedSize(max(hint.width(), 640), hint.height())
 
     # ── Sync tab grouping ─────────────────────────────────────────
+
+    def _populate_bootnode_trust(self) -> None:
+        """Fill the bootnode trust-policy combo (ADR-0035), preserving selection."""
+        current = self.p2p_bootnode_trust.currentData()
+        self.p2p_bootnode_trust.clear()
+        for value, key in (
+            ("ask", "settings.p2p_bootnode_trust_ask"),
+            ("accept-new", "settings.p2p_bootnode_trust_accept_new"),
+            ("strict", "settings.p2p_bootnode_trust_strict"),
+            ("none", "settings.p2p_bootnode_trust_none"),
+        ):
+            self.p2p_bootnode_trust.addItem(tr(key), value)
+        index = self.p2p_bootnode_trust.findData(current)
+        self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def _reorganize_sync_tab(self) -> None:
         """Reorganize the Sync tab into grouped sections using QGroupBox."""
@@ -677,7 +692,8 @@ class SettingsDialog(QDialog):
             lbl.setText(tr("settings.p2p_port"))
         self._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
         self._lbl_p2p_bootnode_fingerprint.setText(tr("settings.p2p_bootnode_fingerprint"))
-        self._lbl_p2p_bootnode_tofu.setText(tr("settings.p2p_bootnode_tofu"))
+        self._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
+        self._populate_bootnode_trust()
         self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
@@ -1102,7 +1118,10 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/group", self.p2p_group.text())
         s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
         s.setValue("p2p/bootnode_fingerprint", self.p2p_bootnode_fingerprint.text().strip())
-        s.setValue("p2p/bootnode_tofu", self.p2p_bootnode_tofu.isChecked())
+        s.setValue(
+            "p2p/bootnode_trust",
+            self.p2p_bootnode_trust.currentData() or DEFAULT_P2P_BOOTNODE_TRUST,
+        )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
         s.setValue("p2p/key", encrypt_value(self.p2p_key.text()))
         s.setValue("p2p/port", self.p2p_port.value())
@@ -1188,9 +1207,10 @@ class SettingsDialog(QDialog):
         self.p2p_bootnode_fingerprint.setText(
             str(s.value("p2p/bootnode_fingerprint", DEFAULT_P2P_BOOTNODE_FINGERPRINT, str))
         )
-        self.p2p_bootnode_tofu.setChecked(
-            bool(s.value("p2p/bootnode_tofu", DEFAULT_P2P_BOOTNODE_TOFU, bool))
+        index = self.p2p_bootnode_trust.findData(
+            str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str))
         )
+        self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
         self.p2p_port.setValue(cast(int, s.value("p2p/port", DEFAULT_P2P_PORT, int)))

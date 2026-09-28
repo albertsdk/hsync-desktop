@@ -18,6 +18,7 @@ from hsync_desktop.engine import (
     HsyncEngine,
     TransferStats,
     apply_settings_env,
+    fetch_bootnode_fingerprint,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
@@ -352,21 +353,25 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_BOOTNODE")
         assert not env.contains("HSYNC_UPNP_ENABLED")
 
-    def test_bootnode_fingerprint_and_tofu_exported(self):
+    def test_bootnode_fingerprint_and_trust_exported(self):
         env = self._env_with(
             {
                 "p2p/bootnode": "boot.example.net",
                 "p2p/bootnode_fingerprint": "sha256:0" * 1 + "0" * 63,
-                "p2p/bootnode_tofu": True,
+                "p2p/bootnode_trust": "strict",
             }
         )
         assert env.value("HSYNC_BOOTNODE_FINGERPRINT") == "sha256:0" + "0" * 63
-        assert env.value("HSYNC_BOOTNODE_TOFU") == "true"
+        assert env.value("HSYNC_BOOTNODE_TRUST") == "strict"
+
+    def test_bootnode_trust_defaults_to_ask(self):
+        env = self._env_with({"p2p/bootnode": "boot.example.net"})
+        assert env.value("HSYNC_BOOTNODE_TRUST") == "ask"
 
     def test_bootnode_fingerprint_blank_is_skipped(self):
         env = self._env_with({"p2p/bootnode": "boot.example.net", "p2p/bootnode_fingerprint": "  "})
         assert not env.contains("HSYNC_BOOTNODE_FINGERPRINT")
-        assert not env.contains("HSYNC_BOOTNODE_TOFU")
+        assert env.value("HSYNC_BOOTNODE_TRUST") == "ask"
 
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
@@ -644,3 +649,61 @@ class TestWriteSecretPipe:
             assert os.read(fd, 64) == b""
         finally:
             os.close(fd)
+
+
+class TestFetchBootnodeFingerprint:
+    """The GUI pre-flight reads a bootnode fingerprint without trusting it."""
+
+    def test_returns_the_last_stdout_line_on_success(self, monkeypatch):
+        import types
+
+        calls: dict[str, list[str]] = {}
+
+        def fake_run(args, **kwargs):
+            calls["args"] = args
+            return types.SimpleNamespace(returncode=0, stdout="noise line\nsha256:abc\n")
+
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        assert fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
+        assert calls["args"] == [
+            "/bin/hsync",
+            "bootnode",
+            "trust",
+            "fingerprint",
+            "boot.example.net",
+        ]
+
+    def test_passes_the_port_when_given(self, monkeypatch):
+        import types
+
+        calls: dict[str, list[str]] = {}
+
+        def fake_run(args, **kwargs):
+            calls["args"] = args
+            return types.SimpleNamespace(returncode=0, stdout="sha256:abc\n")
+
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net", 1443)
+        assert calls["args"][-2:] == ["--port", "1443"]
+
+    def test_returns_none_on_failure_or_empty_output(self, monkeypatch):
+        import types
+
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
+        )
+        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="  \n"),
+        )
+        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+
+    def test_returns_none_when_the_binary_cannot_be_run(self, monkeypatch):
+        def boom(*args, **kwargs):
+            raise OSError("missing binary")
+
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", boom)
+        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None

@@ -38,16 +38,19 @@ client's built-in defaults.
 
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_bootnode_fingerprint` (`QLineEdit`)
-+ `p2p_bootnode_tofu` (`ToggleSwitch`) + `p2p_upnp` (`ToggleSwitch`),
-saved/loaded under `p2p/bootnode` / `p2p/bootnode_fingerprint` /
-`p2p/bootnode_tofu` / `p2p/upnp_enabled`; labels from `settings.p2p_bootnode` /
-`settings.p2p_bootnode_fingerprint` / `settings.p2p_bootnode_tofu` /
-`settings.p2p_upnp` (5 locales). Like NTP hosts this is env-driven (the client
-positional exists, but `HSYNC_BOOTNODE` is the documented equivalent needing no
-argument plumbing): `apply_settings_env` inserts `HSYNC_BOOTNODE` (bare host),
-`HSYNC_UPNP_ENABLED` (the user's explicit choice), and — when a bootnode is
-set — `HSYNC_BOOTNODE_FINGERPRINT` / `HSYNC_BOOTNODE_TOFU` for the ADR-0034
-trust pin/TOFU. Empty bootnode = mDNS-only discovery.
++ `p2p_bootnode_trust` (`QComboBox`, filled by `_populate_bootnode_trust`) +
+`p2p_upnp` (`ToggleSwitch`), saved/loaded under `p2p/bootnode` /
+`p2p/bootnode_fingerprint` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels
+from `settings.p2p_bootnode` / `settings.p2p_bootnode_fingerprint` /
+`settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
+`*_none` option labels) / `settings.p2p_upnp` (5 locales). Like NTP hosts this is
+env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
+equivalent needing no argument plumbing): `apply_settings_env` inserts
+`HSYNC_BOOTNODE` (bare host), `HSYNC_UPNP_ENABLED` (the user's explicit choice),
+and — when a bootnode is set — `HSYNC_BOOTNODE_FINGERPRINT` and
+`HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` / `strict` / `none`) for the
+ADR-0035 trust policy. The GUI cannot answer the client's terminal prompt, so it
+always sends an explicit policy. Empty bootnode = mDNS-only discovery.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
 `_validate_bucket` (`:33`), `_validate_group_name`

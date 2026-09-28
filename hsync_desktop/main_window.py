@@ -47,7 +47,8 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
-from hsync_desktop.engine import HsyncEngine
+from hsync_desktop.config import DEFAULT_P2P_BOOTNODE_TRUST
+from hsync_desktop.engine import HsyncEngine, fetch_bootnode_fingerprint, find_hsync_binary
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
@@ -1478,6 +1479,11 @@ class MainWindow(QMainWindow):
         if not self._check_disk_space():
             return
 
+        # Resolve bootnode trust before the client starts (the client cannot
+        # prompt without a terminal).
+        if not self._ensure_bootnode_trust():
+            return
+
         # Start in dry-run mode first to show preview
         args = build_hsync_args(local_path, force_dry_run=True)
 
@@ -1500,6 +1506,48 @@ class MainWindow(QMainWindow):
                 self._tray.set_running(True)
             self._apply_button_styles()
             self._update_menu_state()
+
+    def _ensure_bootnode_trust(self) -> bool:
+        """Resolve bootnode trust before starting p2p (ADR-0035).
+
+        The client cannot prompt without a terminal, so the GUI answers policy
+        ``ask`` itself: read the unknown node's fingerprint, ask the user, and
+        pin the accepted value. Returns ``False`` to abort the start.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if not bool(s.value("p2p/enabled", False, bool)):
+            return True
+        host = str(s.value("p2p/bootnode", "", str)).strip()
+        if not host:
+            return True
+        if str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
+            return True
+        if str(s.value("p2p/bootnode_fingerprint", "", str)).strip():
+            return True
+        binary = find_hsync_binary()
+        if not binary:
+            return True  # the engine reports the missing binary
+        port = cast(int, s.value("p2p/port", 0, int) or 0)
+        fingerprint = fetch_bootnode_fingerprint(binary, host, port or None)
+        if not fingerprint:
+            QMessageBox.warning(
+                self,
+                tr("dialogs.bootnode_trust_title"),
+                tr("dialogs.bootnode_unreachable").format(host=host),
+            )
+            return False
+        answer = QMessageBox.question(
+            self,
+            tr("dialogs.bootnode_trust_title"),
+            tr("dialogs.bootnode_trust_body").format(host=host, fingerprint=fingerprint),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            self._append_log("⚠ Bootnode certificate not accepted; start cancelled.")
+            return False
+        s.setValue("p2p/bootnode_fingerprint", fingerprint)
+        return True
 
     def _on_stop(self) -> None:
         self._user_stopped = True

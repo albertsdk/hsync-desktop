@@ -54,10 +54,10 @@ For **p2p Mode** (peer-to-peer, no server):
   as `HSYNC_BOOTNODE` (a bare host: no scheme and no port).
 - **Bootnode fingerprint** — the bootnode certificate fingerprint to pin
   (`sha256:<hex>` or bare hex, comma-separated up to two for a rotation window).
-  Passed as `HSYNC_BOOTNODE_FINGERPRINT`; without it (or *Trust on first use*)
-  an unpinned self-signed bootnode is refused.
-- **Trust bootnode on first use** — remember the bootnode certificate the first
-  time it is seen and refuse a later mismatch. Passed as `HSYNC_BOOTNODE_TOFU`.
+  Passed as `HSYNC_BOOTNODE_FINGERPRINT`.
+- **Bootnode trust policy** — how the client authenticates the bootnode:
+  *Ask on first use* (the default), *Accept new*, *Require a pin* or *No
+  verification*. Passed as `HSYNC_BOOTNODE_TRUST`.
 - **Map port with UPnP** — let the client map its master TCP port on the router
   so peers reached through a bootnode can dial it. It only takes effect when a
   bootnode is set; without a mapping the device stays slave-only.

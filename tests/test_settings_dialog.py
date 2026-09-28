@@ -184,3 +184,17 @@ class TestCapabilityGating:
         )
         dlg.p2p_mode.setChecked(True)
         assert not dlg.require_pairing.isEnabled()
+
+
+class TestBootnodeTrustPolicy:
+    """The bootnode trust policy is a combo offering the four ADR-0035 policies."""
+
+    def test_combo_offers_the_four_policies_and_defaults_to_ask(self, dialog):
+        combo = dialog.p2p_bootnode_trust
+        assert [combo.itemData(i) for i in range(combo.count())] == [
+            "ask",
+            "accept-new",
+            "strict",
+            "none",
+        ]
+        assert combo.currentData() == "ask"

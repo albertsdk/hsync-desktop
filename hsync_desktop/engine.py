@@ -38,7 +38,11 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.config import (
+    DEFAULT_P2P_BOOTNODE_TRUST,
+    SETTINGS_APP,
+    SETTINGS_ORG,
+)
 from hsync_desktop.crypto import decrypt_value
 
 
@@ -155,8 +159,33 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         fingerprint = str(s.value("p2p/bootnode_fingerprint", "", str)).strip()
         if fingerprint:
             env.insert("HSYNC_BOOTNODE_FINGERPRINT", fingerprint)
-        if bool(s.value("p2p/bootnode_tofu", False, bool)):
-            env.insert("HSYNC_BOOTNODE_TOFU", "true")
+        # Trust policy (ADR-0035): the GUI cannot answer the client's terminal
+        # prompt, so it always sends an explicit policy.
+        env.insert(
+            "HSYNC_BOOTNODE_TRUST",
+            str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
+        )
+
+
+def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
+    """Read a bootnode certificate fingerprint without trusting it (ADR-0035).
+
+    Runs ``hsync bootnode trust fingerprint <host> [--port <port>]`` with a
+    bounded timeout and returns the canonical fingerprint, or ``None`` when the
+    node cannot be reached. Used by the GUI pre-flight so the operator can
+    confirm an unknown node before the client is started.
+    """
+    args = [binary, "bootnode", "trust", "fingerprint", host]
+    if port:
+        args += ["--port", str(port)]
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=15, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return lines[-1] if lines else None
 
 
 def find_hsync_binary() -> str | None:

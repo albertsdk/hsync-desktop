@@ -58,3 +58,12 @@ disable unsupported controls) is realized in
   (armhf unsupported, as for `rpi`). Not yet wired into a release workflow.
 
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.
+
+- **Bootnode trust is selected as a policy (ADR-0035)**: the "Trust bootnode on
+  first use" toggle is replaced by a `p2p_bootnode_trust` combo
+  (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_BOOTNODE_TRUST`
+  (default `ask`) alongside `HSYNC_BOOTNODE_FINGERPRINT`. The GUI cannot answer
+  the client's terminal prompt, so it always sends an explicit policy; the
+  operator resolves an unknown node out of band with
+  `hsync bootnode trust fingerprint`/`add` (the client's SSH-style prompt is
+  terminal-only and fails closed without a tty).

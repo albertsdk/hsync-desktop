@@ -58,12 +58,12 @@ DEFAULT_P2P_REQUIRE_PAIRING = False
 # Optional bootnode host for cross-network discovery (bare hostname; empty =
 # mDNS-only). Passed to hsync-client via HSYNC_BOOTNODE.
 DEFAULT_P2P_BOOTNODE = ""
-# Bootnode certificate fingerprint(s) to pin (ADR-0034; comma-separated up to
+# Bootnode certificate fingerprint(s) to pin (ADR-0035; comma-separated up to
 # two, `sha256:<hex>` or bare hex). Passed via HSYNC_BOOTNODE_FINGERPRINT.
 DEFAULT_P2P_BOOTNODE_FINGERPRINT = ""
-# Trust the bootnode certificate on first use (ADR-0034). Passed via
-# HSYNC_BOOTNODE_TOFU.
-DEFAULT_P2P_BOOTNODE_TOFU = False
+# Bootnode TLS trust policy (ADR-0035): ask | accept-new | strict | none.
+# Passed via HSYNC_BOOTNODE_TRUST.
+DEFAULT_P2P_BOOTNODE_TRUST = "ask"
 # Map the master TCP port with UPnP when a bootnode is used. Passed via
 # HSYNC_UPNP_ENABLED; the client treats it as on only with a bootnode by default.
 DEFAULT_P2P_UPNP_ENABLED = True

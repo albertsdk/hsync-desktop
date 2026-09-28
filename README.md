@@ -156,7 +156,8 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 | Require pairing | Only sync with explicitly paired peers |
 | p2p key | Shared secret for the p2p group |
 | Bootnode | Hostname of an optional `boot/1` node for cross-network discovery |
-| Bootnode fingerprint / Trust on first use | Pin the bootnode certificate (TOFU) |
+| Bootnode fingerprint | Pin the bootnode certificate fingerprint |
+| Bootnode trust policy | Ask on first use, accept new, require a pin, or no verification |
 | Map port with UPnP | Map the master port so peers reached through a bootnode can dial it |
 | NTP servers | SNTP servers for p2p clock-offset measurement |
 
