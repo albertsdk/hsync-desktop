@@ -68,6 +68,8 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | Target | Output | How |
 | ------ | ------ | --- |
 | `native` (default) | `dist/<os>-<arch>/hsync-desktop[.exe]` | host PyInstaller onefile; bundles `../hsync-client/dist/<os>-<arch>/hsync` when present |
+| `deb` | `dist/deb/hsync-desktop_<ver>_<arch>.deb` | host PyInstaller onedir staged under `/usr/lib/hsync-desktop` + `.desktop` launcher + icons; `Depends: hsync-client` (no client bundled) |
+| `deb-all` | `dist/deb/hsync-desktop_<ver>_{amd64,arm64}.deb` | Docker cross-build from `packaging/deb/Dockerfile.builder`; armhf unsupported (no PySide6 armv7 wheels) |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
 
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
@@ -76,10 +78,17 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   (`_onefile_pyi_flags` `compile.sh:257`, `_add_data_args` `compile.sh:276`);
   `build_binary` (`compile.sh:318`) and `build_rpi` (`compile.sh:371`) differ
   only in the runner and output path.
+- The `deb`/`deb-all` targets share `_onedir_pyi_flags` and stage
+  `packaging/deb/` (DEBIAN control + maintainer scripts, `.desktop` entry,
+  hicolor icons) with `_finalize_deb_stage`; `_inject_shlib_depends` resolves
+  `libc6`/`zlib1g`. Unlike the onefile builds, no client binary is bundled —
+  the package declares `Depends: hsync-client` and the app uses
+  `/usr/bin/hsync` from PATH.
 - **arm64-only rpi**: PySide6 publishes no armv7 Linux wheels, so the Qt GUI
   cannot be built for 32-bit armhf. The `rpi` target produces arm64 only and
-  prints an informational note instead of failing.
+  prints an informational note instead of failing; `deb-all` likewise builds
+  amd64 + arm64 only.
 - `clean_artifacts` (`compile.sh:211`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
-- Docker is required **only** inside `build_rpi`; the native target never calls
-  Docker.
+- Docker is required **only** inside `build_rpi` and `build_deb_all`; the
+  `native` and `deb` targets never call Docker.

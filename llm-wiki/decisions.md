@@ -48,5 +48,13 @@ disable unsupported controls) is realized in
   version-pinned `rustup-init`. Its base is the official multi-arch
   `python:3.12-bookworm` image (prebuilt CPython), so the arm64 build does not
   compile CPython under qemu-user.
+- **Debian packaging** (`compile.sh`, targets `deb`/`deb-all`): a `--onedir`
+  freeze staged as a `.deb` reusing the shared packaging machinery
+  (`packaging/deb/`, `_semver_to_debian`, `_finalize_deb_stage`,
+  `_inject_shlib_depends`). It installs the GUI under `/usr/lib/hsync-desktop`
+  with a `.desktop` launcher and hicolor icons, and declares
+  `Depends: hsync-client` instead of bundling the client (the app falls back to
+  `/usr/bin/hsync` on PATH). `deb-all` cross-builds amd64 + arm64 in Docker
+  (armhf unsupported, as for `rpi`). Not yet wired into a release workflow.
 
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.

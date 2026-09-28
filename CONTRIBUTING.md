@@ -25,9 +25,11 @@ does. No Poetry installation is required.
 ## Building the Binary
 
 ```bash
-./compile.sh                 # native host binary (PyInstaller onefile)
-./compile.sh --clean         # clean and rebuild
-./compile.sh --target rpi    # Raspberry Pi OS 64-bit (arm64) via Docker
+./compile.sh                    # native host binary (PyInstaller onefile)
+./compile.sh --clean            # clean and rebuild
+./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
+./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
+./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64) via Docker
 ```
 
 The native build bundles the `hsync` client binary from
@@ -36,6 +38,13 @@ cross-builds arm64 only and requires Docker with `qemu-user-static` (binfmt)
 configured; run `./compile.sh --help` for the full option list. PySide6 publishes
 no armv7 Linux wheels, so 32-bit Raspberry Pi OS (armhf) is not supported for the
 GUI.
+
+The `deb` target builds `dist/deb/hsync-desktop_<ver>_<arch>.deb` for the host
+architecture (needs `dpkg-deb`); `deb-all` cross-builds amd64 + arm64 inside
+Docker. The package installs the GUI under `/usr/lib/hsync-desktop` with a
+`.desktop` launcher and icons, and declares a dependency on `hsync-client`
+(the engine it drives) instead of bundling it; see
+[docs/README.md](docs/README.md).
 
 ## Code Style
 
