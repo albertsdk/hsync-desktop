@@ -5,9 +5,9 @@ How the GUI persists user config and turns it into the binary's command line.
 ## config.py — defaults + keys
 
 Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
-(`:17`–`:24`), server defaults (`:27`–`:35`), sync defaults (`:38`–`:52`), LAN
-defaults (`:55`–`:63`, incl. `DEFAULT_LAN_REQUIRE_PAIRING:62` and
-`DEFAULT_NTP_HOSTS:63`). These seed `QSettings` and the dialog.
+(`:17`–`:24`), server defaults (`:27`–`:35`), sync defaults (`:38`–`:52`), p2p
+defaults (`:53`–`:68`, incl. `DEFAULT_P2P_REQUIRE_PAIRING:59`) and NTP servers
+(`:73`). These seed `QSettings` and the dialog.
 `DEFAULT_NO_COMPRESSION` (`:46`) exists only to migrate the legacy key into
 `DEFAULT_COMPRESSION_ENABLED` (`:47`).
 
