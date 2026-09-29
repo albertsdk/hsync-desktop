@@ -56,6 +56,12 @@ disable unsupported controls) is realized in
   `Depends: hsync-client` instead of bundling the client (the app falls back to
   `/usr/bin/hsync` on PATH). `deb-all` cross-builds amd64 + arm64 in Docker
   (armhf unsupported, as for `rpi`). Not yet wired into a release workflow.
+- **Container builds install the `build` group explicitly** (`rpi`/`deb-all`):
+  `poetry install --only main,build`. Under Poetry 2.x (2.3.2, pinned in the
+  builder image) a co-present `--with` is ignored inside `--only`, so the
+  previous `--only main --with build` silently installed no PyInstaller (exit
+  code 0, `pyinstaller` absent on PATH) and the cross-build targets aborted;
+  guarded by `tests/test_compile_script.py`.
 
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.
 
