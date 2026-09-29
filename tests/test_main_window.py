@@ -91,7 +91,7 @@ class TestEnsureBootnodeTrust:
         )
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
         assert window._ensure_bootnode_trust() is True
-        # The client dials 443 (bare HSYNC_BOOTNODE): the LAN listen port must
+        # The client dials 443 (bare HSYNC_BOOTNODE): the p2p listen port must
         # never be passed to the bootnode trust commands.
         assert fetched[0][1:] == ("boot.example.net", 443)
         assert added == [("boot.example.net", 443)]

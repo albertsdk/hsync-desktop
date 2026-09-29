@@ -15,7 +15,7 @@ defaults (`:53`–`:68`, incl. `DEFAULT_P2P_REQUIRE_PAIRING:59`) and NTP servers
 
 | Symbol | Line | Role |
 | ------ | ---- | ---- |
-| `SettingsDialog` | `dialog.py:162` | tabs for server/sync/LAN; load/save QSettings |
+| `SettingsDialog` | `dialog.py:162` | tabs for server/sync/p2p; load/save QSettings |
 | `_replace_checkbox_with_toggle` | `:104` | swap checkboxes for `ToggleSwitch` widgets |
 | `_maybe_tip` | `:99` | attach capability/disabled tooltip |
 | `ApiKeyDialog` | `:1201` | enter/replace the server API key (secret) |

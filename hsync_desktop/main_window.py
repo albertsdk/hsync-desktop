@@ -796,12 +796,12 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _on_group_detected(self, group: str) -> None:
-        """Update group label in bottom bar and LAN label in top bar."""
+        """Update the group label in the bottom bar and the p2p label in the top bar."""
         self._group_label.setText(group)
         # Also update the remote label if p2p mode is active
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if bool(s.value("p2p/enabled", False, bool)):
-            self._remote_label.setText(f"LAN ({group})" if group else "LAN")
+            self._remote_label.setText(f"p2p ({group})" if group else "p2p")
             self._group_label.hide()
 
     @Slot(str, str)
@@ -1402,10 +1402,10 @@ class MainWindow(QMainWindow):
             if p2p_enabled:
                 self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
                 group = str(s.value("p2p/group", "", str))
-                self._remote_label.setText(f"LAN ({group})" if group else "LAN")
+                self._remote_label.setText(f"p2p ({group})" if group else "p2p")
                 self._remote_icon.setToolTip(tr("label.remote_p2p_tip"))
                 self._remote_label.setToolTip(tr("label.remote_p2p_tip"))
-                # Group name shown next to LAN label — hide from bottom bar
+                # Group name shown next to the p2p label — hide from bottom bar
                 self._group_label.hide()
             else:
                 self._remote_icon.setPixmap(get_icon("network-cloud").pixmap(24, 24))
@@ -1855,7 +1855,7 @@ class MainWindow(QMainWindow):
                 self._set_path(new_path)
                 if new_path:
                     self._load_local_files(new_path)
-            # Refresh path display (settings may have changed LAN/server/direction)
+            # Refresh path display (settings may have changed p2p/server/direction)
             self._update_path_display()
 
     def _refresh_icons_for_theme(self) -> None:

@@ -193,7 +193,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if force_dry_run or s.value("sync/dry_run", False, bool):
         args.append("-n")
 
-    # LAN
+    # p2p
     if p2p_enabled:
         port = cast(int, s.value("p2p/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range

@@ -321,7 +321,7 @@
        </item>
       </layout>
      </widget>
-     <!-- Tab: LAN -->
+     <!-- Tab: p2p -->
      <widget class="QWidget" name="tabP2p">
       <attribute name="title">
        <string>p2p Mode</string>
@@ -340,7 +340,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="lblP2pGroup">
          <property name="text">
-          <string>LAN Group:</string>
+          <string>p2p Group:</string>
          </property>
         </widget>
        </item>
@@ -371,7 +371,7 @@
        <item row="3" column="0">
         <widget class="QLabel" name="lblP2pPort">
          <property name="text">
-          <string>LAN Port:</string>
+          <string>p2p Port:</string>
          </property>
         </widget>
        </item>

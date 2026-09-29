@@ -15,7 +15,7 @@ lists what you can see.
 
 The desktop log panel shows whatever the underlying `hsync-client` engine
 emits. See [the client label reference](https://github.com/albertsdk/hsync-client/blob/main/docs/log-labels.md)
-for the full list and meanings — sync operations, preview (dry-run), LAN
+for the full list and meanings — sync operations, preview (dry-run), p2p
 client/master operations, and security/warning labels are all surfaced here and
 colored by the same categories.
 

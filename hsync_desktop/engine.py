@@ -138,7 +138,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
       channel: the client CLI takes the bare host, so the full (validated)
       URL travels through the environment;
     * ``HSYNC_NTP_HOSTS`` (``p2p/ntp_hosts``, ADR-0023) — SNTP host list for
-      the LAN-mode clock-offset probe.
+      the p2p-mode clock-offset probe.
 
     ``insert()`` overwrites any pre-existing value: the GUI setting is the
     user's explicit choice and wins over the ambient environment.
@@ -153,7 +153,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         "HSYNC_SERVER_TRUST",
         str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)),
     )
-    # ADR-0023: SNTP host list for LAN-mode clock correction.
+    # ADR-0023: SNTP host list for p2p-mode clock correction.
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)

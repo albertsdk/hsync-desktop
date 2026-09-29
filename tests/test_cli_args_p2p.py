@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for hsync_desktop.settings.cli_args LAN argument emission.
+"""Tests for hsync_desktop.settings.cli_args p2p argument emission.
 
 These tests cover the contract between the desktop settings UI and the
 ``hsync`` CLI binary, including the one-shot / continuous sync alignment
@@ -41,7 +41,7 @@ def _build_args(values: dict[str, Any], local_path: str = "") -> list[str]:
     """Run build_hsync_args with QSettings backed by *values*.
 
     *local_path* is empty by default so that the path validation branch is
-    skipped (we are only interested in the LAN section).
+    skipped (we are only interested in the p2p section).
     """
     from hsync_desktop.settings import cli_args
 
@@ -71,10 +71,10 @@ class TestContinuousMapping:
 
 
 class TestP2PSectionConsistency:
-    """Cross-flag consistency of the LAN argument block."""
+    """Cross-flag consistency of the p2p argument block."""
 
     def test_p2p_block_emits_expected_flags_when_fully_enabled(self):
-        """A fully populated LAN config produces all expected flags exactly once."""
+        """A fully populated p2p config produces all expected flags exactly once."""
         args = _build_args(
             {
                 "p2p/enabled": True,
@@ -86,7 +86,7 @@ class TestP2PSectionConsistency:
             }
         )
 
-        # Each LAN flag appears exactly once.
+        # Each p2p flag appears exactly once.
         for flag in (
             "p2p",
             "--listen-port",
@@ -141,7 +141,7 @@ class TestNeverMasterFlag:
         assert args.count("--never-master") == 1
 
     def test_never_master_flag_not_emitted_when_p2p_disabled(self):
-        """LAN disabled: never-master flag must be skipped with the rest of the block."""
+        """p2p disabled: never-master flag must be skipped with the rest of the block."""
         args = _build_args({"p2p/enabled": False, "p2p/never_master": True})
 
         assert args[0] == "server"
@@ -170,7 +170,7 @@ class TestRequirePairingFlag:
         assert args.count("--require-pairing") == 1
 
     def test_require_pairing_flag_not_emitted_when_p2p_disabled(self):
-        """LAN disabled: require-pairing flag must be skipped with the rest of the block."""
+        """p2p disabled: require-pairing flag must be skipped with the rest of the block."""
         args = _build_args({"p2p/enabled": False, "p2p/require_pairing": True})
 
         assert args[0] == "server"
@@ -230,7 +230,7 @@ class TestServerUrlViaEnvOnly:
     (engine.apply_settings_env exports it as HSYNC_SERVER instead)."""
 
     def test_server_mode_emits_no_url_flag(self):
-        """LAN disabled + stored URL: neither the URL nor any -s/--server flag
+        """p2p disabled + stored URL: neither the URL nor any -s/--server flag
         is emitted (the endpoint travels via HSYNC_SERVER)."""
         args = _build_args(
             {

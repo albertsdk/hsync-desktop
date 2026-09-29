@@ -184,7 +184,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         # Controls gated off by the binary's capabilities; never re-enabled
-        # by the LAN-mode or connection-active state machines.
+        # by the p2p-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
         self._unsupported_labels: set[QLabel] = set()
 
@@ -449,7 +449,7 @@ class SettingsDialog(QDialog):
         self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
         self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
 
-        # Create info banner for Server Mode tab when LAN is active (hidden by default)
+        # Create info banner for Server Mode tab when p2p is active (hidden by default)
         self._p2p_banner = QFrame(self)
         self._p2p_banner.setObjectName("p2pBanner")
         self._p2p_banner.setStyleSheet(
@@ -470,7 +470,7 @@ class SettingsDialog(QDialog):
         p2p_banner_layout.addWidget(self._p2p_banner_text, 1)
         self._p2p_banner.hide()
 
-        # Insert LAN banner at the top of the Server Mode (tabConnection) layout
+        # Insert p2p banner at the top of the Server Mode (tabConnection) layout
         # Also insert server_cert_fingerprint field and Test Connection button
         self.btn_test_connection = QPushButton()
         self.btn_test_connection.setObjectName("btnTestConnection")
@@ -808,7 +808,7 @@ class SettingsDialog(QDialog):
             widget.setToolTip(tr("tip.capability_unsupported"))
 
     def _apply_capabilities(self) -> None:
-        """Gate LAN controls by the binary's advertised capabilities.
+        """Gate p2p controls by the binary's advertised capabilities.
 
         Reads the capabilities document from the configured hsync binary and
         disables any p2p toggle the binary does not support — the ``p2p``
@@ -922,7 +922,7 @@ class SettingsDialog(QDialog):
     def _on_p2p_mode_toggled(self, checked: bool) -> None:
         """Enable/disable Server Mode tab widgets when p2p mode changes,
         and enable/disable p2p tab widgets based on p2p mode state."""
-        # Show/hide the LAN banner on Server Mode tab
+        # Show/hide the p2p banner on Server Mode tab
         self._p2p_banner.setVisible(checked)
         if checked:
             self._p2p_banner_text.setText(tr("settings.p2p_disables_server"))
@@ -1375,10 +1375,10 @@ class SettingsDialog(QDialog):
             if active:
                 widget.setToolTip(disabled_tip)
 
-        # Re-apply normal tooltips and LAN-mode state when connection is not active
+        # Re-apply normal tooltips and p2p-mode state when connection is not active
         if not active:
             self._apply_tooltips()
-            # Re-apply p2p mode state so sub-widgets stay disabled if LAN is off
+            # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
             self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
 
