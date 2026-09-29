@@ -62,8 +62,10 @@ disable unsupported controls) is realized in
 - **Bootnode trust is selected as a policy (ADR-0035)**: the "Trust bootnode on
   first use" toggle is replaced by a `p2p_bootnode_trust` combo
   (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_BOOTNODE_TRUST`
-  (default `ask`) alongside `HSYNC_BOOTNODE_FINGERPRINT`. The GUI cannot answer
-  the client's terminal prompt, so it always sends an explicit policy; the
-  operator resolves an unknown node out of band with
-  `hsync bootnode trust fingerprint`/`add` (the client's SSH-style prompt is
-  terminal-only and fails closed without a tty).
+  (default `ask`). The pin lives in the client's known-hosts store, not a GUI
+  env var: the GUI resolves policy `ask` in its start pre-flight
+  (`_ensure_bootnode_trust`) by writing `hsync trust bootnode add`, and both
+  trust stores are editable through the "Manage trusted keys" dialog
+  (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
+  always sends an explicit policy; the client's SSH-style prompt is terminal-only
+  and fails closed without a tty.

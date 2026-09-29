@@ -37,20 +37,34 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 client's built-in defaults.
 
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
-group row via `_insert_row_after`) + `p2p_bootnode_fingerprint` (`QLineEdit`)
-+ `p2p_bootnode_trust` (`QComboBox`, filled by `_populate_bootnode_trust`) +
-`p2p_upnp` (`ToggleSwitch`), saved/loaded under `p2p/bootnode` /
-`p2p/bootnode_fingerprint` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels
-from `settings.p2p_bootnode` / `settings.p2p_bootnode_fingerprint` /
+group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
+by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
+opens `TrustedKeysDialog`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded under
+`p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
+`settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
 `*_none` option labels) / `settings.p2p_upnp` (5 locales). Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
 `HSYNC_BOOTNODE` (bare host), `HSYNC_UPNP_ENABLED` (the user's explicit choice),
-and — when a bootnode is set — `HSYNC_BOOTNODE_FINGERPRINT` and
-`HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` / `strict` / `none`) for the
-ADR-0035 trust policy. The GUI cannot answer the client's terminal prompt, so it
-always sends an explicit policy. Empty bootnode = mDNS-only discovery.
+and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` /
+`strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
+a GUI setting: it lives in the client's known-hosts store, edited through the
+`TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in `main_window.py`
+(`_ensure_bootnode_trust`). The GUI cannot answer the client's terminal prompt,
+so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
+
+**Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
+inserted after the `http_timeout` row), saved/loaded under
+`connection/server_trust`; labels from `settings.server_trust` (+ the five
+`*_chain`/`*_ask`/`*_accept_new`/`*_strict`/`*_none` option labels), tip from
+`tip.server_trust` (5 locales). The old `connection/server_cert_fingerprint`
+field was **removed** (ADR-0036): the pin lives in the client's server
+known-hosts store, not in a setting. Like the bootnode policy, the combo is
+env-driven: `apply_settings_env` always inserts `HSYNC_SERVER_TRUST` (`chain`
+default), and `build_hsync_args` emits no server-trust flag. The server pin is
+edited through the `TrustedKeysDialog` Servers tab or the
+`_ensure_server_trust` pre-flight in `main_window.py`.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
 `_validate_bucket` (`:33`), `_validate_group_name`

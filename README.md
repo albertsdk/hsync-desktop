@@ -133,6 +133,7 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 |---------|-------------|
 | Server URL | HSYNC server address |
 | API Key | Authentication key |
+| Server trust policy | Standard CA validation, ask on first use, accept new, require a pin, or no verification |
 | SSL verification | Skip or use custom CA certificate |
 | HTTP Timeout | Request timeout in seconds |
 
@@ -156,8 +157,8 @@ All settings are managed through the GUI Settings dialog and persisted via QSett
 | Require pairing | Only sync with explicitly paired peers |
 | p2p key | Shared secret for the p2p group |
 | Bootnode | Hostname of an optional `boot/1` node for cross-network discovery |
-| Bootnode fingerprint | Pin the bootnode certificate fingerprint |
 | Bootnode trust policy | Ask on first use, accept new, require a pin, or no verification |
+| Manage trusted keys | List, add and remove bootnode, server and peer fingerprints |
 | Map port with UPnP | Map the master port so peers reached through a bootnode can dial it |
 | NTP servers | SNTP servers for p2p clock-offset measurement |
 

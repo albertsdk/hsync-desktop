@@ -25,7 +25,9 @@ DEFAULT_GROUP = "my-group"
 # Connection defaults
 DEFAULT_INSECURE = False
 DEFAULT_CA_CERT = ""
-DEFAULT_SERVER_CERT_FINGERPRINT = ""
+# Server TLS trust policy (ADR-0036): chain (default) | ask | accept-new |
+# strict | none. Passed to hsync-client via --server-trust.
+DEFAULT_SERVER_TRUST = "chain"
 DEFAULT_HTTP_TIMEOUT = 30
 
 # Sync defaults
@@ -58,9 +60,6 @@ DEFAULT_P2P_REQUIRE_PAIRING = False
 # Optional bootnode host for cross-network discovery (bare hostname; empty =
 # mDNS-only). Passed to hsync-client via HSYNC_BOOTNODE.
 DEFAULT_P2P_BOOTNODE = ""
-# Bootnode certificate fingerprint(s) to pin (ADR-0035; comma-separated up to
-# two, `sha256:<hex>` or bare hex). Passed via HSYNC_BOOTNODE_FINGERPRINT.
-DEFAULT_P2P_BOOTNODE_FINGERPRINT = ""
 # Bootnode TLS trust policy (ADR-0035): ask | accept-new | strict | none.
 # Passed via HSYNC_BOOTNODE_TRUST.
 DEFAULT_P2P_BOOTNODE_TRUST = "ask"

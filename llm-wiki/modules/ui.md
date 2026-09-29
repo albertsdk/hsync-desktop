@@ -18,8 +18,43 @@ Engine→slot wiring (in `_connect_signals`, `:599`+): `log_received→_append_l
 (`:607`), `status_changed→_on_status` (`:608`), `peers_changed`/`master_changed`
 (`:609`/`:610`), `file_transferred→_on_file_transferred` (`:613`),
 `transfer_failed→_on_transfer_failed` (`:614`), `sync_paused→_on_sync_paused`
-(`:615`), `file_progress`/`file_renamed` (`:616`/`:617`). File-action menu slots:
-open/open-with/copy-to/rename/trash/properties (`:548`–`:573`).
+(`:615`), `file_progress`/`file_renamed` (`:616`/`:617`),
+`pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`
+(`:635`/`:636`). File-action menu slots: open/open-with/copy-to/rename/trash/
+properties (`:548`–`:573`).
+
+### Trust refusal dialogs (SSH-style, no terminal)
+
+`MainWindow` answers the client's trust refusals with dialogs instead of a
+terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
+
+- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window.py:1075`/`:1109`)
+  route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `bootnode`/`server`
+  → the helpers returned by `_host_trust_actions` (`:1028`) (`add_bootnode_trust`/
+  `remove_bootnode_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
+  `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`:136`) via
+  `_should_prompt_trust` (`:998`), cleared on start/stop (`:1642`/`:1809`): a
+  repeated refusal for the same fingerprint reuses no dialog, a changed one
+  re-prompts. A dismissed or ignored dialog never touches the stored pin (the
+  host branch acts only on the explicit Trust/Forget buttons).
+- `_maybe_offer_restart` (`:1043`) offers to restart a stopped sync after a
+  bootnode/server pin change (those failures are fatal; mDNS refusals are not).
+- `_ensure_bootnode_trust` (`:1701`) and `_ensure_server_trust` (`:1730`) are the
+  start pre-flights, both delegating to `_confirm_host_trust` (`:1757`): skip
+  unless the mode/policy/URL apply; skip when the known-hosts store already holds
+  `host:port`; else `fetch_*_fingerprint` → confirm → `add_*_trust`. They write
+  the shared known-hosts stores (no GUI-only fingerprint settings).
+
+## trusted_keys.py — TrustedKeysDialog
+
+`TrustedKeysDialog` (`trusted_keys.py:159`) lists and edits all three stores via
+the `engine` subprocess helpers (never the store files directly): three tabs
+(bootnodes / servers / peers), each a `QTableWidget` + Add/Remove/Refresh. The
+bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
+stores); *Add* supports "read from node" or manual entry. Peer *Add* pre-fills
+the bucket from `sync/bucket`. The peers tab shows
+`trusted_keys.capability_missing` when the binary lacks the `trust` subcommand
+(`supports_peer_trust`).
 
 ## file_panel/ — live transfer view
 

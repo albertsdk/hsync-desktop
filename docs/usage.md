@@ -25,7 +25,15 @@ For **Server Mode** (sync against a central HSYNC server):
 - **Server URL** — e.g. `https://my-nas:9753`.
 - **Bucket** — the remote bucket name to sync into.
 - **API key** — click to enter or replace it (see *Secrets* below).
-- **Insecure** — accept self-signed TLS certificates (use only on trusted networks).
+- **CA certificate** — path to a custom CA for a self-signed server (optional).
+- **Server trust policy** — how the client authenticates the server certificate:
+  *Standard CA validation* (the default, for a public-CA or reverse-proxy
+  server), *Ask on first use*, *Accept new*, *Require a pin* or *No
+  verification*. Passed as `HSYNC_SERVER_TRUST`. For a self-signed server pin
+  the certificate through *Manage trusted keys… → Servers*, or choose *Ask* /
+  *Accept new*.
+- **Insecure** — accept any certificate (use only on trusted networks;
+  equivalent to *No verification*).
 
 ### Sync tab
 - **Local folder** — the directory to keep in sync.
@@ -52,12 +60,14 @@ For **p2p Mode** (peer-to-peer, no server):
   with devices that are **not** on the same local network. Leave it empty to use
   mDNS discovery on the local network only; the hostname is passed to the client
   as `HSYNC_BOOTNODE` (a bare host: no scheme and no port).
-- **Bootnode fingerprint** — the bootnode certificate fingerprint to pin
-  (`sha256:<hex>` or bare hex, comma-separated up to two for a rotation window).
-  Passed as `HSYNC_BOOTNODE_FINGERPRINT`.
 - **Bootnode trust policy** — how the client authenticates the bootnode:
   *Ask on first use* (the default), *Accept new*, *Require a pin* or *No
   verification*. Passed as `HSYNC_BOOTNODE_TRUST`.
+- **Manage trusted keys…** — open a dialog that lists and edits the trust stores
+  the client actually uses: the bootnode and sync-server known-hosts stores and
+  the p2p known-peers store. You can add, remove or refresh pins there; the
+  accepted fingerprints live in the client's stores (not in a separate setting),
+  so the GUI and the `hsync` CLI share the same source of truth.
 - **Map port with UPnP** — let the client map its master TCP port on the router
   so peers reached through a bootnode can dial it. It only takes effect when a
   bootnode is set; without a mapping the device stays slave-only.
@@ -69,6 +79,19 @@ For **p2p Mode** (peer-to-peer, no server):
 
 > Controls for features your installed `hsync` binary does not support are
 > automatically disabled, with a tooltip explaining why.
+
+While a p2p sync is running, the app may prompt you when a device presents an
+unrecognised or changed certificate fingerprint (the terminal-free equivalent
+of the client's trust checks):
+
+- **Pairing required** — strict pairing refuses a first-seen fingerprint. Trust
+  it (after verifying it out of band) or ignore it.
+- **Fingerprint changed** — a previously pinned device now presents a different
+  fingerprint, possibly a man-in-the-middle. Trust the new fingerprint, forget
+  the stored key, or ignore it.
+
+Accepting a fingerprint pins it in the client's trust store, so both the app
+and the `hsync` CLI see the same keys.
 
 ## Running and watching a sync
 

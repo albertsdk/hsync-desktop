@@ -75,6 +75,7 @@ command line:
 | `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:621`/`:623`/`:622` |
 | `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` | `:624`/`:625` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` | `:656` |
+| `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` | `:658`/`:659` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals | `:648`–`:660` |
 
 Full signal list: `engine.py:197`–`:222`. Event names + payload shape are SSOT in
@@ -82,6 +83,20 @@ Full signal list: `engine.py:197`–`:222`. Event names + payload shape are SSOT
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
 
 `TransferStats` (`engine.py:45`) accumulates per-session counters (`reset:53`).
+
+## Trust (known-hosts / known-peers) helpers
+
+The GUI edits the client's three SSH-style trust stores through subprocess helpers
+(one `hsync trust …` namespace) so it never touches the store files directly:
+
+| Symbol | Line | Role |
+| ------ | ---- | ---- |
+| `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine.py:220` / `:231` / `:181` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
+| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `:195` / `:209` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
+| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `:259` / `:264` / `:271` | `hsync trust bootnode {list --json,add,remove}` |
+| `list_server_trust` / `add_server_trust` / `remove_server_trust` | `:293` / `:298` / `:305` | `hsync trust server {list --json,add,remove}` |
+| `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `:276` / `:281` / `:288` | `hsync trust peer {list --json,add,remove}` |
+| `supports_peer_trust` | `:310` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
 
 ## Delta transfer compatibility
 

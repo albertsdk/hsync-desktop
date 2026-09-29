@@ -40,6 +40,7 @@ from PySide6.QtCore import (
 
 from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
+    DEFAULT_SERVER_TRUST,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -86,7 +87,11 @@ class TransferStats:
 # (single source of truth).
 from hsync_common.constants import HSYNC_VERSION as _EXPECTED_VERSION
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
-from hsync_common.protocol.capabilities import CapabilitiesDoc, parse_capabilities
+from hsync_common.protocol.capabilities import (
+    CapabilitiesDoc,
+    parse_capabilities,
+    supports_subcommand,
+)
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 
 # Status parsing is no longer regex-based: the child publishes structured
@@ -141,6 +146,13 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     server_url = str(s.value("connection/server_url", "", str)).strip()
     if server_url:
         env.insert("HSYNC_SERVER", server_url)
+    # Server TLS trust policy (ADR-0036): env-driven like the bootnode policy,
+    # so the client's EnvSettings reads it and no CLI flag/gate is involved. The
+    # pin itself lives in the shared server known-hosts store.
+    env.insert(
+        "HSYNC_SERVER_TRUST",
+        str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)),
+    )
     # ADR-0023: SNTP host list for LAN-mode clock correction.
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
@@ -156,36 +168,155 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
             "HSYNC_UPNP_ENABLED",
             "true" if bool(s.value("p2p/upnp_enabled", True, bool)) else "false",
         )
-        fingerprint = str(s.value("p2p/bootnode_fingerprint", "", str)).strip()
-        if fingerprint:
-            env.insert("HSYNC_BOOTNODE_FINGERPRINT", fingerprint)
         # Trust policy (ADR-0035): the GUI cannot answer the client's terminal
-        # prompt, so it always sends an explicit policy.
+        # prompt, so it always sends an explicit policy. The pin itself lives in
+        # the shared known-hosts store (managed by the client CLI / the GUI's
+        # "Manage trusted keys" dialog), not in a GUI-only setting.
         env.insert(
             "HSYNC_BOOTNODE_TRUST",
             str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
         )
 
 
-def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
-    """Read a bootnode certificate fingerprint without trusting it (ADR-0035).
-
-    Runs ``hsync bootnode trust fingerprint <host> [--port <port>]`` with a
-    bounded timeout and returns the canonical fingerprint, or ``None`` when the
-    node cannot be reached. Used by the GUI pre-flight so the operator can
-    confirm an unknown node before the client is started.
-    """
-    args = [binary, "bootnode", "trust", "fingerprint", host]
-    if port:
-        args += ["--port", str(port)]
+def _run_hsync_line(binary: str, args: list[str], timeout: float = 15.0) -> str | None:
+    """Run ``<binary> <args>`` and return the last non-empty stdout line, or None."""
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=15, check=False)
+        result = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     if result.returncode != 0:
         return None
     lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     return lines[-1] if lines else None
+
+
+def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
+    """Read a bootnode certificate fingerprint without trusting it (ADR-0035).
+
+    Runs ``hsync trust bootnode fingerprint <host> [--port <port>]`` with a bounded
+    timeout and returns the canonical fingerprint, or ``None`` when the node cannot
+    be reached. Used by the GUI pre-flight so the operator can confirm an unknown
+    node before the client is started.
+    """
+    args = ["trust", "bootnode", "fingerprint", host]
+    if port:
+        args += ["--port", str(port)]
+    return _run_hsync_line(binary, args)
+
+
+def fetch_server_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
+    """Read a sync-server certificate fingerprint without trusting it (ADR-0036).
+
+    Runs ``hsync trust server fingerprint <host> [--port <port>]`` (raw TLS probe).
+    """
+    args = ["trust", "server", "fingerprint", host]
+    if port:
+        args += ["--port", str(port)]
+    return _run_hsync_line(binary, args)
+
+
+def _run_hsync_success(binary: str, args: list[str], timeout: float = 15.0) -> bool:
+    """Run ``<binary> <args>`` and return True only on a clean exit (code 0)."""
+    try:
+        result = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _run_hsync_json(binary: str, args: list[str], timeout: float = 15.0) -> object | None:
+    """Run ``<binary> <args>`` and parse JSON from stdout; None on any failure."""
+    try:
+        result = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return None
+
+
+def _only_dict_entries(payload: object) -> list[dict] | None:
+    """Return the list if *payload* is a list of dicts, else None."""
+    if not isinstance(payload, list):
+        return None
+    return [entry for entry in payload if isinstance(entry, dict)]
+
+
+def _port_args(port: int | None) -> list[str]:
+    """The ``[--port PORT]`` tail shared by the host trust subcommands."""
+    return ["--port", str(port)] if port else []
+
+
+def list_bootnode_trust(binary: str) -> list[dict] | None:
+    """Return the bootnode known-hosts entries (``hsync trust bootnode list --json``)."""
+    return _only_dict_entries(_run_hsync_json(binary, ["trust", "bootnode", "list", "--json"]))
+
+
+def add_bootnode_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
+    """Pin a bootnode fingerprint (``hsync trust bootnode add``); True on success."""
+    return _run_hsync_success(
+        binary, ["trust", "bootnode", "add", host, fingerprint, *_port_args(port)]
+    )
+
+
+def remove_bootnode_trust(binary: str, host: str, port: int | None = None) -> bool:
+    """Forget a bootnode pin (``hsync trust bootnode remove``); True on success."""
+    return _run_hsync_success(binary, ["trust", "bootnode", "remove", host, *_port_args(port)])
+
+
+def list_peer_pins(binary: str) -> list[dict] | None:
+    """Return the known-peers pins (``hsync trust peer list --json``)."""
+    return _only_dict_entries(_run_hsync_json(binary, ["trust", "peer", "list", "--json"]))
+
+
+def add_peer_pin(binary: str, cid: str, bucket: str, fingerprint: str) -> bool:
+    """Pin a P2P peer fingerprint (``hsync trust peer add``); True on success."""
+    return _run_hsync_success(
+        binary, ["trust", "peer", "add", "--bucket", bucket, cid, fingerprint]
+    )
+
+
+def remove_peer_pin(binary: str, cid: str, bucket: str) -> bool:
+    """Forget a P2P peer pin (``hsync trust peer remove``); True on success."""
+    return _run_hsync_success(binary, ["trust", "peer", "remove", "--bucket", bucket, cid])
+
+
+def list_server_trust(binary: str) -> list[dict] | None:
+    """Return the sync-server known-hosts entries (``hsync trust server list --json``)."""
+    return _only_dict_entries(_run_hsync_json(binary, ["trust", "server", "list", "--json"]))
+
+
+def add_server_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
+    """Pin a sync-server fingerprint (``hsync trust server add``); True on success."""
+    return _run_hsync_success(
+        binary, ["trust", "server", "add", host, fingerprint, *_port_args(port)]
+    )
+
+
+def remove_server_trust(binary: str, host: str, port: int | None = None) -> bool:
+    """Forget a sync-server pin (``hsync trust server remove``); True on success."""
+    return _run_hsync_success(binary, ["trust", "server", "remove", host, *_port_args(port)])
+
+
+def supports_peer_trust(binary: str | None = None) -> bool:
+    """Return True when the binary offers the ``trust`` subcommand.
+
+    An unknown capabilities document (missing/older binary) is treated
+    permissively, mirroring the settings-dialog capability gate.
+    """
+    doc = get_binary_capabilities_cached(binary)
+    if doc is None:
+        return True
+    return supports_subcommand(doc, "trust")
 
 
 def find_hsync_binary() -> str | None:
@@ -475,6 +606,10 @@ class HsyncEngine(QObject):
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
     duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
+    # Trust refusal events (SSH-style): the GUI must answer instead of the
+    # terminal. Scope is "master" (P2P pin), "bootnode" or "server" (known-hosts).
+    pairing_needed = Signal(str, str, str, str)  # scope, peer_cid, peer_address, fingerprint
+    fingerprint_changed = Signal(str, str, str, str)  # scope, peer_cid, peer_address, fingerprint
 
     # Preview signals (emitted during dry-run preview)
     preview_started = Signal()  # preview scan started
@@ -909,6 +1044,20 @@ class HsyncEngine(QObject):
                 self.duplicate_identity.emit(
                     str(event.get("peer_cid", "")),
                     str(event.get("peer_address", "")),
+                )
+            elif name == UiEventName.pairing_needed:
+                self.pairing_needed.emit(
+                    str(event.get("scope", "")),
+                    str(event.get("peer_cid", "")),
+                    str(event.get("peer_address", "")),
+                    str(event.get("fingerprint", "")),
+                )
+            elif name == UiEventName.fingerprint_changed:
+                self.fingerprint_changed.emit(
+                    str(event.get("scope", "")),
+                    str(event.get("peer_cid", "")),
+                    str(event.get("peer_address", "")),
+                    str(event.get("fingerprint", "")),
                 )
             elif name == UiEventName.preview_start:
                 self.preview_started.emit()

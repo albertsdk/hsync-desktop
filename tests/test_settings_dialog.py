@@ -16,7 +16,7 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QLineEdit, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -198,3 +198,55 @@ class TestBootnodeTrustPolicy:
             "none",
         ]
         assert combo.currentData() == "ask"
+
+
+class TestTrustedKeysUi:
+    """The fingerprint field is gone; the store is managed via the dialog."""
+
+    def test_bootnode_fingerprint_widget_is_absent(self, dialog):
+        assert dialog.findChild(QLineEdit, "p2pBootnodeFingerprint") is None
+
+    def test_manage_trusted_keys_button_opens_dialog(self, dialog, monkeypatch):
+        from hsync_desktop.settings import dialog as dialog_mod
+
+        opened: list[str] = []
+
+        class _Fake:
+            def exec(self):
+                opened.append("yes")
+                return 0
+
+        monkeypatch.setattr(dialog_mod, "TrustedKeysDialog", lambda parent: _Fake())
+        dialog.btn_manage_trusted_keys.click()
+        assert opened == ["yes"]
+
+
+class TestServerTrustPolicy:
+    """The server trust combo replaces the dead fingerprint field (ADR-0036)."""
+
+    def test_combo_offers_the_five_policies_and_defaults_to_chain(self, dialog):
+        combo = dialog.server_trust
+        assert [combo.itemData(i) for i in range(combo.count())] == [
+            "chain",
+            "ask",
+            "accept-new",
+            "strict",
+            "none",
+        ]
+        assert combo.currentData() == "chain"
+
+    def test_server_cert_fingerprint_widget_is_absent(self, dialog):
+        assert dialog.findChild(QLineEdit, "serverCertFingerprint") is None
+
+    def test_test_connection_ssl_context_follows_the_policy(self, dialog):
+        import ssl
+
+        # chain -> standard verification
+        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("chain"))
+        assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_REQUIRED
+        # none -> no verification
+        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("none"))
+        assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_NONE
+        # strict (pinning) -> no chain verification (the pin is the trust anchor)
+        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("strict"))
+        assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_NONE

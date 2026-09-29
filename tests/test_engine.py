@@ -17,12 +17,23 @@ from hsync_desktop.engine import (
     _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
+    add_bootnode_trust,
+    add_peer_pin,
+    add_server_trust,
     apply_settings_env,
     fetch_bootnode_fingerprint,
+    fetch_server_fingerprint,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
     is_binary_version_compatible,
+    list_bootnode_trust,
+    list_peer_pins,
+    list_server_trust,
+    remove_bootnode_trust,
+    remove_peer_pin,
+    remove_server_trust,
+    supports_peer_trust,
     write_secret_pipe,
 )
 
@@ -353,25 +364,41 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_BOOTNODE")
         assert not env.contains("HSYNC_UPNP_ENABLED")
 
-    def test_bootnode_fingerprint_and_trust_exported(self):
-        env = self._env_with(
-            {
-                "p2p/bootnode": "boot.example.net",
-                "p2p/bootnode_fingerprint": "sha256:0" * 1 + "0" * 63,
-                "p2p/bootnode_trust": "strict",
-            }
-        )
-        assert env.value("HSYNC_BOOTNODE_FINGERPRINT") == "sha256:0" + "0" * 63
-        assert env.value("HSYNC_BOOTNODE_TRUST") == "strict"
-
     def test_bootnode_trust_defaults_to_ask(self):
         env = self._env_with({"p2p/bootnode": "boot.example.net"})
         assert env.value("HSYNC_BOOTNODE_TRUST") == "ask"
 
-    def test_bootnode_fingerprint_blank_is_skipped(self):
-        env = self._env_with({"p2p/bootnode": "boot.example.net", "p2p/bootnode_fingerprint": "  "})
+    def test_server_trust_policy_is_exported(self):
+        env = self._env_with({"connection/server_trust": "strict"})
+        assert env.value("HSYNC_SERVER_TRUST") == "strict"
+
+    def test_server_trust_defaults_to_chain(self):
+        env = self._env_with({})
+        assert env.value("HSYNC_SERVER_TRUST") == "chain"
+
+    def test_server_pin_is_not_exported_as_env(self):
+        # The pin lives in the shared server known-hosts store, not a GUI env var.
+        env = self._env_with(
+            {
+                "connection/server_cert_fingerprint": "sha256:" + "0" * 64,
+                "connection/server_trust": "strict",
+            }
+        )
+        assert not env.contains("HSYNC_SERVER_CERT_FINGERPRINT")
+        assert not env.contains("HSYNC_SERVER_FINGERPRINT")
+
+    def test_bootnode_pin_is_not_exported_as_env(self):
+        # The pin lives in the shared known-hosts store, not in a GUI-only env
+        # var: a stale HSYNC_BOOTNODE_FINGERPRINT setting must not be sent.
+        env = self._env_with(
+            {
+                "p2p/bootnode": "boot.example.net",
+                "p2p/bootnode_fingerprint": "sha256:" + "0" * 64,
+                "p2p/bootnode_trust": "strict",
+            }
+        )
         assert not env.contains("HSYNC_BOOTNODE_FINGERPRINT")
-        assert env.value("HSYNC_BOOTNODE_TRUST") == "ask"
+        assert env.value("HSYNC_BOOTNODE_TRUST") == "strict"
 
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
@@ -620,10 +647,34 @@ class TestHandleEvent:
                 UiEventName.duplicate_identity,
                 peer_cid="cid1",
                 peer_address="1.2.3.4",
-                message="duplicate",
             )
         )
         assert out == [("cid1", "1.2.3.4")]
+
+    def test_pairing_needed_event(self, engine):
+        out = _capture(engine.pairing_needed)
+        engine._handle_event(
+            build_event(
+                UiEventName.pairing_needed,
+                scope="master",
+                peer_cid="cid1",
+                peer_address="1.2.3.4",
+                fingerprint="a" * 64,
+            )
+        )
+        assert out == [("master", "cid1", "1.2.3.4", "a" * 64)]
+
+    def test_fingerprint_changed_event(self, engine):
+        out = _capture(engine.fingerprint_changed)
+        engine._handle_event(
+            build_event(
+                UiEventName.fingerprint_changed,
+                scope="bootnode",
+                peer_address="boot.example.net:443",
+                fingerprint="b" * 64,
+            )
+        )
+        assert out == [("bootnode", "", "boot.example.net:443", "b" * 64)]
 
     def test_unknown_event_is_ignored(self, engine):
         # Should not raise and should emit nothing observable.
@@ -667,8 +718,8 @@ class TestFetchBootnodeFingerprint:
         assert fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
         assert calls["args"] == [
             "/bin/hsync",
-            "bootnode",
             "trust",
+            "bootnode",
             "fingerprint",
             "boot.example.net",
         ]
@@ -707,3 +758,118 @@ class TestFetchBootnodeFingerprint:
 
         monkeypatch.setattr("hsync_desktop.engine.subprocess.run", boom)
         assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+
+
+class TestTrustSubprocessHelpers:
+    """The known-hosts / known-peers subprocess helpers (SSH-style trust)."""
+
+    @staticmethod
+    def _ok(stdout: str) -> object:
+        import types
+
+        return types.SimpleNamespace(returncode=0, stdout=stdout)
+
+    def test_list_bootnode_trust_returns_entries(self, monkeypatch):
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: self._ok('[{"host": "b", "port": 443, "fingerprint": "f"}]'),
+        )
+        assert list_bootnode_trust("/bin/hsync") == [{"host": "b", "port": 443, "fingerprint": "f"}]
+
+    def test_list_peer_pins_returns_entries(self, monkeypatch):
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: self._ok('[{"cid": "c", "bucket": "bk", "fingerprint": "f"}]'),
+        )
+        assert list_peer_pins("/bin/hsync") == [{"cid": "c", "bucket": "bk", "fingerprint": "f"}]
+
+    def test_list_returns_none_on_bad_json(self, monkeypatch):
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: self._ok("not json"),
+        )
+        assert list_bootnode_trust("/bin/hsync") is None
+        assert list_peer_pins("/bin/hsync") is None
+
+    def test_add_and_remove_return_success_flag(self, monkeypatch):
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", lambda *a, **k: self._ok(""))
+        assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is True
+        assert remove_bootnode_trust("/bin/hsync", "b") is True
+        assert add_peer_pin("/bin/hsync", "c", "bk", "f" * 64) is True
+        assert remove_peer_pin("/bin/hsync", "c", "bk") is True
+
+        import types
+
+        monkeypatch.setattr(
+            "hsync_desktop.engine.subprocess.run",
+            lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
+        )
+        assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is False
+        assert remove_peer_pin("/bin/hsync", "c", "bk") is False
+
+    def test_supports_peer_trust_is_permissive_without_capabilities(self, monkeypatch):
+        monkeypatch.setattr("hsync_desktop.engine.get_binary_capabilities_cached", lambda *a: None)
+        assert supports_peer_trust("/bin/hsync") is True
+
+    def test_supports_peer_trust_reads_subcommands(self, monkeypatch):
+        doc = {"app": "hsync", "app_version": "1.0.0", "subcommands": ["server", "p2p"]}
+        monkeypatch.setattr("hsync_desktop.engine.get_binary_capabilities_cached", lambda *a: doc)
+        assert supports_peer_trust("/bin/hsync") is False
+
+        doc["subcommands"].append("trust")
+        assert supports_peer_trust("/bin/hsync") is True
+
+
+class TestServerTrustSubprocessHelpers:
+    """The server trust helpers use the ``hsync trust server`` namespace (ADR-0036)."""
+
+    @staticmethod
+    def _ok(stdout: str = "") -> object:
+        import types
+
+        return types.SimpleNamespace(returncode=0, stdout=stdout)
+
+    def test_list_uses_the_trust_server_namespace(self, monkeypatch):
+        import types
+
+        calls: list[list[str]] = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return self._ok("[]")
+
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        assert list_server_trust("/bin/hsync") == []
+        assert calls[0] == ["/bin/hsync", "trust", "server", "list", "--json"]
+
+    def test_add_and_remove_include_the_port(self, monkeypatch):
+        import types
+
+        calls: list[list[str]] = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return self._ok("")
+
+        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        assert add_server_trust("/bin/hsync", "h", "f" * 64, 9753) is True
+        assert remove_server_trust("/bin/hsync", "h", 9753) is True
+        assert calls[0] == [
+            "/bin/hsync",
+            "trust",
+            "server",
+            "add",
+            "h",
+            "f" * 64,
+            "--port",
+            "9753",
+        ]
+        assert calls[1] == [
+            "/bin/hsync",
+            "trust",
+            "server",
+            "remove",
+            "h",
+            "--port",
+            "9753",
+        ]

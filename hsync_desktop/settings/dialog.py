@@ -12,6 +12,7 @@ Contains SettingsDialog, ApiKeyDialog, and P2PKeyDialog.
 
 from __future__ import annotations
 
+import ssl
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -66,7 +67,6 @@ from hsync_desktop.config import (
     DEFAULT_NOTIFICATIONS,
     DEFAULT_NTP_HOSTS,
     DEFAULT_P2P_BOOTNODE,
-    DEFAULT_P2P_BOOTNODE_FINGERPRINT,
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_KEY,
@@ -76,7 +76,7 @@ from hsync_desktop.config import (
     DEFAULT_QUIET,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
-    DEFAULT_SERVER_CERT_FINGERPRINT,
+    DEFAULT_SERVER_TRUST,
     DEFAULT_SHOW_LOG_PANEL,
     DEFAULT_STABILITY_DELAY,
     DEFAULT_SYNC_DIRECTION,
@@ -96,6 +96,7 @@ from hsync_desktop.i18n import (
 from hsync_desktop.icons import icon
 from hsync_desktop.settings.cli_args import secure_config_file
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
+from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
@@ -263,11 +264,10 @@ class SettingsDialog(QDialog):
         self.ca_cert: QLineEdit = self.findChild(QLineEdit, "caCert")  # type: ignore[assignment]
         self.http_timeout: QSpinBox = self.findChild(QSpinBox, "httpTimeout")  # type: ignore[assignment]
 
-        # Add server_cert_fingerprint field dynamically (after ca_cert)
-        self.server_cert_fingerprint = QLineEdit(self)
-        self.server_cert_fingerprint.setObjectName("serverCertFingerprint")
-        self.server_cert_fingerprint.setPlaceholderText("SHA-256 hex fingerprint")
-        self._lbl_cert_fingerprint = QLabel(self)
+        # Server TLS trust policy combo (ADR-0036), inserted after http_timeout.
+        self.server_trust = QComboBox(self)
+        self.server_trust.setObjectName("serverTrust")
+        self._lbl_server_trust = QLabel(self)
 
         self.resync: QSpinBox = self.findChild(QSpinBox, "resync")  # type: ignore[assignment]
         self.retry_delay: QSpinBox = self.findChild(QSpinBox, "retryDelay")  # type: ignore[assignment]
@@ -316,18 +316,6 @@ class SettingsDialog(QDialog):
         self._lbl_p2p_bootnode = QLabel(self)
         _insert_row_after(self.p2p_group, self._lbl_p2p_bootnode, self.p2p_bootnode)
 
-        # Bootnode certificate fingerprint pin (ADR-0035) – dynamic, inserted
-        # right after the bootnode row.
-        self.p2p_bootnode_fingerprint = QLineEdit(self)
-        self.p2p_bootnode_fingerprint.setObjectName("p2pBootnodeFingerprint")
-        self.p2p_bootnode_fingerprint.setPlaceholderText("sha256:...")
-        self._lbl_p2p_bootnode_fingerprint = QLabel(self)
-        _insert_row_after(
-            self.p2p_bootnode,
-            self._lbl_p2p_bootnode_fingerprint,
-            self.p2p_bootnode_fingerprint,
-        )
-
         # Trust policy (ADR-0035): how the client authenticates the bootnode.
         self.p2p_bootnode_trust = QComboBox(self)
         self.p2p_bootnode_trust.setObjectName("p2pBootnodeTrust")
@@ -339,7 +327,19 @@ class SettingsDialog(QDialog):
         hl_trust.addWidget(self._lbl_p2p_bootnode_trust)
         hl_trust.addStretch()
         self._populate_bootnode_trust()
-        _insert_row_after(self.p2p_bootnode_fingerprint, QLabel(""), trust_container)
+        _insert_row_after(self.p2p_bootnode, QLabel(""), trust_container)
+
+        # Manage trusted keys (ADR-0035): opens the known-hosts / known-peers
+        # dialog that edits the shared stores via the hsync CLI.
+        self.btn_manage_trusted_keys = QPushButton(self)
+        self.btn_manage_trusted_keys.setObjectName("btnManageTrustedKeys")
+        self.btn_manage_trusted_keys.clicked.connect(self._open_trusted_keys)
+        manage_container = QWidget(self)
+        hl_manage = QHBoxLayout(manage_container)
+        hl_manage.setContentsMargins(0, 0, 0, 0)
+        hl_manage.addWidget(self.btn_manage_trusted_keys)
+        hl_manage.addStretch()
+        _insert_row_after(trust_container, QLabel(""), manage_container)
 
         # UPnP toggle for the master TCP port (only effective with a bootnode).
         self.p2p_upnp = ToggleSwitch(self)
@@ -351,7 +351,7 @@ class SettingsDialog(QDialog):
         hl_upnp.addWidget(self.p2p_upnp)
         hl_upnp.addWidget(self._lbl_p2p_upnp)
         hl_upnp.addStretch()
-        _insert_row_after(trust_container, QLabel(""), upnp_container)
+        _insert_row_after(manage_container, QLabel(""), upnp_container)
 
         # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
         # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
@@ -480,14 +480,12 @@ class SettingsDialog(QDialog):
             conn_layout = conn_tab.layout()
             if isinstance(conn_layout, QFormLayout):
                 conn_layout.insertRow(0, self._p2p_banner)
-                # Insert server_cert_fingerprint after http_timeout row,
-                # then Test Connection button after cert fingerprint
+                # Insert the server trust-policy combo after the http_timeout
+                # row, then the Test Connection button below it.
                 for row in range(conn_layout.rowCount()):
                     item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                     if item and item.widget() == self.http_timeout:
-                        conn_layout.insertRow(
-                            row + 1, self._lbl_cert_fingerprint, self.server_cert_fingerprint
-                        )
+                        conn_layout.insertRow(row + 1, self._lbl_server_trust, self.server_trust)
                         conn_layout.insertRow(row + 2, "", self.btn_test_connection)
                         break
 
@@ -522,6 +520,25 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode_trust.addItem(tr(key), value)
         index = self.p2p_bootnode_trust.findData(current)
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
+
+    def _open_trusted_keys(self) -> None:
+        """Open the known-hosts / known-peers management dialog."""
+        TrustedKeysDialog(self).exec()
+
+    def _populate_server_trust(self) -> None:
+        """Fill the server trust-policy combo (ADR-0036), preserving selection."""
+        current = self.server_trust.currentData()
+        self.server_trust.clear()
+        for value, key in (
+            ("chain", "settings.server_trust_chain"),
+            ("ask", "settings.server_trust_ask"),
+            ("accept-new", "settings.server_trust_accept_new"),
+            ("strict", "settings.server_trust_strict"),
+            ("none", "settings.server_trust_none"),
+        ):
+            self.server_trust.addItem(tr(key), value)
+        index = self.server_trust.findData(current)
+        self.server_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def _reorganize_sync_tab(self) -> None:
         """Reorganize the Sync tab into grouped sections using QGroupBox."""
@@ -636,6 +653,8 @@ class SettingsDialog(QDialog):
         lbl = self.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
         if lbl:
             lbl.setText(tr("settings.http_timeout"))
+        self._lbl_server_trust.setText(tr("settings.server_trust"))
+        self._populate_server_trust()
         self.btn_test_connection.setText(tr("settings.test_connection"))
 
         # Sync tab labels
@@ -691,9 +710,9 @@ class SettingsDialog(QDialog):
         if lbl:
             lbl.setText(tr("settings.p2p_port"))
         self._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
-        self._lbl_p2p_bootnode_fingerprint.setText(tr("settings.p2p_bootnode_fingerprint"))
         self._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
         self._populate_bootnode_trust()
+        self.btn_manage_trusted_keys.setText(tr("settings.manage_trusted_keys"))
         self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
@@ -758,6 +777,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.api_key, "tip.api_key", tips)
         _maybe_tip(self.insecure, "tip.insecure", tips)
         _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
+        _maybe_tip(self.server_trust, "tip.server_trust", tips)
         _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
 
         # p2p tab
@@ -998,7 +1018,9 @@ class SettingsDialog(QDialog):
         try:
             timeout = max(5, self.http_timeout.value())
             req = urllib.request.Request(health_url, method="GET")
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(
+                req, timeout=timeout, context=self._test_connection_ssl_context()
+            ) as resp:
                 success = resp.status == 200
         except urllib.error.HTTPError as exc:
             success = exc.code == 200
@@ -1021,6 +1043,33 @@ class SettingsDialog(QDialog):
             )
 
     # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _test_connection_ssl_context(self) -> ssl.SSLContext:
+        """SSL context for the Test Connection probe, honouring TLS settings.
+
+        The probe must agree with how the client will connect: ``--insecure`` /
+        ``none`` skip verification, ``--ca-cert`` anchors it, a pinning policy
+        (``ask``/``accept-new``/``strict``) trusts the fingerprint rather than the
+        chain (the button cannot prompt, so it probes without chain validation —
+        the real client still enforces the pin), and ``chain`` uses the default CA.
+        """
+        policy = self.server_trust.currentData()
+        if self.insecure.isChecked() or policy == "none":
+            return self._unverified_ssl_context()
+        ca_cert = self.ca_cert.text().strip()
+        if ca_cert and Path(ca_cert).exists():
+            return ssl.create_default_context(cafile=ca_cert)
+        if policy in ("ask", "accept-new", "strict"):
+            return self._unverified_ssl_context()
+        return ssl.create_default_context()
+
+    @staticmethod
+    def _unverified_ssl_context() -> ssl.SSLContext:
+        """An SSLContext that skips chain/hostname verification (fingerprint mode)."""
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
 
     def _tips_enabled(self) -> bool:
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
@@ -1097,7 +1146,7 @@ class SettingsDialog(QDialog):
         s.setValue("connection/api_key", encrypt_value(self.api_key.text()))
         s.setValue("connection/insecure", self.insecure.isChecked())
         s.setValue("connection/ca_cert", self.ca_cert.text())
-        s.setValue("connection/server_cert_fingerprint", self.server_cert_fingerprint.text())
+        s.setValue("connection/server_trust", self.server_trust.currentData())
         s.setValue("connection/http_timeout", self.http_timeout.value())
         s.setValue("sync/bucket", self.bucket.text())
         s.setValue("sync/continuous", self.continuous.isChecked())
@@ -1117,7 +1166,6 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/enabled", self.p2p_mode.isChecked())
         s.setValue("p2p/group", self.p2p_group.text())
         s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
-        s.setValue("p2p/bootnode_fingerprint", self.p2p_bootnode_fingerprint.text().strip())
         s.setValue(
             "p2p/bootnode_trust",
             self.p2p_bootnode_trust.currentData() or DEFAULT_P2P_BOOTNODE_TRUST,
@@ -1158,9 +1206,10 @@ class SettingsDialog(QDialog):
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", DEFAULT_INSECURE, bool)))
         self.ca_cert.setText(str(s.value("connection/ca_cert", DEFAULT_CA_CERT, str)))
-        self.server_cert_fingerprint.setText(
-            str(s.value("connection/server_cert_fingerprint", DEFAULT_SERVER_CERT_FINGERPRINT, str))
+        trust_index = self.server_trust.findData(
+            s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)
         )
+        self.server_trust.setCurrentIndex(trust_index if trust_index >= 0 else 0)
         self.http_timeout.setValue(
             cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int))
         )
@@ -1204,9 +1253,6 @@ class SettingsDialog(QDialog):
         self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
         self.p2p_bootnode.setText(str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)))
-        self.p2p_bootnode_fingerprint.setText(
-            str(s.value("p2p/bootnode_fingerprint", DEFAULT_P2P_BOOTNODE_FINGERPRINT, str))
-        )
         index = self.p2p_bootnode_trust.findData(
             str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str))
         )
