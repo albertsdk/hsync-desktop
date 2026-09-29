@@ -590,7 +590,9 @@ class HsyncEngine(QObject):
     master_changed = Signal(bool)  # True ⇒ this client is master
     bucket_detected = Signal(str)  # bucket name
     group_detected = Signal(str)  # p2p group name
-    discovery_changed = Signal(str, str)  # plan ("mdns"|"bootnode"), bootnode host ("" with mDNS)
+    discovery_changed = Signal(
+        str, str
+    )  # plan ("mdns"|"mdns+bootnode"), bootnode host ("" without one)
     file_transferred = Signal(str, str)  # direction ("↓"|"↑"|"✕"), filename
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
