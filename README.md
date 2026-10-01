@@ -187,16 +187,16 @@ The application searches for the `hsync` binary in this order:
 3. **Sibling project** (development): `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
    — the platform tag (e.g. `linux-amd64`, `darwin-arm64`) is detected at runtime
 
-### Associated Ecosystem Components
+## Associated Ecosystem Components
 
-- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and p2p Mode)
-- [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
-- [HSYNC Desktop](https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
-- [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.
-- [HSYNC Bootnode](https://github.com/albertsdk/hsync-bootnode/blob/main/README.md) — Optional Internet discovery node for P2P topologies; exposed as the p2p *Bootnode* setting *(v1 — stable)*.
+The other components of the HSYNC ecosystem:
 
-> **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
-> are still under active development and are not yet ready for production use.
+- [HSYNC Main](https://github.com/albertsdk/hsync/blob/main/README.md) — Umbrella repository and project overview.
+- [HSYNC Common](https://github.com/albertsdk/hsync-common/blob/main/README.md) — Shared library: data models, protocol, delta transfer, hashing.
+- [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) — Central sync hub: REST API, WebSocket relay, file storage.
+- [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) — CLI client: Server Mode and p2p Mode.
+- [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/README.md) — Android client app. *(in development)*
+- [HSYNC Bootnode](https://github.com/albertsdk/hsync-bootnode/blob/main/README.md) — Optional Internet discovery node for P2P (`boot/1`, no-log, RAM-only).
 
 ## Security
 
