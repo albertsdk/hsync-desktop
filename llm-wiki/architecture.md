@@ -75,8 +75,8 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
   `HSYNC_VERSION`), `-h/--help`.
 - Native and rpi share the PyInstaller flags and `--add-data` logic
-  (`_onefile_pyi_flags` `compile.sh:257`, `_add_data_args` `compile.sh:276`);
-  `build_binary` (`compile.sh:318`) and `build_rpi` (`compile.sh:371`) differ
+  (`_onefile_pyi_flags` `compile.sh:295`, `_add_data_args` `compile.sh:331`);
+  `build_binary` (`compile.sh:373`) and `build_rpi` (`compile.sh:426`) differ
   only in the runner and output path.
 - The `deb`/`deb-all` targets share `_onedir_pyi_flags` and stage
   `packaging/deb/` (DEBIAN control + maintainer scripts, `.desktop` entry,
@@ -88,7 +88,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   cannot be built for 32-bit armhf. The `rpi` target produces arm64 only and
   prints an informational note instead of failing; `deb-all` likewise builds
   amd64 + arm64 only.
-- `clean_artifacts` (`compile.sh:211`) removes the whole `dist/` tree (all
+- `clean_artifacts` (`compile.sh:233`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
 - Docker is required **only** inside `build_rpi` and `build_deb_all`; the
   `native` and `deb` targets never call Docker.
