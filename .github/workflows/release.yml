@@ -1,0 +1,229 @@
+name: Release
+
+# Publish prebuilt desktop bundles (self-contained: the client engine is
+# embedded), the Debian/Ubuntu .deb packages and the install.sh installer as
+# GitHub Release assets. There is intentionally no container image: hsync-desktop
+# is a GUI application and has no Docker deployment mode.
+#
+# Two triggers:
+# 1. vX.Y.Z tag pushed  →  create a formal Release.
+# 2. workflow_dispatch  →  build artifacts (optionally create a Release).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub Release (otherwise just build artifacts)"
+        type: boolean
+        default: false
+      version_suffix:
+        description: "Optional version suffix (e.g. 'dev', 'test123')"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: hsync-desktop }
+      - uses: actions/checkout@v7
+        with:
+          repository: albertsdk/hsync-common
+          ref: main
+          path: hsync-common
+          token: ${{ secrets.HSYNC_COMMON_PAT }}
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.13" }
+      - name: Docs link-check
+        working-directory: hsync-desktop
+        run: python ../hsync-common/scripts/dev/check_doc_links.py .
+      - run: pipx install poetry
+      - name: Install dependencies
+        working-directory: hsync-desktop
+        run: poetry install --no-interaction --without build
+      - name: Lint
+        working-directory: hsync-desktop
+        run: |
+          poetry run ruff check .
+          poetry run ruff format --check .
+      - name: Tests
+        working-directory: hsync-desktop
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: poetry run pytest -q
+
+  build-binaries:
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: linux-amd64,   ext: "",     archive: tar }
+          - { os: ubuntu-24.04-arm,  target: linux-arm64,   ext: "",     archive: tar }
+          - { os: macos-latest,     target: darwin-arm64,  ext: "",     archive: tar }
+          - { os: macos-15-intel,   target: darwin-amd64,  ext: "",     archive: tar }
+          - { os: windows-latest,   target: windows-amd64, ext: ".exe", archive: zip }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: hsync-desktop }
+      # The desktop bundles the client engine into the binary, so the client
+      # (and its own path dependency hsync-common) must be present and built
+      # for the same platform first.
+      - uses: actions/checkout@v7
+        with:
+          repository: albertsdk/hsync-client
+          ref: main
+          path: hsync-client
+          token: ${{ secrets.HSYNC_COMMON_PAT }}
+      - uses: actions/checkout@v7
+        with:
+          repository: albertsdk/hsync-common
+          ref: main
+          path: hsync-common
+          token: ${{ secrets.HSYNC_COMMON_PAT }}
+      - name: Install Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.13" }
+      - run: pipx install poetry
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            BASE=$(grep -E '^version\s*=' hsync-desktop/pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            SUFFIX="${{ inputs.version_suffix }}"
+            if [ -n "$SUFFIX" ]; then echo "version=${BASE}-${SUFFIX}" >> "$GITHUB_OUTPUT"; else echo "version=${BASE}" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - name: Build the client engine
+        working-directory: hsync-client
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --with build --no-interaction
+          ./compile.sh
+      - name: Build the desktop binary
+        working-directory: hsync-desktop
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --with build --no-interaction
+          ./compile.sh
+      - name: Package binary
+        working-directory: hsync-desktop
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          stage="hsync-desktop-${version}-${{ matrix.target }}"
+          mkdir -p "release-out/${stage}"
+          cp "dist/${{ matrix.target }}/hsync-desktop${{ matrix.ext }}" "release-out/${stage}/"
+          cd release-out
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "${stage}.zip" "${stage}"
+          else
+            tar czf "${stage}.tar.gz" "${stage}"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bin-${{ matrix.target }}
+          path: hsync-desktop/release-out/*
+
+  build-packages:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: hsync-desktop }
+      - uses: actions/checkout@v7
+        with:
+          repository: albertsdk/hsync-common
+          ref: main
+          path: hsync-common
+          token: ${{ secrets.HSYNC_COMMON_PAT }}
+      # The .deb packages are cross-built for arm64 under qemu-user. The QEMU
+      # that ships with the ubuntu-latest runner has regressed and makes gcc
+      # crash deterministically with SIGSEGV (exit 139) while emitting -O3 code
+      # for some CPython/OpenSSL translation units, aborting the source builds
+      # even at -j1. Register a pinned, known-good QEMU/binfmt build instead of
+      # relying on the runner default. A recent QEMU (v10.x) is required: older
+      # lines (e.g. v7.0.0) avoid the gcc SIGSEGV but regress the emulated link
+      # step, making CPython's libm probe fail with "requires C99 compatible
+      # libm" during ./configure.
+      - name: Set up QEMU (pinned, known-good)
+        uses: docker/setup-qemu-action@v4
+        with:
+          image: tonistiigi/binfmt:qemu-v10.1.3
+          platforms: arm,arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build .deb packages
+        working-directory: hsync-desktop
+        run: ./compile.sh --target deb-all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: hsync-desktop/dist/deb/*.deb
+
+  release:
+    needs: [build-binaries, build-packages]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: hsync-desktop }
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            BASE=$(grep -E '^version\s*=' hsync-desktop/pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            SUFFIX="${{ inputs.version_suffix }}"
+            if [ -n "$SUFFIX" ]; then echo "tag=v${BASE}-${SUFFIX}" >> "$GITHUB_OUTPUT"; else echo "tag=v${BASE}" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Flatten assets
+        run: |
+          cd assets
+          find . -mindepth 2 -type f -exec mv -t . {} +
+          find . -mindepth 1 -type d -empty -delete
+      - name: Prepare installer
+        run: |
+          sed "s/^readonly DEFAULT_VERSION=.*/readonly DEFAULT_VERSION=\"${{ steps.tag.outputs.tag }}\"/" \
+            hsync-desktop/install.sh > "assets/install.sh"
+          chmod 755 "assets/install.sh"
+      - name: Generate checksums
+        run: |
+          cd assets
+          sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v3
+        if: github.event_name == 'push' || inputs.create_release
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: assets/*
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
+          make_latest: ${{ ! contains(steps.tag.outputs.tag, '-') }}

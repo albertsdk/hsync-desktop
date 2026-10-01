@@ -23,8 +23,8 @@ without touching the command line.
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)](https://www.qt.io/)
 
 **Quick navigation:**
-- **New to HSYNC?** Start with the [Features](#features) overview above and [Quick Start](#quick-start)
-- **Ready to build from source?** Jump to [Build](#build)
+- **New to HSYNC?** Start with the [Features](#features) overview and [Getting started](#getting-started)
+- **Configuring the app?** See the [Configuration Reference](docs/configuration.md)
 - **Want to contribute?** See [Contributing](CONTRIBUTING.md)
 - **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
 
@@ -55,137 +55,23 @@ For building:
 - Poetry (for dependency management)
 
 For running:
-- The compiled `hsync` binary from [hsync-client](https://github.com/albertsdk/hsync-client)
+- The compiled `hsync` binary from [hsync-client](https://github.com/albertsdk/hsync-client),
+  bundled in the standalone builds or installed as the `hsync-client` package
 
-## Quick Start
+## Getting started
 
-```bash
-cd hsync-desktop
+HSYNC Desktop installs with one command, as a standalone download, as a `.deb`,
+or from source. It is a **desktop application only** — there is no Docker or
+server mode. Pick one method in the [Getting Started](docs/getting-started.md)
+chooser:
 
-# Install dependencies
-poetry install
+- [Installer script](docs/getting-started-script.md) — one `curl` command (Linux/macOS);
+- [Standalone binary](docs/getting-started-binary.md) — download and extract;
+- [Debian package](docs/getting-started-deb.md) — system package for Debian/Ubuntu;
+- [From source](docs/getting-started-source.md) — clone and run.
 
-# Run the application
-poetry run python -m hsync_desktop
-```
-
-## Build
-
-### Native (host OS/arch)
-
-```bash
-# Compile hsync-client first (required for a self-contained bundle)
-cd ../hsync-client && ./compile.sh && cd ../hsync-desktop
-
-# Install dependencies (first time only)
-poetry install
-
-# Compile the desktop binary
-./compile.sh
-# Binary output: dist/<os>-<arch>/hsync-desktop  (e.g. dist/linux-amd64/hsync-desktop)
-```
-
-Both compile scripts detect the current platform automatically using `uname`.
-The desktop build looks for the client binary at
-`../hsync-client/dist/<os>-<arch>/hsync[.exe]` and bundles it into the resulting
-executable when found; when it is missing the build warns and the app falls back
-to the `hsync` binary on `PATH` at runtime.
-
-### Raspberry Pi OS (64-bit)
-
-```bash
-./compile.sh --target rpi
-# Binary output: dist/rpi/arm64/hsync-desktop  (Raspberry Pi OS 64-bit / aarch64)
-```
-
-The `rpi` target cross-builds the arm64 onefile binary inside an emulated Debian
-Bookworm container, so it requires Docker with `qemu-user-static` (binfmt)
-configured on the host. To bundle the client as well, build its arm64 Raspberry
-Pi binary first with `cd ../hsync-client && ./compile.sh --target rpi`; the
-desktop build looks for it at `../hsync-client/dist/rpi/arm64/hsync`.
-
-> **32-bit armhf is not supported for the GUI.** PySide6 publishes no armv7
-> Linux wheels, so the Qt desktop cannot be built for 32-bit Raspberry Pi OS;
-> only the 64-bit (arm64) target is produced.
-
-### Build Options
-
-```bash
-./compile.sh                    # Native host build (default)
-./compile.sh --clean            # Clean artifacts and rebuild
-./compile.sh --target native    # Explicit native build
-./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
-./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
-./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
-./compile.sh --version 1.2.3    # Override the reported version
-./compile.sh --help             # Show help
-```
-
-The version can also be set through the `HSYNC_VERSION` environment variable.
-
-## Configuration
-
-All settings are managed through the GUI Settings dialog and persisted via QSettings.
-
-### Server Mode
-
-| Setting | Description |
-|---------|-------------|
-| Server URL | HSYNC server address |
-| API Key | Authentication key |
-| Server trust policy | Standard CA validation, ask on first use, accept new, require a pin, or no verification |
-| SSL verification | Skip or use custom CA certificate |
-| HTTP Timeout | Request timeout in seconds |
-
-### Sync
-
-| Setting | Description |
-|---------|-------------|
-| Bucket | Bucket name (required) |
-| Continuous | Watch for changes |
-| Re-sync interval | Force full sync every N seconds |
-| Ignore deletions | Backup mode |
-| Compression | Enable/disable transfer compression |
-| Delta transfer | Rsync-style block sync for large files (enabled by default) |
-
-### p2p Mode
-
-| Setting | Description |
-|---------|-------------|
-| Enable p2p | Peer-to-peer mode without a server |
-| Force master / Never master | Control master election for this device |
-| Require pairing | Only sync with explicitly paired peers |
-| p2p key | Shared secret for the p2p group |
-| Bootnode | Hostname of an optional `boot/1` node for cross-network discovery |
-| Bootnode trust policy | Ask on first use, accept new, require a pin, or no verification |
-| Manage trusted keys | List, add and remove bootnode, server and peer fingerprints |
-| Map port with UPnP | Map the master port so peers reached through a bootnode can dial it |
-| NTP servers | SNTP servers for p2p clock-offset measurement |
-
-### Log
-
-| Setting | Description |
-|---------|-------------|
-| Verbose output | Enable verbose (debug-level) logging |
-| Quiet mode | Suppress non-warning output |
-| Log file | Path to the log file |
-| Show log panel | Toggle the in-app log viewer |
-
-### Appearance
-
-| Setting | Description |
-|---------|-------------|
-| Theme | Light or Dark |
-| Notifications | Enable/disable desktop push notifications |
-
-## hsync Binary Discovery
-
-The application searches for the `hsync` binary in this order:
-
-1. **Bundled**: `hsync_desktop/bin/hsync[.exe]` (included in compiled builds)
-2. **System PATH**: `which hsync`
-3. **Sibling project** (development): `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
-   — the platform tag (e.g. `linux-amd64`, `darwin-arm64`) is detected at runtime
+Then configure a connection in the [Configuration Reference](docs/configuration.md)
+and run a sync with the [Usage Guide](docs/usage.md).
 
 ## Associated Ecosystem Components
 

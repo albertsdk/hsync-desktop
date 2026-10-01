@@ -92,3 +92,17 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   platform outputs including `dist/rpi`), `build` and the spec file.
 - Docker is required **only** inside `build_rpi` and `build_deb_all`; the
   `native` and `deb` targets never call Docker.
+
+### Distribution & install entry points
+
+HSYNC Desktop ships as a desktop application — there is **no Docker/server
+deployment mode**:
+
+| Method | Files |
+|---|---|
+| `.deb` (amd64/arm64) | `compile.sh -t deb\|deb-all` + `packaging/deb/` (`Depends: hsync-client`, no client bundled) |
+| Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
+| Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
+| From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
+| Release | `.github/workflows/release.yml` publishes the native archives (client bundled), the `.deb` packages and `install.sh`; no container image |
+| Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide |
