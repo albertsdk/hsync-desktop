@@ -20,6 +20,8 @@
 #                                         arch
 #                               rpm-all   .rpm for x86_64 and aarch64 (via
 #                                         Docker, Rocky Linux 9 baseline)
+#                               appimage  Portable Linux x86_64 .AppImage
+#                                         (self-contained, client bundled)
 #                               rpi       Raspberry Pi OS 64-bit (arm64)
 #                                         onefile binary via Docker
 #   -v, --version VERSION   Override the version used for packages (default:
@@ -38,6 +40,8 @@
 #     any RHEL/Rocky/Fedora system via rpm-build)
 #   - deb-all / rpm-all / rpi targets: Docker with qemu-user-static (binfmt)
 #     configured (used for arm64 emulation on amd64 hosts)
+#   - appimage target: Python virtual environment (.venv) + curl or wget (to
+#     fetch appimagetool on first run); Linux x86_64 only
 #
 # Raspberry Pi (rpi) target:
 #   The rpi target builds the arm64 (64-bit) Raspberry Pi OS binary ONLY. The
@@ -62,6 +66,8 @@
 #   rpm-all:
 #     - dist/rpm/hsync-desktop-<ver>-1.el9.x86_64.rpm
 #     - dist/rpm/hsync-desktop-<ver>-1.el9.aarch64.rpm
+#   appimage:
+#     - dist/appimage/hsync-desktop-<ver>-x86_64.AppImage
 #   rpi:
 #     - dist/rpi/arm64/hsync-desktop   Raspberry Pi OS 64-bit (aarch64)
 #
@@ -116,6 +122,20 @@ readonly RPI_DOCKERFILE="${RPI_DIR}/Dockerfile.builder"
 readonly RPI_OUTPUT_DIR="${OUTPUT_BASE}/rpi"
 readonly RPI_BUILDER_IMAGE_PREFIX="hsync-desktop-rpi-builder"
 readonly RPI_CLIENT_BINARY="../hsync-client/dist/rpi/arm64/hsync"
+
+# AppImage target (Linux x86_64 only). The AppImage wraps the self-contained
+# PyInstaller onefile binary (client engine bundled) using appimagetool. Qt and
+# Python are already inside the PyInstaller binary, so no linuxdeploy dependency
+# scan or Qt plugin is needed — and bundling system libs (glibc) would be wrong.
+readonly APPIMAGE_DIR="packaging/appimage"
+readonly APPIMAGE_OUTPUT_DIR="${OUTPUT_BASE}/appimage"
+readonly APPIMAGE_CACHE_DIR="${APPIMAGE_DIR}/.cache"
+readonly APPIMAGE_TOOL="${APPIMAGE_CACHE_DIR}/appimagetool-x86_64.AppImage"
+readonly APPIMAGE_TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+# Desktop payload reused for the AppImage icon and .desktop entry.
+readonly DEB_ICON_PNG="packaging/deb/usr/share/icons/hicolor/1024x1024/apps/${APP_NAME}.png"
+readonly DEB_ICON_SVG="packaging/deb/usr/share/icons/hicolor/scalable/apps/${APP_NAME}.svg"
+readonly DEB_DESKTOP_FILE="packaging/deb/usr/share/applications/${APP_NAME}.desktop"
 
 # -----------------------------------------------------------------------------
 # Colors (disabled if not a terminal)
@@ -203,7 +223,7 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Options:${RESET}
     -c, --clean             Clean build artifacts before building
     -t, --target TARGET     Build target (default: native)
-                            Supported: native, deb, deb-all, rpi
+                            Supported: native, deb, deb-all, rpm, rpm-all, appimage, rpi
     -v, --version VERSION   Override the version used for packages
                             (default: pyproject.toml). Also settable via
                             HSYNC_VERSION.
@@ -219,6 +239,7 @@ ${BOLD}Targets:${RESET}
     rpm       RHEL-family .rpm package for the host arch (depends on
               hsync-client).
     rpm-all   .rpm for x86_64 and aarch64 via Docker (Rocky Linux 9).
+    appimage  Portable self-contained .AppImage for Linux x86_64.
     rpi       Raspberry Pi OS 64-bit (arm64) onefile binary via Docker.
 
 ${BOLD}Examples:${RESET}
@@ -229,6 +250,7 @@ ${BOLD}Examples:${RESET}
     ./compile.sh --target deb-all   # .deb for amd64 + arm64
     ./compile.sh --target rpm       # .rpm for host arch (RHEL-family)
     ./compile.sh --target rpm-all   # .rpm for x86_64 + aarch64
+    ./compile.sh --target appimage  # Portable Linux x86_64 .AppImage
     ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
 
 ${BOLD}Output:${RESET}
@@ -244,6 +266,8 @@ ${BOLD}Output:${RESET}
     rpm-all:
         ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el9.x86_64.rpm
         ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el9.aarch64.rpm
+    appimage:
+        ${APPIMAGE_OUTPUT_DIR}/${APP_NAME}-<ver>-x86_64.AppImage
     rpi:
         ${RPI_OUTPUT_DIR}/arm64/${APP_NAME}   Raspberry Pi OS 64-bit (aarch64)
 EOF
@@ -1229,6 +1253,120 @@ build_rpm_all() {
 }
 
 # -----------------------------------------------------------------------------
+# AppImage target (portable Linux x86_64)
+# -----------------------------------------------------------------------------
+
+# Download appimagetool once and cache it under packaging/appimage/.cache/.
+_appimage_ensure_appimagetool() {
+    if [[ -x "${APPIMAGE_TOOL}" ]]; then
+        return 0
+    fi
+    mkdir -p "${APPIMAGE_CACHE_DIR}"
+    log_step "Downloading appimagetool (cached after first run)..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL -o "${APPIMAGE_TOOL}" "${APPIMAGE_TOOL_URL}"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "${APPIMAGE_TOOL}" "${APPIMAGE_TOOL_URL}"
+    else
+        log_error "curl or wget is required to download appimagetool."
+        exit 1
+    fi
+    chmod +x "${APPIMAGE_TOOL}"
+}
+
+# Build a self-contained .AppImage for Linux x86_64.
+#
+# The AppImage wraps the PyInstaller onefile binary (with the client engine
+# bundled) in an AppDir and runs appimagetool. PyInstaller already bundles Qt
+# and Python, so linuxdeploy's dependency scan (and its Qt plugin) is not used:
+# it would try to bundle the system glibc, which is exactly what an AppImage
+# must NOT do.
+#
+# Output: dist/appimage/hsync-desktop-<ver>-x86_64.AppImage
+build_appimage() {
+    local version
+    version="$(get_version)"
+
+    if [[ "${OS_NAME}" != "linux" || "${ARCH_NAME}" != "amd64" ]]; then
+        log_error "The appimage target is supported only on Linux x86_64 (got ${PLATFORM})."
+        log_info "On other platforms use the native binary, the .deb/.rpm package, or the rpi binary."
+        exit 1
+    fi
+
+    log_step "Building ${APP_NAME} v${version} AppImage (x86_64)..."
+
+    [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
+
+    local work_dir="${BUILD_DIR}/appimage"
+    local bin_dir="${work_dir}/bin"
+    local appdir="${work_dir}/${APP_NAME}.AppDir"
+    rm -rf "${work_dir}"
+    mkdir -p "${bin_dir}" "${appdir}"
+
+    # --- 1. onefile binary with the client engine bundled --------------------
+    local -a add_data_args=()
+    _collect_add_data_args "${CLIENT_BINARY}"
+    add_data_args=("${ADD_DATA_ARGS[@]}")
+
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
+        --strip \
+        --distpath "${bin_dir}" \
+        $(_onefile_pyi_flags) \
+        "${add_data_args[@]}" \
+        "${ENTRY_POINT}"
+    # PyInstaller writes the generated .spec to the CWD; remove it (the add-data
+    # paths above are resolved against the CWD, so --specpath cannot be used).
+    rm -f "${APP_NAME}.spec"
+
+    local bin="${bin_dir}/${APP_NAME}"
+    [[ -f "${bin}" ]] || { log_error "AppImage payload not found at ${bin}"; exit 1; }
+
+    # --- 2. AppDir layout (appimagetool conventions) -------------------------
+    mkdir -p "${appdir}/usr/bin" \
+        "${appdir}/usr/share/applications" \
+        "${appdir}/usr/share/icons/hicolor/1024x1024/apps" \
+        "${appdir}/usr/share/icons/hicolor/scalable/apps"
+    install -m 0755 "${bin}" "${appdir}/usr/bin/${APP_NAME}"
+    install -m 0644 "${DEB_ICON_PNG}" "${appdir}/usr/share/icons/hicolor/1024x1024/apps/${APP_NAME}.png"
+    install -m 0644 "${DEB_ICON_SVG}" "${appdir}/usr/share/icons/hicolor/scalable/apps/${APP_NAME}.svg"
+    # appimagetool requires the .desktop and a matching icon at the AppDir root.
+    install -m 0644 "${DEB_ICON_PNG}" "${appdir}/${APP_NAME}.png"
+    sed -e "s|^Exec=.*|Exec=${APP_NAME}|" "${DEB_DESKTOP_FILE}" > "${appdir}/${APP_NAME}.desktop"
+    install -m 0644 "${appdir}/${APP_NAME}.desktop" "${appdir}/usr/share/applications/${APP_NAME}.desktop"
+    # AppRun (AppImage entry point) execs the bundled application.
+    ln -sf "usr/bin/${APP_NAME}" "${appdir}/AppRun"
+
+    # --- 3. appimagetool -----------------------------------------------------
+    _appimage_ensure_appimagetool
+    mkdir -p "${APPIMAGE_OUTPUT_DIR}"
+    local out_abs image
+    out_abs="$(cd "${APPIMAGE_OUTPUT_DIR}" && pwd)"
+    image="${out_abs}/${APP_NAME}-${version}-x86_64.AppImage"
+
+    log_step "Packaging AppImage with appimagetool..."
+    # APPIMAGE_EXTRACT_AND_RUN avoids a hard FUSE dependency (CI, containers).
+    APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 \
+        "${APPIMAGE_TOOL}" --no-appstream "${appdir}" "${image}"
+
+    [[ -f "${image}" ]] || { log_error "appimagetool produced no AppImage"; exit 1; }
+    rm -rf "${work_dir}"
+
+    local size
+    size="$(du -h "${image}" | cut -f1)"
+    echo
+    log_ok "AppImage built!"
+    echo
+    echo -e "  ${BOLD}Image:${RESET}    $(basename "${image}")"
+    echo -e "  ${BOLD}Platform:${RESET} linux-x86_64"
+    echo -e "  ${BOLD}Size:${RESET}     ${size}"
+    echo -e "  ${BOLD}Version:${RESET}  ${version}"
+    echo
+    echo -e "${DIM}Run with:${RESET}"
+    echo -e "${DIM}  chmod +x ${image} && ${image}${RESET}"
+    echo -e "${DIM}  # without FUSE: ${image} --appimage-extract-and-run${RESET}"
+}
+
+# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
@@ -1342,9 +1480,18 @@ main() {
             fi
             build_rpm_all
             ;;
+        appimage)
+            check_prerequisites
+            if [[ "${do_clean}" == true ]]; then
+                log_step "Cleaning appimage artifacts..."
+                rm -rf "${APPIMAGE_OUTPUT_DIR}" "${BUILD_DIR}/appimage"
+                echo
+            fi
+            build_appimage
+            ;;
         *)
             log_error "Unknown target: ${target}"
-            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, rpi"
+            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, appimage, rpi"
             exit 1
             ;;
     esac

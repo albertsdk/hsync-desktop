@@ -68,6 +68,8 @@ chooser:
 - [Installer script](docs/getting-started-script.md) — one `curl` command (Linux/macOS);
 - [Standalone binary](docs/getting-started-binary.md) — download and extract;
 - [Debian package](docs/getting-started-deb.md) — system package for Debian/Ubuntu;
+- [RPM package](docs/getting-started-rpm.md) — system package for RHEL/Rocky/Alma/Fedora;
+- [AppImage](docs/getting-started-appimage.md) — portable Linux x86_64 file, no install;
 - [From source](docs/getting-started-source.md) — clone and run.
 
 Then configure a connection in the [Configuration Reference](docs/configuration.md)

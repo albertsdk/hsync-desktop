@@ -21,7 +21,11 @@ Pick one method and follow it end to end:
   extract the self-contained bundle.
 - [Method 3 — Debian package](getting-started-deb.md): system package for
   Debian/Ubuntu.
-- [Method 4 — From source](getting-started-source.md): clone and run.
+- [Method 4 — RPM package](getting-started-rpm.md): system package for
+  RHEL/Rocky/Alma/Fedora.
+- [Method 5 — AppImage](getting-started-appimage.md): one self-contained file
+  for Linux x86_64, no installation.
+- [Method 6 — From source](getting-started-source.md): clone and run.
 
 Start from the [Getting Started](getting-started.md) chooser for a comparison
 table that helps you pick. There is no Docker or server mode: HSYNC Desktop is a

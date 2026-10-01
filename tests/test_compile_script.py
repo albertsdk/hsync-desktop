@@ -92,3 +92,17 @@ def test_rpm_targets_are_registered_in_dispatch() -> None:
     assert "rpm-all)" in script
     assert "Supported targets:" in script
     assert "rpm-all" in script
+
+
+def test_appimage_target_is_registered() -> None:
+    """The appimage target wraps the onefile binary with appimagetool."""
+    script = _script()
+    assert "appimage)" in script
+    assert "build_appimage()" in script
+    assert "appimagetool" in script
+    assert "${APPIMAGE_OUTPUT_DIR}/${APP_NAME}-" in script
+
+
+def test_appimage_is_x86_64_only() -> None:
+    """The AppImage is produced only on Linux x86_64."""
+    assert "The appimage target is supported only on Linux x86_64" in _script()

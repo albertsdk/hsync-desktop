@@ -56,7 +56,11 @@ Thumbs.db
 *.jsc
 
 # Python compiled
-*.spec (PyInstaller)
+# PyInstaller auto-generated spec (compile.sh removes it on success but it can
+# linger if the build is interrupted).
+*.spec
+# ...but the hand-written RPM spec under packaging/rpm/ must be tracked.
+!packaging/rpm/*.spec
 
 # Poetry lock (optional - comment if you want to commit poetry.lock)
 # poetry.lock
@@ -68,6 +72,9 @@ hsync_desktop/bin/
 # Cache
 .mypy_cache
 .ruff_cache
+
+# AppImage — appimagetool is downloaded at build time.
+packaging/appimage/.cache/
 
 # HSYNC
 .hsynckeep

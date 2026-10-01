@@ -19,16 +19,19 @@ methods are ordered from the simplest and most immediate to the most involved.
 | 2 | **Standalone binary** | You prefer to download and extract the archive yourself | [Standalone binary](getting-started-binary.md) |
 | 3 | **Debian/Ubuntu package** (`.deb`) | A Debian/Ubuntu host with a desktop-menu entry and a system package | [Debian package](getting-started-deb.md) |
 | 4 | **RPM package** (`.rpm`) | A RHEL/Rocky/Alma/Fedora host with a desktop-menu entry and a system package | [RPM package](getting-started-rpm.md) |
-| 5 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
+| 5 | **AppImage** (portable, Linux x86_64) | A Linux desktop where you want one self-contained file and no installation | [AppImage](getting-started-appimage.md) |
+| 6 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
 
 ## Requirements
 
 - Linux **x86_64** or **aarch64**, macOS (Intel or Apple silicon), or Windows
   **x86_64**
-- The `hsync` engine: the installer script and the standalone binary **embed**
-  it; the `.deb` installs it as the `hsync-client` package dependency
+- The `hsync` engine: the installer script, the standalone binary and the
+  **AppImage** **embed** it; the `.deb`/`.rpm` install it as the `hsync-client`
+  package dependency
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)
   Linux wheels
+- The **AppImage** is **Linux x86_64 only**
 
 ## After installing
 
