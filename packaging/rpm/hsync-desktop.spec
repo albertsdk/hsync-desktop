@@ -54,7 +54,7 @@ command -v update-desktop-database >/dev/null 2>&1 && \
 exit 0
 
 %files
-%attr(0755,root,root) %{_prefix}/lib/hsync-desktop
+%{_prefix}/lib/hsync-desktop
 /usr/bin/hsync-desktop
 %{_datadir}/applications/hsync-desktop.desktop
 %{_datadir}/icons/hicolor/1024x1024/apps/hsync-desktop.png
