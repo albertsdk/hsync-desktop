@@ -70,6 +70,9 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | `native` (default) | `dist/<os>-<arch>/hsync-desktop[.exe]` | host PyInstaller onefile; bundles `../hsync-client/dist/<os>-<arch>/hsync` when present |
 | `deb` | `dist/deb/hsync-desktop_<ver>_<arch>.deb` | host PyInstaller onedir staged under `/usr/lib/hsync-desktop` + `.desktop` launcher + icons; `Depends: hsync-client` (no client bundled) |
 | `deb-all` | `dist/deb/hsync-desktop_<ver>_{amd64,arm64}.deb` | Docker cross-build from `packaging/deb/Dockerfile.builder`; armhf unsupported (no PySide6 armv7 wheels) |
+| `rpm` | `dist/rpm/hsync-desktop-<ver>-1.<dist>.<arch>.rpm` | host `.venv` + `rpmbuild`; the same onedir payload staged for `/usr/lib/hsync-desktop`; `Requires: hsync-client` + Qt/X runtime libs (no client bundled) |
+| `rpm-all` | `dist/rpm/hsync-desktop-<ver>-1.el9.{x86_64,aarch64}.rpm` | Docker cross-build from `packaging/rpm/Dockerfile.builder` (Rocky Linux 9) under `qemu-user` binfmt |
+| `appimage` | `dist/appimage/hsync-desktop-<ver>-x86_64.AppImage` | host onefile (client bundled) wrapped in an AppDir and packaged with `appimagetool`; Linux x86_64 only |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
 
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
@@ -88,10 +91,21 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   cannot be built for 32-bit armhf. The `rpi` target produces arm64 only and
   prints an informational note instead of failing; `deb-all` likewise builds
   amd64 + arm64 only.
+- The `rpm`/`rpm-all` targets reuse the `deb` onedir payload and `packaging/deb/`
+  (`.desktop`, icons) plus `packaging/rpm/` (`.spec`, Rocky 9 builder);
+  `_semver_to_rpm`/`_arch_to_rpm` mirror the deb helpers. An RPM erase keeps the
+  data and the system user (there is no `purge` equivalent), matching the deb
+  `remove` semantics.
+- The `appimage` target builds the same onefile bundle as `native` (client
+  bundled), assembles an AppDir (`AppRun`, `.desktop`, hicolor icons) and runs
+  `appimagetool` (`packaging/appimage/.cache/`, run with
+  `APPIMAGE_EXTRACT_AND_RUN`). No `linuxdeploy`/Qt plugin: PyInstaller already
+  bundles Qt/Python, and linuxdeploy would bundle the system glibc. x86_64 only.
 - `clean_artifacts` (`compile.sh:233`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
-- Docker is required **only** inside `build_rpi` and `build_deb_all`; the
-  `native` and `deb` targets never call Docker.
+- Docker is required **only** inside `build_rpi`, `build_deb_all` and
+  `build_rpm_all`; the `native`, `deb`, `rpm` and `appimage` targets never call
+  Docker.
 
 ### Distribution & install entry points
 
@@ -101,8 +115,10 @@ deployment mode**:
 | Method | Files |
 |---|---|
 | `.deb` (amd64/arm64) | `compile.sh -t deb\|deb-all` + `packaging/deb/` (`Depends: hsync-client`, no client bundled) |
+| `.rpm` (x86_64/aarch64) | `compile.sh -t rpm\|rpm-all` + `packaging/rpm/` (`Requires: hsync-client`, no client bundled) |
+| AppImage (x86_64) | `compile.sh -t appimage` — self-contained onefile with the client bundled |
 | Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
-| Release | `.github/workflows/release.yml` publishes the native archives (client bundled), the `.deb` packages and `install.sh`; no container image |
+| Release | `.github/workflows/release.yml` publishes the native archives, the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
 | Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide |
