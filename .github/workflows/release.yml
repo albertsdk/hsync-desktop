@@ -1,9 +1,10 @@
 name: Release
 
 # Publish prebuilt desktop bundles (self-contained: the client engine is
-# embedded), the Debian/Ubuntu .deb packages and the install.sh installer as
-# GitHub Release assets. There is intentionally no container image: hsync-desktop
-# is a GUI application and has no Docker deployment mode.
+# embedded), the Debian/Ubuntu .deb packages, the RHEL-family .rpm packages and
+# the install.sh installer as GitHub Release assets. There is intentionally no
+# container image: hsync-desktop is a GUI application and has no Docker
+# deployment mode.
 #
 # Two triggers:
 # 1. vX.Y.Z tag pushed  →  create a formal Release.
@@ -176,13 +177,17 @@ jobs:
           platforms: arm,arm64
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-      - name: Build .deb packages
+      - name: Build .deb and .rpm packages
         working-directory: hsync-desktop
-        run: ./compile.sh --target deb-all
+        run: |
+          ./compile.sh --target deb-all
+          ./compile.sh --target rpm-all
       - uses: actions/upload-artifact@v7
         with:
           name: packages
-          path: hsync-desktop/dist/deb/*.deb
+          path: |
+            hsync-desktop/dist/deb/*.deb
+            hsync-desktop/dist/rpm/*.rpm
 
   release:
     needs: [build-binaries, build-packages]

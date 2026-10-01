@@ -18,7 +18,8 @@ methods are ordered from the simplest and most immediate to the most involved.
 | 1 | **Installer script** (`install.sh` via `curl`) | Least setup: one command, installs under your home, no `sudo` | [Install with the script](getting-started-script.md) |
 | 2 | **Standalone binary** | You prefer to download and extract the archive yourself | [Standalone binary](getting-started-binary.md) |
 | 3 | **Debian/Ubuntu package** (`.deb`) | A Debian/Ubuntu host with a desktop-menu entry and a system package | [Debian package](getting-started-deb.md) |
-| 4 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
+| 4 | **RPM package** (`.rpm`) | A RHEL/Rocky/Alma/Fedora host with a desktop-menu entry and a system package | [RPM package](getting-started-rpm.md) |
+| 5 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
 
 ## Requirements
 
