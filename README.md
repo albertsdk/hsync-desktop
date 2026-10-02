@@ -71,6 +71,7 @@ chooser:
 - [RPM package](docs/getting-started-rpm.md) — system package for RHEL/Rocky/Alma/Fedora;
 - [AppImage](docs/getting-started-appimage.md) — portable Linux x86_64 file, no install;
 - [macOS .dmg](docs/getting-started-macos.md) — Apple silicon or Intel;
+- [Windows installer](docs/getting-started-windows.md) — per-user `.exe` setup;
 - [From source](docs/getting-started-source.md) — clone and run.
 
 Then configure a connection in the [Configuration Reference](docs/configuration.md)

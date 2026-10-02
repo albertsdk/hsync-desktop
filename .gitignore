@@ -76,5 +76,8 @@ hsync_desktop/bin/
 # AppImage — appimagetool is downloaded at build time.
 packaging/appimage/.cache/
 
+# Windows installer — the .ico is generated at build time from the app PNG.
+packaging/windows/icon.ico
+
 # HSYNC
 .hsynckeep

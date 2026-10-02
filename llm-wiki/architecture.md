@@ -127,8 +127,9 @@ deployment mode**:
 | `.rpm` (x86_64/aarch64) | `compile.sh -t rpm\|rpm-all` + `packaging/rpm/` (`Requires: hsync-client`, no client bundled) |
 | AppImage (x86_64) | `compile.sh -t appimage` — self-contained onefile with the client bundled |
 | macOS `.dmg` (arm64/amd64) | `compile.sh -t dmg` — unsigned `.app` (client bundled) in a `.dmg` |
+| Windows installer (x64) | built in CI (Inno Setup) from `packaging/windows/hsync-desktop.iss`; per-user, Start Menu shortcut |
 | Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
-| Release | `.github/workflows/release.yml` publishes the native archives, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
+| Release | `.github/workflows/release.yml` publishes the native archives, the Windows installer, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
 | Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide |

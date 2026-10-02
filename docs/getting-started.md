@@ -21,7 +21,8 @@ methods are ordered from the simplest and most immediate to the most involved.
 | 4 | **RPM package** (`.rpm`) | A RHEL/Rocky/Alma/Fedora host with a desktop-menu entry and a system package | [RPM package](getting-started-rpm.md) |
 | 5 | **AppImage** (portable, Linux x86_64) | A Linux desktop where you want one self-contained file and no installation | [AppImage](getting-started-appimage.md) |
 | 6 | **macOS `.dmg`** (Apple silicon or Intel) | A Mac where you want the standard drag-to-Applications app | [macOS](getting-started-macos.md) |
-| 7 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
+| 7 | **Windows installer** (`.exe`) | A Windows x64 host: per-user install, Start Menu shortcut | [Windows installer](getting-started-windows.md) |
+| 8 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
 
 ## Requirements
 

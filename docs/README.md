@@ -27,7 +27,9 @@ Pick one method and follow it end to end:
   for Linux x86_64, no installation.
 - [Method 6 — macOS .dmg](getting-started-macos.md): drag-to-Applications app
   for Apple silicon or Intel.
-- [Method 7 — From source](getting-started-source.md): clone and run.
+- [Method 7 — Windows installer](getting-started-windows.md): per-user `.exe`
+  installer with Start Menu shortcuts.
+- [Method 8 — From source](getting-started-source.md): clone and run.
 
 Start from the [Getting Started](getting-started.md) chooser for a comparison
 table that helps you pick. There is no Docker or server mode: HSYNC Desktop is a
