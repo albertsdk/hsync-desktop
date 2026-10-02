@@ -155,6 +155,10 @@ jobs:
           else
             tar czf "${stage}.tar.gz" "${stage}"
           fi
+          # Only the archive is a release asset. Drop the staging dir so its raw
+          # binary is not flattened into the release (it also collides between
+          # architectures, which all produce a bare `hsync-desktop`).
+          rm -rf "${stage}"
       - name: Build the Windows installer (Inno Setup)
         # Per-user installer (no admin): Start Menu + optional desktop shortcut.
         if: runner.os == 'Windows'
