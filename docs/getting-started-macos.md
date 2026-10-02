@@ -11,19 +11,20 @@ else to install.
 ## Prerequisites
 
 - macOS 11 (Big Sur) or later
-- The matching `.dmg`: `hsync-desktop-VERSION-darwin-arm64.dmg` (Apple silicon)
-  or `hsync-desktop-VERSION-darwin-amd64.dmg` (Intel)
+- The matching `.dmg`: `hsync-desktop-darwin-arm64.dmg` (Apple silicon)
+  or `hsync-desktop-darwin-amd64.dmg` (Intel)
 
 ## Install
 
 ```bash
-curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-VERSION-darwin-arm64.dmg"
-open hsync-desktop-VERSION-darwin-arm64.dmg
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-darwin-arm64.dmg"
+open hsync-desktop-darwin-arm64.dmg
 ```
 
-Replace `VERSION` with the release you downloaded (for example `1.0.0`), and use
-`darwin-amd64` instead of `darwin-arm64` on an Intel Mac. Then drag **HSYNC**
-into the **Applications** folder shown in the window.
+Use `darwin-amd64` instead of `darwin-arm64` on an Intel Mac. The URL always
+points to the **latest stable** release; to pin a version, use
+`https://github.com/albertsdk/hsync-desktop/releases/download/vX.Y.Z/hsync-desktop-<version>-darwin-<arch>.dmg`.
+Then drag **HSYNC** into the **Applications** folder shown in the window.
 
 ### Build from the checkout (alternative)
 

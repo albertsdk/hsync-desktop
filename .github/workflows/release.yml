@@ -303,6 +303,33 @@ jobs:
           cd assets
           find . -mindepth 2 -type f -exec mv -t . {} +
           find . -mindepth 1 -type d -empty -delete
+      - name: Create latest aliases
+        # Fixed-name copies so `releases/latest/download/<name>` is a stable link.
+        # A missing source is skipped (that format was not built in this run).
+        run: |
+          cd assets
+          mk_alias() {
+            for spec in "$@"; do
+              src="${spec%%|*}"
+              dst="${spec##*|}"
+              # shellcheck disable=SC2086
+              if ls $src >/dev/null 2>&1; then cp $src "$dst"; fi
+            done
+          }
+          mk_alias \
+            "hsync-desktop-*-linux-amd64.tar.gz|hsync-desktop-linux-amd64.tar.gz" \
+            "hsync-desktop-*-linux-arm64.tar.gz|hsync-desktop-linux-arm64.tar.gz" \
+            "hsync-desktop-*-darwin-arm64.tar.gz|hsync-desktop-darwin-arm64.tar.gz" \
+            "hsync-desktop-*-darwin-amd64.tar.gz|hsync-desktop-darwin-amd64.tar.gz" \
+            "hsync-desktop-*-windows-amd64.zip|hsync-desktop-windows-amd64.zip" \
+            "hsync-desktop_*_amd64.deb|hsync-desktop-amd64.deb" \
+            "hsync-desktop_*_arm64.deb|hsync-desktop-arm64.deb" \
+            "hsync-desktop-*-1.el9.x86_64.rpm|hsync-desktop-x86_64.rpm" \
+            "hsync-desktop-*-1.el9.aarch64.rpm|hsync-desktop-aarch64.rpm" \
+            "hsync-desktop-*-x86_64.AppImage|hsync-desktop-x86_64.AppImage" \
+            "hsync-desktop-*-darwin-arm64.dmg|hsync-desktop-darwin-arm64.dmg" \
+            "hsync-desktop-*-darwin-amd64.dmg|hsync-desktop-darwin-amd64.dmg" \
+            "hsync-desktop-*-windows-amd64-setup.exe|hsync-desktop-windows-amd64-setup.exe"
       - name: Prepare installer
         run: |
           sed "s/^readonly DEFAULT_VERSION=.*/readonly DEFAULT_VERSION=\"${{ steps.tag.outputs.tag }}\"/" \

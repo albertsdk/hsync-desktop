@@ -19,13 +19,12 @@ nothing to install, no root and no package manager involved.
 ## Install
 
 ```bash
-curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-VERSION-x86_64.AppImage"
-chmod +x hsync-desktop-VERSION-x86_64.AppImage
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-x86_64.AppImage"
+chmod +x hsync-desktop-x86_64.AppImage
 ```
 
-Replace `VERSION` with the release you downloaded (for example `1.0.0`). To
-install a specific version, use that release's URL (replace `latest/download`
-with `download/vX.Y.Z`).
+The URL always points to the **latest stable** release; to pin a version, use
+`https://github.com/albertsdk/hsync-desktop/releases/download/vX.Y.Z/hsync-desktop-<version>-x86_64.AppImage`.
 
 ### Build from the checkout (alternative)
 
@@ -41,13 +40,13 @@ The AppImage is written to `dist/appimage/`.
 ## Run
 
 ```bash
-./hsync-desktop-VERSION-x86_64.AppImage
+./hsync-desktop-x86_64.AppImage
 ```
 
 If FUSE is unavailable (some containers or minimal systems):
 
 ```bash
-./hsync-desktop-VERSION-x86_64.AppImage --appimage-extract-and-run
+./hsync-desktop-x86_64.AppImage --appimage-extract-and-run
 ```
 
 The main window opens with a system-tray icon. On first launch open **Settings**

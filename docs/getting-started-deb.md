@@ -14,15 +14,16 @@ provides `/usr/bin/hsync`.
 ## Install
 
 The package depends on `hsync-client`, so install the client package first (or
-pass both to `apt` in one command). Download both from their release pages:
+pass both to `apt` in one command). Both URLs always point to the **latest
+stable** release (use `arm64` instead of `amd64` on ARM):
 
 ```bash
 # 1. The engine (from the hsync-client releases)
-curl -fLO "https://github.com/albertsdk/hsync-client/releases/latest/download/hsync-client_CLIENT_VERSION_ARCH.deb"
+curl -fLO "https://github.com/albertsdk/hsync-client/releases/latest/download/hsync-client-amd64.deb"
 # 2. The desktop GUI (from the hsync-desktop releases)
-curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop_DESKTOP_VERSION_ARCH.deb"
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-amd64.deb"
 
-sudo apt install ./hsync-client_CLIENT_VERSION_ARCH.deb ./hsync-desktop_DESKTOP_VERSION_ARCH.deb
+sudo apt install ./hsync-client-amd64.deb ./hsync-desktop-amd64.deb
 ```
 
 `apt` resolves both the `hsync-client` dependency and the Qt runtime libraries

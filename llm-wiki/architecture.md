@@ -131,5 +131,5 @@ deployment mode**:
 | Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
-| Release | `.github/workflows/release.yml` publishes the native archives, the Windows installer, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
+| Release | `.github/workflows/release.yml` publishes the native archives, the Windows installer, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`, plus fixed-name `latest` aliases (RELEASES.md §5.8); no container image |
 | Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide |

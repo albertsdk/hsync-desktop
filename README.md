@@ -19,6 +19,7 @@ without touching the command line.
 ---
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/albertsdk/hsync-desktop)](https://github.com/albertsdk/hsync-desktop/releases/latest)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)](https://www.qt.io/)
 

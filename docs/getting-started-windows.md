@@ -10,12 +10,14 @@ self-contained: it embeds the `hsync` client engine.
 
 ## Install
 
-1. Download `hsync-desktop-VERSION-windows-amd64-setup.exe` from the release page
-   (replace `VERSION` with the release you want).
-2. Run it and follow the wizard. Tick "Create a desktop shortcut" if you want
-   one.
-3. Launch **HSYNC** from the Start Menu. On the last wizard page you can tick
-   "Launch HSYNC Desktop".
+Download the latest installer:
+
+[Download hsync-desktop-windows-amd64-setup.exe](https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-windows-amd64-setup.exe)
+
+Run it and follow the wizard (tick "Create a desktop shortcut" if you want one).
+The link always points to the **latest stable** release; to pin a version, use
+the [Releases page](https://github.com/albertsdk/hsync-desktop/releases). Then
+launch **HSYNC** from the Start Menu (the last wizard page can launch it too).
 
 On first launch open **Settings** and configure a connection — see the
 [Configuration Reference](configuration.md).

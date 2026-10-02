@@ -16,15 +16,16 @@ provides `/usr/bin/hsync`.
 ## Install
 
 The package depends on `hsync-client`, so install the client RPM first (or pass
-both to `dnf` in one command). Download both from their release pages:
+both to `dnf` in one command). Both URLs always point to the **latest stable**
+release (use `aarch64` instead of `x86_64` on ARM):
 
 ```bash
 # 1. The engine (from the hsync-client releases)
-curl -fLO "https://github.com/albertsdk/hsync-client/releases/latest/download/hsync-client-CLIENT_VERSION-1.el9.ARCH.rpm"
+curl -fLO "https://github.com/albertsdk/hsync-client/releases/latest/download/hsync-client-x86_64.rpm"
 # 2. The desktop GUI (from the hsync-desktop releases)
-curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-DESKTOP_VERSION-1.el9.ARCH.rpm"
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-x86_64.rpm"
 
-sudo dnf install ./hsync-client-CLIENT_VERSION-1.el9.ARCH.rpm ./hsync-desktop-DESKTOP_VERSION-1.el9.ARCH.rpm
+sudo dnf install ./hsync-client-x86_64.rpm ./hsync-desktop-x86_64.rpm
 ```
 
 `dnf` resolves the Qt/X runtime libraries (`libglvnd`, `libxkbcommon*`,
