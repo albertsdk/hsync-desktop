@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  HSYNC Desktop — macOS bundle metadata (packaging/macos/Info.plist)
+
+  This template is merged into the Info.plist that PyInstaller generates for
+  ``hsync-desktop.app`` (see ``_macos_apply_info_plist`` in compile.sh). Only
+  these keys are overridden; every other key PyInstaller writes is preserved,
+  so the bundle stays valid.
+
+  Placeholders substituted by ``build_dmg``:
+    __BUNDLE_ID__   reverse-DNS bundle identifier
+    __VERSION__     CFBundleShortVersionString (SemVer, e.g. 1.2.0-alpha.1)
+    __BUILD__       CFBundleVersion (numeric, e.g. 1.2.0)
+    __MIN_MACOS__   LSMinimumSystemVersion (e.g. 11.0)
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>__BUNDLE_ID__</string>
+    <key>CFBundleName</key>
+    <string>HSYNC</string>
+    <key>CFBundleDisplayName</key>
+    <string>HSYNC</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__BUILD__</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>__MIN_MACOS__</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>

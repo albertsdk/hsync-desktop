@@ -70,6 +70,7 @@ chooser:
 - [Debian package](docs/getting-started-deb.md) — system package for Debian/Ubuntu;
 - [RPM package](docs/getting-started-rpm.md) — system package for RHEL/Rocky/Alma/Fedora;
 - [AppImage](docs/getting-started-appimage.md) — portable Linux x86_64 file, no install;
+- [macOS .dmg](docs/getting-started-macos.md) — Apple silicon or Intel;
 - [From source](docs/getting-started-source.md) — clone and run.
 
 Then configure a connection in the [Configuration Reference](docs/configuration.md)

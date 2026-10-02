@@ -1,10 +1,10 @@
 name: Release
 
 # Publish prebuilt desktop bundles (self-contained: the client engine is
-# embedded), a portable Linux x86_64 AppImage, the Debian/Ubuntu .deb packages,
-# the RHEL-family .rpm packages and the install.sh installer as GitHub Release
-# assets. There is intentionally no container image: hsync-desktop is a GUI
-# application and has no Docker deployment mode.
+# embedded), macOS .dmg (unsigned), a portable Linux x86_64 AppImage, the
+# Debian/Ubuntu .deb packages, the RHEL-family .rpm packages and the install.sh
+# installer as GitHub Release assets. There is intentionally no container image:
+# hsync-desktop is a GUI application and has no Docker deployment mode.
 #
 # Two triggers:
 # 1. vX.Y.Z tag pushed  →  create a formal Release.
@@ -131,6 +131,12 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --with build --no-interaction
           ./compile.sh
+      - name: Build the macOS .dmg
+        # The .app embeds the (already built) per-arch client engine. macOS only:
+        # PyInstaller cannot produce a .app on the other runners.
+        if: runner.os == 'macOS'
+        working-directory: hsync-desktop
+        run: ./compile.sh --target dmg -v "${{ steps.version.outputs.version }}"
       - name: Package binary
         working-directory: hsync-desktop
         run: |
@@ -138,6 +144,9 @@ jobs:
           stage="hsync-desktop-${version}-${{ matrix.target }}"
           mkdir -p "release-out/${stage}"
           cp "dist/${{ matrix.target }}/hsync-desktop${{ matrix.ext }}" "release-out/${stage}/"
+          if ls dist/macos/*.dmg >/dev/null 2>&1; then
+            cp dist/macos/*.dmg "release-out/${stage}/"
+          fi
           cd release-out
           if [ "${{ matrix.archive }}" = "zip" ]; then
             7z a "${stage}.zip" "${stage}"

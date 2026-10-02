@@ -15,6 +15,7 @@ Consumers: hsync-desktop maintainers (regression guard).
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 COMPILE_SH = Path(__file__).resolve().parents[1] / "compile.sh"
@@ -106,3 +107,39 @@ def test_appimage_target_is_registered() -> None:
 def test_appimage_is_x86_64_only() -> None:
     """The AppImage is produced only on Linux x86_64."""
     assert "The appimage target is supported only on Linux x86_64" in _script()
+
+
+def _run_shell_fn(fn_name: str, args: list[str]) -> str:
+    """Run a top-level ``fn_name`` from compile.sh in a fresh bash and return
+    its stdout. Only used for pure helpers with no side effects."""
+    match = re.search(rf"{fn_name}\(\) \{{.*?\n\}}", _script(), re.DOTALL)
+    assert match, f"{fn_name} not found in compile.sh"
+    result = subprocess.run(
+        ["bash", "-c", f'{match.group(0)}\n{fn_name} "$@"', "_", *args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout
+
+
+def test_macos_numeric_version_maps_semver_to_cfbundleversion() -> None:
+    """CFBundleVersion must be a dotted numeric string: prerelease/build
+    metadata stripped and padded to three components."""
+    assert _run_shell_fn("_macos_numeric_version", ["1.2.0"]) == "1.2.0"
+    assert _run_shell_fn("_macos_numeric_version", ["1.2.0-alpha.1"]) == "1.2.0"
+    assert _run_shell_fn("_macos_numeric_version", ["1.2.0-rc.2"]) == "1.2.0"
+    assert _run_shell_fn("_macos_numeric_version", ["1.2.0+build.5"]) == "1.2.0"
+    assert _run_shell_fn("_macos_numeric_version", ["1.2"]) == "1.2.0"
+
+
+def test_dmg_target_is_registered() -> None:
+    script = _script()
+    assert "dmg)" in script
+    assert "build_dmg()" in script
+    assert "packaging/macos/Info.plist" in script
+    assert "hdiutil" in script
+
+
+def test_dmg_is_darwin_only() -> None:
+    assert "The dmg target is supported only on macOS" in _script()

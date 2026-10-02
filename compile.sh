@@ -22,6 +22,8 @@
 #                                         Docker, Rocky Linux 9 baseline)
 #                               appimage  Portable Linux x86_64 .AppImage
 #                                         (self-contained, client bundled)
+#                               dmg       macOS .app bundle wrapped in a .dmg
+#                                         (darwin only, unsigned)
 #                               rpi       Raspberry Pi OS 64-bit (arm64)
 #                                         onefile binary via Docker
 #   -v, --version VERSION   Override the version used for packages (default:
@@ -42,6 +44,8 @@
 #     configured (used for arm64 emulation on amd64 hosts)
 #   - appimage target: Python virtual environment (.venv) + curl or wget (to
 #     fetch appimagetool on first run); Linux x86_64 only
+#   - dmg target: macOS only (sips/iconutil/hdiutil); PyInstaller cannot build a
+#     .app elsewhere
 #
 # Raspberry Pi (rpi) target:
 #   The rpi target builds the arm64 (64-bit) Raspberry Pi OS binary ONLY. The
@@ -68,6 +72,8 @@
 #     - dist/rpm/hsync-desktop-<ver>-1.el9.aarch64.rpm
 #   appimage:
 #     - dist/appimage/hsync-desktop-<ver>-x86_64.AppImage
+#   dmg:
+#     - dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg
 #   rpi:
 #     - dist/rpi/arm64/hsync-desktop   Raspberry Pi OS 64-bit (aarch64)
 #
@@ -136,6 +142,16 @@ readonly APPIMAGE_TOOL_URL="https://github.com/AppImage/appimagetool/releases/do
 readonly DEB_ICON_PNG="packaging/deb/usr/share/icons/hicolor/1024x1024/apps/${APP_NAME}.png"
 readonly DEB_ICON_SVG="packaging/deb/usr/share/icons/hicolor/scalable/apps/${APP_NAME}.svg"
 readonly DEB_DESKTOP_FILE="packaging/deb/usr/share/applications/${APP_NAME}.desktop"
+
+# macOS .app + .dmg target (darwin only). PyInstaller --windowed produces a real
+# .app bundle; the .dmg wraps it with the usual /Applications symlink. Artifacts
+# are unsigned — signing/notarization are intentionally not performed (see
+# docs/getting-started-macos.md for the Gatekeeper workaround).
+readonly MACOS_DIR="packaging/macos"
+readonly MACOS_OUTPUT_DIR="${OUTPUT_BASE}/macos"
+readonly MACOS_INFO_TEMPLATE="${MACOS_DIR}/Info.plist"
+readonly MACOS_BUNDLE_ID="io.hsync.desktop"
+readonly MACOS_MIN_VERSION="11.0"
 
 # -----------------------------------------------------------------------------
 # Colors (disabled if not a terminal)
@@ -223,7 +239,7 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Options:${RESET}
     -c, --clean             Clean build artifacts before building
     -t, --target TARGET     Build target (default: native)
-                            Supported: native, deb, deb-all, rpm, rpm-all, appimage, rpi
+                            Supported: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi
     -v, --version VERSION   Override the version used for packages
                             (default: pyproject.toml). Also settable via
                             HSYNC_VERSION.
@@ -240,6 +256,7 @@ ${BOLD}Targets:${RESET}
               hsync-client).
     rpm-all   .rpm for x86_64 and aarch64 via Docker (Rocky Linux 9).
     appimage  Portable self-contained .AppImage for Linux x86_64.
+    dmg       macOS .app bundle wrapped in a .dmg (unsigned).
     rpi       Raspberry Pi OS 64-bit (arm64) onefile binary via Docker.
 
 ${BOLD}Examples:${RESET}
@@ -251,6 +268,7 @@ ${BOLD}Examples:${RESET}
     ./compile.sh --target rpm       # .rpm for host arch (RHEL-family)
     ./compile.sh --target rpm-all   # .rpm for x86_64 + aarch64
     ./compile.sh --target appimage  # Portable Linux x86_64 .AppImage
+    ./compile.sh --target dmg       # macOS .app + .dmg (unsigned)
     ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
 
 ${BOLD}Output:${RESET}
@@ -268,6 +286,8 @@ ${BOLD}Output:${RESET}
         ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el9.aarch64.rpm
     appimage:
         ${APPIMAGE_OUTPUT_DIR}/${APP_NAME}-<ver>-x86_64.AppImage
+    dmg:
+        ${MACOS_OUTPUT_DIR}/${APP_NAME}-<ver>-darwin-<arch>.dmg
     rpi:
         ${RPI_OUTPUT_DIR}/arm64/${APP_NAME}   Raspberry Pi OS 64-bit (aarch64)
 EOF
@@ -1367,6 +1387,155 @@ build_appimage() {
 }
 
 # -----------------------------------------------------------------------------
+# macOS .app + .dmg target
+# -----------------------------------------------------------------------------
+
+# SemVer -> CFBundleVersion: a dotted numeric string (prerelease and build
+# metadata stripped, padded to three components).
+_macos_numeric_version() {
+    local v="${1%%-*}"
+    v="${v%%+*}"
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "${v}"
+    printf '%s.%s.%s' "${major:-0}" "${minor:-0}" "${patch:-0}"
+}
+
+# Build a .icns from the 1024x1024 PNG using sips + iconutil (macOS only).
+# $1 = output .icns  $2 = source PNG  $3 = iconset working dir
+_macos_build_icns() {
+    local out="$1" src="$2" iconset="$3"
+    rm -rf "${iconset}"
+    mkdir -p "${iconset}"
+    local size double
+    for size in 16 32 128 256 512; do
+        sips -z "${size}" "${size}" "${src}" --out "${iconset}/icon_${size}x${size}.png" >/dev/null
+        double=$((size * 2))
+        sips -z "${double}" "${double}" "${src}" --out "${iconset}/icon_${size}x${size}@2x.png" >/dev/null
+    done
+    iconutil -c icns "${iconset}" -o "${out}"
+}
+
+# Merge packaging/macos/Info.plist (placeholders substituted) into the .app's
+# generated Info.plist, preserving every other key PyInstaller wrote.
+# $1 = .app path  $2 = rendered template path
+_macos_apply_info_plist() {
+    local app="$1" rendered="$2"
+    "${VENV_DIR}/bin/python" - "${app}/Contents/Info.plist" "${rendered}" <<'PY'
+import plistlib
+import sys
+
+target, template = sys.argv[1], sys.argv[2]
+with open(target, "rb") as fh:
+    base = plistlib.load(fh)
+with open(template, "rb") as fh:
+    base.update(plistlib.load(fh))
+with open(target, "wb") as fh:
+    plistlib.dump(base, fh)
+PY
+}
+
+# Wrap a .app in a .dmg with the conventional /Applications symlink.
+# $1 = .app path  $2 = output .dmg  $3 = staging dir
+_macos_create_dmg() {
+    local app="$1" image="$2" stage="$3"
+    rm -rf "${stage}"
+    mkdir -p "${stage}"
+    cp -R "${app}" "${stage}/"
+    ln -s /Applications "${stage}/Applications"
+    hdiutil create -volname "HSYNC" -srcfolder "${stage}" -ov -format UDZO "${image}" >/dev/null
+}
+
+# Build the macOS .app bundle and wrap it in a .dmg.
+#
+# macOS only: PyInstaller cannot produce a .app on another OS. One .app per host
+# architecture (the bundled client engine is the matching per-arch binary); a
+# universal2 .app would require a universal `lipo`-merged client, so per-arch
+# dmgs are the supported form.
+#
+# The .app is unsigned: Gatekeeper needs the documented right-click / `xattr`
+# workaround (docs/getting-started-macos.md).
+# Output: dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg
+build_dmg() {
+    local version
+    version="$(get_version)"
+
+    if [[ "${OS_NAME}" != "darwin" ]]; then
+        log_error "The dmg target is supported only on macOS (got ${PLATFORM})."
+        log_info "PyInstaller cannot build a macOS .app on ${OS_NAME}."
+        exit 1
+    fi
+
+    log_step "Building ${APP_NAME} v${version} macOS .app + .dmg (${ARCH_NAME})..."
+
+    [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
+    local tool
+    for tool in sips iconutil hdiutil; do
+        command -v "${tool}" >/dev/null 2>&1 || { log_error "${tool} not found (macOS only)"; exit 1; }
+    done
+
+    local work_dir="${BUILD_DIR}/macos"
+    local dist_dir="${work_dir}/dist"
+    rm -rf "${work_dir}"
+    mkdir -p "${dist_dir}"
+
+    # --- 1. icon + rendered Info.plist ---------------------------------------
+    local icns="${work_dir}/${APP_NAME}.icns"
+    _macos_build_icns "${icns}" "${DEB_ICON_PNG}" "${work_dir}/${APP_NAME}.iconset"
+
+    local rendered_plist="${work_dir}/Info.plist"
+    sed -e "s|__BUNDLE_ID__|${MACOS_BUNDLE_ID}|g" \
+        -e "s|__VERSION__|${version}|g" \
+        -e "s|__BUILD__|$(_macos_numeric_version "${version}")|g" \
+        -e "s|__MIN_MACOS__|${MACOS_MIN_VERSION}|g" \
+        "${MACOS_INFO_TEMPLATE}" > "${rendered_plist}"
+
+    # --- 2. .app via PyInstaller (--windowed) --------------------------------
+    local -a add_data_args=()
+    _collect_add_data_args "${CLIENT_BINARY}"
+    add_data_args=("${ADD_DATA_ARGS[@]}")
+
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
+        --windowed \
+        --osx-bundle-identifier "${MACOS_BUNDLE_ID}" \
+        --icon "${icns}" \
+        --distpath "${dist_dir}" \
+        --workpath "${work_dir}/pyinstaller" \
+        $(_onefile_pyi_flags) \
+        "${add_data_args[@]}" \
+        "${ENTRY_POINT}"
+    rm -f "${APP_NAME}.spec"
+
+    local app="${dist_dir}/${APP_NAME}.app"
+    [[ -d "${app}" ]] || { log_error "macOS .app not produced at ${app}"; exit 1; }
+
+    _macos_apply_info_plist "${app}" "${rendered_plist}"
+
+    # --- 3. dmg --------------------------------------------------------------
+    mkdir -p "${MACOS_OUTPUT_DIR}"
+    local out_abs image
+    out_abs="$(cd "${MACOS_OUTPUT_DIR}" && pwd)"
+    image="${out_abs}/${APP_NAME}-${version}-darwin-${ARCH_NAME}.dmg"
+
+    log_step "Packaging .dmg..."
+    _macos_create_dmg "${app}" "${image}" "${work_dir}/dmg"
+    [[ -f "${image}" ]] || { log_error "dmg not produced"; exit 1; }
+    rm -rf "${work_dir}"
+
+    local size
+    size="$(du -h "${image}" | cut -f1)"
+    echo
+    log_ok "macOS .dmg built!"
+    echo
+    echo -e "  ${BOLD}Image:${RESET}    $(basename "${image}")"
+    echo -e "  ${BOLD}Platform:${RESET} darwin-${ARCH_NAME}"
+    echo -e "  ${BOLD}Size:${RESET}     ${size}"
+    echo -e "  ${BOLD}Version:${RESET}  ${version}"
+    echo
+    echo -e "${DIM}The .app is unsigned: open the dmg, drag HSYNC to Applications, then${RESET}"
+    echo -e "${DIM}right-click → Open the first time (or: xattr -dr com.apple.quarantine /Applications/HSYNC.app).${RESET}"
+}
+
+# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
@@ -1489,9 +1658,18 @@ main() {
             fi
             build_appimage
             ;;
+        dmg)
+            check_prerequisites
+            if [[ "${do_clean}" == true ]]; then
+                log_step "Cleaning dmg artifacts..."
+                rm -rf "${MACOS_OUTPUT_DIR}" "${BUILD_DIR}/macos"
+                echo
+            fi
+            build_dmg
+            ;;
         *)
             log_error "Unknown target: ${target}"
-            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, appimage, rpi"
+            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi"
             exit 1
             ;;
     esac

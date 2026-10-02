@@ -20,7 +20,8 @@ methods are ordered from the simplest and most immediate to the most involved.
 | 3 | **Debian/Ubuntu package** (`.deb`) | A Debian/Ubuntu host with a desktop-menu entry and a system package | [Debian package](getting-started-deb.md) |
 | 4 | **RPM package** (`.rpm`) | A RHEL/Rocky/Alma/Fedora host with a desktop-menu entry and a system package | [RPM package](getting-started-rpm.md) |
 | 5 | **AppImage** (portable, Linux x86_64) | A Linux desktop where you want one self-contained file and no installation | [AppImage](getting-started-appimage.md) |
-| 6 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
+| 6 | **macOS `.dmg`** (Apple silicon or Intel) | A Mac where you want the standard drag-to-Applications app | [macOS](getting-started-macos.md) |
+| 7 | **From source** (clone and run) | Development, or a host where you control the toolchain | [Run from source](getting-started-source.md) |
 
 ## Requirements
 
@@ -32,6 +33,8 @@ methods are ordered from the simplest and most immediate to the most involved.
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)
   Linux wheels
 - The **AppImage** is **Linux x86_64 only**
+- The **macOS `.dmg`** is **unsigned**: macOS needs a one-time confirmation
+  (right-click → Open, or `xattr -dr com.apple.quarantine`)
 
 ## After installing
 

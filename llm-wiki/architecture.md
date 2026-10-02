@@ -73,6 +73,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | `rpm` | `dist/rpm/hsync-desktop-<ver>-1.<dist>.<arch>.rpm` | host `.venv` + `rpmbuild`; the same onedir payload staged for `/usr/lib/hsync-desktop`; `Requires: hsync-client` + Qt/X runtime libs (no client bundled) |
 | `rpm-all` | `dist/rpm/hsync-desktop-<ver>-1.el9.{x86_64,aarch64}.rpm` | Docker cross-build from `packaging/rpm/Dockerfile.builder` (Rocky Linux 9) under `qemu-user` binfmt |
 | `appimage` | `dist/appimage/hsync-desktop-<ver>-x86_64.AppImage` | host onefile (client bundled) wrapped in an AppDir and packaged with `appimagetool`; Linux x86_64 only |
+| `dmg` | `dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg` | host onefile `--windowed` (client bundled) as `hsync-desktop.app`; `Info.plist` merged from `packaging/macos/Info.plist`, `.icns` via `sips`/`iconutil`, `.dmg` via `hdiutil`; darwin only |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
 
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
@@ -101,6 +102,14 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   `appimagetool` (`packaging/appimage/.cache/`, run with
   `APPIMAGE_EXTRACT_AND_RUN`). No `linuxdeploy`/Qt plugin: PyInstaller already
   bundles Qt/Python, and linuxdeploy would bundle the system glibc. x86_64 only.
+- The `dmg` target (darwin only) reuses the `native` onefile flags with
+  `--windowed` (a real `.app`), patches the generated `Info.plist` by merging
+  `packaging/macos/Info.plist` (`_macos_apply_info_plist`), builds the `.icns`
+  from the PNG with `sips`/`iconutil`, and wraps the `.app` in a `.dmg`
+  (`_macos_create_dmg`). One `.dmg` per host arch; a universal2 build would need
+  a `lipo`-merged client. Artifacts are **unsigned** (Gatekeeper workaround in
+  `docs/getting-started-macos.md`); signing/notarization hooks are absent by
+  design.
 - `clean_artifacts` (`compile.sh:233`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
 - Docker is required **only** inside `build_rpi`, `build_deb_all` and
@@ -117,8 +126,9 @@ deployment mode**:
 | `.deb` (amd64/arm64) | `compile.sh -t deb\|deb-all` + `packaging/deb/` (`Depends: hsync-client`, no client bundled) |
 | `.rpm` (x86_64/aarch64) | `compile.sh -t rpm\|rpm-all` + `packaging/rpm/` (`Requires: hsync-client`, no client bundled) |
 | AppImage (x86_64) | `compile.sh -t appimage` — self-contained onefile with the client bundled |
+| macOS `.dmg` (arm64/amd64) | `compile.sh -t dmg` — unsigned `.app` (client bundled) in a `.dmg` |
 | Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
-| Release | `.github/workflows/release.yml` publishes the native archives, the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
+| Release | `.github/workflows/release.yml` publishes the native archives, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`; no container image |
 | Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide |
