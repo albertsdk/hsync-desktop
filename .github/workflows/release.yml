@@ -145,8 +145,9 @@ jobs:
           stage="hsync-desktop-${version}-${{ matrix.target }}"
           mkdir -p "release-out/${stage}"
           cp "dist/${{ matrix.target }}/hsync-desktop${{ matrix.ext }}" "release-out/${stage}/"
+          # The .dmg is a standalone release asset (not embedded in the archive).
           if ls dist/macos/*.dmg >/dev/null 2>&1; then
-            cp dist/macos/*.dmg "release-out/${stage}/"
+            cp dist/macos/*.dmg "release-out/"
           fi
           cd release-out
           if [ "${{ matrix.archive }}" = "zip" ]; then
