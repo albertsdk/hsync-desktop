@@ -115,6 +115,8 @@ translations: dict[str, str] = {
     "settings.test_connection_success": "✓ Serveur accessible — connexion OK",
     "settings.test_connection_failure": "✗ Serveur inaccessible. Vérifiez l'URL et votre réseau.",
     "settings.test_connection_no_url": "Entrez d'abord une URL de serveur.",
+    "settings.invalid_server_endpoint": "Adresse de serveur invalide. Utilisez hôte, hôte:port, [IPv6], [IPv6]:port ou une URL https:// complète.",
+    "settings.invalid_bootnode_endpoint": "Adresse de bootnode invalide. Utilisez hôte, hôte:port, [IPv6] ou [IPv6]:port.",
     "settings.bucket": "Bucket :",
     "settings.watch": "Surveiller les modifications (continu)",
     "settings.resync": "Intervalle de re-sync :",

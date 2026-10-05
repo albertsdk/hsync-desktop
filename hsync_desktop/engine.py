@@ -157,10 +157,10 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
-    # Cross-network discovery: the bootnode travels through the environment
-    # (the client CLI takes a bare positional, but HSYNC_BOOTNODE is the
-    # documented equivalent and needs no argument plumbing). UPnP is sent
-    # explicitly so the user's choice wins over the plan default.
+    # Cross-network discovery: the bootnode travels through the environment as
+    # a HOST[:PORT] endpoint (same grammar as the client's BOOTNODE positional,
+    # so no argument plumbing is needed). UPnP is sent explicitly so the user's
+    # choice wins over the plan default.
     bootnode = str(s.value("p2p/bootnode", "", str)).strip()
     if bootnode:
         env.insert("HSYNC_BOOTNODE", bootnode)

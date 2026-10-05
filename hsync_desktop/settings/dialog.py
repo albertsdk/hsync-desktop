@@ -19,6 +19,12 @@ from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
+from hsync_common.endpoint import (
+    build_https_url,
+    format_authority,
+    parse_host_port,
+    parse_https_url,
+)
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
@@ -99,6 +105,9 @@ from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
+
+# The client's server-mode default port (mirrors hsync_client.constants).
+_SERVER_DEFAULT_PORT = 9753
 
 
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
@@ -983,6 +992,30 @@ class SettingsDialog(QDialog):
             self.force_master.setChecked(False)
             self.force_master.blockSignals(False)
 
+    def _normalize_server_endpoint(self) -> str | None:
+        """Canonicalize the server field, or raise ``ValueError``.
+
+        Accepts the same forms as ``HSYNC_SERVER`` (bare ``host``/``host:port``/
+        ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
+        canonical HTTPS URL so ``_ensure_server_trust``/``urlsplit`` keep working.
+        """
+        raw = self.server_url.text().strip()
+        if not raw:
+            return None
+        if raw.lower().startswith("https://"):
+            return parse_https_url(raw)
+        return build_https_url(parse_host_port(raw), _SERVER_DEFAULT_PORT)
+
+    def _normalize_bootnode_endpoint(self) -> str | None:
+        """Canonicalize the bootnode field, or raise ``ValueError``."""
+        raw = self.p2p_bootnode.text().strip()
+        if not raw:
+            return None
+        endpoint = parse_host_port(raw)
+        if endpoint.port is None:
+            return endpoint.host
+        return format_authority(endpoint.host, endpoint.port)
+
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
         url = self.server_url.text().strip()
@@ -994,18 +1027,19 @@ class SettingsDialog(QDialog):
             )
             return
 
-        # Validate URL scheme and format to prevent SSRF via file://,
-        # localhost probes, or other unexpected schemes.
-        if not url.startswith("https://"):
+        # Validate + normalize through the shared endpoint grammar to prevent
+        # SSRF via file://, localhost probes, or other unexpected schemes.
+        try:
+            normalized = self._normalize_server_endpoint()
+            assert normalized is not None  # url was non-empty above
+            base = normalized.rstrip("/")
+        except ValueError:
             QMessageBox.warning(
                 self,
                 tr("settings.test_connection_title"),
-                "The server URL must start with 'https://'.",
+                tr("settings.invalid_server_endpoint"),
             )
             return
-
-        # Normalize URL
-        base = url.rstrip("/")
         health_url = f"{base}/health"
 
         self.btn_test_connection.setEnabled(False)
@@ -1104,6 +1138,23 @@ class SettingsDialog(QDialog):
         # Validate: the API key is never sent over an unencrypted channel.
         if not self._confirm_insecure_api_key():
             return  # Go back to dialog
+        # Validate + normalize the server and bootnode endpoints (shared grammar).
+        try:
+            normalized_server = self._normalize_server_endpoint()
+        except ValueError:
+            QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_server_endpoint"))
+            return
+        try:
+            normalized_bootnode = self._normalize_bootnode_endpoint()
+        except ValueError:
+            QMessageBox.warning(
+                self, tr("settings.title"), tr("settings.invalid_bootnode_endpoint")
+            )
+            return
+        if normalized_server is not None:
+            self.server_url.setText(normalized_server)
+        if normalized_bootnode is not None:
+            self.p2p_bootnode.setText(normalized_bootnode)
         self.save()
         self.accept()
 

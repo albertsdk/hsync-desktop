@@ -115,6 +115,8 @@ translations: dict[str, str] = {
     "settings.test_connection_success": "✓ Server raggiungibile — connessione OK",
     "settings.test_connection_failure": "✗ Server non raggiungibile. Controlla l'URL e la tua rete.",
     "settings.test_connection_no_url": "Inserisci prima un URL server.",
+    "settings.invalid_server_endpoint": "Indirizzo server non valido. Usa host, host:porta, [IPv6], [IPv6]:porta o un URL https:// completo.",
+    "settings.invalid_bootnode_endpoint": "Indirizzo bootnode non valido. Usa host, host:porta, [IPv6] o [IPv6]:porta.",
     "settings.bucket": "Cartella Remota:",
     "settings.watch": "Monitora le modifiche (continuo)",
     "settings.resync": "Intervallo re-sync:",

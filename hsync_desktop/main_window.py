@@ -1711,16 +1711,15 @@ class MainWindow(QMainWindow):
             return True
         if str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
             return True
-        # The client dials the bootnode on 443 (HSYNC_BOOTNODE carries a bare
-        # host): normalize the setting to its bare host so an entry written as
-        # "host:port" still matches.
+        # The bootnode setting may carry a port ("[IPv6]:port"): normalize it to
+        # its unbracketed host and use the real port for the trust store/fetch.
         try:
-            store_host = parse_host_port(host).host
+            endpoint = parse_host_port(host)
         except ValueError:
-            store_host = host
+            return True
         return self._confirm_host_trust(
-            store_host,
-            443,
+            endpoint.host,
+            endpoint.port or 443,
             list_fn=list_bootnode_trust,
             fetch_fn=fetch_bootnode_fingerprint,
             add_fn=add_bootnode_trust,

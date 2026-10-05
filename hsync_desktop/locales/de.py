@@ -115,6 +115,8 @@ translations: dict[str, str] = {
     "settings.test_connection_success": "✓ Server erreichbar — Verbindung OK",
     "settings.test_connection_failure": "✗ Server nicht erreichbar. Bitte URL und Netzwerkverbindung prüfen.",
     "settings.test_connection_no_url": "Bitte zuerst eine Server-URL eingeben.",
+    "settings.invalid_server_endpoint": "Ungültige Serveradresse. Verwenden Sie Host, Host:Port, [IPv6], [IPv6]:Port oder eine vollständige https://-URL.",
+    "settings.invalid_bootnode_endpoint": "Ungültige Bootnode-Adresse. Verwenden Sie Host, Host:Port, [IPv6] oder [IPv6]:Port.",
     "settings.bucket": "Bucket:",
     "settings.watch": "Änderungen überwachen (kontinuierlich)",
     "settings.resync": "Re-Sync-Intervall:",

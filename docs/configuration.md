@@ -49,7 +49,7 @@ for the underlying behaviour.
 | Force master / Never master | Control master election for this device |
 | Require pairing | Only sync with explicitly paired peers |
 | p2p key | Shared secret for the p2p group; with a bootnode it is also the bootnode credential |
-| Bootnode | Hostname of an optional `boot/1` node for cross-network discovery; empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (bare host, no scheme/port) |
+| Bootnode | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
 | Bootnode trust policy | How the client authenticates the bootnode: ask on first use (default), accept new, require a pin, or no verification. Passed as `HSYNC_BOOTNODE_TRUST` |
 | Manage trusted keys | List, add and remove the bootnode, server and peer fingerprints the client actually uses |
 | Map port with UPnP | Map the master port so peers reached through a bootnode can dial it (only takes effect with a bootnode set) |

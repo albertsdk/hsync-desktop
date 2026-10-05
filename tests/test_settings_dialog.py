@@ -250,3 +250,37 @@ class TestServerTrustPolicy:
         # strict (pinning) -> no chain verification (the pin is the trust anchor)
         dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("strict"))
         assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_NONE
+
+
+class TestEndpointNormalization:
+    """Server/bootnode fields validate + normalize through the shared grammar."""
+
+    def test_server_url_normalizes_bare_host(self, dialog):
+        dialog.server_url.setText("host.example.com")
+        assert dialog._normalize_server_endpoint() == "https://host.example.com:9753"
+
+    def test_server_url_ipv6_with_port(self, dialog):
+        dialog.server_url.setText("[::1]:8443")
+        assert dialog._normalize_server_endpoint() == "https://[::1]:8443"
+
+    def test_server_url_rejects_http(self, dialog):
+        import pytest
+
+        dialog.server_url.setText("http://host.example.com")
+        with pytest.raises(ValueError):
+            dialog._normalize_server_endpoint()
+
+    def test_bootnode_normalizes_ipv6_composite(self, dialog):
+        dialog.p2p_bootnode.setText("[::1]:8443")
+        assert dialog._normalize_bootnode_endpoint() == "[::1]:8443"
+
+    def test_bootnode_bare_ipv6_is_unbracketed(self, dialog):
+        dialog.p2p_bootnode.setText("[::1]")
+        assert dialog._normalize_bootnode_endpoint() == "::1"
+
+    def test_bootnode_rejects_scheme(self, dialog):
+        import pytest
+
+        dialog.p2p_bootnode.setText("https://boot.example.net")
+        with pytest.raises(ValueError):
+            dialog._normalize_bootnode_endpoint()

@@ -125,6 +125,8 @@ translations: dict[str, str] = {
     "settings.test_connection_success": "✓ Server reachable — connection OK",
     "settings.test_connection_failure": "✗ Server not reachable. Check the URL and your network.",
     "settings.test_connection_no_url": "Enter a Server URL first.",
+    "settings.invalid_server_endpoint": "Invalid server address. Use a host, host:port, [IPv6], [IPv6]:port or a full https:// URL.",
+    "settings.invalid_bootnode_endpoint": "Invalid bootnode address. Use a host, host:port, [IPv6] or [IPv6]:port.",
     # Settings sync
     "settings.bucket": "Remote Folder:",
     "settings.watch": "Real-time sync",

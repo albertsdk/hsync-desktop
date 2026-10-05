@@ -46,12 +46,14 @@ opens `TrustedKeysDialog`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded under
 `*_none` option labels) / `settings.p2p_upnp` (5 locales). Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
-`HSYNC_BOOTNODE` (bare host), `HSYNC_UPNP_ENABLED` (the user's explicit choice),
+`HSYNC_BOOTNODE` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
+`[IPv6]:port`), `HSYNC_UPNP_ENABLED` (the user's explicit choice),
 and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` /
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in `main_window.py`
-(`_ensure_bootnode_trust`). The GUI cannot answer the client's terminal prompt,
+(`_ensure_bootnode_trust`, which now uses the endpoint's real port). The GUI
+cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
 
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,

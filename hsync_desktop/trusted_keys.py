@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from hsync_common.endpoint import parse_host_port
+from hsync_common.endpoint import format_authority, parse_host_port
 from hsync_common.protocol.pairing import parse_fingerprint
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtWidgets import (
@@ -294,15 +294,22 @@ class TrustedKeysDialog(QDialog):
             self._set_empty(table, tr("trusted_keys.failed"))
             return
         for entry in entries:
+            host = str(entry.get("host", ""))
+            port = int(entry.get("port", 443))
             self._append_row(
                 table,
                 [
-                    f"{entry.get('host', '')}:{entry.get('port', 443)}",
+                    format_authority(host, port),
                     str(entry.get("fingerprint", "")),
                     str(entry.get("source", "")),
                     str(entry.get("first_seen", "")),
                 ],
             )
+            # Keep the structured (host, port) pair for a lossless remove, so an
+            # IPv6 composite ("[::1]:443") is never re-parsed from its text.
+            item = table.item(table.rowCount() - 1, 0)
+            if item is not None:
+                item.setData(Qt.ItemDataRole.UserRole, (host, port))
 
     def _load_peers(self) -> None:
         table = self._peer_table
@@ -382,11 +389,19 @@ class TrustedKeysDialog(QDialog):
         if row < 0 or self._binary is None:
             return
         item = table.item(row, 0)
-        authority = item.text() if item else ""
-        endpoint = parse_host_port(authority)
-        if endpoint is None or not self._confirm_remove(authority):
+        stored = item.data(Qt.ItemDataRole.UserRole) if item else None
+        if isinstance(stored, tuple) and len(stored) == 2:
+            host, port = stored
+            authority = format_authority(host, port)
+        else:
+            authority = item.text() if item else ""
+            endpoint = parse_host_port(authority)
+            if endpoint is None:
+                return
+            host, port = endpoint.host, endpoint.port
+        if not self._confirm_remove(authority):
             return
-        if remove_trust(self._binary, endpoint.host, endpoint.port):
+        if remove_trust(self._binary, host, port):
             self._reload_hosts(table)
         else:
             QMessageBox.warning(self, tr("trusted_keys.title"), tr("trusted_keys.failed"))
