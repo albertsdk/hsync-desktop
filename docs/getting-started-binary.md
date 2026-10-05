@@ -22,14 +22,21 @@ hsync-desktop-VERSION-darwin-arm64.tar.gz
 hsync-desktop-VERSION-windows-amd64.zip
 ```
 
-Replace `VERSION` with the release you downloaded (e.g. `1.0.0`). Verify it
-against the release `SHA256SUMS` if you wish, then extract and run it.
+The **latest stable** archive of each target is also available at a stable URL,
+without knowing the version — replace `linux-amd64` with your target
+(`linux-arm64`, `darwin-amd64`, `darwin-arm64`, `windows-amd64`):
+
+```bash
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-linux-amd64.tar.gz"
+```
+
+Verify it against the release `SHA256SUMS` if you wish, then extract and run it.
 
 ### Linux / macOS
 
 ```bash
-tar -xzf hsync-desktop-VERSION-linux-amd64.tar.gz
-cd hsync-desktop-VERSION-linux-amd64
+tar -xzf hsync-desktop-linux-amd64.tar.gz
+cd hsync-desktop-linux-amd64
 ./hsync-desktop
 ```
 
