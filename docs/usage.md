@@ -16,7 +16,7 @@ hsync-desktop
 
 - Installed with the installer script or a `.deb`: run `hsync-desktop`.
 - Standalone bundle: run the extracted `hsync-desktop` executable.
-- From source: `./run.sh` or `poetry run hsync-desktop`.
+- From source: `./run.sh`.
 
 The main window shows the file/transfer panel and a log area; an icon also
 appears in the system tray. Closing the window keeps the app running in the

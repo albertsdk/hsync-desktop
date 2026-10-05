@@ -28,10 +28,10 @@ The URL always points to the **latest stable** release; to pin a version, use
 
 ### Build from the checkout (alternative)
 
-With the `hsync-client` engine already built as a sibling directory:
+With the `hsync-client` engine already built as a sibling directory (install the
+build dependencies first — see [Contributing](../CONTRIBUTING.md)):
 
 ```bash
-poetry install --with build
 ./compile.sh --target appimage
 ```
 

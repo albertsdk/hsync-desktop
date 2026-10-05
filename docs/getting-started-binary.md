@@ -14,7 +14,7 @@ when you prefer not to run a `curl | bash` installer.
 Download the archive for your platform from the
 [Releases page](https://github.com/albertsdk/hsync-desktop/releases):
 
-```
+```text
 hsync-desktop-VERSION-linux-amd64.tar.gz
 hsync-desktop-VERSION-linux-arm64.tar.gz
 hsync-desktop-VERSION-darwin-amd64.tar.gz
@@ -44,7 +44,7 @@ To get a `hsync-desktop` command on your `PATH`, move it into `~/.local/bin`:
 
 ```bash
 mkdir -p "$HOME/.local/bin"
-install -m 755 hsync-desktop "$HOME/.local/bin/hsync-desktop"
+install hsync-desktop "$HOME/.local/bin/hsync-desktop"
 ```
 
 > On macOS the binary is unsigned, so Gatekeeper may block the first launch.

@@ -37,7 +37,7 @@ From the `hsync-desktop` checkout, with the client already built as a sibling:
 
 ```bash
 ./compile.sh --target rpm
-sudo dnf install ./dist/rpm/hsync-desktop-<ver>-1.<dist>.<arch>.rpm
+sudo dnf install ./dist/rpm/hsync-desktop-*.rpm
 ```
 
 `./compile.sh --target rpm-all` cross-builds the `x86_64` and `aarch64`

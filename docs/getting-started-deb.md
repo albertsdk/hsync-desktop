@@ -35,7 +35,7 @@ From the `hsync-desktop` checkout, with the client already built as a sibling:
 
 ```bash
 ./compile.sh --target deb
-sudo apt install ./dist/deb/hsync-desktop_<ver>_<arch>.deb
+sudo apt install ./dist/deb/hsync-desktop_*.deb
 ```
 
 `./compile.sh --target deb-all` cross-builds the `amd64` and `arm64` packages

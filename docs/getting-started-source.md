@@ -22,8 +22,8 @@ prefer the [installer script](getting-started-script.md) or the
 With both repositories cloned side by side:
 
 ```bash
-git clone <hsync-desktop-url> hsync-desktop
-git clone <hsync-common-url> hsync-common
+git clone https://github.com/albertsdk/hsync-desktop.git hsync-desktop
+git clone https://github.com/albertsdk/hsync-common.git hsync-common
 cd hsync-desktop
 ./run.sh
 ```
@@ -34,23 +34,21 @@ message if `../hsync-common` is missing.
 
 ### Native commands
 
-The same steps, spelled out:
+The same steps, spelled out (the virtualenv is created by `run.sh`):
 
 ```bash
-poetry install
-poetry run hsync-desktop
+.venv/bin/hsync-desktop
 ```
 
 ### Build the engine first (self-contained bundle)
 
 The native build bundles the `hsync` client when it finds it in the sibling
-checkout, producing a standalone executable:
+checkout (build the engine first — see [Contributing](../CONTRIBUTING.md)),
+producing a standalone executable:
 
 ```bash
-cd ../hsync-client && ./compile.sh && cd ../hsync-desktop
-poetry install
 ./compile.sh
-# output: dist/<os>-<arch>/hsync-desktop  (e.g. dist/linux-amd64/hsync-desktop)
+# → dist/<os>-<arch>/hsync-desktop
 ```
 
 The desktop build looks for the client at
@@ -62,7 +60,6 @@ warns and the app falls back to `hsync` on `PATH` at runtime.
 ```bash
 ./compile.sh                    # Native host build (default)
 ./compile.sh --clean            # Clean artifacts and rebuild
-./compile.sh --target native    # Explicit native build
 ./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
 ./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
 ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
@@ -92,8 +89,7 @@ At runtime the application searches for the `hsync` binary in this order:
 ```bash
 cd /path/to/hsync-desktop
 git pull
-poetry install
-poetry run hsync-desktop
+./run.sh
 ```
 
 Settings and secrets are kept separately by Qt `QSettings`.
