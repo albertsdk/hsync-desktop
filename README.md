@@ -49,6 +49,13 @@ without touching the command line.
 - 🔒 Single-instance lock and splash screen on startup
 - 💾 Persistent settings and window geometry via QSettings
 
+## Privacy & security
+
+The desktop app drives the `hsync` client, so it inherits its security model:
+TLS on every transport, a stable cryptographic device identity, trust-on-first-
+use fingerprint pinning, and no telemetry. Runs on Windows, macOS and Linux —
+see the [Getting Started](docs/getting-started.md) chooser.
+
 ## Requirements
 
 For building:
