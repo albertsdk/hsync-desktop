@@ -24,14 +24,16 @@ without touching the command line.
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)](https://www.qt.io/)
 
 **Quick navigation:**
-- **New to HSYNC?** Start with the [Features](#features) overview and [Getting started](#getting-started)
+- **New to HSYNC?** Start with the [What you can do](#what-you-can-do-with-hsync-desktop) overview and [Getting started](#getting-started)
 - **Configuring the app?** See the [Configuration Reference](docs/configuration.md)
 - **Want to contribute?** See [Contributing](CONTRIBUTING.md)
 - **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
 
 ---
 
-## Features
+## What you can do with HSYNC Desktop
+
+...basically the same things as [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md), but with this GUI you also have:
 
 - 🖥️ Real-time log viewer with scrolling output
 - 📊 Status panel: connection state, master/client role, bucket, group, peers
