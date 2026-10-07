@@ -5,7 +5,7 @@ Version:        __VERSION__
 Release:        1%{?dist}
 Summary:        HSYNC - desktop GUI for file synchronization
 
-License:        MPL-2.0
+License:        BSD-3-Clause
 URL:            https://github.com/albertsdk/hsync-desktop
 Packager:       Alberto Basso <17047798+albertsdk@users.noreply.github.com>
 
