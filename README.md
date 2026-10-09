@@ -9,10 +9,9 @@ gives you a visual interface to control the HSYNC Client: start or stop sync,
 monitor transfer progress, adjust settings, and get desktop notifications — all
 without touching the command line.
 
-> The desktop drives the `hsync` client as a subprocess over an explicit,
-> versioned contract. See the
-> [Architecture Decision Records](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/README.md) — in
-> particular the [desktop ↔ client subprocess contract](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
+> New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using HSYNC Desktop.
+
+The desktop drives the `hsync` client as a subprocess over an explicit, versioned contract. See the [Architecture Decision Records](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/README.md) — in particular the [desktop ↔ client subprocess contract](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
 
 > 👉 **Operational Advisory:** As with any automated filesystem mutation utility, administrators are strongly advised to maintain validated, independent backups prior to initial deployment in production environments.
 
@@ -33,7 +32,7 @@ without touching the command line.
 
 ## What you can do with HSYNC Desktop
 
-...basically the same things as [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md), but with this GUI you also have:
+It offers the same core capabilities as [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md), plus a graphical layer on top:
 
 - 🖥️ Real-time log viewer with scrolling output
 - 📊 Status panel: connection state, master/client role, bucket, group, peers
@@ -125,3 +124,7 @@ HSYNC is a passion project that I primarily develop and maintain in my spare tim
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. Although the author has implemented reasonable safety measures, IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY — including, without limitation, any direct, indirect, incidental, special, exemplary, or consequential damages, loss of data, or business interruption — WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 This disclaimer supplements, and does not replace, the warranty disclaimer and limitation of liability provisions of the [BSD 3-Clause License](LICENSE), which govern this software.
+
+## License
+
+Distributed under the [BSD 3-Clause License](LICENSE).
