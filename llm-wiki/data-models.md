@@ -7,8 +7,8 @@ it reads are imported from `hsync-common`; the rest are local UI dataclasses/enu
 
 | Type | Source | Used by |
 | ---- | ------ | ------- |
-| `UiEventName` / `UiEventDict` / `parse_event_line` | `hsync_common.protocol.events` | `engine._handle_event` (`engine.py:572`) |
-| `CapabilitiesDoc` / `parse_capabilities` | `hsync_common.protocol.capabilities` | `engine.get_binary_capabilities` (`engine.py:143`); UI gating |
+| `UiEventName` / `UiEventDict` / `parse_event_line` | `hsync_common.protocol.events` | `engine._handle_event` (`engine.py::HsyncEngine._handle_event`) |
+| `CapabilitiesDoc` / `parse_capabilities` | `hsync_common.protocol.capabilities` | `engine.get_binary_capabilities` (`engine.py::get_binary_capabilities`); UI gating |
 
 Event payload shape + capability schema are SSOT in
 [common data-models](../../hsync-common/llm-wiki/data-models.md). The desktop
@@ -16,7 +16,7 @@ must not assume fields beyond that schema.
 
 ## Local view-state
 
-### FileTransfer (`file_panel/models.py:71`)
+### FileTransfer (`file_panel/models.py::FileTransfer`)
 
 Dataclass for one row in the transfer table.
 
@@ -28,19 +28,20 @@ Dataclass for one row in the transfer table.
 | `status` | a `TransferStatus` |
 | `mtime` / `client_cid` / `client_ip` | metadata for detail pane |
 
-Derived: `filename` (`:84`), `path` (`:88`), `remaining` (`:93`), `eta_seconds`
-(`:97`, computed from the elapsed rate only while `DOWNLOADING`/`UPLOADING`).
+Derived: `filename` (`file_panel/models.py::FileTransfer.filename`), `path` (`file_panel/models.py::FileTransfer.path`),
+`remaining` (`file_panel/models.py::FileTransfer.remaining`), `eta_seconds`
+(`file_panel/models.py::FileTransfer.eta_seconds`, computed from the elapsed rate only while `DOWNLOADING`/`UPLOADING`).
 
-### TransferStatus (`file_panel/models.py:23`)
+### TransferStatus (`file_panel/models.py::TransferStatus`)
 
 Enum of row states: `LOCAL`, `SYNCED`, `TO_DOWNLOAD`/`TO_UPLOAD`/`TO_DELETE`/
 `TO_RENAME`, `DOWNLOADING`/`UPLOADING`, `DELETED`, `COMPLETED`, `ERROR` (plus
-legacy `QUEUED`/`TRANSFERRING`). Render maps: `STATUS_COLORS` (`:42`),
-`_NO_PROGRESS_STATUSES` (`:60`).
+legacy `QUEUED`/`TRANSFERRING`). Render maps: `STATUS_COLORS` (`file_panel/models.py::STATUS_COLORS`),
+`_NO_PROGRESS_STATUSES` (`file_panel/models.py::_NO_PROGRESS_STATUSES`).
 
-### TransferStats (`engine.py:45`)
+### TransferStats (`engine.py::TransferStats`)
 
-Per-session counters accumulated by the engine; `reset` (`engine.py:53`).
+Per-session counters accumulated by the engine; `reset` (`engine.py::TransferStats.reset`).
 
 ## Persisted configuration
 

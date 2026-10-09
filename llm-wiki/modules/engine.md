@@ -5,18 +5,18 @@
 
 ## Binary discovery & compatibility
 
-| Symbol | Line | Role |
-| ------ | ---- | ---- |
-| `find_hsync_binary` | `engine.py:145` | locate bundled or sibling executable |
-| `_parse_version` | `:170` | extract `X.Y.Z` from `--version` output (shared by sync + async paths) |
-| `get_binary_version` | `:176` | run `--version`, parse (pure, uncached) |
-| `get_binary_capabilities` | `:194` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
-| `is_binary_version_compatible` | `:225` | pure major-version comparison |
-| `get_binary_version_cached` | `:290` | `get_binary_version` + QSettings cache keyed by `(path, size, mtime_ns)` |
-| `get_binary_capabilities_cached` | `:301` | `get_binary_capabilities` + QSettings cache (only parsed docs are stored) |
-| `BinaryVersionProbe` | `:324` | async `QProcess` resolver for `--version` (cache hit emits synchronously; hung binary killed after 5 s) |
-| `_probe_settings` | `:236` | QSettings accessor (patchable in tests) |
-| `_platform_tag` | `:96` | OS/arch tag for bundled-binary lookup |
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `find_hsync_binary` | `engine.py::find_hsync_binary` | locate bundled or sibling executable |
+| `_parse_version` | `engine.py::_parse_version` | extract `X.Y.Z` from `--version` output (shared by sync + async paths) |
+| `get_binary_version` | `engine.py::get_binary_version` | run `--version`, parse (pure, uncached) |
+| `get_binary_capabilities` | `engine.py::get_binary_capabilities` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
+| `is_binary_version_compatible` | `engine.py::is_binary_version_compatible` | pure major-version comparison |
+| `get_binary_version_cached` | `engine.py::get_binary_version_cached` | `get_binary_version` + QSettings cache keyed by `(path, size, mtime_ns)` |
+| `get_binary_capabilities_cached` | `engine.py::get_binary_capabilities_cached` | `get_binary_capabilities` + QSettings cache (only parsed docs are stored) |
+| `BinaryVersionProbe` | `engine.py::BinaryVersionProbe` | async `QProcess` resolver for `--version` (cache hit emits synchronously; hung binary killed after 5 s) |
+| `_probe_settings` | `engine.py::_probe_settings` | QSettings accessor (patchable in tests) |
+| `_platform_tag` | `engine.py::_platform_tag` | OS/arch tag for bundled-binary lookup |
 
 The version/capabilities probes are cached in `QSettings(SETTINGS_ORG,
 SETTINGS_APP)` under `binary/version_cache` / `binary/capabilities_cache`. An
@@ -28,28 +28,28 @@ to gate controls at first paint.
 
 ## HsyncEngine lifecycle
 
-| Symbol | Line | Role |
-| ------ | ---- | ---- |
-| `HsyncEngine` | `engine.py:188` | `QObject` wrapper around the process |
-| `start` | `:282` | open pipes, write secrets, launch `QProcess`, attach notifier |
-| `stop` | `:404` | terminate the process |
-| `sync` / `preview` | `:422` / `:431` | trigger a cycle / dry-run via stdin command |
-| `set_sync_direction` / `set_bandwidth` | `:435` / `:443` | live runtime commands |
-| `_send_command` | `:459` | write a JSON command to the process stdin |
-| `_on_stdout` | `:473` | forward raw log lines (`log_received`) |
-| `_on_finished` / `_on_error` | `:486` / `:500` | exit + QProcess error mapping |
-| `_set_status` | `:518` | debounced `status_changed` emit |
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `HsyncEngine` | `engine.py::HsyncEngine` | `QObject` wrapper around the process |
+| `start` | `engine.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
+| `stop` | `engine.py::HsyncEngine.stop` | terminate the process |
+| `sync` / `preview` | `engine.py::HsyncEngine.sync` / `engine.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
+| `set_sync_direction` / `set_bandwidth` | `engine.py::HsyncEngine.set_sync_direction` / `engine.py::HsyncEngine.set_bandwidth` | live runtime commands |
+| `_send_command` | `engine.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
+| `_on_stdout` | `engine.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) |
+| `_on_finished` / `_on_error` | `engine.py::HsyncEngine._on_finished` / `engine.py::HsyncEngine._on_error` | exit + QProcess error mapping |
+| `_set_status` | `engine.py::HsyncEngine._set_status` | debounced `status_changed` emit |
 
-State accessors: `is_running` (`:249`), `is_master` (`:253`), `peer_count`
-(`:257`), `status` (`:261`), `cid` (`:265`), `server_ip` (`:269`),
-`binary_path` get/set (`:273`/`:277`).
+State accessors: `is_running` (`engine.py::HsyncEngine.is_running`), `is_master` (`engine.py::HsyncEngine.is_master`),
+`status` (`engine.py::HsyncEngine.status`), `cid` (`engine.py::HsyncEngine.cid`), `server_ip` (`engine.py::HsyncEngine.server_ip`),
+`binary_path` get/set (`engine.py::HsyncEngine.binary_path`).
 
 ## Secrets & event channel (pipe FDs, never argv)
 
-`start` (`engine.py:302`) builds inheritable pipes so secrets never hit the
+`start` (`engine.py::HsyncEngine.start`) builds inheritable pipes so secrets never hit the
 command line:
 
-- `write_secret_pipe` (`engine.py`): write secret, close write end, mark the
+- `write_secret_pipe` (`engine.py::write_secret_pipe`): write secret, close write end, mark the
   read fd inheritable (`os.set_inheritable`). Python 3.4+ fds are CLOEXEC by
   default; without this the QProcess child would see a closed `--api-key-fd` /
   `--p2p-key-fd`.
@@ -61,42 +61,43 @@ command line:
 
 ## Event → Signal bridge
 
-`_on_events_available` (`engine.py:549`) reads ready lines, `parse_event_line`
-(`:568`, common) yields a `UiEventDict`, and `_handle_event` (`:572`) maps each
+`_on_events_available` (`engine.py::HsyncEngine._on_events_available`) reads ready lines, `parse_event_line`
+(common) yields a `UiEventDict`, and `_handle_event` (`engine.py::HsyncEngine._handle_event`) maps each
 `UiEventName` to a typed Qt `Signal`:
 
-| `UiEventName` | Signal | Line |
-| ------------- | ------ | ---- |
-| `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` | `:581`/`:583`/`:588` |
-| `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip | `:593`–`:599` |
-| `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup | `:798` |
-| `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` | `:612`–`:617` |
-| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` | `:620`/`:613`/`:614` |
-| `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` | `:621`/`:623`/`:622` |
-| `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` | `:624`/`:625` |
-| `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` | `:656` |
-| `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` | `:658`/`:659` |
-| `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals | `:648`–`:660` |
+| `UiEventName` | Signal |
+| ------------- | ------ |
+| `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` |
+| `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip |
+| `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup |
+| `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` |
+| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
+| `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` |
+| `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` |
+| `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
+| `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
+| `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals |
 
-Full signal list: `engine.py:197`–`:222`. Event names + payload shape are SSOT in
+Mappings live in `_handle_event` (`engine.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`
+Signal declarations (`engine.py::HsyncEngine`). Event names + payload shape are SSOT in
 `hsync_common.protocol.events`
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
 
-`TransferStats` (`engine.py:45`) accumulates per-session counters (`reset:53`).
+`TransferStats` (`engine.py::TransferStats`) accumulates per-session counters (`engine.py::TransferStats.reset`).
 
 ## Trust (known-hosts / known-peers) helpers
 
 The GUI edits the client's three SSH-style trust stores through subprocess helpers
 (one `hsync trust …` namespace) so it never touches the store files directly:
 
-| Symbol | Line | Role |
-| ------ | ---- | ---- |
-| `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine.py:220` / `:231` / `:181` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
-| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `:195` / `:209` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
-| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `:259` / `:264` / `:271` | `hsync trust bootnode {list --json,add,remove}` |
-| `list_server_trust` / `add_server_trust` / `remove_server_trust` | `:293` / `:298` / `:305` | `hsync trust server {list --json,add,remove}` |
-| `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `:276` / `:281` / `:288` | `hsync trust peer {list --json,add,remove}` |
-| `supports_peer_trust` | `:310` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine.py::_run_hsync_success` / `engine.py::_run_hsync_json` / `engine.py::_run_hsync_line` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
+| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `engine.py::fetch_bootnode_fingerprint` / `engine.py::fetch_server_fingerprint` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
+| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine.py::list_bootnode_trust` / `engine.py::add_bootnode_trust` / `engine.py::remove_bootnode_trust` | `hsync trust bootnode {list --json,add,remove}` |
+| `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine.py::list_server_trust` / `engine.py::add_server_trust` / `engine.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
+| `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine.py::list_peer_pins` / `engine.py::add_peer_pin` / `engine.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
+| `supports_peer_trust` | `engine.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
 
 ## Delta transfer compatibility
 

@@ -7,12 +7,12 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 
 | Layer | Code | Responsibility |
 | ----- | ---- | -------------- |
-| Entry | `main.py:33` (`main`) | single-instance guard, theme, i18n, build `MainWindow`, run Qt loop |
-| Window | `main_window.py:99` (`MainWindow`) | menus/toolbar, log view, file panel; wires engine signals → slots |
-| File panel | `file_panel/widgets.py:1280` (`FilePanel`), `:339` (`FileTransferTable`) | live transfer table, detail pane, file actions |
-| Engine | `engine.py:188` (`HsyncEngine`) | spawn/stop the binary, bridge its event stream to Qt signals |
-| Settings | `settings/dialog.py:162` (`SettingsDialog`) + `config.py` | edit + persist config (QSettings) |
-| Args | `settings/cli_args.py:62` (`build_hsync_args`) | translate persisted config → binary CLI flags |
+| Entry | `main.py::main` | single-instance guard, theme, i18n, build `MainWindow`, run Qt loop |
+| Window | `main_window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
+| File panel | `file_panel/widgets.py::FilePanel`, `file_panel/widgets.py::FileTransferTable` | live transfer table, detail pane, file actions |
+| Engine | `engine.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
+| Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
+| Args | `settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, localization, tray, OS notifications |
 
 ## Runtime flow
@@ -26,25 +26,25 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
         │                            │  secrets via --api-key-fd/--p2p-key-fd pipes
         │                            │  events via --events-json-fd (JSON-Lines)
         ▼                            ▼
-   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine.py:572)
+   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine.py::HsyncEngine._handle_event)
 ```
 
-1. **Discover binary**: `find_hsync_binary` (`engine.py:145`), version via
-   `get_binary_version` (`:176`), compatibility via
-   `is_binary_version_compatible` (`:225`); at startup the version is resolved
-   asynchronously by `BinaryVersionProbe` (`:324`) and cached in QSettings.
-2. **Probe capabilities**: `get_binary_capabilities` (`:194`) →
+1. **Discover binary**: `find_hsync_binary` (`engine.py::find_hsync_binary`), version via
+   `get_binary_version` (`engine.py::get_binary_version`), compatibility via
+   `is_binary_version_compatible` (`engine.py::is_binary_version_compatible`); at startup the version is resolved
+   asynchronously by `BinaryVersionProbe` (`engine.py::BinaryVersionProbe`) and cached in QSettings.
+2. **Probe capabilities**: `get_binary_capabilities` (`engine.py::get_binary_capabilities`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
-3. **Build args**: `build_hsync_args` (`cli_args.py:62`) maps every persisted
+3. **Build args**: `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) maps every persisted
    setting to the `p2p`/`server` subcommand plus its flags (`--require-pairing`,
    `--allow-deletions`, …).
-4. **Spawn**: `HsyncEngine.start` (`engine.py:282`) opens pipes, writes secrets,
+4. **Spawn**: `HsyncEngine.start` (`engine.py::HsyncEngine.start`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.
 5. **Bridge events**: each JSON-Lines `UiEventName` is mapped to a typed Qt
-   `Signal` in `_handle_event` (`:572`); `MainWindow._connect_signals`
-   (`main_window.py:599`) binds them to UI updates.
+   `Signal` in `_handle_event` (`engine.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
+   (`main_window.py::MainWindow._connect_signals`) binds them to UI updates.
 6. **Control**: start/stop/sync/preview + live commands (set direction,
-   bandwidth) sent over the process stdin via `_send_command` (`engine.py:459`).
+   bandwidth) sent over the process stdin via `_send_command` (`engine.py::HsyncEngine._send_command`).
 
 ## Boundaries
 
@@ -53,7 +53,7 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
   (`UiEventName`, `CapabilitiesDoc`, protocol versions) is imported from
   `hsync_common.protocol.*` — the SSOT, not desktop-local definitions.
 - **Threading**: heavy work (directory scans) runs in `QObject` workers
-  (`file_panel/workers.py:27`, `DirectoryScanWorker`); UI mutations stay on the
+  (`file_panel/workers.py::DirectoryScanWorker`); UI mutations stay on the
   Qt main thread, fed by signals.
 
 See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
@@ -79,8 +79,8 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
   `HSYNC_VERSION`), `-h/--help`.
 - Native and rpi share the PyInstaller flags and `--add-data` logic
-  (`_onefile_pyi_flags` `compile.sh:295`, `_add_data_args` `compile.sh:331`);
-  `build_binary` (`compile.sh:373`) and `build_rpi` (`compile.sh:426`) differ
+  (`compile.sh::_onefile_pyi_flags`, `compile.sh::_add_data_args`);
+  `build_binary` (`compile.sh::build_binary`) and `build_rpi` (`compile.sh::build_rpi`) differ
   only in the runner and output path.
 - The `deb`/`deb-all` targets share `_onedir_pyi_flags` and stage
   `packaging/deb/` (DEBIAN control + maintainer scripts, `.desktop` entry,
@@ -110,7 +110,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   a `lipo`-merged client. Artifacts are **unsigned** (Gatekeeper workaround in
   `docs/getting-started-macos.md`); signing/notarization hooks are absent by
   design.
-- `clean_artifacts` (`compile.sh:233`) removes the whole `dist/` tree (all
+- `clean_artifacts` (`compile.sh::clean_artifacts`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
 - Docker is required **only** inside `build_rpi`, `build_deb_all` and
   `build_rpm_all`; the `native`, `deb`, `rpm` and `appimage` targets never call

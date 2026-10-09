@@ -5,35 +5,36 @@ How the GUI persists user config and turns it into the binary's command line.
 ## config.py — defaults + keys
 
 Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
-(`:17`–`:24`), server defaults (`:27`–`:35`), sync defaults (`:38`–`:52`), p2p
-defaults (`:53`–`:68`, incl. `DEFAULT_P2P_REQUIRE_PAIRING:59`) and NTP servers
-(`:73`). These seed `QSettings` and the dialog.
-`DEFAULT_NO_COMPRESSION` (`:46`) exists only to migrate the legacy key into
-`DEFAULT_COMPRESSION_ENABLED` (`:47`).
+(`config.py::SETTINGS_ORG`), server defaults (`config.py::DEFAULT_SERVER_TRUST`), sync defaults
+(`config.py::DEFAULT_CONTINUOUS`), p2p defaults
+(`config.py::DEFAULT_P2P_REQUIRE_PAIRING` and neighbours) and NTP servers
+(`config.py::DEFAULT_NTP_HOSTS`). These seed `QSettings` and the dialog.
+`DEFAULT_NO_COMPRESSION` (`config.py::DEFAULT_NO_COMPRESSION`) exists only to migrate the legacy key into
+`DEFAULT_COMPRESSION_ENABLED` (`config.py::DEFAULT_COMPRESSION_ENABLED`).
 
 ## settings/dialog.py — the settings UI
 
-| Symbol | Line | Role |
-| ------ | ---- | ---- |
-| `SettingsDialog` | `dialog.py:162` | tabs for server/sync/p2p; load/save QSettings |
-| `_replace_checkbox_with_toggle` | `:104` | swap checkboxes for `ToggleSwitch` widgets |
-| `_maybe_tip` | `:99` | attach capability/disabled tooltip |
-| `ApiKeyDialog` | `:1201` | enter/replace the server API key (secret) |
-| `P2pKeyDialog` | `:1270` | enter/replace the p2p key (secret) |
-| `HsyncIgnoreEditorDialog` | `:1338` | edit `.hsyncignore` patterns |
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `SettingsDialog` | `settings/dialog.py::SettingsDialog` | tabs for server/sync/p2p; load/save QSettings |
+| `_replace_checkbox_with_toggle` | `settings/dialog.py::_replace_checkbox_with_toggle` | swap checkboxes for `ToggleSwitch` widgets |
+| `_maybe_tip` | `settings/dialog.py::_maybe_tip` | attach capability/disabled tooltip |
+| `ApiKeyDialog` | `settings/dialog.py::ApiKeyDialog` | enter/replace the server API key (secret) |
+| `P2PKeyDialog` | `settings/dialog.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
+| `HsyncIgnoreEditorDialog` | `settings/dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
 
-**NTP hosts (ADR-0023)**: `ntp_hosts` (`dialog.py:297`, dynamic widget injected
+**NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
-`p2p/ntp_hosts` QSettings key (`:1024` / `:1107`); the label comes from
+`p2p/ntp_hosts` QSettings key (`settings/dialog.py::SettingsDialog`); the label comes from
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all 5 locales). It is
 an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
-`apply_settings_env` (`engine.py:99`, called at `engine.py:328`). Empty = the
+`apply_settings_env` (`engine.py::apply_settings_env`, called from `engine.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
@@ -68,30 +69,29 @@ default), and `build_hsync_args` emits no server-trust flag. The server pin is
 edited through the `TrustedKeysDialog` Servers tab or the
 `_ensure_server_trust` pre-flight in `main_window.py`.
 
-Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:21`),
-`_validate_bucket` (`:33`), `_validate_group_name`
-(`:71`).
+Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
+`_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
+(`settings/validators.py::_validate_group_name`).
 
 ## settings/cli_args.py — config → flags (the contract)
 
-| Symbol | Line | Role |
-| ------ | ---- | ---- |
-| `build_hsync_args` | `cli_args.py:62` | core translator: QSettings → arg list |
-| `secure_config_file` | `:31` | restrict the on-disk settings file perms (0600) |
-| `get_saved_theme` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `:247`–`:267` | desktop-only prefs |
-| `get_bandwidth_limits` / `save_bandwidth_limits` | `:273` / `:310` | persisted bandwidth caps |
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `build_hsync_args` | `settings/cli_args.py::build_hsync_args` | core translator: QSettings → arg list |
+| `secure_config_file` | `settings/cli_args.py::secure_config_file` | restrict the on-disk settings file perms (0600) |
+| `get_saved_theme` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` | desktop-only prefs |
+| `get_bandwidth_limits` / `save_bandwidth_limits` | `settings/cli_args.py::get_bandwidth_limits` / `settings/cli_args.py::save_bandwidth_limits` | persisted bandwidth caps |
 
-`build_hsync_args` always appends `--allow-deletions` (`:227`, non-interactive) and
-`--no-color` (`:233`); the engine appends `--allow-unauthenticated-p2p` for a
+`build_hsync_args` (`settings/cli_args.py::build_hsync_args`) always appends `--allow-deletions` (non-interactive) and
+`--no-color`; the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
-is off (`:122`), `--insecure` (`:105`),
-`--ignore-delete` (`:152`), compression flags
-(`:184`/`:186`), the advanced numeric caps (`--min-free-disk-space`,
+is off, `--insecure`,
+`--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
 `--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the
 first token, then `--force-master`, `--never-master`, `--require-pairing`).
 One-shot is
 expressed only via the global `sync/continuous` setting, which maps to
-`--once` (`:124`). Secrets are
+`--once`. Secrets are
 **not** here — they go through engine pipe FDs.
 
 > Any new flag here must mirror an option the client actually exposes
@@ -101,9 +101,9 @@ expressed only via the global `sync/continuous` setting, which maps to
 ## crypto.py — secrets at rest
 
 Secrets stored in `QSettings` are Fernet-encrypted with a machine-derived key:
-`encrypt_value` (`crypto.py:110`) / `decrypt_value` (`:118`); key derivation
-`_derive_key` (`:86`) from `_get_machine_id` (`:40`) + `_APP_SALT` (`:33`);
-stored values carry the `_ENC_PREFIX` (`:37`) marker. **Both** the API key
+`encrypt_value` (`crypto.py::encrypt_value`) / `decrypt_value` (`crypto.py::decrypt_value`); key derivation
+`_derive_key` (`crypto.py::_derive_key`) from `_get_machine_id` (`crypto.py::_get_machine_id`) + `_APP_SALT` (`crypto.py::_APP_SALT`);
+stored values carry the `_ENC_PREFIX` (`crypto.py::_ENC_PREFIX`) marker. **Both** the API key
 (`connection/api_key`) and the p2p key (`p2p/key`) go through encrypt/decrypt
 on save/load (`dialog.py`). `decrypt_value` still accepts a legacy plaintext
 value (no prefix) so an existing unencrypted p2p key is readable until the
@@ -111,7 +111,7 @@ next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 ## i18n.py — localization
 
-`tr` (`i18n.py:94`) looks up keys across 5 locales (`SUPPORTED_LANGUAGES:33`,
-`en/it/de/es/fr`); `init_language` (`:57`) / `set_language` (`:68`) with
-`register_language_callback` (`:88`) for live re-translation. Every user-facing
+`tr` (`i18n.py::tr`) looks up keys across 5 locales (`SUPPORTED_LANGUAGES`, `i18n.py::SUPPORTED_LANGUAGES`,
+`en/it/de/es/fr`); `init_language` (`i18n.py::init_language`) / `set_language` (`i18n.py::set_language`) with
+`register_language_callback` (`i18n.py::register_language_callback`) for live re-translation. Every user-facing
 string **must** exist in all five `locales/*.py`.
