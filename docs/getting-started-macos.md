@@ -10,7 +10,7 @@ else to install.
 
 ## Prerequisites
 
-- macOS 11 (Big Sur) or later
+- <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS 11 (Big Sur) or later
 - The matching `.dmg`: `hsync-desktop-darwin-arm64.dmg` (Apple silicon)
   or `hsync-desktop-darwin-amd64.dmg` (Intel)
 

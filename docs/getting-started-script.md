@@ -10,7 +10,7 @@ There is no Docker mode (this is a desktop GUI); the installer never uses
 
 ## Prerequisites
 
-- Linux or macOS, x86_64 or arm64
+- <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> Linux or macOS, x86_64 or arm64
 - `curl` and `tar`
 - `~/.local/bin` on your `PATH` (the installer links the command there)
 

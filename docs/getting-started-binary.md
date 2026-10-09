@@ -6,7 +6,7 @@ when you prefer not to run a `curl | bash` installer.
 
 ## Prerequisites
 
-- Linux **x86_64**/**aarch64**, macOS (Intel or Apple silicon), or Windows
+- <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> Linux **x86_64**/**aarch64**, <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS (Intel or Apple silicon), or <img src="assets/os/windows.svg" alt="Windows" width="16" height="16"> Windows
   **x86_64**
 
 ## Install

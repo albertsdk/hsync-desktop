@@ -10,7 +10,7 @@ provides `/usr/bin/hsync`.
 
 ## Prerequisites
 
-- RHEL, Rocky Linux, AlmaLinux (9+) or Fedora, on **x86_64** or **aarch64**
+- <img src="assets/os/redhat.svg" alt="Red Hat" width="16" height="16"> <img src="assets/os/fedora.svg" alt="Fedora" width="16" height="16"> RHEL, Rocky Linux, AlmaLinux (9+) or Fedora, on **x86_64** or **aarch64**
 - A root shell or `sudo`
 
 ## Install

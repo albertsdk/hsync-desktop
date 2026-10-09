@@ -11,7 +11,7 @@ nothing to install, no root and no package manager involved.
 
 ## Prerequisites
 
-- A 64-bit Linux desktop (`x86_64`)
+- <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> A 64-bit Linux desktop (`x86_64`)
 - FUSE 2, which most distributions ship. Without it, run the AppImage with
   `--appimage-extract-and-run` (see [Run](#run))
 - The usual X11/Wayland desktop libraries (present on any graphical session)
