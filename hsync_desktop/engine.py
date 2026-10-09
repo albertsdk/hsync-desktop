@@ -727,6 +727,10 @@ class HsyncEngine(QObject):
             read_fd = write_secret_pipe(p2p_key)
             pipe_fds.append(read_fd)
             pipe_args.extend(["--p2p-key-fd", str(read_fd)])
+        elif not p2p_key and mode == "p2p":
+            # Keyless P2P: the desktop already confirmed via its own pre-flight
+            # dialog, so acknowledge the posture for the CLI subprocess.
+            pipe_args.append("--allow-unauthenticated-p2p")
 
         # Structured-event channel: the child writes JSON-Lines status events to
         # the write end, which it inherits across exec. Same inheritable

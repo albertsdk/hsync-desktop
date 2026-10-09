@@ -81,9 +81,10 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`:2
 | `get_saved_theme` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `:247`–`:267` | desktop-only prefs |
 | `get_bandwidth_limits` / `save_bandwidth_limits` | `:273` / `:310` | persisted bandwidth caps |
 
-`build_hsync_args` always appends `--yes` (`:227`, non-interactive) and
-`--no-color` (`:233`); emits `--once` when continuous is off (`:122`),
-`--insecure` (`:105`),
+`build_hsync_args` always appends `--allow-deletions` (`:227`, non-interactive) and
+`--no-color` (`:233`); the engine appends `--allow-unauthenticated-p2p` for a
+keyless p2p run after its own confirmation dialog; emits `--once` when continuous
+is off (`:122`), `--insecure` (`:105`),
 `--ignore-delete` (`:152`), compression flags
 (`:184`/`:186`), the advanced numeric caps (`--min-free-disk-space`,
 `--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the

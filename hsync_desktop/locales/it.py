@@ -205,6 +205,8 @@ translations: dict[str, str] = {
     "warn.force_master_msg": 'L\'opzione "Forza master" è incompatibile con una direzione di sincronizzazione diversa da bidirezionale. Il master p2p opera sempre in modalità bidirezionale.\n\nVuoi reimpostare la direzione a bidirezionale?',
     "warn.api_key_insecure_title": "Connessione non sicura",
     "warn.api_key_insecure_msg": "La chiave API non verrà inviata su una connessione non sicura (http:// o con verifica SSL disabilitata) e la sincronizzazione fallirà. Usa un URL del server https:// con un certificato valido.\n\nSalvare comunque?",
+    "warn.keyless_p2p_title": "Eseguire senza chiave condivisa?",
+    "warn.keyless_p2p_msg": "P2P è in esecuzione senza una chiave condivisa: i peer non sono autenticati e le letture sono aperte a chiunque raggiunga questo nodo. Continuare?",
     "settings.connection_active_warning": "Alcune impostazioni sono disabilitate durante la sincronizzazione. Ferma la sincronizzazione per modificarle.",
     "tip.disabled_during_sync": "Questa impostazione non può essere modificata durante la sincronizzazione.",
     "tip.capability_unsupported": "Questa opzione non è supportata dal binario hsync installato.",

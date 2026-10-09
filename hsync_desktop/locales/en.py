@@ -268,6 +268,8 @@ translations: dict[str, str] = {
     "warn.force_master_msg": 'The "Force master" option is incompatible with a sync direction other than bidirectional. The p2p master always operates in bidirectional mode.\n\nDo you want to reset the direction to bidirectional?',
     "warn.api_key_insecure_title": "Insecure connection",
     "warn.api_key_insecure_msg": "The API key will not be sent over an insecure connection (http:// or with SSL verification disabled), and the sync will fail. Use an https:// server URL with a valid certificate.\n\nSave anyway?",
+    "warn.keyless_p2p_title": "Run without a shared key?",
+    "warn.keyless_p2p_msg": "P2P is running without a shared key: peers are not authenticated and reads are open to anyone who can reach this node. Continue?",
     # Connection active warnings
     "settings.connection_active_warning": "Some settings are disabled while synchronization is running. Stop the sync to modify them.",
     "tip.disabled_during_sync": "This setting cannot be changed while synchronization is running.",

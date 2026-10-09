@@ -224,9 +224,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if download_bps is not None:
         args += ["--limit-download", str(download_bps)]
 
-    # Always skip CLI confirmation prompts – hsync-desktop handles
-    # deletion-risk confirmation via its own dialog.
-    args.append("--yes")
+    # Always accept the deletion risk – hsync-desktop handles deletion-risk
+    # confirmation via its own dialog.
+    args.append("--allow-deletions")
 
     # Output – always use --no-color for machine-friendly parsing
     # NOTE: We intentionally NEVER pass -q (quiet) because hsync-desktop

@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import DEFAULT_P2P_BOOTNODE_TRUST, DEFAULT_SERVER_TRUST
+from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
     HsyncEngine,
     add_bootnode_trust,
@@ -1606,6 +1607,34 @@ class MainWindow(QMainWindow):
         msg.setDefaultButton(QMessageBox.StandardButton.No)
         return msg.exec() == QMessageBox.StandardButton.Yes
 
+    def _check_keyless_p2p(self) -> bool:
+        """Confirm keyless P2P operation before connecting.
+
+        Without a shared key the transport hides traffic but authenticates nobody:
+        reads are open and peers cannot be verified. Returns True when a key is
+        set or the operator accepts the risk.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if not s.value("p2p/enabled", False, bool):
+            return True
+        p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
+        if p2p_key:
+            return True
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("warn.keyless_p2p_title"))
+        msg.setText(tr("warn.keyless_p2p_msg"))
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        return msg.exec() == QMessageBox.StandardButton.Yes
+
     def _check_disk_space(self) -> bool:
         """Check if sufficient disk space is available. Returns False if insufficient."""
         from shutil import disk_usage
@@ -1659,6 +1688,10 @@ class MainWindow(QMainWindow):
 
         # Check for file deletion risk
         if not self._check_deletion_risk():
+            return
+
+        # Confirm keyless P2P posture before any connection is made
+        if not self._check_keyless_p2p():
             return
 
         # Check disk space
