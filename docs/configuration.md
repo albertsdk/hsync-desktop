@@ -59,6 +59,11 @@ for the underlying behaviour.
 (bootnode and sync server) and known-peers stores directly — there is no separate
 setting — so the GUI and the `hsync` CLI share the same source of truth.
 
+**Keyless runs.** Without a p2p key the app confirms before starting: peers are
+not authenticated and reads are open to anyone who can reach this device. Set a
+p2p key in the p2p tab to avoid the prompt; the confirmation is requested on every
+start and is not a stored setting.
+
 ## Log
 
 | Setting | Description |
