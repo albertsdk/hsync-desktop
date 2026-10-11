@@ -26,6 +26,9 @@ Install HSYNC Desktop (self-contained bundle, no Docker).
 
 Usage: ./install.sh [options]
 
+When installing from the release download, forward options to bash (not curl):
+  curl -fsSL "https://github.com/${REPO}/releases/latest/download/install.sh" | bash -s -- [options]
+
 Options:
   --version VERSION    Version to install, or 'latest' to resolve the latest
                        stable release automatically (default: ${DEFAULT_VERSION})
