@@ -132,6 +132,16 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --with build --no-interaction
           ./compile.sh
+      - name: Free disk space before packaging
+        # The .dmg staging and hdiutil's temp image need room on the same volume;
+        # the macOS runners are tight on space and otherwise hit ENOSPC here.
+        if: runner.os == 'macOS'
+        run: |
+          df -h /
+          rm -rf "$HOME/Library/Caches/pip" "$HOME/Library/Caches/pypoetry" \
+                 "$HOME/Library/Application Support/pyinstaller"
+          sudo rm -rf /Library/Developer/CoreSimulator/Caches/* 2>/dev/null || true
+          df -h /
       - name: Build the macOS .dmg
         # The .app embeds the (already built) per-arch client engine. macOS only:
         # PyInstaller cannot produce a .app on the other runners.

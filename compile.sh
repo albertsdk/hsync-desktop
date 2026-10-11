@@ -1445,7 +1445,10 @@ _macos_create_dmg() {
     local app="$1" image="$2" stage="$3"
     rm -rf "${stage}"
     mkdir -p "${stage}"
-    cp -R "${app}" "${stage}/"
+    # APFS clone (macOS 'cp -c') keeps the staged copy almost space-free; the
+    # hdiutil temp image is the only real duplicate left. Fall back to a plain
+    # copy on filesystems that do not support cloning.
+    cp -cR "${app}" "${stage}/" 2>/dev/null || cp -R "${app}" "${stage}/"
     ln -s /Applications "${stage}/Applications"
     hdiutil create -volname "HSYNC" -srcfolder "${stage}" -ov -format UDZO "${image}" >/dev/null
 }
@@ -1514,6 +1517,11 @@ build_dmg() {
     [[ -d "${app}" ]] || { log_error "macOS .app not produced at ${app}"; exit 1; }
 
     _macos_apply_info_plist "${app}" "${rendered_plist}"
+
+    # The PyInstaller workpath is no longer needed once the .app exists; drop it
+    # before packaging so hdiutil has room for its temp image (the CI runners are
+    # space-constrained and can otherwise hit ENOSPC).
+    rm -rf "${work_dir}/pyinstaller"
 
     # --- 3. dmg --------------------------------------------------------------
     mkdir -p "${MACOS_OUTPUT_DIR}"

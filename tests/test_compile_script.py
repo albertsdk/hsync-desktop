@@ -194,3 +194,23 @@ def test_run_script_console_path_is_windows_aware() -> None:
     assert 'VENV_BIN_DIR="Scripts"' in script
     assert 'BIN_EXT=".exe"' in script
     assert 'readonly BIN="${SCRIPT_DIR}/.venv/${VENV_BIN_DIR}/hsync-desktop${BIN_EXT}"' in script
+
+
+def test_dmg_staging_uses_an_apfs_clone_with_fallback() -> None:
+    """The .dmg staging must not duplicate the .app physically on APFS: the
+    macOS CI runners run out of space during hdiutil otherwise."""
+    script = _script()
+    assert 'cp -cR "${app}" "${stage}/" 2>/dev/null || cp -R "${app}" "${stage}/"' in script
+
+
+def test_dmg_drops_the_pyinstaller_workpath_before_packaging() -> None:
+    """The PyInstaller intermediates are freed before hdiutil needs room."""
+    assert 'rm -rf "${work_dir}/pyinstaller"' in _script()
+
+
+def test_release_frees_disk_space_before_packaging_the_dmg() -> None:
+    workflow = (COMPILE_SH.parent / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "CoreSimulator/Caches" in workflow
+    assert "Library/Application Support/pyinstaller" in workflow
