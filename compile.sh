@@ -115,7 +115,12 @@ readonly OUTPUT_BASE="dist"
 readonly OUTPUT_DIR="${OUTPUT_BASE}/${PLATFORM}"
 readonly BUILD_DIR="build"
 readonly VENV_DIR=".venv"
-readonly PYINSTALLER="${VENV_DIR}/bin/pyinstaller"
+# PyInstaller lives under Scripts/ on Windows venvs and bin/ elsewhere.
+if [[ "${OS_NAME}" == "windows" ]]; then
+    readonly PYINSTALLER="${VENV_DIR}/Scripts/pyinstaller.exe"
+else
+    readonly PYINSTALLER="${VENV_DIR}/bin/pyinstaller"
+fi
 # Client binary path is platform-specific (matches hsync-client/compile.sh output)
 readonly CLIENT_BINARY="../hsync-client/dist/${PLATFORM}/hsync${BIN_EXT}"
 

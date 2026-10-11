@@ -16,7 +16,12 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SIBLING="${SCRIPT_DIR}/../hsync-common"
 readonly CLIENT_BINARY="${SCRIPT_DIR}/../hsync-client/dist"
-readonly BIN="${SCRIPT_DIR}/.venv/bin/hsync-desktop"
+# Console script path: Windows venvs use Scripts/ with a .exe suffix, POSIX bin/.
+case "$(uname -s)" in
+    MINGW*|CYGWIN*|MSYS*) readonly VENV_BIN_DIR="Scripts" BIN_EXT=".exe" ;;
+    *)                    readonly VENV_BIN_DIR="bin" BIN_EXT="" ;;
+esac
+readonly BIN="${SCRIPT_DIR}/.venv/${VENV_BIN_DIR}/hsync-desktop${BIN_EXT}"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat <<'EOF'
