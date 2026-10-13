@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     # Show splash screen and connect to activate window when it closes
     splash = SplashScreen()
     splash.finished.connect(activate_window)
-    splash.show_and_dismiss(3000)
+    splash.show_and_dismiss(2500)
 
     # Show tray (window will be shown when splash screen finishes)
     tray.show()
