@@ -203,6 +203,8 @@ translations: dict[str, str] = {
     "warn.ignore_delete_msg": "Al desactivar esta opción, las eliminaciones SE propagarán. Si un archivo se elimina en un dispositivo, también se eliminará en todos los dispositivos sincronizados. ¿Está seguro?",
     "warn.force_master_title": "Incompatibilidad de configuración",
     "warn.force_master_msg": 'La opción "Forzar master" es incompatible con una dirección de sincronización diferente a bidireccional. El master p2p siempre opera en modo bidireccional.\n\n¿Desea restablecer la dirección a bidireccional?',
+    "warn.force_master_disable_msg": 'La opción "Forzar master" es incompatible con una dirección de sincronización diferente a bidireccional: el master p2p siempre opera en modo bidireccional.\n\n¿Desea desactivar "Forzar master"?',
+    "warn.force_master_sync_msg": 'La opción "Forzar master" es incompatible con la dirección de sincronización "{direction}": el master p2p siempre opera en modo bidireccional.\n\n¿Desea cambiar la sincronización a bidireccional?',
     "warn.api_key_insecure_title": "Conexión insegura",
     "warn.api_key_insecure_msg": "La clave API no se enviará por una conexión insegura (http:// o con la verificación SSL deshabilitada) y la sincronización fallará. Use una URL de servidor https:// con un certificado válido.\n\n¿Guardar de todos modos?",
     "warn.keyless_p2p_title": "¿Ejecutar sin clave compartida?",

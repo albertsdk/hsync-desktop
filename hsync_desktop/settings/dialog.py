@@ -106,8 +106,9 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 # The client's server-mode default port (mirrors hsync_client.constants).
 _SERVER_DEFAULT_PORT = 9753
 
-# Index of the p2p tab inside SettingsDialog._tabs (sync=0, server=1, p2p=2,
-# log=3, appearance=4); the live force-master warning jumps here on "Yes".
+# Tabs of SettingsDialog._tabs (sync=0, server=1, p2p=2, log=3, appearance=4);
+# the live force-master warnings jump to the tab owning the fix on "Yes".
+_SYNC_TAB_INDEX = 0
 _P2P_TAB_INDEX = 2
 
 
@@ -981,11 +982,24 @@ class SettingsDialog(QDialog):
                     lbl.setEnabled(checked and lbl not in self._unsupported_labels)
 
     def _on_force_master_toggled(self, checked: bool) -> None:
-        """Force-master and never-master are mutually exclusive."""
+        """Force-master and never-master are mutually exclusive.
+
+        Enabling force-master also meets the live incompatibility gate: with a
+        non-bidirectional direction active, "Yes" returns the sync to
+        bidirectional and jumps to the sync tab to review it.
+        """
         if checked and self.never_master.isChecked():
             self.never_master.blockSignals(True)
             self.never_master.setChecked(False)
             self.never_master.blockSignals(False)
+        if checked and self._force_master_conflict():
+            proposed = self._maybe_warn_force_master(
+                "warn.force_master_sync_msg",
+                direction=self.sync_direction_combo.currentText(),
+            )
+            if proposed:
+                self.sync_direction_combo.setCurrentIndex(0)
+                self.set_current_tab(_SYNC_TAB_INDEX)
 
     def _on_never_master_toggled(self, checked: bool) -> None:
         """Force-master and never-master are mutually exclusive."""
@@ -997,13 +1011,15 @@ class SettingsDialog(QDialog):
     def _on_sync_direction_changed(self, _index: int) -> None:
         """Warn live when the picked direction conflicts with force-master.
 
-        On "Yes" the direction is reset to bidirectional and the p2p tab is
-        brought forward so the conflicting toggle is one click away.
+        The fix here is disabling force-master (the user just chose the
+        direction), so "Yes" turns the toggle off and jumps to the p2p tab.
         """
         if not self._force_master_conflict():
             return
-        if self._maybe_warn_force_master():
-            self.sync_direction_combo.setCurrentIndex(0)
+        if self._maybe_warn_force_master("warn.force_master_disable_msg"):
+            self.force_master.blockSignals(True)
+            self.force_master.setChecked(False)
+            self.force_master.blockSignals(False)
             self.set_current_tab(_P2P_TAB_INDEX)
 
     def _normalize_server_endpoint(self) -> str | None:
@@ -1139,16 +1155,20 @@ class SettingsDialog(QDialog):
             and direction != "bidirectional"
         )
 
-    def _maybe_warn_force_master(self) -> bool:
-        """Show the force-master/directional-sync warning.
+    def _maybe_warn_force_master(self, msg_key: str, **fmt: str) -> bool:
+        """Show the force-master/directional-sync warning for ``msg_key``.
 
-        Returns True when the user accepts resetting the direction to
-        bidirectional; shared by the save gate and the live direction check.
+        The message differs by trigger (direction changed vs force-master
+        enabled) but the outcome is the same: True when the user accepts the
+        proposed fix. ``fmt`` fills the placeholders of the localized message
+        (e.g. the active direction label). Shared by the save gate and both
+        live checks.
         """
+        text = tr(msg_key).format(**fmt) if fmt else tr(msg_key)
         msg = QMessageBox(
             QMessageBox.Icon.Warning,
             tr("warn.force_master_title"),
-            tr("warn.force_master_msg"),
+            text,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             self,
         )
@@ -1164,7 +1184,7 @@ class SettingsDialog(QDialog):
     def _on_accept(self) -> None:
         # Validate: force-master is incompatible with directional sync
         if self._force_master_conflict():
-            if not self._maybe_warn_force_master():
+            if not self._maybe_warn_force_master("warn.force_master_msg"):
                 return  # Go back to dialog
             # Reset to bidirectional and continue saving
             self.sync_direction_combo.setCurrentIndex(0)

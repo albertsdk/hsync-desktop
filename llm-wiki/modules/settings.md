@@ -34,17 +34,27 @@ emitted solely in p2p mode). `SettingsDialog._force_master_conflict`
 (`settings/dialog.py::_force_master_conflict`) is True only when all three hold:
 direction combo != `bidirectional`, `p2p_mode` on, `force_master` on.
 `SettingsDialog._maybe_warn_force_master` (`settings/dialog.py::_maybe_warn_force_master`)
-shows the shared Yes/No prompt (`warn.force_master_*`, i18n) and returns True on
-"Yes". It is consumed in two places: `SettingsDialog._on_accept`
-(`settings/dialog.py::_on_accept`, the pre-existing save gate) and the **live
-check** `SettingsDialog._on_sync_direction_changed`
-(`settings/dialog.py::_on_sync_direction_changed`), connected in
-`_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
-`load()` runs (so restoring a saved conflicting state never warns). On "Yes"
-from the live check the direction resets to `bidirectional` and the p2p tab is
-brought forward (`set_current_tab`, `_P2P_TAB_INDEX`); on "No" the selection is
-kept and only the save gate can prompt again. Covered by
-`tests/test_settings_dialog.py::TestForceMasterLiveWarning`.
+shows a Yes/No prompt whose message depends on the trigger (`**fmt` fills the
+localized message placeholders, e.g. the active direction label) and returns
+True on "Yes". Three consumers:
+
+* Save gate `SettingsDialog._on_accept` (`settings/dialog.py::_on_accept`):
+  `warn.force_master_msg`, "Yes" resets the direction to `bidirectional` and
+  continues saving.
+* Live direction check `SettingsDialog._on_sync_direction_changed`
+  (`settings/dialog.py::_on_sync_direction_changed`, connected in
+  `_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
+  `load()` runs, so restoring a saved conflicting state never warns):
+  `warn.force_master_disable_msg` offers disabling force-master, "Yes"
+  unchecks `force_master` and jumps to the p2p tab (`_P2P_TAB_INDEX`).
+* Live toggle check `SettingsDialog._on_force_master_toggled`
+  (`settings/dialog.py::_on_force_master_toggled`, fires only when force-master
+  is switched **on**): `warn.force_master_sync_msg` names the active direction
+  and offers returning to bidirectional, "Yes" resets the direction combo and
+  jumps to the sync tab (`_SYNC_TAB_INDEX`).
+
+On "No" from either live check the selection is kept and only the save gate can
+prompt again. Covered by `tests/test_settings_dialog.py::TestForceMasterLiveWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the

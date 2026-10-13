@@ -56,11 +56,13 @@ for the underlying behaviour.
 | NTP servers | Comma-separated SNTP servers for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
 **Force master and sync direction.** *Force master* only applies to a
-bidirectional sync. Picking a one-way direction (upload-only or
-download-only, Sync tab) while p2p mode and *Force master* are both on shows a
-warning as soon as the direction is selected: accept to reset the direction to
-bidirectional (the p2p tab is then shown), or decline to keep it and be warned
-again when saving.
+bidirectional sync, so the conflict is caught as soon as it appears. Picking a
+one-way direction (upload-only or download-only, Sync tab) while p2p mode and
+*Force master* are both on offers to turn *Force master* off because it is
+incompatible (accept jumps to the p2p tab); switching *Force master* on while a
+one-way direction is active offers to go back to a bidirectional sync because
+they are incompatible (accept jumps to the Sync tab). Declining either prompt
+keeps your choice and repeats the generic warning when saving.
 
 **Trust stores.** *Manage trusted keys…* edits the client's known-hosts
 (bootnode and sync server) and known-peers stores directly — there is no separate
