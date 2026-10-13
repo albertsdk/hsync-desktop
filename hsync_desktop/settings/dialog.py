@@ -106,6 +106,10 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 # The client's server-mode default port (mirrors hsync_client.constants).
 _SERVER_DEFAULT_PORT = 9753
 
+# Index of the p2p tab inside SettingsDialog._tabs (sync=0, server=1, p2p=2,
+# log=3, appearance=4); the live force-master warning jumps here on "Yes".
+_P2P_TAB_INDEX = 2
+
 
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
     """Set tooltip on *widget* from i18n *key* only when *enabled*."""
@@ -323,6 +327,7 @@ class SettingsDialog(QDialog):
         _insert_row_after(self.p2p_group, self._lbl_p2p_bootnode, self.p2p_bootnode)
 
         # Trust policy (ADR-0035): how the client authenticates the bootnode.
+        # Own form row so the label aligns under "Bootnode (optional)".
         self.p2p_bootnode_trust = QComboBox(self)
         self.p2p_bootnode_trust.setObjectName("p2pBootnodeTrust")
         self._lbl_p2p_bootnode_trust = QLabel(self)
@@ -330,10 +335,9 @@ class SettingsDialog(QDialog):
         hl_trust = QHBoxLayout(trust_container)
         hl_trust.setContentsMargins(0, 0, 0, 0)
         hl_trust.addWidget(self.p2p_bootnode_trust)
-        hl_trust.addWidget(self._lbl_p2p_bootnode_trust)
         hl_trust.addStretch()
         self._populate_bootnode_trust()
-        _insert_row_after(self.p2p_bootnode, QLabel(""), trust_container)
+        _insert_row_after(self.p2p_bootnode, self._lbl_p2p_bootnode_trust, trust_container)
 
         # Manage trusted keys (ADR-0035): opens the known-hosts / known-peers
         # dialog that edits the shared stores via the hsync CLI.
@@ -831,7 +835,7 @@ class SettingsDialog(QDialog):
             ("--force-master", self.force_master, self._lbl_force_master),
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
-            ("--no-upnp", self.p2p_upnp, self._lbl_p2p_upnp),
+            ("--upnp", self.p2p_upnp, self._lbl_p2p_upnp),
         ]
         for flag, widget, label in gated:
             if p2p_supported and supports_cli_option(doc, flag, subcommand="p2p"):
@@ -874,6 +878,7 @@ class SettingsDialog(QDialog):
         self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
         self.force_master.toggled.connect(self._on_force_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
+        self.sync_direction_combo.currentIndexChanged.connect(self._on_sync_direction_changed)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self._button_box.accepted.connect(self._on_accept)
@@ -988,6 +993,18 @@ class SettingsDialog(QDialog):
             self.force_master.blockSignals(True)
             self.force_master.setChecked(False)
             self.force_master.blockSignals(False)
+
+    def _on_sync_direction_changed(self, _index: int) -> None:
+        """Warn live when the picked direction conflicts with force-master.
+
+        On "Yes" the direction is reset to bidirectional and the p2p tab is
+        brought forward so the conflicting toggle is one click away.
+        """
+        if not self._force_master_conflict():
+            return
+        if self._maybe_warn_force_master():
+            self.sync_direction_combo.setCurrentIndex(0)
+            self.set_current_tab(_P2P_TAB_INDEX)
 
     def _normalize_server_endpoint(self) -> str | None:
         """Canonicalize the server field, or raise ``ValueError``.
@@ -1108,30 +1125,49 @@ class SettingsDialog(QDialog):
 
     # ── Save / Load ──────────────────────────────────────────────────────
 
+    def _force_master_conflict(self) -> bool:
+        """True when an active force-master meets a non-bidirectional direction.
+
+        `--force-master` is only emitted in p2p mode, so the conflict exists
+        only while the p2p toggle is on (consumed by `_on_accept` and by the
+        live direction check).
+        """
+        direction = self.sync_direction_combo.currentData() or "bidirectional"
+        return (
+            self.p2p_mode.isChecked()
+            and self.force_master.isChecked()
+            and direction != "bidirectional"
+        )
+
+    def _maybe_warn_force_master(self) -> bool:
+        """Show the force-master/directional-sync warning.
+
+        Returns True when the user accepts resetting the direction to
+        bidirectional; shared by the save gate and the live direction check.
+        """
+        msg = QMessageBox(
+            QMessageBox.Icon.Warning,
+            tr("warn.force_master_title"),
+            tr("warn.force_master_msg"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self,
+        )
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+        return msg.exec() == QMessageBox.StandardButton.Yes
+
     def _on_accept(self) -> None:
         # Validate: force-master is incompatible with directional sync
-        if self.force_master.isChecked():
-            direction = self.sync_direction_combo.currentData() or "bidirectional"
-            if direction != "bidirectional":
-                msg = QMessageBox(
-                    QMessageBox.Icon.Warning,
-                    tr("warn.force_master_title"),
-                    tr("warn.force_master_msg"),
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    self,
-                )
-                msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-                yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-                no_btn = msg.button(QMessageBox.StandardButton.No)
-                if yes_btn:
-                    yes_btn.setText(tr("action.yes"))
-                if no_btn:
-                    no_btn.setText(tr("action.no"))
-                if msg.exec() == QMessageBox.StandardButton.Yes:
-                    # Reset to bidirectional and continue saving
-                    self.sync_direction_combo.setCurrentIndex(0)
-                else:
-                    return  # Go back to dialog
+        if self._force_master_conflict():
+            if not self._maybe_warn_force_master():
+                return  # Go back to dialog
+            # Reset to bidirectional and continue saving
+            self.sync_direction_combo.setCurrentIndex(0)
         # Validate: the API key is never sent over an unencrypted channel.
         if not self._confirm_insecure_api_key():
             return  # Go back to dialog

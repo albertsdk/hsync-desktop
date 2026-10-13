@@ -7,7 +7,7 @@ driven by `HsyncEngine` signals (see [engine.md](engine.md)).
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `MainWindow` | `main_window.py::MainWindow` | top-level window; owns engine + tray |
+| `MainWindow` | `main_window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
 | `_load_ui` | `main_window.py::MainWindow._load_ui` | build/compose the central UI |
 | `_create_menu_bar` | `main_window.py::MainWindow._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
 | `_connect_signals` | `main_window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
@@ -21,6 +21,13 @@ Engine→slot wiring (in `_connect_signals`, `main_window.py::MainWindow._connec
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window.py::MainWindow._create_menu_bar`).
+
+### Remote endpoint icon (`_update_path_display`)
+
+`main_window.py::MainWindow._update_path_display` picks the remote icon from
+`QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
+`network-cloud` when `p2p/bootnode` is non-empty (cross-network via bootnode),
+`network-p2p` when no bootnode is configured (pure LAN mDNS).
 
 ### Trust refusal dialogs (SSH-style, no terminal)
 

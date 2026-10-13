@@ -180,7 +180,7 @@ translations: dict[str, str] = {
     "trusted_keys.bucket": "Bucket",
     "trusted_keys.read_from_node": "Leer del nodo",
     "trusted_keys.manual_warning": "Verifica la huella fuera de banda (por ejemplo, desde la pantalla del dispositivo) antes de guardarla.",
-    "settings.p2p_upnp": "Asignar puerto con UPnP:",
+    "settings.p2p_upnp": "Asignar puerto con UPnP",
     "settings.p2p_key": "Contraseña compartida:",
     "settings.p2p_port": "Puerto:",
     "settings.discovery_timeout": "Timeout de descubrimiento:",

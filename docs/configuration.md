@@ -55,6 +55,13 @@ for the underlying behaviour.
 | Map port with UPnP | Map the master port so peers reached through a bootnode can dial it (only takes effect with a bootnode set) |
 | NTP servers | Comma-separated SNTP servers for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
+**Force master and sync direction.** *Force master* only applies to a
+bidirectional sync. Picking a one-way direction (upload-only or
+download-only, Sync tab) while p2p mode and *Force master* are both on shows a
+warning as soon as the direction is selected: accept to reset the direction to
+bidirectional (the p2p tab is then shown), or decline to keep it and be warned
+again when saving.
+
 **Trust stores.** *Manage trusted keys…* edits the client's known-hosts
 (bootnode and sync server) and known-peers stores directly — there is no separate
 setting — so the GUI and the `hsync` CLI share the same source of truth.

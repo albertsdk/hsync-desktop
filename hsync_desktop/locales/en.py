@@ -192,7 +192,7 @@ translations: dict[str, str] = {
     "trusted_keys.bucket": "Bucket",
     "trusted_keys.read_from_node": "Read from node",
     "trusted_keys.manual_warning": "Verify the fingerprint out of band (for example from the device's own screen) before pinning it.",
-    "settings.p2p_upnp": "Map port with UPnP:",
+    "settings.p2p_upnp": "Map port with UPnP",
     "settings.p2p_key": "Shared password:",
     "settings.p2p_port": "Port:",
     "settings.discovery_timeout": "Discovery timeout:",

@@ -56,6 +56,98 @@ def window(qtbot, monkeypatch, tmp_path):
     return win
 
 
+class TestOpenSettings:
+    def test_second_open_raises_existing_dialog(self, window, monkeypatch, qtbot):
+        """A tray re-click raises the open dialog instead of stacking a new one."""
+        import hsync_desktop.main_window as mw
+
+        created: list[object] = []
+        real_dialog = mw.SettingsDialog
+
+        class _SpyDialog(real_dialog):  # type: ignore[misc]
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                created.append(self)
+
+        raised: list[str] = []
+        monkeypatch.setattr(mw, "SettingsDialog", _SpyDialog)
+        monkeypatch.setattr(_SpyDialog, "raise_", lambda self: raised.append("raise"))
+        monkeypatch.setattr(_SpyDialog, "activateWindow", lambda self: raised.append("activate"))
+        monkeypatch.setattr(_SpyDialog, "exec", lambda self: 0)
+
+        # Simulate a dialog already open (non-blocking show instead of exec).
+        window._settings_dialog = _SpyDialog(window)
+        qtbot.addWidget(window._settings_dialog)
+        window._open_settings()
+        assert len(created) == 1
+        assert raised == ["raise", "activate"]
+
+    def test_reference_cleared_after_exec(self, window, monkeypatch):
+        """The guard resets once the modal dialog closes."""
+        import hsync_desktop.main_window as mw
+
+        monkeypatch.setattr(mw.SettingsDialog, "exec", lambda self: 0)
+        window._open_settings()
+        assert window._settings_dialog is None
+
+
+class TestRemoteIcon:
+    @staticmethod
+    def _run_and_record(window, monkeypatch) -> list[str]:
+        """Call _update_path_display recording every icon name it requests."""
+        import hsync_desktop.icons as icons_mod
+
+        names: list[str] = []
+        orig = icons_mod.icon
+
+        def spy(name: str):
+            names.append(name)
+            return orig(name)
+
+        monkeypatch.setattr(icons_mod, "icon", spy)
+        window._update_path_display()
+        return names
+
+    def test_p2p_without_bootnode_uses_p2p_icon(self, window, monkeypatch, tmp_path):
+        """p2p + no bootnode shows the peer icon."""
+        import hsync_desktop.main_window as mw
+
+        s = _settings(tmp_path)
+        s.setValue("p2p/bootnode", "")
+        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        names = self._run_and_record(window, monkeypatch)
+        assert "network-p2p" in names
+        assert "network-cloud" not in names
+        assert window._remote_label.text() == "p2p"
+
+    def test_p2p_with_bootnode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
+        """p2p + bootnode set shows the cloud icon (cross-network relay)."""
+        import hsync_desktop.main_window as mw
+
+        s = _settings(tmp_path)
+        s.setValue("p2p/bootnode", "boot.example.net")
+        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        names = self._run_and_record(window, monkeypatch)
+        assert "network-cloud" in names
+        assert "network-p2p" not in names
+        assert window._remote_label.text() == "p2p"
+
+    def test_server_mode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
+        """Server mode always shows the cloud icon."""
+        import hsync_desktop.main_window as mw
+
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", False)
+        s.setValue("connection/server_url", "https://srv.example.com:9753")
+        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        names = self._run_and_record(window, monkeypatch)
+        assert "network-cloud" in names
+        assert window._remote_label.text() == "srv.example.com"
+
+
 class TestEnsureBootnodeTrust:
     def test_skips_when_the_host_is_already_trusted(self, window, monkeypatch):
         import hsync_desktop.main_window as mw

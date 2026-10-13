@@ -117,7 +117,7 @@ class TestCapabilityGating:
                 "--never-master",
                 "--require-pairing",
                 "--port",
-                "--no-upnp",
+                "--upnp",
             ],
         )
         dlg.p2p_mode.setChecked(True)
@@ -131,7 +131,7 @@ class TestCapabilityGating:
     def test_bootnode_field_gated_on_the_port_flag(self, qtbot, monkeypatch):
         """The bootnode host/UPnP belong to the bootnode plan (its --port flag)."""
         dlg = self._make_dialog(
-            qtbot, monkeypatch, p2p_flags=["--force-master", "--port", "--no-upnp"]
+            qtbot, monkeypatch, p2p_flags=["--force-master", "--port", "--upnp"]
         )
         dlg.p2p_mode.setChecked(True)
         assert dlg.p2p_bootnode.isEnabled()
@@ -195,6 +195,33 @@ class TestBootnodeTrustPolicy:
             "none",
         ]
         assert combo.currentData() == "ask"
+
+    def test_label_sits_in_form_label_column(self, dialog):
+        """The trust label aligns under Bootnode, not inside the field row."""
+        from PySide6.QtWidgets import QFormLayout
+
+        layout = dialog.p2p_bootnode_trust.parent().layout()
+        assert layout is not None
+        assert dialog.p2p_bootnode_trust.parent() is not dialog._lbl_p2p_bootnode_trust.parent()
+        form = dialog.p2p_bootnode.parentWidget().layout()
+        assert isinstance(form, QFormLayout)
+        for row in range(form.rowCount()):
+            label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if field_item is not None and field_item.widget() is dialog.p2p_bootnode:
+                bootnode_row = row
+                break
+        else:
+            raise AssertionError("bootnode field not in form layout")
+        for row in range(form.rowCount()):
+            label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if label_item is not None and label_item.widget() is dialog._lbl_p2p_bootnode_trust:
+                trust_row = row
+                break
+        else:
+            raise AssertionError("trust label not in form label column")
+        assert trust_row == bootnode_row + 1
 
 
 class TestTrustedKeysUi:
@@ -281,3 +308,165 @@ class TestEndpointNormalization:
         dialog.p2p_bootnode.setText("https://boot.example.net")
         with pytest.raises(ValueError):
             dialog._normalize_bootnode_endpoint()
+
+
+class TestForceMasterLiveWarning:
+    """Force-master vs. directional sync is also gated live, not only on save.
+
+    Selecting a non-bidirectional direction while p2p mode and force-master are
+    both on shows the same incompatibility prompt used by the save gate; on
+    "Yes" the direction is reset and the p2p tab is brought forward.
+    """
+
+    @staticmethod
+    def _reset_conflict_state(dialog):
+        """Force the three widgets to a known state (the fixture loads the
+        real QSettings, whose saved p2p flags would otherwise leak in)."""
+        dialog.sync_direction_combo.setCurrentIndex(0)
+        dialog.force_master.setChecked(False)
+        dialog.p2p_mode.setChecked(False)
+
+    @staticmethod
+    def _enable_conflict(dialog):
+        """Activate p2p mode + force-master (the two required toggles)."""
+        dialog.p2p_mode.setChecked(True)
+        dialog.force_master.setChecked(True)
+
+    def test_conflict_requires_p2p_and_force_master_and_direction(self, dialog, monkeypatch):
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
+        self._reset_conflict_state(dialog)
+        dialog.p2p_mode.setChecked(True)
+        dialog.force_master.setChecked(True)
+        assert dialog._force_master_conflict() is False  # still bidirectional
+        dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only (No: kept)
+        assert dialog._force_master_conflict() is True
+        dialog.p2p_mode.setChecked(False)
+        assert dialog._force_master_conflict() is False  # force-master inert w/o p2p
+        dialog.p2p_mode.setChecked(True)
+        dialog.force_master.setChecked(False)
+        assert dialog._force_master_conflict() is False
+
+    def test_direction_change_warns_resets_and_shows_p2p_tab(self, dialog, monkeypatch):
+        shown = {}
+
+        def fake_exec(self):
+            shown["value"] = True
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        self._reset_conflict_state(dialog)
+        self._enable_conflict(dialog)
+        dialog.sync_direction_combo.setCurrentIndex(2)  # download-only
+        assert shown.get("value") is True
+        assert dialog.sync_direction_combo.currentData() == "bidirectional"
+        assert dialog._tabs.currentIndex() == 2  # p2p tab
+
+    def test_direction_change_cancel_keeps_direction(self, dialog, monkeypatch):
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
+        self._reset_conflict_state(dialog)
+        self._enable_conflict(dialog)
+        start_tab = dialog._tabs.currentIndex()
+        dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only
+        assert dialog.sync_direction_combo.currentData() == "upload-only"
+        assert dialog._tabs.currentIndex() == start_tab
+
+    def test_no_warning_without_p2p_mode(self, dialog, monkeypatch):
+        calls = []
+
+        def fake_exec(self):
+            calls.append(True)
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        self._reset_conflict_state(dialog)
+        dialog.force_master.setChecked(True)
+        dialog.sync_direction_combo.setCurrentIndex(1)
+        assert calls == []
+        assert dialog.sync_direction_combo.currentData() == "upload-only"
+
+    def test_no_warning_without_force_master(self, dialog, monkeypatch):
+        calls = []
+
+        def fake_exec(self):
+            calls.append(True)
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        self._reset_conflict_state(dialog)
+        dialog.p2p_mode.setChecked(True)
+        dialog.sync_direction_combo.setCurrentIndex(1)
+        assert calls == []
+
+    def test_no_warning_when_selecting_bidirectional(self, dialog, monkeypatch):
+        calls = []
+
+        def fake_exec(self):
+            calls.append(True)
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        self._reset_conflict_state(dialog)
+        dialog.sync_direction_combo.setCurrentIndex(1)  # p2p still off: silent
+        self._enable_conflict(dialog)
+        dialog.sync_direction_combo.setCurrentIndex(0)  # back to bidirectional
+        assert calls == []
+
+    def test_load_does_not_trigger_warning(self, qtbot, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
+
+        calls = []
+
+        def fake_exec(self):
+            calls.append(True)
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        saved = {k: s.value(k) for k in ("sync/direction", "p2p/enabled", "p2p/force_master")}
+        try:
+            s.setValue("sync/direction", "upload-only")
+            s.setValue("p2p/enabled", True)
+            s.setValue("p2p/force_master", True)
+            s.sync()
+            dlg = SettingsDialog()
+            qtbot.addWidget(dlg)
+            assert calls == []
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    s.remove(key)
+                else:
+                    s.setValue(key, value)
+            s.sync()
+
+    def test_accept_gate_resets_direction_on_yes(self, dialog, monkeypatch):
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.Yes)
+        self._reset_conflict_state(dialog)
+        saved = []
+        monkeypatch.setattr(dialog, "save", lambda: saved.append(True))
+        monkeypatch.setattr(dialog, "accept", lambda: None)
+        dialog.p2p_mode.setChecked(True)
+        dialog.sync_direction_combo.setCurrentIndex(1)
+        dialog.force_master.setChecked(True)
+        dialog.server_url.setText("")
+        dialog.p2p_bootnode.setText("")
+        dialog._on_accept()
+        assert dialog.sync_direction_combo.currentData() == "bidirectional"
+        assert saved == [True]
+
+    def test_accept_gate_cancel_skips_save(self, dialog, monkeypatch):
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
+        self._reset_conflict_state(dialog)
+        saved = []
+        monkeypatch.setattr(dialog, "save", lambda: saved.append(True))
+        monkeypatch.setattr(dialog, "accept", lambda: None)
+        dialog.p2p_mode.setChecked(True)
+        dialog.sync_direction_combo.setCurrentIndex(1)
+        dialog.force_master.setChecked(True)
+        dialog.server_url.setText("")
+        dialog.p2p_bootnode.setText("")
+        dialog._on_accept()
+        assert dialog.sync_direction_combo.currentData() == "upload-only"
+        assert saved == []

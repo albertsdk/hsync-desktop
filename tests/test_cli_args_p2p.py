@@ -246,6 +246,142 @@ class TestServerUrlViaEnvOnly:
         assert args[idx + 1] == "0"
 
 
+class TestClientCapabilitiesParity:
+    """Every long flag the desktop emits must be advertised by hsync-client.
+
+    Guards the ``--allow-deletions``-style drift: a flag removed or renamed
+    in hsync-client must fail here before it fails at runtime with exit 2.
+    The advertised sets mirror ``hsync p2p --help`` / ``hsync server --help``
+    (client 1.0.3); short flags (``-b -p -i -n -v``) and trust-subcommand
+    flags (``--json``) are asserted by shape, not by membership.
+    """
+
+    _P2P_ADVERTISED = frozenset(
+        {
+            "--allow-deletions",
+            "--allow-unauthenticated-p2p",
+            "--allow-unauthenticated-writes",
+            "--bootnode-fingerprint",
+            "--bootnode-tofu",
+            "--bootnode-trust",
+            "--bucket",
+            "--ca-cert",
+            "--delta-min-file-size",
+            "--delta-min-file-size-p2p",
+            "--discovery-timeout",
+            "--dry-run",
+            "--env-file",
+            "--events-json-fd",
+            "--force-master",
+            "--group",
+            "--http-timeout",
+            "--ignore-delete",
+            "--ignore-pattern",
+            "--insecure",
+            "--interval",
+            "--limit-download",
+            "--limit-upload",
+            "--listen-port",
+            "--log-file",
+            "--mass-delete-guard",
+            "--mass-delete-percent",
+            "--mass-delete-threshold",
+            "--max-concurrent-transfers",
+            "--max-inbound-size",
+            "--max-wait-timeout",
+            "--min-free-disk-space",
+            "--never-master",
+            "--no-autotune",
+            "--no-color",
+            "--no-compression",
+            "--no-delta",
+            "--no-mass-delete-guard",
+            "--no-peer-download",
+            "--once",
+            "--path",
+            "--port",
+            "--quiet",
+            "--require-pairing",
+            "--retry-delay",
+            "--stability-delay",
+            "--subdir",
+            "--sync-direction",
+            "--upnp",
+            "--verbose",
+        }
+    )
+
+    _SERVER_ADVERTISED = frozenset(
+        {
+            "--allow-deletions",
+            "--api-key-fd",
+            "--bucket",
+            "--ca-cert",
+            "--delta-min-file-size",
+            "--delta-min-file-size-p2p",
+            "--dry-run",
+            "--env-file",
+            "--events-json-fd",
+            "--http-timeout",
+            "--ignore-delete",
+            "--ignore-pattern",
+            "--insecure",
+            "--interval",
+            "--limit-download",
+            "--limit-upload",
+            "--log-file",
+            "--mass-delete-guard",
+            "--mass-delete-percent",
+            "--mass-delete-threshold",
+            "--max-concurrent-transfers",
+            "--max-inbound-size",
+            "--max-wait-timeout",
+            "--min-free-disk-space",
+            "--no-autotune",
+            "--no-color",
+            "--no-compression",
+            "--no-delta",
+            "--no-mass-delete-guard",
+            "--once",
+            "--path",
+            "--port",
+            "--quiet",
+            "--retry-delay",
+            "--server-fingerprint",
+            "--server-tofu",
+            "--server-trust",
+            "--stability-delay",
+            "--subdir",
+            "--sync-direction",
+            "--verbose",
+        }
+    )
+
+    _ENGINE_P2P_FLAGS = (
+        "--p2p-key-fd",
+        "--allow-unauthenticated-p2p",
+        "--events-json-fd",
+    )
+
+    _ENGINE_SERVER_FLAGS = ("--api-key-fd", "--events-json-fd")
+
+    _SHORT_OR_EXTERNAL = frozenset({"-b", "-p", "-i", "-n", "-v", "--json"})
+
+    def test_p2p_args_are_advertised(self):
+        args = _build_args({"p2p/enabled": True})
+        long_flags = {a for a in args if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL}
+        assert long_flags <= self._P2P_ADVERTISED | frozenset(self._ENGINE_P2P_FLAGS)
+
+    def test_server_args_are_advertised(self):
+        args = _build_args({"p2p/enabled": False})
+        long_flags = {a for a in args if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL}
+        assert long_flags <= self._SERVER_ADVERTISED | frozenset(self._ENGINE_SERVER_FLAGS)
+
+    def test_gated_upnp_flag_matches_client(self):
+        assert "--upnp" in self._P2P_ADVERTISED
+        assert "--no-upnp" not in self._P2P_ADVERTISED
+
+
 @pytest.mark.skipif(os.name != "posix", reason="0600 enforcement is POSIX-only")
 class TestSecureConfigFile:
     """Coverage for secure_config_file() (QSettings world-readable hardening)."""

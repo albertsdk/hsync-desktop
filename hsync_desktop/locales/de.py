@@ -180,7 +180,7 @@ translations: dict[str, str] = {
     "trusted_keys.bucket": "Bucket",
     "trusted_keys.read_from_node": "Vom Knoten lesen",
     "trusted_keys.manual_warning": "Überprüfe den Fingerabdruck außerhalb des Bandes (z. B. auf dem Bildschirm des Geräts), bevor du ihn speicherst.",
-    "settings.p2p_upnp": "Port per UPnP freigeben:",
+    "settings.p2p_upnp": "Port per UPnP freigeben",
     "settings.p2p_key": "Gemeinsames Passwort:",
     "settings.p2p_port": "Port:",
     "settings.discovery_timeout": "Erkennungs-Timeout:",

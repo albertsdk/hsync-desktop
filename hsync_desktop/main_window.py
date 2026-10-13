@@ -139,6 +139,9 @@ class MainWindow(QMainWindow):
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
 
+        # Open settings dialog, if any (tray/menu re-clicks raise it instead).
+        self._settings_dialog: SettingsDialog | None = None
+
         self._load_ui()
         self._connect_signals()
 
@@ -599,7 +602,9 @@ class MainWindow(QMainWindow):
         """Open the documentation URL in the default browser."""
         from PySide6.QtCore import QUrl
 
-        QDesktopServices.openUrl(QUrl("https://docs.hsync.app"))
+        QDesktopServices.openUrl(
+            QUrl("https://github.com/albertsdk/hsync-desktop/blob/main/README.md")
+        )
 
     def _open_github(self) -> None:
         """Open the project page on GitHub in the default browser."""
@@ -1398,7 +1403,9 @@ class MainWindow(QMainWindow):
             # ── Remote endpoint icon + label ──────────────────────────
             p2p_enabled = bool(s.value("p2p/enabled", False, bool))
             if p2p_enabled:
-                self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
+                bootnode = str(s.value("p2p/bootnode", "", str)).strip()
+                icon_name = "network-cloud" if bootnode else "network-p2p"
+                self._remote_icon.setPixmap(get_icon(icon_name).pixmap(24, 24))
                 group = str(s.value("p2p/group", "", str))
                 self._remote_label.setText(f"p2p ({group})" if group else "p2p")
                 self._remote_icon.setToolTip(tr("label.remote_p2p_tip"))
@@ -1862,13 +1869,24 @@ class MainWindow(QMainWindow):
             self._file_panel.load_local_files(path)
 
     def _open_settings(self, initial_tab: int | None = None) -> None:
+        if self._settings_dialog is not None:
+            if isinstance(initial_tab, int) and not isinstance(initial_tab, bool):
+                self._settings_dialog.set_current_tab(initial_tab)
+            self._settings_dialog.raise_()
+            self._settings_dialog.activateWindow()
+            return
         dlg = SettingsDialog(self)
-        # Disable connection-critical settings while sync is running
-        dlg.set_connection_active(self._engine.is_running)
-        # initial_tab may receive a bool from Qt signal triggered(bool) — ignore that
-        if isinstance(initial_tab, int) and not isinstance(initial_tab, bool):
-            dlg.set_current_tab(initial_tab)
-        if dlg.exec() == SettingsDialog.DialogCode.Accepted:
+        self._settings_dialog = dlg
+        try:
+            # Disable connection-critical settings while sync is running
+            dlg.set_connection_active(self._engine.is_running)
+            # initial_tab may receive a bool from Qt signal triggered(bool) — ignore that
+            if isinstance(initial_tab, int) and not isinstance(initial_tab, bool):
+                dlg.set_current_tab(initial_tab)
+            accepted = dlg.exec() == SettingsDialog.DialogCode.Accepted
+        finally:
+            self._settings_dialog = None
+        if accepted:
             theme = get_saved_theme()
             app = QApplication.instance()
             if app:

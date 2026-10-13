@@ -28,6 +28,24 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
 
+**Force-master live gate**: `--force-master` is incompatible with a
+non-bidirectional direction (it only applies to bidirectional syncs, and is
+emitted solely in p2p mode). `SettingsDialog._force_master_conflict`
+(`settings/dialog.py::_force_master_conflict`) is True only when all three hold:
+direction combo != `bidirectional`, `p2p_mode` on, `force_master` on.
+`SettingsDialog._maybe_warn_force_master` (`settings/dialog.py::_maybe_warn_force_master`)
+shows the shared Yes/No prompt (`warn.force_master_*`, i18n) and returns True on
+"Yes". It is consumed in two places: `SettingsDialog._on_accept`
+(`settings/dialog.py::_on_accept`, the pre-existing save gate) and the **live
+check** `SettingsDialog._on_sync_direction_changed`
+(`settings/dialog.py::_on_sync_direction_changed`), connected in
+`_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
+`load()` runs (so restoring a saved conflicting state never warns). On "Yes"
+from the live check the direction resets to `bidirectional` and the p2p tab is
+brought forward (`set_current_tab`, `_P2P_TAB_INDEX`); on "No" the selection is
+kept and only the save gate can prompt again. Covered by
+`tests/test_settings_dialog.py::TestForceMasterLiveWarning`.
+
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `p2p/ntp_hosts` QSettings key (`settings/dialog.py::SettingsDialog`); the label comes from
@@ -85,10 +103,13 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`se
 `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) always appends `--allow-deletions` (non-interactive) and
 `--no-color`; the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
-is off, `--insecure`,
-`--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
+is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
 `--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the
 first token, then `--force-master`, `--never-master`, `--require-pairing`).
+The UPnP toggle is gated on the client's `--upnp` flag (opt-in since 1.0.3;
+the old `--no-upnp` no longer exists). A capability-parity test
+(`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every
+emitted long flag is advertised by the client help output.
 One-shot is
 expressed only via the global `sync/continuous` setting, which maps to
 `--once`. Secrets are
