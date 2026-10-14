@@ -369,6 +369,37 @@ class TestForceMasterLiveWarning:
         assert dialog.sync_direction_combo.currentData() == "download-only"
         assert dialog._tabs.currentIndex() == 2  # p2p tab
 
+    def test_direction_change_yes_emits_toggle_signal(self, dialog, monkeypatch):
+        """Regression: "Yes" must let the toggle's own `toggled` fire.
+
+        Swallowing it with blockSignals froze the thumb animation, so the
+        switch kept painting as ON while checked was False: clicking it on
+        the p2p tab flipped it back to ON and re-triggered the enable
+        prompt in a loop.
+        """
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.Yes)
+        self._reset_conflict_state(dialog)
+        dialog.p2p_mode.setChecked(True)
+        dialog.force_master.setChecked(True)
+        emitted: list[bool] = []
+        dialog.force_master.toggled.connect(emitted.append)
+        dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only → prompt → Yes
+        assert emitted == [False]
+        assert dialog.force_master.isChecked() is False
+        assert dialog._tabs.currentIndex() == 2  # p2p tab
+
+    def test_never_master_enabling_emits_force_master_off_signal(self, dialog):
+        """Same stale-paint cause in the mutual exclusion: the forced
+        uncheck must reach the animation so force-master stops drawing ON."""
+        self._reset_conflict_state(dialog)
+        dialog.never_master.setChecked(False)
+        dialog.force_master.setChecked(True)
+        emitted: list[bool] = []
+        dialog.force_master.toggled.connect(emitted.append)
+        dialog.never_master.setChecked(True)
+        assert emitted == [False]
+        assert dialog.force_master.isChecked() is False
+
     def test_direction_change_cancel_keeps_state(self, dialog, monkeypatch):
         shown = []
 
@@ -564,3 +595,25 @@ class TestForceMasterLiveWarning:
         assert msg_keys == ["warn.force_master_msg"]  # save-gate message
         assert dialog.sync_direction_combo.currentData() == "upload-only"
         assert saved == []
+
+
+class TestIgnoreDeleteWarning:
+    """Declining the ignore-delete warning restores the toggle; the restore
+    must fire `toggled` too, otherwise the switch keeps painting as OFF
+    while checked is True (same stale-paint cause as the force-master
+    prompt loop).
+    """
+
+    def test_decline_emits_toggle_signal_and_keeps_checked(self, dialog, monkeypatch):
+        def fake_exec(self):
+            return QMessageBox.StandardButton.No
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        dialog.ignore_delete.setChecked(True)  # known starting state
+        emitted: list[bool] = []
+        dialog.ignore_delete.toggled.connect(emitted.append)
+        dialog.ignore_delete.setChecked(False)  # user unchecks → warning → "No"
+        # The nested restore signal is delivered before the outer uncheck
+        # finishes, so assert both emissions rather than their order.
+        assert sorted(emitted) == [False, True]
+        assert dialog.ignore_delete.isChecked() is True

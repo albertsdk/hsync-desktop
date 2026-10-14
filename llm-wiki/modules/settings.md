@@ -54,7 +54,17 @@ True on "Yes". Three consumers:
   jumps to the sync tab (`_SYNC_TAB_INDEX`).
 
 On "No" from either live check the selection is kept and only the save gate can
-prompt again. Covered by `tests/test_settings_dialog.py::TestForceMasterLiveWarning`.
+prompt again.
+
+All the programmatic `setChecked` fixes above (and the mutual exclusion in
+`_on_force_master_toggled` / `_on_never_master_toggled`, and the
+ignore-delete restore) deliberately leave the toggle's signals connected:
+`ToggleSwitch` paints from a thumb animation driven by `toggled`, so
+swallowing the signal with `blockSignals` freezes the switch painted ON
+while `checked` is False — the user's click then re-enables it and
+re-triggers the prompt in a loop. Covered by
+`tests/test_settings_dialog.py::TestForceMasterLiveWarning` and
+`tests/test_settings_dialog.py::TestIgnoreDeleteWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the

@@ -844,9 +844,7 @@ class SettingsDialog(QDialog):
             self._unsupported_widgets.add(widget)
             self._unsupported_labels.add(label)
             if widget.isChecked():
-                widget.blockSignals(True)
                 widget.setChecked(False)
-                widget.blockSignals(False)
             widget.setEnabled(False)
             label.setEnabled(False)
             widget.setToolTip(tr("tip.capability_unsupported"))
@@ -863,9 +861,7 @@ class SettingsDialog(QDialog):
             self._unsupported_widgets.add(self.p2p_mode)
             self._unsupported_labels.add(self._lbl_p2p_mode)
             if self.p2p_mode.isChecked():
-                self.p2p_mode.blockSignals(True)
                 self.p2p_mode.setChecked(False)
-                self.p2p_mode.blockSignals(False)
             self.p2p_mode.setEnabled(False)
             self._lbl_p2p_mode.setEnabled(False)
             self.p2p_mode.setToolTip(tr("tip.capability_unsupported"))
@@ -916,9 +912,7 @@ class SettingsDialog(QDialog):
             if no_btn:
                 no_btn.setText(tr("action.no"))
             if msg.exec() != QMessageBox.StandardButton.Yes:
-                self.ignore_delete.blockSignals(True)
                 self.ignore_delete.setChecked(True)
-                self.ignore_delete.blockSignals(False)
 
     def _on_browse_shared(self) -> None:
         """Open a folder browser to select the shared path."""
@@ -989,9 +983,7 @@ class SettingsDialog(QDialog):
         bidirectional and jumps to the sync tab to review it.
         """
         if checked and self.never_master.isChecked():
-            self.never_master.blockSignals(True)
             self.never_master.setChecked(False)
-            self.never_master.blockSignals(False)
         if checked and self._force_master_conflict():
             proposed = self._maybe_warn_force_master(
                 "warn.force_master_sync_msg",
@@ -1004,9 +996,7 @@ class SettingsDialog(QDialog):
     def _on_never_master_toggled(self, checked: bool) -> None:
         """Force-master and never-master are mutually exclusive."""
         if checked and self.force_master.isChecked():
-            self.force_master.blockSignals(True)
             self.force_master.setChecked(False)
-            self.force_master.blockSignals(False)
 
     def _on_sync_direction_changed(self, _index: int) -> None:
         """Warn live when the picked direction conflicts with force-master.
@@ -1017,9 +1007,11 @@ class SettingsDialog(QDialog):
         if not self._force_master_conflict():
             return
         if self._maybe_warn_force_master("warn.force_master_disable_msg"):
-            self.force_master.blockSignals(True)
+            # Do not blockSignals here: ToggleSwitch paints from the thumb
+            # animation driven by `toggled`, so swallowing it leaves the
+            # switch drawn as ON while checked is False and the user's click
+            # re-enables it, re-triggering this prompt in a loop.
             self.force_master.setChecked(False)
-            self.force_master.blockSignals(False)
             self.set_current_tab(_P2P_TAB_INDEX)
 
     def _normalize_server_endpoint(self) -> str | None:
