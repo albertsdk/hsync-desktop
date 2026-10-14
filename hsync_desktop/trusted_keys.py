@@ -178,7 +178,10 @@ class _PeerAddDialog(QDialog):
 class TrustedKeysDialog(QDialog):
     """Manage the bootnode/server known-hosts stores and the P2P known-peers store."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    # ``initial_tab`` values → index in ``self._tabs``.
+    _TAB_INDEX = {"bootnodes": 0, "servers": 1, "peers": 2}
+
+    def __init__(self, parent: QWidget | None = None, *, initial_tab: str = "bootnodes") -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("trusted_keys.title"))
         self.resize(680, 380)
@@ -197,6 +200,7 @@ class TrustedKeysDialog(QDialog):
             tr("trusted_keys.tabs_servers"),
         )
         self._tabs.addTab(self._build_peer_tab(), tr("trusted_keys.tabs_peers"))
+        self._tabs.setCurrentIndex(self._TAB_INDEX.get(initial_tab, 0))
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
         buttons.rejected.connect(self.reject)

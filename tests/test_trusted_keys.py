@@ -146,3 +146,19 @@ class TestServerTrustTab:
         dlg._server_table.selectRow(0)
         dlg._remove_server()
         assert removed == [("server.example.com", 9753)]
+
+
+class TestTrustedKeysInitialTab:
+    """``initial_tab`` opens the dialog on the panel that launched it."""
+
+    def test_default_is_bootnodes(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._tabs.currentIndex() == 0
+
+    def test_servers_selects_the_server_tab(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch)
+        dlg = TrustedKeysDialog(initial_tab="servers")
+        qtbot.addWidget(dlg)
+        assert dlg._tabs.currentIndex() == 1

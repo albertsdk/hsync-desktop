@@ -482,9 +482,16 @@ class SettingsDialog(QDialog):
         self._p2p_banner.hide()
 
         # Insert p2p banner at the top of the Server Mode (tabConnection) layout
-        # Also insert server_cert_fingerprint field and Test Connection button
+        # Also insert the server trust-policy controls and Test Connection button
         self.btn_test_connection = QPushButton()
         self.btn_test_connection.setObjectName("btnTestConnection")
+
+        # Server-panel twin of the p2p "Manage trusted keys" button, opening the
+        # dialog on the Servers tab. Two buttons keep the two panels gated
+        # independently (server fields disabled in p2p mode, and vice versa).
+        self.btn_manage_trusted_keys_server = QPushButton()
+        self.btn_manage_trusted_keys_server.setObjectName("btnManageTrustedKeysServer")
+        self.btn_manage_trusted_keys_server.clicked.connect(self._open_server_trusted_keys)
 
         conn_tab = self._tabs.widget(1)
         if conn_tab:
@@ -492,12 +499,13 @@ class SettingsDialog(QDialog):
             if isinstance(conn_layout, QFormLayout):
                 conn_layout.insertRow(0, self._p2p_banner)
                 # Insert the server trust-policy combo after the http_timeout
-                # row, then the Test Connection button below it.
+                # row, then the trusted-keys + Test Connection buttons below it.
                 for row in range(conn_layout.rowCount()):
                     item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                     if item and item.widget() == self.http_timeout:
                         conn_layout.insertRow(row + 1, self._lbl_server_trust, self.server_trust)
-                        conn_layout.insertRow(row + 2, "", self.btn_test_connection)
+                        conn_layout.insertRow(row + 2, "", self.btn_manage_trusted_keys_server)
+                        conn_layout.insertRow(row + 3, "", self.btn_test_connection)
                         break
 
         # Setup language combo with proper data
@@ -533,8 +541,12 @@ class SettingsDialog(QDialog):
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def _open_trusted_keys(self) -> None:
-        """Open the known-hosts / known-peers management dialog."""
-        TrustedKeysDialog(self).exec()
+        """Open the trust dialog on the bootnode tab (p2p panel button)."""
+        TrustedKeysDialog(self, initial_tab="bootnodes").exec()
+
+    def _open_server_trusted_keys(self) -> None:
+        """Open the trust dialog on the server tab (server panel button)."""
+        TrustedKeysDialog(self, initial_tab="servers").exec()
 
     def _populate_server_trust(self) -> None:
         """Fill the server trust-policy combo (ADR-0036), preserving selection."""
@@ -724,6 +736,7 @@ class SettingsDialog(QDialog):
         self._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
         self._populate_bootnode_trust()
         self.btn_manage_trusted_keys.setText(tr("settings.manage_trusted_keys"))
+        self.btn_manage_trusted_keys_server.setText(tr("settings.manage_trusted_keys"))
         self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:
@@ -940,6 +953,8 @@ class SettingsDialog(QDialog):
             self.insecure,
             self.ca_cert,
             self.http_timeout,
+            self.server_trust,
+            self.btn_manage_trusted_keys_server,
             self.btn_test_connection,
         ]
         for widget in server_widgets:
@@ -956,6 +971,8 @@ class SettingsDialog(QDialog):
         p2p_sub_widgets: list[QWidget] = [
             self.p2p_group,
             self.p2p_bootnode,
+            self.p2p_bootnode_trust,
+            self.btn_manage_trusted_keys,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,
@@ -1424,6 +1441,8 @@ class SettingsDialog(QDialog):
             self.insecure,
             self.ca_cert,
             self.http_timeout,
+            self.server_trust,
+            self.btn_manage_trusted_keys_server,
         ]
 
         # Sync tab - all settings affect sync behavior
@@ -1452,6 +1471,8 @@ class SettingsDialog(QDialog):
             self.p2p_mode,
             self.p2p_group,
             self.p2p_bootnode,
+            self.p2p_bootnode_trust,
+            self.btn_manage_trusted_keys,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,

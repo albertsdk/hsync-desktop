@@ -230,19 +230,26 @@ class TestTrustedKeysUi:
     def test_bootnode_fingerprint_widget_is_absent(self, dialog):
         assert dialog.findChild(QLineEdit, "p2pBootnodeFingerprint") is None
 
-    def test_manage_trusted_keys_button_opens_dialog(self, dialog, monkeypatch):
+    def test_manage_trusted_keys_buttons_open_the_matching_tab(self, dialog, monkeypatch):
         from hsync_desktop.settings import dialog as dialog_mod
 
         opened: list[str] = []
 
         class _Fake:
+            def __init__(self, parent, *, initial_tab="bootnodes"):
+                self._tab = initial_tab
+
             def exec(self):
-                opened.append("yes")
+                opened.append(self._tab)
                 return 0
 
-        monkeypatch.setattr(dialog_mod, "TrustedKeysDialog", lambda parent: _Fake())
+        monkeypatch.setattr(dialog_mod, "TrustedKeysDialog", _Fake)
+        # Each button is only clickable in its own mode (p2p / server).
+        dialog.p2p_mode.setChecked(True)
         dialog.btn_manage_trusted_keys.click()
-        assert opened == ["yes"]
+        dialog.p2p_mode.setChecked(False)
+        dialog.btn_manage_trusted_keys_server.click()
+        assert opened == ["bootnodes", "servers"]
 
 
 class TestServerTrustPolicy:
@@ -274,6 +281,46 @@ class TestServerTrustPolicy:
         # strict (pinning) -> no chain verification (the pin is the trust anchor)
         dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("strict"))
         assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_NONE
+
+    def test_combo_is_disabled_in_p2p_mode(self, dialog):
+        dialog.p2p_mode.setChecked(False)
+        assert dialog.server_trust.isEnabled()
+        dialog.p2p_mode.setChecked(True)
+        assert not dialog.server_trust.isEnabled()
+
+    def test_combo_is_disabled_while_a_sync_is_active(self, dialog):
+        dialog.p2p_mode.setChecked(False)
+        dialog.set_connection_active(True)
+        assert not dialog.server_trust.isEnabled()
+        dialog.set_connection_active(False)
+        assert dialog.server_trust.isEnabled()
+
+    def test_manage_keys_button_is_disabled_in_p2p_mode(self, dialog):
+        dialog.p2p_mode.setChecked(False)
+        assert dialog.btn_manage_trusted_keys_server.isEnabled()
+        dialog.p2p_mode.setChecked(True)
+        assert not dialog.btn_manage_trusted_keys_server.isEnabled()
+
+
+class TestP2pPanelGating:
+    """The p2p trust controls disable with the panel when server mode is active."""
+
+    def test_trust_controls_disabled_when_p2p_is_off(self, dialog):
+        dialog.p2p_mode.setChecked(True)
+        assert dialog.p2p_bootnode_trust.isEnabled()
+        assert dialog.btn_manage_trusted_keys.isEnabled()
+        dialog.p2p_mode.setChecked(False)
+        assert not dialog.p2p_bootnode_trust.isEnabled()
+        assert not dialog.btn_manage_trusted_keys.isEnabled()
+
+    def test_trust_controls_disabled_while_a_sync_is_active(self, dialog):
+        dialog.p2p_mode.setChecked(True)
+        dialog.set_connection_active(True)
+        assert not dialog.p2p_bootnode_trust.isEnabled()
+        assert not dialog.btn_manage_trusted_keys.isEnabled()
+        dialog.set_connection_active(False)
+        assert dialog.p2p_bootnode_trust.isEnabled()
+        assert dialog.btn_manage_trusted_keys.isEnabled()
 
 
 class TestEndpointNormalization:

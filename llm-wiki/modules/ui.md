@@ -57,6 +57,8 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 `TrustedKeysDialog` (`trusted_keys.py::TrustedKeysDialog`) lists and edits all three stores via
 the `engine` subprocess helpers (never the store files directly): three tabs
 (bootnodes / servers / peers), each a `QTableWidget` + Add/Remove/Refresh. The
+`initial_tab` keyword (`bootnodes` default, or `servers`) selects the opening
+tab; the settings dialog passes the tab matching the panel that launched it. The
 bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
 stores); *Add* supports "read from node" or manual entry. Peer *Add* pre-fills
 the bucket from `sync/bucket`. The peers tab shows

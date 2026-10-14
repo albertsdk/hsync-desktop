@@ -78,7 +78,7 @@ client's built-in defaults.
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
 by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
-opens `TrustedKeysDialog`) + `p2p_upnp` (`ToggleSwitch`), saved/loaded under
+opens `TrustedKeysDialog` on the bootnodes tab) + `p2p_upnp` (`ToggleSwitch`), saved/loaded under
 `p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
@@ -94,6 +94,11 @@ a GUI setting: it lives in the client's known-hosts store, edited through the
 (`_ensure_bootnode_trust`, which now uses the endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
+The trust combo and `btn_manage_trusted_keys` follow the panel's gating: both are
+disabled when p2p mode is off (server mode) and while a sync is running. The
+button opens the dialog on the bootnodes tab; the server panel has its own twin
+(`btn_manage_trusted_keys_server`) opening the servers tab, so the two buttons
+gate independently.
 
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
 inserted after the `http_timeout` row), saved/loaded under
@@ -104,8 +109,11 @@ field was **removed** (ADR-0036): the pin lives in the client's server
 known-hosts store, not in a setting. Like the bootnode policy, the combo is
 env-driven: `apply_settings_env` always inserts `HSYNC_SERVER_TRUST` (`chain`
 default), and `build_hsync_args` emits no server-trust flag. The server pin is
-edited through the `TrustedKeysDialog` Servers tab or the
-`_ensure_server_trust` pre-flight in `main_window.py`.
+edited through the `TrustedKeysDialog` Servers tab, the
+`_ensure_server_trust` pre-flight in `main_window.py`, or the panel's
+`btn_manage_trusted_keys_server` (`QPushButton`, opens the dialog on the servers
+tab). Like the other Server fields, the combo and the button are disabled when
+p2p mode is active and while a sync is running.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
