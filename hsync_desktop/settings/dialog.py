@@ -89,7 +89,11 @@ from hsync_desktop.config import (
     SETTINGS_ORG,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
-from hsync_desktop.engine import get_binary_capabilities_cached
+from hsync_desktop.engine import (
+    fetch_bootnode_fingerprint,
+    find_hsync_binary,
+    get_binary_capabilities_cached,
+)
 from hsync_desktop.i18n import (
     SUPPORTED_LANGUAGES,
     get_language,
@@ -345,10 +349,18 @@ class SettingsDialog(QDialog):
         self.btn_manage_trusted_keys = QPushButton(self)
         self.btn_manage_trusted_keys.setObjectName("btnManageTrustedKeys")
         self.btn_manage_trusted_keys.clicked.connect(self._open_trusted_keys)
+
+        # Verify the configured bootnode answers (probes its certificate via the
+        # client; mirrors the server panel's Test Connection button).
+        self.btn_test_bootnode = QPushButton(self)
+        self.btn_test_bootnode.setObjectName("btnTestBootnode")
+        self.btn_test_bootnode.clicked.connect(self._on_test_bootnode)
+
         manage_container = QWidget(self)
         hl_manage = QHBoxLayout(manage_container)
         hl_manage.setContentsMargins(0, 0, 0, 0)
         hl_manage.addWidget(self.btn_manage_trusted_keys)
+        hl_manage.addWidget(self.btn_test_bootnode)
         hl_manage.addStretch()
         _insert_row_after(trust_container, QLabel(""), manage_container)
 
@@ -814,6 +826,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.p2p_bootnode, "tip.p2p_bootnode", tips)
         _maybe_tip(self.p2p_bootnode_trust, "tip.p2p_bootnode_trust", tips)
         _maybe_tip(self.btn_manage_trusted_keys, "tip.manage_trusted_keys", tips)
+        _maybe_tip(self.btn_test_bootnode, "tip.test_bootnode", tips)
         _maybe_tip(self.p2p_upnp, "tip.p2p_upnp", tips)
         _maybe_tip(self.p2p_key, "tip.p2p_key", tips)
         _maybe_tip(self.p2p_port, "tip.p2p_port", tips)
@@ -981,6 +994,7 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode,
             self.p2p_bootnode_trust,
             self.btn_manage_trusted_keys,
+            self.btn_test_bootnode,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,
@@ -1094,7 +1108,9 @@ class SettingsDialog(QDialog):
 
         def _restore() -> None:
             self.btn_test_connection.setEnabled(True)
-            self.btn_test_connection.setText(tr("settings.test_connection"))
+
+        self.btn_test_connection.setText(tr("settings.test_connection"))
+        self.btn_test_bootnode.setText(tr("settings.test_connection"))
 
         try:
             timeout = max(5, self.http_timeout.value())
@@ -1121,6 +1137,60 @@ class SettingsDialog(QDialog):
                 self,
                 tr("settings.test_connection_title"),
                 tr("settings.test_connection_failure"),
+            )
+
+    def _on_test_bootnode(self) -> None:
+        """Verify the configured bootnode is reachable (probes its certificate)."""
+        raw = self.p2p_bootnode.text().strip()
+        if not raw:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_bootnode_no_host"),
+            )
+            return
+        try:
+            endpoint = parse_host_port(raw)
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.invalid_bootnode_endpoint"),
+            )
+            return
+
+        binary = find_hsync_binary()
+        if not binary:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_bootnode_no_binary"),
+            )
+            return
+
+        self.btn_test_bootnode.setEnabled(False)
+        self.btn_test_bootnode.setText("…")
+
+        def _restore() -> None:
+            self.btn_test_bootnode.setEnabled(True)
+            self.btn_test_bootnode.setText(tr("settings.test_connection"))
+
+        # Contacting the bootnode reads its certificate fingerprint (no pin is
+        # written); a value means the node answered, None means unreachable.
+        fingerprint = fetch_bootnode_fingerprint(binary, endpoint.host, endpoint.port)
+        _restore()
+
+        if fingerprint:
+            QMessageBox.information(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_bootnode_success").replace("{fingerprint}", fingerprint),
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                tr("settings.test_connection_title"),
+                tr("settings.test_bootnode_failure"),
             )
 
     # ── Helpers ───────────────────────────────────────────────────────────
@@ -1481,6 +1551,7 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode,
             self.p2p_bootnode_trust,
             self.btn_manage_trusted_keys,
+            self.btn_test_bootnode,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,

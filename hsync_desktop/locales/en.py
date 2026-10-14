@@ -123,6 +123,10 @@ translations: dict[str, str] = {
     "settings.test_connection_failure": "✗ Server not reachable. Check the URL and your network.",
     "settings.test_connection_no_url": "Enter a Server URL first.",
     "settings.invalid_server_endpoint": "Invalid server address. Use a host, host:port, [IPv6], [IPv6]:port or a full https:// URL.",
+    "settings.test_bootnode_no_host": "Set a bootnode first.",
+    "settings.test_bootnode_no_binary": "hsync binary not found; cannot verify the bootnode.",
+    "settings.test_bootnode_success": "✓ Bootnode reachable\nFingerprint: {fingerprint}",
+    "settings.test_bootnode_failure": "✗ Bootnode not reachable. Check the host, port and your network.",
     "settings.invalid_bootnode_endpoint": "Invalid bootnode address. Use a host, host:port, [IPv6] or [IPv6]:port.",
     # Settings sync
     "settings.bucket": "Remote Folder:",
@@ -252,6 +256,7 @@ translations: dict[str, str] = {
     "tip.p2p_bootnode_trust": "How the bootnode identity is authenticated (ask, accept-new, strict or none)",
     "tip.manage_trusted_keys": "Manage the trusted bootnode/server pins and the known P2P peers",
     "tip.p2p_upnp": "Open the listening port on the router automatically via UPnP",
+    "tip.test_bootnode": "Contact the configured bootnode and show its certificate fingerprint (verifies it is reachable)",
     "tip.p2p_key": "Password shared by all devices in the p2p group; it must be identical on every device. With a bootnode it is also the bootnode group key, so it must match the operator's key for a protected bucket or a private node.",
     "tip.p2p_port": "Port for the p2p master server (0 = auto)",
     "tip.discovery_timeout": "Device search time",

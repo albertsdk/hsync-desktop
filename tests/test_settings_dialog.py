@@ -715,3 +715,65 @@ class TestP2pTooltips:
         dialog._apply_tooltips()
         for name in self._KEYS:
             assert getattr(dialog, name).toolTip() == ""
+
+
+class TestBootnodeTestButton:
+    """'Test Connection' in the p2p panel probes the configured bootnode."""
+
+    def _capture(self, monkeypatch, name):
+        seen: list[str] = []
+        monkeypatch.setattr(QMessageBox, name, staticmethod(lambda *a, **k: seen.append(a[2])))
+        return seen
+
+    def test_no_bootnode_warns_without_probing(self, dialog, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        warned = self._capture(monkeypatch, "warning")
+        probed: list = []
+        monkeypatch.setattr(
+            dialog_mod, "fetch_bootnode_fingerprint", lambda *a, **k: probed.append(a)
+        )
+        dialog.p2p_bootnode.setText("")
+        dialog._on_test_bootnode()
+        assert warned == [tr("settings.test_bootnode_no_host")]
+        assert probed == []
+
+    def test_invalid_endpoint_warns(self, dialog, monkeypatch):
+        warned = self._capture(monkeypatch, "warning")
+        dialog.p2p_bootnode.setText("https://boot.example.net")
+        dialog._on_test_bootnode()
+        assert warned == [tr("settings.invalid_bootnode_endpoint")]
+
+    def test_unreachable_warns(self, dialog, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        warned = self._capture(monkeypatch, "warning")
+        monkeypatch.setattr(dialog_mod, "find_hsync_binary", lambda: "/fake/hsync")
+        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", lambda *a, **k: None)
+        dialog.p2p_bootnode.setText("boot.example.net")
+        dialog._on_test_bootnode()
+        assert warned == [tr("settings.test_bootnode_failure")]
+
+    def test_reachable_reports_the_fingerprint(self, dialog, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        infos = self._capture(monkeypatch, "information")
+        monkeypatch.setattr(dialog_mod, "find_hsync_binary", lambda: "/fake/hsync")
+        captured: dict = {}
+        fingerprint = "sha256:" + "a" * 64
+
+        def fake_probe(binary, host, port=None):
+            captured.update(binary=binary, host=host, port=port)
+            return fingerprint
+
+        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", fake_probe)
+        dialog.p2p_bootnode.setText("boot.example.net:443")
+        dialog._on_test_bootnode()
+        assert captured == {"binary": "/fake/hsync", "host": "boot.example.net", "port": 443}
+        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", fingerprint)]
+
+    def test_button_disabled_in_server_mode(self, dialog):
+        dialog.p2p_mode.setChecked(False)
+        assert not dialog.btn_test_bootnode.isEnabled()
+        dialog.p2p_mode.setChecked(True)
+        assert dialog.btn_test_bootnode.isEnabled()

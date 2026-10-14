@@ -78,13 +78,16 @@ client's built-in defaults.
 **Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
 by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
-opens `TrustedKeysDialog` on the bootnodes tab) + `p2p_upnp` (`ToggleSwitch`), saved/loaded under
+opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
+(`QPushButton`, probes the bootnode via `fetch_bootnode_fingerprint`) +
+`p2p_upnp` (`ToggleSwitch`), saved/loaded under
 `p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
 `*_none` option labels) / `settings.p2p_upnp` (5 locales); tips from
 `tip.p2p_bootnode` (what a bootnode is/does) / `tip.p2p_bootnode_trust` /
-`tip.manage_trusted_keys` / `tip.p2p_upnp`, shown per the `tooltips` preference.
+`tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
+`tooltips` preference.
 Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
@@ -101,7 +104,10 @@ The trust combo and `btn_manage_trusted_keys` follow the panel's gating: both ar
 disabled when p2p mode is off (server mode) and while a sync is running. The
 button opens the dialog on the bootnodes tab; the server panel has its own twin
 (`btn_manage_trusted_keys_server`) opening the servers tab, so the two buttons
-gate independently.
+gate independently. `btn_test_bootnode` (`_on_test_bootnode`) is gated like the
+other p2p fields (disabled in server mode and while syncing); it reuses the
+`settings.test_connection` label and the existing `settings.invalid_bootnode_endpoint`
+key, and reports the bootnode's certificate fingerprint on success.
 
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
 inserted after the `http_timeout` row), saved/loaded under
