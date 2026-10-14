@@ -82,7 +82,10 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `p2p_upnp` (`ToggleSwitch`), s
 `p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
-`*_none` option labels) / `settings.p2p_upnp` (5 locales). Like NTP hosts this is
+`*_none` option labels) / `settings.p2p_upnp` (5 locales); tips from
+`tip.p2p_bootnode` (what a bootnode is/does) / `tip.p2p_bootnode_trust` /
+`tip.manage_trusted_keys` / `tip.p2p_upnp`, shown per the `tooltips` preference.
+Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
 `HSYNC_BOOTNODE` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,

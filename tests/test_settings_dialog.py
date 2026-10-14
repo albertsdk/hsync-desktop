@@ -690,3 +690,28 @@ class TestLogPanel:
 
     def test_show_log_panel_label_is_translated(self, dialog):
         assert dialog._lbl_show_log_panel.text() == tr("settings.show_log_panel")
+
+
+class TestP2pTooltips:
+    """The p2p panel's previously tip-less fields now explain themselves."""
+
+    _KEYS = {
+        "p2p_bootnode": "tip.p2p_bootnode",
+        "p2p_bootnode_trust": "tip.p2p_bootnode_trust",
+        "btn_manage_trusted_keys": "tip.manage_trusted_keys",
+        "p2p_upnp": "tip.p2p_upnp",
+    }
+
+    def test_tooltips_shown_when_enabled(self, dialog, monkeypatch):
+        monkeypatch.setattr(type(dialog), "_tips_enabled", lambda self: True)
+        dialog._unsupported_widgets.clear()
+        dialog._apply_tooltips()
+        for name, key in self._KEYS.items():
+            assert getattr(dialog, name).toolTip() == tr(key)
+
+    def test_tooltips_hidden_when_disabled(self, dialog, monkeypatch):
+        monkeypatch.setattr(type(dialog), "_tips_enabled", lambda self: False)
+        dialog._unsupported_widgets.clear()
+        dialog._apply_tooltips()
+        for name in self._KEYS:
+            assert getattr(dialog, name).toolTip() == ""

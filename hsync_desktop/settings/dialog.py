@@ -806,10 +806,15 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
         _maybe_tip(self.server_trust, "tip.server_trust", tips)
         _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
+        _maybe_tip(self.btn_manage_trusted_keys_server, "tip.manage_trusted_keys", tips)
 
         # p2p tab
         _maybe_tip(self.p2p_mode, "tip.p2p_mode", tips)
         _maybe_tip(self.p2p_group, "tip.p2p_group", tips)
+        _maybe_tip(self.p2p_bootnode, "tip.p2p_bootnode", tips)
+        _maybe_tip(self.p2p_bootnode_trust, "tip.p2p_bootnode_trust", tips)
+        _maybe_tip(self.btn_manage_trusted_keys, "tip.manage_trusted_keys", tips)
+        _maybe_tip(self.p2p_upnp, "tip.p2p_upnp", tips)
         _maybe_tip(self.p2p_key, "tip.p2p_key", tips)
         _maybe_tip(self.p2p_port, "tip.p2p_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
