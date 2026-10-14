@@ -75,3 +75,11 @@ disable unsupported controls) is realized in
   (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
   always sends an explicit policy; the client's SSH-style prompt is terminal-only
   and fails closed without a tty.
+
+- **The client/desktop version pairing is gated at build time**: `compile.sh`
+  `_add_data_args` runs the bundled `hsync-client` binary with `--version` and
+  refuses the build when its major version differs from
+  `hsync_common.constants.HSYNC_VERSION` — the same rule the app re-checks at
+  runtime (`engine.py::is_binary_version_compatible`, which only warns). A binary
+  that cannot run on the host (cross-arch `rpi`) is reported as unverifiable and
+  skipped. Guarded by `tests/test_compile_script.py`.

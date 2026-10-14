@@ -115,11 +115,14 @@ readonly OUTPUT_BASE="dist"
 readonly OUTPUT_DIR="${OUTPUT_BASE}/${PLATFORM}"
 readonly BUILD_DIR="build"
 readonly VENV_DIR=".venv"
-# PyInstaller lives under Scripts/ on Windows venvs and bin/ elsewhere.
+# PyInstaller and the console python live under Scripts/ on Windows venvs and
+# bin/ elsewhere.
 if [[ "${OS_NAME}" == "windows" ]]; then
     readonly PYINSTALLER="${VENV_DIR}/Scripts/pyinstaller.exe"
+    readonly VENV_PYTHON="${VENV_DIR}/Scripts/python.exe"
 else
     readonly PYINSTALLER="${VENV_DIR}/bin/pyinstaller"
+    readonly VENV_PYTHON="${VENV_DIR}/bin/python"
 fi
 # Client binary path is platform-specific (matches hsync-client/compile.sh output)
 readonly CLIENT_BINARY="../hsync-client/dist/${PLATFORM}/hsync${BIN_EXT}"
@@ -410,16 +413,59 @@ _onedir_pyi_flags() {
         --exclude-module setuptools"
 }
 
+# Read the shared HSYNC_VERSION (SSOT) the desktop expects from its client.
+_expected_client_version() {
+    "${VENV_PYTHON}" -c \
+        'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)' 2>/dev/null || true
+}
+
+# Refuse to bundle a client binary whose major version differs from the shared
+# HSYNC_VERSION. The app also checks this at runtime but only warns, so a stale
+# or mismatched pairing must be caught here. A binary that cannot run on this
+# host (e.g. the cross-arch rpi client) is reported as unverifiable, not failed.
+# $1 = client binary path
+_verify_client_compatible() {
+    local client_binary="$1"
+    local expected reported
+
+    expected="$(_expected_client_version)"
+    if [[ -z "${expected}" ]]; then
+        log_warn "Could not read HSYNC_VERSION; skipping client compatibility check"
+        return 0
+    fi
+
+    reported="$("${client_binary}" --version 2>/dev/null |
+        grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || true
+    if [[ -z "${reported}" ]]; then
+        log_warn "Cannot run ${client_binary} here; skipping compatibility check"
+        return 0
+    fi
+
+    if [[ "${reported%%.*}" != "${expected%%.*}" ]]; then
+        log_error "hsync-client ${reported} is incompatible with this build" \
+            "(needs major ${expected%%.*}); refusing to bundle it"
+        exit 1
+    fi
+    log_ok "hsync-client ${reported} matches HSYNC_VERSION ${expected}"
+}
+
 # Emit the PyInstaller --add-data arguments shared by the native and rpi builds.
 # When the given client binary exists it is staged into hsync_desktop/bin/ and
 # bundled; otherwise the build warns and the desktop falls back to searching
 # PATH for 'hsync' at runtime. UI files and icons are always bundled.
 # $1 = client binary path (empty to skip client bundling entirely)
+# $2 = 'skip-verify' to skip the version compatibility check (cross-arch build)
 _add_data_args() {
     local client_binary="${1:-}"
+    local skip_verify="${2:-}"
     local add_data_args=()
 
     if [[ -n "${client_binary}" && -f "${client_binary}" ]]; then
+        if [[ "${skip_verify}" == "skip-verify" ]]; then
+            log_info "Skipping hsync-client compatibility check (cross-arch build)"
+        else
+            _verify_client_compatible "${client_binary}"
+        fi
         log_step "Bundling hsync-client binary..."
         mkdir -p hsync_desktop/bin
         cp "${client_binary}" hsync_desktop/bin/hsync
@@ -450,7 +496,7 @@ _collect_add_data_args() {
     local line
     while IFS= read -r line; do
         [[ -n "${line}" ]] && ADD_DATA_ARGS+=("${line}")
-    done < <(_add_data_args "${1:-}")
+    done < <(_add_data_args "${1:-}" "${2:-}")
 }
 
 # -----------------------------------------------------------------------------
@@ -554,7 +600,7 @@ build_rpi() {
     flags="$(_onefile_pyi_flags)"
 
     local -a add_data_args=()
-    _collect_add_data_args "${RPI_CLIENT_BINARY}"
+    _collect_add_data_args "${RPI_CLIENT_BINARY}" skip-verify
     add_data_args=("${ADD_DATA_ARGS[@]}")
     local add_data=""
     if [[ ${#add_data_args[@]} -gt 0 ]]; then

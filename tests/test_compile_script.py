@@ -14,6 +14,7 @@ Consumers: hsync-desktop maintainers (regression guard).
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -214,3 +215,65 @@ def test_release_frees_disk_space_before_packaging_the_dmg() -> None:
     )
     assert "CoreSimulator/Caches" in workflow
     assert "Library/Application Support/pyinstaller" in workflow
+
+
+# ── Client/desktop version compatibility (build-time gate) ────────────────────
+
+_VERIFY_RE = re.compile(r"^_verify_client_compatible\(\) \{.*?^\}", re.S | re.M)
+
+
+def _verify_client_compatible_body() -> str:
+    match = _VERIFY_RE.search(_script())
+    assert match, "_verify_client_compatible() not found in compile.sh"
+    return match.group(0)
+
+
+def _run_verify(
+    tmp_path: Path, expected: str, client_version: str | None
+) -> subprocess.CompletedProcess[str]:
+    """Run the extracted verifier against a fake client binary."""
+    client = tmp_path / "hsync"
+    body = "exit 1\n" if client_version is None else f'echo "hsync {client_version}"\n'
+    client.write_text(f"#!/usr/bin/env bash\n{body}", encoding="utf-8")
+    client.chmod(0o755)
+    harness = "\n".join(
+        [
+            "log_info(){ :; }",
+            'log_ok(){ echo "OK: $*" >&2; }',
+            'log_warn(){ echo "WARN: $*" >&2; }',
+            'log_error(){ echo "ERR: $*" >&2; }',
+            '_expected_client_version(){ printf "%s" "$EXPECTED"; }',
+            _verify_client_compatible_body(),
+            '_verify_client_compatible "$CLIENT"',
+        ]
+    )
+    return subprocess.run(
+        ["bash", "-c", harness],
+        env={"EXPECTED": expected, "CLIENT": str(client), "PATH": os.environ["PATH"]},
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_verify_client_compatible_accepts_same_major(tmp_path: Path) -> None:
+    proc = _run_verify(tmp_path, "1.0.3", "1.9.9")
+    assert proc.returncode == 0, proc.stderr
+    assert "matches HSYNC_VERSION" in proc.stderr
+
+
+def test_verify_client_compatible_rejects_different_major(tmp_path: Path) -> None:
+    proc = _run_verify(tmp_path, "1.0.3", "2.0.0")
+    assert proc.returncode != 0
+    assert "incompatible" in proc.stderr
+
+
+def test_verify_client_compatible_skips_unrunnable_client(tmp_path: Path) -> None:
+    proc = _run_verify(tmp_path, "1.0.3", None)
+    assert proc.returncode == 0
+    assert "skipping compatibility check" in proc.stderr
+
+
+def test_bundling_verifies_the_client_and_skips_the_cross_arch_rpi() -> None:
+    script = _script()
+    assert "_verify_client_compatible" in script
+    assert 'RPI_CLIENT_BINARY}" skip-verify' in script
