@@ -116,9 +116,54 @@ _SYNC_TAB_INDEX = 0
 _P2P_TAB_INDEX = 2
 
 
+def _paired_label(widget: QWidget) -> QLabel | None:
+    """Return the label shown next to *widget*, to mirror its tooltip.
+
+    Handles toggle rows (the label is a sibling inside the toggle's container)
+    and form rows (the ``QFormLayout`` label of the field, where the field may
+    itself be a layout or a container holding the widget).
+    """
+    parent = widget.parentWidget()
+    if parent is None:
+        return None
+    if isinstance(widget, ToggleSwitch):
+        layout = parent.layout()
+        if layout is not None:
+            for index in range(layout.count()):
+                item = layout.itemAt(index)
+                candidate = item.widget() if item is not None else None
+                if isinstance(candidate, QLabel):
+                    return candidate
+        return None
+    layout = parent.layout()
+    if isinstance(layout, QFormLayout):
+        for row in range(layout.rowCount()):
+            field_item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if field_item is None:
+                continue
+            field = field_item.widget()
+            field_layout = field_item.layout()
+            holds = field is widget or field is parent
+            if not holds and field_layout is not None and field_layout.indexOf(widget) >= 0:
+                holds = True
+            if holds:
+                label_item = layout.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                label = label_item.widget() if label_item is not None else None
+                return label if isinstance(label, QLabel) else None
+    return None
+
+
+def _set_field_tooltip(widget: QWidget, text: str) -> None:
+    """Set *text* as the tooltip of *widget* and of its paired label."""
+    widget.setToolTip(text)
+    label = _paired_label(widget)
+    if label is not None:
+        label.setToolTip(text)
+
+
 def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
-    """Set tooltip on *widget* from i18n *key* only when *enabled*."""
-    widget.setToolTip(tr(key) if enabled else "")
+    """Set tooltip on *widget* (and its paired label) from *key* when *enabled*."""
+    _set_field_tooltip(widget, tr(key) if enabled else "")
 
 
 def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
@@ -924,7 +969,7 @@ class SettingsDialog(QDialog):
         # Capability-gated controls always explain why they are unavailable,
         # overriding any normal tooltip cleared above.
         for widget in self._unsupported_widgets:
-            widget.setToolTip(tr("tip.capability_unsupported"))
+            _set_field_tooltip(widget, tr("tip.capability_unsupported"))
 
     def _apply_capabilities(self) -> None:
         """Gate p2p controls by the binary's advertised capabilities.
@@ -955,7 +1000,7 @@ class SettingsDialog(QDialog):
                 widget.setChecked(False)
             widget.setEnabled(False)
             label.setEnabled(False)
-            widget.setToolTip(tr("tip.capability_unsupported"))
+            _set_field_tooltip(widget, tr("tip.capability_unsupported"))
         # The bootnode host field belongs to the bootnode discovery plan: gate it
         # on its ``--port`` flag (the positional is not in cli_options).
         if not (p2p_supported and supports_cli_option(doc, "--port", subcommand="p2p")):
@@ -963,7 +1008,7 @@ class SettingsDialog(QDialog):
             self._unsupported_labels.add(self._lbl_p2p_bootnode)
             self.p2p_bootnode.setEnabled(False)
             self._lbl_p2p_bootnode.setEnabled(False)
-            self.p2p_bootnode.setToolTip(tr("tip.capability_unsupported"))
+            _set_field_tooltip(self.p2p_bootnode, tr("tip.capability_unsupported"))
         if not p2p_supported:
             # The p2p subcommand itself is the master gate for the p2p tab.
             self._unsupported_widgets.add(self.p2p_mode)
@@ -972,7 +1017,7 @@ class SettingsDialog(QDialog):
                 self.p2p_mode.setChecked(False)
             self.p2p_mode.setEnabled(False)
             self._lbl_p2p_mode.setEnabled(False)
-            self.p2p_mode.setToolTip(tr("tip.capability_unsupported"))
+            _set_field_tooltip(self.p2p_mode, tr("tip.capability_unsupported"))
         # Refresh dependent enable-state with the new gates in effect.
         self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
@@ -1643,7 +1688,7 @@ class SettingsDialog(QDialog):
             widget.setEnabled(not active and widget not in self._unsupported_widgets)
             # Set tooltip explaining why it's disabled
             if active:
-                widget.setToolTip(disabled_tip)
+                _set_field_tooltip(widget, disabled_tip)
 
         # Re-apply normal tooltips and p2p-mode state when connection is not active
         if not active:

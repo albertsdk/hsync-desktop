@@ -18,7 +18,9 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 | ------ | -------- | ---- |
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | tabs for server/sync/p2p; load/save QSettings |
 | `_replace_checkbox_with_toggle` | `settings/dialog.py::_replace_checkbox_with_toggle` | swap checkboxes for `ToggleSwitch` widgets |
-| `_maybe_tip` | `settings/dialog.py::_maybe_tip` | attach capability/disabled tooltip |
+| `_maybe_tip` | `settings/dialog.py::_maybe_tip` | attach a tip to a field and its label (respects the `tooltips` preference) |
+| `_paired_label` | `settings/dialog.py::_paired_label` | find the label next to a field/toggle, to mirror its tooltip |
+| `_set_field_tooltip` | `settings/dialog.py::_set_field_tooltip` | set the same tooltip on a field and its paired label |
 | `ApiKeyDialog` | `settings/dialog.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/dialog.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `settings/dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
@@ -38,6 +40,9 @@ titles are refreshed in `_apply_translations`.
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
+Tooltips are mirrored onto the row's label (and a toggle's inline label) through
+`_paired_label`/`_set_field_tooltip`, so hovering the label explains the row too;
+the same applies to the capability and the disabled-during-sync tooltips.
 
 **Force-master live gate**: `--force-master` is incompatible with a
 non-bidirectional direction (it only applies to bidirectional syncs, and is

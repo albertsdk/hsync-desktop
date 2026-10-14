@@ -843,3 +843,39 @@ class TestShareNameLabel:
         dialog._apply_translations()
         assert dialog._grp_p2p_mode.title() == "<settings.group.p2p_mode>"
         assert dialog._grp_p2p_advanced.title() == "<settings.group.advanced>"
+
+
+class TestLabelTooltips:
+    """Tooltips are mirrored onto the paired labels, per the preference."""
+
+    _PAIRS = [
+        ("p2p_group", "lblP2pGroup", "tip.p2p_group"),
+        ("ntp_hosts", "_lbl_ntp_hosts", "tip.ntp_hosts"),
+        ("shared_path", "lblSharedPath", "tip.shared_path"),
+        ("bucket", "lblBucket", "tip.bucket"),
+        ("p2p_upnp", "_lbl_p2p_upnp", "tip.p2p_upnp"),
+        ("verbose", "_lbl_verbose", "tip.verbose"),
+    ]
+
+    def _label(self, dialog, name):
+        if name.startswith("_"):
+            return getattr(dialog, name)
+        return dialog.findChild(QLabel, name)
+
+    def test_labels_mirror_the_field_tooltip(self, dialog, monkeypatch):
+        monkeypatch.setattr(type(dialog), "_tips_enabled", lambda self: True)
+        dialog._unsupported_widgets.clear()
+        dialog._apply_tooltips()
+        for _field, label_name, key in self._PAIRS:
+            label = self._label(dialog, label_name)
+            assert label is not None, label_name
+            assert label.toolTip() == tr(key), label_name
+
+    def test_labels_cleared_when_tooltips_disabled(self, dialog, monkeypatch):
+        monkeypatch.setattr(type(dialog), "_tips_enabled", lambda self: False)
+        dialog._unsupported_widgets.clear()
+        dialog._apply_tooltips()
+        for _field, label_name, _key in self._PAIRS:
+            label = self._label(dialog, label_name)
+            assert label is not None
+            assert label.toolTip() == "", label_name
