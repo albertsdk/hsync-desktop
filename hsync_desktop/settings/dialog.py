@@ -441,6 +441,9 @@ class SettingsDialog(QDialog):
                         nm_layout.insertRow(row + 1, "", cont_require_pairing)
                         break
 
+        # Reorganize p2p tab into grouped sections
+        self._reorganize_p2p_tab()
+
         # Log tab widgets
         self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
         # NOTE: Quiet mode is hidden because hsync-desktop depends on parsing
@@ -657,6 +660,73 @@ class SettingsDialog(QDialog):
         # Edit .hsyncignore button (no left label, like a regular action)
         f4.addRow("", self.btn_edit_hsyncignore)
         vbox.addWidget(self._grp_advanced)
+
+        vbox.addStretch()
+
+    def _reorganize_p2p_tab(self) -> None:
+        """Reorganize the p2p tab into grouped sections using QGroupBox."""
+        p2p_tab = self._tabs.widget(2)
+        if not p2p_tab:
+            return
+
+        lbl_group: QLabel = self.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
+        lbl_key: QLabel = self.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
+        lbl_port: QLabel = self.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
+        lbl_discovery: QLabel = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
+
+        # Toggle/trust containers (toggle.parent() == the container QWidget).
+        cont_mode: QWidget = self.p2p_mode.parent()  # type: ignore[assignment]
+        cont_upnp: QWidget = self.p2p_upnp.parent()  # type: ignore[assignment]
+        cont_force: QWidget = self.force_master.parent()  # type: ignore[assignment]
+        cont_never: QWidget = self.never_master.parent()  # type: ignore[assignment]
+        cont_pairing: QWidget = self.require_pairing.parent()  # type: ignore[assignment]
+        trust_container: QWidget = self.p2p_bootnode_trust.parent()  # type: ignore[assignment]
+        manage_container: QWidget = self.btn_manage_trusted_keys.parent()  # type: ignore[assignment]
+
+        # Detach the original form layout.
+        old = p2p_tab.layout()
+        if old is not None:
+            while old.count():
+                old.takeAt(0)
+            _tmp = QWidget()
+            _tmp.setLayout(old)
+
+        vbox = QVBoxLayout(p2p_tab)
+        vbox.setContentsMargins(4, 4, 4, 4)
+        vbox.setSpacing(8)
+
+        # Group 1: mode + group identity
+        self._grp_p2p_mode = QGroupBox(tr("settings.group.p2p_mode"))
+        g1 = QFormLayout(self._grp_p2p_mode)
+        g1.addRow("", cont_mode)
+        g1.addRow(lbl_group, self.p2p_group)
+        g1.addRow(lbl_key, self.p2p_key)
+        vbox.addWidget(self._grp_p2p_mode)
+
+        # Group 2: cross-network discovery through a bootnode
+        self._grp_p2p_discovery = QGroupBox(tr("settings.group.p2p_discovery"))
+        g2 = QFormLayout(self._grp_p2p_discovery)
+        g2.addRow(self._lbl_p2p_bootnode, self.p2p_bootnode)
+        g2.addRow(self._lbl_p2p_bootnode_trust, trust_container)
+        g2.addRow("", manage_container)
+        g2.addRow("", cont_upnp)
+        vbox.addWidget(self._grp_p2p_discovery)
+
+        # Group 3: role election + pairing
+        self._grp_p2p_role = QGroupBox(tr("settings.group.p2p_role"))
+        g3 = QFormLayout(self._grp_p2p_role)
+        g3.addRow("", cont_force)
+        g3.addRow("", cont_never)
+        g3.addRow("", cont_pairing)
+        vbox.addWidget(self._grp_p2p_role)
+
+        # Group 4: advanced tuning
+        self._grp_p2p_advanced = QGroupBox(tr("settings.group.advanced"))
+        g4 = QFormLayout(self._grp_p2p_advanced)
+        g4.addRow(lbl_port, self.p2p_port)
+        g4.addRow(lbl_discovery, self.discovery_timeout)
+        g4.addRow(self._lbl_ntp_hosts, self.ntp_hosts)
+        vbox.addWidget(self._grp_p2p_advanced)
 
         vbox.addStretch()
 

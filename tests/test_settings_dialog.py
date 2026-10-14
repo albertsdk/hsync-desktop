@@ -13,7 +13,7 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QFormLayout, QLineEdit, QMessageBox
+from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -777,3 +777,38 @@ class TestBootnodeTestButton:
         assert not dialog.btn_test_bootnode.isEnabled()
         dialog.p2p_mode.setChecked(True)
         assert dialog.btn_test_bootnode.isEnabled()
+
+
+class TestP2pPanelSections:
+    """The p2p tab is grouped into four sections like the sync tab."""
+
+    @staticmethod
+    def _groups(dialog) -> dict[str, QGroupBox]:
+        tab = dialog._tabs.widget(2)
+        assert tab is not None
+        return {g.title(): g for g in tab.findChildren(QGroupBox)}
+
+    def test_four_sections_with_expected_titles(self, dialog):
+        assert set(self._groups(dialog)) == {
+            tr("settings.group.p2p_mode"),
+            tr("settings.group.p2p_discovery"),
+            tr("settings.group.p2p_role"),
+            tr("settings.group.advanced"),
+        }
+
+    def test_fields_are_in_the_expected_section(self, dialog):
+        groups = self._groups(dialog)
+        mode = groups[tr("settings.group.p2p_mode")]
+        discovery = groups[tr("settings.group.p2p_discovery")]
+        role = groups[tr("settings.group.p2p_role")]
+        advanced = groups[tr("settings.group.advanced")]
+
+        assert dialog.p2p_group.parent() is mode
+        assert dialog.p2p_key.parent() is mode
+        assert dialog.p2p_bootnode.parent() is discovery
+        assert dialog.p2p_bootnode_trust.parent().parent() is discovery
+        assert dialog.force_master.parent().parent() is role
+        assert dialog.require_pairing.parent().parent() is role
+        assert dialog.p2p_port.parent() is advanced
+        assert dialog.discovery_timeout.parent() is advanced
+        assert dialog.ntp_hosts.parent() is advanced

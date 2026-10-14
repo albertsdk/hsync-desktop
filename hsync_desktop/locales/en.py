@@ -153,6 +153,9 @@ translations: dict[str, str] = {
     "settings.group.sync_mode": "Sync Mode",
     "settings.group.timing": "Timing & Intervals",
     "settings.group.advanced": "Advanced Options",
+    "settings.group.p2p_mode": "Mode & Group",
+    "settings.group.p2p_discovery": "Discovery & Bootnode",
+    "settings.group.p2p_role": "Role & Pairing",
     # Settings p2p
     "settings.p2p_mode": "Enable p2p mode",
     "settings.p2p_group": "p2p Group Name:",

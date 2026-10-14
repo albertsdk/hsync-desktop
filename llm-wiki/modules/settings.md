@@ -87,7 +87,11 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 `*_none` option labels) / `settings.p2p_upnp` (5 locales); tips from
 `tip.p2p_bootnode` (what a bootnode is/does) / `tip.p2p_bootnode_trust` /
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
-`tooltips` preference.
+`tooltips` preference. The tab is grouped (like the sync tab) into four
+`QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
+(`settings.group.p2p_mode`), Discovery & Bootnode (`settings.group.p2p_discovery`),
+Role & Pairing (`settings.group.p2p_role`) and Advanced Options
+(`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
