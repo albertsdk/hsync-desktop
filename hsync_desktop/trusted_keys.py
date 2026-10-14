@@ -52,6 +52,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.i18n import tr
+from hsync_desktop.icons import icon, style_ok_cancel_button_box
 
 # A host trust helper: ``(binary, host, fingerprint, port) -> bool`` (add) or
 # ``(binary, host, port) -> str | None`` (fingerprint probe).
@@ -94,6 +95,7 @@ class _HostAddDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
+        style_ok_cancel_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
 
@@ -154,6 +156,7 @@ class _PeerAddDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
+        style_ok_cancel_button_box(buttons)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
 
@@ -203,6 +206,10 @@ class TrustedKeysDialog(QDialog):
         self._tabs.setCurrentIndex(self._TAB_INDEX.get(initial_tab, 0))
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
+        close_btn = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if close_btn:
+            close_btn.setText(tr("action.close"))
+            close_btn.setIcon(icon("window-close"))
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)

@@ -92,5 +92,15 @@ Models for the panel live in `file_panel/models.py` — see
 | Single instance | `single_instance.py::SingleInstance` | reject a 2nd launch |
 | UI loading | `ui/loader.py::UiLoader`, `load_ui_widget` (`ui/loader.py::load_ui_widget`) | load `.ui` resources |
 
+Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
+the bundled SVG (recoloured per light/dark) over the system theme, falling back
+to the system theme only when no bundled icon exists. The Settings **Save** /
+**Cancel** buttons and the `TrustedKeysDialog` add dialogs use
+`style_ok_cancel_button_box` (`icons.py::style_ok_cancel_button_box`) with
+`document-save` / `dialog-cancel` (the latter bundled for this purpose, plus the
+translated `settings.save`/`settings.cancel` labels); the `TrustedKeysDialog`
+**Close** button uses `window-close` with the `action.close` label (translated in
+the five locales).
+
 > Strings shown here must be looked up via `i18n.tr` and exist in all 5 locales
 > (see [settings.md](settings.md)).

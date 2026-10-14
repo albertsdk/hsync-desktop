@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QByteArray
 from PySide6.QtGui import QIcon, QPalette, QPixmap
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
 
 def _is_dark_theme() -> bool:
@@ -102,6 +102,8 @@ _FALLBACK_MAP: dict[str, str] = {
     "sync-download": "sync-download.svg",
     # Window icons
     "window-close": "window-close.svg",
+    # Dialog action icons
+    "dialog-cancel": "dialog-cancel.svg",
     # File type icons (FreeDesktop MIME type names)
     "folder": "folder.svg",
     "image-x-generic": "image-x-generic.svg",
@@ -220,3 +222,22 @@ def _get_icon_impl(name: str, custom_color: str | None) -> QIcon:
 def clear_icon_cache() -> None:
     """Clear the icon cache. Call this when the theme changes."""
     _icon_cache.clear()
+
+
+def style_ok_cancel_button_box(button_box: QDialogButtonBox) -> None:
+    """Label and icon a standard OK/Cancel ``QDialogButtonBox`` with the app theme.
+
+    OK is presented as Save and Cancel with the translated labels, both using the
+    bundled app-theme icons, so the buttons never fall back to the platform
+    theme's icons or the (untranslated) Qt standard labels.
+    """
+    from hsync_desktop.i18n import tr
+
+    ok = button_box.button(QDialogButtonBox.StandardButton.Ok)
+    if ok is not None:
+        ok.setText(tr("settings.save"))
+        ok.setIcon(icon("document-save"))
+    cancel = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+    if cancel is not None:
+        cancel.setText(tr("settings.cancel"))
+        cancel.setIcon(icon("dialog-cancel"))

@@ -162,3 +162,60 @@ class TestTrustedKeysInitialTab:
         dlg = TrustedKeysDialog(initial_tab="servers")
         qtbot.addWidget(dlg)
         assert dlg._tabs.currentIndex() == 1
+
+
+class TestTrustedKeysCloseButton:
+    """The Close button carries the app icon and a translated label."""
+
+    def test_close_button_is_translated_and_themed(self, qtbot, monkeypatch):
+        from PySide6.QtWidgets import QDialogButtonBox
+
+        from hsync_desktop.icons import icon
+
+        _patch_store(monkeypatch)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        box = dlg.findChild(QDialogButtonBox)
+        assert box is not None
+        close = box.button(QDialogButtonBox.StandardButton.Close)
+        assert close is not None
+        assert close.text() == tr("action.close")
+        assert close.icon().cacheKey() == icon("window-close").cacheKey()
+
+
+class TestAddDialogButtons:
+    """The Add dialogs use the app Save/Cancel labels and icons."""
+
+    @staticmethod
+    def _assert_buttons(dialog):
+        from PySide6.QtWidgets import QDialogButtonBox
+
+        from hsync_desktop.icons import icon
+
+        box = dialog.findChild(QDialogButtonBox)
+        assert box is not None
+        ok = box.button(QDialogButtonBox.StandardButton.Ok)
+        cancel = box.button(QDialogButtonBox.StandardButton.Cancel)
+        assert ok is not None and cancel is not None
+        assert ok.text() == tr("settings.save")
+        assert ok.icon().cacheKey() == icon("document-save").cacheKey()
+        assert cancel.text() == tr("settings.cancel")
+        assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+    def test_host_add_dialog_buttons(self, qtbot):
+        from hsync_desktop.trusted_keys import _HostAddDialog
+
+        dlg = _HostAddDialog(
+            fetch_fingerprint=lambda *a, **k: None,
+            add_trust=lambda *a, **k: False,
+            placeholder="boot.example.net:443",
+        )
+        qtbot.addWidget(dlg)
+        self._assert_buttons(dlg)
+
+    def test_peer_add_dialog_buttons(self, qtbot):
+        from hsync_desktop.trusted_keys import _PeerAddDialog
+
+        dlg = _PeerAddDialog()
+        qtbot.addWidget(dlg)
+        self._assert_buttons(dlg)

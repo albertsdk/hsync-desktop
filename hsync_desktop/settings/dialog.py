@@ -100,7 +100,7 @@ from hsync_desktop.i18n import (
     set_language,
     tr,
 )
-from hsync_desktop.icons import icon
+from hsync_desktop.icons import icon, style_ok_cancel_button_box
 from hsync_desktop.settings.cli_args import secure_config_file
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.trusted_keys import TrustedKeysDialog
@@ -900,12 +900,7 @@ class SettingsDialog(QDialog):
         self._lbl_tooltips.setText(tr("settings.tooltips"))
 
         # Button box
-        ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
-        if ok_btn:
-            ok_btn.setText(tr("settings.save"))
-        cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("settings.cancel"))
+        style_ok_cancel_button_box(self._button_box)
 
     def _apply_tooltips(self) -> None:
         """Apply tooltips to widgets if enabled."""

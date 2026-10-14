@@ -879,3 +879,18 @@ class TestLabelTooltips:
             label = self._label(dialog, label_name)
             assert label is not None
             assert label.toolTip() == "", label_name
+
+
+class TestDialogButtonIcons:
+    """Save/Cancel use the bundled app icons, not the platform theme ones."""
+
+    def test_save_and_cancel_use_app_icons(self, dialog):
+        from PySide6.QtWidgets import QDialogButtonBox
+
+        from hsync_desktop.icons import icon
+
+        ok = dialog._button_box.button(QDialogButtonBox.StandardButton.Ok)
+        cancel = dialog._button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        assert ok is not None and cancel is not None
+        assert ok.icon().cacheKey() == icon("document-save").cacheKey()
+        assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
