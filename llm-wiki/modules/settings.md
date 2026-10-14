@@ -115,6 +115,11 @@ edited through the `TrustedKeysDialog` Servers tab, the
 tab). Like the other Server fields, the combo and the button are disabled when
 p2p mode is active and while a sync is running.
 
+**Log**: `show_log_panel` (toggle), `verbose` (toggle), `logfile` (`QLineEdit`
+with a `LblLogfile` label) render in that order; `quiet` is built but hidden
+(the desktop parses stdout, so suppressing output is unsupported). Labels from
+`settings.show_log_panel` / `settings.verbose` / `settings.logfile` (5 locales).
+
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
 (`settings/validators.py::_validate_group_name`).

@@ -13,7 +13,7 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QLineEdit, QMessageBox
+from PySide6.QtWidgets import QFormLayout, QLineEdit, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -664,3 +664,29 @@ class TestIgnoreDeleteWarning:
         # finishes, so assert both emissions rather than their order.
         assert sorted(emitted) == [False, True]
         assert dialog.ignore_delete.isChecked() is True
+
+
+class TestLogPanel:
+    """The log tab shows, in order: Show log panel, Verbose, Log file."""
+
+    def test_field_order(self, dialog):
+        form = dialog.findChild(QFormLayout, "formLog")
+        assert form is not None
+        targets = {
+            id(dialog.show_log_panel.parent()): "show_log_panel",
+            id(dialog.verbose.parent()): "verbose",
+            id(dialog.logfile): "logfile",
+        }
+        order: list[str] = []
+        for row in range(form.rowCount()):
+            item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            widget = item.widget() if item else None
+            if widget is None or widget.isHidden():
+                continue
+            name = targets.get(id(widget))
+            if name:
+                order.append(name)
+        assert order == ["show_log_panel", "verbose", "logfile"]
+
+    def test_show_log_panel_label_is_translated(self, dialog):
+        assert dialog._lbl_show_log_panel.text() == tr("settings.show_log_panel")

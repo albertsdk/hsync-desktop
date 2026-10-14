@@ -441,7 +441,9 @@ class SettingsDialog(QDialog):
         if isinstance(parent, QWidget):
             parent.hide()
         self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
-        self.show_log_panel, _ = _replace_checkbox_with_toggle(self, "showLogPanel")
+        self.show_log_panel, self._lbl_show_log_panel = _replace_checkbox_with_toggle(
+            self, "showLogPanel"
+        )
 
         # Appearance tab widgets
         self.theme_combo: QComboBox = self.findChild(QComboBox, "themeCombo")  # type: ignore[assignment]
@@ -748,6 +750,7 @@ class SettingsDialog(QDialog):
 
         # Log tab labels
         self._lbl_verbose.setText(tr("settings.verbose"))
+        self._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
         self._lbl_quiet.setText(tr("settings.quiet"))
         lbl = self.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
         if lbl:

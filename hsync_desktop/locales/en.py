@@ -202,6 +202,7 @@ translations: dict[str, str] = {
     "settings.require_pairing": "Require pairing",
     # Settings log
     "settings.verbose": "Verbose (debug) output",
+    "settings.show_log_panel": "Show log panel",
     "settings.quiet": "Quiet (suppress output)",
     "settings.logfile": "Log file:",
     # Settings appearance

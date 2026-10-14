@@ -189,6 +189,7 @@ translations: dict[str, str] = {
     "settings.never_master": "Nie Master werden",
     "settings.require_pairing": "Kopplung erforderlich",
     "settings.verbose": "Ausführliche Ausgabe (Debug)",
+    "settings.show_log_panel": "Log-Panel anzeigen",
     "settings.quiet": "Leise (Ausgabe unterdrücken)",
     "settings.logfile": "Logdatei:",
     "settings.theme": "Design:",
