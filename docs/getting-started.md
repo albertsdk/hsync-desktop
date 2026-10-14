@@ -28,9 +28,9 @@ methods are ordered from the simplest and most immediate to the most involved.
 
 - <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> Linux **x86_64** or **aarch64**, <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS (Intel or Apple silicon), or <img src="assets/os/windows.svg" alt="Windows" width="16" height="16"> Windows
   **x86_64**
-- The `hsync` engine: the installer script, the standalone binary and the
-  **AppImage** **embed** it; the `.deb`/`.rpm` install it as the `hsync-client`
-  package dependency
+- The `hsync` engine is bundled by the installer script, the standalone
+  binary, the **AppImage**, the `.deb` and the `.rpm` (no separate
+  `hsync-client` install needed)
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)
   Linux wheels
 - The **AppImage** is **Linux x86_64 only**

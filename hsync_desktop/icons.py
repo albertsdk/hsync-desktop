@@ -121,6 +121,8 @@ _FALLBACK_MAP: dict[str, str] = {
     # Role icons
     "role-master": "role-master.svg",
     "role-client": "role-client.svg",
+    # Application icon (bundled brand icon; full-colour, not themed)
+    "hsync-desktop": "hsync-desktop.svg",
 }
 
 

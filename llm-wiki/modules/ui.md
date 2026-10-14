@@ -97,7 +97,13 @@ Models for the panel live in `file_panel/models.py` — see
 
 Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
 the bundled SVG (recoloured per light/dark) over the system theme, falling back
-to the system theme only when no bundled icon exists. The Settings **Save** /
+to the system theme only when no bundled icon exists. The application icon
+`hsync-desktop` is bundled in `resources/icons/` and applied in
+`main.py::_configure_app` together with `setDesktopFileName("hsync-desktop")`, so
+the running window's WM_CLASS/app_id matches `hsync-desktop.desktop` and the
+taskbar shows the app icon. The app-icon SVG keeps `<svg` at the very top of the
+file (no long leading comment): gdk-pixbuf/GNOME only recognizes an SVG when the
+root element is within the first bytes, otherwise the icon renders blank. The Settings **Save** /
 **Cancel** buttons and the `TrustedKeysDialog` add dialogs use
 `style_ok_cancel_button_box` (`icons.py::style_ok_cancel_button_box`) with
 `document-save` / `dialog-cancel` (the latter bundled for this purpose, plus the

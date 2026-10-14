@@ -65,7 +65,7 @@ For building:
 
 For running:
 - The compiled `hsync` binary from [hsync-client](https://github.com/albertsdk/hsync-client),
-  bundled in the standalone builds or installed as the `hsync-client` package
+  bundled in every package (standalone binary, AppImage, `.deb`, `.rpm`)
 
 ## Getting started
 

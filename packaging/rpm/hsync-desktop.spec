@@ -13,25 +13,20 @@ Packager:       Alberto Basso <17047798+albertsdk@users.noreply.github.com>
 # shared libraries; rpm's automatic dependency scanner would mis-detect them.
 # Declare the real runtime requirements explicitly (RHEL-family package names).
 AutoReqProv:    no
-Requires:       hsync-client
 Requires:       glibc
+Requires:       zlib
 Requires:       libglvnd-egl
 Requires:       libglvnd-glx
-Requires:       libxkbcommon
-Requires:       libxkbcommon-x11
-Requires:       xcb-util-cursor
-Requires:       xcb-util-wm
-Requires:       xcb-util-keysyms
-Requires:       xcb-util-renderutil
-Requires:       fontconfig
-Requires:       dbus-libs
+Requires:       libdrm
+Requires:       libwayland-client
+Requires:       libwayland-cursor
+Requires:       libwayland-egl
+Requires:       libxcb
 
 %description
 hsync-desktop is the Qt (PySide6) graphical front-end of the HSYNC sync
-network. It drives the hsync client binary and provides a tray-resident
+network. It drives the bundled hsync engine and provides a tray-resident
 interface to configure and monitor folder syncs.
-
-Requires hsync-client, which provides the /usr/bin/hsync engine.
 
 %prep
 exit 0

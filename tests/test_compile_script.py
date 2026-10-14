@@ -277,3 +277,65 @@ def test_bundling_verifies_the_client_and_skips_the_cross_arch_rpi() -> None:
     script = _script()
     assert "_verify_client_compatible" in script
     assert 'RPI_CLIENT_BINARY}" skip-verify' in script
+
+
+class TestSelfContainedPackages:
+    """deb/rpm bundle the client and drop the hsync-client dependency."""
+
+    def test_host_deb_and_rpm_bundle_the_client(self):
+        script = _script()
+        # native + dmg + appimage + deb + rpm all bundle a client binary
+        assert script.count('_collect_add_data_args "${CLIENT_BINARY}"') >= 3
+        assert "_require_bundled_client" in script
+
+    def test_deb_all_and_rpm_all_build_the_client_in_container(self):
+        script = _script()
+        assert script.count("poetry install --no-root --without dev") >= 2
+        assert "./compile.sh -c" in script
+        assert "hsync_desktop/bin/hsync" in script
+
+    def test_deb_control_does_not_depend_on_hsync_client(self):
+        control = (COMPILE_SH.parent / "packaging" / "deb" / "DEBIAN" / "control").read_text(
+            encoding="utf-8"
+        )
+        assert "hsync-client" not in control
+
+    def test_rpm_spec_does_not_require_hsync_client(self):
+        spec = (COMPILE_SH.parent / "packaging" / "rpm" / "hsync-desktop.spec").read_text(
+            encoding="utf-8"
+        )
+        assert "hsync-client" not in spec
+
+    def test_deb_control_has_no_spurious_xinerama_dependency(self):
+        """libxcb-xinerama0 is not linked or dlopened by the bundled Qt libs and
+        blocked installation on hosts without it; it must not be declared."""
+        control = (COMPILE_SH.parent / "packaging" / "deb" / "DEBIAN" / "control").read_text(
+            encoding="utf-8"
+        )
+        assert "libxcb-xinerama0" not in control
+
+    def test_deb_control_depends_is_computed_at_build_time(self):
+        """The Depends line is computed from the payload, not hand-maintained."""
+        control = (COMPILE_SH.parent / "packaging" / "deb" / "DEBIAN" / "control").read_text(
+            encoding="utf-8"
+        )
+        assert "Depends: __DEPENDS__" in control
+        script = _script()
+        assert "_compute_runtime_depends" in script
+        assert "_inject_shlib_depends" in script
+
+    def test_rpm_requires_only_external_libraries(self):
+        spec = (COMPILE_SH.parent / "packaging" / "rpm" / "hsync-desktop.spec").read_text(
+            encoding="utf-8"
+        )
+        # Libraries that the bundled payload ships must not be declared.
+        for pkg in ("libxkbcommon", "xcb-util-cursor", "fontconfig", "dbus-libs"):
+            assert pkg not in spec
+        # The libraries the payload needs from the system must be declared.
+        for pkg in ("libxcb", "libdrm", "libwayland-client", "libwayland-egl"):
+            assert pkg in spec
+
+    def test_bundled_client_keeps_the_platform_extension(self):
+        """find_hsync_binary() looks for hsync.exe on Windows, so the bundled
+        client must keep the platform suffix (BIN_EXT)."""
+        assert "hsync_desktop/bin/hsync${BIN_EXT}" in _script()

@@ -12,6 +12,8 @@ import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from PySide6.QtWidgets import QApplication
+
     from hsync_desktop.main_window import MainWindow
 
 
@@ -75,6 +77,24 @@ def _install_sigint_handler(window: MainWindow) -> None:
     tick.start(200)
 
 
+def _configure_app(app: QApplication) -> None:
+    """Set the app identity used by QSettings, the window manager and the taskbar.
+
+    ``setDesktopFileName`` ties the window's WM_CLASS (X11) / app_id (Wayland) to
+    the installed ``hsync-desktop.desktop`` (whose ``StartupWMClass`` and ``Icon``
+    are ``hsync-desktop``), and ``setWindowIcon`` provides the X11 window icon, so
+    the taskbar shows the app icon instead of a generic one.
+    """
+    from hsync_desktop import __version__
+    from hsync_desktop.icons import icon
+
+    app.setApplicationName("HSYNC Desktop")
+    app.setOrganizationName("HSYNC")
+    app.setApplicationVersion(__version__)
+    app.setDesktopFileName("hsync-desktop")
+    app.setWindowIcon(icon("hsync-desktop"))
+
+
 def main(argv: list[str] | None = None) -> int:
     """Application entry point."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -102,9 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     from hsync_desktop.themes import apply_theme
 
     app = QApplication([sys.argv[0], *args])
-    app.setApplicationName("HSYNC Desktop")
-    app.setOrganizationName("HSYNC")
-    app.setApplicationVersion(__version__)
+    _configure_app(app)
     app.setQuitOnLastWindowClosed(False)  # keep running in tray
 
     # Ensure only one instance runs at a time

@@ -152,6 +152,7 @@ class TestAppMetadata:
 
         import PySide6.QtWidgets as qt_widgets
 
+        import hsync_desktop.icons as icons_module
         import hsync_desktop.main as main_module
         import hsync_desktop.single_instance as single_instance_module
 
@@ -174,10 +175,56 @@ class TestAppMetadata:
 
         monkeypatch.setattr(qt_widgets, "QApplication", _FakeQApp)
         monkeypatch.setattr(single_instance_module, "SingleInstance", fake_single_instance)
+        # The real icon() loads a QIcon, which needs a live QGuiApplication; the
+        # identity path is exercised with a mock so no real app is created here.
+        monkeypatch.setattr(icons_module, "icon", lambda name: MagicMock(name=name))
         monkeypatch.setattr(_sys, "argv", ["hsync-desktop"])
 
         assert main_module.main([]) == 0
         app.setApplicationName.assert_called_once_with("HSYNC Desktop")
         app.setOrganizationName.assert_called_once_with("HSYNC")
+        app.setDesktopFileName.assert_called_once_with("hsync-desktop")
+        app.setWindowIcon.assert_called_once()
         app.setQuitOnLastWindowClosed.assert_called_once_with(False)
         single_instance.try_start.assert_called_once_with()
+
+
+class TestAppIdentity:
+    """The window is bound to the installed desktop entry and the app icon."""
+
+    def test_app_icon_is_bundled(self, qapp):
+        from hsync_desktop.icons import icon
+
+        assert not icon("hsync-desktop").isNull()
+
+    def test_app_icon_svg_root_is_recognizable(self):
+        """GNOME's icon loader (gdk-pixbuf) only recognizes an SVG when ``<svg``
+        appears within the first bytes; a long leading comment makes the taskbar
+        icon render blank, so the root element must stay at the top of the file.
+        """
+        from pathlib import Path
+
+        from hsync_desktop.icons import ICONS_DIR
+
+        root = Path(__file__).resolve().parents[1]
+        icons = [
+            ICONS_DIR / "hsync-desktop.svg",
+            root / "packaging/deb/usr/share/icons/hicolor/scalable/apps/hsync-desktop.svg",
+        ]
+        for svg in icons:
+            text = svg.read_text(encoding="utf-8")
+            assert text.index("<svg") < 64, f"<svg must be at the top of {svg}"
+
+    def test_configure_app_sets_desktop_file_and_icon(self, qapp):
+        from hsync_desktop.main import _configure_app
+
+        previous_name = qapp.desktopFileName()
+        previous_icon = qapp.windowIcon()
+        try:
+            _configure_app(qapp)
+            assert qapp.desktopFileName() == "hsync-desktop"
+            assert not qapp.windowIcon().isNull()
+            assert qapp.applicationName() == "HSYNC Desktop"
+        finally:
+            qapp.setDesktopFileName(previous_name)
+            qapp.setWindowIcon(previous_icon)

@@ -52,10 +52,11 @@ disable unsupported controls) is realized in
   freeze staged as a `.deb` reusing the shared packaging machinery
   (`packaging/deb/`, `_semver_to_debian`, `_finalize_deb_stage`,
   `_inject_shlib_depends`). It installs the GUI under `/usr/lib/hsync-desktop`
-  with a `.desktop` launcher and hicolor icons, and declares
-  `Depends: hsync-client` instead of bundling the client (the app falls back to
-  `/usr/bin/hsync` on PATH). `deb-all` cross-builds amd64 + arm64 in Docker
-  (armhf unsupported, as for `rpi`). Not yet wired into a release workflow.
+  with a `.desktop` launcher and hicolor icons, and **bundles the `hsync`
+  client** (`_add_data_args`, `_require_bundled_client`), so it declares no
+  `hsync-client` dependency. `deb-all` cross-builds amd64 + arm64 in Docker
+  (armhf unsupported, as for `rpi`) and compiles the per-arch client inside the
+  same container (same glibc).
 - **Container builds install the `build` group explicitly** (`rpi`/`deb-all`):
   `poetry install --only main,build`. Under Poetry 2.x (2.3.2, pinned in the
   builder image) a co-present `--with` is ignored inside `--only`, so the
@@ -83,3 +84,19 @@ disable unsupported controls) is realized in
   runtime (`engine.py::is_binary_version_compatible`, which only warns). A binary
   that cannot run on the host (cross-arch `rpi`) is reported as unverifiable and
   skipped. Guarded by `tests/test_compile_script.py`.
+
+- **Every package is self-contained (client bundled)**: the `deb`/`rpm` targets
+  now bundle the `hsync` engine like `native`/`dmg`/`appimage`, so the packages
+  no longer declare `Depends:`/`Requires: hsync-client` and need no extra
+  package. Host `deb`/`rpm` bundle `CLIENT_BINARY` (verified against
+  `HSYNC_VERSION`); `deb-all`/`rpm-all` compile the per-arch client **inside the
+  same Docker container** as the GUI (same arch and distro → same glibc; the
+  client's `rpi` arm64 binary would not run on Rocky's older glibc) and stage it
+  at `hsync_desktop/bin/hsync` (keeping the platform suffix, i.e. `hsync.exe` on
+  Windows, so `find_hsync_binary` finds it). `_require_bundled_client` fails the build if no
+  client was staged. The `.deb` `Depends:` is computed from the payload
+  (`_compute_runtime_depends`: external DT_NEEDED → packages via `ldconfig`/
+  `dpkg -S`) instead of a hand-maintained list, which had drifted (declared
+  bundled libraries, missed `libxcb1`/`libdrm2`/`libwayland-*`); the `.rpm`
+  `Requires` carries the RHEL names of that same external set. Guarded by
+  `tests/test_compile_script.py`.

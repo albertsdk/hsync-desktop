@@ -255,14 +255,16 @@ ${BOLD}Options:${RESET}
 
 ${BOLD}Targets:${RESET}
     native    Host OS / arch PyInstaller onefile binary.
-    deb       Debian/Ubuntu .deb package for the host arch (depends on
-              hsync-client, so the client binary is not bundled).
-    deb-all   .deb for amd64 and arm64 via Docker. armhf is not built:
-              the Qt GUI cannot be built for 32-bit armhf because
+    deb       Debian/Ubuntu .deb package for the host arch (self-contained:
+              bundles the matching hsync-client binary).
+    deb-all   .deb for amd64 and arm64 via Docker, each bundling a per-arch
+              hsync-client built inside the same container. armhf is not
+              built: the Qt GUI cannot be built for 32-bit armhf because
               PySide6 publishes no armv7 Linux wheels.
-    rpm       RHEL-family .rpm package for the host arch (depends on
-              hsync-client).
-    rpm-all   .rpm for x86_64 and aarch64 via Docker (Rocky Linux 9).
+    rpm       RHEL-family .rpm package for the host arch (self-contained:
+              bundles the matching hsync-client binary).
+    rpm-all   .rpm for x86_64 and aarch64 via Docker (Rocky Linux 9), each
+              bundling a per-arch hsync-client built inside the container.
     appimage  Portable self-contained .AppImage for Linux x86_64.
     dmg       macOS .app bundle wrapped in a .dmg (unsigned).
     rpi       Raspberry Pi OS 64-bit (arm64) onefile binary via Docker.
@@ -468,11 +470,16 @@ _add_data_args() {
         fi
         log_step "Bundling hsync-client binary..."
         mkdir -p hsync_desktop/bin
-        cp "${client_binary}" hsync_desktop/bin/hsync
-        chmod +x hsync_desktop/bin/hsync
+        # Keep the platform suffix: find_hsync_binary() looks for hsync.exe on
+        # Windows, so a bare "hsync" would never be found there.
+        cp "${client_binary}" "hsync_desktop/bin/hsync${BIN_EXT}"
+        chmod +x "hsync_desktop/bin/hsync${BIN_EXT}"
         log_ok "Bundled hsync-client"
-        add_data_args+=("--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin")
+        add_data_args+=("--add-data=hsync_desktop/bin/hsync${BIN_EXT}:hsync_desktop/bin")
     elif [[ -n "${client_binary}" ]]; then
+        # Drop a stale copy from a previous target so a self-contained package
+        # never bundles the wrong or orphaned client.
+        rm -f "hsync_desktop/bin/hsync${BIN_EXT}"
         log_warn "hsync-client binary not found at ${client_binary}"
         log_info "Desktop will search PATH for 'hsync' at runtime"
     fi
@@ -497,6 +504,17 @@ _collect_add_data_args() {
     while IFS= read -r line; do
         [[ -n "${line}" ]] && ADD_DATA_ARGS+=("${line}")
     done < <(_add_data_args "${1:-}" "${2:-}")
+}
+
+# Fail a self-contained target when no client was staged: the package ships the
+# engine itself and no longer depends on hsync-client, so a missing binary would
+# leave the app unable to drive a sync.
+_require_bundled_client() {
+    if [[ ! -x "hsync_desktop/bin/hsync${BIN_EXT}" ]]; then
+        log_error "A self-contained package requires the hsync-client binary, but none was staged"
+        log_info "Build it first: ../hsync-client/compile.sh (arm64: --target rpi)"
+        exit 1
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -684,6 +702,67 @@ _finalize_deb_stage() {
     fi
 }
 
+# Compute the Debian packages the frozen payload needs from the system: every
+# DT_NEEDED soname that is NOT shipped inside the payload, resolved to its owning
+# package via ldconfig + dpkg -S. Replaces the old hand-maintained list, which
+# drifted from reality (it declared bundled libraries and missed
+# libxcb1/libdrm2/libwayland-*). Echoes a comma-separated list (empty when none).
+# $1 = stage_dir
+_compute_runtime_depends() {
+    local stage_dir="$1"
+    local payload="${stage_dir}/usr/lib/${APP_NAME}"
+    [[ -d "${payload}" ]] || { echo ""; return 0; }
+
+    # Soname stems shipped inside the payload (no system package needed).
+    local -a shipped=()
+    local f b
+    while IFS= read -r -d '' f; do
+        b="${f##*/}"
+        shipped+=("${b%%.so*}")
+    done < <(find "${payload}" -name '*.so*' -print0)
+
+    # Distinct DT_NEEDED sonames across every ELF in the payload.
+    local -a needed=()
+    local lib
+    while IFS= read -r -d '' f; do
+        while IFS= read -r lib; do
+            if [[ -n "${lib}" ]]; then
+                needed+=("${lib}")
+            fi
+        done < <(objdump -p "${f}" 2>/dev/null | sed -n 's/^ *NEEDED *//p')
+    done < <(find "${payload}" -type f \( -name '*.so*' -o -perm -111 \) -print0)
+
+    local -a pkgs=()
+    local stem i is_shipped path pkg
+    while IFS= read -r lib; do
+        [[ -n "${lib}" ]] || continue
+        stem="${lib%%.so*}"
+        is_shipped=0
+        for i in "${shipped[@]}"; do
+            if [[ "${i}" == "${stem}" ]]; then
+                is_shipped=1
+                break
+            fi
+        done
+        if [[ "${is_shipped}" -eq 1 ]]; then
+            continue
+        fi
+        path="$(ldconfig -p 2>/dev/null | sed -n 's/.*=> //p' | grep -F "/${lib}" | head -1)"
+        [[ -n "${path}" ]] || continue
+        pkg="$(dpkg -S "${path}" 2>/dev/null | cut -d: -f1)"
+        if [[ -n "${pkg}" ]]; then
+            pkgs+=("${pkg}")
+        fi
+    done < <(printf '%s\n' "${needed[@]}" | sort -u)
+
+    local joined="" p
+    while IFS= read -r p; do
+        [[ -n "${p}" ]] || continue
+        joined="${joined:+${joined}, }${p}"
+    done < <(printf '%s\n' "${pkgs[@]}" | sort -u)
+    echo "${joined}"
+}
+
 # Compute the shared-library dependency string for the staged main executable
 # using dpkg-shlibdeps (libc6 and any system libs the binary links). Echoes the
 # dependency list without the "shlibs:Depends=" prefix, or an empty string when
@@ -710,19 +789,58 @@ _compute_shlib_depends() {
     echo "${deps}"
 }
 
-# Append the computed shared-library dependencies to the Depends: line of the
-# staged DEBIAN/control. No-op (with a warning) if none could be computed.
+# Write the Depends: line of the staged DEBIAN/control from what the frozen
+# payload actually needs at run time: the bootloader's shared-library deps
+# (dpkg-shlibdeps, e.g. libc6/zlib1g, which carry version constraints) plus the
+# external libraries the bundled payload links but does not ship. Replaces the
+# previous hand-maintained list.
 # $1 = stage_dir
 _inject_shlib_depends() {
     local stage_dir="$1"
-    local deps
-    deps="$(_compute_shlib_depends "${stage_dir}")"
-    if [[ -z "${deps}" ]]; then
-        log_warn "dpkg-shlibdeps unavailable; libc6 dependency not added to control"
-        return 0
+    local shlibs runtime entry
+    shlibs="$(_compute_shlib_depends "${stage_dir}")"
+    runtime="$(_compute_runtime_depends "${stage_dir}")"
+
+    local -a names=()
+    local -a parts=()
+    local IFS=','
+    if [[ -n "${shlibs}" ]]; then
+        for entry in ${shlibs}; do
+            entry="${entry#"${entry%%[![:space:]]*}"}"
+            [[ -n "${entry}" ]] || continue
+            names+=("${entry%% *}")
+            parts+=("${entry}")
+        done
     fi
-    log_step "Adding shared-library dependencies: ${deps}"
-    sed -i.bak "s/^Depends: \(.*\)$/Depends: \1, ${deps}/" "${stage_dir}/DEBIAN/control"
+    if [[ -n "${runtime}" ]]; then
+        for entry in ${runtime}; do
+            entry="${entry#"${entry%%[![:space:]]*}"}"
+            [[ -n "${entry}" ]] || continue
+            local dup=0 n
+            for n in "${names[@]}"; do
+                if [[ "${n}" == "${entry}" ]]; then
+                    dup=1
+                    break
+                fi
+            done
+            if [[ "${dup}" -eq 0 ]]; then
+                names+=("${entry}")
+                parts+=("${entry}")
+            fi
+        done
+    fi
+
+    if [[ ${#parts[@]} -eq 0 ]]; then
+        log_warn "Could not compute runtime dependencies; falling back to libc6"
+        parts=("libc6")
+    fi
+
+    local joined="" p
+    for p in "${parts[@]}"; do
+        joined="${joined:+${joined}, }${p}"
+    done
+    log_step "Runtime dependencies: ${joined}"
+    sed -i.bak "s|^Depends:.*$|Depends: ${joined}|" "${stage_dir}/DEBIAN/control"
     rm -f "${stage_dir}/DEBIAN/control.bak"
 }
 
@@ -748,11 +866,12 @@ build_deb() {
     local onedir_dist="${DEB_BUILD_DIR}/pyinstaller"
     mkdir -p "${onedir_dist}"
 
-    # The .deb depends on hsync-client (/usr/bin/hsync), so the client binary
-    # is NOT bundled here (unlike the onefile native/rpi builds, which are
-    # self-contained). UI files and icons are always bundled.
+    # Self-contained: bundle the host-arch hsync-client so the .deb does not
+    # depend on a separate hsync-client package. The binary is checked against
+    # HSYNC_VERSION at build time (a mismatched major fails the build).
     local -a add_data_args=()
-    _collect_add_data_args ""
+    _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
     log_step "Compiling ${APP_NAME} with PyInstaller (--onedir)..."
@@ -882,16 +1001,10 @@ build_deb_all() {
 
     ensure_qemu_binfmt qemu-aarch64
 
-    # Same flags and --add-data logic as the native build (no client bundle).
-    local -a add_data_args=()
-    _collect_add_data_args ""
-    add_data_args=("${ADD_DATA_ARGS[@]}")
-    local add_data=""
-    if [[ ${#add_data_args[@]} -gt 0 ]]; then
-        printf -v add_data '%s ' "${add_data_args[@]}"
-        add_data="${add_data% }"
-    fi
     local pyinstaller_flags="$(_onedir_pyi_flags) --strip"
+    # UI files and icons; the client is built and staged inside each container
+    # (same arch and distro, so the bundled engine shares the GUI's glibc).
+    _collect_add_data_args ""
 
     local -A arch_docker_platform
     arch_docker_platform["amd64"]="linux/amd64"
@@ -909,6 +1022,15 @@ build_deb_all() {
         local work_dir="${arch_build_dir}/work"
         local stage_dir="${arch_build_dir}/${DEB_PKG_NAME}_${deb_version}_${deb_arch}"
         mkdir -p "${bin_dir}" "${work_dir}"
+
+        # The container builds and stages this arch's client at
+        # hsync_desktop/bin/hsync; bundle it alongside the UI/icon data.
+        local client_platform="linux-${deb_arch}"
+        local add_data="--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin"
+        local _arg
+        for _arg in "${ADD_DATA_ARGS[@]}"; do
+            add_data+=" ${_arg}"
+        done
 
         echo
         log_step "─── ${deb_arch} build ───────────────────────────────────────"
@@ -937,6 +1059,23 @@ build_deb_all() {
                 set -euo pipefail
                 poetry config virtualenvs.in-project true
                 poetry config installer.max-workers 4
+
+                # Build the matching-arch, matching-distro hsync-client from the
+                # sibling checkout so the bundled engine shares the GUI's glibc.
+                (
+                    cd /repo/hsync-client
+                    client_ok=0
+                    for attempt in 1 2 3; do
+                        if poetry install --no-root --without dev; then client_ok=1; break; fi
+                        echo \"client poetry install attempt \${attempt}/3 failed, retrying in 10s...\" >&2
+                        sleep 10
+                    done
+                    [ \"\${client_ok}\" -eq 1 ] || { echo 'client poetry install failed after 3 attempts' >&2; exit 1; }
+                    ./compile.sh -c
+                )
+                mkdir -p hsync_desktop/bin
+                cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
+
                 install_ok=0
                 for attempt in 1 2 3; do
                     if poetry install --only main,build; then install_ok=1; break; fi
@@ -1127,8 +1266,11 @@ build_rpm() {
     local onedir_dist="${RPM_BUILD_DIR}/pyinstaller"
     mkdir -p "${onedir_dist}"
 
+    # Self-contained: bundle the host-arch hsync-client so the .rpm does not
+    # depend on a separate hsync-client package (verified against HSYNC_VERSION).
     local -a add_data_args=()
-    _collect_add_data_args ""
+    _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
     log_step "Compiling ${APP_NAME} with PyInstaller (--onedir)..."
@@ -1209,15 +1351,10 @@ build_rpm_all() {
 
     local -a rpm_archs=("x86_64" "aarch64")
 
-    local -a add_data_args=()
-    _collect_add_data_args ""
-    add_data_args=("${ADD_DATA_ARGS[@]}")
-    local add_data=""
-    if [[ ${#add_data_args[@]} -gt 0 ]]; then
-        printf -v add_data '%s ' "${add_data_args[@]}"
-        add_data="${add_data% }"
-    fi
     local pyinstaller_flags="$(_onedir_pyi_flags) --strip"
+    # UI files and icons; the client is built and staged inside each container
+    # (same arch and distro, so the bundled engine shares the GUI's glibc).
+    _collect_add_data_args ""
 
     for rpm_arch in "${rpm_archs[@]}"; do
         local docker_platform="${arch_docker_platform[${rpm_arch}]}"
@@ -1226,6 +1363,20 @@ build_rpm_all() {
         local bin_dir="${arch_build_dir}/pyinstaller"
         local work_dir="${arch_build_dir}/work"
         mkdir -p "${bin_dir}" "${work_dir}"
+
+        # The container builds and stages this arch's client; map the rpm arch to
+        # the client's Linux platform directory.
+        local client_platform
+        case "${rpm_arch}" in
+            x86_64) client_platform="linux-amd64" ;;
+            aarch64) client_platform="linux-arm64" ;;
+            *) log_error "unsupported rpm arch: ${rpm_arch}"; exit 1 ;;
+        esac
+        local add_data="--add-data=hsync_desktop/bin/hsync:hsync_desktop/bin"
+        local _arg
+        for _arg in "${ADD_DATA_ARGS[@]}"; do
+            add_data+=" ${_arg}"
+        done
 
         echo
         log_step "─── ${rpm_arch} build ───────────────────────────────────────"
@@ -1254,6 +1405,23 @@ build_rpm_all() {
                 set -euo pipefail
                 poetry config virtualenvs.in-project true
                 poetry config installer.max-workers 4
+
+                # Build the matching-arch, matching-distro hsync-client from the
+                # sibling checkout so the bundled engine shares the GUI's glibc.
+                (
+                    cd /repo/hsync-client
+                    client_ok=0
+                    for attempt in 1 2 3; do
+                        if poetry install --no-root --without dev; then client_ok=1; break; fi
+                        echo \"client poetry install attempt \${attempt}/3 failed, retrying in 10s...\" >&2
+                        sleep 10
+                    done
+                    [ \"\${client_ok}\" -eq 1 ] || { echo 'client poetry install failed after 3 attempts' >&2; exit 1; }
+                    ./compile.sh -c
+                )
+                mkdir -p hsync_desktop/bin
+                cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
+
                 install_ok=0
                 for attempt in 1 2 3; do
                     if poetry install --only main,build; then install_ok=1; break; fi

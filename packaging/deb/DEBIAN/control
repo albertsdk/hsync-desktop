@@ -7,8 +7,6 @@ Priority: optional
 Homepage: https://github.com/albertsdk/hsync-desktop
 Description: HSYNC - desktop GUI for file synchronization
   hsync-desktop is the Qt (PySide6) graphical front-end of the HSYNC
-  sync network. It drives the hsync client binary and provides a
+  sync network. It drives the bundled hsync engine and provides a
   tray-resident interface to configure and monitor folder syncs.
-  .
-  Requires hsync-client, which provides the /usr/bin/hsync engine.
-Depends: hsync-client, libgl1, libegl1, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libxcb-randr0, libxcb-render-util0, libxcb-xinerama0, libfontconfig1, libdbus-1-3
+Depends: __DEPENDS__
