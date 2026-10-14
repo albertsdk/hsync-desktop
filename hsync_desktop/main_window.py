@@ -1403,9 +1403,7 @@ class MainWindow(QMainWindow):
             # ── Remote endpoint icon + label ──────────────────────────
             p2p_enabled = bool(s.value("p2p/enabled", False, bool))
             if p2p_enabled:
-                bootnode = str(s.value("p2p/bootnode", "", str)).strip()
-                icon_name = "network-cloud" if bootnode else "network-p2p"
-                self._remote_icon.setPixmap(get_icon(icon_name).pixmap(24, 24))
+                self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
                 group = str(s.value("p2p/group", "", str))
                 self._remote_label.setText(f"p2p ({group})" if group else "p2p")
                 self._remote_icon.setToolTip(tr("label.remote_p2p_tip"))
@@ -1953,7 +1951,7 @@ class MainWindow(QMainWindow):
             self._tray.set_window_visible(self.isVisible())
 
     def _quit(self) -> None:
-        """Quit the application properly."""
+        """Quit the application, confirming first while a sync is running."""
         if self._engine.is_running:
             msg = QMessageBox(
                 QMessageBox.Icon.Question,
@@ -1971,6 +1969,11 @@ class MainWindow(QMainWindow):
                 no_btn.setText(tr("action.no"))
             if msg.exec() != QMessageBox.StandardButton.Yes:
                 return
+        self._shutdown()
+
+    def _shutdown(self) -> None:
+        """Stop the engine and close the app once the user has confirmed."""
+        if self._engine.is_running:
             self._engine.stop()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
         if self._tray:

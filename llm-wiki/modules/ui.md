@@ -13,6 +13,8 @@ driven by `HsyncEngine` signals (see [engine.md](engine.md)).
 | `_connect_signals` | `main_window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window.py::MainWindow._apply_translations` | re-translate on language change |
 | `_update_menu_state` | `main_window.py::MainWindow._update_menu_state` | enable/disable actions by run state |
+| `_quit` | `main_window.py::MainWindow._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
+| `_shutdown` | `main_window.py::MainWindow._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
 Engine→slot wiring (in `_connect_signals`, `main_window.py::MainWindow._connect_signals`): `log_received→_append_log`,
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
@@ -26,8 +28,7 @@ properties (`main_window.py::MainWindow._create_menu_bar`).
 
 `main_window.py::MainWindow._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
-`network-cloud` when `p2p/bootnode` is non-empty (cross-network via bootnode),
-`network-p2p` when no bootnode is configured (pure LAN mDNS).
+always `network-p2p` (the bootnode no longer changes the icon).
 
 ### Trust refusal dialogs (SSH-style, no terminal)
 

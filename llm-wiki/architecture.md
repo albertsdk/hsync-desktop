@@ -7,7 +7,7 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 
 | Layer | Code | Responsibility |
 | ----- | ---- | -------------- |
-| Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, single-instance guard, theme, i18n, build `MainWindow`, run Qt loop |
+| Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
 | Window | `main_window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
 | File panel | `file_panel/widgets.py::FilePanel`, `file_panel/widgets.py::FileTransferTable` | live transfer table, detail pane, file actions |
 | Engine | `engine.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |

@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from hsync_desktop.main_window import MainWindow
 
 
 def _handle_early_cli_args(argv: list[str]) -> int | None:
@@ -44,6 +48,31 @@ def _harden_linux_gsettings() -> None:
     """
     if sys.platform.startswith("linux"):
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "generic")
+
+
+def _install_sigint_handler(window: MainWindow) -> None:
+    """Make Ctrl+C quit through the normal path instead of interrupting a slot.
+
+    Qt owns the main loop, so CPython's default SIGINT handling raises
+    ``KeyboardInterrupt`` inside whatever slot happens to be running: PySide6
+    logs a traceback and the app keeps running (Ctrl+C appears to do nothing).
+    Route SIGINT to ``MainWindow._quit`` — the same path as the tray "Quit"
+    action, including the confirmation while a sync is running — and keep a fast
+    no-op timer so the interpreter keeps ticking and runs the handler promptly
+    while the C++ event loop is busy.
+    """
+    import signal
+
+    from PySide6.QtCore import QTimer
+
+    def _on_sigint(_signum: int, _frame: object) -> None:
+        window._quit()
+
+    signal.signal(signal.SIGINT, _on_sigint)
+
+    tick = QTimer(window)  # parented to the window so it is not garbage-collected
+    tick.timeout.connect(lambda: None)
+    tick.start(200)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
     # Create the notifier now that tray is available
     window._notifier = NotificationManager(tray)
     window._notifier.enabled = are_notifications_enabled()
+
+    # Ctrl+C must shut down cleanly rather than interrupt a random slot.
+    _install_sigint_handler(window)
 
     # Connect single instance activation to window
     def activate_window() -> None:

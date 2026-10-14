@@ -121,19 +121,6 @@ class TestRemoteIcon:
         assert "network-cloud" not in names
         assert window._remote_label.text() == "p2p"
 
-    def test_p2p_with_bootnode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
-        """p2p + bootnode set shows the cloud icon (cross-network relay)."""
-        import hsync_desktop.main_window as mw
-
-        s = _settings(tmp_path)
-        s.setValue("p2p/bootnode", "boot.example.net")
-        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
-        window._local_path = str(tmp_path)
-        names = self._run_and_record(window, monkeypatch)
-        assert "network-cloud" in names
-        assert "network-p2p" not in names
-        assert window._remote_label.text() == "p2p"
-
     def test_server_mode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
         """Server mode always shows the cloud icon."""
         import hsync_desktop.main_window as mw
@@ -320,3 +307,129 @@ class TestEnsureServerTrust:
         )
         window._on_fingerprint_changed("server", "", "server.example.com:9753", "d" * 64)
         assert added == [("server.example.com", 9753)]
+
+
+class TestShutdown:
+    """Quit paths: the tray action confirms while syncing, Ctrl+C never prompts."""
+
+    @staticmethod
+    def _record_quit(monkeypatch, mw) -> list[int]:
+        calls: list[int] = []
+        monkeypatch.setattr(mw.QApplication, "quit", staticmethod(lambda: calls.append(1)))
+        return calls
+
+    @staticmethod
+    def _answer(monkeypatch, answer: QMessageBox.StandardButton) -> None:
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: answer)
+
+    @pytest.fixture(autouse=True)
+    def _tray(self, window):
+        """Tray stub that keeps ``MainWindow.closeEvent`` on the minimise branch.
+
+        pytest-qt closes the window at teardown; ``isVisible()`` always True keeps
+        that path (and ``_shutdown``) from touching a real tray or a modal dialog.
+        """
+
+        class _Tray:
+            def __init__(self) -> None:
+                self.hidden = 0
+
+            def hide(self) -> None:
+                self.hidden += 1
+
+            def isVisible(self) -> bool:
+                return True
+
+            def set_window_visible(self, _visible: bool) -> None:
+                pass
+
+        tray = _Tray()
+        window._tray = tray  # type: ignore[assignment]
+        return tray
+
+    def test_shutdown_quits_without_prompt(self, window, monkeypatch, _tray):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+        prompts: list[int] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: prompts.append(1) or 0)
+
+        window._shutdown()
+
+        assert prompts == []  # never blocks on a dialog
+        assert _tray.hidden == 1
+        assert quit_calls == [1]
+
+    def test_quit_while_syncing_can_be_cancelled(self, window, monkeypatch):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+        window._engine._running = True
+        self._answer(monkeypatch, QMessageBox.StandardButton.No)
+
+        window._quit()
+
+        assert quit_calls == []  # user declined; nothing shut down
+
+    def test_quit_while_syncing_stops_engine_and_quits(self, window, monkeypatch):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+        window._engine._running = True
+        stopped: list[int] = []
+        monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
+        self._answer(monkeypatch, QMessageBox.StandardButton.Yes)
+
+        window._quit()
+
+        assert stopped == [1]
+        assert quit_calls == [1]
+
+    @staticmethod
+    def _fire_sigint(window) -> None:
+        import signal as signal_mod
+
+        import hsync_desktop.main as main_mod
+
+        previous = signal_mod.getsignal(signal_mod.SIGINT)
+        try:
+            main_mod._install_sigint_handler(window)
+            handler = signal_mod.getsignal(signal_mod.SIGINT)
+            assert callable(handler)
+            handler(signal_mod.SIGINT, None)
+        finally:
+            signal_mod.signal(signal_mod.SIGINT, previous)
+
+    def test_sigint_quits_when_idle(self, window, monkeypatch, _tray):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+
+        self._fire_sigint(window)
+
+        assert quit_calls == [1]
+
+    def test_sigint_confirms_while_syncing_and_can_be_cancelled(self, window, monkeypatch, _tray):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+        window._engine._running = True
+        self._answer(monkeypatch, QMessageBox.StandardButton.No)
+
+        self._fire_sigint(window)
+
+        assert quit_calls == []  # user declined; sync keeps running
+
+    def test_sigint_confirms_while_syncing_and_quits_on_yes(self, window, monkeypatch, _tray):
+        import hsync_desktop.main_window as mw
+
+        quit_calls = self._record_quit(monkeypatch, mw)
+        window._engine._running = True
+        stopped: list[int] = []
+        monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
+        self._answer(monkeypatch, QMessageBox.StandardButton.Yes)
+
+        self._fire_sigint(window)
+
+        assert stopped == [1]
+        assert quit_calls == [1]
