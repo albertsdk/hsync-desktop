@@ -13,7 +13,7 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QMessageBox
+from PySide6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -812,3 +812,34 @@ class TestP2pPanelSections:
         assert dialog.p2p_port.parent() is advanced
         assert dialog.discovery_timeout.parent() is advanced
         assert dialog.ntp_hosts.parent() is advanced
+
+
+class TestShareNameLabel:
+    """The remote 'bucket' is shown first, presented as 'Share name'."""
+
+    def test_bucket_label_uses_the_settings_key(self, dialog):
+        lbl = dialog.findChild(QLabel, "lblBucket")
+        assert lbl is not None
+        assert lbl.text() == tr("settings.bucket")
+
+    def test_share_name_precedes_the_local_folder(self, dialog):
+        form = dialog._grp_path.layout()
+        assert isinstance(form, QFormLayout)
+        order: list[str] = []
+        for row in range(form.rowCount()):
+            item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if item is None:
+                continue
+            if item.widget() is dialog.bucket:
+                order.append("bucket")
+            elif item.layout() is not None and item.layout().indexOf(dialog.shared_path) >= 0:
+                order.append("shared_path")
+        assert order == ["bucket", "shared_path"]
+
+    def test_p2p_group_titles_are_retranslated(self, dialog, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        monkeypatch.setattr(dialog_mod, "tr", lambda key: f"<{key}>")
+        dialog._apply_translations()
+        assert dialog._grp_p2p_mode.title() == "<settings.group.p2p_mode>"
+        assert dialog._grp_p2p_advanced.title() == "<settings.group.advanced>"

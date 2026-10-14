@@ -23,6 +23,17 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 | `P2PKeyDialog` | `settings/dialog.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `settings/dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
 
+**Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab`): the sync tab
+groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options; the p2p
+tab groups Mode & Group, Discovery & Bootnode, Role & Pairing, Advanced Options.
+In the sync "Share & Path" group the remote bucket is shown **first** and
+presented as **Share name** (`settings.bucket`; `tip.bucket` and the
+`trusted_keys.bucket` column use the same share terminology, and `label.bucket`
+shares the label though it is currently unused), followed by the local folder
+(`settings.shared_path`), so
+the user names the share before choosing where to materialize it. All group
+titles are refreshed in `_apply_translations`.
+
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI

@@ -621,8 +621,8 @@ class SettingsDialog(QDialog):
         path_row = QHBoxLayout()
         path_row.addWidget(self.shared_path)
         path_row.addWidget(self.btn_browse_shared)
-        f1.addRow(lbl_shared, path_row)
         f1.addRow(lbl_bucket, self.bucket)
+        f1.addRow(lbl_shared, path_row)
         vbox.addWidget(self._grp_path)
 
         # Group 2: Sync Mode
@@ -804,6 +804,10 @@ class SettingsDialog(QDialog):
         self._grp_sync.setTitle(tr("settings.group.sync_mode"))
         self._grp_timing.setTitle(tr("settings.group.timing"))
         self._grp_advanced.setTitle(tr("settings.group.advanced"))
+        self._grp_p2p_mode.setTitle(tr("settings.group.p2p_mode"))
+        self._grp_p2p_discovery.setTitle(tr("settings.group.p2p_discovery"))
+        self._grp_p2p_role.setTitle(tr("settings.group.p2p_role"))
+        self._grp_p2p_advanced.setTitle(tr("settings.group.advanced"))
 
         # p2p tab labels
         self._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
