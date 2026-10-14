@@ -219,3 +219,21 @@ class TestAddDialogButtons:
         dlg = _PeerAddDialog()
         qtbot.addWidget(dlg)
         self._assert_buttons(dlg)
+
+
+class TestDevicesTerminology:
+    """The peers tab reads 'Devices' and the fingerprint term is localized."""
+
+    def test_english_uses_devices(self):
+        from hsync_desktop.locales import en
+
+        assert en.translations["trusted_keys.tabs_peers"] == "Devices"
+        assert en.translations["trusted_keys.peer"] == "Device"
+
+    def test_fingerprint_is_localized(self):
+        from hsync_desktop.locales import de, es, fr, it
+
+        assert it.translations["trusted_keys.fingerprint"] == "Impronta"
+        assert de.translations["trusted_keys.fingerprint"] == "Fingerabdruck"
+        assert es.translations["trusted_keys.fingerprint"] == "Huella"
+        assert fr.translations["trusted_keys.fingerprint"] == "Empreinte"

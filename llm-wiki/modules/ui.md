@@ -56,12 +56,15 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
 `TrustedKeysDialog` (`trusted_keys.py::TrustedKeysDialog`) lists and edits all three stores via
 the `engine` subprocess helpers (never the store files directly): three tabs
-(bootnodes / servers / peers), each a `QTableWidget` + Add/Remove/Refresh. The
+(bootnodes / servers / devices), each a `QTableWidget` + Add/Remove/Refresh. The
 `initial_tab` keyword (`bootnodes` default, or `servers`) selects the opening
 tab; the settings dialog passes the tab matching the panel that launched it. The
 bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
-stores); *Add* supports "read from node" or manual entry. Peer *Add* pre-fills
-the bucket from `sync/bucket`. The peers tab shows
+stores); *Add* supports "read from node" or manual entry. Device *Add* pre-fills
+the bucket from `sync/bucket`. The tab/column labels are localized in the five
+locales (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
+`trusted_keys.fingerprint` = the locale's term for the certificate fingerprint).
+The devices tab shows
 `trusted_keys.capability_missing` when the binary lacks the `trust` subcommand
 (`supports_peer_trust`).
 
