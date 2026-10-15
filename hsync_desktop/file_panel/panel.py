@@ -399,6 +399,10 @@ class FilePanel(QWidget):
     def table(self) -> FileTransferTable:
         return self._table
 
+    def retranslate_columns(self) -> None:
+        """Re-apply the localized table column headers (on language change)."""
+        self._table.retranslate()
+
     def refresh_icons_for_theme(self) -> None:
         self._btn_back.setIcon(get_icon("go-previous"))
         self._btn_forward.setIcon(get_icon("go-next"))

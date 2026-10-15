@@ -371,3 +371,15 @@ class TestShareNameInTitle:
 
     def test_status_bar_no_longer_hosts_the_share_name(self, window):
         assert window.findChild(QLabel, "bucketLabel") is None
+
+
+class TestLanguageChangeRetranslatesTable:
+    """The file table column headers must follow a live language change."""
+
+    def test_apply_translations_refreshes_table_columns(self, window, monkeypatch):
+        called: list[int] = []
+        monkeypatch.setattr(window._file_panel, "retranslate_columns", lambda: called.append(1))
+
+        window._apply_translations()
+
+        assert called == [1]

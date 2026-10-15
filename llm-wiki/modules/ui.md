@@ -121,6 +121,11 @@ double-click) while a **file** opens with the system default app — followed by
 `FileTransferTable._ctx_open_containing`), then Open With / Copy To / Rename /
 Trash / Properties.
 
+The table re-localizes its **column headers** on a live language change
+(`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
+`file_panel/panel.py::FilePanel.retranslate_columns` from
+`main_window/ui.py::MainWindow._apply_translations`).
+
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).
 

@@ -388,3 +388,20 @@ class TestFileContextMenu:
         table._ctx_open_containing(self._entry("sub/f.txt"))
 
         assert opened == ["/base", "/base/sub"]
+
+
+class TestColumnHeaderRetranslation:
+    """Column headers follow the language: they are re-applied on change."""
+
+    def test_retranslate_reapplies_localized_headers(self, qtbot, monkeypatch):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        monkeypatch.setattr(tt, "tr", lambda key: f"IT:{key}")
+
+        table.retranslate()
+
+        expected = [f"IT:{key}" if key else "" for key in tt._COLUMN_KEYS]
+        actual = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
+        assert actual == expected

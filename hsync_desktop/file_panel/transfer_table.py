@@ -102,8 +102,17 @@ class FileTransferTable(QTableWidget):
 
         self._setup_table()
 
+    @staticmethod
+    def _column_headers() -> list[str]:
+        """Localized column headers for the current language."""
+        return [tr(key) if key else "" for key in _COLUMN_KEYS]
+
+    def retranslate(self) -> None:
+        """Re-apply the localized column headers after a language change."""
+        self.setHorizontalHeaderLabels(self._column_headers())
+
     def _setup_table(self) -> None:
-        headers = [tr(key) if key else "" for key in _COLUMN_KEYS]
+        headers = self._column_headers()
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)

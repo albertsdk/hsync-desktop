@@ -292,6 +292,8 @@ class UiBuildMixin:
         self._lbl_peers.setText(tr("label.peers"))
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
+        # The file table owns its column headers, so re-localize them here.
+        self._file_panel.retranslate_columns()
         # Bandwidth label tooltips
         self._lbl_sent.setToolTip(tr("bandwidth.click_to_edit"))
         self._sent_label.setToolTip(tr("bandwidth.click_to_edit"))
