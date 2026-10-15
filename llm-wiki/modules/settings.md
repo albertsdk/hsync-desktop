@@ -144,6 +144,14 @@ other p2p fields (disabled in server mode and while syncing); it reuses the
 `settings.test_connection` label and the existing `settings.invalid_bootnode_endpoint`
 key, and reports the bootnode's certificate fingerprint on success.
 
+**Action rows**: each mode panel pairs its two related secondary actions in one
+left-aligned horizontal row via `_action_row` (`settings/dialog.py::_action_row`) —
+the p2p *Manage trusted keys* + *Test connection* (`btn_test_bootnode`), and the
+Server twin `btn_manage_trusted_keys_server` + `btn_test_connection`. One row reads
+as a group and uses less vertical space than two stacked form rows; the trailing
+stretch keeps them left-aligned. Both test buttons carry the
+`settings.test_connection` label (set in `_apply_translations`).
+
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
 inserted after the `http_timeout` row), saved/loaded under
 `connection/server_trust`; labels from `settings.server_trust` (+ the five

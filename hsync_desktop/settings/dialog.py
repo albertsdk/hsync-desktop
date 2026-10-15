@@ -181,6 +181,22 @@ def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
     return False
 
 
+def _action_row(*buttons: QWidget) -> QWidget:
+    """Pack related action buttons into one left-aligned row.
+
+    Two narrow secondary actions (open the trust stores / probe the endpoint)
+    read as a pair and take less vertical space than two stacked form rows; the
+    trailing stretch keeps them left-aligned under the field column.
+    """
+    container = QWidget()
+    row = QHBoxLayout(container)
+    row.setContentsMargins(0, 0, 0, 0)
+    for button in buttons:
+        row.addWidget(button)
+    row.addStretch()
+    return container
+
+
 def _replace_checkbox_with_toggle(
     parent: QWidget, checkbox_name: str
 ) -> tuple[ToggleSwitch, QLabel]:
@@ -402,12 +418,7 @@ class SettingsDialog(QDialog):
         self.btn_test_bootnode.setObjectName("btnTestBootnode")
         self.btn_test_bootnode.clicked.connect(self._on_test_bootnode)
 
-        manage_container = QWidget(self)
-        hl_manage = QHBoxLayout(manage_container)
-        hl_manage.setContentsMargins(0, 0, 0, 0)
-        hl_manage.addWidget(self.btn_manage_trusted_keys)
-        hl_manage.addWidget(self.btn_test_bootnode)
-        hl_manage.addStretch()
+        manage_container = _action_row(self.btn_manage_trusted_keys, self.btn_test_bootnode)
         _insert_row_after(trust_container, QLabel(""), manage_container)
 
         # UPnP toggle for the master TCP port (only effective with a bootnode).
@@ -567,8 +578,14 @@ class SettingsDialog(QDialog):
                     item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                     if item and item.widget() == self.http_timeout:
                         conn_layout.insertRow(row + 1, self._lbl_server_trust, self.server_trust)
-                        conn_layout.insertRow(row + 2, "", self.btn_manage_trusted_keys_server)
-                        conn_layout.insertRow(row + 3, "", self.btn_test_connection)
+                        conn_layout.insertRow(
+                            row + 2,
+                            "",
+                            _action_row(
+                                self.btn_manage_trusted_keys_server,
+                                self.btn_test_connection,
+                            ),
+                        )
                         break
 
         # Setup language combo with proper data
@@ -871,6 +888,7 @@ class SettingsDialog(QDialog):
         self._populate_bootnode_trust()
         self.btn_manage_trusted_keys.setText(tr("settings.manage_trusted_keys"))
         self.btn_manage_trusted_keys_server.setText(tr("settings.manage_trusted_keys"))
+        self.btn_test_bootnode.setText(tr("settings.test_connection"))
         self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
         lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
         if lbl:

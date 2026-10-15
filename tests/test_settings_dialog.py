@@ -13,7 +13,14 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit, QMessageBox
+from PySide6.QtWidgets import (
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+)
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
@@ -919,3 +926,23 @@ class TestTabOrderAndDefaultMode:
         dlg = dialog_mod.SettingsDialog()
         qtbot.addWidget(dlg)
         assert dlg.p2p_mode.isChecked()
+
+
+class TestActionButtonRows:
+    """Manage-keys / Verify are labelled and share one horizontal row per panel."""
+
+    def test_p2p_verify_button_is_labelled(self, dialog):
+        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
+
+    def test_server_verify_button_is_labelled(self, dialog):
+        assert dialog.btn_test_connection.text() == tr("settings.test_connection")
+
+    def test_p2p_actions_are_in_one_horizontal_row(self, dialog):
+        parent = dialog.btn_manage_trusted_keys.parent()
+        assert parent is dialog.btn_test_bootnode.parent()
+        assert isinstance(parent.layout(), QHBoxLayout)
+
+    def test_server_actions_are_in_one_horizontal_row(self, dialog):
+        parent = dialog.btn_manage_trusted_keys_server.parent()
+        assert parent is dialog.btn_test_connection.parent()
+        assert isinstance(parent.layout(), QHBoxLayout)
