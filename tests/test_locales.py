@@ -3,6 +3,8 @@
 
 """Tests for hsync_desktop.locales modules."""
 
+import re
+
 from hsync_desktop.locales import de, en, es, fr, it, ja, nl, pl, pt, ru, zh
 
 ALL_MODULES = [en, it, de, fr, es, pt, zh, ru, nl, pl, ja]
@@ -109,6 +111,162 @@ class TestTerminologyConsistency:
                 assert "bootnode" not in module.translations[key].lower(), (
                     f"{module.__name__}:{key}"
                 )
+
+    def test_p2p_warning_names_the_credential_like_its_label(self):
+        """The keyless-run prompt says "shared password", not "shared key"."""
+        en_t = en.translations
+        for key in ("warn.keyless_p2p_title", "warn.keyless_p2p_msg", "p2pauth.retrying"):
+            assert "password" in en_t[key].lower(), key
+        assert "shared key" not in en_t["warn.keyless_p2p_title"].lower()
+
+    def test_p2p_warning_avoids_peer_and_node_jargon(self):
+        """Warnings and tooltips call peers "devices", never "peers"/"nodes"."""
+        en_t = en.translations
+        body = en_t["warn.keyless_p2p_msg"].lower()
+        assert "peer" not in body and "node" not in body, body
+        assert "devices" in body
+        assert "peer" not in en_t["tip.p2p_group"].lower()
+
+    def test_p2p_mode_is_spelled_lowercase_across_locales(self):
+        """The mode is written "p2p", matching every label that names it."""
+        for module in self.ALL:
+            body = module.translations["warn.keyless_p2p_msg"]
+            assert "P2P" not in body, module.__name__
+
+    def test_sync_paused_warning_avoids_guard_jargon(self):
+        """Deletion protection is worded plainly, never as a "guard"."""
+        for module in self.ALL:
+            for key in ("notif.sync_paused_title", "notif.sync_paused_msg"):
+                low = module.translations[key].lower()
+                for token in ("guard", "garde", "guarda"):
+                    assert re.search(rf"\b{token}\b", low) is None, (
+                        f"{module.__name__}:{key}:{token}"
+                    )
+                assert "ガード" not in low, f"{module.__name__}:{key}"
+
+    def test_connection_and_direction_warnings_use_label_wording(self):
+        """Warnings reuse the settings labels, not raw protocol terms."""
+        en_t = en.translations
+        assert "certificate" in en_t["warn.api_key_insecure_msg"].lower()
+        assert "receive" in en_t["notif.deletion_risk_download"].lower()
+
+    # Locale token maps for the terminology guards below. Inflected languages are
+    # matched on a stem: the guard only needs to catch the jargon, not the case.
+    _BINARY = {
+        "en": "binary",
+        "it": "binario",
+        "de": "binär",
+        "es": "binario",
+        "fr": "binaire",
+        "pt": "binário",
+        "zh": "二进制",
+        "ru": "двоичн",
+        "nl": "binary",
+        "pl": "binar",
+        "ja": "バイナリ",
+    }
+    _NODE = {
+        "en": "node",
+        "it": "nodo",
+        "de": "knoten",
+        "es": "nodo",
+        "fr": "nœud",
+        "pt": "nó",
+        "zh": "节点",
+        "ru": "узл",
+        "nl": "node",
+        "pl": "węzł",
+        "ja": "ノード",
+    }
+    _DIRECTION_WORD = {
+        "en": "direction",
+        "it": "direzione",
+        "de": "richtung",
+        "es": "dirección",
+        "fr": "direction",
+        "pt": "direção",
+        "zh": "方向",
+        "ru": "направление",
+        "nl": "richting",
+        "pl": "kierunek",
+        "ja": "方向",
+    }
+    _JARGON_KEYS = (
+        "settings.test_bootnode_no_binary",
+        "dialogs.trust_failed",
+        "trusted_keys.failed",
+        "trusted_keys.capability_missing",
+        "tip.capability_unsupported",
+    )
+
+    def test_server_mode_is_not_called_cloud(self):
+        """The tab is "Server Mode" in every locale, matching the fields in it."""
+        for module in self.ALL:
+            assert "cloud" not in module.translations["settings.server_mode"].lower(), (
+                module.__name__
+            )
+
+    def test_engine_terms_avoid_binary_jargon(self):
+        """Messages call the bundled component a "sync engine", never a binary."""
+        for module in self.ALL:
+            token = self._BINARY[module.__name__.rsplit(".", 1)[-1]]
+            for key in self._JARGON_KEYS:
+                assert token not in module.translations[key].lower(), f"{module.__name__}:{key}"
+
+    def test_read_from_uses_server_not_node(self):
+        """The trusted-key dialog reads from a server, not from a node."""
+        for module in self.ALL:
+            token = self._NODE[module.__name__.rsplit(".", 1)[-1]]
+            value = module.translations["trusted_keys.read_from_node"].lower()
+            assert token not in value, f"{module.__name__}:trusted_keys.read_from_node"
+
+    def test_primary_role_prompts_quote_the_visible_label(self):
+        """Deletion-risk and force-role text name the option as its label reads."""
+        for module in self.ALL:
+            label = module.translations["settings.force_master"]
+            assert label in module.translations["notif.deletion_risk_p2p"], module.__name__
+
+    def test_duplicate_identity_uses_device_id_label(self):
+        """The duplicate-identity warning names the identifier as its label does."""
+        for module in self.ALL:
+            label = module.translations["trusted_keys.device_id"].lower()
+            value = module.translations["notif.duplicate_identity_msg"].lower()
+            assert label in value, f"{module.__name__}:notif.duplicate_identity_msg"
+
+    def test_direction_wording_drops_bidirectional_jargon(self):
+        """Direction term is the visible option, not the protocol word."""
+        for module in self.ALL:
+            direction = module.translations["settings.sync_direction.bidirectional"]
+            assert "bidirec" not in direction.lower(), module.__name__
+            for key in (
+                "warn.force_master_msg",
+                "warn.force_master_disable_msg",
+                "warn.force_master_sync_msg",
+            ):
+                assert "bidirec" not in module.translations[key].lower(), f"{module.__name__}:{key}"
+            assert direction in module.translations["warn.force_master_msg"], module.__name__
+
+    def test_sync_type_labels_are_not_called_direction(self):
+        """The field and its menu read "sync type" in every locale."""
+        for module in self.ALL:
+            token = self._DIRECTION_WORD[module.__name__.rsplit(".", 1)[-1]]
+            for key in ("settings.sync_direction", "menu.sync.direction"):
+                value = module.translations[key].lower()
+                assert token not in value, f"{module.__name__}:{key}"
+
+    def test_endpoint_warnings_avoid_raw_host_grammar(self):
+        """Invalid-endpoint prompts give an example, not host/port/IPv6 grammar."""
+        for module in self.ALL:
+            for key in (
+                "settings.invalid_server_endpoint",
+                "settings.invalid_bootnode_endpoint",
+            ):
+                value = module.translations[key].lower()
+                assert "ipv6" not in value and "host:port" not in value, f"{module.__name__}:{key}"
+                assert "example.com" in value, f"{module.__name__}:{key}"
+            assert module.translations["label.remote_server"].lower() in (
+                module.translations["settings.test_connection_failure"].lower()
+            ), module.__name__
 
 
 class TestAboutContent:

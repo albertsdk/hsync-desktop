@@ -64,10 +64,10 @@ the `hsync` CLI see the same keys. The stores can also be edited from
 
 ## Secrets
 
-API keys and p2p keys are entered through dedicated dialogs, never typed on a
-command line. They are stored encrypted on disk (machine-derived key) and handed
-to the engine over a private channel, so they never appear in process listings
-or logs. Use the key dialogs to replace a key at any time.
+API keys and shared passwords are entered through dedicated dialogs, never typed
+on a command line. They are stored encrypted on disk (machine-derived key) and
+handed to the engine over a private channel, so they never appear in process
+listings or logs. Use the credential dialogs to replace a password at any time.
 
 ## Preferences
 
@@ -84,15 +84,15 @@ or logs. Use the key dialogs to replace a key at any time.
   example the bundled `hsync` client is missing or incompatible), the app shows
   an error dialog with the reason the engine reported and writes the same
   message to the log panel, instead of failing silently.
-- **A control is greyed out** — your `hsync` binary lacks that capability;
+- **A control is greyed out** — your sync engine lacks that capability;
   rebuild/update the client to enable it.
-- **`hsync` binary not found** — the GUI looks for it bundled in the build, on
+- **Sync engine not found** — the GUI looks for it bundled in the build, on
   `PATH`, or in `../hsync-client/dist/<os>-<arch>/`. Install the client or build
   it from the sibling checkout.
 - **TLS errors in Server Mode** — verify the URL and certificate; enable
   *No verification* only on a trusted network for self-signed certificates.
-- **Peers not found in p2p Mode** — ensure all devices are on the same subnet
-  with mDNS allowed through the firewall, and share the same p2p key. For
+- **Devices not found in p2p Mode** — ensure all devices are on the same subnet
+  with mDNS allowed through the firewall, and share the same password. For
   devices on different networks, set a **relay server** in the p2p tab.
 
 See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the

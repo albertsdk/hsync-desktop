@@ -6,7 +6,7 @@ the [Usage Guide](usage.md) covers running a sync and the runtime prompts.
 
 Open **Settings** from the main window (or the tray menu). The dialog is
 organised into five tabs: **Sync**, **p2p**, **Server Mode**, **Log** and
-**Appearance**. Controls for features your installed `hsync` binary does not
+**Appearance**. Controls for features your installed sync engine does not
 support are automatically disabled, with a tooltip explaining why. On a fresh
 install (no saved settings yet) the app starts in **p2p Mode**.
 
@@ -46,34 +46,36 @@ for the underlying behaviour.
 
 | Setting | Description |
 |---------|-------------|
-| Enable p2p | Enable peer discovery |
+| Enable p2p | Enable device discovery |
+| Group name | Partition key for p2p discovery: devices only sync with peers using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Force primary role / Never become primary | Control which device takes the primary role |
-| Require pairing | Only sync with explicitly paired peers |
-| p2p key | Shared secret for the p2p group; with a relay server it is also the relay credential |
+| Require pairing | Only sync with explicitly paired devices |
+| Shared password | Password shared by the devices in the p2p group; with a relay server it is also the relay credential |
 | Relay server | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
 | Relay identity check | How the app checks the relay server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
 | Manage trusted servers & devices | List, add and remove the relay server, server and device fingerprints the client actually uses |
 | Open the port on my router automatically | Open the primary port so devices reached through a relay server can connect (only takes effect with a relay server set) |
 | Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
-**Force primary role and sync direction.** *Force primary role* only applies to a
-bidirectional sync, so the conflict is caught as soon as it appears. Picking a
-one-way direction (send-only or receive-only, Sync tab) while p2p mode and
-*Force primary role* are both on offers to turn it off because it is
+**Force primary role and sync type.** *Force primary role* only applies to the
+**Keep aligned (Send & Receive)** sync type, so the conflict is caught as soon as
+it appears. Picking a one-way type (send-only or receive-only, Sync tab) while
+p2p mode and *Force primary role* are both on offers to turn it off because it is
 incompatible (accept jumps to the p2p tab); switching *Force primary role* on
-while a one-way direction is active offers to go back to a bidirectional sync
-because they are incompatible (accept jumps to the Sync tab). Declining either
-prompt keeps your choice and repeats the generic warning when saving.
+while a one-way type is active offers to go back to the **Keep aligned (Send &
+Receive)** type because they are incompatible (accept jumps to the Sync tab).
+Declining either prompt keeps your choice and repeats the generic warning when
+saving.
 
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
 known-hosts (relay server and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
 source of truth.
 
-**Keyless runs.** Without a p2p key the app confirms before starting: peers are
-not authenticated and reads are open to anyone who can reach this device. Set a
-p2p key in the p2p tab to avoid the prompt; the confirmation is requested on every
-start and is not a stored setting.
+**Keyless runs.** Without a shared password the app confirms before starting:
+devices are not authenticated and reads are open to anyone who can reach this
+device. Set a shared password in the p2p tab to avoid the prompt; the
+confirmation is requested on every start and is not a stored setting.
 
 ## Log
 
