@@ -288,6 +288,20 @@ class TestSelfContainedPackages:
         assert script.count('_collect_add_data_args "${CLIENT_BINARY}"') >= 3
         assert "_require_bundled_client" in script
 
+    def test_every_client_bundling_target_requires_the_client(self):
+        """Regression: native/dmg/appimage/rpi advertised a bundled client but
+        only deb/rpm enforced it, so a missing client silently shipped a
+        non-self-contained artifact (the reported "hsync binary not found")."""
+        for fn in (
+            "build_binary",
+            "build_rpi",
+            "build_deb",
+            "build_rpm",
+            "build_appimage",
+            "build_dmg",
+        ):
+            assert "_require_bundled_client" in _shell_fn_body(fn), fn
+
     def test_deb_all_and_rpm_all_build_the_client_in_container(self):
         script = _script()
         assert script.count("poetry install --no-root --without dev") >= 2

@@ -199,8 +199,8 @@ def find_hsync_binary() -> str | None:
     bin_name = "hsync.exe" if sys.platform == "win32" else "hsync"
 
     # 1. Bundled alongside this package
-    pkg_dir = Path(__file__).resolve().parent
-    bundled = pkg_dir / "bin" / bin_name
+    pkg_root = Path(__file__).resolve().parent.parent
+    bundled = pkg_root / "bin" / bin_name
     if bundled.is_file() and os.access(bundled, os.X_OK):
         return str(bundled)
 
@@ -211,7 +211,7 @@ def find_hsync_binary() -> str | None:
 
     # 3. Sibling project dist/<os>-<arch>/hsync (development / source tree)
     platform_tag = _platform_tag()
-    client_root = pkg_dir.parent.parent / "hsync-client"
+    client_root = pkg_root.parent.parent / "hsync-client"
     sibling = client_root / "dist" / platform_tag / bin_name
     if sibling.is_file() and os.access(sibling, os.X_OK):
         return str(sibling)

@@ -530,6 +530,7 @@ build_binary() {
 
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
@@ -619,6 +620,7 @@ build_rpi() {
 
     local -a add_data_args=()
     _collect_add_data_args "${RPI_CLIENT_BINARY}" skip-verify
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
     local add_data=""
     if [[ ${#add_data_args[@]} -gt 0 ]]; then
@@ -1568,6 +1570,7 @@ build_appimage() {
     # --- 1. onefile binary with the client engine bundled --------------------
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
@@ -1737,6 +1740,7 @@ build_dmg() {
     # --- 2. .app via PyInstaller (--windowed) --------------------------------
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \

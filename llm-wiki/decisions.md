@@ -93,8 +93,13 @@ disable unsupported controls) is realized in
   same Docker container** as the GUI (same arch and distro → same glibc; the
   client's `rpi` arm64 binary would not run on Rocky's older glibc) and stage it
   at `hsync_desktop/bin/hsync` (keeping the platform suffix, i.e. `hsync.exe` on
-  Windows, so `find_hsync_binary` finds it). `_require_bundled_client` fails the build if no
-  client was staged. The `.deb` `Depends:` is computed from the payload
+  Windows, so `find_hsync_binary` finds it). Every client-bundling target
+  (`native`, `rpi`, `deb`, `rpm`, `appimage`, `dmg`) calls
+  `_require_bundled_client`, which fails the build if no client was staged.
+  `find_hsync_binary` (`engine/cli.py::find_hsync_binary`) resolves the bundled
+  binary against the **package root** (`hsync_desktop/bin`), so it stays correct
+  from the `engine/` subpackage and in a frozen onefile/onedir bundle. The `.deb`
+  `Depends:` is computed from the payload
   (`_compute_runtime_depends`: external DT_NEEDED → packages via `ldconfig`/
   `dpkg -S`) instead of a hand-maintained list, which had drifted (declared
   bundled libraries, missed `libxcb1`/`libdrm2`/`libwayland-*`); the `.rpm`

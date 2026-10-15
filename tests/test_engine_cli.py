@@ -58,6 +58,25 @@ class TestFindHsyncBinary:
             # Just verify it's a non-empty string
             assert len(result) > 0
 
+    def test_finds_binary_in_the_package_bin_dir(self, tmp_path, monkeypatch):
+        """Regression: after the engine split, ``__file__`` is one level deeper
+        (``hsync_desktop/engine/cli.py``); the bundled client still lives in
+        ``hsync_desktop/bin/`` (the PyInstaller ``--add-data`` target), so the
+        lookup must resolve against the package root, not ``engine/``."""
+        from hsync_desktop.engine import cli as engine
+
+        pkg_root = tmp_path / "hsync_desktop"
+        (pkg_root / "engine").mkdir(parents=True)
+        bundled = pkg_root / "bin" / "hsync"
+        bundled.parent.mkdir(parents=True)
+        bundled.write_text("#!/bin/sh\n", encoding="utf-8")
+        bundled.chmod(0o755)
+
+        monkeypatch.setattr(engine, "__file__", str(pkg_root / "engine" / "cli.py"))
+        monkeypatch.setattr(engine.shutil, "which", lambda _name: None)
+
+        assert find_hsync_binary() == str(bundled)
+
 
 class TestHsyncKeepConstant:
     """Test _HSYNCKEEP constant."""
