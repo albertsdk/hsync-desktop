@@ -85,8 +85,8 @@ class TestP2PDefaults:
     def test_default_discovery_timeout(self):
         assert config.DEFAULT_DISCOVERY_TIMEOUT == 10
 
-    def test_default_force_master(self):
-        assert config.DEFAULT_FORCE_MASTER is False
+    def test_default_prefer_master(self):
+        assert config.DEFAULT_PREFER_MASTER is False
 
 
 class TestOutputDefaults:

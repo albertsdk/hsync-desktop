@@ -3,7 +3,7 @@
 
 """SettingsDialog tab indices (sync=0, p2p=1, server=2, log=3, appearance=4).
 
-The live force-primary-role warnings jump to the tab owning the fix on "Yes".
+The live prefer-primary-role warnings jump to the tab owning the fix on "Yes".
 """
 
 _SYNC_TAB_INDEX = 0

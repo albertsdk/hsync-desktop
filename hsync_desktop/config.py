@@ -56,7 +56,7 @@ DEFAULT_P2P_ENABLED = True
 DEFAULT_P2P_KEY = ""
 DEFAULT_P2P_PORT = 0  # 0 = auto-assign
 DEFAULT_DISCOVERY_TIMEOUT = 10
-DEFAULT_FORCE_MASTER = False
+DEFAULT_PREFER_MASTER = False
 DEFAULT_NEVER_MASTER = False
 DEFAULT_P2P_REQUIRE_PAIRING = False
 # Optional bootnode host for cross-network discovery (bare hostname; empty =

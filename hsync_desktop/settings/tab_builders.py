@@ -275,10 +275,10 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
                     disc_layout.insertRow(row + 1, dlg._lbl_ntp_hosts, dlg.ntp_hosts)
                     break
 
-    dlg.force_master, dlg._lbl_force_master = _replace_checkbox_with_toggle(dlg, "forceMaster")
+    dlg.prefer_master, dlg._lbl_prefer_master = _replace_checkbox_with_toggle(dlg, "preferMaster")
 
     # Never Master toggle (dynamic, no .ui counterpart) – mutually
-    # exclusive with Force Master. Inserted right after the force_master row.
+    # exclusive with Prefer Master. Inserted right after the prefer_master row.
     dlg.never_master = ToggleSwitch(dlg)
     dlg.never_master.setObjectName("neverMaster")
     dlg._lbl_never_master = QLabel(dlg)
@@ -288,7 +288,7 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     hl_never_master.addWidget(dlg.never_master)
     hl_never_master.addWidget(dlg._lbl_never_master)
     hl_never_master.addStretch()
-    fm_container = dlg.force_master.parent()
+    fm_container = dlg.prefer_master.parent()
     if isinstance(fm_container, QWidget):
         fm_parent = fm_container.parent()
         fm_layout = fm_parent.layout() if isinstance(fm_parent, QWidget) else None

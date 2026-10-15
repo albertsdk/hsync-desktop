@@ -26,12 +26,12 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
 
 
-class TestForceMasterLiveWarning:
-    """Force-master vs. directional sync is also gated live, not only on save.
+class TestPreferMasterLiveWarning:
+    """Prefer-master vs. directional sync is also gated live, not only on save.
 
     The prompt is diversified by trigger: picking a non-bidirectional
-    direction offers to disable force-master (Yes: toggle off + jump to the
-    p2p tab), while enabling force-master offers to go back to a
+    direction offers to disable prefer-master (Yes: toggle off + jump to the
+    p2p tab), while enabling prefer-master offers to go back to a
     bidirectional sync (Yes: direction reset + jump to the sync tab). The
     save gate keeps its own "reset the direction" message.
     """
@@ -41,38 +41,38 @@ class TestForceMasterLiveWarning:
         """Force the three widgets to a known state (the fixture loads the
         real QSettings, whose saved p2p flags would otherwise leak in)."""
         dialog.sync_direction_combo.setCurrentIndex(0)
-        dialog.force_master.setChecked(False)
+        dialog.prefer_master.setChecked(False)
         dialog.p2p_mode.setChecked(False)
 
     @staticmethod
     def _arm_conflict_silently(dialog):
-        """Reach the p2p+force-master+direction conflict without its live
+        """Reach the p2p+prefer-master+direction conflict without its live
         prompts (signals blocked, used by the save-gate tests)."""
         dialog.p2p_mode.setChecked(True)
         dialog.sync_direction_combo.setCurrentIndex(1)
-        dialog.force_master.blockSignals(True)
-        dialog.force_master.setChecked(True)
-        dialog.force_master.blockSignals(False)
+        dialog.prefer_master.blockSignals(True)
+        dialog.prefer_master.setChecked(True)
+        dialog.prefer_master.blockSignals(False)
 
-    def test_conflict_requires_p2p_and_force_master_and_direction(self, dialog, monkeypatch):
+    def test_conflict_requires_p2p_and_prefer_master_and_direction(self, dialog, monkeypatch):
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(True)
-        assert dialog._force_master_conflict() is False  # still bidirectional
+        dialog.prefer_master.setChecked(True)
+        assert dialog._prefer_master_conflict() is False  # still bidirectional
         # Force the incompatible direction without its live prompt (which would
         # otherwise revert it on "No").
         dialog.sync_direction_combo.blockSignals(True)
         dialog.sync_direction_combo.setCurrentIndex(1)
         dialog.sync_direction_combo.blockSignals(False)
-        assert dialog._force_master_conflict() is True
+        assert dialog._prefer_master_conflict() is True
         dialog.p2p_mode.setChecked(False)
-        assert dialog._force_master_conflict() is False  # force-master inert w/o p2p
+        assert dialog._prefer_master_conflict() is False  # prefer-master inert w/o p2p
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(False)
-        assert dialog._force_master_conflict() is False
+        dialog.prefer_master.setChecked(False)
+        assert dialog._prefer_master_conflict() is False
 
-    def test_direction_change_offers_disabling_force_master(self, dialog, monkeypatch):
+    def test_direction_change_offers_disabling_prefer_master(self, dialog, monkeypatch):
         shown = []
 
         def fake_exec(self):
@@ -82,10 +82,10 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(True)  # still bidirectional: silent
+        dialog.prefer_master.setChecked(True)  # still bidirectional: silent
         dialog.sync_direction_combo.setCurrentIndex(2)  # download-only
-        assert shown == [tr("warn.force_master_disable_msg")]
-        assert dialog.force_master.isChecked() is False  # disabled on "Yes"
+        assert shown == [tr("warn.prefer_master_disable_msg")]
+        assert dialog.prefer_master.isChecked() is False  # disabled on "Yes"
         assert dialog.sync_direction_combo.currentData() == "download-only"
         assert dialog._tabs.currentIndex() == _P2P_TAB_INDEX  # p2p tab
 
@@ -100,25 +100,25 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.Yes)
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         emitted: list[bool] = []
-        dialog.force_master.toggled.connect(emitted.append)
+        dialog.prefer_master.toggled.connect(emitted.append)
         dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only → prompt → Yes
         assert emitted == [False]
-        assert dialog.force_master.isChecked() is False
+        assert dialog.prefer_master.isChecked() is False
         assert dialog._tabs.currentIndex() == _P2P_TAB_INDEX  # p2p tab
 
-    def test_never_master_enabling_emits_force_master_off_signal(self, dialog):
+    def test_never_master_enabling_emits_prefer_master_off_signal(self, dialog):
         """Same stale-paint cause in the mutual exclusion: the forced
-        uncheck must reach the animation so force-master stops drawing ON."""
+        uncheck must reach the animation so prefer-master stops drawing ON."""
         self._reset_conflict_state(dialog)
         dialog.never_master.setChecked(False)
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         emitted: list[bool] = []
-        dialog.force_master.toggled.connect(emitted.append)
+        dialog.prefer_master.toggled.connect(emitted.append)
         dialog.never_master.setChecked(True)
         assert emitted == [False]
-        assert dialog.force_master.isChecked() is False
+        assert dialog.prefer_master.isChecked() is False
 
     def test_direction_change_cancel_reverts_to_bidirectional(self, dialog, monkeypatch):
         shown = []
@@ -130,17 +130,17 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         start_tab = dialog._tabs.currentIndex()
         dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only
-        assert shown == [tr("warn.force_master_disable_msg")]
-        assert dialog.force_master.isChecked() is True  # kept on "No"
-        # Declining keeps force-master, so the incompatible direction must not
-        # stay selected (the invariant force-master => bidirectional).
+        assert shown == [tr("warn.prefer_master_disable_msg")]
+        assert dialog.prefer_master.isChecked() is True  # kept on "No"
+        # Declining keeps prefer-master, so the incompatible direction must not
+        # stay selected (the invariant prefer-master => bidirectional).
         assert dialog.sync_direction_combo.currentData() == "bidirectional"
         assert dialog._tabs.currentIndex() == start_tab
 
-    def test_force_master_enable_offers_bidirectional_sync(self, dialog, monkeypatch):
+    def test_prefer_master_enable_offers_bidirectional_sync(self, dialog, monkeypatch):
         shown = []
 
         def fake_exec(self):
@@ -151,16 +151,16 @@ class TestForceMasterLiveWarning:
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
         dialog.sync_direction_combo.setCurrentIndex(1)  # force off: silent
-        expected = tr("warn.force_master_sync_msg").format(
+        expected = tr("warn.prefer_master_sync_msg").format(
             direction=dialog.sync_direction_combo.currentText()
         )
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         assert shown == [expected]
-        assert dialog.force_master.isChecked() is True  # the toggle stays on
+        assert dialog.prefer_master.isChecked() is True  # the toggle stays on
         assert dialog.sync_direction_combo.currentData() == "bidirectional"
         assert dialog._tabs.currentIndex() == 0  # sync tab
 
-    def test_force_master_enable_cancel_reverts_the_toggle(self, dialog, monkeypatch):
+    def test_prefer_master_enable_cancel_reverts_the_toggle(self, dialog, monkeypatch):
         shown = []
 
         def fake_exec(self):
@@ -172,18 +172,18 @@ class TestForceMasterLiveWarning:
         dialog.p2p_mode.setChecked(True)
         dialog.sync_direction_combo.setCurrentIndex(1)
         start_tab = dialog._tabs.currentIndex()
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         assert shown == [
-            tr("warn.force_master_sync_msg").format(
+            tr("warn.prefer_master_sync_msg").format(
                 direction=dialog.sync_direction_combo.currentText()
             )
         ]
-        # Declining keeps the direction, so force-master must go back off.
-        assert dialog.force_master.isChecked() is False
+        # Declining keeps the direction, so prefer-master must go back off.
+        assert dialog.prefer_master.isChecked() is False
         assert dialog.sync_direction_combo.currentData() == "upload-only"
         assert dialog._tabs.currentIndex() == start_tab
 
-    def test_force_master_enable_silent_when_bidirectional(self, dialog, monkeypatch):
+    def test_prefer_master_enable_silent_when_bidirectional(self, dialog, monkeypatch):
         calls = []
 
         def fake_exec(self):
@@ -193,10 +193,10 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         self._reset_conflict_state(dialog)
         dialog.p2p_mode.setChecked(True)
-        dialog.force_master.setChecked(True)  # bidirectional: no prompt
+        dialog.prefer_master.setChecked(True)  # bidirectional: no prompt
         assert calls == []
 
-    def test_force_master_enable_silent_without_p2p_mode(self, dialog, monkeypatch):
+    def test_prefer_master_enable_silent_without_p2p_mode(self, dialog, monkeypatch):
         calls = []
 
         def fake_exec(self):
@@ -206,7 +206,7 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         self._reset_conflict_state(dialog)
         dialog.sync_direction_combo.setCurrentIndex(1)
-        dialog.force_master.setChecked(True)  # force-master inert w/o p2p
+        dialog.prefer_master.setChecked(True)  # prefer-master inert w/o p2p
         assert calls == []
 
     def test_no_warning_without_p2p_mode(self, dialog, monkeypatch):
@@ -218,12 +218,12 @@ class TestForceMasterLiveWarning:
 
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         self._reset_conflict_state(dialog)
-        dialog.force_master.setChecked(True)
+        dialog.prefer_master.setChecked(True)
         dialog.sync_direction_combo.setCurrentIndex(1)
         assert calls == []
         assert dialog.sync_direction_combo.currentData() == "upload-only"
 
-    def test_no_warning_without_force_master(self, dialog, monkeypatch):
+    def test_no_warning_without_prefer_master(self, dialog, monkeypatch):
         calls = []
 
         def fake_exec(self):
@@ -262,11 +262,11 @@ class TestForceMasterLiveWarning:
 
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        saved = {k: s.value(k) for k in ("sync/direction", "p2p/enabled", "p2p/force_master")}
+        saved = {k: s.value(k) for k in ("sync/direction", "p2p/enabled", "p2p/prefer_master")}
         try:
             s.setValue("sync/direction", "upload-only")
             s.setValue("p2p/enabled", True)
-            s.setValue("p2p/force_master", True)
+            s.setValue("p2p/prefer_master", True)
             s.sync()
             dlg = SettingsDialog()
             qtbot.addWidget(dlg)
@@ -288,14 +288,14 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(dialog, "accept", lambda: None)
         monkeypatch.setattr(
             dialog,
-            "_maybe_warn_force_master",
+            "_maybe_warn_prefer_master",
             lambda msg_key, **fmt: msg_keys.append(msg_key) or True,
         )
         self._arm_conflict_silently(dialog)
         dialog.server_url.setText("")
         dialog.p2p_bootnode.setText("")
         dialog._on_accept()
-        assert msg_keys == ["warn.force_master_msg"]  # save-gate message
+        assert msg_keys == ["warn.prefer_master_msg"]  # save-gate message
         assert dialog.sync_direction_combo.currentData() == "bidirectional"
         assert saved == [True]
 
@@ -308,14 +308,14 @@ class TestForceMasterLiveWarning:
         monkeypatch.setattr(dialog, "accept", lambda: None)
         monkeypatch.setattr(
             dialog,
-            "_maybe_warn_force_master",
+            "_maybe_warn_prefer_master",
             lambda msg_key, **fmt: msg_keys.append(msg_key) or False,
         )
         self._arm_conflict_silently(dialog)
         dialog.server_url.setText("")
         dialog.p2p_bootnode.setText("")
         dialog._on_accept()
-        assert msg_keys == ["warn.force_master_msg"]  # save-gate message
+        assert msg_keys == ["warn.prefer_master_msg"]  # save-gate message
         assert dialog.sync_direction_combo.currentData() == "upload-only"
         assert saved == []
 
@@ -323,7 +323,7 @@ class TestForceMasterLiveWarning:
 class TestIgnoreDeleteWarning:
     """Declining the ignore-delete warning restores the toggle; the restore
     must fire `toggled` too, otherwise the switch keeps painting as OFF
-    while checked is True (same stale-paint cause as the force-master
+    while checked is True (same stale-paint cause as the prefer-master
     prompt loop).
     """
 

@@ -329,9 +329,9 @@
         </widget>
        </item>
        <item row="6" column="1">
-        <widget class="QCheckBox" name="forceMaster">
+        <widget class="QCheckBox" name="preferMaster">
          <property name="text">
-          <string>Force master</string>
+          <string>Prefer master</string>
          </property>
          <property name="checked">
           <bool>false</bool>

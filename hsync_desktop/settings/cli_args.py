@@ -212,8 +212,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             validated_grp = _validate_group_name(grp_raw)
             args += ["--group", validated_grp or DEFAULT_GROUP]
 
-        if s.value("p2p/force_master", False, bool):
-            args.append("--force-master")
+        if s.value("p2p/prefer_master", False, bool):
+            args.append("--prefer-master")
         if s.value("p2p/never_master", False, bool):
             args.append("--never-master")
         if s.value("p2p/require_pairing", False, bool):

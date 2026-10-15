@@ -58,7 +58,6 @@ from hsync_desktop.config import (
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_DRY_RUN,
     DEFAULT_FILTER_PATH,
-    DEFAULT_FORCE_MASTER,
     DEFAULT_GROUP,
     DEFAULT_HTTP_TIMEOUT,
     DEFAULT_IGNORE_DELETE,
@@ -79,6 +78,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_PORT,
     DEFAULT_P2P_REQUIRE_PAIRING,
     DEFAULT_P2P_UPNP_ENABLED,
+    DEFAULT_PREFER_MASTER,
     DEFAULT_QUIET,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
@@ -275,7 +275,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.p2p_port, "tip.p2p_port", tips)
         _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
         _maybe_tip(self.ntp_hosts, "tip.ntp_hosts", tips)
-        _maybe_tip(self.force_master, "tip.force_master", tips)
+        _maybe_tip(self.prefer_master, "tip.prefer_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
         _maybe_tip(self.require_pairing, "tip.require_pairing", tips)
 
@@ -315,7 +315,7 @@ class SettingsDialog(QDialog):
             return
         p2p_supported = supports_subcommand(doc, "p2p")
         gated: list[tuple[str, ToggleSwitch, QLabel]] = [
-            ("--force-master", self.force_master, self._lbl_force_master),
+            ("--prefer-master", self.prefer_master, self._lbl_prefer_master),
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
             ("--upnp", self.p2p_upnp, self._lbl_p2p_upnp),
@@ -355,7 +355,7 @@ class SettingsDialog(QDialog):
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
-        self.force_master.toggled.connect(self._on_force_master_toggled)
+        self.prefer_master.toggled.connect(self._on_prefer_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
         self.sync_direction_combo.currentIndexChanged.connect(self._on_sync_direction_changed)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
@@ -448,7 +448,7 @@ class SettingsDialog(QDialog):
             self.p2p_port,
             self.discovery_timeout,
             self.ntp_hosts,
-            self.force_master,
+            self.prefer_master,
             self.never_master,
             self.require_pairing,
         ]
@@ -478,51 +478,51 @@ class SettingsDialog(QDialog):
                 continue
             label.setEnabled(enabled)
 
-    def _on_force_master_toggled(self, checked: bool) -> None:
-        """Force-master and never-master are mutually exclusive.
+    def _on_prefer_master_toggled(self, checked: bool) -> None:
+        """Prefer-master and never-master are mutually exclusive.
 
-        Enabling force-master also meets the live incompatibility gate: with a
+        Enabling prefer-master also meets the live incompatibility gate: with a
         non-bidirectional direction active, "Yes" returns the sync to
         bidirectional and jumps to the sync tab to review it.
         """
         if checked and self.never_master.isChecked():
             self.never_master.setChecked(False)
-        if checked and self._force_master_conflict():
-            proposed = self._maybe_warn_force_master(
-                "warn.force_master_sync_msg",
+        if checked and self._prefer_master_conflict():
+            proposed = self._maybe_warn_prefer_master(
+                "warn.prefer_master_sync_msg",
                 direction=self.sync_direction_combo.currentText(),
             )
             if proposed:
                 self.sync_direction_combo.setCurrentIndex(0)
                 self.set_current_tab(_SYNC_TAB_INDEX)
             else:
-                # Keep the direction: force-master stays incompatible, so the
-                # toggle must go back off (the invariant force-master =>
+                # Keep the direction: prefer-master stays incompatible, so the
+                # toggle must go back off (the invariant prefer-master =>
                 # bidirectional must hold).
-                self.force_master.setChecked(False)
+                self.prefer_master.setChecked(False)
 
     def _on_never_master_toggled(self, checked: bool) -> None:
-        """Force-master and never-master are mutually exclusive."""
-        if checked and self.force_master.isChecked():
-            self.force_master.setChecked(False)
+        """Prefer-master and never-master are mutually exclusive."""
+        if checked and self.prefer_master.isChecked():
+            self.prefer_master.setChecked(False)
 
     def _on_sync_direction_changed(self, _index: int) -> None:
-        """Warn live when the picked direction conflicts with force-master.
+        """Warn live when the picked direction conflicts with prefer-master.
 
-        The fix here is disabling force-master (the user just chose the
+        The fix here is disabling prefer-master (the user just chose the
         direction), so "Yes" turns the toggle off and jumps to the p2p tab.
         """
-        if not self._force_master_conflict():
+        if not self._prefer_master_conflict():
             return
-        if self._maybe_warn_force_master("warn.force_master_disable_msg"):
+        if self._maybe_warn_prefer_master("warn.prefer_master_disable_msg"):
             # Do not blockSignals here: ToggleSwitch paints from the thumb
             # animation driven by `toggled`, so swallowing it leaves the
             # switch drawn as ON while checked is False and the user's click
             # re-enables it, re-triggering this prompt in a loop.
-            self.force_master.setChecked(False)
+            self.prefer_master.setChecked(False)
             self.set_current_tab(_P2P_TAB_INDEX)
         else:
-            # Keep force-master: the primary device always syncs both ways, so
+            # Keep prefer-master: the primary device always syncs both ways, so
             # the incompatible direction must not stay selected.
             self.sync_direction_combo.setCurrentIndex(0)
 
@@ -701,24 +701,24 @@ class SettingsDialog(QDialog):
 
     # ── Save / Load ──────────────────────────────────────────────────────
 
-    def _force_master_conflict(self) -> bool:
-        """True when an active force-master meets a non-bidirectional direction.
+    def _prefer_master_conflict(self) -> bool:
+        """True when an active prefer-master meets a non-bidirectional direction.
 
-        `--force-master` is only emitted in p2p mode, so the conflict exists
+        `--prefer-master` is only emitted in p2p mode, so the conflict exists
         only while the p2p toggle is on (consumed by `_on_accept` and by the
         live direction check).
         """
         direction = self.sync_direction_combo.currentData() or "bidirectional"
         return (
             self.p2p_mode.isChecked()
-            and self.force_master.isChecked()
+            and self.prefer_master.isChecked()
             and direction != "bidirectional"
         )
 
-    def _maybe_warn_force_master(self, msg_key: str, **fmt: str) -> bool:
-        """Show the force-master/directional-sync warning for ``msg_key``.
+    def _maybe_warn_prefer_master(self, msg_key: str, **fmt: str) -> bool:
+        """Show the prefer-master/directional-sync warning for ``msg_key``.
 
-        The message differs by trigger (direction changed vs force-master
+        The message differs by trigger (direction changed vs prefer-master
         enabled) but the outcome is the same: True when the user accepts the
         proposed fix. ``fmt`` fills the placeholders of the localized message
         (e.g. the active direction label). Shared by the save gate and both
@@ -727,7 +727,7 @@ class SettingsDialog(QDialog):
         text = tr(msg_key).format(**fmt) if fmt else tr(msg_key)
         msg = QMessageBox(
             QMessageBox.Icon.Warning,
-            tr("warn.force_master_title"),
+            tr("warn.prefer_master_title"),
             text,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             self,
@@ -742,9 +742,9 @@ class SettingsDialog(QDialog):
         return msg.exec() == QMessageBox.StandardButton.Yes
 
     def _on_accept(self) -> None:
-        # Validate: force-master is incompatible with directional sync
-        if self._force_master_conflict():
-            if not self._maybe_warn_force_master("warn.force_master_msg"):
+        # Validate: prefer-master is incompatible with directional sync
+        if self._prefer_master_conflict():
+            if not self._maybe_warn_prefer_master("warn.prefer_master_msg"):
                 return  # Go back to dialog
             # Reset to bidirectional and continue saving
             self.sync_direction_combo.setCurrentIndex(0)
@@ -865,7 +865,7 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/port", self.p2p_port.value())
         s.setValue("p2p/discovery_timeout", self.discovery_timeout.value())
         s.setValue("p2p/ntp_hosts", self.ntp_hosts.text())
-        s.setValue("p2p/force_master", self.force_master.isChecked())
+        s.setValue("p2p/prefer_master", self.prefer_master.isChecked())
         s.setValue("p2p/never_master", self.never_master.isChecked())
         s.setValue("p2p/require_pairing", self.require_pairing.isChecked())
         s.setValue("output/verbose", self.verbose.isChecked())
@@ -955,7 +955,9 @@ class SettingsDialog(QDialog):
             cast(int, s.value("p2p/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
         )
         self.ntp_hosts.setText(str(s.value("p2p/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
-        self.force_master.setChecked(bool(s.value("p2p/force_master", DEFAULT_FORCE_MASTER, bool)))
+        self.prefer_master.setChecked(
+            bool(s.value("p2p/prefer_master", DEFAULT_PREFER_MASTER, bool))
+        )
         self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
         self.require_pairing.setChecked(
             bool(s.value("p2p/require_pairing", DEFAULT_P2P_REQUIRE_PAIRING, bool))
@@ -1069,7 +1071,7 @@ class SettingsDialog(QDialog):
             self.p2p_port,
             self.discovery_timeout,
             self.ntp_hosts,
-            self.force_master,
+            self.prefer_master,
             self.never_master,
             self.require_pairing,
         ]

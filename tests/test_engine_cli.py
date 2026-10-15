@@ -303,14 +303,14 @@ class TestGetBinaryCapabilities:
         doc = build_capabilities(
             app_version="1.2.3",
             subcommands=["p2p"],
-            cli_options_by_subcommand={"p2p": ["--force-master"]},
+            cli_options_by_subcommand={"p2p": ["--prefer-master"]},
         )
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout=json.dumps(doc))
         )
         parsed = get_binary_capabilities("/fake/hsync")
         assert parsed is not None
-        assert parsed["cli_options"] == {"p2p": ["--force-master"]}
+        assert parsed["cli_options"] == {"p2p": ["--prefer-master"]}
 
     def test_no_binary_returns_none(self, monkeypatch):
         """Missing binary yields no capabilities."""

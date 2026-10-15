@@ -50,10 +50,10 @@ titles are refreshed in `_apply_translations`.
 (3), Appearance (4), sourced from `ui/settings_dialog.ui` (the p2p page precedes
 the Server Mode page). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` / `_SERVER_TAB_INDEX`
 (`settings/tab_indices.py::_P2P_TAB_INDEX`) name the positions; the
-force-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
+prefer-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
 them instead of literals.
 
-**Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
+**Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed
 `CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
 option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
@@ -70,28 +70,28 @@ field labels — the same visual the Server Mode tab uses when p2p mode is activ
 (`_on_p2p_mode_toggled`, which now shares the helper) — so a disabled panel reads as
 disabled; banner labels and capability-unsupported labels are skipped.
 
-**Force-master live gate**: `--force-master` is incompatible with a
+**Prefer-master live gate**: `--prefer-master` is incompatible with a
 non-bidirectional direction (it only applies to bidirectional syncs, and is
-emitted solely in p2p mode). `SettingsDialog._force_master_conflict`
-(`settings/dialog.py::_force_master_conflict`) is True only when all three hold:
-direction combo != `bidirectional`, `p2p_mode` on, `force_master` on.
-`SettingsDialog._maybe_warn_force_master` (`settings/dialog.py::_maybe_warn_force_master`)
+emitted solely in p2p mode). `SettingsDialog._prefer_master_conflict`
+(`settings/dialog.py::_prefer_master_conflict`) is True only when all three hold:
+direction combo != `bidirectional`, `p2p_mode` on, `prefer_master` on.
+`SettingsDialog._maybe_warn_prefer_master` (`settings/dialog.py::_maybe_warn_prefer_master`)
 shows a Yes/No prompt whose message depends on the trigger (`**fmt` fills the
 localized message placeholders, e.g. the active direction label) and returns
 True on "Yes". Three consumers:
 
 * Save gate `SettingsDialog._on_accept` (`settings/dialog.py::_on_accept`):
-  `warn.force_master_msg`, "Yes" resets the direction to `bidirectional` and
+  `warn.prefer_master_msg`, "Yes" resets the direction to `bidirectional` and
   continues saving.
 * Live direction check `SettingsDialog._on_sync_direction_changed`
   (`settings/dialog.py::_on_sync_direction_changed`, connected in
   `_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
   `load()` runs, so restoring a saved conflicting state never warns):
-  `warn.force_master_disable_msg` offers disabling force-master, "Yes"
-  unchecks `force_master` and jumps to the p2p tab (`_P2P_TAB_INDEX`).
-* Live toggle check `SettingsDialog._on_force_master_toggled`
-  (`settings/dialog.py::_on_force_master_toggled`, fires only when force-master
-  is switched **on**): `warn.force_master_sync_msg` names the active direction
+  `warn.prefer_master_disable_msg` offers disabling prefer-master, "Yes"
+  unchecks `prefer_master` and jumps to the p2p tab (`_P2P_TAB_INDEX`).
+* Live toggle check `SettingsDialog._on_prefer_master_toggled`
+  (`settings/dialog.py::_on_prefer_master_toggled`, fires only when prefer-master
+  is switched **on**): `warn.prefer_master_sync_msg` names the active direction
   and offers returning to bidirectional, "Yes" resets the direction combo and
   jumps to the sync tab (`_SYNC_TAB_INDEX`).
 
@@ -99,13 +99,13 @@ On "No" from either live check the selection is kept and only the save gate can
 prompt again.
 
 All the programmatic `setChecked` fixes above (and the mutual exclusion in
-`_on_force_master_toggled` / `_on_never_master_toggled`, and the
+`_on_prefer_master_toggled` / `_on_never_master_toggled`, and the
 ignore-delete restore) deliberately leave the toggle's signals connected:
 `ToggleSwitch` paints from a thumb animation driven by `toggled`, so
 swallowing the signal with `blockSignals` freezes the switch painted ON
 while `checked` is False — the user's click then re-enables it and
 re-triggers the prompt in a loop. Covered by
-`tests/test_settings_dialog_warnings.py::TestForceMasterLiveWarning` and
+`tests/test_settings_dialog_warnings.py::TestPreferMasterLiveWarning` and
 `tests/test_settings_dialog_warnings.py::TestIgnoreDeleteWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
@@ -227,7 +227,7 @@ available).
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
 is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
 `--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the
-first token, then `--force-master`, `--never-master`, `--require-pairing`).
+first token, then `--prefer-master`, `--never-master`, `--require-pairing`).
 The UPnP toggle is gated on the client's `--upnp` flag (opt-in since 1.0.3;
 the old `--no-upnp` no longer exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every

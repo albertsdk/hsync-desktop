@@ -311,7 +311,7 @@ class EventsMixin:
 
     @Slot(str, str, str)
     def _on_master_conflict(self, conflict_type: str, peer_cid: str, peer_address: str) -> None:
-        """Handle a force_master conflict or takeover notification."""
+        """Handle a prefer_master conflict or takeover notification."""
         if conflict_type == "conflict_lost":
             msg = (
                 tr("notif.master_conflict_lost")

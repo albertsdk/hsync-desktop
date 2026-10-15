@@ -126,7 +126,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     # Toggle/trust containers (toggle.parent() == the container QWidget).
     cont_mode: QWidget = dlg.p2p_mode.parent()  # type: ignore[assignment]
     cont_upnp: QWidget = dlg.p2p_upnp.parent()  # type: ignore[assignment]
-    cont_force: QWidget = dlg.force_master.parent()  # type: ignore[assignment]
+    cont_force: QWidget = dlg.prefer_master.parent()  # type: ignore[assignment]
     cont_never: QWidget = dlg.never_master.parent()  # type: ignore[assignment]
     cont_pairing: QWidget = dlg.require_pairing.parent()  # type: ignore[assignment]
     trust_container: QWidget = dlg.p2p_bootnode_trust.parent()  # type: ignore[assignment]

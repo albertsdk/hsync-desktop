@@ -290,19 +290,19 @@ class StartMixin:
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
-        force_master = s.value("p2p/force_master", False, bool)
+        prefer_master = s.value("p2p/prefer_master", False, bool)
         sync_dir = s.value("sync/direction", "bidirectional", str)
 
         # upload-only never deletes local files
         if sync_dir == "upload-only":
             return True
 
-        # force_master in p2p mode means this client is authoritative
-        if p2p_mode and force_master:
+        # prefer_master in p2p mode means this client is authoritative
+        if p2p_mode and prefer_master:
             return True
 
         # Determine risk
-        if p2p_mode and not force_master:
+        if p2p_mode and not prefer_master:
             reason = tr("notif.deletion_risk_p2p")
         elif sync_dir == "download-only":
             reason = tr("notif.deletion_risk_download")

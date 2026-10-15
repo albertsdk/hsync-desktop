@@ -48,7 +48,7 @@ for the underlying behaviour.
 |---------|-------------|
 | Enable p2p | Enable device discovery |
 | Group name | Partition key for p2p discovery: devices only sync with peers using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Force primary role / Never become primary | Control which device takes the primary role |
+| Prefer primary role / Never become primary | Control which device takes the primary role |
 | Require pairing | Only sync with explicitly paired devices |
 | Shared password | Password shared by the devices in the p2p group; with a relay server it is also the relay credential |
 | Relay server | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
@@ -57,11 +57,11 @@ for the underlying behaviour.
 | Open the port on my router automatically | Open the primary port so devices reached through a relay server can connect (only takes effect with a relay server set) |
 | Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
-**Force primary role and sync type.** *Force primary role* only applies to the
+**Prefer primary role and sync type.** *Prefer primary role* only applies to the
 **Keep aligned (Send & Receive)** sync type, so the conflict is caught as soon as
 it appears. Picking a one-way type (send-only or receive-only, Sync tab) while
-p2p mode and *Force primary role* are both on offers to turn it off because it is
-incompatible (accept jumps to the p2p tab); switching *Force primary role* on
+p2p mode and *Prefer primary role* are both on offers to turn it off because it is
+incompatible (accept jumps to the p2p tab); switching *Prefer primary role* on
 while a one-way type is active offers to go back to the **Keep aligned (Send &
 Receive)** type because they are incompatible (accept jumps to the Sync tab).
 Declining either prompt keeps your choice and repeats the generic warning when

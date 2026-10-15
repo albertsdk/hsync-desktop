@@ -67,21 +67,21 @@ class TestImportantTranslations:
 class TestTerminologyConsistency:
     """Keep the visible wording coherent for non-technical users, in every locale.
 
-    Guards the regression where the incompatibility warnings quoted an option
-    name ("Force master") that no longer matched the checkbox label
-    ("Prefer primary role"), and the leftover master/bootnode jargon.
+    Guards that the incompatibility warnings name the option exactly as its
+    checkbox label reads, and that role/relay wording avoids master/bootnode
+    jargon.
     """
 
     ALL = ALL_MODULES
 
-    def test_force_role_warning_quotes_the_visible_label(self):
+    def test_prefer_role_warning_quotes_the_visible_label(self):
         """The warnings must name the option exactly as its label reads."""
         for module in self.ALL:
-            label = module.translations["settings.force_master"]
+            label = module.translations["settings.prefer_master"]
             for key in (
-                "warn.force_master_msg",
-                "warn.force_master_disable_msg",
-                "warn.force_master_sync_msg",
+                "warn.prefer_master_msg",
+                "warn.prefer_master_disable_msg",
+                "warn.prefer_master_sync_msg",
             ):
                 assert label in module.translations[key], f"{module.__name__}:{key}"
 
@@ -93,7 +93,7 @@ class TestTerminologyConsistency:
                 "role.client",
                 "role.master_tip",
                 "role.client_tip",
-                "tip.force_master",
+                "tip.prefer_master",
                 "tip.never_master",
             ):
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
@@ -223,7 +223,7 @@ class TestTerminologyConsistency:
     def test_primary_role_prompts_quote_the_visible_label(self):
         """Deletion-risk and force-role text name the option as its label reads."""
         for module in self.ALL:
-            label = module.translations["settings.force_master"]
+            label = module.translations["settings.prefer_master"]
             assert label in module.translations["notif.deletion_risk_p2p"], module.__name__
 
     def test_duplicate_identity_uses_device_id_label(self):
@@ -239,12 +239,12 @@ class TestTerminologyConsistency:
             direction = module.translations["settings.sync_direction.bidirectional"]
             assert "bidirec" not in direction.lower(), module.__name__
             for key in (
-                "warn.force_master_msg",
-                "warn.force_master_disable_msg",
-                "warn.force_master_sync_msg",
+                "warn.prefer_master_msg",
+                "warn.prefer_master_disable_msg",
+                "warn.prefer_master_sync_msg",
             ):
                 assert "bidirec" not in module.translations[key].lower(), f"{module.__name__}:{key}"
-            assert direction in module.translations["warn.force_master_msg"], module.__name__
+            assert direction in module.translations["warn.prefer_master_msg"], module.__name__
 
     def test_sync_type_labels_are_not_called_direction(self):
         """The field and its menu read "sync type" in every locale."""

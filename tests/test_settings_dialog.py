@@ -100,7 +100,7 @@ class TestCapabilityGating:
         return dlg
 
     def test_unsupported_flag_disables_widget_and_label(self, qtbot, monkeypatch):
-        dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--force-master"])
+        dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
         dlg.p2p_mode.setChecked(True)
         assert not dlg.never_master.isEnabled()
         assert not dlg.require_pairing.isEnabled()
@@ -112,7 +112,7 @@ class TestCapabilityGating:
             qtbot,
             monkeypatch,
             p2p_flags=[
-                "--force-master",
+                "--prefer-master",
                 "--never-master",
                 "--require-pairing",
                 "--port",
@@ -120,7 +120,7 @@ class TestCapabilityGating:
             ],
         )
         dlg.p2p_mode.setChecked(True)
-        assert dlg.force_master.isEnabled()
+        assert dlg.prefer_master.isEnabled()
         assert dlg.never_master.isEnabled()
         assert dlg.require_pairing.isEnabled()
         assert dlg.p2p_bootnode.isEnabled()
@@ -130,11 +130,11 @@ class TestCapabilityGating:
     def test_bootnode_field_gated_on_the_port_flag(self, qtbot, monkeypatch):
         """The bootnode host/UPnP belong to the bootnode plan (its --port flag)."""
         dlg = self._make_dialog(
-            qtbot, monkeypatch, p2p_flags=["--force-master", "--port", "--upnp"]
+            qtbot, monkeypatch, p2p_flags=["--prefer-master", "--port", "--upnp"]
         )
         dlg.p2p_mode.setChecked(True)
         assert dlg.p2p_bootnode.isEnabled()
-        dlg2 = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--force-master"])
+        dlg2 = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
         dlg2.p2p_mode.setChecked(True)
         assert not dlg2.p2p_bootnode.isEnabled()
         assert dlg2.p2p_bootnode.toolTip() == tr("tip.capability_unsupported")
@@ -176,7 +176,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            p2p_flags=["--force-master", "--never-master"],
+            p2p_flags=["--prefer-master", "--never-master"],
         )
         dlg.p2p_mode.setChecked(True)
         assert not dlg.require_pairing.isEnabled()
@@ -397,8 +397,8 @@ class TestP2PGroupPersistence:
         assert dlg.p2p_group.text() == ""
 
 
-class TestForceMasterDirectionGuard:
-    """Force-primary and a directional sync are mutually exclusive: declining
+class TestPreferMasterDirectionGuard:
+    """Prefer-primary and a directional sync are mutually exclusive: declining
     the proposed fix must restore the invariant, not leave it broken."""
 
     @staticmethod
@@ -411,31 +411,31 @@ class TestForceMasterDirectionGuard:
     def test_declining_reverts_the_direction_to_bidirectional(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
         dlg.p2p_mode.setChecked(True)
-        dlg.force_master.setChecked(True)
-        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: False)
+        dlg.prefer_master.setChecked(True)
+        monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: False)
 
         dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
 
         assert dlg.sync_direction_combo.currentData() == "bidirectional"
-        assert dlg.force_master.isChecked() is True
+        assert dlg.prefer_master.isChecked() is True
 
-    def test_accepting_disables_force_master(self, qtbot, monkeypatch, tmp_path):
+    def test_accepting_disables_prefer_master(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
         dlg.p2p_mode.setChecked(True)
-        dlg.force_master.setChecked(True)
-        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: True)
+        dlg.prefer_master.setChecked(True)
+        monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: True)
 
         dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
 
-        assert dlg.force_master.isChecked() is False
+        assert dlg.prefer_master.isChecked() is False
 
-    def test_declining_force_master_reverts_the_toggle(self, qtbot, monkeypatch, tmp_path):
+    def test_declining_prefer_master_reverts_the_toggle(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
         dlg.p2p_mode.setChecked(True)
         dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
-        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: False)
+        monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: False)
 
-        dlg.force_master.setChecked(True)
+        dlg.prefer_master.setChecked(True)
 
-        assert dlg.force_master.isChecked() is False
+        assert dlg.prefer_master.isChecked() is False
         assert dlg.sync_direction_combo.currentData() != "bidirectional"

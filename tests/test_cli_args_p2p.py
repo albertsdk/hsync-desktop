@@ -79,7 +79,7 @@ class TestP2PSectionConsistency:
                 "p2p/discovery_timeout": 15,
                 "p2p/group": "test-group",
                 "sync/continuous": False,  # emits --once
-                "p2p/force_master": True,  # emits --force-master
+                "p2p/prefer_master": True,  # emits --prefer-master
             }
         )
 
@@ -90,7 +90,7 @@ class TestP2PSectionConsistency:
             "--discovery-timeout",
             "--group",
             "--once",
-            "--force-master",
+            "--prefer-master",
         ):
             assert args.count(flag) == 1, f"Expected exactly one occurrence of {flag}"
 
@@ -99,21 +99,21 @@ class TestP2PSectionConsistency:
         assert args[args.index("--discovery-timeout") + 1] == "15"
         assert args[args.index("--group") + 1] == "test-group"
 
-    def test_one_shot_and_force_master_are_independent(self):
-        """The --once and --force-master flags do not influence each other."""
-        # one-shot enabled, force_master off
+    def test_one_shot_and_prefer_master_are_independent(self):
+        """The --once and --prefer-master flags do not influence each other."""
+        # one-shot enabled, prefer_master off
         args_a = _build_args(
-            {"p2p/enabled": True, "sync/continuous": False, "p2p/force_master": False}
+            {"p2p/enabled": True, "sync/continuous": False, "p2p/prefer_master": False}
         )
         assert "--once" in args_a
-        assert "--force-master" not in args_a
+        assert "--prefer-master" not in args_a
 
-        # continuous enabled, force_master on
+        # continuous enabled, prefer_master on
         args_b = _build_args(
-            {"p2p/enabled": True, "sync/continuous": True, "p2p/force_master": True}
+            {"p2p/enabled": True, "sync/continuous": True, "p2p/prefer_master": True}
         )
         assert "--once" not in args_b
-        assert "--force-master" in args_b
+        assert "--prefer-master" in args_b
 
 
 class TestP2PGroupOptional:
@@ -307,7 +307,7 @@ class TestClientCapabilitiesParity:
             "--dry-run",
             "--env-file",
             "--events-json-fd",
-            "--force-master",
+            "--prefer-master",
             "--group",
             "--http-timeout",
             "--ignore-delete",

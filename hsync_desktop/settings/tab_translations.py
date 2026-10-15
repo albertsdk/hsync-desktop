@@ -127,7 +127,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     if lbl:
         lbl.setText(tr("settings.discovery_timeout"))
     dlg._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
-    dlg._lbl_force_master.setText(tr("settings.force_master"))
+    dlg._lbl_prefer_master.setText(tr("settings.prefer_master"))
     dlg._lbl_never_master.setText(tr("settings.never_master"))
     dlg._lbl_require_pairing.setText(tr("settings.require_pairing"))
 
