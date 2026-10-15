@@ -9,13 +9,13 @@ Ecosystem ADRs are SSOT in `hsync-common`
 
 | ADR | Desktop implementation |
 | --- | ---------------------- |
-| [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine.py`: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine.py::HsyncEngine._handle_event`), stdin commands (`engine.py::HsyncEngine._send_command`) |
-| [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`engine.py::is_binary_version_compatible`) + `BinaryVersionProbe` (`engine.py::BinaryVersionProbe`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
+| [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine/` package: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine/process.py::HsyncEngine._handle_event`), stdin commands (`engine/process.py::HsyncEngine._send_command`) |
+| [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`engine/cli.py::is_binary_version_compatible`) + `BinaryVersionProbe` (`engine/cli.py::BinaryVersionProbe`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
 | [0001 server-vs-p2p-modes](../../hsync-common/docs/internal/adr/0001-server-vs-p2p-modes.md) | p2p block in the settings dialog + `p2p`/`server` subcommand selection and master flags in `cli_args.py` |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in
-`engine.get_binary_capabilities` (`engine.py::get_binary_capabilities`) + `SettingsDialog`
+`engine.get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) + `SettingsDialog`
 ([settings.md](modules/settings.md)).
 
 ## Desktop-only rules
@@ -25,7 +25,7 @@ disable unsupported controls) is realized in
   capabilities land in the client (and `hsync-common` vocabulary) first; the
   desktop only *consumes* them.
 - **Secrets never on argv**: API/p2p keys travel through inherited pipe FDs
-  (`--api-key-fd`/`--p2p-key-fd`, `engine.py::HsyncEngine.start`) and are Fernet-encrypted at
+  (`--api-key-fd`/`--p2p-key-fd`, `engine/process.py::HsyncEngine.start`) and are Fernet-encrypted at
   rest (`crypto.py`). The settings file is permission-restricted
   (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
@@ -35,7 +35,7 @@ disable unsupported controls) is realized in
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over
   parsing `--help`/version strings to decide which controls to show (§8).
 - **Non-blocking startup probes**: the bundled binary's version is resolved
-  asynchronously (`BinaryVersionProbe`, `engine.py::BinaryVersionProbe`) and both probes are
+  asynchronously (`BinaryVersionProbe`, `engine/cli.py::BinaryVersionProbe`) and both probes are
   cached in `QSettings` keyed by the binary `(path, size, mtime_ns)`; a probe
   must never block the GUI startup path.
 - **Raspberry Pi GUI is arm64-only**: the `rpi` build target ships the
@@ -81,7 +81,7 @@ disable unsupported controls) is realized in
   `_add_data_args` runs the bundled `hsync-client` binary with `--version` and
   refuses the build when its major version differs from
   `hsync_common.constants.HSYNC_VERSION` — the same rule the app re-checks at
-  runtime (`engine.py::is_binary_version_compatible`, which only warns). A binary
+  runtime (`engine/cli.py::is_binary_version_compatible`, which only warns). A binary
   that cannot run on the host (cross-arch `rpi`) is reported as unverifiable and
   skipped. Guarded by `tests/test_compile_script.py`.
 

@@ -117,7 +117,7 @@ class TestGetBinaryVersion:
 
     def test_parses_stdout(self, monkeypatch):
         """Should extract X.Y.Z from `hsync --version` stdout."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="hsync 1.2.3\n")
@@ -126,7 +126,7 @@ class TestGetBinaryVersion:
 
     def test_parses_stderr(self, monkeypatch):
         """Should also look in stderr for the version string."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stderr="hsync 2.0.5")
@@ -135,7 +135,7 @@ class TestGetBinaryVersion:
 
     def test_unparseable_returns_none(self, monkeypatch):
         """Output without a version returns None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="no version here")
@@ -144,7 +144,7 @@ class TestGetBinaryVersion:
 
     def test_os_error_returns_none(self, monkeypatch):
         """A failure to execute the binary returns None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         def _raise(*a, **k):
             raise OSError("cannot exec")
@@ -154,7 +154,7 @@ class TestGetBinaryVersion:
 
     def test_timeout_returns_none(self, monkeypatch):
         """A timeout while querying the binary returns None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         def _raise(*a, **k):
             raise engine.subprocess.TimeoutExpired(cmd="hsync", timeout=5)
@@ -183,7 +183,7 @@ class TestBinaryProbeCache:
     def _patch_settings(self, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
 
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         settings = QSettings(str(tmp_path / "probe.ini"), QSettings.Format.IniFormat)
         monkeypatch.setattr(engine, "_probe_settings", lambda: settings)
@@ -196,7 +196,7 @@ class TestBinaryProbeCache:
 
     def test_version_cache_miss_then_hit(self, tmp_path, monkeypatch):
         """A stable binary is probed once; the second call is a cache hit."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
@@ -214,7 +214,7 @@ class TestBinaryProbeCache:
 
     def test_version_cache_invalidated_on_size_change(self, tmp_path, monkeypatch):
         """Replacing the binary (size change) forces a fresh probe."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
@@ -233,7 +233,7 @@ class TestBinaryProbeCache:
 
     def test_version_cache_does_not_store_none(self, tmp_path, monkeypatch):
         """A failed probe (None) is never cached."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
@@ -250,7 +250,7 @@ class TestBinaryProbeCache:
 
     def test_capabilities_cache_hit_skips_probe(self, tmp_path, monkeypatch):
         """A parsed capabilities document is cached; a hit skips the subprocess."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
@@ -271,7 +271,7 @@ class TestBinaryProbeCache:
 
     def test_binary_version_probe_cache_hit_emits_synchronously(self, tmp_path, monkeypatch):
         """A cache hit resolves without spawning a QProcess."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
@@ -285,7 +285,7 @@ class TestBinaryProbeCache:
 
     def test_binary_version_probe_qprocess(self, tmp_path, monkeypatch, qtbot):
         """A cache miss spawns a QProcess and emits the parsed version."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         stub = tmp_path / "stub"
@@ -298,7 +298,7 @@ class TestBinaryProbeCache:
 
     def test_binary_version_probe_timeout(self, tmp_path, monkeypatch, qtbot):
         """A hung binary is killed and the probe degrades to an empty version."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         self._patch_settings(tmp_path, monkeypatch)
         stub = tmp_path / "stub"
@@ -421,7 +421,7 @@ class TestGetBinaryCapabilities:
 
         from hsync_common.protocol.capabilities import build_capabilities
 
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         doc = build_capabilities(
             app_version="1.2.3",
@@ -437,14 +437,14 @@ class TestGetBinaryCapabilities:
 
     def test_no_binary_returns_none(self, monkeypatch):
         """Missing binary yields no capabilities."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         monkeypatch.setattr(engine, "find_hsync_binary", lambda: None)
         assert get_binary_capabilities() is None
 
     def test_malformed_output_returns_none(self, monkeypatch):
         """Unparseable output degrades to None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         monkeypatch.setattr(
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stdout="not json")
@@ -453,7 +453,7 @@ class TestGetBinaryCapabilities:
 
     def test_os_error_returns_none(self, monkeypatch):
         """A failure to execute the binary returns None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         def _raise(*a, **k):
             raise OSError("cannot exec")
@@ -463,7 +463,7 @@ class TestGetBinaryCapabilities:
 
     def test_timeout_returns_none(self, monkeypatch):
         """A timeout while querying the binary returns None."""
-        from hsync_desktop import engine
+        from hsync_desktop.engine import cli as engine
 
         def _raise(*a, **k):
             raise engine.subprocess.TimeoutExpired(cmd="hsync", timeout=5)
@@ -711,7 +711,7 @@ class TestFetchBootnodeFingerprint:
             calls["args"] = args
             return types.SimpleNamespace(returncode=0, stdout="noise line\nsha256:abc\n")
 
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
         assert fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
         assert calls["args"] == [
             "/bin/hsync",
@@ -730,7 +730,7 @@ class TestFetchBootnodeFingerprint:
             calls["args"] = args
             return types.SimpleNamespace(returncode=0, stdout="sha256:abc\n")
 
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
         fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net", 1443)
         assert calls["args"][-2:] == ["--port", "1443"]
 
@@ -738,13 +738,13 @@ class TestFetchBootnodeFingerprint:
         import types
 
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
         )
         assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
 
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="  \n"),
         )
         assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
@@ -753,7 +753,7 @@ class TestFetchBootnodeFingerprint:
         def boom(*args, **kwargs):
             raise OSError("missing binary")
 
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", boom)
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", boom)
         assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
 
 
@@ -768,28 +768,28 @@ class TestTrustSubprocessHelpers:
 
     def test_list_bootnode_trust_returns_entries(self, monkeypatch):
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: self._ok('[{"host": "b", "port": 443, "fingerprint": "f"}]'),
         )
         assert list_bootnode_trust("/bin/hsync") == [{"host": "b", "port": 443, "fingerprint": "f"}]
 
     def test_list_peer_pins_returns_entries(self, monkeypatch):
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: self._ok('[{"cid": "c", "bucket": "bk", "fingerprint": "f"}]'),
         )
         assert list_peer_pins("/bin/hsync") == [{"cid": "c", "bucket": "bk", "fingerprint": "f"}]
 
     def test_list_returns_none_on_bad_json(self, monkeypatch):
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: self._ok("not json"),
         )
         assert list_bootnode_trust("/bin/hsync") is None
         assert list_peer_pins("/bin/hsync") is None
 
     def test_add_and_remove_return_success_flag(self, monkeypatch):
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", lambda *a, **k: self._ok(""))
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", lambda *a, **k: self._ok(""))
         assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is True
         assert remove_bootnode_trust("/bin/hsync", "b") is True
         assert add_peer_pin("/bin/hsync", "c", "bk", "f" * 64) is True
@@ -798,19 +798,23 @@ class TestTrustSubprocessHelpers:
         import types
 
         monkeypatch.setattr(
-            "hsync_desktop.engine.subprocess.run",
+            "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
         )
         assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is False
         assert remove_peer_pin("/bin/hsync", "c", "bk") is False
 
     def test_supports_peer_trust_is_permissive_without_capabilities(self, monkeypatch):
-        monkeypatch.setattr("hsync_desktop.engine.get_binary_capabilities_cached", lambda *a: None)
+        monkeypatch.setattr(
+            "hsync_desktop.engine.cli.get_binary_capabilities_cached", lambda *a: None
+        )
         assert supports_peer_trust("/bin/hsync") is True
 
     def test_supports_peer_trust_reads_subcommands(self, monkeypatch):
         doc = {"app": "hsync", "app_version": "1.0.0", "subcommands": ["server", "p2p"]}
-        monkeypatch.setattr("hsync_desktop.engine.get_binary_capabilities_cached", lambda *a: doc)
+        monkeypatch.setattr(
+            "hsync_desktop.engine.cli.get_binary_capabilities_cached", lambda *a: doc
+        )
         assert supports_peer_trust("/bin/hsync") is False
 
         doc["subcommands"].append("trust")
@@ -835,7 +839,7 @@ class TestServerTrustSubprocessHelpers:
             calls.append(args)
             return self._ok("[]")
 
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
         assert list_server_trust("/bin/hsync") == []
         assert calls[0] == ["/bin/hsync", "trust", "server", "list", "--json"]
 
@@ -848,7 +852,7 @@ class TestServerTrustSubprocessHelpers:
             calls.append(args)
             return self._ok("")
 
-        monkeypatch.setattr("hsync_desktop.engine.subprocess.run", fake_run)
+        monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
         assert add_server_trust("/bin/hsync", "h", "f" * 64, 9753) is True
         assert remove_server_trust("/bin/hsync", "h", 9753) is True
         assert calls[0] == [

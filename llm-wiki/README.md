@@ -15,7 +15,7 @@ is the agent map; start here, then drill into the linked files.
 | Doc | Scope |
 | --- | ----- |
 | [architecture.md](architecture.md) | component map: binary discovery → QProcess → event→signal → Qt UI; build/packaging targets |
-| [modules/engine.md](modules/engine.md) | `engine.py`: subprocess lifecycle, pipe-FD secrets, event→signal bridge, capability probe |
+| [modules/engine.md](modules/engine.md) | `engine/` package (`cli.py`, `process.py`): subprocess lifecycle, pipe-FD secrets, event→signal bridge, capability probe |
 | [modules/ui.md](modules/ui.md) | `main_window.py`, `trusted_keys.py` (trust dialogs), `file_panel/`, tray, themes, icons, i18n |
 | [modules/settings.md](modules/settings.md) | `config.py`, `settings/` (dialog, cli_args, validators), `crypto.py` |
 | [data-models.md](data-models.md) | `TransferStats`, `FileTransfer`/`TransferStatus`, reused common types |

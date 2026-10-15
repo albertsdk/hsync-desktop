@@ -110,7 +110,7 @@ after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all 5 locales). It is
 an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
-`apply_settings_env` (`engine.py::apply_settings_env`, called from `engine.py::HsyncEngine.start`). Empty = the
+`apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
 **Bootnode** (user-facing label **Relay server**, `settings.p2p_bootnode`):

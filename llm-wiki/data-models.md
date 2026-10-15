@@ -7,8 +7,8 @@ it reads are imported from `hsync-common`; the rest are local UI dataclasses/enu
 
 | Type | Source | Used by |
 | ---- | ------ | ------- |
-| `UiEventName` / `UiEventDict` / `parse_event_line` | `hsync_common.protocol.events` | `engine._handle_event` (`engine.py::HsyncEngine._handle_event`) |
-| `CapabilitiesDoc` / `parse_capabilities` | `hsync_common.protocol.capabilities` | `engine.get_binary_capabilities` (`engine.py::get_binary_capabilities`); UI gating |
+| `UiEventName` / `UiEventDict` / `parse_event_line` | `hsync_common.protocol.events` | `engine._handle_event` (`engine/process.py::HsyncEngine._handle_event`) |
+| `CapabilitiesDoc` / `parse_capabilities` | `hsync_common.protocol.capabilities` | `engine.get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`); UI gating |
 
 Event payload shape + capability schema are SSOT in
 [common data-models](../../hsync-common/llm-wiki/data-models.md). The desktop
@@ -39,9 +39,9 @@ Enum of row states: `LOCAL`, `SYNCED`, `TO_DOWNLOAD`/`TO_UPLOAD`/`TO_DELETE`/
 legacy `QUEUED`/`TRANSFERRING`). Render maps: `STATUS_COLORS` (`file_panel/models.py::STATUS_COLORS`),
 `_NO_PROGRESS_STATUSES` (`file_panel/models.py::_NO_PROGRESS_STATUSES`).
 
-### TransferStats (`engine.py::TransferStats`)
+### TransferStats (`engine/process.py::TransferStats`)
 
-Per-session counters accumulated by the engine; `reset` (`engine.py::TransferStats.reset`).
+Per-session counters accumulated by the engine; `reset` (`engine/process.py::TransferStats.reset`).
 
 ## Persisted configuration
 

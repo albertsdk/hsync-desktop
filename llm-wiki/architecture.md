@@ -10,7 +10,7 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 | Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, app identity (`main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
 | Window | `main_window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
 | File panel | `file_panel/panel.py::FilePanel`, `file_panel/transfer_table.py::FileTransferTable` | live transfer table, detail pane, file actions |
-| Engine | `engine.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
+| Engine | `engine/process.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
 | Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
 | Args | `settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, localization, tray, OS notifications |
@@ -26,25 +26,25 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
         │                            │  secrets via --api-key-fd/--p2p-key-fd pipes
         │                            │  events via --events-json-fd (JSON-Lines)
         ▼                            ▼
-   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine.py::HsyncEngine._handle_event)
+   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine/process.py::HsyncEngine._handle_event)
 ```
 
-1. **Discover binary**: `find_hsync_binary` (`engine.py::find_hsync_binary`), version via
-   `get_binary_version` (`engine.py::get_binary_version`), compatibility via
-   `is_binary_version_compatible` (`engine.py::is_binary_version_compatible`); at startup the version is resolved
-   asynchronously by `BinaryVersionProbe` (`engine.py::BinaryVersionProbe`) and cached in QSettings.
-2. **Probe capabilities**: `get_binary_capabilities` (`engine.py::get_binary_capabilities`) →
+1. **Discover binary**: `find_hsync_binary` (`engine/cli.py::find_hsync_binary`), version via
+   `get_binary_version` (`engine/cli.py::get_binary_version`), compatibility via
+   `is_binary_version_compatible` (`engine/cli.py::is_binary_version_compatible`); at startup the version is resolved
+   asynchronously by `BinaryVersionProbe` (`engine/cli.py::BinaryVersionProbe`) and cached in QSettings.
+2. **Probe capabilities**: `get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
 3. **Build args**: `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) maps every persisted
    setting to the `p2p`/`server` subcommand plus its flags (`--require-pairing`,
    `--allow-deletions`, …).
-4. **Spawn**: `HsyncEngine.start` (`engine.py::HsyncEngine.start`) opens pipes, writes secrets,
+4. **Spawn**: `HsyncEngine.start` (`engine/process.py::HsyncEngine.start`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.
 5. **Bridge events**: each JSON-Lines `UiEventName` is mapped to a typed Qt
-   `Signal` in `_handle_event` (`engine.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
+   `Signal` in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
    (`main_window.py::MainWindow._connect_signals`) binds them to UI updates.
 6. **Control**: start/stop/sync/preview + live commands (set direction,
-   bandwidth) sent over the process stdin via `_send_command` (`engine.py::HsyncEngine._send_command`).
+   bandwidth) sent over the process stdin via `_send_command` (`engine/process.py::HsyncEngine._send_command`).
 
 ## Boundaries
 

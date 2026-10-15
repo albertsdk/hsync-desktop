@@ -1,22 +1,25 @@
 # HSYNC Desktop — Engine (subprocess bridge)
 
-`engine.py` is the only module that talks to the `hsync` binary. It owns the
-`QProcess`, the secret/event pipes, and the event→signal translation.
+The `engine/` package is the only code that talks to the `hsync` binary:
+`engine/cli.py` holds the synchronous helpers (binary discovery, version /
+capabilities probe + cache, trust-store subcommands) and `engine/process.py`
+owns the `QProcess`, the secret/event pipes and the event→signal translation.
+`engine/__init__.py` re-exports the former `engine.py` surface.
 
 ## Binary discovery & compatibility
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `find_hsync_binary` | `engine.py::find_hsync_binary` | locate bundled or sibling executable |
-| `_parse_version` | `engine.py::_parse_version` | extract `X.Y.Z` from `--version` output (shared by sync + async paths) |
-| `get_binary_version` | `engine.py::get_binary_version` | run `--version`, parse (pure, uncached) |
-| `get_binary_capabilities` | `engine.py::get_binary_capabilities` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
-| `is_binary_version_compatible` | `engine.py::is_binary_version_compatible` | pure major-version comparison |
-| `get_binary_version_cached` | `engine.py::get_binary_version_cached` | `get_binary_version` + QSettings cache keyed by `(path, size, mtime_ns)` |
-| `get_binary_capabilities_cached` | `engine.py::get_binary_capabilities_cached` | `get_binary_capabilities` + QSettings cache (only parsed docs are stored) |
-| `BinaryVersionProbe` | `engine.py::BinaryVersionProbe` | async `QProcess` resolver for `--version` (cache hit emits synchronously; hung binary killed after 5 s) |
-| `_probe_settings` | `engine.py::_probe_settings` | QSettings accessor (patchable in tests) |
-| `_platform_tag` | `engine.py::_platform_tag` | OS/arch tag for bundled-binary lookup |
+| `find_hsync_binary` | `engine/cli.py::find_hsync_binary` | locate bundled or sibling executable |
+| `_parse_version` | `engine/cli.py::_parse_version` | extract `X.Y.Z` from `--version` output (shared by sync + async paths) |
+| `get_binary_version` | `engine/cli.py::get_binary_version` | run `--version`, parse (pure, uncached) |
+| `get_binary_capabilities` | `engine/cli.py::get_binary_capabilities` | run `--capabilities-json` → `parse_capabilities` (common SSOT); includes `delta` capability for rsync-style block sync |
+| `is_binary_version_compatible` | `engine/cli.py::is_binary_version_compatible` | pure major-version comparison |
+| `get_binary_version_cached` | `engine/cli.py::get_binary_version_cached` | `get_binary_version` + QSettings cache keyed by `(path, size, mtime_ns)` |
+| `get_binary_capabilities_cached` | `engine/cli.py::get_binary_capabilities_cached` | `get_binary_capabilities` + QSettings cache (only parsed docs are stored) |
+| `BinaryVersionProbe` | `engine/cli.py::BinaryVersionProbe` | async `QProcess` resolver for `--version` (cache hit emits synchronously; hung binary killed after 5 s) |
+| `_probe_settings` | `engine/cli.py::_probe_settings` | QSettings accessor (patchable in tests) |
+| `_platform_tag` | `engine/cli.py::_platform_tag` | OS/arch tag for bundled-binary lookup |
 
 The version/capabilities probes are cached in `QSettings(SETTINGS_ORG,
 SETTINGS_APP)` under `binary/version_cache` / `binary/capabilities_cache`. An
@@ -30,26 +33,26 @@ to gate controls at first paint.
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `HsyncEngine` | `engine.py::HsyncEngine` | `QObject` wrapper around the process |
-| `start` | `engine.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
-| `stop` | `engine.py::HsyncEngine.stop` | terminate the process |
-| `sync` / `preview` | `engine.py::HsyncEngine.sync` / `engine.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
-| `set_sync_direction` / `set_bandwidth` | `engine.py::HsyncEngine.set_sync_direction` / `engine.py::HsyncEngine.set_bandwidth` | live runtime commands |
-| `_send_command` | `engine.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
-| `_on_stdout` | `engine.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) |
-| `_on_finished` / `_on_error` | `engine.py::HsyncEngine._on_finished` / `engine.py::HsyncEngine._on_error` | exit + QProcess error mapping |
-| `_set_status` | `engine.py::HsyncEngine._set_status` | debounced `status_changed` emit |
+| `HsyncEngine` | `engine/process.py::HsyncEngine` | `QObject` wrapper around the process |
+| `start` | `engine/process.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
+| `stop` | `engine/process.py::HsyncEngine.stop` | terminate the process |
+| `sync` / `preview` | `engine/process.py::HsyncEngine.sync` / `engine/process.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
+| `set_sync_direction` / `set_bandwidth` | `engine/process.py::HsyncEngine.set_sync_direction` / `engine/process.py::HsyncEngine.set_bandwidth` | live runtime commands |
+| `_send_command` | `engine/process.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
+| `_on_stdout` | `engine/process.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) |
+| `_on_finished` / `_on_error` | `engine/process.py::HsyncEngine._on_finished` / `engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping |
+| `_set_status` | `engine/process.py::HsyncEngine._set_status` | debounced `status_changed` emit |
 
-State accessors: `is_running` (`engine.py::HsyncEngine.is_running`), `is_master` (`engine.py::HsyncEngine.is_master`),
-`status` (`engine.py::HsyncEngine.status`), `cid` (`engine.py::HsyncEngine.cid`), `server_ip` (`engine.py::HsyncEngine.server_ip`),
-`binary_path` get/set (`engine.py::HsyncEngine.binary_path`).
+State accessors: `is_running` (`engine/process.py::HsyncEngine.is_running`), `is_master` (`engine/process.py::HsyncEngine.is_master`),
+`status` (`engine/process.py::HsyncEngine.status`), `cid` (`engine/process.py::HsyncEngine.cid`), `server_ip` (`engine/process.py::HsyncEngine.server_ip`),
+`binary_path` get/set (`engine/process.py::HsyncEngine.binary_path`).
 
 ## Secrets & event channel (pipe FDs, never argv)
 
-`start` (`engine.py::HsyncEngine.start`) builds inheritable pipes so secrets never hit the
+`start` (`engine/process.py::HsyncEngine.start`) builds inheritable pipes so secrets never hit the
 command line:
 
-- `write_secret_pipe` (`engine.py::write_secret_pipe`): write secret, close write end, mark the
+- `write_secret_pipe` (`engine/process.py::write_secret_pipe`): write secret, close write end, mark the
   read fd inheritable (`os.set_inheritable`). Python 3.4+ fds are CLOEXEC by
   default; without this the QProcess child would see a closed `--api-key-fd` /
   `--p2p-key-fd`.
@@ -61,8 +64,8 @@ command line:
 
 ## Event → Signal bridge
 
-`_on_events_available` (`engine.py::HsyncEngine._on_events_available`) reads ready lines, `parse_event_line`
-(common) yields a `UiEventDict`, and `_handle_event` (`engine.py::HsyncEngine._handle_event`) maps each
+`_on_events_available` (`engine/process.py::HsyncEngine._on_events_available`) reads ready lines, `parse_event_line`
+(common) yields a `UiEventDict`, and `_handle_event` (`engine/process.py::HsyncEngine._handle_event`) maps each
 `UiEventName` to a typed Qt `Signal`:
 
 | `UiEventName` | Signal |
@@ -78,12 +81,12 @@ command line:
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals |
 
-Mappings live in `_handle_event` (`engine.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`
-Signal declarations (`engine.py::HsyncEngine`). Event names + payload shape are SSOT in
+Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`
+Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload shape are SSOT in
 `hsync_common.protocol.events`
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
 
-`TransferStats` (`engine.py::TransferStats`) accumulates per-session counters (`engine.py::TransferStats.reset`).
+`TransferStats` (`engine/process.py::TransferStats`) accumulates per-session counters (`engine/process.py::TransferStats.reset`).
 
 ## Trust (known-hosts / known-peers) helpers
 
@@ -92,12 +95,12 @@ The GUI edits the client's three SSH-style trust stores through subprocess helpe
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine.py::_run_hsync_success` / `engine.py::_run_hsync_json` / `engine.py::_run_hsync_line` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
-| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `engine.py::fetch_bootnode_fingerprint` / `engine.py::fetch_server_fingerprint` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
-| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine.py::list_bootnode_trust` / `engine.py::add_bootnode_trust` / `engine.py::remove_bootnode_trust` | `hsync trust bootnode {list --json,add,remove}` |
-| `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine.py::list_server_trust` / `engine.py::add_server_trust` / `engine.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
-| `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine.py::list_peer_pins` / `engine.py::add_peer_pin` / `engine.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
-| `supports_peer_trust` | `engine.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
+| `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine/cli.py::_run_hsync_success` / `engine/cli.py::_run_hsync_json` / `engine/cli.py::_run_hsync_line` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
+| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `engine/cli.py::fetch_bootnode_fingerprint` / `engine/cli.py::fetch_server_fingerprint` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
+| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine/cli.py::list_bootnode_trust` / `engine/cli.py::add_bootnode_trust` / `engine/cli.py::remove_bootnode_trust` | `hsync trust bootnode {list --json,add,remove}` |
+| `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine/cli.py::list_server_trust` / `engine/cli.py::add_server_trust` / `engine/cli.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
+| `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine/cli.py::list_peer_pins` / `engine/cli.py::add_peer_pin` / `engine/cli.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
+| `supports_peer_trust` | `engine/cli.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
 
 ## Delta transfer compatibility
 
