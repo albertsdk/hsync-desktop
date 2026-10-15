@@ -105,8 +105,8 @@ ignore-delete restore) deliberately leave the toggle's signals connected:
 swallowing the signal with `blockSignals` freezes the switch painted ON
 while `checked` is False — the user's click then re-enables it and
 re-triggers the prompt in a loop. Covered by
-`tests/test_settings_dialog.py::TestForceMasterLiveWarning` and
-`tests/test_settings_dialog.py::TestIgnoreDeleteWarning`.
+`tests/test_settings_dialog_warnings.py::TestForceMasterLiveWarning` and
+`tests/test_settings_dialog_warnings.py::TestIgnoreDeleteWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
