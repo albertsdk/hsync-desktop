@@ -69,7 +69,7 @@ class TestTerminologyConsistency:
 
     Guards the regression where the incompatibility warnings quoted an option
     name ("Force master") that no longer matched the checkbox label
-    ("Force primary role"), and the leftover master/bootnode jargon.
+    ("Prefer primary role"), and the leftover master/bootnode jargon.
     """
 
     ALL = ALL_MODULES
