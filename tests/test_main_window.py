@@ -433,3 +433,63 @@ class TestShutdown:
 
         assert stopped == [1]
         assert quit_calls == [1]
+
+
+class TestEngineStartFailure:
+    """A failed engine start must be visible, not a silent no-op."""
+
+    @staticmethod
+    def _capture_dialogs(monkeypatch) -> list[QMessageBox]:
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        return shown
+
+    def test_start_engine_shows_dialog_and_logs_error(self, window, monkeypatch):
+        shown = self._capture_dialogs(monkeypatch)
+
+        def failing_start(_args):
+            window._engine.error_occurred.emit("hsync binary not found.")
+            return False
+
+        monkeypatch.setattr(window._engine, "start", failing_start)
+
+        assert window._start_engine(["p2p"]) is False
+        assert len(shown) == 1
+        assert shown[0].text() == tr("notif.engine_start_failed")
+        assert "hsync binary not found." in shown[0].informativeText()
+        assert "hsync binary not found." in window._log_view.toPlainText()
+
+    def test_start_engine_success_shows_no_dialog(self, window, monkeypatch):
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        assert shown == []
+
+    def test_continue_after_disclaimer_reports_start_failure(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window as mw
+
+        shown = self._capture_dialogs(monkeypatch)
+        # Skip the pre-flight prompts so the start attempt is reached directly.
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
+        monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
+        monkeypatch.setattr(window, "_check_disk_space", lambda: True)
+        monkeypatch.setattr(window, "_ensure_bootnode_trust", lambda: True)
+        monkeypatch.setattr(window, "_ensure_server_trust", lambda: True)
+        monkeypatch.setattr(mw, "build_hsync_args", lambda *a, **k: ["p2p"])
+        window._local_path = str(tmp_path)
+        window._pending_sync_path = str(tmp_path)
+
+        def failing_start(_args):
+            window._engine.error_occurred.emit("Failed to start hsync process.")
+            return False
+
+        monkeypatch.setattr(window._engine, "start", failing_start)
+
+        window._continue_start_after_disclaimer()
+
+        assert len(shown) == 1
+        assert shown[0].text() == tr("notif.engine_start_failed")
+        # The window is left usable (start re-enabled), not stuck mid-start.
+        assert window._btn_start.isEnabled()
+        assert not window._btn_stop.isEnabled()

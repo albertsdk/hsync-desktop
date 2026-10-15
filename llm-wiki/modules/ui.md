@@ -21,8 +21,23 @@ Engine→slot wiring (in `_connect_signals`, `main_window.py::MainWindow._connec
 `transfer_failed→_on_transfer_failed`, `sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`,
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
+`error_occurred` is always routed to `_on_engine_error` (`main_window.py::MainWindow._on_engine_error`),
+which stores the message and mirrors it into the log panel (the desktop
+notification is wired separately, only when a notifier exists).
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window.py::MainWindow._create_menu_bar`).
+
+### Engine start failure feedback
+
+`_start_engine` (`main_window.py::MainWindow._start_engine`) wraps
+`HsyncEngine.start`: on failure it records the reason emitted through
+`error_occurred` and calls `_report_engine_start_failure`
+(`main_window.py::MainWindow._report_engine_start_failure`), which raises a
+critical `QMessageBox` (title `notif.error`, body `notif.engine_start_failed`,
+the engine reason as informative text). Both start sites use it —
+`_continue_start_after_disclaimer` and `_retry_after_auth_fix` — so a start that
+cannot launch (missing/incompatible binary, spawn failure) no longer looks like a
+silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
 ### Remote endpoint icon (`_update_path_display`)
 

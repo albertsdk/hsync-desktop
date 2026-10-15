@@ -74,6 +74,10 @@ or logs. Use the key dialogs to replace a key at any time.
 
 ## Troubleshooting
 
+- **Synchronization does not start** — when the engine cannot start (for
+  example the bundled `hsync` client is missing or incompatible), the app shows
+  an error dialog with the reason the engine reported and writes the same
+  message to the log panel, instead of failing silently.
 - **A control is greyed out** — your `hsync` binary lacks that capability;
   rebuild/update the client to enable it.
 - **`hsync` binary not found** — the GUI looks for it bundled in the build, on

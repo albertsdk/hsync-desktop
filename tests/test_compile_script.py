@@ -339,3 +339,104 @@ class TestSelfContainedPackages:
         """find_hsync_binary() looks for hsync.exe on Windows, so the bundled
         client must keep the platform suffix (BIN_EXT)."""
         assert "hsync_desktop/bin/hsync${BIN_EXT}" in _script()
+
+
+# ── Bundled client stays executable in a staged .deb/.rpm payload ─────────────
+
+
+def _shell_fn_body(name: str) -> str:
+    match = re.search(rf"^{name}\(\) \{{.*?^\}}", _script(), re.S | re.M)
+    assert match, f"{name}() not found in compile.sh"
+    return match.group(0)
+
+
+def _run_stage_harness(script: str) -> subprocess.CompletedProcess[str]:
+    preamble = "\n".join(
+        [
+            "set -euo pipefail",
+            'APP_NAME="hsync-desktop"',
+            'BIN_EXT=""',
+            'DEB_SRC_DATA="$(pwd)/packaging/deb"',
+            "log_info(){ :; }",
+            "log_ok(){ :; }",
+            "log_warn(){ :; }",
+            'log_error(){ echo "ERR: $*" >&2; }',
+            "log_step(){ :; }",
+        ]
+    )
+    return subprocess.run(
+        ["bash", "-c", f"{preamble}\n{script}"],
+        cwd=COMPILE_SH.parent,
+        capture_output=True,
+        text=True,
+    )
+
+
+class TestBundledClientStaysExecutable:
+    """The stage finalisers must not strip the exec bit from the bundled client.
+
+    They chmod every usr/ file to 0644; a non-executable bundled ``hsync`` makes
+    ``find_hsync_binary()`` reject it, so the GUI silently fails to start a sync
+    (the reported ".deb: clicking Yes does nothing" regression).
+    """
+
+    def test_deb_finalize_restores_the_client_exec_bit(self, tmp_path: Path) -> None:
+        stage = tmp_path / "stage"
+        client = stage / "usr/lib/hsync-desktop/_internal/hsync_desktop/bin/hsync"
+        client.parent.mkdir(parents=True)
+        client.write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+        client.chmod(0o755)  # PyInstaller leaves it executable before staging
+        gui = stage / "usr/lib/hsync-desktop/hsync-desktop"
+        gui.write_text("#!/bin/sh\n", encoding="utf-8")
+        gui.chmod(0o755)
+
+        proc = _run_stage_harness(
+            "\n".join(
+                [
+                    _shell_fn_body("_restore_bundled_client_exec"),
+                    _shell_fn_body("_finalize_deb_stage"),
+                    f'_finalize_deb_stage "{stage}"',
+                ]
+            )
+        )
+
+        assert proc.returncode == 0, proc.stderr
+        assert os.access(client, os.X_OK), "bundled hsync client lost its exec bit"
+        assert os.access(gui, os.X_OK)
+
+    def test_rpm_stage_restores_the_client_exec_bit(self, tmp_path: Path) -> None:
+        built = tmp_path / "hsync-desktop"
+        client = built / "_internal/hsync_desktop/bin/hsync"
+        client.parent.mkdir(parents=True)
+        client.write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+        client.chmod(0o755)
+        (built / "hsync-desktop").write_text("#!/bin/sh\n", encoding="utf-8")
+        (built / "hsync-desktop").chmod(0o755)
+
+        stage = tmp_path / "stage"
+        proc = _run_stage_harness(
+            "\n".join(
+                [
+                    _shell_fn_body("_restore_bundled_client_exec"),
+                    _shell_fn_body("_stage_rpm_buildroot"),
+                    f'_stage_rpm_buildroot "{stage}" "{built}"',
+                ]
+            )
+        )
+
+        assert proc.returncode == 0, proc.stderr
+        staged_client = stage / "usr/lib/hsync-desktop/_internal/hsync_desktop/bin/hsync"
+        assert os.access(staged_client, os.X_OK), "bundled hsync client lost its exec bit"
+
+    def test_restore_fails_the_build_when_the_client_is_missing(self, tmp_path: Path) -> None:
+        (tmp_path / "stage/usr/lib/hsync-desktop").mkdir(parents=True)
+        proc = _run_stage_harness(
+            "\n".join(
+                [
+                    _shell_fn_body("_restore_bundled_client_exec"),
+                    f'_restore_bundled_client_exec "{tmp_path}/stage"',
+                ]
+            )
+        )
+        assert proc.returncode != 0
+        assert "missing the bundled hsync-client" in proc.stderr

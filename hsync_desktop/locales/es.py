@@ -239,6 +239,7 @@ translations: dict[str, str] = {
     "notif.master_elected": "Maestro elegido",
     "notif.master_elected_msg": "Este cliente es ahora el maestro",
     "notif.process_crashed": "El proceso de sincronización terminó inesperadamente (código de salida {code})",
+    "notif.engine_start_failed": "No se pudo iniciar la sincronización.",
     "notif.path_not_found": "Ruta no encontrada",
     "notif.path_not_found_msg": "La carpeta compartida '{path}' no existe. Verifique la ruta en la configuración.",
     "notif.version_mismatch": "Versiones incompatibles",

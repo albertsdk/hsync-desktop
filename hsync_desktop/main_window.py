@@ -138,6 +138,7 @@ class MainWindow(QMainWindow):
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
+        self._last_engine_error: str = ""  # Reason for the last failed engine start
 
         # Open settings dialog, if any (tray/menu re-clicks raise it instead).
         self._settings_dialog: SettingsDialog | None = None
@@ -645,6 +646,9 @@ class MainWindow(QMainWindow):
             notifier = self._notifier
             e.sync_completed.connect(notifier.sync_complete)
             e.error_occurred.connect(lambda msg: notifier.error(tr("notif.error"), msg))
+        # Engine errors are always mirrored into the log panel; a start failure
+        # additionally raises a modal dialog (see `_start_engine`).
+        e.error_occurred.connect(self._on_engine_error)
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
@@ -674,6 +678,13 @@ class MainWindow(QMainWindow):
         # Auto-scroll to bottom
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+    @Slot(str)
+    def _on_engine_error(self, message: str) -> None:
+        """Record an engine error and mirror it into the log panel."""
+        self._last_engine_error = message
+        if message:
+            self._append_log(f"✕ {message}")
 
     @Slot(QPoint)
     def _show_log_context_menu(self, pos: QPoint) -> None:
@@ -1322,7 +1333,7 @@ class MainWindow(QMainWindow):
             self._awaiting_preview_for_sync = True
             self._is_dry_run_preview = True
             self._pending_sync_path = local_path
-            if self._engine.start(args):
+            if self._start_engine(args):
                 self._btn_start.setEnabled(False)
                 self._btn_stop.setEnabled(True)
                 self._btn_refresh.setEnabled(False)
@@ -1724,14 +1735,41 @@ class MainWindow(QMainWindow):
         self._awaiting_preview_for_sync = True
         self._is_dry_run_preview = True  # We're in dry-run mode for initial preview
         self._pending_sync_path = local_path  # Save path for actual sync
+        if not self._start_engine(args):
+            self._reset_ui_stopped()
+            return
+        self._btn_start.setEnabled(False)
+        self._btn_stop.setEnabled(True)
+        self._btn_refresh.setEnabled(False)  # Disable until preview completes
+        if self._tray:
+            self._tray.set_running(True)
+        self._apply_button_styles()
+        self._update_menu_state()
+
+    def _start_engine(self, args: list[str]) -> bool:
+        """Start the engine, surfacing a visible dialog when it fails.
+
+        A failed start (missing/incompatible binary, spawn failure) used to
+        leave the window unchanged and only raise a desktop notification, so the
+        Start click looked like a no-op. Returns the engine result; the caller
+        owns the post-success UI state and the failure reset.
+        """
+        self._last_engine_error = ""
         if self._engine.start(args):
-            self._btn_start.setEnabled(False)
-            self._btn_stop.setEnabled(True)
-            self._btn_refresh.setEnabled(False)  # Disable until preview completes
-            if self._tray:
-                self._tray.set_running(True)
-            self._apply_button_styles()
-            self._update_menu_state()
+            return True
+        self._report_engine_start_failure()
+        return False
+
+    def _report_engine_start_failure(self) -> None:
+        """Show why the engine could not start instead of failing silently."""
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Critical)
+        msg.setWindowTitle(tr("notif.error"))
+        msg.setText(tr("notif.engine_start_failed"))
+        if self._last_engine_error:
+            msg.setInformativeText(self._last_engine_error)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
 
     def _ensure_bootnode_trust(self) -> bool:
         """Resolve bootnode trust before starting p2p (ADR-0035).

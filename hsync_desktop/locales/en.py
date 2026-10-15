@@ -310,6 +310,7 @@ translations: dict[str, str] = {
     "notif.master_elected": "Master Elected",
     "notif.master_elected_msg": "This client is now the master",
     "notif.process_crashed": "The sync process terminated unexpectedly (exit code {code})",
+    "notif.engine_start_failed": "Synchronization could not start.",
     "notif.path_not_found": "Path not found",
     "notif.path_not_found_msg": "The shared folder '{path}' does not exist. Check the path in Settings.",
     "notif.version_mismatch": "Version Mismatch",
