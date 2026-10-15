@@ -688,14 +688,34 @@ readonly DEB_PKG_NAME="hsync-desktop"
 readonly DEB_OUTPUT_DIR="${OUTPUT_BASE}/deb"
 readonly DEB_BUILD_DIR="${BUILD_DIR}/deb"
 
+# Restore the execute bit on the bundled hsync-client inside a staged payload.
+# The stage finalisers below normalise every file under usr/ to 0644, but the
+# client is the sync engine, not data: without +x find_hsync_binary() rejects
+# it and the GUI cannot start any sync. Self-contained packages always ship the
+# client, so a missing one is a build error.
+# $1 = stage_dir
+_restore_bundled_client_exec() {
+    local stage_dir="$1"
+    local client
+    client="$(find "${stage_dir}/usr/lib/${APP_NAME}" -type f \
+        -path "*/hsync_desktop/bin/hsync${BIN_EXT}" -print -quit 2>/dev/null)"
+    if [[ -z "${client}" ]]; then
+        log_error "Staged payload is missing the bundled hsync-client binary"
+        exit 1
+    fi
+    chmod 0755 "${client}"
+}
+
 # Normalise a staged .deb payload so the resulting package is lintian-clean:
-# directories 0755 / files 0644 under usr/, the main executable keeps its 0755
-# bit, and a man page (if present) is gzip-compressed (-n => reproducible).
+# directories 0755 / files 0644 under usr/, the executable bit preserved on the
+# two programs (the GUI and the bundled hsync-client), and a man page (if
+# present) gzip-compressed (-n => reproducible).
 _finalize_deb_stage() {
     local stage_dir="$1"
     find "${stage_dir}/usr" -type d -exec chmod 0755 {} + 2>/dev/null || true
     find "${stage_dir}/usr" -type f -exec chmod 0644 {} + 2>/dev/null || true
     chmod 0755 "${stage_dir}/usr/lib/${APP_NAME}/${APP_NAME}"
+    _restore_bundled_client_exec "${stage_dir}"
     local man="${stage_dir}/usr/share/man/man1/${APP_NAME}.1"
     if [[ -f "${man}" ]]; then
         gzip -n -9 -f "${man}"
@@ -1232,8 +1252,11 @@ _stage_rpm_buildroot() {
     find "${stage_dir}/usr" -type d -exec chmod 0755 {} + 2>/dev/null || true
     find "${stage_dir}/usr" -type f -exec chmod 0644 {} + 2>/dev/null || true
     chmod 0755 "${stage_dir}/usr/lib/${APP_NAME}/${APP_NAME}"
+    _restore_bundled_client_exec "${stage_dir}"
     local man="${stage_dir}/usr/share/man/man1/${APP_NAME}.1"
-    [[ -f "${man}" ]] && gzip -n -9 -f "${man}"
+    if [[ -f "${man}" ]]; then
+        gzip -n -9 -f "${man}"
+    fi
 }
 
 # Render the spec with the resolved RPM version and echo its path.
