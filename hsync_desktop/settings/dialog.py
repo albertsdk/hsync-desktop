@@ -2,9 +2,10 @@
 # Copyright (c) 2025 Alberto Basso
 
 """
-Dialog classes for HSYNC Desktop settings.
+SettingsDialog for HSYNC Desktop.
 
-Contains SettingsDialog, ApiKeyDialog, and P2PKeyDialog.
+The API-key / p2p-key prompts live in credential_dialogs.py and the
+.hsyncignore editor in hsyncignore_dialog.py.
 """
 
 from __future__ import annotations
@@ -102,6 +103,15 @@ from hsync_desktop.i18n import (
 )
 from hsync_desktop.icons import icon, style_ok_cancel_button_box
 from hsync_desktop.settings.cli_args import secure_config_file
+from hsync_desktop.settings.form_helpers import (
+    _action_row,
+    _insert_row_after,
+    _maybe_tip,
+    _paired_label,
+    _replace_checkbox_with_toggle,
+    _set_field_tooltip,
+)
+from hsync_desktop.settings.hsyncignore_dialog import HsyncIgnoreEditorDialog
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
@@ -115,144 +125,6 @@ _SERVER_DEFAULT_PORT = 9753
 _SYNC_TAB_INDEX = 0
 _P2P_TAB_INDEX = 1
 _SERVER_TAB_INDEX = 2
-
-
-def _paired_label(widget: QWidget) -> QLabel | None:
-    """Return the label shown next to *widget*, to mirror its tooltip.
-
-    Handles toggle rows (the label is a sibling inside the toggle's container)
-    and form rows (the ``QFormLayout`` label of the field, where the field may
-    itself be a layout or a container holding the widget).
-    """
-    parent = widget.parentWidget()
-    if parent is None:
-        return None
-    if isinstance(widget, ToggleSwitch):
-        layout = parent.layout()
-        if layout is not None:
-            for index in range(layout.count()):
-                item = layout.itemAt(index)
-                candidate = item.widget() if item is not None else None
-                if isinstance(candidate, QLabel):
-                    return candidate
-        return None
-    layout = parent.layout()
-    if isinstance(layout, QFormLayout):
-        for row in range(layout.rowCount()):
-            field_item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            if field_item is None:
-                continue
-            field = field_item.widget()
-            field_layout = field_item.layout()
-            holds = field is widget or field is parent
-            if not holds and field_layout is not None and field_layout.indexOf(widget) >= 0:
-                holds = True
-            if holds:
-                label_item = layout.itemAt(row, QFormLayout.ItemRole.LabelRole)
-                label = label_item.widget() if label_item is not None else None
-                return label if isinstance(label, QLabel) else None
-    return None
-
-
-def _set_field_tooltip(widget: QWidget, text: str) -> None:
-    """Set *text* as the tooltip of *widget* and of its paired label."""
-    widget.setToolTip(text)
-    label = _paired_label(widget)
-    if label is not None:
-        label.setToolTip(text)
-
-
-def _maybe_tip(widget: QWidget, key: str, enabled: bool) -> None:
-    """Set tooltip on *widget* (and its paired label) from *key* when *enabled*."""
-    _set_field_tooltip(widget, tr(key) if enabled else "")
-
-
-def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
-    """Insert a QFormLayout row right after the row holding ``anchor``."""
-    container = anchor.parent()
-    layout = container.layout() if isinstance(container, QWidget) else None
-    if not isinstance(layout, QFormLayout):
-        return False
-    for row in range(layout.rowCount()):
-        item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-        if item and item.widget() is anchor:
-            layout.insertRow(row + 1, label, field)
-            return True
-    return False
-
-
-def _action_row(*buttons: QWidget) -> QWidget:
-    """Pack related action buttons into one left-aligned row.
-
-    Two narrow secondary actions (open the trust stores / probe the endpoint)
-    read as a pair and take less vertical space than two stacked form rows; the
-    trailing stretch keeps them left-aligned under the field column.
-    """
-    container = QWidget()
-    row = QHBoxLayout(container)
-    row.setContentsMargins(0, 0, 0, 0)
-    for button in buttons:
-        row.addWidget(button)
-    row.addStretch()
-    return container
-
-
-def _replace_checkbox_with_toggle(
-    parent: QWidget, checkbox_name: str
-) -> tuple[ToggleSwitch, QLabel]:
-    """Replace a QCheckBox with a ToggleSwitch in a QFormLayout.
-
-    Finds the checkbox by name, creates a ToggleSwitch with the same text,
-    and replaces it in the parent layout.
-
-    Args:
-        parent: The parent widget containing the checkbox.
-        checkbox_name: The object name of the checkbox to replace.
-
-    Returns:
-        A tuple of (ToggleSwitch, QLabel) for the new widgets.
-    """
-    checkbox: QCheckBox | None = parent.findChild(QCheckBox, checkbox_name)  # type: ignore[assignment]
-    if checkbox is None:
-        # Fallback: return a new toggle switch with empty label
-        return ToggleSwitch(parent), QLabel(parent)
-
-    # Get the checkbox text for the label
-    text = checkbox.text()
-
-    # Find the parent layout
-    parent_layout = checkbox.parentWidget()
-    if parent_layout is None:
-        checkbox.deleteLater()
-        return ToggleSwitch(parent), QLabel(parent)
-
-    # Find the form layout containing this checkbox
-    layout = parent_layout.layout()
-    if isinstance(layout, QFormLayout):
-        # Find the row containing the checkbox
-        for row in range(layout.rowCount()):
-            item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            if item and item.widget() == checkbox:
-                # Create toggle switch with label
-                toggle = ToggleSwitch(parent)
-                label = QLabel(text, parent)
-                # Create a horizontal layout with toggle + label (switch on left)
-                h_layout = QHBoxLayout()
-                h_layout.setContentsMargins(0, 0, 0, 0)
-                h_layout.addWidget(toggle)
-                h_layout.addWidget(label)
-                h_layout.addStretch()
-                # Create container widget
-                container = QWidget(parent)
-                container.setLayout(h_layout)
-                # Replace in form layout
-                layout.removeRow(row)
-                layout.insertRow(row, "", container)
-                return toggle, label
-
-    # Fallback: just delete and return new toggle
-    checkbox.deleteLater()
-    return ToggleSwitch(parent), QLabel(parent)
 
 
 class SettingsDialog(QDialog):
@@ -1737,195 +1609,3 @@ class SettingsDialog(QDialog):
             self._apply_tooltips()
             # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
             self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
-
-
-# ─── API Key Dialog ─────────────────────────────────────────────────────────
-
-
-class ApiKeyDialog(QDialog):
-    """Dialog to prompt for API key when authentication fails."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._load_ui()
-        self._populate()
-
-    def _load_ui(self) -> None:
-        """Load UI from .ui file and setup widget references."""
-        load_ui_widget("api_key_dialog", self)
-
-        self.setWindowTitle(tr("apikey.title"))
-
-        # Get widget references from .ui
-        self._lbl_error: QLabel = self.findChild(QLabel, "lblError")  # type: ignore[assignment]
-        self._lbl_prompt: QLabel = self.findChild(QLabel, "lblPrompt")  # type: ignore[assignment]
-        self._lbl_key_label: QLabel = self.findChild(QLabel, "lblKeyLabel")  # type: ignore[assignment]
-        self._api_key_edit: QLineEdit = self.findChild(QLineEdit, "editApiKey")  # type: ignore[assignment]
-        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
-
-    def _populate(self) -> None:
-        """Populate labels with translated text and load current values."""
-        self._lbl_error.setText(tr("apikey.error_message"))
-        self._lbl_prompt.setText(tr("apikey.prompt"))
-        self._lbl_key_label.setText(tr("apikey.label"))
-        self._api_key_edit.setPlaceholderText(tr("apikey.label"))
-
-        # Load current API key if any
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        current_key = decrypt_value(str(s.value("connection/api_key", "", str)))
-        self._api_key_edit.setText(current_key)
-
-        # Buttons
-        self._button_box.addButton(tr("apikey.save"), QDialogButtonBox.ButtonRole.AcceptRole)
-        self._cancel_btn = self._button_box.addButton(
-            tr("apikey.cancel"), QDialogButtonBox.ButtonRole.RejectRole
-        )
-        self._button_box.accepted.connect(self._on_save)
-        self._button_box.rejected.connect(self.reject)
-
-        # Focus on input
-        self._api_key_edit.setFocus()
-
-    def _on_save(self) -> None:
-        """Save the API key and accept the dialog."""
-        api_key = self._api_key_edit.text().strip()
-        if api_key:
-            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            s.setValue("connection/api_key", encrypt_value(api_key))
-            self.accept()
-        else:
-            # Show warning if empty
-            QMessageBox.warning(
-                self,
-                tr("apikey.title"),
-                tr("apikey.prompt"),
-            )
-
-
-# ─── p2p Key Dialog ─────────────────────────────────────────────────────────
-
-
-class P2PKeyDialog(QDialog):
-    """Dialog to prompt for p2p key when p2p authentication fails."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._load_ui()
-        self._populate()
-
-    def _load_ui(self) -> None:
-        """Load UI from .ui file and setup widget references."""
-        load_ui_widget("p2p_key_dialog", self)
-
-        self.setWindowTitle(tr("p2pauth.title"))
-
-        # Get widget references from .ui
-        self._lbl_error: QLabel = self.findChild(QLabel, "lblError")  # type: ignore[assignment]
-        self._lbl_prompt: QLabel = self.findChild(QLabel, "lblPrompt")  # type: ignore[assignment]
-        self._lbl_key_label: QLabel = self.findChild(QLabel, "lblKeyLabel")  # type: ignore[assignment]
-        self._p2p_key_edit: QLineEdit = self.findChild(QLineEdit, "editP2PKey")  # type: ignore[assignment]
-        self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
-
-    def _populate(self) -> None:
-        """Populate labels with translated text and load current values."""
-        self._lbl_error.setText(tr("p2pauth.error_message"))
-        self._lbl_prompt.setText(tr("p2pauth.prompt"))
-        self._lbl_key_label.setText(tr("p2pauth.label"))
-        self._p2p_key_edit.setPlaceholderText(tr("p2pauth.label"))
-
-        # Load current p2p key if any
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        current_key = decrypt_value(str(s.value("p2p/key", "", str)))
-        self._p2p_key_edit.setText(current_key)
-
-        # Buttons
-        self._button_box.addButton(tr("p2pauth.save"), QDialogButtonBox.ButtonRole.AcceptRole)
-        self._cancel_btn = self._button_box.addButton(
-            tr("p2pauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
-        )
-        self._button_box.accepted.connect(self._on_save)
-        self._button_box.rejected.connect(self.reject)
-
-        # Focus on input
-        self._p2p_key_edit.setFocus()
-
-    def _on_save(self) -> None:
-        """Save the p2p key and accept the dialog."""
-        p2p_key = self._p2p_key_edit.text().strip()
-        if p2p_key:
-            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            s.setValue("p2p/key", encrypt_value(p2p_key))
-            self.accept()
-        else:
-            QMessageBox.warning(
-                self,
-                tr("p2pauth.title"),
-                tr("p2pauth.prompt"),
-            )
-
-
-# ─── .hsyncignore Editor Dialog ─────────────────────────────────────────────
-
-
-class HsyncIgnoreEditorDialog(QDialog):
-    """Simple text editor for the `.hsyncignore` file at the bucket root."""
-
-    def __init__(self, bucket_root: Path, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._bucket_root = bucket_root
-        self._target = bucket_root / HSYNCIGNORE_FILENAME
-
-        self.setWindowTitle(tr("hsyncignore.title"))
-        self.resize(560, 420)
-
-        layout = QVBoxLayout(self)
-        self._lbl_desc = QLabel(tr("hsyncignore.description"), self)
-        self._lbl_desc.setWordWrap(True)
-        layout.addWidget(self._lbl_desc)
-
-        self._editor = QPlainTextEdit(self)
-        self._editor.setPlaceholderText("# Example:\n# /build/\n# *.log\n# !important.log\n")
-        layout.addWidget(self._editor, 1)
-
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel,
-            parent=self,
-        )
-        save_btn = button_box.button(QDialogButtonBox.StandardButton.Save)
-        if save_btn:
-            save_btn.setText(tr("hsyncignore.save"))
-        cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("hsyncignore.cancel"))
-        button_box.accepted.connect(self._on_save)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-        self._load_file()
-
-    def _load_file(self) -> None:
-        """Load the existing .hsyncignore content, if any."""
-        if not self._target.exists():
-            return
-        try:
-            self._editor.setPlainText(self._target.read_text(encoding="utf-8"))
-        except OSError as exc:
-            QMessageBox.warning(
-                self,
-                tr("hsyncignore.title"),
-                tr("hsyncignore.read_error").format(error=exc),
-            )
-
-    def _on_save(self) -> None:
-        """Write the editor content to the .hsyncignore file."""
-        try:
-            self._bucket_root.mkdir(parents=True, exist_ok=True)
-            self._target.write_text(self._editor.toPlainText(), encoding="utf-8")
-        except OSError as exc:
-            QMessageBox.critical(
-                self,
-                tr("hsyncignore.title"),
-                tr("hsyncignore.write_error").format(error=exc),
-            )
-            return
-        self.accept()

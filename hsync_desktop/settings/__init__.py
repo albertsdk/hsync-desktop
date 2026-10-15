@@ -19,7 +19,8 @@ from hsync_desktop.settings.cli_args import (
     save_bandwidth_limits,
     secure_config_file,
 )
-from hsync_desktop.settings.dialog import ApiKeyDialog, P2PKeyDialog, SettingsDialog
+from hsync_desktop.settings.credential_dialogs import ApiKeyDialog, P2PKeyDialog
+from hsync_desktop.settings.dialog import SettingsDialog
 
 __all__ = [
     "SETTINGS_APP",

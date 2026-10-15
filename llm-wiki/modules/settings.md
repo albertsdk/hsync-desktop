@@ -20,18 +20,15 @@ install (no stored `p2p/enabled` yet) starts in p2p mode. Every read of the
 `main_window.py` gate reads — so the dialog toggle, the path display and the
 emitted subcommand always agree.
 
-## settings/dialog.py — the settings UI
+## settings/ — the settings UI
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
-| `_replace_checkbox_with_toggle` | `settings/dialog.py::_replace_checkbox_with_toggle` | swap checkboxes for `ToggleSwitch` widgets |
-| `_maybe_tip` | `settings/dialog.py::_maybe_tip` | attach a tip to a field and its label (respects the `tooltips` preference) |
-| `_paired_label` | `settings/dialog.py::_paired_label` | find the label next to a field/toggle, to mirror its tooltip |
-| `_set_field_tooltip` | `settings/dialog.py::_set_field_tooltip` | set the same tooltip on a field and its paired label |
-| `ApiKeyDialog` | `settings/dialog.py::ApiKeyDialog` | enter/replace the server API key (secret) |
-| `P2PKeyDialog` | `settings/dialog.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
-| `HsyncIgnoreEditorDialog` | `settings/dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
+| form helpers | `settings/form_helpers.py::_replace_checkbox_with_toggle`, `settings/form_helpers.py::_maybe_tip`, `settings/form_helpers.py::_paired_label`, `settings/form_helpers.py::_set_field_tooltip`, `settings/form_helpers.py::_action_row`, `settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
+| `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
+| `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
+| `HsyncIgnoreEditorDialog` | `settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab`): the sync tab
 groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options; the p2p
@@ -156,7 +153,7 @@ other p2p fields (disabled in server mode and while syncing); it reuses the
 key, and reports the bootnode's certificate fingerprint on success.
 
 **Action rows**: each mode panel pairs its two related secondary actions in one
-left-aligned horizontal row via `_action_row` (`settings/dialog.py::_action_row`) —
+left-aligned horizontal row via `_action_row` (`settings/form_helpers.py::_action_row`) —
 the p2p *Manage trusted keys* + *Test connection* (`btn_test_bootnode`), and the
 Server twin `btn_manage_trusted_keys_server` + `btn_test_connection`. One row reads
 as a group and uses less vertical space than two stacked form rows; the trailing
