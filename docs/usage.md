@@ -44,7 +44,7 @@ the client's trust checks):
 
 Accepting a fingerprint pins it in the client's trust store, so both the app and
 the `hsync` CLI see the same keys. The stores can also be edited from
-*Settings → p2p → Manage trusted keys…*.
+*Settings → p2p → Manage trusted servers & devices…*.
 
 ## Running and watching a sync
 
@@ -87,7 +87,7 @@ or logs. Use the key dialogs to replace a key at any time.
   *No verification* only on a trusted network for self-signed certificates.
 - **Peers not found in p2p Mode** — ensure all devices are on the same subnet
   with mDNS allowed through the firewall, and share the same p2p key. For
-  devices on different networks, set a **Bootnode** in the p2p tab.
+  devices on different networks, set a **relay server** in the p2p tab.
 
 See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the
 underlying sync behaviour and modes.

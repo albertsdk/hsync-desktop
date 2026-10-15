@@ -35,7 +35,8 @@ emitted subcommand always agree.
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab`): the sync tab
 groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options; the p2p
-tab groups Mode & Group, Discovery & Bootnode, Role & Pairing, Advanced Options.
+tab groups Mode & Group, Finding devices & relay, Role & Pairing, Advanced
+Options (the user-facing group titles; the wiki below names the settings keys).
 In the sync "Share & Path" group the remote bucket is shown **first** and
 presented as **Share name** (`settings.bucket`; `tip.bucket` and the
 `trusted_keys.bucket` column use the same share terminology, and `label.bucket`
@@ -47,7 +48,7 @@ titles are refreshed in `_apply_translations`.
 **Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2), log
 (3), Appearance (4), sourced from `ui/settings_dialog.ui` (the p2p page precedes
 the Server Mode page). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` / `_SERVER_TAB_INDEX`
-(`settings/dialog.py::_P2P_TAB_INDEX`) name the positions; the force-master
+(`settings/dialog.py::_P2P_TAB_INDEX`) name the positions; the force-primary-role
 prompts' tab jumps and the per-tab enable/disable handlers use them instead of
 literals.
 
@@ -106,7 +107,8 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine.py::apply_settings_env`, called from `engine.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
-**Bootnode**: `p2p_bootnode` (dynamic `QLineEdit` injected right after the
+**Bootnode** (user-facing label **Relay server**, `settings.p2p_bootnode`):
+`p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
 by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
 opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
@@ -120,7 +122,7 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
 `QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
-(`settings.group.p2p_mode`), Discovery & Bootnode (`settings.group.p2p_discovery`),
+(`settings.group.p2p_mode`), Finding devices & relay (`settings.group.p2p_discovery`),
 Role & Pairing (`settings.group.p2p_role`) and Advanced Options
 (`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is

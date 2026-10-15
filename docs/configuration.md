@@ -19,8 +19,8 @@ For syncing against a central HSYNC server.
 | Server URL | HSYNC server address, e.g. `https://my-nas:9753` |
 | Bucket | Remote bucket name to sync into |
 | API key | Account token (`hs_<id>_<secret>`); entered through a dedicated dialog (see [Secrets](usage.md#secrets)) |
-| Server trust policy | How the client authenticates the server certificate: standard CA validation (default), ask on first use, accept new, require a pin, or no verification. Passed as `HSYNC_SERVER_TRUST` |
-| SSL verification | Skip or use a custom CA certificate for a self-signed server |
+| Server identity check | How the app checks the server identity: standard verification (default), ask on first use, accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_SERVER_TRUST` |
+| Certificate check | Skip verification or use a custom certificate file for a self-signed server |
 | HTTP timeout | Request timeout in seconds |
 
 ## Sync
@@ -47,27 +47,28 @@ for the underlying behaviour.
 | Setting | Description |
 |---------|-------------|
 | Enable p2p | Enable peer discovery |
-| Force master / Never master | Control master election for this device |
+| Force primary role / Never become primary | Control which device takes the primary role |
 | Require pairing | Only sync with explicitly paired peers |
-| p2p key | Shared secret for the p2p group; with a bootnode it is also the bootnode credential |
-| Bootnode | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
-| Bootnode trust policy | How the client authenticates the bootnode: ask on first use (default), accept new, require a pin, or no verification. Passed as `HSYNC_BOOTNODE_TRUST` |
-| Manage trusted keys | List, add and remove the bootnode, server and peer fingerprints the client actually uses |
-| Map port with UPnP | Map the master port so peers reached through a bootnode can dial it (only takes effect with a bootnode set) |
-| NTP servers | Comma-separated SNTP servers for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
+| p2p key | Shared secret for the p2p group; with a relay server it is also the relay credential |
+| Relay server | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
+| Relay identity check | How the app checks the relay server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
+| Manage trusted servers & devices | List, add and remove the relay server, server and device fingerprints the client actually uses |
+| Open the port on my router automatically | Open the primary port so devices reached through a relay server can connect (only takes effect with a relay server set) |
+| Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
-**Force master and sync direction.** *Force master* only applies to a
+**Force primary role and sync direction.** *Force primary role* only applies to a
 bidirectional sync, so the conflict is caught as soon as it appears. Picking a
-one-way direction (upload-only or download-only, Sync tab) while p2p mode and
-*Force master* are both on offers to turn *Force master* off because it is
-incompatible (accept jumps to the p2p tab); switching *Force master* on while a
-one-way direction is active offers to go back to a bidirectional sync because
-they are incompatible (accept jumps to the Sync tab). Declining either prompt
-keeps your choice and repeats the generic warning when saving.
+one-way direction (send-only or receive-only, Sync tab) while p2p mode and
+*Force primary role* are both on offers to turn it off because it is
+incompatible (accept jumps to the p2p tab); switching *Force primary role* on
+while a one-way direction is active offers to go back to a bidirectional sync
+because they are incompatible (accept jumps to the Sync tab). Declining either
+prompt keeps your choice and repeats the generic warning when saving.
 
-**Trust stores.** *Manage trusted keys…* edits the client's known-hosts
-(bootnode and sync server) and known-peers stores directly — there is no separate
-setting — so the GUI and the `hsync` CLI share the same source of truth.
+**Trust stores.** *Manage trusted servers & devices…* edits the client's
+known-hosts (relay server and sync server) and known-devices stores directly —
+there is no separate setting — so the GUI and the `hsync` CLI share the same
+source of truth.
 
 **Keyless runs.** Without a p2p key the app confirms before starting: peers are
 not authenticated and reads are open to anyone who can reach this device. Set a

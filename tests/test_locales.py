@@ -135,3 +135,52 @@ class TestImportantTranslations:
                 assert key in lang_module.translations, (
                     f"Missing key '{key}' in {lang_module.__name__}"
                 )
+
+
+class TestTerminologyConsistency:
+    """Keep the visible wording coherent for non-technical users, in every locale.
+
+    Guards the regression where the incompatibility warnings quoted an option
+    name ("Force master") that no longer matched the checkbox label
+    ("Force primary role"), and the leftover master/bootnode jargon.
+    """
+
+    ALL = [en, it, de, fr, es]
+
+    def test_force_role_warning_quotes_the_visible_label(self):
+        """The warnings must name the option exactly as its label reads."""
+        for module in self.ALL:
+            label = module.translations["settings.force_master"]
+            for key in (
+                "warn.force_master_msg",
+                "warn.force_master_disable_msg",
+                "warn.force_master_sync_msg",
+            ):
+                assert label in module.translations[key], f"{module.__name__}:{key}"
+
+    def test_role_terms_avoid_master_jargon(self):
+        """Role labels and tips use primary/secondary, never 'master'."""
+        for module in self.ALL:
+            for key in (
+                "role.master",
+                "role.client",
+                "role.master_tip",
+                "role.client_tip",
+                "tip.force_master",
+                "tip.never_master",
+            ):
+                assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
+
+    def test_relay_terms_avoid_bootnode_jargon(self):
+        """User-facing strings call the bootnode a relay server."""
+        for module in self.ALL:
+            for key in (
+                "settings.p2p_bootnode",
+                "settings.p2p_bootnode_trust",
+                "tip.p2p_bootnode",
+                "trusted_keys.tabs_bootnodes",
+                "dialogs.bootnode_trust_title",
+            ):
+                assert "bootnode" not in module.translations[key].lower(), (
+                    f"{module.__name__}:{key}"
+                )
