@@ -140,7 +140,7 @@ After implementation and before finalizing:
 1. Re-read the request and acceptance criteria without assuming correctness.
 2. Inspect the complete diff, including tests, `.ui`/resources, settings, translations, subprocess arguments/events, changelog, and documentation.
 3. Trace normal, invalid-input, empty/missing, cancellation, process crash/restart, partial output, unavailable capability, concurrent UI event, secret-exposure, and injection paths where applicable.
-4. Verify consistency across models, signals/slots, UI state, settings, CLI argument generation, capability gating, events, all five locales, callers, and documentation.
+4. Verify consistency across models, signals/slots, UI state, settings, CLI argument generation, capability gating, events, all locales, callers, and documentation.
 5. Run targeted `poetry run pytest` tests first. When practical, run full `poetry run pytest`, `poetry run ruff check .`, and `poetry run mypy hsync_desktop` checks configured by the project.
 6. Correct every issue found and rerun affected checks.
 

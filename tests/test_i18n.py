@@ -21,6 +21,12 @@ class TestConstants:
         assert i18n.P2PG_DE == "de"
         assert i18n.P2PG_FR == "fr"
         assert i18n.P2PG_ES == "es"
+        assert i18n.P2PG_PT == "pt"
+        assert i18n.P2PG_ZH == "zh"
+        assert i18n.P2PG_RU == "ru"
+        assert i18n.P2PG_NL == "nl"
+        assert i18n.P2PG_PL == "pl"
+        assert i18n.P2PG_JA == "ja"
 
     def test_supported_languages(self):
         expected = {
@@ -29,8 +35,31 @@ class TestConstants:
             "de": "Deutsch",
             "fr": "Français",
             "es": "Español",
+            "pt": "Português (Brasil)",
+            "zh": "中文（简体）",
+            "ru": "Русский",
+            "nl": "Nederlands",
+            "pl": "Polski",
+            "ja": "日本語",
         }
         assert expected == i18n.SUPPORTED_LANGUAGES
+
+    def test_system_language_prefix_is_supported(self, monkeypatch):
+        """A region-qualified locale (e.g. pt_BR, zh_CN) resolves to its base code."""
+        for locale_name, expected in [
+            ("pt_BR", i18n.P2PG_PT),
+            ("zh_CN", i18n.P2PG_ZH),
+            ("ru_RU", i18n.P2PG_RU),
+            ("nl_NL", i18n.P2PG_NL),
+            ("pl_PL", i18n.P2PG_PL),
+            ("ja_JP", i18n.P2PG_JA),
+        ]:
+            monkeypatch.setattr(i18n.locale, "getlocale", lambda _n=locale_name: (_n, "UTF-8"))
+            assert i18n._detect_system_language() == expected
+
+    def test_unsupported_system_language_falls_back_to_english(self, monkeypatch):
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("xx_XX", "UTF-8"))
+        assert i18n._detect_system_language() == i18n.P2PG_EN
 
 
 class TestTranslations:
@@ -43,6 +72,16 @@ class TestTranslations:
         assert i18n.P2PG_DE in i18n._translations
         assert i18n.P2PG_FR in i18n._translations
         assert i18n.P2PG_ES in i18n._translations
+        assert i18n.P2PG_PT in i18n._translations
+        assert i18n.P2PG_ZH in i18n._translations
+        assert i18n.P2PG_RU in i18n._translations
+        assert i18n.P2PG_NL in i18n._translations
+        assert i18n.P2PG_PL in i18n._translations
+        assert i18n.P2PG_JA in i18n._translations
+
+    def test_every_supported_language_has_a_loaded_translation(self):
+        for lang in i18n.SUPPORTED_LANGUAGES:
+            assert lang in i18n._translations, lang
 
     def test_english_translations_not_empty(self):
         """English translations should not be empty."""

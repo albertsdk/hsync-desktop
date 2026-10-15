@@ -12,5 +12,11 @@ from hsync_desktop.locales.en import translations as EN
 from hsync_desktop.locales.es import translations as ES
 from hsync_desktop.locales.fr import translations as FR
 from hsync_desktop.locales.it import translations as IT
+from hsync_desktop.locales.ja import translations as JA
+from hsync_desktop.locales.nl import translations as NL
+from hsync_desktop.locales.pl import translations as PL
+from hsync_desktop.locales.pt import translations as PT
+from hsync_desktop.locales.ru import translations as RU
+from hsync_desktop.locales.zh import translations as ZH
 
-__all__ = ["DE", "EN", "ES", "FR", "IT"]
+__all__ = ["DE", "EN", "ES", "FR", "IT", "JA", "NL", "PL", "PT", "RU", "ZH"]

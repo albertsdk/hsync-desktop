@@ -39,4 +39,5 @@ events it reads are the **contract** owned by the `hsync` client
 - **Secrets via pipe FDs**: API/p2p keys are written to inherited pipes
   (`--api-key-fd` / `--p2p-key-fd`), never argv; at rest they are Fernet-encrypted
   in `QSettings` (`crypto.py`).
-- **i18n lock-step**: every user string exists in all 5 locales (en/it/de/es/fr).
+- **i18n lock-step**: every user string exists in all locales
+  (`locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.

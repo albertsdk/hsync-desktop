@@ -231,9 +231,15 @@ class TestDevicesTerminology:
         assert en.translations["trusted_keys.peer"] == "Device"
 
     def test_fingerprint_is_localized(self):
-        from hsync_desktop.locales import de, es, fr, it
+        from hsync_desktop.locales import de, es, fr, it, ja, nl, pl, pt, ru, zh
 
         assert it.translations["trusted_keys.fingerprint"] == "Impronta"
         assert de.translations["trusted_keys.fingerprint"] == "Fingerabdruck"
         assert es.translations["trusted_keys.fingerprint"] == "Huella"
         assert fr.translations["trusted_keys.fingerprint"] == "Empreinte"
+        assert pt.translations["trusted_keys.fingerprint"] == "Fingerprint"
+        assert zh.translations["trusted_keys.fingerprint"] == "指纹"
+        assert ru.translations["trusted_keys.fingerprint"] == "Отпечаток"
+        assert nl.translations["trusted_keys.fingerprint"] == "Vingerafdruk"
+        assert pl.translations["trusted_keys.fingerprint"] == "Odcisk"
+        assert ja.translations["trusted_keys.fingerprint"] == "フィンガープリント"

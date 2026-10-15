@@ -3,110 +3,43 @@
 
 """Tests for hsync_desktop.locales modules."""
 
-import hsync_desktop.locales.de as de
-import hsync_desktop.locales.en as en
-import hsync_desktop.locales.es as es
-import hsync_desktop.locales.fr as fr
-import hsync_desktop.locales.it as it
+from hsync_desktop.locales import de, en, es, fr, it, ja, nl, pl, pt, ru, zh
+
+ALL_MODULES = [en, it, de, fr, es, pt, zh, ru, nl, pl, ja]
 
 
-class TestEnglishTranslations:
-    """Test English translations."""
+class TestTranslationsPresent:
+    """Every locale module exposes a non-empty string-to-string map."""
 
     def test_translations_dict_exists(self):
-        """English translations dict should exist."""
-        assert hasattr(en, "translations")
-        assert isinstance(en.translations, dict)
+        for module in ALL_MODULES:
+            assert hasattr(module, "translations"), module.__name__
+            assert isinstance(module.translations, dict), module.__name__
 
     def test_translations_not_empty(self):
-        """English translations should not be empty."""
-        assert len(en.translations) > 0
+        for module in ALL_MODULES:
+            assert len(module.translations) > 0, module.__name__
 
-    def test_has_app_name(self):
-        """Should have app.name translation."""
-        assert "app.name" in en.translations
-        assert en.translations["app.name"] == "HSYNC Desktop"
+    def test_all_values_are_strings(self):
+        for module in ALL_MODULES:
+            for key, value in module.translations.items():
+                assert isinstance(value, str), f"{module.__name__}:{key}"
 
-
-class TestItalianTranslations:
-    """Test Italian translations."""
-
-    def test_translations_dict_exists(self):
-        """Italian translations dict should exist."""
-        assert hasattr(it, "translations")
-        assert isinstance(it.translations, dict)
-
-    def test_translations_not_empty(self):
-        """Italian translations should not be empty."""
-        assert len(it.translations) > 0
-
-
-class TestGermanTranslations:
-    """Test German translations."""
-
-    def test_translations_dict_exists(self):
-        """German translations dict should exist."""
-        assert hasattr(de, "translations")
-        assert isinstance(de.translations, dict)
-
-    def test_translations_not_empty(self):
-        """German translations should not be empty."""
-        assert len(de.translations) > 0
-
-
-class TestFrenchTranslations:
-    """Test French translations."""
-
-    def test_translations_dict_exists(self):
-        """French translations dict should exist."""
-        assert hasattr(fr, "translations")
-        assert isinstance(fr.translations, dict)
-
-    def test_translations_not_empty(self):
-        """French translations should not be empty."""
-        assert len(fr.translations) > 0
-
-
-class TestSpanishTranslations:
-    """Test Spanish translations."""
-
-    def test_translations_dict_exists(self):
-        """Spanish translations dict should exist."""
-        assert hasattr(es, "translations")
-        assert isinstance(es.translations, dict)
-
-    def test_translations_not_empty(self):
-        """Spanish translations should not be empty."""
-        assert len(es.translations) > 0
+    def test_app_name(self):
+        for module in ALL_MODULES:
+            assert module.translations["app.name"] == "HSYNC Desktop", module.__name__
 
 
 class TestTranslationConsistency:
     """Test that all languages have consistent keys."""
 
     def test_all_languages_have_same_keys(self):
-        """All languages should have the same translation keys."""
+        """All languages should have the same translation keys as English."""
         en_keys = set(en.translations.keys())
-        it_keys = set(it.translations.keys())
-        de_keys = set(de.translations.keys())
-        fr_keys = set(fr.translations.keys())
-        es_keys = set(es.translations.keys())
-
-        assert en_keys == it_keys, "Italian has different keys than English"
-        assert en_keys == de_keys, "German has different keys than English"
-        assert en_keys == fr_keys, "French has different keys than English"
-        assert en_keys == es_keys, "Spanish has different keys than English"
-
-    def test_all_values_are_strings(self):
-        """All translation values should be strings."""
-        for lang_name, lang_module in [
-            ("English", en),
-            ("Italian", it),
-            ("German", de),
-            ("French", fr),
-            ("Spanish", es),
-        ]:
-            for key, value in lang_module.translations.items():
-                assert isinstance(value, str), f"{lang_name} key '{key}' is not a string"
+        for module in ALL_MODULES:
+            assert set(module.translations.keys()) == en_keys, (
+                f"{module.__name__} has different keys than English"
+            )
 
 
 class TestImportantTranslations:
@@ -122,19 +55,11 @@ class TestImportantTranslations:
         "settings.title",
     ]
 
-    def test_important_keys_exist_in_english(self):
-        """Important keys should exist in English."""
-        for key in self.IMPORTANT_KEYS:
-            assert key in en.translations, f"Missing key: {key}"
-
     def test_important_keys_exist_in_all_languages(self):
         """Important keys should exist in all languages."""
-        all_modules = [en, it, de, fr, es]
-        for key in self.IMPORTANT_KEYS:
-            for lang_module in all_modules:
-                assert key in lang_module.translations, (
-                    f"Missing key '{key}' in {lang_module.__name__}"
-                )
+        for module in ALL_MODULES:
+            for key in self.IMPORTANT_KEYS:
+                assert key in module.translations, f"Missing key '{key}' in {module.__name__}"
 
 
 class TestTerminologyConsistency:
@@ -145,7 +70,7 @@ class TestTerminologyConsistency:
     ("Force primary role"), and the leftover master/bootnode jargon.
     """
 
-    ALL = [en, it, de, fr, es]
+    ALL = ALL_MODULES
 
     def test_force_role_warning_quotes_the_visible_label(self):
         """The warnings must name the option exactly as its label reads."""
@@ -189,12 +114,17 @@ class TestTerminologyConsistency:
 class TestAboutContent:
     """The splash / About content stays short and correctly attributed."""
 
-    ALL = [en, it, de, fr, es]
+    ALL = ALL_MODULES
 
     def test_tagline_is_short(self):
         for module in self.ALL:
-            words = module.translations["app.tagline"].split()
-            assert 3 <= len(words) <= 6, module.__name__
+            tagline = module.translations["app.tagline"]
+            if any(ch.isspace() for ch in tagline):
+                words = tagline.split()
+                assert 3 <= len(words) <= 6, module.__name__
+            else:
+                # Space-less scripts (Chinese, Japanese) are measured by length.
+                assert 4 <= len(tagline) <= 20, module.__name__
 
     def test_copyright_and_author_are_present(self):
         for module in self.ALL:

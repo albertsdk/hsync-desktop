@@ -30,8 +30,8 @@ disable unsupported controls) is realized in
   (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
   `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`).
-- **i18n completeness**: every user string must exist in all 5 locales
-  (`locales/{en,it,de,es,fr}.py`); look up via `i18n.tr`.
+- **i18n completeness**: every user string must exist in all locales
+  (`locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over
   parsing `--help`/version strings to decide which controls to show (§8).
 - **Non-blocking startup probes**: the bundled binary's version is resolved

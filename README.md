@@ -44,7 +44,7 @@ It offers the same core capabilities as [HSYNC Client](https://github.com/albert
 - 🔔 Desktop push notifications for key events (configurable)
 - ⚙️ Settings dialog organized by category (Sync, Server Mode, P2P Mode, Log, Appearance)
 - 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
-- 🌍 Multi-language UI (EN/IT/DE/ES/FR)
+- 🌍 Multi-language UI (EN/IT/DE/ES/FR/PT/ZH/RU/NL/PL/JA)
 - 🌙 Light and dark themes
 - 📌 System tray integration with context menu
 - 🔒 Single-instance lock and splash screen on startup

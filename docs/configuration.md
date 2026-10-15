@@ -97,7 +97,8 @@ The action labels the log panel can show are listed in
 | Launch at system startup | Start HSYNC minimized to the tray when you log in |
 
 The interface language follows the system locale (English, Italian, German,
-Spanish, French).
+Spanish, French, Portuguese (Brazil), Chinese (Simplified), Russian, Dutch,
+Polish, Japanese).
 
 **Launch at system startup.** When enabled, the app registers a per-user
 autostart entry for the platform — an XDG autostart file on Linux/BSD, a

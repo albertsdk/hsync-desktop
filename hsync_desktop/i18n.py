@@ -5,7 +5,8 @@
 Internationalization (i18n) module for HSYNC Desktop.
 
 Provides translation support with auto-detection of system language.
-Supported languages: English, Italian, German, French, Spanish.
+Supported languages: English, Italian, German, French, Spanish, Portuguese
+(Brazil), Chinese (Simplified), Russian, Dutch, Polish, Japanese.
 """
 
 from __future__ import annotations
@@ -26,6 +27,12 @@ P2PG_IT = "it"
 P2PG_DE = "de"
 P2PG_FR = "fr"
 P2PG_ES = "es"
+P2PG_PT = "pt"
+P2PG_ZH = "zh"
+P2PG_RU = "ru"
+P2PG_NL = "nl"
+P2PG_PL = "pl"
+P2PG_JA = "ja"
 
 SUPPORTED_LANGUAGES = {
     P2PG_EN: "English",
@@ -33,6 +40,12 @@ SUPPORTED_LANGUAGES = {
     P2PG_DE: "Deutsch",
     P2PG_FR: "Français",
     P2PG_ES: "Español",
+    P2PG_PT: "Português (Brasil)",
+    P2PG_ZH: "中文（简体）",
+    P2PG_RU: "Русский",
+    P2PG_NL: "Nederlands",
+    P2PG_PL: "Polski",
+    P2PG_JA: "日本語",
 }
 
 _current_lang: str = P2PG_EN
@@ -109,7 +122,7 @@ def tr(key: str) -> str:
 
 # ─── Load translations from locale modules ──────────────────────────────────
 
-from hsync_desktop.locales import DE, EN, ES, FR, IT
+from hsync_desktop.locales import DE, EN, ES, FR, IT, JA, NL, PL, PT, RU, ZH
 
 _translations = {
     P2PG_EN: EN,
@@ -117,4 +130,10 @@ _translations = {
     P2PG_DE: DE,
     P2PG_FR: FR,
     P2PG_ES: ES,
+    P2PG_PT: PT,
+    P2PG_ZH: ZH,
+    P2PG_RU: RU,
+    P2PG_NL: NL,
+    P2PG_PL: PL,
+    P2PG_JA: JA,
 }

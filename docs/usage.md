@@ -74,8 +74,9 @@ or logs. Use the key dialogs to replace a key at any time.
 - **Theme** — switch between available light/dark themes.
 - **Notifications** — enable desktop notifications for sync events.
 - **Bandwidth limits** — cap upload/download throughput.
-- **Language** — the UI is available in English, Italian, German, Spanish and
-  French.
+- **Language** — the UI is available in English, Italian, German, Spanish,
+  French, Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and
+  Japanese.
 
 ## Troubleshooting
 

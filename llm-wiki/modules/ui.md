@@ -148,7 +148,7 @@ root element is within the first bytes, otherwise the icon renders blank. The Se
 `document-save` / `dialog-cancel` (the latter bundled for this purpose, plus the
 translated `settings.save`/`settings.cancel` labels); the `TrustedKeysDialog`
 **Close** button uses `window-close` with the `action.close` label (translated in
-the five locales).
+every locale).
 
-> Strings shown here must be looked up via `i18n.tr` and exist in all 5 locales
+> Strings shown here must be looked up via `i18n.tr` and exist in all locales
 > (see [settings.md](settings.md)).

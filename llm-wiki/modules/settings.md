@@ -111,7 +111,7 @@ re-triggers the prompt in a loop. Covered by
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `p2p/ntp_hosts` QSettings key (`settings/dialog.py::SettingsDialog`); the label comes from
-`settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all 5 locales). It is
+`settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all locales). It is
 an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
@@ -127,7 +127,7 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 `p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
-`*_none` option labels) / `settings.p2p_upnp` (5 locales); tips from
+`*_none` option labels) / `settings.p2p_upnp` (all locales); tips from
 `tip.p2p_bootnode` (what a bootnode is/does) / `tip.p2p_bootnode_trust` /
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
@@ -168,7 +168,7 @@ stretch keeps them left-aligned. Both test buttons carry the
 inserted after the `http_timeout` row), saved/loaded under
 `connection/server_trust`; labels from `settings.server_trust` (+ the five
 `*_chain`/`*_ask`/`*_accept_new`/`*_strict`/`*_none` option labels), tip from
-`tip.server_trust` (5 locales). The old `connection/server_cert_fingerprint`
+`tip.server_trust` (all locales). The old `connection/server_cert_fingerprint`
 field was **removed** (ADR-0036): the pin lives in the client's server
 known-hosts store, not in a setting. Like the bootnode policy, the combo is
 env-driven: `apply_settings_env` always inserts `HSYNC_SERVER_TRUST` (`chain`
@@ -182,7 +182,7 @@ p2p mode is active and while a sync is running.
 **Log**: `show_log_panel` (toggle), `verbose` (toggle), `logfile` (`QLineEdit`
 with a `LblLogfile` label) render in that order; `quiet` is built but hidden
 (the desktop parses stdout, so suppressing output is unsupported). Labels from
-`settings.show_log_panel` / `settings.verbose` / `settings.logfile` (5 locales).
+`settings.show_log_panel` / `settings.verbose` / `settings.logfile` (all locales).
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
@@ -254,7 +254,7 @@ next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 ## i18n.py — localization
 
-`tr` (`i18n.py::tr`) looks up keys across 5 locales (`SUPPORTED_LANGUAGES`, `i18n.py::SUPPORTED_LANGUAGES`,
-`en/it/de/es/fr`); `init_language` (`i18n.py::init_language`) / `set_language` (`i18n.py::set_language`) with
+`tr` (`i18n.py::tr`) looks up keys across all locales (`SUPPORTED_LANGUAGES`, `i18n.py::SUPPORTED_LANGUAGES`,
+`en/it/de/es/fr/pt/zh/ru/nl/pl/ja`); `init_language` (`i18n.py::init_language`) / `set_language` (`i18n.py::set_language`) with
 `register_language_callback` (`i18n.py::register_language_callback`) for live re-translation. Every user-facing
-string **must** exist in all five `locales/*.py`.
+string **must** exist in all `locales/*.py`.
