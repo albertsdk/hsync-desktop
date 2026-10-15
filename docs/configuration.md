@@ -5,9 +5,10 @@ with Qt `QSettings`. This page is the single source of truth for the settings;
 the [Usage Guide](usage.md) covers running a sync and the runtime prompts.
 
 Open **Settings** from the main window (or the tray menu). The dialog is
-organised into five tabs: **Sync**, **Server Mode**, **p2p**, **Log** and
+organised into five tabs: **Sync**, **p2p**, **Server Mode**, **Log** and
 **Appearance**. Controls for features your installed `hsync` binary does not
-support are automatically disabled, with a tooltip explaining why.
+support are automatically disabled, with a tooltip explaining why. On a fresh
+install (no saved settings yet) the app starts in **p2p Mode**.
 
 ## Server Mode
 

@@ -37,7 +37,7 @@ desktop application.
 
 ### 2. Configure a connection
 
-Open **Settings** (Server Mode or p2p Mode). Every setting is documented in the
+Open **Settings** (p2p Mode or Server Mode). Every setting is documented in the
 [Configuration Reference](configuration.md).
 
 ### 3. Run and watch a sync

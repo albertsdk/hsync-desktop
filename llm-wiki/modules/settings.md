@@ -12,11 +12,19 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 `DEFAULT_NO_COMPRESSION` (`config.py::DEFAULT_NO_COMPRESSION`) exists only to migrate the legacy key into
 `DEFAULT_COMPRESSION_ENABLED` (`config.py::DEFAULT_COMPRESSION_ENABLED`).
 
+`DEFAULT_P2P_ENABLED` (`config.py::DEFAULT_P2P_ENABLED`) is **True**: a fresh
+install (no stored `p2p/enabled` yet) starts in p2p mode. Every read of the
+`p2p/enabled` key passes it as the QSettings default — `build_hsync_args`
+(`settings/cli_args.py::build_hsync_args`, picks the `p2p`/`server` subcommand),
+`SettingsDialog.load` (`settings/dialog.py::SettingsDialog.load`) and the
+`main_window.py` gate reads — so the dialog toggle, the path display and the
+emitted subcommand always agree.
+
 ## settings/dialog.py — the settings UI
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `SettingsDialog` | `settings/dialog.py::SettingsDialog` | tabs for server/sync/p2p; load/save QSettings |
+| `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
 | `_replace_checkbox_with_toggle` | `settings/dialog.py::_replace_checkbox_with_toggle` | swap checkboxes for `ToggleSwitch` widgets |
 | `_maybe_tip` | `settings/dialog.py::_maybe_tip` | attach a tip to a field and its label (respects the `tooltips` preference) |
 | `_paired_label` | `settings/dialog.py::_paired_label` | find the label next to a field/toggle, to mirror its tooltip |
@@ -35,6 +43,13 @@ shares the label though it is currently unused), followed by the local folder
 (`settings.shared_path`), so
 the user names the share before choosing where to materialize it. All group
 titles are refreshed in `_apply_translations`.
+
+**Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2), log
+(3), Appearance (4), sourced from `ui/settings_dialog.ui` (the p2p page precedes
+the Server Mode page). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` / `_SERVER_TAB_INDEX`
+(`settings/dialog.py::_P2P_TAB_INDEX`) name the positions; the force-master
+prompts' tab jumps and the per-tab enable/disable handlers use them instead of
+literals.
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed

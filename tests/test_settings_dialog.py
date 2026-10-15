@@ -16,7 +16,7 @@ import pytest
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit, QMessageBox
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.dialog import SettingsDialog
+from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
 
 
 @pytest.fixture
@@ -414,7 +414,7 @@ class TestForceMasterLiveWarning:
         assert shown == [tr("warn.force_master_disable_msg")]
         assert dialog.force_master.isChecked() is False  # disabled on "Yes"
         assert dialog.sync_direction_combo.currentData() == "download-only"
-        assert dialog._tabs.currentIndex() == 2  # p2p tab
+        assert dialog._tabs.currentIndex() == _P2P_TAB_INDEX  # p2p tab
 
     def test_direction_change_yes_emits_toggle_signal(self, dialog, monkeypatch):
         """Regression: "Yes" must let the toggle's own `toggled` fire.
@@ -433,7 +433,7 @@ class TestForceMasterLiveWarning:
         dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only → prompt → Yes
         assert emitted == [False]
         assert dialog.force_master.isChecked() is False
-        assert dialog._tabs.currentIndex() == 2  # p2p tab
+        assert dialog._tabs.currentIndex() == _P2P_TAB_INDEX  # p2p tab
 
     def test_never_master_enabling_emits_force_master_off_signal(self, dialog):
         """Same stale-paint cause in the mutual exclusion: the forced
@@ -784,7 +784,7 @@ class TestP2pPanelSections:
 
     @staticmethod
     def _groups(dialog) -> dict[str, QGroupBox]:
-        tab = dialog._tabs.widget(2)
+        tab = dialog._tabs.widget(_P2P_TAB_INDEX)
         assert tab is not None
         return {g.title(): g for g in tab.findChildren(QGroupBox)}
 
@@ -894,3 +894,28 @@ class TestDialogButtonIcons:
         assert ok is not None and cancel is not None
         assert ok.icon().cacheKey() == icon("document-save").cacheKey()
         assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+
+class TestTabOrderAndDefaultMode:
+    """The p2p tab precedes Server Mode and a fresh install defaults to p2p."""
+
+    def test_p2p_tab_precedes_server_mode_tab(self, dialog):
+        assert dialog._tabs.tabText(_P2P_TAB_INDEX) == tr("settings.p2p")
+        assert dialog._tabs.tabText(_SERVER_TAB_INDEX) == tr("settings.server_mode")
+        assert _P2P_TAB_INDEX < _SERVER_TAB_INDEX
+
+    def test_tab_indices_point_to_the_right_pages(self, dialog):
+        assert dialog._tabs.widget(_P2P_TAB_INDEX).findChild(QLineEdit, "p2pGroup") is not None
+        assert dialog._tabs.widget(_SERVER_TAB_INDEX).findChild(QLineEdit, "serverUrl") is not None
+
+    def test_fresh_install_defaults_to_p2p_mode(self, qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        s = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        assert not s.contains("p2p/enabled")
+        monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: s)
+        dlg = dialog_mod.SettingsDialog()
+        qtbot.addWidget(dlg)
+        assert dlg.p2p_mode.isChecked()

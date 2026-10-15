@@ -74,7 +74,7 @@ class TestP2PDefaults:
     """Test p2p mode default values."""
 
     def test_default_p2p_enabled(self):
-        assert config.DEFAULT_P2P_ENABLED is False
+        assert config.DEFAULT_P2P_ENABLED is True
 
     def test_default_p2p_key(self):
         assert config.DEFAULT_P2P_KEY == ""

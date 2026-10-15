@@ -110,10 +110,11 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 # The client's server-mode default port (mirrors hsync_client.constants).
 _SERVER_DEFAULT_PORT = 9753
 
-# Tabs of SettingsDialog._tabs (sync=0, server=1, p2p=2, log=3, appearance=4);
+# Tabs of SettingsDialog._tabs (sync=0, p2p=1, server=2, log=3, appearance=4);
 # the live force-master warnings jump to the tab owning the fix on "Yes".
 _SYNC_TAB_INDEX = 0
-_P2P_TAB_INDEX = 2
+_P2P_TAB_INDEX = 1
+_SERVER_TAB_INDEX = 2
 
 
 def _paired_label(widget: QWidget) -> QLabel | None:
@@ -305,7 +306,7 @@ class SettingsDialog(QDialog):
         self.sync_direction_combo.addItem("", "download-only")
         self._lbl_sync_direction = QLabel(self)
         # Find the Sync tab form layout and inject before ignore_delete row
-        sync_tab = self._tabs.widget(0)  # Sync is the first tab (index 0)
+        sync_tab = self._tabs.widget(_SYNC_TAB_INDEX)
         if sync_tab:
             for child in sync_tab.findChildren(QFormLayout):
                 form: QFormLayout = child
@@ -517,8 +518,8 @@ class SettingsDialog(QDialog):
 
         # Set tab icons programmatically (theme icons don't work cross-platform)
         self._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
-        self._tabs.setTabIcon(1, icon("network-cloud"))  # Server Mode (second)
-        self._tabs.setTabIcon(2, icon("network-p2p"))
+        self._tabs.setTabIcon(1, icon("network-p2p"))  # p2p Mode (second)
+        self._tabs.setTabIcon(2, icon("network-cloud"))  # Server Mode (third)
         self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
         self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
 
@@ -555,7 +556,7 @@ class SettingsDialog(QDialog):
         self.btn_manage_trusted_keys_server.setObjectName("btnManageTrustedKeysServer")
         self.btn_manage_trusted_keys_server.clicked.connect(self._open_server_trusted_keys)
 
-        conn_tab = self._tabs.widget(1)
+        conn_tab = self._tabs.widget(_SERVER_TAB_INDEX)
         if conn_tab:
             conn_layout = conn_tab.layout()
             if isinstance(conn_layout, QFormLayout):
@@ -627,7 +628,7 @@ class SettingsDialog(QDialog):
 
     def _reorganize_sync_tab(self) -> None:
         """Reorganize the Sync tab into grouped sections using QGroupBox."""
-        sync_tab = self._tabs.widget(0)
+        sync_tab = self._tabs.widget(_SYNC_TAB_INDEX)
         if not sync_tab:
             return
 
@@ -710,7 +711,7 @@ class SettingsDialog(QDialog):
 
     def _reorganize_p2p_tab(self) -> None:
         """Reorganize the p2p tab into grouped sections using QGroupBox."""
-        p2p_tab = self._tabs.widget(2)
+        p2p_tab = self._tabs.widget(_P2P_TAB_INDEX)
         if not p2p_tab:
             return
 
@@ -780,9 +781,9 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(tr("settings.title"))
 
         # Tab titles
-        self._tabs.setTabText(0, tr("settings.sync"))
-        self._tabs.setTabText(1, tr("settings.server_mode"))
-        self._tabs.setTabText(2, tr("settings.p2p"))
+        self._tabs.setTabText(_SYNC_TAB_INDEX, tr("settings.sync"))
+        self._tabs.setTabText(_P2P_TAB_INDEX, tr("settings.p2p"))
+        self._tabs.setTabText(_SERVER_TAB_INDEX, tr("settings.server_mode"))
         self._tabs.setTabText(3, tr("settings.log"))
         self._tabs.setTabText(4, tr("settings.appearance"))
 
@@ -1096,7 +1097,7 @@ class SettingsDialog(QDialog):
             widget.setEnabled(not checked)
 
         # Also disable the labels in the Server Mode tab
-        conn_tab = self._tabs.widget(1)
+        conn_tab = self._tabs.widget(_SERVER_TAB_INDEX)
         if conn_tab:
             for lbl in conn_tab.findChildren(QLabel):
                 if lbl not in (self._p2p_banner_icon, self._p2p_banner_text):
@@ -1122,7 +1123,7 @@ class SettingsDialog(QDialog):
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
 
         # Also enable/disable the labels in the p2p tab (except p2p_mode label)
-        p2p_tab = self._tabs.widget(2)
+        p2p_tab = self._tabs.widget(_P2P_TAB_INDEX)
         if p2p_tab:
             for lbl in p2p_tab.findChildren(QLabel):
                 if lbl is not self._lbl_p2p_mode:

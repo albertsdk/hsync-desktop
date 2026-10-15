@@ -382,6 +382,16 @@ class TestClientCapabilitiesParity:
         assert "--no-upnp" not in self._P2P_ADVERTISED
 
 
+class TestDefaultMode:
+    """A fresh install (no stored p2p/enabled) starts in p2p mode."""
+
+    def test_p2p_is_the_default_subcommand(self):
+        assert _build_args({})[0] == "p2p"
+
+    def test_stored_server_mode_is_honoured(self):
+        assert _build_args({"p2p/enabled": False})[0] == "server"
+
+
 @pytest.mark.skipif(os.name != "posix", reason="0600 enforcement is POSIX-only")
 class TestSecureConfigFile:
     """Coverage for secure_config_file() (QSettings world-readable hardening)."""

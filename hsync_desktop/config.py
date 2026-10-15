@@ -47,7 +47,8 @@ DEFAULT_MAX_INBOUND_SIZE = 10240  # MB
 DEFAULT_IGNORE_PATTERNS = ""
 
 # p2p defaults
-DEFAULT_P2P_ENABLED = False
+# p2p is the default mode on a fresh install (no stored p2p/enabled yet).
+DEFAULT_P2P_ENABLED = True
 DEFAULT_P2P_KEY = ""
 DEFAULT_P2P_PORT = 0  # 0 = auto-assign
 DEFAULT_DISCOVERY_TIMEOUT = 10

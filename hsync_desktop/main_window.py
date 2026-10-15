@@ -47,7 +47,11 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
-from hsync_desktop.config import DEFAULT_P2P_BOOTNODE_TRUST, DEFAULT_SERVER_TRUST
+from hsync_desktop.config import (
+    DEFAULT_P2P_BOOTNODE_TRUST,
+    DEFAULT_P2P_ENABLED,
+    DEFAULT_SERVER_TRUST,
+)
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
     HsyncEngine,
@@ -814,7 +818,7 @@ class MainWindow(QMainWindow):
         self._group_label.setText(group)
         # Also update the remote label if p2p mode is active
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if bool(s.value("p2p/enabled", False, bool)):
+        if bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
             self._remote_label.setText(f"p2p ({group})" if group else "p2p")
             self._group_label.hide()
 
@@ -1298,7 +1302,7 @@ class MainWindow(QMainWindow):
         self._engine.stop()
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        p2p_enabled = bool(s.value("p2p/enabled", False, bool))
+        p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
 
         if p2p_enabled:
             # p2p mode: show p2p key dialog
@@ -1412,7 +1416,7 @@ class MainWindow(QMainWindow):
             self._sync_dir_icon.show()
 
             # ── Remote endpoint icon + label ──────────────────────────
-            p2p_enabled = bool(s.value("p2p/enabled", False, bool))
+            p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
             if p2p_enabled:
                 self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
                 group = str(s.value("p2p/group", "", str))
@@ -1588,7 +1592,7 @@ class MainWindow(QMainWindow):
             return True
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        p2p_mode = s.value("p2p/enabled", False, bool)
+        p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         force_master = s.value("p2p/force_master", False, bool)
         sync_dir = s.value("sync/direction", "bidirectional", str)
 
@@ -1631,7 +1635,7 @@ class MainWindow(QMainWindow):
         set or the operator accepts the risk.
         """
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if not s.value("p2p/enabled", False, bool):
+        if not s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool):
             return True
         p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
         if p2p_key:
@@ -1777,7 +1781,7 @@ class MainWindow(QMainWindow):
         Returns ``False`` to abort the start.
         """
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if not bool(s.value("p2p/enabled", False, bool)):
+        if not bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
             return True
         host = str(s.value("p2p/bootnode", "", str)).strip()
         if not host:
@@ -1805,7 +1809,7 @@ class MainWindow(QMainWindow):
         Mirrors the bootnode pre-flight for server mode. Returns ``False`` to abort.
         """
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if bool(s.value("p2p/enabled", False, bool)):
+        if bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
             return True  # server trust applies to server mode only
         if str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)) != "ask":
             return True

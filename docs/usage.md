@@ -24,11 +24,11 @@ tray — use the tray menu to show the window again or quit.
 
 ## Configuring a connection
 
-Open **Settings** and fill in the connection for your mode — **Server Mode**
-(against a central HSYNC server) or **p2p Mode** (peer-to-peer, no server). Every
-setting is documented in the
-[Configuration Reference](configuration.md), including the Server, Sync, p2p,
-Log and Appearance tabs and the trusted-key stores.
+Open **Settings** and fill in the connection for your mode — **p2p Mode**
+(peer-to-peer, no server) or **Server Mode** (against a central HSYNC server).
+Every setting is documented in the
+[Configuration Reference](configuration.md), including the Sync, p2p, Server
+Mode, Log and Appearance tabs and the trusted-key stores.
 
 ## Trust prompts while running
 

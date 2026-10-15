@@ -21,6 +21,7 @@ from hsync_desktop.config import (
     DEFAULT_BUCKET,
     DEFAULT_GROUP,
     DEFAULT_MAX_INBOUND_SIZE,
+    DEFAULT_P2P_ENABLED,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -70,7 +71,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         ValueError: If input validation fails.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    p2p_enabled = bool(s.value("p2p/enabled", False, bool))
+    p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
     args: list[str] = ["p2p" if p2p_enabled else "server"]
 
     # Validate local_path - must be a valid directory
