@@ -17,7 +17,7 @@ install (no stored `p2p/enabled` yet) starts in p2p mode. Every read of the
 `p2p/enabled` key passes it as the QSettings default — `build_hsync_args`
 (`settings/cli_args.py::build_hsync_args`, picks the `p2p`/`server` subcommand),
 `SettingsDialog.load` (`settings/dialog.py::SettingsDialog.load`) and the
-`main_window.py` gate reads — so the dialog toggle, the path display and the
+`main_window/` gate reads — so the dialog toggle, the path display and the
 emitted subcommand always agree.
 
 ## settings/ — the settings UI
@@ -139,7 +139,7 @@ equivalent needing no argument plumbing): `apply_settings_env` inserts
 and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` /
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
-`TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in `main_window.py`
+`TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in `main_window/trust.py`
 (`_ensure_bootnode_trust`, which now uses the endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
@@ -170,7 +170,7 @@ known-hosts store, not in a setting. Like the bootnode policy, the combo is
 env-driven: `apply_settings_env` always inserts `HSYNC_SERVER_TRUST` (`chain`
 default), and `build_hsync_args` emits no server-trust flag. The server pin is
 edited through the `TrustedKeysDialog` Servers tab, the
-`_ensure_server_trust` pre-flight in `main_window.py`, or the panel's
+`_ensure_server_trust` pre-flight in `main_window/trust.py`, or the panel's
 `btn_manage_trusted_keys_server` (`QPushButton`, opens the dialog on the servers
 tab). Like the other Server fields, the combo and the button are disabled when
 p2p mode is active and while a sync is running.

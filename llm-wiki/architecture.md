@@ -8,7 +8,7 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 | Layer | Code | Responsibility |
 | ----- | ---- | -------------- |
 | Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, app identity (`main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
-| Window | `main_window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
+| Window | `main_window/window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
 | File panel | `file_panel/panel.py::FilePanel`, `file_panel/transfer_table.py::FileTransferTable` | live transfer table, detail pane, file actions |
 | Engine | `engine/process.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
 | Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
@@ -42,7 +42,7 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.
 5. **Bridge events**: each JSON-Lines `UiEventName` is mapped to a typed Qt
    `Signal` in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
-   (`main_window.py::MainWindow._connect_signals`) binds them to UI updates.
+   (`main_window/window.py::MainWindow._connect_signals`) binds them to UI updates.
 6. **Control**: start/stop/sync/preview + live commands (set direction,
    bandwidth) sent over the process stdin via `_send_command` (`engine/process.py::HsyncEngine._send_command`).
 

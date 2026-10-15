@@ -3,36 +3,44 @@
 Qt widgets that render engine state. All UI mutation stays on the main thread,
 driven by `HsyncEngine` signals (see [engine.md](engine.md)).
 
-## main_window.py — MainWindow
+## main_window/ — MainWindow
+
+`MainWindow` is assembled from responsibility mixins (all sharing `self`):
+`window.py` (`MainWindow`, `__init__`, `_connect_signals`), `ui.py`
+(UI construction), `events.py` (engine-signal slots), `trust.py`
+(trust/pinning + pre-flight), `start.py` (start/stop/refresh/pre-flight checks),
+`actions.py` (menu actions) and `lifecycle.py` (tray/quit/close/eventFilter).
+The mixins suppress `attr-defined` in mypy because they operate on the composed
+window's attributes.
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `MainWindow` | `main_window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
-| `_load_ui` | `main_window.py::MainWindow._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `main_window.py::MainWindow._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
-| `_connect_signals` | `main_window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
-| `_apply_translations` | `main_window.py::MainWindow._apply_translations` | re-translate on language change |
-| `_update_menu_state` | `main_window.py::MainWindow._update_menu_state` | enable/disable actions by run state |
-| `_quit` | `main_window.py::MainWindow._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
-| `_shutdown` | `main_window.py::MainWindow._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
+| `MainWindow` | `main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
+| `_load_ui` | `main_window/ui.py::MainWindow._load_ui` | build/compose the central UI |
+| `_create_menu_bar` | `main_window/ui.py::MainWindow._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
+| `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
+| `_apply_translations` | `main_window/ui.py::MainWindow._apply_translations` | re-translate on language change |
+| `_update_menu_state` | `main_window/ui.py::MainWindow._update_menu_state` | enable/disable actions by run state |
+| `_quit` | `main_window/lifecycle.py::MainWindow._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
+| `_shutdown` | `main_window/lifecycle.py::MainWindow._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
-Engine→slot wiring (in `_connect_signals`, `main_window.py::MainWindow._connect_signals`): `log_received→_append_log`,
+Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
 `transfer_failed→_on_transfer_failed`, `sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`,
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
-`error_occurred` is always routed to `_on_engine_error` (`main_window.py::MainWindow._on_engine_error`),
+`error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::MainWindow._on_engine_error`),
 which stores the message and mirrors it into the log panel (the desktop
 notification is wired separately, only when a notifier exists).
 File-action menu slots: open/open-with/copy-to/rename/trash/
-properties (`main_window.py::MainWindow._create_menu_bar`).
+properties (`main_window/ui.py::MainWindow._create_menu_bar`).
 
 ### Engine start failure feedback
 
-`_start_engine` (`main_window.py::MainWindow._start_engine`) wraps
+`_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps
 `HsyncEngine.start`: on failure it records the reason emitted through
 `error_occurred` and calls `_report_engine_start_failure`
-(`main_window.py::MainWindow._report_engine_start_failure`), which raises a
+(`main_window/start.py::MainWindow._report_engine_start_failure`), which raises a
 critical `QMessageBox` (title `notif.error`, body `notif.engine_start_failed`,
 the engine reason as informative text). Both start sites use it —
 `_continue_start_after_disclaimer` and `_retry_after_auth_fix` — so a start that
@@ -41,7 +49,7 @@ silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
 ### Remote endpoint icon (`_update_path_display`)
 
-`main_window.py::MainWindow._update_path_display` picks the remote icon from
+`main_window/start.py::MainWindow._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the bootnode no longer changes the icon).
 
@@ -50,19 +58,19 @@ always `network-p2p` (the bootnode no longer changes the icon).
 `MainWindow` answers the client's trust refusals with dialogs instead of a
 terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
-- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window.py::MainWindow._on_pairing_needed` / `main_window.py::MainWindow._on_fingerprint_changed`)
+- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window/trust.py::MainWindow._on_pairing_needed` / `main_window/trust.py::MainWindow._on_fingerprint_changed`)
   route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `bootnode`/`server`
-  → the helpers returned by `_host_trust_actions` (`main_window.py::MainWindow._host_trust_actions`) (`add_bootnode_trust`/
+  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::MainWindow._host_trust_actions`) (`add_bootnode_trust`/
   `remove_bootnode_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
-  `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`main_window.py::MainWindow`) via
-  `_should_prompt_trust` (`main_window.py::MainWindow._should_prompt_trust`), cleared on start/stop (`main_window.py::MainWindow`): a
+  `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`main_window/window.py::MainWindow`) via
+  `_should_prompt_trust` (`main_window/trust.py::MainWindow._should_prompt_trust`), cleared on start/stop (`main_window/window.py::MainWindow`): a
   repeated refusal for the same fingerprint reuses no dialog, a changed one
   re-prompts. A dismissed or ignored dialog never touches the stored pin (the
   host branch acts only on the explicit Trust/Forget buttons).
-- `_maybe_offer_restart` (`main_window.py::MainWindow._maybe_offer_restart`) offers to restart a stopped sync after a
+- `_maybe_offer_restart` (`main_window/trust.py::MainWindow._maybe_offer_restart`) offers to restart a stopped sync after a
   bootnode/server pin change (those failures are fatal; mDNS refusals are not).
-- `_ensure_bootnode_trust` (`main_window.py::MainWindow._ensure_bootnode_trust`) and `_ensure_server_trust` (`main_window.py::MainWindow._ensure_server_trust`) are the
-  start pre-flights, both delegating to `_confirm_host_trust` (`main_window.py::MainWindow._confirm_host_trust`): skip
+- `_ensure_bootnode_trust` (`main_window/trust.py::MainWindow._ensure_bootnode_trust`) and `_ensure_server_trust` (`main_window/trust.py::MainWindow._ensure_server_trust`) are the
+  start pre-flights, both delegating to `_confirm_host_trust` (`main_window/trust.py::MainWindow._confirm_host_trust`): skip
   unless the mode/policy/URL apply; skip when the known-hosts store already holds
   `host:port`; else `fetch_*_fingerprint` → confirm → `add_*_trust`. They write
   the shared known-hosts stores (no GUI-only fingerprint settings).

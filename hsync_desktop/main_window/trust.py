@@ -1,0 +1,437 @@
+# mypy: disable-error-code="attr-defined, has-type, assignment, call-overload, arg-type, operator, index, union-attr, return-value"
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025 Alberto Basso
+
+"""
+Main window for HSYNC Desktop.
+
+Contains:
+- Action bar: Start/Stop, Sync, Preview, path selector, Settings
+- File panel: real-time file transfer table with detail panel
+- Log viewer: real-time scrolling log output
+- Bottom bar: status indicator, peers, transfer stats (right-aligned)
+
+UI is loaded from ui/main_window.ui (Qt Designer).
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Callable
+from typing import cast
+from urllib.parse import urlsplit
+
+from hsync_common.endpoint import parse_host_port
+from hsync_common.format import format_bytes
+from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QCloseEvent,
+    QDesktopServices,
+    QFontMetrics,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
+
+from hsync_desktop.bandwidth_dialog import BandwidthDialog
+from hsync_desktop.config import (
+    DEFAULT_P2P_BOOTNODE_TRUST,
+    DEFAULT_P2P_ENABLED,
+    DEFAULT_SERVER_TRUST,
+)
+from hsync_desktop.crypto import decrypt_value
+from hsync_desktop.engine import (
+    HsyncEngine,
+    add_bootnode_trust,
+    add_peer_pin,
+    add_server_trust,
+    fetch_bootnode_fingerprint,
+    fetch_server_fingerprint,
+    find_hsync_binary,
+    list_bootnode_trust,
+    list_server_trust,
+    remove_bootnode_trust,
+    remove_peer_pin,
+    remove_server_trust,
+    supports_peer_trust,
+)
+from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.i18n import register_language_callback, tr
+from hsync_desktop.notifications import NotificationManager
+from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
+from hsync_desktop.settings import (
+    SETTINGS_APP,
+    SETTINGS_ORG,
+    ApiKeyDialog,
+    P2PKeyDialog,
+    SettingsDialog,
+    are_notifications_enabled,
+    build_hsync_args,
+    get_saved_theme,
+    is_auto_sync_enabled,
+    is_log_panel_visible,
+)
+from hsync_desktop.system_tray import SystemTray
+from hsync_desktop.themes import (
+    COLOR_CONNECTED,
+    COLOR_DISCONNECTED,
+    COLOR_WAITING,
+    apply_theme,
+)
+from hsync_desktop.ui.loader import load_ui_widget
+
+# ── Button styles ────────────────────────────────────────────────────────────
+_BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
+_BTN_START_ACTIVE = (
+    f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
+    "QPushButton:hover { background-color: #278a39; }"
+    "QPushButton:pressed { background-color: #1f7a30; }"
+)
+_BTN_STOP_ACTIVE = (
+    f"QPushButton {{ background-color: #CF222E; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
+    "QPushButton:hover { background-color: #b71d28; }"
+    "QPushButton:pressed { background-color: #a01822; }"
+)
+_BTN_REFRESH_ACTIVE = (
+    f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
+    f" border: none; {_BTN_PAD} }}"
+    "QPushButton:hover { background-color: #0860CA; }"
+    "QPushButton:pressed { background-color: #0757BA; }"
+)
+_BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
+
+
+class TrustMixin:
+    def _trust_identity_key(self, scope: str, cid: str, address: str) -> tuple[str, str]:
+        """Dedupe key for a trust prompt: the scope plus the device/endpoint id."""
+        return (scope, cid or address or "")
+
+    def _should_prompt_trust(self, scope: str, cid: str, address: str, fingerprint: str) -> bool:
+        """Whether a trust refusal should open a dialog (dedupe per identity).
+
+        Returns False when the same fingerprint was already prompted for this
+        identity, so the client's continuous retries do not reopen a dialog the
+        user already dismissed; records the fingerprint otherwise.
+        """
+        key = self._trust_identity_key(scope, cid, address)
+        if self._trust_prompted.get(key) == fingerprint:
+            return False
+        self._trust_prompted[key] = fingerprint
+        return True
+
+    def _trust_identity(self, scope: str, cid: str, address: str) -> str:
+        """Human-readable identity for a trust prompt (device ID or host:port)."""
+        if scope == "master":
+            return cid
+        endpoint = parse_host_port(address) if address else None
+        if endpoint is None:
+            return address or "?"
+        return f"{endpoint.authority}:{endpoint.port}" if endpoint.port else endpoint.authority
+
+    def _host_port_from_address(self, address: str) -> tuple[str, int | None]:
+        """Split a bootnode/server ``peer_address`` into (host, port) for the CLI."""
+        endpoint = parse_host_port(address) if address else None
+        if endpoint is None:
+            return address or "", None
+        return endpoint.host, endpoint.port
+
+    @staticmethod
+    def _host_trust_actions(
+        scope: str,
+    ) -> tuple[Callable[..., bool], Callable[..., bool], str] | None:
+        """(add, remove, label) for a host:port trust scope (bootnode/server).
+
+        Resolved at call time (not captured at import) so tests can monkeypatch
+        the engine helpers; ``master`` pins a P2P peer and is handled separately.
+        """
+        if scope == "bootnode":
+            return add_bootnode_trust, remove_bootnode_trust, "Bootnode"
+        if scope == "server":
+            return add_server_trust, remove_server_trust, "Server"
+        return None
+
+    def _maybe_offer_restart(self) -> None:
+        """Offer to restart a stopped sync after a bootnode pin change."""
+        if self._engine.is_running or not self._local_path:
+            return
+        answer = QMessageBox.question(
+            self,
+            tr("dialogs.restart_title"),
+            tr("dialogs.restart_body"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self._on_start()
+
+    def _accept_peer_pin(self, cid: str, fingerprint: str) -> None:
+        """Pin a P2P master fingerprint through the known-peers store."""
+        binary = find_hsync_binary()
+        if not binary:
+            return
+        if not supports_peer_trust(binary):
+            QMessageBox.warning(
+                self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
+            )
+            return
+        bucket = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str))
+        if add_peer_pin(binary, cid, bucket, fingerprint):
+            self._append_log(f"🔒 Peer {cid} pinned.")
+        else:
+            QMessageBox.warning(
+                self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
+            )
+
+    @Slot(str, str, str, str)
+    def _on_pairing_needed(self, scope: str, cid: str, address: str, fingerprint: str) -> None:
+        """Prompt for a first-seen fingerprint that strict pairing refuses."""
+        if not self._should_prompt_trust(scope, cid, address, fingerprint):
+            return
+        peer = self._trust_identity(scope, cid, address)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("dialogs.pairing_needed_title"))
+        box.setText(tr("dialogs.pairing_needed_body").format(peer=peer, fingerprint=fingerprint))
+        trust_btn = box.addButton(tr("dialogs.trust_accept"), QMessageBox.ButtonRole.AcceptRole)
+        ignore_btn = box.addButton(tr("dialogs.trust_ignore"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(ignore_btn)
+        box.exec()
+        if box.clickedButton() is not trust_btn:
+            self._append_log("⚠ Peer not trusted.")
+            return
+        if scope == "master":
+            self._accept_peer_pin(cid, fingerprint)
+            return
+        action = self._host_trust_actions(scope)
+        if action is None:
+            return
+        add_fn, _remove_fn, label = action
+        host, port = self._host_port_from_address(address)
+        binary = find_hsync_binary()
+        if not binary or not add_fn(binary, host, fingerprint, port):
+            QMessageBox.warning(
+                self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
+            )
+            return
+        self._append_log(f"🔒 {label} {peer} trusted.")
+        self._maybe_offer_restart()
+
+    @Slot(str, str, str, str)
+    def _on_fingerprint_changed(self, scope: str, cid: str, address: str, fingerprint: str) -> None:
+        """Prompt when a pinned fingerprint no longer matches (possible MITM)."""
+        if not self._should_prompt_trust(scope, cid, address, fingerprint):
+            return
+        peer = self._trust_identity(scope, cid, address)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("dialogs.peer_changed_title"))
+        box.setText(tr("dialogs.peer_changed_body").format(peer=peer, fingerprint=fingerprint))
+        trust_btn = box.addButton(tr("dialogs.trust_accept"), QMessageBox.ButtonRole.AcceptRole)
+        forget_btn = box.addButton(
+            tr("dialogs.trust_forget"), QMessageBox.ButtonRole.DestructiveRole
+        )
+        ignore_btn = box.addButton(tr("dialogs.trust_ignore"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(ignore_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        binary = find_hsync_binary()
+        if not binary:
+            return
+        if scope == "master":
+            if clicked is trust_btn or clicked is forget_btn:
+                bucket = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str))
+                if clicked is trust_btn:
+                    add_peer_pin(binary, cid, bucket, fingerprint)
+                else:
+                    remove_peer_pin(binary, cid, bucket)
+            return
+        action = self._host_trust_actions(scope)
+        if action is None:
+            return
+        add_fn, remove_fn, _label = action
+        host, port = self._host_port_from_address(address)
+        if clicked is trust_btn:
+            ok = add_fn(binary, host, fingerprint, port)
+        elif clicked is forget_btn:
+            ok = remove_fn(binary, host, port)
+        else:
+            # Ignored or dismissed (window closed): never touch the stored pin.
+            return
+        if not ok:
+            QMessageBox.warning(self, tr("dialogs.peer_changed_title"), tr("dialogs.trust_failed"))
+            return
+        self._maybe_offer_restart()
+
+    @Slot(str)
+    def _on_auth_error(self, _error_msg: str) -> None:
+        """Handle authentication error by showing the appropriate dialog."""
+        # Stop the current process
+        self._engine.stop()
+
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
+
+        if p2p_enabled:
+            # p2p mode: show p2p key dialog
+            self._append_log(f"⚠ {tr('p2pauth.error_message')}")
+            dlg: P2PKeyDialog | ApiKeyDialog = P2PKeyDialog(self)
+            if dlg.exec() == P2PKeyDialog.DialogCode.Accepted:
+                self._append_log(f"--- {tr('p2pauth.retrying')} ---")
+                self._retry_after_auth_fix()
+            else:
+                self._reset_ui_stopped()
+        else:
+            # Server mode: show API key dialog
+            self._append_log(f"⚠ {tr('apikey.error_message')}")
+            dlg = ApiKeyDialog(self)
+            if dlg.exec() == ApiKeyDialog.DialogCode.Accepted:
+                self._append_log("--- Retrying with new API key... ---")
+                self._retry_after_auth_fix()
+            else:
+                self._reset_ui_stopped()
+
+    def _retry_after_auth_fix(self) -> None:
+        """Restart sync in dry-run mode after credentials have been updated."""
+        # Immediately update status bar to show "connecting" state
+        self._on_status("connecting")
+        # Show info banner for extra visibility
+        self._show_info_banner(f"🔄 {tr('banner.reconnecting')}")
+        local_path = self._local_path
+        if local_path:
+            args = build_hsync_args(local_path, force_dry_run=True)
+            self._log_view.clear()
+            self._file_panel.load_local_files(local_path)
+            self._awaiting_preview_for_sync = True
+            self._is_dry_run_preview = True
+            self._pending_sync_path = local_path
+            if self._start_engine(args):
+                self._btn_start.setEnabled(False)
+                self._btn_stop.setEnabled(True)
+                self._btn_refresh.setEnabled(False)
+                if self._tray:
+                    self._tray.set_running(True)
+                self._apply_button_styles()
+                return
+        self._hide_info_banner()
+        self._reset_ui_stopped()
+
+    def _ensure_bootnode_trust(self) -> bool:
+        """Resolve bootnode trust before starting p2p (ADR-0035).
+
+        Returns ``False`` to abort the start.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if not bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
+            return True
+        host = str(s.value("p2p/bootnode", "", str)).strip()
+        if not host:
+            return True
+        if str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
+            return True
+        # The bootnode setting may carry a port ("[IPv6]:port"): normalize it to
+        # its unbracketed host and use the real port for the trust store/fetch.
+        try:
+            endpoint = parse_host_port(host)
+        except ValueError:
+            return True
+        return self._confirm_host_trust(
+            endpoint.host,
+            endpoint.port or 443,
+            list_fn=list_bootnode_trust,
+            fetch_fn=fetch_bootnode_fingerprint,
+            add_fn=add_bootnode_trust,
+            label="Bootnode",
+        )
+
+    def _ensure_server_trust(self) -> bool:
+        """Resolve sync-server trust before starting (ADR-0036).
+
+        Mirrors the bootnode pre-flight for server mode. Returns ``False`` to abort.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
+            return True  # server trust applies to server mode only
+        if str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)) != "ask":
+            return True
+        url = str(s.value("connection/server_url", "", str)).strip()
+        endpoint = urlsplit(url) if url else None
+        host = (endpoint.hostname or "") if endpoint else ""
+        if not host:
+            return True
+        port = (endpoint.port if endpoint else None) or (
+            443 if endpoint and endpoint.scheme == "https" else 9753
+        )
+        return self._confirm_host_trust(
+            host,
+            port,
+            list_fn=list_server_trust,
+            fetch_fn=fetch_server_fingerprint,
+            add_fn=add_server_trust,
+            label="Server",
+        )
+
+    def _confirm_host_trust(
+        self,
+        host: str,
+        port: int,
+        *,
+        list_fn: Callable[..., list[dict] | None],
+        fetch_fn: Callable[..., str | None],
+        add_fn: Callable[..., bool],
+        label: str,
+    ) -> bool:
+        """Pin an unknown ``host:port`` after operator confirmation, or skip.
+
+        Shared by the bootnode and server pre-flights: a store hit returns
+        immediately (no network call); otherwise the client's fingerprint probe
+        runs, the operator confirms, and the pin is written. The client cannot
+        prompt without a terminal, so the GUI answers policy ``ask`` itself.
+        """
+        binary = find_hsync_binary()
+        if not binary:
+            return True  # the engine reports the missing binary
+        entries = list_fn(binary)
+        if entries is not None and any(
+            entry.get("host") == host and entry.get("port") == port for entry in entries
+        ):
+            return True
+        fingerprint = fetch_fn(binary, host, port)
+        if not fingerprint:
+            QMessageBox.warning(
+                self,
+                tr("dialogs.bootnode_trust_title"),
+                tr("dialogs.bootnode_unreachable").format(host=host),
+            )
+            return False
+        answer = QMessageBox.question(
+            self,
+            tr("dialogs.bootnode_trust_title"),
+            tr("dialogs.bootnode_trust_body").format(host=host, fingerprint=fingerprint),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            self._append_log(f"⚠ {label} certificate not accepted; start cancelled.")
+            return False
+        if not add_fn(binary, host, fingerprint, port):
+            QMessageBox.warning(
+                self, tr("dialogs.bootnode_trust_title"), tr("dialogs.trust_failed")
+            )
+            return False
+        return True

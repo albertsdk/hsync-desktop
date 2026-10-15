@@ -5,13 +5,28 @@
 
 from __future__ import annotations
 
+import importlib
+
 import pytest
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from hsync_desktop.engine import HsyncEngine
 from hsync_desktop.i18n import tr
 from hsync_desktop.main_window import MainWindow
+from hsync_desktop.settings import SettingsDialog
+
+_WINDOW_MODULES = tuple(
+    importlib.import_module(f"hsync_desktop.main_window.{name}")
+    for name in ("actions", "events", "lifecycle", "start", "trust", "ui", "window")
+)
+
+
+def _patch_all(monkeypatch, name: str, value) -> None:
+    """Patch *name* in every main_window submodule that defines it."""
+    for module in _WINDOW_MODULES:
+        if hasattr(module, name):
+            monkeypatch.setattr(module, name, value)
 
 
 def _settings(tmp_path) -> QSettings:
@@ -44,12 +59,14 @@ def _resolve_dialog(monkeypatch, label: str | None) -> list[int]:
 
 
 @pytest.fixture
-def window(qtbot, monkeypatch, tmp_path):
-    import hsync_desktop.main_window as mw
+def settings(tmp_path):
+    return _settings(tmp_path)
 
-    s = _settings(tmp_path)
-    monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
-    monkeypatch.setattr(mw, "find_hsync_binary", lambda: "/fake/hsync")
+
+@pytest.fixture
+def window(qtbot, monkeypatch, settings):
+    _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+    _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
     engine = HsyncEngine(binary_path="/fake/hsync")
     win = MainWindow(engine)
     qtbot.addWidget(win)
@@ -59,10 +76,9 @@ def window(qtbot, monkeypatch, tmp_path):
 class TestOpenSettings:
     def test_second_open_raises_existing_dialog(self, window, monkeypatch, qtbot):
         """A tray re-click raises the open dialog instead of stacking a new one."""
-        import hsync_desktop.main_window as mw
 
         created: list[object] = []
-        real_dialog = mw.SettingsDialog
+        real_dialog = SettingsDialog
 
         class _SpyDialog(real_dialog):  # type: ignore[misc]
             def __init__(self, *args, **kwargs):
@@ -70,7 +86,7 @@ class TestOpenSettings:
                 created.append(self)
 
         raised: list[str] = []
-        monkeypatch.setattr(mw, "SettingsDialog", _SpyDialog)
+        _patch_all(monkeypatch, "SettingsDialog", _SpyDialog)
         monkeypatch.setattr(_SpyDialog, "raise_", lambda self: raised.append("raise"))
         monkeypatch.setattr(_SpyDialog, "activateWindow", lambda self: raised.append("activate"))
         monkeypatch.setattr(_SpyDialog, "exec", lambda self: 0)
@@ -84,9 +100,8 @@ class TestOpenSettings:
 
     def test_reference_cleared_after_exec(self, window, monkeypatch):
         """The guard resets once the modal dialog closes."""
-        import hsync_desktop.main_window as mw
 
-        monkeypatch.setattr(mw.SettingsDialog, "exec", lambda self: 0)
+        monkeypatch.setattr(SettingsDialog, "exec", lambda self: 0)
         window._open_settings()
         assert window._settings_dialog is None
 
@@ -110,11 +125,10 @@ class TestRemoteIcon:
 
     def test_p2p_without_bootnode_uses_p2p_icon(self, window, monkeypatch, tmp_path):
         """p2p + no bootnode shows the peer icon."""
-        import hsync_desktop.main_window as mw
 
         s = _settings(tmp_path)
         s.setValue("p2p/bootnode", "")
-        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
         window._local_path = str(tmp_path)
         names = self._run_and_record(window, monkeypatch)
         assert "network-p2p" in names
@@ -123,12 +137,11 @@ class TestRemoteIcon:
 
     def test_server_mode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
         """Server mode always shows the cloud icon."""
-        import hsync_desktop.main_window as mw
 
         s = _settings(tmp_path)
         s.setValue("p2p/enabled", False)
         s.setValue("connection/server_url", "https://srv.example.com:9753")
-        monkeypatch.setattr(mw, "QSettings", lambda *a, **k: s)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
         window._local_path = str(tmp_path)
         names = self._run_and_record(window, monkeypatch)
         assert "network-cloud" in names
@@ -137,31 +150,29 @@ class TestRemoteIcon:
 
 class TestEnsureBootnodeTrust:
     def test_skips_when_the_host_is_already_trusted(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "list_bootnode_trust",
             lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
         )
         fetched: list[tuple] = []
-        monkeypatch.setattr(
-            mw, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "f" * 64
+        _patch_all(
+            monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "f" * 64
         )
         assert window._ensure_bootnode_trust() is True
         assert fetched == []
 
     def test_prompts_and_pins_when_unknown(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
-        monkeypatch.setattr(mw, "list_bootnode_trust", lambda binary: [])
+        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
         fetched: list[tuple] = []
-        monkeypatch.setattr(
-            mw, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "a" * 64
+        _patch_all(
+            monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "a" * 64
         )
         added: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "add_bootnode_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
@@ -173,22 +184,20 @@ class TestEnsureBootnodeTrust:
         assert added == [("boot.example.net", 443)]
 
     def test_aborts_when_the_user_declines(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
-        monkeypatch.setattr(mw, "list_bootnode_trust", lambda binary: [])
-        monkeypatch.setattr(mw, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
+        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
         assert window._ensure_bootnode_trust() is False
 
 
 class TestTrustDialogs:
     def test_bootnode_changed_trust_calls_add(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_accept"))
         added: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "add_bootnode_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
@@ -196,12 +205,11 @@ class TestTrustDialogs:
         assert added == [("boot.example.net", 443)]
 
     def test_bootnode_changed_forget_removes(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_forget"))
         removed: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "remove_bootnode_trust",
             lambda binary, host, port=None: removed.append((host, port)) or True,
         )
@@ -211,25 +219,23 @@ class TestTrustDialogs:
     def test_bootnode_changed_dismiss_leaves_the_pin(self, window, monkeypatch):
         # Regression: dismissing the dialog (window close → no clicked button)
         # must never run the destructive "forget" on the stored pin.
-        import hsync_desktop.main_window as mw
 
         _resolve_dialog(monkeypatch, None)
         touched: list[str] = []
-        monkeypatch.setattr(mw, "add_bootnode_trust", lambda *a, **k: touched.append("add") or True)
-        monkeypatch.setattr(
-            mw, "remove_bootnode_trust", lambda *a, **k: touched.append("remove") or True
+        _patch_all(monkeypatch, "add_bootnode_trust", lambda *a, **k: touched.append("add") or True)
+        _patch_all(
+            monkeypatch, "remove_bootnode_trust", lambda *a, **k: touched.append("remove") or True
         )
         window._on_fingerprint_changed("bootnode", "", "boot.example.net:443", "a" * 64)
         assert touched == []
 
     def test_master_pairing_trust_pins_the_peer(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_accept"))
-        monkeypatch.setattr(mw, "supports_peer_trust", lambda *a, **k: True)
+        _patch_all(monkeypatch, "supports_peer_trust", lambda *a, **k: True)
         pinned: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "add_peer_pin",
             lambda binary, cid, bucket, fingerprint: pinned.append((cid, fingerprint)) or True,
         )
@@ -237,11 +243,10 @@ class TestTrustDialogs:
         assert pinned == [("master-1", "b" * 64)]
 
     def test_pairing_needed_is_deduped_and_reprompts_on_change(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
         calls = _resolve_dialog(monkeypatch, tr("dialogs.trust_ignore"))
-        monkeypatch.setattr(mw, "supports_peer_trust", lambda *a, **k: True)
-        monkeypatch.setattr(mw, "add_peer_pin", lambda *a, **k: True)
+        _patch_all(monkeypatch, "supports_peer_trust", lambda *a, **k: True)
+        _patch_all(monkeypatch, "add_peer_pin", lambda *a, **k: True)
         window._on_pairing_needed("master", "master-1", "10.0.0.2", "b" * 64)
         window._on_pairing_needed("master", "master-1", "10.0.0.2", "b" * 64)
         assert len(calls) == 1  # repeated identical refusal is suppressed
@@ -262,21 +267,20 @@ class TestEnsureServerTrust:
         # The fixture enables p2p: server trust is not consulted.
         assert window._ensure_server_trust() is True
 
-    def test_prompts_and_pins_when_unknown(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
+    def test_prompts_and_pins_when_unknown(self, window, settings, monkeypatch):
 
-        s = mw.QSettings()
+        s = settings
         s.setValue("p2p/enabled", False)
         s.setValue("connection/server_url", "https://server.example.com:9753")
         s.setValue("connection/server_trust", "ask")
-        monkeypatch.setattr(mw, "list_server_trust", lambda binary: [])
+        _patch_all(monkeypatch, "list_server_trust", lambda binary: [])
         fetched: list[tuple] = []
-        monkeypatch.setattr(
-            mw, "fetch_server_fingerprint", lambda *a, **k: fetched.append(a) or "d" * 64
+        _patch_all(
+            monkeypatch, "fetch_server_fingerprint", lambda *a, **k: fetched.append(a) or "d" * 64
         )
         added: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "add_server_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
@@ -285,23 +289,21 @@ class TestEnsureServerTrust:
         assert fetched[0][1:] == ("server.example.com", 9753)
         assert added == [("server.example.com", 9753)]
 
-    def test_no_url_skips(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
+    def test_no_url_skips(self, window, settings, monkeypatch):
 
-        s = mw.QSettings()
+        s = settings
         s.setValue("p2p/enabled", False)
         s.setValue("connection/server_url", "")
         s.setValue("connection/server_trust", "ask")
-        monkeypatch.setattr(mw, "list_server_trust", lambda binary: pytest.fail("must not probe"))
+        _patch_all(monkeypatch, "list_server_trust", lambda binary: pytest.fail("must not probe"))
         assert window._ensure_server_trust() is True
 
     def test_server_changed_trust_calls_add(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_accept"))
         added: list[tuple] = []
-        monkeypatch.setattr(
-            mw,
+        _patch_all(
+            monkeypatch,
             "add_server_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
@@ -313,9 +315,9 @@ class TestShutdown:
     """Quit paths: the tray action confirms while syncing, Ctrl+C never prompts."""
 
     @staticmethod
-    def _record_quit(monkeypatch, mw) -> list[int]:
+    def _record_quit(monkeypatch) -> list[int]:
         calls: list[int] = []
-        monkeypatch.setattr(mw.QApplication, "quit", staticmethod(lambda: calls.append(1)))
+        monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: calls.append(1)))
         return calls
 
     @staticmethod
@@ -348,9 +350,8 @@ class TestShutdown:
         return tray
 
     def test_shutdown_quits_without_prompt(self, window, monkeypatch, _tray):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
         prompts: list[int] = []
         monkeypatch.setattr(QMessageBox, "exec", lambda self: prompts.append(1) or 0)
 
@@ -361,9 +362,8 @@ class TestShutdown:
         assert quit_calls == [1]
 
     def test_quit_while_syncing_can_be_cancelled(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         self._answer(monkeypatch, QMessageBox.StandardButton.No)
 
@@ -372,9 +372,8 @@ class TestShutdown:
         assert quit_calls == []  # user declined; nothing shut down
 
     def test_quit_while_syncing_stops_engine_and_quits(self, window, monkeypatch):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         stopped: list[int] = []
         monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
@@ -401,18 +400,16 @@ class TestShutdown:
             signal_mod.signal(signal_mod.SIGINT, previous)
 
     def test_sigint_quits_when_idle(self, window, monkeypatch, _tray):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
 
         self._fire_sigint(window)
 
         assert quit_calls == [1]
 
     def test_sigint_confirms_while_syncing_and_can_be_cancelled(self, window, monkeypatch, _tray):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         self._answer(monkeypatch, QMessageBox.StandardButton.No)
 
@@ -421,9 +418,8 @@ class TestShutdown:
         assert quit_calls == []  # user declined; sync keeps running
 
     def test_sigint_confirms_while_syncing_and_quits_on_yes(self, window, monkeypatch, _tray):
-        import hsync_desktop.main_window as mw
 
-        quit_calls = self._record_quit(monkeypatch, mw)
+        quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         stopped: list[int] = []
         monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
@@ -467,7 +463,6 @@ class TestEngineStartFailure:
         assert shown == []
 
     def test_continue_after_disclaimer_reports_start_failure(self, window, monkeypatch, tmp_path):
-        import hsync_desktop.main_window as mw
 
         shown = self._capture_dialogs(monkeypatch)
         # Skip the pre-flight prompts so the start attempt is reached directly.
@@ -476,7 +471,7 @@ class TestEngineStartFailure:
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
         monkeypatch.setattr(window, "_ensure_bootnode_trust", lambda: True)
         monkeypatch.setattr(window, "_ensure_server_trust", lambda: True)
-        monkeypatch.setattr(mw, "build_hsync_args", lambda *a, **k: ["p2p"])
+        _patch_all(monkeypatch, "build_hsync_args", lambda *a, **k: ["p2p"])
         window._local_path = str(tmp_path)
         window._pending_sync_path = str(tmp_path)
 
