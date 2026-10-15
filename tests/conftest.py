@@ -13,6 +13,38 @@ from collections.abc import Generator
 
 import pytest
 
+from tests._helpers import _patch_all, _settings
+
+
+@pytest.fixture
+def dialog(qtbot):
+    """A SettingsDialog registered with qtbot."""
+    from hsync_desktop.settings import SettingsDialog
+
+    dlg = SettingsDialog()
+    qtbot.addWidget(dlg)
+    return dlg
+
+
+@pytest.fixture
+def settings(tmp_path):
+    """An isolated QSettings store with the p2p pre-flight defaults."""
+    return _settings(tmp_path)
+
+
+@pytest.fixture
+def window(qtbot, monkeypatch, settings):
+    """A MainWindow with QSettings and binary discovery patched."""
+    from hsync_desktop.engine import HsyncEngine
+    from hsync_desktop.main_window import MainWindow
+
+    _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+    _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
+    engine = HsyncEngine(binary_path="/fake/hsync")
+    win = MainWindow(engine)
+    qtbot.addWidget(win)
+    return win
+
 
 @pytest.fixture(autouse=True)
 def _reset_i18n_callbacks() -> Generator[None]:
