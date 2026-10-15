@@ -32,8 +32,8 @@ Pick one method and follow it end to end:
 - [Method 8 — From source](getting-started-source.md): clone and run.
 
 Start from the [Getting Started](getting-started.md) chooser for a comparison
-table that helps you pick. There is no Docker or server mode: HSYNC Desktop is a
-desktop application.
+table that helps you pick. HSYNC Desktop ships as desktop packages only (there is
+no Docker image): it is a desktop application that drives the bundled client.
 
 ### 2. Configure a connection
 

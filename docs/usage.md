@@ -32,8 +32,8 @@ at login.
 Open **Settings** and fill in the connection for your mode — **p2p Mode**
 (peer-to-peer, no server) or **Server Mode** (against a central HSYNC server).
 Every setting is documented in the
-[Configuration Reference](configuration.md), including the Sync, p2p, Server
-Mode, Log and Appearance tabs and the trusted-key stores.
+[Configuration Reference](configuration.md), including the Sync, p2p Mode,
+Server Mode, Log and Appearance tabs and the trusted-key stores.
 
 ## Trust prompts while running
 
@@ -59,7 +59,7 @@ the `hsync` CLI see the same keys. The stores can also be edited from
 3. The log panel streams structured messages from the engine. You can hide or
    show it from the view options; the label catalogue is in
    [Log Labels](log-labels.md).
-4. With watch / auto-sync enabled, the app keeps running and re-syncs on changes
+4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
 
 ## Secrets
@@ -92,8 +92,10 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 - **TLS errors in Server Mode** — verify the URL and certificate; enable
   *No verification* only on a trusted network for self-signed certificates.
 - **Devices not found in p2p Mode** — ensure all devices are on the same subnet
-  with mDNS allowed through the firewall, and share the same password. For
-  devices on different networks, set a **relay server** in the p2p tab.
+  with mDNS allowed through the firewall, and that they use the same **group
+  name** (a device with no group only sees other no-group devices). A shared
+  password is only needed to authorize writes; devices on different networks
+  need a **relay server** set in the p2p tab.
 - **p2p authentication failed** — a device you are syncing with requires a shared
   password that this device is missing or has differently. The app stops and
   opens the password prompt so you can enter the correct one (it is saved and the

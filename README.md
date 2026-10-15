@@ -38,21 +38,17 @@ The desktop drives the `hsync` client as a subprocess over an explicit, versione
 
 It offers the same core capabilities as [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md), plus a graphical layer on top:
 
-- 🖥️ Real-time log viewer with scrolling output
-- 📊 Status panel: connection state, master/client role, bucket, group, peers
-- 📈 Transfer statistics (files and bytes sent/received)
+- ▶️ Start/Stop/Sync controls with a local directory selector
 - 📂 File transfer panel with per-file progress, status and ETA
-- ▶️ Start/Stop/Sync controls with local directory selector
 - 👀 Sync preview/summary dialog before applying changes
+- 📊 Status panel: connection state, primary/secondary role, bucket, group, peers and transfer statistics
+- 🖥️ Real-time log viewer
 - 🚦 Bandwidth-limit dialog (transfer throttling)
-- 🔔 Desktop push notifications for key events (configurable)
-- ⚙️ Settings dialog organized by category (Sync, Server Mode, P2P Mode, Log, Appearance)
-- 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion patterns)
-- 🌍 Multi-language UI (EN/IT/DE/ES/FR/PT/ZH/RU/NL/PL/JA)
-- 🌙 Light and dark themes
+- 🔔 Desktop notifications for key events (configurable)
+- 🙈 Hidden-file controls + `.hsyncignore` editor (gitignore-style exclusion)
 - 📌 System tray integration with context menu
-- 🔒 Single-instance lock and splash screen on startup
-- 💾 Persistent settings and window geometry via QSettings
+- 🌍 Multi-language UI (11 languages)
+- 🌙 Light and dark themes
 
 ## Privacy & security
 
