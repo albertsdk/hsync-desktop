@@ -266,7 +266,7 @@ translations: dict[str, str] = {
     "tip.p2p_port": "p2p 服务使用的端口（0 = 自动）。",
     "tip.discovery_timeout": "搜索附近其他设备的时长。",
     "tip.ntp_hosts": "用于在设备之间对齐时钟的时间服务器（留空 = 内置默认值；条目可包含端口，例如 主机:端口）。",
-    "tip.force_master": "在 p2p 模式下始终将此设备保持为主设备",
+    "tip.force_master": "在 p2p 模式下优选用此设备作为主设备（已在运行的主设备会保留其角色）",
     "tip.never_master": "永不将此设备设为主设备；它始终保持为从设备",
     "tip.require_pairing": "在新设备首次连接时要求确认，而不是自动信任。",
     "tip.verbose": "启用详细的调试级日志记录",
@@ -387,6 +387,7 @@ translations: dict[str, str] = {
     "log.clear": "清除日志",
     # File context menu
     "ctx.open": "打开",
+    "ctx.open_containing": "打开所在文件夹",
     "ctx.open_with": "打开方式…",
     "ctx.copy_to": "复制到…",
     "ctx.rename": "重命名",

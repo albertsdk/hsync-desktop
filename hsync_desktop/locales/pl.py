@@ -266,7 +266,7 @@ translations: dict[str, str] = {
     "tip.p2p_port": "Port używany przez usługę p2p (0 = automatyczny).",
     "tip.discovery_timeout": "Jak długo szukać innych urządzeń w pobliżu.",
     "tip.ntp_hosts": "Serwery czasu używane do synchronizacji zegarów między urządzeniami (puste = wbudowane wartości domyślne; wpisy mogą zawierać port, np. host:port).",
-    "tip.force_master": "Zawsze utrzymuj to urządzenie jako główne w trybie p2p",
+    "tip.force_master": "Preferuj to urządzenie jako główne w trybie p2p (aktywne już urządzenie główne zachowuje rolę)",
     "tip.never_master": "Nigdy nie ustawiaj tego urządzenia jako głównego; zawsze pozostaje podrzędne",
     "tip.require_pairing": "Pytaj o potwierdzenie przy pierwszym połączeniu nowego urządzenia, zamiast automatycznie mu zaufać.",
     "tip.verbose": "Włącz szczegółowe rejestrowanie na poziomie debugowania",
@@ -387,6 +387,7 @@ translations: dict[str, str] = {
     "log.clear": "Wyczyść dziennik",
     # File context menu
     "ctx.open": "Otwórz",
+    "ctx.open_containing": "Otwórz zawierający folder",
     "ctx.open_with": "Otwórz za pomocą…",
     "ctx.copy_to": "Kopiuj do…",
     "ctx.rename": "Zmień nazwę",

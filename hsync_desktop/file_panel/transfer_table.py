@@ -560,6 +560,7 @@ class FileTransferTable(QTableWidget):
 
         menu = QMenu(self)
         menu.addAction(tr("ctx.open"), lambda: self._ctx_open(transfer))
+        menu.addAction(tr("ctx.open_containing"), lambda: self._ctx_open_containing(transfer))
         if not is_dir:
             menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
         menu.addSeparator()
@@ -572,10 +573,26 @@ class FileTransferTable(QTableWidget):
         menu.exec(self.viewport().mapToGlobal(pos))
 
     def _ctx_open(self, transfer: FileTransfer) -> None:
-        """Open the file with the system default application."""
+        """Open the entry: navigate into a folder, open a file with the default app."""
+        if transfer.filepath.endswith("/"):
+            # A folder is opened by navigating into it inside the file panel
+            # (same as a double-click), not by launching the OS file manager.
+            self.navigate_to(transfer.filepath)
+            return
         abs_path = self._absolute_path(transfer)
         try:
             QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
+        except Exception as exc:
+            QMessageBox.warning(
+                self, tr("ctx.error_title"), tr("ctx.error_open").format(error=str(exc))
+            )
+
+    def _ctx_open_containing(self, transfer: FileTransfer) -> None:
+        """Reveal the entry in the OS file manager (its containing folder)."""
+        abs_path = self._absolute_path(transfer)
+        containing = os.path.dirname(abs_path.rstrip("/"))
+        try:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(containing))
         except Exception as exc:
             QMessageBox.warning(
                 self, tr("ctx.error_title"), tr("ctx.error_open").format(error=str(exc))

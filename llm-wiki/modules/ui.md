@@ -114,6 +114,13 @@ The devices tab shows
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
+The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
+offers `Open` — a **folder** navigates into it inside the panel (same as a
+double-click) while a **file** opens with the system default app — followed by
+`Open containing folder` (reveals the entry in the OS file manager:
+`FileTransferTable._ctx_open_containing`), then Open With / Copy To / Rename /
+Trash / Properties.
+
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).
 

@@ -335,3 +335,56 @@ class TestFileTypeMap:
             assert len(value) == 2, f"Value for {ext} is not a pair"
             assert isinstance(value[0], str), f"Icon name for {ext} is not a string"
             assert isinstance(value[1], str), f"Translation key for {ext} is not a string"
+
+
+class TestFileContextMenu:
+    """Right-click actions: ``Open`` navigates into folders (instead of launching
+    the OS file manager); a containing-folder entry reveals the entry."""
+
+    @staticmethod
+    def _entry(filepath: str) -> FileTransfer:
+        return FileTransfer(filepath=filepath, direction="—", size=0, status=TransferStatus.LOCAL)
+
+    @staticmethod
+    def _table(qtbot, monkeypatch, opened):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        class _FakeQDS:
+            @staticmethod
+            def openUrl(url):
+                opened.append(url.toLocalFile())
+                return True
+
+        monkeypatch.setattr(tt, "QDesktopServices", _FakeQDS)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        return table
+
+    def test_open_folder_navigates_into_it(self, qtbot, monkeypatch):
+        opened: list[str] = []
+        table = self._table(qtbot, monkeypatch, opened)
+        navigated: list[str] = []
+        monkeypatch.setattr(table, "navigate_to", lambda path: navigated.append(path))
+
+        table._ctx_open(self._entry("sub/"))
+
+        assert navigated == ["sub/"]
+        assert opened == []
+
+    def test_open_file_uses_the_default_app(self, qtbot, monkeypatch):
+        opened: list[str] = []
+        table = self._table(qtbot, monkeypatch, opened)
+
+        table._ctx_open(self._entry("sub/f.txt"))
+
+        assert opened == ["/base/sub/f.txt"]
+
+    def test_open_containing_reveals_the_parent_directory(self, qtbot, monkeypatch):
+        opened: list[str] = []
+        table = self._table(qtbot, monkeypatch, opened)
+
+        table._ctx_open_containing(self._entry("sub/"))
+        table._ctx_open_containing(self._entry("sub/f.txt"))
+
+        assert opened == ["/base", "/base/sub"]

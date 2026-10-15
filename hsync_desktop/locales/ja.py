@@ -266,7 +266,7 @@ translations: dict[str, str] = {
     "tip.p2p_port": "p2p サービスが使用するポート（0 = 自動）。",
     "tip.discovery_timeout": "近くの他のデバイスを検索する時間。",
     "tip.ntp_hosts": "デバイス間で時計を合わせるために使用するタイムサーバー（空 = 組み込みの既定値。エントリにはポートを含められます。例：ホスト:ポート）。",
-    "tip.force_master": "p2p モードでこのデバイスを常にプライマリに保つ",
+    "tip.force_master": "p2p モードでこのデバイスを優先的にプライマリにします（既に稼働中のプライマリは役割を維持します）",
     "tip.never_master": "このデバイスを決してプライマリにしない。常にセカンダリのままにする",
     "tip.require_pairing": "新しいデバイスが初めて接続するときに、自動的に信頼する代わりに確認を求めます。",
     "tip.verbose": "詳細なデバッグレベルのログ記録を有効にする",
@@ -387,6 +387,7 @@ translations: dict[str, str] = {
     "log.clear": "ログを消去",
     # File context menu
     "ctx.open": "開く",
+    "ctx.open_containing": "格納先フォルダーを開く",
     "ctx.open_with": "プログラムから開く…",
     "ctx.copy_to": "コピー先…",
     "ctx.rename": "名前を変更",

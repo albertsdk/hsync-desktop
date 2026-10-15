@@ -266,7 +266,7 @@ translations: dict[str, str] = {
     "tip.p2p_port": "Poort die door de p2p-service wordt gebruikt (0 = automatisch).",
     "tip.discovery_timeout": "Hoe lang wordt gezocht naar andere apparaten in de buurt.",
     "tip.ntp_hosts": "Tijdservers die worden gebruikt om klokken tussen apparaten uit te lijnen (leeg = ingebouwde standaardwaarden; vermeldingen kunnen een poort bevatten, bijv. host:poort).",
-    "tip.force_master": "Dit apparaat altijd primair houden in p2p-modus",
+    "tip.force_master": "Geef dit apparaat voorrang als primair in p2p-modus (een al actieve primaire behoudt de rol)",
     "tip.never_master": "Dit apparaat nooit primair maken; het blijft altijd secundair",
     "tip.require_pairing": "Om bevestiging vragen wanneer een nieuw apparaat voor het eerst verbinding maakt, in plaats van automatisch te vertrouwen.",
     "tip.verbose": "Uitgebreide logboekregistratie op foutopsporingsniveau inschakelen",
@@ -387,6 +387,7 @@ translations: dict[str, str] = {
     "log.clear": "Logboek wissen",
     # File context menu
     "ctx.open": "Openen",
+    "ctx.open_containing": "Bevattende map openen",
     "ctx.open_with": "Openen met…",
     "ctx.copy_to": "Kopiëren naar…",
     "ctx.rename": "Naam wijzigen",
