@@ -844,9 +844,9 @@ class TestShareNameLabel:
         assert order == ["bucket", "shared_path"]
 
     def test_p2p_group_titles_are_retranslated(self, dialog, monkeypatch):
-        import hsync_desktop.settings.dialog as dialog_mod
+        import hsync_desktop.settings.tab_translations as tr_mod
 
-        monkeypatch.setattr(dialog_mod, "tr", lambda key: f"<{key}>")
+        monkeypatch.setattr(tr_mod, "tr", lambda key: f"<{key}>")
         dialog._apply_translations()
         assert dialog._grp_p2p_mode.title() == "<settings.group.p2p_mode>"
         assert dialog._grp_p2p_advanced.title() == "<settings.group.advanced>"

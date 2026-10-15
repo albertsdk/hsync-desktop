@@ -25,6 +25,10 @@ emitted subcommand always agree.
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
+| tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_log_tab`, `settings/tab_builders.py::build_appearance_tab` (+ banner/icons/lang/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
+| tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX` | sync/p2p/server tab positions (shared by dialog + builders + layout) |
+| tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab` | regroup the Sync/p2p tabs into `QGroupBox` sections |
+| tab translations | `settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget |
 | form helpers | `settings/form_helpers.py::_replace_checkbox_with_toggle`, `settings/form_helpers.py::_maybe_tip`, `settings/form_helpers.py::_paired_label`, `settings/form_helpers.py::_set_field_tooltip`, `settings/form_helpers.py::_action_row`, `settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
 | `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
@@ -45,9 +49,9 @@ titles are refreshed in `_apply_translations`.
 **Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2), log
 (3), Appearance (4), sourced from `ui/settings_dialog.ui` (the p2p page precedes
 the Server Mode page). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` / `_SERVER_TAB_INDEX`
-(`settings/dialog.py::_P2P_TAB_INDEX`) name the positions; the force-primary-role
-prompts' tab jumps and the per-tab enable/disable handlers use them instead of
-literals.
+(`settings/tab_indices.py::_P2P_TAB_INDEX`) name the positions; the
+force-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
+them instead of literals.
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `force_master`,
 `never_master`, `require_pairing`) are disabled + unchecked when the probed

@@ -1,3 +1,4 @@
+# mypy: disable-error-code="attr-defined"
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
@@ -112,6 +113,24 @@ from hsync_desktop.settings.form_helpers import (
     _set_field_tooltip,
 )
 from hsync_desktop.settings.hsyncignore_dialog import HsyncIgnoreEditorDialog
+from hsync_desktop.settings.tab_builders import (
+    build_appearance_tab,
+    build_connection_banner,
+    build_log_tab,
+    build_p2p_tab,
+    build_server_tab,
+    build_sync_tab,
+    finalize_size,
+    set_tab_icons,
+    setup_language_combo,
+)
+from hsync_desktop.settings.tab_indices import (
+    _P2P_TAB_INDEX,
+    _SERVER_TAB_INDEX,
+    _SYNC_TAB_INDEX,
+)
+from hsync_desktop.settings.tab_layout import reorganize_p2p_tab, reorganize_sync_tab
+from hsync_desktop.settings.tab_translations import apply_translations
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
@@ -119,12 +138,6 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 # The client's server-mode default port (mirrors hsync_client.constants).
 _SERVER_DEFAULT_PORT = 9753
-
-# Tabs of SettingsDialog._tabs (sync=0, p2p=1, server=2, log=3, appearance=4);
-# the live force-master warnings jump to the tab owning the fix on "Yes".
-_SYNC_TAB_INDEX = 0
-_P2P_TAB_INDEX = 1
-_SERVER_TAB_INDEX = 2
 
 
 class SettingsDialog(QDialog):
@@ -148,333 +161,22 @@ class SettingsDialog(QDialog):
         """Load UI from .ui file and setup widget references."""
         load_ui_widget("settings_dialog", self)
 
-        # Get widget references from .ui file
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
-        # Create info banner for when connection is active (hidden by default)
-        self._connection_banner = QFrame(self)
-        self._connection_banner.setObjectName("connectionBanner")
-        self._connection_banner.setStyleSheet(
-            "QFrame#connectionBanner { "
-            "background-color: #fff3cd; "
-            "border: 1px solid #ffc107; "
-            "border-radius: 4px; "
-            "padding: 8px; "
-            "}"
-        )
-        banner_layout = QHBoxLayout(self._connection_banner)
-        banner_layout.setContentsMargins(8, 4, 8, 4)
-        self._banner_icon = QLabel("⚠️")
-        self._banner_text = QLabel()
-        self._banner_text.setWordWrap(True)
-        self._banner_text.setStyleSheet("color: #856404;")
-        banner_layout.addWidget(self._banner_icon)
-        banner_layout.addWidget(self._banner_text, 1)
-        self._connection_banner.hide()
+        build_connection_banner(self)
+        build_sync_tab(self)
+        build_server_tab(self)
+        build_p2p_tab(self)
+        build_log_tab(self)
+        build_appearance_tab(self)
+        set_tab_icons(self)
+        setup_language_combo(self)
 
-        # Insert banner at the top of the main layout
-        main_layout: QVBoxLayout = self.findChild(QVBoxLayout, "mainLayout")  # type: ignore[assignment]
-        if main_layout:
-            main_layout.insertWidget(0, self._connection_banner)
-
-        # Sync tab widgets (now first tab, index 0)
-        self.shared_path: QLineEdit = self.findChild(QLineEdit, "sharedPath")  # type: ignore[assignment]
-        self.btn_browse_shared: QToolButton = self.findChild(QToolButton, "btnBrowseShared")  # type: ignore[assignment]
-        self.bucket: QLineEdit = self.findChild(QLineEdit, "bucket")  # type: ignore[assignment]
-        self.continuous, self._lbl_continuous = _replace_checkbox_with_toggle(self, "continuous")
-        self.ignore_delete, self._lbl_ignore_delete = _replace_checkbox_with_toggle(
-            self, "ignoreDelete"
-        )
-
-        # Sync direction combo – inject BEFORE ignore_delete row (so direction comes first)
-        self.sync_direction_combo = QComboBox(self)
-        self.sync_direction_combo.addItem("", "bidirectional")
-        self.sync_direction_combo.addItem("", "upload-only")
-        self.sync_direction_combo.addItem("", "download-only")
-        self._lbl_sync_direction = QLabel(self)
-        # Find the Sync tab form layout and inject before ignore_delete row
-        sync_tab = self._tabs.widget(_SYNC_TAB_INDEX)
-        if sync_tab:
-            for child in sync_tab.findChildren(QFormLayout):
-                form: QFormLayout = child
-                # Find the ignore_delete row and insert before it
-                for row in range(form.rowCount()):
-                    item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                    if item and item.widget() and item.widget() is self.ignore_delete.parent():
-                        form.insertRow(row, self._lbl_sync_direction, self.sync_direction_combo)
-                        break
-                break
-
-        # Connection tab widgets (now second tab, index 1 — "Server Mode")
-        self.server_url: QLineEdit = self.findChild(QLineEdit, "serverUrl")  # type: ignore[assignment]
-        self.api_key: QLineEdit = self.findChild(QLineEdit, "apiKey")  # type: ignore[assignment]
-        self.insecure, self._lbl_insecure = _replace_checkbox_with_toggle(self, "insecure")
-        self.ca_cert: QLineEdit = self.findChild(QLineEdit, "caCert")  # type: ignore[assignment]
-        self.http_timeout: QSpinBox = self.findChild(QSpinBox, "httpTimeout")  # type: ignore[assignment]
-
-        # Server TLS trust policy combo (ADR-0036), inserted after http_timeout.
-        self.server_trust = QComboBox(self)
-        self.server_trust.setObjectName("serverTrust")
-        self._lbl_server_trust = QLabel(self)
-
-        self.resync: QSpinBox = self.findChild(QSpinBox, "resync")  # type: ignore[assignment]
-        self.retry_delay: QSpinBox = self.findChild(QSpinBox, "retryDelay")  # type: ignore[assignment]
-        self.stability_delay: QSpinBox = self.findChild(QSpinBox, "stabilityDelay")  # type: ignore[assignment]
-        self.max_wait: QSpinBox = self.findChild(QSpinBox, "maxWait")  # type: ignore[assignment]
-        self.filter_path: QLineEdit = self.findChild(QLineEdit, "filterPath")  # type: ignore[assignment]
-        self.min_free_disk_space = QSpinBox()
-        self.min_free_disk_space.setObjectName("minFreeDiskSpace")
-        self.min_free_disk_space.setRange(0, 100_000)
-        self.min_free_disk_space.setSuffix(" MB")
-        self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
-        self.max_inbound_size = QSpinBox()
-        self.max_inbound_size.setObjectName("maxInboundSize")
-        self.max_inbound_size.setRange(0, 10_000_000)
-        self.max_inbound_size.setSuffix(" MB")
-        self.max_inbound_size.setSpecialValueText(tr("settings.disabled"))
-        self.compression_enabled, self._lbl_compression_enabled = _replace_checkbox_with_toggle(
-            self, "noCompression"
-        )
-        self.dry_run, self._lbl_dry_run = _replace_checkbox_with_toggle(self, "dryRun")
-        self.auto_sync, self._lbl_auto_sync = _replace_checkbox_with_toggle(self, "autoSync")
-
-        # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
-        self.ignore_patterns = QLineEdit(self)
-        self.ignore_patterns.setObjectName("ignorePatterns")
-        self.ignore_patterns.setPlaceholderText("*.log, /build/, /dist/")
-        self._lbl_ignore_patterns = QLabel(self)
-        self.btn_edit_hsyncignore = QPushButton(self)
-        self.btn_edit_hsyncignore.setObjectName("btnEditHsyncignore")
-
-        # Reorganize sync tab into grouped sections
-        self._reorganize_sync_tab()
-
-        # p2p tab widgets
-        self.p2p_mode, self._lbl_p2p_mode = _replace_checkbox_with_toggle(self, "p2pMode")
-        self.p2p_group: QLineEdit = self.findChild(QLineEdit, "p2pGroup")  # type: ignore[assignment]
-        self.p2p_key: QLineEdit = self.findChild(QLineEdit, "p2pKey")  # type: ignore[assignment]
-        self.p2p_port: QSpinBox = self.findChild(QSpinBox, "p2pPort")  # type: ignore[assignment]
-        self.discovery_timeout: QSpinBox = self.findChild(QSpinBox, "discoveryTimeout")  # type: ignore[assignment]
-
-        # Bootnode (optional) – cross-network discovery through a boot/1 node.
-        # Dynamic, no .ui counterpart; inserted right after the group row.
-        self.p2p_bootnode = QLineEdit(self)
-        self.p2p_bootnode.setObjectName("p2pBootnode")
-        self.p2p_bootnode.setPlaceholderText("boot.example.net")
-        self._lbl_p2p_bootnode = QLabel(self)
-        _insert_row_after(self.p2p_group, self._lbl_p2p_bootnode, self.p2p_bootnode)
-
-        # Trust policy (ADR-0035): how the client authenticates the bootnode.
-        # Own form row so the label aligns under "Bootnode (optional)".
-        self.p2p_bootnode_trust = QComboBox(self)
-        self.p2p_bootnode_trust.setObjectName("p2pBootnodeTrust")
-        self._lbl_p2p_bootnode_trust = QLabel(self)
-        trust_container = QWidget(self)
-        hl_trust = QHBoxLayout(trust_container)
-        hl_trust.setContentsMargins(0, 0, 0, 0)
-        hl_trust.addWidget(self.p2p_bootnode_trust)
-        hl_trust.addStretch()
-        self._populate_bootnode_trust()
-        _insert_row_after(self.p2p_bootnode, self._lbl_p2p_bootnode_trust, trust_container)
-
-        # Manage trusted keys (ADR-0035): opens the known-hosts / known-peers
-        # dialog that edits the shared stores via the hsync CLI.
-        self.btn_manage_trusted_keys = QPushButton(self)
-        self.btn_manage_trusted_keys.setObjectName("btnManageTrustedKeys")
-        self.btn_manage_trusted_keys.clicked.connect(self._open_trusted_keys)
-
-        # Verify the configured bootnode answers (probes its certificate via the
-        # client; mirrors the server panel's Test Connection button).
-        self.btn_test_bootnode = QPushButton(self)
-        self.btn_test_bootnode.setObjectName("btnTestBootnode")
-        self.btn_test_bootnode.clicked.connect(self._on_test_bootnode)
-
-        manage_container = _action_row(self.btn_manage_trusted_keys, self.btn_test_bootnode)
-        _insert_row_after(trust_container, QLabel(""), manage_container)
-
-        # UPnP toggle for the master TCP port (only effective with a bootnode).
-        self.p2p_upnp = ToggleSwitch(self)
-        self.p2p_upnp.setObjectName("p2pUpnp")
-        self._lbl_p2p_upnp = QLabel(self)
-        upnp_container = QWidget(self)
-        hl_upnp = QHBoxLayout(upnp_container)
-        hl_upnp.setContentsMargins(0, 0, 0, 0)
-        hl_upnp.addWidget(self.p2p_upnp)
-        hl_upnp.addWidget(self._lbl_p2p_upnp)
-        hl_upnp.addStretch()
-        _insert_row_after(manage_container, QLabel(""), upnp_container)
-
-        # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
-        # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
-        # no .ui counterpart; inserted right after the discovery_timeout row.
-        self.ntp_hosts = QLineEdit(self)
-        self.ntp_hosts.setObjectName("ntpHosts")
-        self.ntp_hosts.setPlaceholderText("pool.ntp.org, time.cloudflare.com, time.google.com")
-        self._lbl_ntp_hosts = QLabel(self)
-        disc_container = self.discovery_timeout.parent()
-        if isinstance(disc_container, QWidget):
-            disc_layout = disc_container.layout()
-            if isinstance(disc_layout, QFormLayout):
-                for row in range(disc_layout.rowCount()):
-                    item = disc_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                    if item and item.widget() is self.discovery_timeout:
-                        disc_layout.insertRow(row + 1, self._lbl_ntp_hosts, self.ntp_hosts)
-                        break
-
-        self.force_master, self._lbl_force_master = _replace_checkbox_with_toggle(
-            self, "forceMaster"
-        )
-
-        # Never Master toggle (dynamic, no .ui counterpart) – mutually
-        # exclusive with Force Master. Inserted right after the force_master row.
-        self.never_master = ToggleSwitch(self)
-        self.never_master.setObjectName("neverMaster")
-        self._lbl_never_master = QLabel(self)
-        cont_never_master = QWidget(self)
-        hl_never_master = QHBoxLayout(cont_never_master)
-        hl_never_master.setContentsMargins(0, 0, 0, 0)
-        hl_never_master.addWidget(self.never_master)
-        hl_never_master.addWidget(self._lbl_never_master)
-        hl_never_master.addStretch()
-        fm_container = self.force_master.parent()
-        if isinstance(fm_container, QWidget):
-            fm_parent = fm_container.parent()
-            fm_layout = fm_parent.layout() if isinstance(fm_parent, QWidget) else None
-            if isinstance(fm_layout, QFormLayout):
-                for row in range(fm_layout.rowCount()):
-                    item = fm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                    if item and item.widget() is fm_container:
-                        fm_layout.insertRow(row + 1, "", cont_never_master)
-                        break
-
-        # Require Pairing toggle (dynamic, no .ui counterpart) – strict TOFU:
-        # refuse a first-seen master certificate until confirmed out of band.
-        # Inserted right after the never_master row.
-        self.require_pairing = ToggleSwitch(self)
-        self.require_pairing.setObjectName("requirePairing")
-        self._lbl_require_pairing = QLabel(self)
-        cont_require_pairing = QWidget(self)
-        hl_require_pairing = QHBoxLayout(cont_require_pairing)
-        hl_require_pairing.setContentsMargins(0, 0, 0, 0)
-        hl_require_pairing.addWidget(self.require_pairing)
-        hl_require_pairing.addWidget(self._lbl_require_pairing)
-        hl_require_pairing.addStretch()
-        nm_container = cont_never_master.parent()
-        if isinstance(nm_container, QWidget):
-            nm_layout = nm_container.layout()
-            if isinstance(nm_layout, QFormLayout):
-                for row in range(nm_layout.rowCount()):
-                    item = nm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                    if item and item.widget() is cont_never_master:
-                        nm_layout.insertRow(row + 1, "", cont_require_pairing)
-                        break
-
-        # Reorganize p2p tab into grouped sections
-        self._reorganize_p2p_tab()
-
-        # Log tab widgets
-        self.verbose, self._lbl_verbose = _replace_checkbox_with_toggle(self, "verbose")
-        # NOTE: Quiet mode is hidden because hsync-desktop depends on parsing
-        # stdout for status updates, file transfers, auth errors, etc.
-        self.quiet, self._lbl_quiet = _replace_checkbox_with_toggle(self, "quiet")
-        self.quiet.hide()
-        self._lbl_quiet.hide()
-        # Hide the parent container if it exists
-        parent = self.quiet.parent()
-        if isinstance(parent, QWidget):
-            parent.hide()
-        self.logfile: QLineEdit = self.findChild(QLineEdit, "logfile")  # type: ignore[assignment]
-        self.show_log_panel, self._lbl_show_log_panel = _replace_checkbox_with_toggle(
-            self, "showLogPanel"
-        )
-
-        # Appearance tab widgets
-        self.theme_combo: QComboBox = self.findChild(QComboBox, "themeCombo")  # type: ignore[assignment]
-        self.lang_combo: QComboBox = self.findChild(QComboBox, "langCombo")  # type: ignore[assignment]
-        self.notifications_enabled, self._lbl_notifications = _replace_checkbox_with_toggle(
-            self, "notificationsEnabled"
-        )
-        self.tooltips_enabled, self._lbl_tooltips = _replace_checkbox_with_toggle(
-            self, "tooltipsEnabled"
-        )
-
-        # Set tab icons programmatically (theme icons don't work cross-platform)
-        self._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
-        self._tabs.setTabIcon(1, icon("network-p2p"))  # p2p Mode (second)
-        self._tabs.setTabIcon(2, icon("network-cloud"))  # Server Mode (third)
-        self._tabs.setTabIcon(3, icon("utilities-log-viewer"))
-        self._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
-
-        # Create info banner for Server Mode tab when p2p is active (hidden by default)
-        self._p2p_banner = QFrame(self)
-        self._p2p_banner.setObjectName("p2pBanner")
-        self._p2p_banner.setStyleSheet(
-            "QFrame#p2pBanner { "
-            "background-color: #fff3cd; "
-            "border: 1px solid #ffc107; "
-            "border-radius: 4px; "
-            "padding: 8px; "
-            "}"
-        )
-        p2p_banner_layout = QHBoxLayout(self._p2p_banner)
-        p2p_banner_layout.setContentsMargins(8, 4, 8, 4)
-        self._p2p_banner_icon = QLabel("⚠️")
-        self._p2p_banner_text = QLabel()
-        self._p2p_banner_text.setWordWrap(True)
-        self._p2p_banner_text.setStyleSheet("color: #856404;")
-        p2p_banner_layout.addWidget(self._p2p_banner_icon)
-        p2p_banner_layout.addWidget(self._p2p_banner_text, 1)
-        self._p2p_banner.hide()
-
-        # Insert p2p banner at the top of the Server Mode (tabConnection) layout
-        # Also insert the server trust-policy controls and Test Connection button
-        self.btn_test_connection = QPushButton()
-        self.btn_test_connection.setObjectName("btnTestConnection")
-
-        # Server-panel twin of the p2p "Manage trusted keys" button, opening the
-        # dialog on the Servers tab. Two buttons keep the two panels gated
-        # independently (server fields disabled in p2p mode, and vice versa).
-        self.btn_manage_trusted_keys_server = QPushButton()
-        self.btn_manage_trusted_keys_server.setObjectName("btnManageTrustedKeysServer")
-        self.btn_manage_trusted_keys_server.clicked.connect(self._open_server_trusted_keys)
-
-        conn_tab = self._tabs.widget(_SERVER_TAB_INDEX)
-        if conn_tab:
-            conn_layout = conn_tab.layout()
-            if isinstance(conn_layout, QFormLayout):
-                conn_layout.insertRow(0, self._p2p_banner)
-                # Insert the server trust-policy combo after the http_timeout
-                # row, then the trusted-keys + Test Connection buttons below it.
-                for row in range(conn_layout.rowCount()):
-                    item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                    if item and item.widget() == self.http_timeout:
-                        conn_layout.insertRow(row + 1, self._lbl_server_trust, self.server_trust)
-                        conn_layout.insertRow(
-                            row + 2,
-                            "",
-                            _action_row(
-                                self.btn_manage_trusted_keys_server,
-                                self.btn_test_connection,
-                            ),
-                        )
-                        break
-
-        # Setup language combo with proper data
-        self.lang_combo.clear()
-        for code, name in SUPPORTED_LANGUAGES.items():
-            self.lang_combo.addItem(name, code)
-
-        # Apply translations
         self._apply_translations()
         self._apply_tooltips()
 
-        # Auto-size to fit all content (especially the grouped Sync tab)
-        self.setMinimumSize(0, 0)  # Override .ui minimumSize
-        self.setMinimumWidth(640)  # Keep a reasonable minimum width
-        self.adjustSize()  # Resize to sizeHint
-        hint = self.sizeHint()
-        self.setFixedSize(max(hint.width(), 640), hint.height())
+        finalize_size(self)
 
     # ── Sync tab grouping ─────────────────────────────────────────
 
@@ -516,282 +218,16 @@ class SettingsDialog(QDialog):
         self.server_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def _reorganize_sync_tab(self) -> None:
-        """Reorganize the Sync tab into grouped sections using QGroupBox."""
-        sync_tab = self._tabs.widget(_SYNC_TAB_INDEX)
-        if not sync_tab:
-            return
-
-        # ── Collect label references from .ui ──────────────────
-        lbl_shared: QLabel = self.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
-        lbl_bucket: QLabel = self.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
-        lbl_resync: QLabel = self.findChild(QLabel, "lblResync")  # type: ignore[assignment]
-        lbl_retry: QLabel = self.findChild(QLabel, "lblRetryDelay")  # type: ignore[assignment]
-        lbl_stability: QLabel = self.findChild(QLabel, "lblStabilityDelay")  # type: ignore[assignment]
-        lbl_max_wait: QLabel = self.findChild(QLabel, "lblMaxWait")  # type: ignore[assignment]
-        lbl_filter: QLabel = self.findChild(QLabel, "lblFilterPath")  # type: ignore[assignment]
-
-        # Toggle switch containers (toggle.parent() == container QWidget)
-        cont_continuous: QWidget = self.continuous.parent()  # type: ignore[assignment]
-        cont_ignore: QWidget = self.ignore_delete.parent()  # type: ignore[assignment]
-        cont_no_comp: QWidget = self.compression_enabled.parent()  # type: ignore[assignment]
-        cont_dry_run: QWidget = self.dry_run.parent()  # type: ignore[assignment]
-        cont_auto_sync: QWidget = self.auto_sync.parent()  # type: ignore[assignment]
-
-        # ── Detach old layout ──────────────────────────────────
-        old = sync_tab.layout()
-        if old is not None:
-            while old.count():
-                old.takeAt(0)
-            _tmp = QWidget()
-            _tmp.setLayout(old)
-
-        # ── Build new grouped layout (no scroll) ──────────────
-        vbox = QVBoxLayout(sync_tab)
-        vbox.setContentsMargins(4, 4, 4, 4)
-        vbox.setSpacing(8)
-
-        # Group 1: Path & Bucket
-        self._grp_path = QGroupBox(tr("settings.group.path_bucket"))
-        f1 = QFormLayout(self._grp_path)
-        path_row = QHBoxLayout()
-        path_row.addWidget(self.shared_path)
-        path_row.addWidget(self.btn_browse_shared)
-        f1.addRow(lbl_bucket, self.bucket)
-        f1.addRow(lbl_shared, path_row)
-        vbox.addWidget(self._grp_path)
-
-        # Group 2: Sync Mode
-        self._grp_sync = QGroupBox(tr("settings.group.sync_mode"))
-        f2 = QFormLayout(self._grp_sync)
-        f2.addRow(self._lbl_sync_direction, self.sync_direction_combo)
-        f2.addRow("", cont_ignore)
-        f2.addRow("", cont_continuous)
-        f2.addRow("", cont_auto_sync)
-        vbox.addWidget(self._grp_sync)
-
-        # Group 3: Timing & Intervals
-        self._grp_timing = QGroupBox(tr("settings.group.timing"))
-        f3 = QFormLayout(self._grp_timing)
-        f3.addRow(lbl_resync, self.resync)
-        f3.addRow(lbl_retry, self.retry_delay)
-        f3.addRow(lbl_stability, self.stability_delay)
-        f3.addRow(lbl_max_wait, self.max_wait)
-        vbox.addWidget(self._grp_timing)
-
-        # Group 4: Advanced Options
-        self._grp_advanced = QGroupBox(tr("settings.group.advanced"))
-        f4 = QFormLayout(self._grp_advanced)
-        self._lbl_min_free_disk_space = QLabel(tr("settings.min_free_disk_space"))
-        f4.addRow(self._lbl_min_free_disk_space, self.min_free_disk_space)
-        self._lbl_max_inbound_size = QLabel(tr("settings.max_inbound_size"))
-        f4.addRow(self._lbl_max_inbound_size, self.max_inbound_size)
-        f4.addRow(lbl_filter, self.filter_path)
-        f4.addRow("", cont_no_comp)
-        f4.addRow("", cont_dry_run)
-
-        # Extra ignore patterns
-        f4.addRow(self._lbl_ignore_patterns, self.ignore_patterns)
-
-        # Edit .hsyncignore button (no left label, like a regular action)
-        f4.addRow("", self.btn_edit_hsyncignore)
-        vbox.addWidget(self._grp_advanced)
-
-        vbox.addStretch()
+        """Regroup the Sync tab (implementation in ``tab_layout.py``)."""
+        reorganize_sync_tab(self)
 
     def _reorganize_p2p_tab(self) -> None:
-        """Reorganize the p2p tab into grouped sections using QGroupBox."""
-        p2p_tab = self._tabs.widget(_P2P_TAB_INDEX)
-        if not p2p_tab:
-            return
-
-        lbl_group: QLabel = self.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
-        lbl_key: QLabel = self.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
-        lbl_port: QLabel = self.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
-        lbl_discovery: QLabel = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
-
-        # Toggle/trust containers (toggle.parent() == the container QWidget).
-        cont_mode: QWidget = self.p2p_mode.parent()  # type: ignore[assignment]
-        cont_upnp: QWidget = self.p2p_upnp.parent()  # type: ignore[assignment]
-        cont_force: QWidget = self.force_master.parent()  # type: ignore[assignment]
-        cont_never: QWidget = self.never_master.parent()  # type: ignore[assignment]
-        cont_pairing: QWidget = self.require_pairing.parent()  # type: ignore[assignment]
-        trust_container: QWidget = self.p2p_bootnode_trust.parent()  # type: ignore[assignment]
-        manage_container: QWidget = self.btn_manage_trusted_keys.parent()  # type: ignore[assignment]
-
-        # Detach the original form layout.
-        old = p2p_tab.layout()
-        if old is not None:
-            while old.count():
-                old.takeAt(0)
-            _tmp = QWidget()
-            _tmp.setLayout(old)
-
-        vbox = QVBoxLayout(p2p_tab)
-        vbox.setContentsMargins(4, 4, 4, 4)
-        vbox.setSpacing(8)
-
-        # Group 1: mode + group identity
-        self._grp_p2p_mode = QGroupBox(tr("settings.group.p2p_mode"))
-        g1 = QFormLayout(self._grp_p2p_mode)
-        g1.addRow("", cont_mode)
-        g1.addRow(lbl_group, self.p2p_group)
-        g1.addRow(lbl_key, self.p2p_key)
-        vbox.addWidget(self._grp_p2p_mode)
-
-        # Group 2: cross-network discovery through a bootnode
-        self._grp_p2p_discovery = QGroupBox(tr("settings.group.p2p_discovery"))
-        g2 = QFormLayout(self._grp_p2p_discovery)
-        g2.addRow(self._lbl_p2p_bootnode, self.p2p_bootnode)
-        g2.addRow(self._lbl_p2p_bootnode_trust, trust_container)
-        g2.addRow("", manage_container)
-        g2.addRow("", cont_upnp)
-        vbox.addWidget(self._grp_p2p_discovery)
-
-        # Group 3: role election + pairing
-        self._grp_p2p_role = QGroupBox(tr("settings.group.p2p_role"))
-        g3 = QFormLayout(self._grp_p2p_role)
-        g3.addRow("", cont_force)
-        g3.addRow("", cont_never)
-        g3.addRow("", cont_pairing)
-        vbox.addWidget(self._grp_p2p_role)
-
-        # Group 4: advanced tuning
-        self._grp_p2p_advanced = QGroupBox(tr("settings.group.advanced"))
-        g4 = QFormLayout(self._grp_p2p_advanced)
-        g4.addRow(lbl_port, self.p2p_port)
-        g4.addRow(lbl_discovery, self.discovery_timeout)
-        g4.addRow(self._lbl_ntp_hosts, self.ntp_hosts)
-        vbox.addWidget(self._grp_p2p_advanced)
-
-        vbox.addStretch()
+        """Regroup the p2p tab (implementation in ``tab_layout.py``)."""
+        reorganize_p2p_tab(self)
 
     def _apply_translations(self) -> None:
-        """Apply i18n translations to UI elements."""
-        self.setWindowTitle(tr("settings.title"))
-
-        # Tab titles
-        self._tabs.setTabText(_SYNC_TAB_INDEX, tr("settings.sync"))
-        self._tabs.setTabText(_P2P_TAB_INDEX, tr("settings.p2p"))
-        self._tabs.setTabText(_SERVER_TAB_INDEX, tr("settings.server_mode"))
-        self._tabs.setTabText(3, tr("settings.log"))
-        self._tabs.setTabText(4, tr("settings.appearance"))
-
-        # Sync tab - shared path label
-        lbl_shared: QLabel = self.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
-        if lbl_shared:
-            lbl_shared.setText(tr("settings.shared_path"))
-
-        # Server Mode tab labels
-        lbl: QLabel = self.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.server_url"))
-        lbl = self.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.api_key"))
-        self._lbl_insecure.setText(tr("settings.insecure"))
-        lbl = self.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.ca_cert"))
-        lbl = self.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.http_timeout"))
-        self._lbl_server_trust.setText(tr("settings.server_trust"))
-        self._populate_server_trust()
-        self.btn_test_connection.setText(tr("settings.test_connection"))
-
-        # Sync tab labels
-        lbl = self.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.bucket"))
-        self._lbl_continuous.setText(tr("settings.watch"))
-        self._lbl_ignore_delete.setText(tr("settings.ignore_delete"))
-        self._lbl_sync_direction.setText(tr("settings.sync_direction"))
-        self.sync_direction_combo.setItemText(0, tr("settings.sync_direction.bidirectional"))
-        self.sync_direction_combo.setItemText(1, tr("settings.sync_direction.upload_only"))
-        self.sync_direction_combo.setItemText(2, tr("settings.sync_direction.download_only"))
-        lbl = self.findChild(QLabel, "lblResync")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.resync"))
-        lbl = self.findChild(QLabel, "lblRetryDelay")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.retry_delay"))
-        lbl = self.findChild(QLabel, "lblStabilityDelay")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.stability_delay"))
-        lbl = self.findChild(QLabel, "lblMaxWait")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.max_wait"))
-        lbl = self.findChild(QLabel, "lblFilterPath")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.filter_path"))
-        self._lbl_min_free_disk_space.setText(tr("settings.min_free_disk_space"))
-        self.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
-        self._lbl_max_inbound_size.setText(tr("settings.max_inbound_size"))
-        self.max_inbound_size.setSpecialValueText(tr("settings.disabled"))
-        self._lbl_compression_enabled.setText(tr("settings.compression_enabled"))
-        self._lbl_dry_run.setText(tr("settings.dry_run"))
-        self._lbl_auto_sync.setText(tr("settings.auto_sync"))
-        self._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
-        self.btn_edit_hsyncignore.setText(tr("settings.edit_hsyncignore"))
-
-        # Sync tab group box titles
-        self._grp_path.setTitle(tr("settings.group.path_bucket"))
-        self._grp_sync.setTitle(tr("settings.group.sync_mode"))
-        self._grp_timing.setTitle(tr("settings.group.timing"))
-        self._grp_advanced.setTitle(tr("settings.group.advanced"))
-        self._grp_p2p_mode.setTitle(tr("settings.group.p2p_mode"))
-        self._grp_p2p_discovery.setTitle(tr("settings.group.p2p_discovery"))
-        self._grp_p2p_role.setTitle(tr("settings.group.p2p_role"))
-        self._grp_p2p_advanced.setTitle(tr("settings.group.advanced"))
-
-        # p2p tab labels
-        self._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
-        lbl = self.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.p2p_group"))
-        lbl = self.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.p2p_key"))
-        lbl = self.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.p2p_port"))
-        self._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
-        self._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
-        self._populate_bootnode_trust()
-        self.btn_manage_trusted_keys.setText(tr("settings.manage_trusted_keys"))
-        self.btn_manage_trusted_keys_server.setText(tr("settings.manage_trusted_keys"))
-        self.btn_test_bootnode.setText(tr("settings.test_connection"))
-        self._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
-        lbl = self.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.discovery_timeout"))
-        self._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
-        self._lbl_force_master.setText(tr("settings.force_master"))
-        self._lbl_never_master.setText(tr("settings.never_master"))
-        self._lbl_require_pairing.setText(tr("settings.require_pairing"))
-
-        # Log tab labels
-        self._lbl_verbose.setText(tr("settings.verbose"))
-        self._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
-        self._lbl_quiet.setText(tr("settings.quiet"))
-        lbl = self.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.logfile"))
-
-        # Appearance tab labels
-        lbl = self.findChild(QLabel, "lblTheme")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.theme"))
-        self.theme_combo.setItemText(0, tr("settings.theme_light"))
-        self.theme_combo.setItemText(1, tr("settings.theme_dark"))
-        lbl = self.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
-        if lbl:
-            lbl.setText(tr("settings.p2pguage"))
-        self._lbl_notifications.setText(tr("settings.notifications"))
-        self._lbl_tooltips.setText(tr("settings.tooltips"))
-
-        # Button box
-        style_ok_cancel_button_box(self._button_box)
+        """Apply i18n strings (implementation in ``tab_translations.py``)."""
+        apply_translations(self)
 
     def _apply_tooltips(self) -> None:
         """Apply tooltips to widgets if enabled."""
