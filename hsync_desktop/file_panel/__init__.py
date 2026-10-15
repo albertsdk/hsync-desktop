@@ -6,7 +6,12 @@ File panel module for HSYNC Desktop.
 
 This module provides the file transfer panel functionality, split into:
 - models: Data structures (TransferStatus, FileTransfer)
-- widgets: Custom Qt widgets (FilePanel, FileTransferTable, delegates)
+- panel: Top-level FilePanel (navigation bar, table, detail panel)
+- transfer_table: FileTransferTable (hierarchical transfer view)
+- detail_panel: FileDetailPanel
+- overlay: LoadingOverlay
+- delegates: ProgressBarDelegate / CenteredIconDelegate
+- dialogs: shared confirmation dialog
 - workers: Background workers (DirectoryScanWorker)
 - utils: Utility functions (formatting, classification)
 """
@@ -17,6 +22,8 @@ from hsync_desktop.file_panel.models import (
     FileTransfer,
     TransferStatus,
 )
+from hsync_desktop.file_panel.panel import FilePanel
+from hsync_desktop.file_panel.transfer_table import FileTransferTable
 from hsync_desktop.file_panel.utils import (
     _FILE_TYPE_MAP,
     COL_ETA,
@@ -32,7 +39,6 @@ from hsync_desktop.file_panel.utils import (
 from hsync_desktop.file_panel.utils import (
     format_mtime as _format_mtime,
 )
-from hsync_desktop.file_panel.widgets import FilePanel, FileTransferTable
 from hsync_desktop.file_panel.workers import DirectoryScanWorker
 
 __all__ = [

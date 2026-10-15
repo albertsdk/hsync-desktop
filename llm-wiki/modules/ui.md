@@ -87,12 +87,12 @@ The devices tab shows
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `FilePanel` | `file_panel/widgets.py::FilePanel` | container: table + detail pane + overlay |
-| `FileTransferTable` | `file_panel/widgets.py::FileTransferTable` | per-file rows (status/progress/size) |
-| `FileDetailPanel` | `file_panel/widgets.py::FileDetailPanel` | selected-file metadata pane |
-| `ProgressBarDelegate` / `CenteredIconDelegate` | `file_panel/widgets.py::ProgressBarDelegate` / `file_panel/widgets.py::CenteredIconDelegate` | cell rendering |
-| `LoadingOverlay` | `file_panel/widgets.py::LoadingOverlay` | busy overlay during scans |
-| `_confirm_dialog` | `file_panel/widgets.py::_confirm_dialog` | reusable confirm prompt |
+| `FilePanel` | `file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
+| `FileTransferTable` | `file_panel/transfer_table.py::FileTransferTable` | per-file rows (status/progress/size) |
+| `FileDetailPanel` | `file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
+| `ProgressBarDelegate` / `CenteredIconDelegate` | `file_panel/delegates.py::ProgressBarDelegate` / `file_panel/delegates.py::CenteredIconDelegate` | cell rendering |
+| `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay during scans |
+| `_confirm_dialog` | `file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
