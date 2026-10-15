@@ -147,12 +147,52 @@ def test_dmg_is_darwin_only() -> None:
 
 
 def test_windows_installer_is_wired() -> None:
-    """The Inno Setup installer must exist and be built by the release workflow."""
+    """The Inno Setup installer is built by the ``windows`` compile.sh target,
+    which the release workflow invokes for the Windows matrix entry."""
     repo = COMPILE_SH.parent
     assert (repo / "packaging" / "windows" / "hsync-desktop.iss").is_file()
+    script = _script()
+    assert "build_windows()" in script
+    assert "WINDOWS_ISS=" in script
+    assert "packaging/windows" in script
+    assert "ISCC" in script
     workflow = (repo / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "hsync-desktop.iss" in workflow
+    assert "--target windows" in workflow
     assert "innosetup" in workflow
+
+
+def test_windows_target_is_registered_in_dispatch() -> None:
+    """``windows`` must be wired into main() and help like the other targets."""
+    script = _script()
+    assert "windows)" in script
+    assert "build_windows()" in script
+    assert "Supported targets:" in script
+
+
+def test_windows_is_windows_x64_only() -> None:
+    """Inno Setup/ImageMagick/the .ico run on the host and the installer is x64:
+    the target must refuse other hosts and architectures."""
+    script = _script()
+    assert "The windows target is supported only on Windows" in script
+    assert "The windows target is supported only on Windows x64" in script
+
+
+def test_windows_numeric_version_strips_prerelease() -> None:
+    """VersionInfoVersion must be numeric: prerelease/build metadata is stripped."""
+    assert _run_shell_fn("_windows_numeric_version", ["1.2.0"]) == "1.2.0"
+    assert _run_shell_fn("_windows_numeric_version", ["1.2.0-alpha.1"]) == "1.2.0"
+    assert _run_shell_fn("_windows_numeric_version", ["1.2.0+build.5"]) == "1.2.0"
+
+
+def test_windows_target_builds_installer_and_portable_zip() -> None:
+    """The target bundles the client, renders the .ico, runs ISCC and assembles a
+    portable zip without assuming an external ``zip``/``7z`` binary."""
+    body = _shell_fn_body("build_windows")
+    assert "_require_bundled_client" in body
+    assert "_windows_build_ico" in body
+    assert "_onefile_pyi_flags" in body
+    assert "make_archive" in body
+    assert _shell_fn_body("_windows_build_ico")
 
 
 def test_docs_latest_download_names_are_created_by_the_release() -> None:

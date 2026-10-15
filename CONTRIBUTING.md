@@ -30,6 +30,7 @@ does. No Poetry installation is required.
 ./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
 ./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
 ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64) via Docker
+./compile.sh --target windows   # Windows x64 installer + portable zip
 ```
 
 The native build bundles the `hsync` client binary from
@@ -39,12 +40,14 @@ configured; run `./compile.sh --help` for the full option list. PySide6 publishe
 no armv7 Linux wheels, so 32-bit Raspberry Pi OS (armhf) is not supported for the
 GUI.
 
+The `windows` target (Windows x64 only) builds the per-user Inno Setup installer
+and a portable `.zip`; it needs Inno Setup 6 (`ISCC`) and ImageMagick on the host.
+
 The `deb` target builds `dist/deb/hsync-desktop_<ver>_<arch>.deb` for the host
 architecture (needs `dpkg-deb`); `deb-all` cross-builds amd64 + arm64 inside
 Docker. The package installs the GUI under `/usr/lib/hsync-desktop` with a
-`.desktop` launcher and icons, and declares a dependency on `hsync-client`
-(the engine it drives) instead of bundling it; see
-[docs/README.md](docs/README.md).
+`.desktop` launcher and icons, and bundles the `hsync` client engine so it is
+self-contained; see [docs/README.md](docs/README.md).
 
 ## Code Style
 

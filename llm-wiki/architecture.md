@@ -76,6 +76,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | `appimage` | `dist/appimage/hsync-desktop-<ver>-x86_64.AppImage` | host onefile (client bundled) wrapped in an AppDir and packaged with `appimagetool`; Linux x86_64 only |
 | `dmg` | `dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg` | host onefile `--windowed` (client bundled) as `hsync-desktop.app`; `Info.plist` merged from `packaging/macos/Info.plist`, `.icns` via `sips`/`iconutil`, `.dmg` via `hdiutil`; darwin only |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
+| `windows` | `dist/windows/hsync-desktop-<ver>-windows-amd64-setup.exe` + `dist/windows/hsync-desktop-<ver>-windows-amd64.zip` | host PyInstaller onefile (client bundled) + Inno Setup installer (`ISCC`) + portable zip; Windows x64 only |
 
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
   `HSYNC_VERSION`), `-h/--help`.
@@ -117,9 +118,17 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   design.
 - `clean_artifacts` (`compile.sh::clean_artifacts`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
+- The `windows` target (Windows x64 only) builds the same onefile bundle as
+  `native` (client bundled) into `dist/windows-amd64/`, renders
+  `packaging/windows/icon.ico` from the app PNG with ImageMagick (`magick`/
+  `convert`), runs the Inno Setup compiler (`ISCC`, auto-detected or via `$ISCC`)
+  on `packaging/windows/hsync-desktop.iss` for the per-user installer, and
+  assembles a portable `.zip` with `shutil.make_archive` (no external `zip`/`7z`
+  assumed). Both artifacts are unsigned (SmartScreen warns on first run); the
+  installer is x64-only (`ArchitecturesAllowed=x64compatible`).
 - Docker is required **only** inside `build_rpi`, `build_deb_all` and
-  `build_rpm_all`; the `native`, `deb`, `rpm` and `appimage` targets never call
-  Docker.
+  `build_rpm_all`; the `native`, `deb`, `rpm`, `appimage` and `windows` targets
+  never call Docker.
 
 ### Distribution & install entry points
 
@@ -132,7 +141,7 @@ deployment mode**:
 | `.rpm` (x86_64/aarch64) | `compile.sh -t rpm\|rpm-all` + `packaging/rpm/` (self-contained: client bundled) |
 | AppImage (x86_64) | `compile.sh -t appimage` — self-contained onefile with the client bundled |
 | macOS `.dmg` (arm64/amd64) | `compile.sh -t dmg` — unsigned `.app` (client bundled) in a `.dmg` |
-| Windows installer (x64) | built in CI (Inno Setup) from `packaging/windows/hsync-desktop.iss`; per-user, Start Menu shortcut |
+| Windows installer (x64) | `compile.sh -t windows` — per-user Inno Setup installer (`packaging/windows/hsync-desktop.iss`) plus a portable `.zip`; self-contained (client bundled) |
 | Standalone bundle | `compile.sh` (`native`, bundles the `hsync` client) and `rpi` (arm64) |
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |

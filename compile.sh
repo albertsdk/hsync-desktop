@@ -26,6 +26,8 @@
 #                                         (darwin only, unsigned)
 #                               rpi       Raspberry Pi OS 64-bit (arm64)
 #                                         onefile binary via Docker
+#                               windows   Windows x64 installer (Inno Setup)
+#                                         plus a portable .zip (Windows only)
 #   -v, --version VERSION   Override the version used for packages (default:
 #                           the pyproject.toml version). Also settable via the
 #                           HSYNC_VERSION environment variable. A prerelease
@@ -46,6 +48,8 @@
 #     fetch appimagetool on first run); Linux x86_64 only
 #   - dmg target: macOS only (sips/iconutil/hdiutil); PyInstaller cannot build a
 #     .app elsewhere
+#   - windows target: Windows x64 only; the Inno Setup 6 compiler (ISCC.exe)
+#     builds the installer and ImageMagick (magick/convert) renders the .ico
 #
 # Raspberry Pi (rpi) target:
 #   The rpi target builds the arm64 (64-bit) Raspberry Pi OS binary ONLY. The
@@ -76,6 +80,9 @@
 #     - dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg
 #   rpi:
 #     - dist/rpi/arm64/hsync-desktop   Raspberry Pi OS 64-bit (aarch64)
+#   windows:
+#     - dist/windows/hsync-desktop-<ver>-windows-amd64-setup.exe   Per-user installer
+#     - dist/windows/hsync-desktop-<ver>-windows-amd64.zip         Portable bundle
 #
 # Author: Alberto Basso
 # =============================================================================
@@ -160,6 +167,16 @@ readonly MACOS_OUTPUT_DIR="${OUTPUT_BASE}/macos"
 readonly MACOS_INFO_TEMPLATE="${MACOS_DIR}/Info.plist"
 readonly MACOS_BUNDLE_ID="io.hsync.desktop"
 readonly MACOS_MIN_VERSION="11.0"
+
+# Windows target (Windows x64 only). PyInstaller produces the onefile .exe on the
+# host; Inno Setup (ISCC.exe) wraps it in a per-user installer and a portable zip
+# is assembled alongside. The .ico is generated at build time from the shared app
+# PNG (gitignored). Artifacts are unsigned.
+readonly WINDOWS_DIR="packaging/windows"
+readonly WINDOWS_OUTPUT_DIR="${OUTPUT_BASE}/windows"
+readonly WINDOWS_ISS="${WINDOWS_DIR}/${APP_NAME}.iss"
+readonly WINDOWS_ICON="${WINDOWS_DIR}/icon.ico"
+readonly WINDOWS_ARCH="amd64"
 
 # -----------------------------------------------------------------------------
 # Colors (disabled if not a terminal)
@@ -247,7 +264,7 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Options:${RESET}
     -c, --clean             Clean build artifacts before building
     -t, --target TARGET     Build target (default: native)
-                            Supported: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi
+                            Supported: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi, windows
     -v, --version VERSION   Override the version used for packages
                             (default: pyproject.toml). Also settable via
                             HSYNC_VERSION.
@@ -268,6 +285,8 @@ ${BOLD}Targets:${RESET}
     appimage  Portable self-contained .AppImage for Linux x86_64.
     dmg       macOS .app bundle wrapped in a .dmg (unsigned).
     rpi       Raspberry Pi OS 64-bit (arm64) onefile binary via Docker.
+    windows   Windows x64 per-user installer (Inno Setup) plus a portable
+              .zip, both self-contained (client engine bundled).
 
 ${BOLD}Examples:${RESET}
     ./compile.sh                    # Native host build
@@ -280,6 +299,7 @@ ${BOLD}Examples:${RESET}
     ./compile.sh --target appimage  # Portable Linux x86_64 .AppImage
     ./compile.sh --target dmg       # macOS .app + .dmg (unsigned)
     ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
+    ./compile.sh --target windows   # Windows x64 installer + portable zip
 
 ${BOLD}Output:${RESET}
     native:
@@ -300,6 +320,9 @@ ${BOLD}Output:${RESET}
         ${MACOS_OUTPUT_DIR}/${APP_NAME}-<ver>-darwin-<arch>.dmg
     rpi:
         ${RPI_OUTPUT_DIR}/arm64/${APP_NAME}   Raspberry Pi OS 64-bit (aarch64)
+    windows:
+        ${WINDOWS_OUTPUT_DIR}/${APP_NAME}-<ver>-windows-amd64-setup.exe
+        ${WINDOWS_OUTPUT_DIR}/${APP_NAME}-<ver>-windows-amd64.zip
 EOF
 }
 
@@ -1790,6 +1813,189 @@ build_dmg() {
 }
 
 # -----------------------------------------------------------------------------
+# Windows x64 target — Inno Setup installer + portable zip
+# -----------------------------------------------------------------------------
+
+# Numeric version for the Inno Setup VersionInfoVersion field: SemVer with the
+# prerelease/build suffix stripped (1.2.0-alpha.1 -> 1.2.0). Inno accepts up to
+# four dot-separated numbers.
+_windows_numeric_version() {
+    printf '%s' "$1" | sed -e 's/-.*$//' -e 's/+.*$//'
+}
+
+# Convert a POSIX path to the Windows drive-letter form ISCC expects. Under Git
+# Bash / MSYS (how the target runs on Windows) `cygpath` performs the mapping;
+# elsewhere the path is already usable.
+_windows_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
+# Locate the Inno Setup compiler. $ISCC overrides the search; otherwise the PATH
+# (Chocolatey/winget shims) and the default 64-bit install location are probed.
+_windows_find_iscc() {
+    if [[ -n "${ISCC:-}" ]]; then
+        printf '%s' "${ISCC}"
+        return 0
+    fi
+    local name
+    for name in ISCC iscc; do
+        if command -v "${name}" >/dev/null 2>&1; then
+            command -v "${name}"
+            return 0
+        fi
+    done
+    local candidate
+    for candidate in \
+        "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+        "/c/Program Files/Inno Setup 6/ISCC.exe"; do
+        if [[ -f "${candidate}" ]]; then
+            printf '%s' "${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Render the installer .ico from the shared app PNG. ImageMagick's `magick` (v7)
+# or `convert` (v6) is required; the .ico is written where the .iss expects it.
+# $1 = output .ico path, $2 = source PNG path
+_windows_build_ico() {
+    local out="$1" png="$2" magick=""
+    if command -v magick >/dev/null 2>&1; then
+        magick="magick"
+    elif command -v convert >/dev/null 2>&1; then
+        magick="convert"
+    else
+        log_error "ImageMagick (magick/convert) not found; required for the .ico"
+        exit 1
+    fi
+    "${magick}" "${png}" -define icon:auto-resize=256,128,64,48,32,16 "${out}"
+}
+
+# Build the Windows x64 installer (Inno Setup) and the portable zip.
+#
+# Windows only: PyInstaller cannot cross-build the GUI and both Inno Setup
+# (ISCC.exe) and ImageMagick run on the host. The frozen GUI embeds the client
+# engine, so both artifacts are self-contained. Artifacts are unsigned, so
+# SmartScreen may warn on first run.
+# Output:
+#   dist/windows/hsync-desktop-<ver>-windows-amd64-setup.exe
+#   dist/windows/hsync-desktop-<ver>-windows-amd64.zip
+build_windows() {
+    local version
+    version="$(get_version)"
+
+    if [[ "${OS_NAME}" != "windows" ]]; then
+        log_error "The windows target is supported only on Windows (got ${PLATFORM})."
+        log_info "Inno Setup and ImageMagick run on the host; PyInstaller cannot cross-build the GUI."
+        exit 1
+    fi
+    if [[ "${ARCH_NAME}" != "${WINDOWS_ARCH}" ]]; then
+        log_error "The windows target is supported only on Windows x64 (got ${ARCH_NAME})."
+        exit 1
+    fi
+
+    log_step "Building ${APP_NAME} v${version} Windows installer + portable zip (${ARCH_NAME})..."
+
+    [[ -x "${PYINSTALLER}" ]] || { log_error "PyInstaller not found. Run 'poetry install'."; exit 1; }
+
+    local iscc
+    iscc="$(_windows_find_iscc)" || {
+        log_error "Inno Setup compiler (ISCC.exe) not found."
+        log_info "Install Inno Setup 6, put ISCC on PATH, or set the ISCC environment variable."
+        exit 1
+    }
+
+    # --- 1. onefile .exe (client engine bundled) -----------------------------
+    local -a add_data_args=()
+    _collect_add_data_args "${CLIENT_BINARY}"
+    _require_bundled_client
+    add_data_args=("${ADD_DATA_ARGS[@]}")
+
+    # --strip is omitted: it is unsupported on Windows.
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
+        --distpath "${OUTPUT_DIR}" \
+        $(_onefile_pyi_flags) \
+        "${add_data_args[@]}" \
+        "${ENTRY_POINT}"
+    rm -f "${APP_NAME}.spec"
+
+    local exe="${OUTPUT_DIR}/${APP_NAME}${BIN_EXT}"
+    [[ -f "${exe}" ]] || { log_error "Windows executable not produced at ${exe}"; exit 1; }
+
+    # --- 2. installer icon ---------------------------------------------------
+    _windows_build_ico "${WINDOWS_ICON}" "${DEB_ICON_PNG}"
+
+    # --- 3. Inno Setup installer ---------------------------------------------
+    mkdir -p "${WINDOWS_OUTPUT_DIR}" "${BUILD_DIR}"
+    log_step "Building the Inno Setup installer..."
+    local exe_abs out_abs icon_abs iss_abs
+    exe_abs="$(cd "$(dirname "${exe}")" && pwd)/$(basename "${exe}")"
+    out_abs="$(cd "${WINDOWS_OUTPUT_DIR}" && pwd)"
+    icon_abs="$(cd "$(dirname "${WINDOWS_ICON}")" && pwd)/$(basename "${WINDOWS_ICON}")"
+    iss_abs="$(cd "$(dirname "${WINDOWS_ISS}")" && pwd)/$(basename "${WINDOWS_ISS}")"
+
+    if ! "${iscc}" \
+        "/DAppVersion=${version}" \
+        "/DVersionInfoVersion=$(_windows_numeric_version "${version}")" \
+        "/DSourceExe=$(_windows_path "${exe_abs}")" \
+        "/DOutDir=$(_windows_path "${out_abs}")" \
+        "/DIconPath=$(_windows_path "${icon_abs}")" \
+        "$(_windows_path "${iss_abs}")" > "${BUILD_DIR}/iscc.log" 2>&1; then
+        cat "${BUILD_DIR}/iscc.log" >&2
+        log_error "Inno Setup compilation failed (see output above)"
+        exit 1
+    fi
+
+    local installer="${WINDOWS_OUTPUT_DIR}/${APP_NAME}-${version}-windows-amd64-setup.exe"
+    [[ -f "${installer}" ]] || { log_error "Installer not produced at ${installer}"; exit 1; }
+
+    # --- 4. portable zip -----------------------------------------------------
+    log_step "Packaging the portable zip..."
+    local stage_name="${APP_NAME}-${version}-windows-amd64"
+    local stage="${WINDOWS_OUTPUT_DIR}/${stage_name}"
+    rm -rf "${stage}"
+    mkdir -p "${stage}"
+    cp "${exe}" "${stage}/"
+    # shutil.make_archive keeps the top-level stage folder inside the archive and
+    # needs no extra tooling (zip/7z are not guaranteed on a Windows host).
+    # Relative paths keep this working with the native python.exe on Windows.
+    "${VENV_PYTHON}" - "${WINDOWS_OUTPUT_DIR}/${stage_name}.zip" \
+        "${WINDOWS_OUTPUT_DIR}" "${stage_name}" <<'PY'
+import shutil
+import sys
+
+archive, root_dir, base_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+shutil.make_archive(archive[:-4], "zip", root_dir, base_dir)
+PY
+    rm -rf "${stage}"
+
+    local zip="${WINDOWS_OUTPUT_DIR}/${stage_name}.zip"
+    [[ -f "${zip}" ]] || { log_error "Portable zip not produced at ${zip}"; exit 1; }
+
+    rm -rf "${BUILD_DIR}" 2>/dev/null || true
+
+    local exe_size installer_size zip_size
+    exe_size="$(du -h "${exe}" | cut -f1)"
+    installer_size="$(du -h "${installer}" | cut -f1)"
+    zip_size="$(du -h "${zip}" | cut -f1)"
+    echo
+    log_ok "Windows packages built!"
+    echo
+    echo -e "  ${BOLD}Installer:${RESET} $(basename "${installer}")  (${installer_size})"
+    echo -e "  ${BOLD}Portable:${RESET}  $(basename "${zip}")  (${zip_size})"
+    echo -e "  ${BOLD}Binary:${RESET}    $(basename "${exe}")  (${exe_size})"
+    echo -e "  ${BOLD}Platform:${RESET}  windows-${ARCH_NAME}"
+    echo -e "  ${BOLD}Version:${RESET}   ${version}"
+    echo
+    echo -e "${DIM}The installer is unsigned: SmartScreen may warn on first run.${RESET}"
+}
+
+# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
@@ -1921,9 +2127,18 @@ main() {
             fi
             build_dmg
             ;;
+        windows)
+            check_prerequisites
+            if [[ "${do_clean}" == true ]]; then
+                log_step "Cleaning windows artifacts..."
+                rm -rf "${WINDOWS_OUTPUT_DIR}" "${OUTPUT_DIR}" "${WINDOWS_ICON}"
+                echo
+            fi
+            build_windows
+            ;;
         *)
             log_error "Unknown target: ${target}"
-            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi"
+            echo "Supported targets: native, deb, deb-all, rpm, rpm-all, appimage, dmg, rpi, windows"
             exit 1
             ;;
     esac

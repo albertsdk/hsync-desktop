@@ -126,12 +126,16 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --with build --no-interaction
           ./compile.sh
-      - name: Build the desktop binary
+      - name: Install dependencies
         working-directory: hsync-desktop
         run: |
           poetry config virtualenvs.in-project true
           poetry install --with build --no-interaction
-          ./compile.sh
+      - name: Build the desktop binary
+        # Windows is built by the `windows` target below (installer + zip).
+        if: matrix.target != 'windows-amd64'
+        working-directory: hsync-desktop
+        run: ./compile.sh
       - name: Free disk space before packaging
         # The .dmg staging and hdiutil's temp image need room on the same volume;
         # the macOS runners are tight on space and otherwise hit ENOSPC here.
@@ -149,6 +153,8 @@ jobs:
         working-directory: hsync-desktop
         run: ./compile.sh --target dmg -v "${{ steps.version.outputs.version }}"
       - name: Package binary
+        # Windows is packaged by the `windows` target (installer + zip).
+        if: matrix.target != 'windows-amd64'
         working-directory: hsync-desktop
         run: |
           version="${{ steps.version.outputs.version }}"
@@ -169,28 +175,18 @@ jobs:
           # binary is not flattened into the release (it also collides between
           # architectures, which all produce a bare `hsync-desktop`).
           rm -rf "${stage}"
-      - name: Build the Windows installer (Inno Setup)
-        # Per-user installer (no admin): Start Menu + optional desktop shortcut.
+      - name: Build the Windows packages
+        # Per-user installer (no admin) + portable zip, both produced by
+        # compile.sh (Inno Setup + ImageMagick are installed just above).
         if: runner.os == 'Windows'
         working-directory: hsync-desktop
-        shell: pwsh
         run: |
           choco install innosetup -y --no-progress
-          # The runner image may already ship ImageMagick, leaving the
-          # Chocolatey shim absent; force a reinstall and resolve magick from
-          # the PATH instead of a hardcoded shim path.
           choco install imagemagick -y --no-progress --force
-          $magick = (Get-Command magick.exe -ErrorAction SilentlyContinue).Source
-          if (-not $magick) { throw "ImageMagick (magick.exe) not found after install" }
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $magick "packaging/deb/usr/share/icons/hicolor/1024x1024/apps/hsync-desktop.png" -define icon:auto-resize=256,128,64,48,32,16 "packaging/windows/icon.ico"
-          $vi = "${{ steps.version.outputs.version }}" -replace '-.*$','' -replace '\+.*$',''
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" `
-                  "/DVersionInfoVersion=$vi" `
-                  "/DSourceExe=$((Resolve-Path 'dist/windows-amd64/hsync-desktop.exe').Path)" `
-                  "/DOutDir=$((Resolve-Path 'release-out').Path)" `
-                  "/DIconPath=$((Resolve-Path 'packaging/windows/icon.ico').Path)" `
-                  "packaging/windows/hsync-desktop.iss"
+          ./compile.sh --target windows -v "${{ steps.version.outputs.version }}"
+          mkdir -p release-out
+          cp dist/windows/*.zip release-out/
+          cp dist/windows/*-setup.exe release-out/
       - uses: actions/upload-artifact@v7
         with:
           name: bin-${{ matrix.target }}

@@ -63,6 +63,7 @@ warns and the app falls back to `hsync` on `PATH` at runtime.
 ./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
 ./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
 ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
+./compile.sh --target windows   # Windows x64 installer + portable zip
 ./compile.sh --version 1.2.3    # Override the reported version
 ./compile.sh --help             # Show help
 ```
@@ -74,6 +75,10 @@ Bookworm container, so it needs Docker with `qemu-user-static` (binfmt) on the
 build host; the GUI is available for **64-bit Raspberry Pi OS only** (PySide6
 has no 32-bit Linux wheels). See [Debian package](getting-started-deb.md) to
 produce `.deb` files.
+
+The `windows` target (Windows x64 only) produces the per-user Inno Setup
+installer and a portable `.zip`; it needs Inno Setup 6 (`ISCC`) and ImageMagick
+on the build host.
 
 ## hsync binary discovery
 
