@@ -48,7 +48,7 @@ for the underlying behaviour.
 |---------|-------------|
 | Enable p2p | Enable device discovery |
 | Group name | Partition key for p2p discovery: devices only sync with peers using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Prefer primary role / Never become primary | Control which device takes the primary role |
+| Prefer primary role / Never become primary | Express a preference for (or forbid) the primary role. A device already serving as primary keeps the role; *Never become primary* removes this device from the election |
 | Require pairing | Only sync with explicitly paired devices |
 | Shared password | Password shared by the devices in the p2p group; with a relay server it is also the relay credential |
 | Relay server | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
