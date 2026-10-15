@@ -22,6 +22,10 @@ The desktop drives the `hsync` client as a subprocess over an explicit, versione
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)](https://www.qt.io/)
 
+<p align="center">
+  <img src="docs/assets/hsync-desktop-gui.png" alt="HSYNC Desktop main window: file transfer panel with per-file progress, status bar and live log" width="720">
+</p>
+
 **Quick navigation:**
 - **New to HSYNC?** Start with the [What you can do](#what-you-can-do-with-hsync-desktop) overview and [Getting started](#getting-started)
 - **Configuring the app?** See the [Configuration Reference](docs/configuration.md)
