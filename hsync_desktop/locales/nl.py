@@ -334,6 +334,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Geen enkel apparaat heeft de primaire rol op zich genomen. Mogelijk zijn alle gevonden apparaten ingesteld op nooit primair, dus geen enkel apparaat levert bestanden en synchronisatie kan niet doorgaan.",
     "notif.sync_paused_title": "Synchronisatie gepauzeerd (verwijderingsbeveiliging)",
     "notif.sync_paused_msg": "Een veiligheidsbeveiliging heeft {deletes} verwijdering(en) in deze cyclus geblokkeerd ({reason}). Er zijn geen bestanden verwijderd. Controleer of het primaire/de bron correct is en hervat als dit verwacht was.",
+    "notif.security_rejected_title": "Onveilig pad geweigerd",
+    "notif.security_rejected_msg": "Een onveilig extern pad is geweigerd: {path}",
     "notif.conflict_resolved_title": "Bestandsconflict opgelost",
     "notif.conflict_resolved_msg": "{file} is aan beide zijden gewijzigd. De externe versie is behouden; uw lokale versie is opgeslagen als {conflict_copy}.",
     # Preview

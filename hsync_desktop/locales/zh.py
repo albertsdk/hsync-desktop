@@ -334,6 +334,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "没有设备承担主设备角色。所有发现的设备可能都被设置为永不成为主设备，因此没有设备提供文件，同步无法进行。",
     "notif.sync_paused_title": "同步已暂停（删除保护）",
     "notif.sync_paused_msg": "安全保护在本周期阻止了 {deletes} 次删除（{reason}）。没有文件被移除。请确认主设备/来源正确，如果这是预期行为则恢复。",
+    "notif.security_rejected_title": "已拒绝不安全的路径",
+    "notif.security_rejected_msg": "已拒绝不安全的远程路径：{path}",
     "notif.conflict_resolved_title": "文件冲突已解决",
     "notif.conflict_resolved_msg": "{file} 在两端都被修改。保留了远程版本；您的本地版本已保存为 {conflict_copy}。",
     # Preview

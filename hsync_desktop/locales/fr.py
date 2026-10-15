@@ -261,6 +261,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Aucun appareil n'a pris le rôle principal. Tous les appareils détectés sont peut-être réglés sur jamais principal ; aucun appareil ne fournit donc les fichiers et la synchronisation ne peut pas continuer.",
     "notif.sync_paused_title": "Sync en pause (protection contre la suppression)",
     "notif.sync_paused_msg": "Une protection a bloqué {deletes} suppression(s) pendant ce cycle ({reason}). Aucun fichier n'a été supprimé. Vérifiez que le principal/la source est correct, puis reprenez si c'est attendu.",
+    "notif.security_rejected_title": "Chemin non sécurisé refusé",
+    "notif.security_rejected_msg": "Un chemin distant non sécurisé a été refusé : {path}",
     "notif.conflict_resolved_title": "Conflit de Fichier Résolu",
     "notif.conflict_resolved_msg": "{file} a été modifié des deux côtés. La version distante a été conservée ; votre version locale a été sauvegardée sous {conflict_copy}.",
     "preview.title": "Aperçu de la synchronisation",

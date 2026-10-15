@@ -148,6 +148,8 @@ class HsyncEngine(QObject):
     sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
     error_occurred = Signal(str)  # error message
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
+    auth_required_occurred = Signal(str)  # a shared key is required but missing
+    security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
     path_not_found = Signal(str)  # shared path does not exist
     process_finished = Signal(int, str)  # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
@@ -554,6 +556,12 @@ class HsyncEngine(QObject):
                     int(event.get("deletes", 0)),
                     int(event.get("local", 0)),
                 )
+            elif name == UiEventName.security_rejected:
+                self.security_rejected.emit(
+                    str(event.get("op", "")),
+                    str(event.get("path", "")),
+                    str(event.get("message", "")),
+                )
             elif name == UiEventName.peers:
                 connected = int(event.get("connected", 0))
                 total = int(event.get("total", 0))
@@ -580,6 +588,9 @@ class HsyncEngine(QObject):
                 self._server_ip = urlparse(str(event.get("url", ""))).hostname or ""
             elif name == UiEventName.auth_error:
                 self.auth_error_occurred.emit(str(event.get("message", "")))
+                self._set_status("error")
+            elif name == UiEventName.auth_required:
+                self.auth_required_occurred.emit(str(event.get("message", "")))
                 self._set_status("error")
             elif name == UiEventName.path_not_found:
                 self.path_not_found.emit(str(event.get("path", "")))

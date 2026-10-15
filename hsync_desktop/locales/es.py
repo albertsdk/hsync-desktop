@@ -261,6 +261,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Ningún dispositivo asumió el rol primario. Puede que todos los dispositivos detectados estén configurados como nunca principales, así que ninguno sirve los archivos y la sincronización no puede continuar.",
     "notif.sync_paused_title": "Sync en pausa (protección contra borrado)",
     "notif.sync_paused_msg": "Una protección de seguridad bloqueó {deletes} eliminación(es) en este ciclo ({reason}). No se eliminó ningún archivo. Verifica que el principal/origen sea correcto y reanuda si es lo esperado.",
+    "notif.security_rejected_title": "Ruta no segura rechazada",
+    "notif.security_rejected_msg": "Se rechazó una ruta remota no segura: {path}",
     "notif.conflict_resolved_title": "Conflicto de Archivo Resuelto",
     "notif.conflict_resolved_msg": "{file} fue modificado en ambos lados. Se mantuvo la versión remota; su versión local se guardó como {conflict_copy}.",
     "preview.title": "Vista previa de sincronización",

@@ -153,6 +153,7 @@ class MainWindow(
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
         self._last_engine_error: str = ""  # Reason for the last failed engine start
+        self._auth_prompt_active = False  # True while the auth re-prompt dialog is open
 
         # Open settings dialog, if any (tray/menu re-clicks raise it instead).
         self._settings_dialog: SettingsDialog | None = None
@@ -189,6 +190,7 @@ class MainWindow(
         e.file_transferred.connect(self._on_file_transferred)
         e.transfer_failed.connect(self._on_transfer_failed)
         e.sync_paused.connect(self._on_sync_paused)
+        e.security_rejected.connect(self._on_security_rejected)
         e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
@@ -201,6 +203,7 @@ class MainWindow(
         e.error_occurred.connect(self._on_engine_error)
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
+        e.auth_required_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
         e.no_master_warning.connect(self._on_no_master_warning)
         e.duplicate_identity.connect(self._on_duplicate_identity)

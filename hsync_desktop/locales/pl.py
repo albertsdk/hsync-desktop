@@ -334,6 +334,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Żadne urządzenie nie przyjęło roli głównej. Wszystkie wykryte urządzenia mogą być ustawione jako nigdy główne, więc żadne urządzenie nie udostępnia plików i synchronizacja nie może być kontynuowana.",
     "notif.sync_paused_title": "Synchronizacja wstrzymana (zabezpieczenie przed usuwaniem)",
     "notif.sync_paused_msg": "Zabezpieczenie zablokowało {deletes} usunięcie/usunięć w tym cyklu ({reason}). Nie usunięto żadnych plików. Sprawdź, czy urządzenie główne/źródło jest prawidłowe, a następnie wznow, jeśli jest to oczekiwane.",
+    "notif.security_rejected_title": "Odrzucono niebezpieczną ścieżkę",
+    "notif.security_rejected_msg": "Odrzucono niebezpieczną ścieżkę zdalną: {path}",
     "notif.conflict_resolved_title": "Konflikt plików rozwiązany",
     "notif.conflict_resolved_msg": "{file} został zmodyfikowany po obu stronach. Zachowano wersję zdalną; Twoja wersja lokalna została zapisana jako {conflict_copy}.",
     # Preview

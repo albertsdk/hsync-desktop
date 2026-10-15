@@ -94,6 +94,10 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 - **Devices not found in p2p Mode** — ensure all devices are on the same subnet
   with mDNS allowed through the firewall, and share the same password. For
   devices on different networks, set a **relay server** in the p2p tab.
+- **p2p authentication failed** — a device you are syncing with requires a shared
+  password that this device is missing or has differently. The app stops and
+  opens the password prompt so you can enter the correct one (it is saved and the
+  sync retries); the password must be identical on every device in the group.
 
 See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the
 underlying sync behaviour and modes.

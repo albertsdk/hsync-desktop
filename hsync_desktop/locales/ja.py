@@ -334,6 +334,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "どのデバイスもプライマリ役割を引き受けませんでした。検出されたすべてのデバイスが「決してプライマリにしない」に設定されている可能性があり、どのデバイスもファイルを提供しないため同期を続行できません。",
     "notif.sync_paused_title": "同期を一時停止（削除保護）",
     "notif.sync_paused_msg": "安全チェックがこのサイクルで {deletes} 件の削除をブロックしました（{reason}）。ファイルは削除されていません。プライマリ/ソースが正しいことを確認し、想定どおりであれば再開してください。",
+    "notif.security_rejected_title": "安全でないパスを拒否しました",
+    "notif.security_rejected_msg": "安全でないリモートパスを拒否しました: {path}",
     "notif.conflict_resolved_title": "ファイルの競合を解決しました",
     "notif.conflict_resolved_msg": "{file} が両側で変更されました。リモートバージョンが保持され、ローカルバージョンは {conflict_copy} として保存されました。",
     # Preview

@@ -274,3 +274,13 @@ class TestAboutMenu:
     def test_about_action_uses_the_short_label(self, window):
         assert window._act_help_about.text() == tr("menu.help.about")
         assert "HSYNC" not in window._act_help_about.text()
+
+
+class TestSecurityRejectedLog:
+    """An unsafe remote path refused by the client is surfaced to the user."""
+
+    def test_logs_the_refusal_with_detail(self, window):
+        window._on_security_rejected("download", "../../etc/passwd", "unsafe remote path rejected")
+        text = window._log_view.toPlainText()
+        assert "../../etc/passwd" in text
+        assert "unsafe remote path rejected" in text

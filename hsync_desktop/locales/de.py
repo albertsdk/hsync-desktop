@@ -261,6 +261,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "Kein Gerät hat die Primärrolle übernommen. Alle gefundenen Geräte sind möglicherweise auf nie primär gesetzt, daher stellt kein Gerät Dateien bereit und die Synchronisierung kann nicht fortgesetzt werden.",
     "notif.sync_paused_title": "Sync pausiert (Löschschutz)",
     "notif.sync_paused_msg": "Ein Sicherheitsschutz hat in diesem Zyklus {deletes} Löschung(en) blockiert ({reason}). Es wurden keine Dateien entfernt. Prüfen Sie, ob primär/Quelle korrekt ist, und setzen Sie dann fort, falls dies erwartet wird.",
+    "notif.security_rejected_title": "Unsicherer Pfad abgelehnt",
+    "notif.security_rejected_msg": "Ein unsicherer Remote-Pfad wurde abgelehnt: {path}",
     "notif.conflict_resolved_title": "Dateikonflikt gelöst",
     "notif.conflict_resolved_msg": "{file} wurde auf beiden Seiten geändert. Die Remote-Version wurde beibehalten; Ihre lokale Version wurde als {conflict_copy} gespeichert.",
     "preview.title": "Synchronisationsvorschau",

@@ -227,6 +227,29 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.server, url="https://example.com:8443/x"))
         assert engine._server_ip == "example.com"
 
+    def test_auth_events_emit_the_matching_signals(self, engine):
+        errors = _capture(engine.auth_error_occurred)
+        required = _capture(engine.auth_required_occurred)
+        statuses = _capture(engine.status_changed)
+        engine._handle_event(build_event(UiEventName.auth_error, message="Invalid API key"))
+        engine._handle_event(build_event(UiEventName.auth_required, message="key required"))
+        assert errors == [("Invalid API key",)]
+        assert required == [("key required",)]
+        # Both auth failures put the UI into the error state.
+        assert statuses == [("error",)]
+
+    def test_security_rejected_event(self, engine):
+        out = _capture(engine.security_rejected)
+        engine._handle_event(
+            build_event(
+                UiEventName.security_rejected,
+                op="download",
+                path="../../etc/passwd",
+                message="unsafe remote path rejected",
+            )
+        )
+        assert out == [("download", "../../etc/passwd", "unsafe remote path rejected")]
+
     def test_transfer_download(self, engine):
         out = _capture(engine.file_transferred)
         engine._handle_event(

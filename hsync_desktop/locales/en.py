@@ -334,6 +334,8 @@ translations: dict[str, str] = {
     "notif.no_master_msg": "No device took the primary role. All discovered devices may be set to never primary, so no device serves files and synchronization cannot proceed.",
     "notif.sync_paused_title": "Sync paused (deletion protection)",
     "notif.sync_paused_msg": "A safety check blocked {deletes} deletion(s) this cycle ({reason}). No files were removed. Verify the primary/source is correct, then resume if this is expected.",
+    "notif.security_rejected_title": "Unsafe path rejected",
+    "notif.security_rejected_msg": "An unsafe remote path was refused: {path}",
     "notif.conflict_resolved_title": "File Conflict Resolved",
     "notif.conflict_resolved_msg": "{file} was modified on both sides. The remote version was kept; your local version was saved as {conflict_copy}.",
     # Preview

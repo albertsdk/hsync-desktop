@@ -280,31 +280,43 @@ class TrustMixin:
 
     @Slot(str)
     def _on_auth_error(self, _error_msg: str) -> None:
-        """Handle authentication error by showing the appropriate dialog."""
-        # Stop the current process
-        self._engine.stop()
+        """Re-prompt for credentials after an authentication failure.
 
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
+        The client reports a missing or incorrect key through the ``auth_error``
+        and ``auth_required`` events. The GUI always re-prompts (it never only
+        announces that the password is wrong) so the operator can enter a correct
+        value and retry; a retry that fails again reopens this prompt. Events
+        arriving while a prompt is already open — the modal ``exec()`` runs a
+        nested event loop — are ignored.
+        """
+        if self._auth_prompt_active:
+            return
+        self._auth_prompt_active = True
+        try:
+            self._engine.stop()
 
-        if p2p_enabled:
-            # p2p mode: show p2p key dialog
-            self._append_log(f"⚠ {tr('p2pauth.error_message')}")
-            dlg: P2PKeyDialog | ApiKeyDialog = P2PKeyDialog(self)
-            if dlg.exec() == P2PKeyDialog.DialogCode.Accepted:
+            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+            p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
+
+            if p2p_enabled:
+                # p2p mode: prompt for the shared password (pre-filled with the
+                # current one so a mistyped value is easy to correct).
+                self._append_log(f"⚠ {tr('p2pauth.error_message')}")
+                p2p_dlg = P2PKeyDialog(self)
+                accepted = p2p_dlg.exec() == P2PKeyDialog.DialogCode.Accepted
+            else:
+                # Server mode: prompt for the API key.
+                self._append_log(f"⚠ {tr('apikey.error_message')}")
+                api_dlg = ApiKeyDialog(self)
+                accepted = api_dlg.exec() == ApiKeyDialog.DialogCode.Accepted
+
+            if accepted:
                 self._append_log(f"--- {tr('p2pauth.retrying')} ---")
                 self._retry_after_auth_fix()
             else:
                 self._reset_ui_stopped()
-        else:
-            # Server mode: show API key dialog
-            self._append_log(f"⚠ {tr('apikey.error_message')}")
-            dlg = ApiKeyDialog(self)
-            if dlg.exec() == ApiKeyDialog.DialogCode.Accepted:
-                self._append_log("--- Retrying with new API key... ---")
-                self._retry_after_auth_fix()
-            else:
-                self._reset_ui_stopped()
+        finally:
+            self._auth_prompt_active = False
 
     def _retry_after_auth_fix(self) -> None:
         """Restart sync in dry-run mode after credentials have been updated."""

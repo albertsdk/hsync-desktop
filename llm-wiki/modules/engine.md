@@ -75,7 +75,8 @@ command line:
 | `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup |
 | `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
-| `error` / `auth_error` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `path_not_found` |
+| `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
+| `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
 | `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
@@ -85,6 +86,12 @@ Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`
 Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload shape are SSOT in
 `hsync_common.protocol.events`
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
+
+Both `auth_error` (invalid/missing key) and `auth_required` (a shared key is
+required but missing) drive the same credential re-prompt
+(`main_window/trust.py::_on_auth_error`): the engine is stopped, the p2p-password
+or API-key dialog opens (pre-filled with the current value) and a retry follows
+on accept; events arriving while the prompt is open are ignored.
 
 `TransferStats` (`engine/process.py::TransferStats`) accumulates per-session counters (`engine/process.py::TransferStats.reset`).
 

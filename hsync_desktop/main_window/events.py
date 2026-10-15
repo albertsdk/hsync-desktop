@@ -336,6 +336,15 @@ class EventsMixin:
             self._notifier.warning(tr("notif.sync_paused_title"), msg)
         self._append_log(f"⚠ {msg}")
 
+    @Slot(str, str, str)
+    def _on_security_rejected(self, op: str, path: str, message: str) -> None:
+        """Surface an unsafe remote path refused by the client's inbound guards."""
+        msg = tr("notif.security_rejected_msg").replace("{path}", path or "?")
+        if self._notifier:
+            self._notifier.warning(tr("notif.security_rejected_title"), msg)
+        detail = f" ({op}: {message})" if message else f" ({op})"
+        self._append_log(f"⚠ {msg}{detail}")
+
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:
         """Handle the [NO MASTER] warning (no node will serve files)."""

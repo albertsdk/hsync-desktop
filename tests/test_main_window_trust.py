@@ -175,3 +175,57 @@ class TestEnsureServerTrust:
         )
         window._on_fingerprint_changed("server", "", "server.example.com:9753", "d" * 64)
         assert added == [("server.example.com", 9753)]
+
+
+class TestAuthErrorPrompt:
+    """A missing/incorrect p2p password re-prompts for it (never a dead-end),
+    and the prompt is guarded against re-entrant events."""
+
+    @staticmethod
+    def _fake_dialog(result: int, on_exec=None):
+        class _Dialog:
+            DialogCode = type("DialogCode", (), {"Accepted": 1})
+
+            def __init__(self, parent=None):
+                pass
+
+            def exec(self):
+                if on_exec:
+                    on_exec()
+                return result
+
+        return _Dialog
+
+    def test_accept_retries_with_the_new_password(self, window, monkeypatch):
+        import hsync_desktop.main_window.trust as trust
+
+        monkeypatch.setattr(trust, "P2PKeyDialog", self._fake_dialog(1))
+        retried: list[int] = []
+        monkeypatch.setattr(window, "_retry_after_auth_fix", lambda: retried.append(1))
+        window._on_auth_error("Invalid API key")
+        assert retried == [1]
+        assert window._auth_prompt_active is False
+
+    def test_cancel_resets_the_ui(self, window, monkeypatch):
+        import hsync_desktop.main_window.trust as trust
+
+        monkeypatch.setattr(trust, "P2PKeyDialog", self._fake_dialog(0))
+        reset: list[int] = []
+        monkeypatch.setattr(window, "_reset_ui_stopped", lambda: reset.append(1))
+        window._on_auth_error("Invalid API key")
+        assert reset == [1]
+        assert window._auth_prompt_active is False
+
+    def test_reentrant_events_are_ignored(self, window, monkeypatch):
+        import hsync_desktop.main_window.trust as trust
+
+        opened: list[int] = []
+
+        def _nested():
+            opened.append(1)
+            window._on_auth_error("nested while the prompt is open")
+
+        monkeypatch.setattr(trust, "P2PKeyDialog", self._fake_dialog(0, on_exec=_nested))
+        monkeypatch.setattr(window, "_reset_ui_stopped", lambda: None)
+        window._on_auth_error("first")
+        assert opened == [1]  # the nested call was ignored while the prompt was open
