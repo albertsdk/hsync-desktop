@@ -7,13 +7,14 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 
 | Layer | Code | Responsibility |
 | ----- | ---- | -------------- |
-| Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, app identity (`main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
+| Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux, app identity (`main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), `--minimized` start-in-tray (`main.py::_should_start_minimized`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
 | Window | `main_window/window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
 | File panel | `file_panel/panel.py::FilePanel`, `file_panel/transfer_table.py::FileTransferTable` | live transfer table, detail pane, file actions |
 | Engine | `engine/process.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
 | Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
 | Args | `settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, localization, tray, OS notifications |
+| Startup | `autostart.py` | launch-at-login entry (XDG / LaunchAgent / Windows `Run`), toggled from the Appearance tab |
 
 ## Runtime flow
 

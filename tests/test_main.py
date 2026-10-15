@@ -126,7 +126,17 @@ class TestAppMetadata:
         import hsync_desktop.main as main_module
 
         assert main_module.main(["--help"]) == 0
-        assert "Usage: hsync-desktop" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Usage: hsync-desktop" in out
+        assert "--minimized" in out
+
+    def test_minimized_flag_needs_a_usable_tray(self):
+        """--minimized starts hidden only when a tray is available."""
+        from hsync_desktop.main import _should_start_minimized
+
+        assert _should_start_minimized(["--minimized"], tray_available=True) is True
+        assert _should_start_minimized(["--minimized"], tray_available=False) is False
+        assert _should_start_minimized([], tray_available=True) is False
 
     def test_harden_gsettings_defaults_to_memory(self, monkeypatch):
         """Linux default keeps Qt off host theme plugins (xsettings abort)."""

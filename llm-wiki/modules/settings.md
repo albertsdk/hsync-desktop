@@ -188,6 +188,31 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`se
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
 (`settings/validators.py::_validate_group_name`).
 
+## autostart.py — launch at login (desktop-only)
+
+`appearance/start_at_login` is the Appearance tab toggle `start_at_login`
+(built by `settings/tab_builders.py::build_appearance_tab`, label
+`settings.start_at_login`, tip `tip.start_at_login`), a desktop-only
+preference (no client CLI flag, so `cli_args.py` is not involved). On accept,
+`SettingsDialog._apply_start_at_login` (`settings/dialog.py::SettingsDialog._apply_start_at_login`)
+reconciles the OS login item through `autostart.py` — `autostart.is_supported`,
+`autostart.is_enabled`, `autostart.set_enabled`: a freedesktop XDG entry
+(`~/.config/autostart/hsync-desktop.desktop`), a macOS LaunchAgent
+(`~/Library/LaunchAgents/io.hsync.desktop.plist`), or the Windows
+`HKCU\...\Run` value, each launching `hsync-desktop --minimized`. The command
+is resolved by `autostart.py::_launch_command` (`$APPIMAGE` → frozen
+`sys.executable` → installed launcher on `PATH` → `python -m hsync_desktop`)
+and validated by `autostart.py::_autostart_command` (absolute path, no control
+characters); a relative `XDG_CONFIG_HOME` is ignored per spec. On supported
+platforms `load()` seeds the toggle from `autostart.is_enabled()` (the on-disk
+entry is the source of truth, the QSettings value is a mirror); on `OSError`
+the dialog warns (`warn.start_at_login_failed`), restores the toggle to the
+real state, and stays open without persisting. On a platform without a
+mechanism the toggle is disabled (`tip.start_at_login_unsupported`). The
+`--minimized` flag (`config.py::MINIMIZED_FLAG`) is handled at startup by
+`main.py::_should_start_minimized` (start hidden only when a tray is
+available).
+
 ## settings/cli_args.py — config → flags (the contract)
 
 | Symbol | Location | Role |

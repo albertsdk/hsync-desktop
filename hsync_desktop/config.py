@@ -15,6 +15,10 @@ from __future__ import annotations
 SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
 
+# Start hidden in the tray. Shared contract between the OS autostart entry
+# (autostart.py writes it) and the startup gate (main.py recognizes it).
+MINIMIZED_FLAG = "--minimized"
+
 # Default sync settings
 DEFAULT_BUCKET = "my-bucket"
 DEFAULT_GROUP = "my-group"
@@ -79,6 +83,9 @@ DEFAULT_SHOW_LOG_PANEL = False
 # Appearance defaults
 DEFAULT_NOTIFICATIONS = True
 DEFAULT_TOOLTIPS = True
+# Start the GUI at OS login, minimized to the tray (desktop-only; writes an OS
+# autostart entry on save, no client CLI flag).
+DEFAULT_START_AT_LOGIN = False
 
 # File panel
 FILE_BATCH_SIZE = 50

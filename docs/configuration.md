@@ -93,9 +93,18 @@ The action labels the log panel can show are listed in
 |---------|-------------|
 | Theme | Light or Dark |
 | Notifications | Enable or disable desktop push notifications |
+| Tooltips | Show or hide option tooltips |
+| Launch at system startup | Start HSYNC minimized to the tray when you log in |
 
 The interface language follows the system locale (English, Italian, German,
 Spanish, French).
+
+**Launch at system startup.** When enabled, the app registers a per-user
+autostart entry for the platform — an XDG autostart file on Linux/BSD, a
+LaunchAgent on macOS, a `Run` registry value on Windows — that launches
+`hsync-desktop --minimized`, so the window stays in the tray at login. Disabling
+the option removes the entry. The setting is a desktop preference only; it does
+not start a sync (use **Auto-sync on startup** on the Sync tab for that).
 
 ## Where settings are stored
 

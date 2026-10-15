@@ -114,6 +114,9 @@ class TestAppearanceDefaults:
     def test_default_tooltips(self):
         assert config.DEFAULT_TOOLTIPS is True
 
+    def test_default_start_at_login(self):
+        assert config.DEFAULT_START_AT_LOGIN is False
+
 
 class TestUIConstants:
     """Test UI-related constants."""

@@ -59,3 +59,40 @@ def _reset_i18n_callbacks() -> Generator[None]:
     i18n._language_change_callbacks.clear()
     yield
     i18n._language_change_callbacks.clear()
+
+
+class _FakeAutostart:
+    """Stand-in for ``hsync_desktop.autostart`` used by the dialog tests.
+
+    Guarantees no test ever writes to (or reads from) the real per-user
+    autostart location. ``fail`` makes ``set_enabled`` raise, to exercise the
+    dialog's failure path.
+    """
+
+    def __init__(self) -> None:
+        self.supported = True
+        self.enabled = False
+        self.fail = False
+        self.calls: list[bool] = []
+
+    def is_supported(self) -> bool:
+        return self.supported
+
+    def is_enabled(self) -> bool:
+        return self.enabled
+
+    def set_enabled(self, enabled: bool) -> None:
+        self.calls.append(enabled)
+        if self.fail:
+            raise OSError("denied")
+        self.enabled = enabled
+
+
+@pytest.fixture(autouse=True)
+def fake_autostart(monkeypatch) -> _FakeAutostart:
+    """Replace the dialog's autostart module with an isolated fake."""
+    import hsync_desktop.settings.dialog as dialog_mod
+
+    fake = _FakeAutostart()
+    monkeypatch.setattr(dialog_mod, "autostart", fake)
+    return fake

@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop import autostart
 from hsync_desktop.config import (
     DEFAULT_AUTO_SYNC,
     DEFAULT_BUCKET,
@@ -84,6 +85,7 @@ from hsync_desktop.config import (
     DEFAULT_SERVER_TRUST,
     DEFAULT_SHOW_LOG_PANEL,
     DEFAULT_STABILITY_DELAY,
+    DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
     DEFAULT_VERBOSE,
@@ -287,6 +289,11 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.theme_combo, "tip.theme", tips)
         _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
         _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
+        _maybe_tip(self.start_at_login, "tip.start_at_login", tips)
+        # A disabled toggle on a platform without an autostart mechanism still
+        # explains itself, overriding the normal tooltip cleared above.
+        if not autostart.is_supported():
+            _set_field_tooltip(self.start_at_login, tr("tip.start_at_login_unsupported"))
 
         # Capability-gated controls always explain why they are unavailable,
         # overriding any normal tooltip cleared above.
@@ -752,8 +759,34 @@ class SettingsDialog(QDialog):
             self.server_url.setText(normalized_server)
         if normalized_bootnode is not None:
             self.p2p_bootnode.setText(normalized_bootnode)
+        # Validate: the OS login item must match the toggle before persisting.
+        if not self._apply_start_at_login():
+            return  # Go back to dialog
         self.save()
         self.accept()
+
+    def _apply_start_at_login(self) -> bool:
+        """Register/unregister the OS login item to match the toggle.
+
+        Returns True when the requested state is applied (or the platform has
+        no autostart mechanism). On failure shows a warning, restores the
+        toggle to the real state, and returns False so the dialog stays open
+        and nothing is persisted.
+        """
+        if not autostart.is_supported():
+            return True
+        desired = self.start_at_login.isChecked()
+        try:
+            autostart.set_enabled(desired)
+        except OSError as exc:
+            QMessageBox.warning(
+                self,
+                tr("settings.title"),
+                tr("warn.start_at_login_failed").format(error=exc),
+            )
+            self.start_at_login.setChecked(autostart.is_enabled())
+            return False
+        return True
 
     def _confirm_insecure_api_key(self) -> bool:
         """Warn when the API key would travel over an insecure channel.
@@ -840,6 +873,7 @@ class SettingsDialog(QDialog):
             s.setValue("appearance/language", lang_code)
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
+        s.setValue("appearance/start_at_login", self.start_at_login.isChecked())
         s.setValue("appearance/show_log", self.show_log_panel.isChecked())
         # Flush to disk and tighten file permissions (config may be created here
         # on first run, before the startup hardening runs).
@@ -935,6 +969,18 @@ class SettingsDialog(QDialog):
         self.tooltips_enabled.setChecked(
             bool(s.value("appearance/tooltips", DEFAULT_TOOLTIPS, bool))
         )
+        # Start at OS login (minimized to the tray). On a supported platform the
+        # on-disk autostart entry is the source of truth (the QSettings value is
+        # only a mirror); where unsupported, disable and explain.
+        if autostart.is_supported():
+            self.start_at_login.setChecked(autostart.is_enabled())
+        else:
+            self.start_at_login.setChecked(
+                bool(s.value("appearance/start_at_login", DEFAULT_START_AT_LOGIN, bool))
+            )
+            self.start_at_login.setEnabled(False)
+            self._lbl_start_at_login.setEnabled(False)
+            _set_field_tooltip(self.start_at_login, tr("tip.start_at_login_unsupported"))
         # Show log panel (default: hidden)
         self.show_log_panel.setChecked(
             bool(s.value("appearance/show_log", DEFAULT_SHOW_LOG_PANEL, bool))

@@ -150,6 +150,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         lbl.setText(tr("settings.p2pguage"))
     dlg._lbl_notifications.setText(tr("settings.notifications"))
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))
+    dlg._lbl_start_at_login.setText(tr("settings.start_at_login"))
 
     # Button box
     style_ok_cancel_button_box(dlg._button_box)

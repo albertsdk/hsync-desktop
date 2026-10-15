@@ -220,6 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "Enable desktop notifications",
     "settings.p2pguage": "Language:",
     "settings.tooltips": "Show tooltips",
+    "settings.start_at_login": "Launch at system startup",
     "settings.save": "Save",
     "settings.cancel": "Cancel",
     # Tooltips
@@ -275,6 +276,8 @@ translations: dict[str, str] = {
     "tip.notifications": "Enable or disable desktop push notifications",
     "tip.language": "Application display language",
     "tip.tooltips": "Show or hide tooltips on settings options",
+    "tip.start_at_login": "Start HSYNC minimized to the tray when you log in",
+    "tip.start_at_login_unsupported": "Automatic startup is not supported on this system",
     # Warnings
     "warn.ignore_delete_title": "Warning",
     "warn.ignore_delete_msg": "Disabling this option means that file deletions WILL be propagated. If a file is deleted on one device, it will also be deleted on all synced devices. Are you sure?",
@@ -284,6 +287,7 @@ translations: dict[str, str] = {
     "warn.force_master_sync_msg": 'The "Force primary role" option is incompatible with the "{direction}" sync direction: the primary device always operates in bidirectional mode.\n\nDo you want to switch the sync to bidirectional?',
     "warn.api_key_insecure_title": "Insecure connection",
     "warn.api_key_insecure_msg": "The API key will not be sent over an insecure connection (http:// or with SSL verification disabled), and the sync will fail. Use an https:// server URL with a valid certificate.\n\nSave anyway?",
+    "warn.start_at_login_failed": "Could not update the automatic startup entry: {error}",
     "warn.keyless_p2p_title": "Run without a shared key?",
     "warn.keyless_p2p_msg": "P2P is running without a shared key: peers are not authenticated and reads are open to anyone who can reach this node. Continue?",
     # Connection active warnings

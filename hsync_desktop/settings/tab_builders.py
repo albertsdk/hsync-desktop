@@ -353,6 +353,7 @@ def build_appearance_tab(dlg: SettingsDialog) -> None:
         dlg, "notificationsEnabled"
     )
     dlg.tooltips_enabled, dlg._lbl_tooltips = _replace_checkbox_with_toggle(dlg, "tooltipsEnabled")
+    dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:

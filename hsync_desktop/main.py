@@ -11,6 +11,8 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
+from hsync_desktop.config import MINIMIZED_FLAG
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
 
@@ -31,10 +33,20 @@ def _handle_early_cli_args(argv: list[str]) -> int | None:
         print(f"hsync-desktop {__version__}")
         return 0
     if "--help" in argv or "-h" in argv:
-        print("Usage: hsync-desktop [--version] [--help]")
+        print(f"Usage: hsync-desktop [--version] [--help] [{MINIMIZED_FLAG}]")
         print("HSYNC Desktop - Cross-platform GUI for HSYNC Client.")
         return 0
     return None
+
+
+def _should_start_minimized(argv: list[str], tray_available: bool) -> bool:
+    """Whether to start hidden in the tray (``--minimized`` + a usable tray).
+
+    The OS autostart entry launches the app with ``--minimized``. Starting
+    hidden without a system tray would leave the process with no way to be
+    reached, so the flag is ignored when no tray is available.
+    """
+    return MINIMIZED_FLAG in argv and tray_available
 
 
 def _harden_linux_gsettings() -> None:
@@ -104,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _harden_linux_gsettings()
 
-    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
     from hsync_desktop import __version__
     from hsync_desktop.engine import BinaryVersionProbe, HsyncEngine, is_binary_version_compatible
@@ -121,9 +133,13 @@ def main(argv: list[str] | None = None) -> int:
     from hsync_desktop.system_tray import SystemTray
     from hsync_desktop.themes import apply_theme
 
-    app = QApplication([sys.argv[0], *args])
+    app = QApplication([sys.argv[0], *(a for a in args if a != MINIMIZED_FLAG)])
     _configure_app(app)
     app.setQuitOnLastWindowClosed(False)  # keep running in tray
+
+    # Launched by the OS autostart entry: show only the tray, not the window
+    # (unless there is no tray, in which case the window must be shown).
+    start_minimized = _should_start_minimized(args, QSystemTrayIcon.isSystemTrayAvailable())
 
     # Ensure only one instance runs at a time
     single_instance = SingleInstance(app)
@@ -173,12 +189,14 @@ def main(argv: list[str] | None = None) -> int:
 
     single_instance.activate_requested.connect(activate_window)
 
-    # Show splash screen and connect to activate window when it closes
-    splash = SplashScreen()
-    splash.finished.connect(activate_window)
-    splash.show_and_dismiss(2500)
+    # Reveal the window after the splash unless the OS autostart entry launched
+    # the app in the tray: then stay hidden. A later manual launch still reveals
+    # the window through the single-instance activation signal above.
+    if not start_minimized:
+        splash = SplashScreen()
+        splash.finished.connect(activate_window)
+        splash.show_and_dismiss(2500)
 
-    # Show tray (window will be shown when splash screen finishes)
     tray.show()
 
     # Warn if the bundled hsync-client binary is a different major version than

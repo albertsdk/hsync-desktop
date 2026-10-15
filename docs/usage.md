@@ -22,6 +22,11 @@ The main window shows the file/transfer panel and a log area; an icon also
 appears in the system tray. Closing the window keeps the app running in the
 tray — use the tray menu to show the window again or quit.
 
+Run `hsync-desktop --minimized` to start straight into the tray without showing
+the window (no tray available falls back to showing the window). Enable
+**Launch at system startup** in *Settings → Appearance* to do this automatically
+at login.
+
 ## Configuring a connection
 
 Open **Settings** and fill in the connection for your mode — **p2p Mode**
