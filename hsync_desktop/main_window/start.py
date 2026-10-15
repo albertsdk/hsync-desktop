@@ -439,6 +439,9 @@ class StartMixin:
         if not self._start_engine(args):
             self._reset_ui_stopped()
             return
+        # Show "connecting" until the client reports the link is up (p2p emits
+        # its own status events; remote emits connected/waiting).
+        self._on_status("connecting")
         self._btn_start.setEnabled(False)
         self._btn_stop.setEnabled(True)
         self._btn_refresh.setEnabled(False)  # Disable until preview completes

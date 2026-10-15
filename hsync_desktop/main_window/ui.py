@@ -205,7 +205,6 @@ class UiBuildMixin:
             role_idx = bottom_layout.indexOf(self._role_label)
             if role_idx >= 0:
                 bottom_layout.insertWidget(role_idx, self._role_icon)
-        self._bucket_label: QLabel = self.findChild(QLabel, "bucketLabel")  # type: ignore[assignment]
         self._group_label: QLabel = self.findChild(QLabel, "groupLabel")  # type: ignore[assignment]
         self._lbl_peers: QLabel = self.findChild(QLabel, "lblPeers")  # type: ignore[assignment]
         self._peers_label: QLabel = self.findChild(QLabel, "peersLabel")  # type: ignore[assignment]
@@ -279,6 +278,11 @@ class UiBuildMixin:
         self._btn_refresh.setToolTip(tr("btn.refresh"))
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
+        # Persistent identity (the share name) belongs in the window title, not
+        # the bottom status bar; seed it from the configured share.
+        self._on_bucket_detected(
+            str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str)).strip()
+        )
         self._role_label.setText(tr("role.client"))
         self._role_label.setToolTip(tr("role.client_tip"))
         from hsync_desktop.icons import icon as get_icon

@@ -220,16 +220,6 @@
        </spacer>
       </item>
       <item>
-       <widget class="QLabel" name="bucketLabel">
-        <property name="styleSheet">
-         <string notr="true">font-weight: bold;</string>
-        </property>
-        <property name="text">
-         <string>–</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <spacer name="statusSpacer3">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -281,7 +271,7 @@
          <string notr="true">font-weight: bold;</string>
         </property>
         <property name="text">
-         <string>0</string>
+         <string>–</string>
         </property>
        </widget>
       </item>

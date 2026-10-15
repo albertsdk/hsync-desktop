@@ -395,3 +395,47 @@ class TestP2PGroupPersistence:
         dlg.load()
 
         assert dlg.p2p_group.text() == ""
+
+
+class TestForceMasterDirectionGuard:
+    """Force-primary and a directional sync are mutually exclusive: declining
+    the proposed fix must restore the invariant, not leave it broken."""
+
+    @staticmethod
+    def _non_bidirectional_index(dlg) -> int:
+        for i in range(dlg.sync_direction_combo.count()):
+            if dlg.sync_direction_combo.itemData(i) != "bidirectional":
+                return i
+        raise AssertionError("no non-bidirectional direction in the combo")
+
+    def test_declining_reverts_the_direction_to_bidirectional(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.p2p_mode.setChecked(True)
+        dlg.force_master.setChecked(True)
+        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: False)
+
+        dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
+
+        assert dlg.sync_direction_combo.currentData() == "bidirectional"
+        assert dlg.force_master.isChecked() is True
+
+    def test_accepting_disables_force_master(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.p2p_mode.setChecked(True)
+        dlg.force_master.setChecked(True)
+        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: True)
+
+        dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
+
+        assert dlg.force_master.isChecked() is False
+
+    def test_declining_force_master_reverts_the_toggle(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.p2p_mode.setChecked(True)
+        dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
+        monkeypatch.setattr(dlg, "_maybe_warn_force_master", lambda *a, **k: False)
+
+        dlg.force_master.setChecked(True)
+
+        assert dlg.force_master.isChecked() is False
+        assert dlg.sync_direction_combo.currentData() != "bidirectional"

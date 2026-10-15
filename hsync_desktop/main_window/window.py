@@ -185,7 +185,7 @@ class MainWindow(
         e.status_changed.connect(self._on_status)
         e.peers_changed.connect(self._on_peers)
         e.master_changed.connect(self._on_master)
-        e.bucket_detected.connect(self._bucket_label.setText)
+        e.bucket_detected.connect(self._on_bucket_detected)
         e.group_detected.connect(self._on_group_detected)
         e.file_transferred.connect(self._on_file_transferred)
         e.transfer_failed.connect(self._on_transfer_failed)

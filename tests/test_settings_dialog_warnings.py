@@ -60,7 +60,11 @@ class TestForceMasterLiveWarning:
         dialog.p2p_mode.setChecked(True)
         dialog.force_master.setChecked(True)
         assert dialog._force_master_conflict() is False  # still bidirectional
-        dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only (No: kept)
+        # Force the incompatible direction without its live prompt (which would
+        # otherwise revert it on "No").
+        dialog.sync_direction_combo.blockSignals(True)
+        dialog.sync_direction_combo.setCurrentIndex(1)
+        dialog.sync_direction_combo.blockSignals(False)
         assert dialog._force_master_conflict() is True
         dialog.p2p_mode.setChecked(False)
         assert dialog._force_master_conflict() is False  # force-master inert w/o p2p
@@ -116,7 +120,7 @@ class TestForceMasterLiveWarning:
         assert emitted == [False]
         assert dialog.force_master.isChecked() is False
 
-    def test_direction_change_cancel_keeps_state(self, dialog, monkeypatch):
+    def test_direction_change_cancel_reverts_to_bidirectional(self, dialog, monkeypatch):
         shown = []
 
         def fake_exec(self):
@@ -130,8 +134,10 @@ class TestForceMasterLiveWarning:
         start_tab = dialog._tabs.currentIndex()
         dialog.sync_direction_combo.setCurrentIndex(1)  # upload-only
         assert shown == [tr("warn.force_master_disable_msg")]
-        assert dialog.force_master.isChecked() is True  # untouched on "No"
-        assert dialog.sync_direction_combo.currentData() == "upload-only"
+        assert dialog.force_master.isChecked() is True  # kept on "No"
+        # Declining keeps force-master, so the incompatible direction must not
+        # stay selected (the invariant force-master => bidirectional).
+        assert dialog.sync_direction_combo.currentData() == "bidirectional"
         assert dialog._tabs.currentIndex() == start_tab
 
     def test_force_master_enable_offers_bidirectional_sync(self, dialog, monkeypatch):
@@ -154,7 +160,7 @@ class TestForceMasterLiveWarning:
         assert dialog.sync_direction_combo.currentData() == "bidirectional"
         assert dialog._tabs.currentIndex() == 0  # sync tab
 
-    def test_force_master_enable_cancel_keeps_direction(self, dialog, monkeypatch):
+    def test_force_master_enable_cancel_reverts_the_toggle(self, dialog, monkeypatch):
         shown = []
 
         def fake_exec(self):
@@ -172,7 +178,8 @@ class TestForceMasterLiveWarning:
                 direction=dialog.sync_direction_combo.currentText()
             )
         ]
-        assert dialog.force_master.isChecked() is True
+        # Declining keeps the direction, so force-master must go back off.
+        assert dialog.force_master.isChecked() is False
         assert dialog.sync_direction_combo.currentData() == "upload-only"
         assert dialog._tabs.currentIndex() == start_tab
 

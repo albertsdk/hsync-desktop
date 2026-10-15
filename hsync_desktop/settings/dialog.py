@@ -495,6 +495,11 @@ class SettingsDialog(QDialog):
             if proposed:
                 self.sync_direction_combo.setCurrentIndex(0)
                 self.set_current_tab(_SYNC_TAB_INDEX)
+            else:
+                # Keep the direction: force-master stays incompatible, so the
+                # toggle must go back off (the invariant force-master =>
+                # bidirectional must hold).
+                self.force_master.setChecked(False)
 
     def _on_never_master_toggled(self, checked: bool) -> None:
         """Force-master and never-master are mutually exclusive."""
@@ -516,6 +521,10 @@ class SettingsDialog(QDialog):
             # re-enables it, re-triggering this prompt in a loop.
             self.force_master.setChecked(False)
             self.set_current_tab(_P2P_TAB_INDEX)
+        else:
+            # Keep force-master: the primary device always syncs both ways, so
+            # the incompatible direction must not stay selected.
+            self.sync_direction_combo.setCurrentIndex(0)
 
     def _normalize_server_endpoint(self) -> str | None:
         """Canonicalize the server field, or raise ``ValueError``.

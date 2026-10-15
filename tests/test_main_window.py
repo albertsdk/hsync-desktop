@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings import SettingsDialog
@@ -284,3 +284,90 @@ class TestSecurityRejectedLog:
         text = window._log_view.toPlainText()
         assert "../../etc/passwd" in text
         assert "unsafe remote path rejected" in text
+
+
+class TestStatusLifecycle:
+    """The bottom-left status follows the engine lifecycle instead of sticking."""
+
+    @staticmethod
+    def _bypass_start_prompts(monkeypatch, window, tmp_path):
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
+        monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
+        monkeypatch.setattr(window, "_check_disk_space", lambda: True)
+        monkeypatch.setattr(window, "_ensure_bootnode_trust", lambda: True)
+        monkeypatch.setattr(window, "_ensure_server_trust", lambda: True)
+        _patch_all(monkeypatch, "build_hsync_args", lambda *a, **k: ["p2p"])
+        window._local_path = str(tmp_path)
+        window._pending_sync_path = str(tmp_path)
+
+    def test_start_shows_connecting(self, window, monkeypatch, tmp_path):
+        self._bypass_start_prompts(monkeypatch, window, tmp_path)
+        monkeypatch.setattr(window, "_start_engine", lambda _args: True)
+
+        window._continue_start_after_disclaimer()
+
+        assert window._status_label.text() == tr("status.connecting")
+
+    def test_process_finished_drops_to_disconnected(self, window):
+        window._on_status("connecting")
+
+        window._on_process_finished(0, "stopped")
+
+        assert window._status_label.text() == tr("status.disconnected")
+
+    def test_process_finished_avoids_the_connection_lost_side_effects(self, window, monkeypatch):
+        called: list[str] = []
+        monkeypatch.setattr(window, "_on_status", lambda status: called.append(status))
+
+        window._on_process_finished(0, "stopped")
+
+        # The terminal status is set through the side-effect-free helper, so a
+        # normal stop never fires the "connection lost" notification.
+        assert called == []
+        assert window._status_label.text() == tr("status.disconnected")
+
+
+class TestPeerCountLifecycle:
+    """The device count is cleared when the link drops (no stale "N/M")."""
+
+    def test_disconnected_clears_the_peer_count(self, window):
+        window._on_peers(1, 2)
+        assert window._peers_label.text() == "1/2"
+
+        window._on_status("disconnected")
+
+        assert window._peers_label.text() == "–"
+
+    def test_waiting_clears_the_peer_count(self, window):
+        window._on_peers(2, 2)
+
+        window._on_status("waiting")
+
+        assert window._peers_label.text() == "–"
+
+    def test_process_finished_clears_the_peer_count(self, window):
+        window._on_peers(1, 2)
+
+        window._on_process_finished(0, "stopped")
+
+        assert window._peers_label.text() == "–"
+
+
+class TestShareNameInTitle:
+    """The share name (persistent identity) lives in the window title, not the
+    bottom status bar."""
+
+    def test_bucket_sets_the_window_title(self, window):
+        window._on_bucket_detected("demo-p2p")
+
+        assert window.windowTitle() == f"{tr('app.name')} — demo-p2p"
+
+    def test_empty_bucket_resets_the_title(self, window):
+        window._on_bucket_detected("demo-p2p")
+
+        window._on_bucket_detected("")
+
+        assert window.windowTitle() == tr("app.name")
+
+    def test_status_bar_no_longer_hosts_the_share_name(self, window):
+        assert window.findChild(QLabel, "bucketLabel") is None

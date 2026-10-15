@@ -119,7 +119,16 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 class EventsMixin:
     @Slot(str)
-    def _on_status(self, status: str) -> None:
+    def _on_bucket_detected(self, bucket: str) -> None:
+        """Show the active share in the window title.
+
+        The share name is persistent identity, not operational status, so it
+        lives in the title rather than the bottom status bar.
+        """
+        self.setWindowTitle(f"{tr('app.name')} — {bucket}" if bucket else tr("app.name"))
+
+    def _set_status_label(self, status: str) -> None:
+        """Update the status dot/label/tray without the connection-loss effects."""
         i18n_map = {
             "connected": ("status.connected", COLOR_CONNECTED),
             "disconnected": ("status.disconnected", COLOR_DISCONNECTED),
@@ -133,7 +142,14 @@ class EventsMixin:
         if self._tray:
             self._tray.update_status(status)
 
+    @Slot(str)
+    def _on_status(self, status: str) -> None:
+        self._set_status_label(status)
+
         if status in ("disconnected", "waiting"):
+            # The peer count is only meaningful while connected: clear it so a
+            # stale "N/M" does not outlive the link.
+            self._peers_label.setText("–")
             self._file_panel.reset_all_to_local()
             if status == "disconnected" and self._notifier:
                 self._notifier.connection_lost()
@@ -425,6 +441,11 @@ class EventsMixin:
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
+        # No engine process means no live connection: drop the status out of
+        # "connecting"/"connected" (the client cannot report the final state)
+        # and clear the now-meaningless peer count.
+        self._set_status_label("disconnected")
+        self._peers_label.setText("–")
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)

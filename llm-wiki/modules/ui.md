@@ -53,6 +53,16 @@ silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the bootnode no longer changes the icon).
 
+### Share name in the window title
+
+The active share (bucket) is persistent identity, not operational status, so it
+lives in the **window title** (`main_window/events.py::MainWindow._on_bucket_detected`,
+`"HSYNC Desktop — <share>"`) instead of the bottom status bar, which keeps only
+connection state, role, device count and throughput. The title is seeded from
+`sync/bucket`, updated on the client's `bucket` event (signal
+`engine/process.py::HsyncEngine.bucket_detected`), and reset to the bare app name
+when the bucket is empty.
+
 ### Trust refusal dialogs (SSH-style, no terminal)
 
 `MainWindow` answers the client's trust refusals with dialogs instead of a
