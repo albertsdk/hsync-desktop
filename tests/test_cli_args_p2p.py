@@ -116,6 +116,41 @@ class TestP2PSectionConsistency:
         assert "--force-master" in args_b
 
 
+class TestP2PGroupOptional:
+    """An empty p2p group means "no group", not "resurrect a group name".
+
+    The client's ``--group`` is optional and the group is a strict partition key
+    (peers without a group match only other peers without one), so clearing the
+    field must stop emitting a group; only a missing key falls back to the
+    default group the UI seeds on a fresh install.
+    """
+
+    def test_empty_group_omits_the_flag(self):
+        args = _build_args({"p2p/enabled": True, "p2p/group": ""})
+
+        assert "--group" not in args
+
+    def test_whitespace_only_group_omits_the_flag(self):
+        args = _build_args({"p2p/enabled": True, "p2p/group": "   "})
+
+        assert "--group" not in args
+
+    def test_missing_key_falls_back_to_the_default_group(self):
+        args = _build_args({"p2p/enabled": True})
+
+        assert args[args.index("--group") + 1] == "my-group"
+
+    def test_valid_group_is_passed_through_and_stripped(self):
+        args = _build_args({"p2p/enabled": True, "p2p/group": "  team-a  "})
+
+        assert args[args.index("--group") + 1] == "team-a"
+
+    def test_group_is_not_emitted_in_server_mode(self):
+        args = _build_args({"p2p/enabled": False, "p2p/group": "team-a"})
+
+        assert "--group" not in args
+
+
 class TestNeverMasterFlag:
     """Coverage for the --never-master user-facing setting."""
 

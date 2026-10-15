@@ -351,3 +351,47 @@ class TestEndpointNormalization:
         dialog.p2p_bootnode.setText("https://boot.example.net")
         with pytest.raises(ValueError):
             dialog._normalize_bootnode_endpoint()
+
+
+def _isolated_dialog(qtbot, monkeypatch, tmp_path):
+    """A SettingsDialog backed by an isolated INI store (never the real config)."""
+    from PySide6.QtCore import QSettings
+
+    import hsync_desktop.settings.dialog as dialog_mod
+
+    store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: store)
+    dlg = dialog_mod.SettingsDialog()
+    qtbot.addWidget(dlg)
+    return dlg, store
+
+
+class TestP2PGroupPersistence:
+    """Clearing the p2p group name persists an empty value that is read back
+    empty — the deleted group must not be resurrected as the default."""
+
+    def test_clearing_the_group_saves_an_empty_value(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.p2p_group.setText("team-a")
+        dlg.save()
+        assert store.value("p2p/group", "sentinel", str) == "team-a"
+
+        dlg.p2p_group.setText("")
+        dlg.save()
+        assert store.contains("p2p/group")
+        assert store.value("p2p/group", "sentinel", str) == ""
+
+    def test_group_is_saved_stripped(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.p2p_group.setText("  team-a  ")
+        dlg.save()
+        assert store.value("p2p/group", "sentinel", str) == "team-a"
+
+    def test_empty_group_loads_back_empty(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        store.setValue("p2p/group", "")
+        store.sync()
+
+        dlg.load()
+
+        assert dlg.p2p_group.text() == ""

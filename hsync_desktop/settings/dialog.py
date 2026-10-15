@@ -845,7 +845,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
         s.setValue("p2p/enabled", self.p2p_mode.isChecked())
-        s.setValue("p2p/group", self.p2p_group.text())
+        s.setValue("p2p/group", self.p2p_group.text().strip())
         s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
         s.setValue(
             "p2p/bootnode_trust",

@@ -203,13 +203,14 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         discovery_timeout = max(1, min(discovery_timeout, 60))  # 1-60 seconds
         args += ["--discovery-timeout", str(discovery_timeout)]
 
-        # Validate p2p group
-        grp_raw = str(s.value("p2p/group", DEFAULT_GROUP, str))
-        grp = grp_raw or DEFAULT_GROUP
-        validated_grp = _validate_group_name(grp)
-        if validated_grp is None:
-            validated_grp = DEFAULT_GROUP
-        args += ["--group", validated_grp]
+        # p2p group: an optional partition key (the client's --group is optional;
+        # "no group" is its own partition). An emptied setting must clear the
+        # group instead of silently re-applying a group name. Only a missing key
+        # falls back to the default group (a fresh install seeds it in the UI).
+        grp_raw = str(s.value("p2p/group", DEFAULT_GROUP, str)).strip()
+        if grp_raw:
+            validated_grp = _validate_group_name(grp_raw)
+            args += ["--group", validated_grp or DEFAULT_GROUP]
 
         if s.value("p2p/force_master", False, bool):
             args.append("--force-master")

@@ -237,6 +237,16 @@ expressed only via the global `sync/continuous` setting, which maps to
 `--once`. Secrets are
 **not** here — they go through engine pipe FDs.
 
+**`--group` is optional**, so `build_hsync_args` emits the flag only when
+`p2p/group` is non-empty: an emptied field omits it and the client then joins the
+**no-group partition** (in the client the group is a strict partition key — a peer
+without a group matches only other peers without a group; it is not a wildcard).
+Only a **missing** key falls back to `DEFAULT_GROUP` (`my-group`, the value the
+dialog seeds on a fresh install), so deleting the name is honoured instead of
+being silently re-applied; an invalid non-empty value also falls back to
+`DEFAULT_GROUP`. The dialog strips the field on save
+(`settings/dialog.py::SettingsDialog.save`).
+
 > Any new flag here must mirror an option the client actually exposes
 > (`hsync-client` [cli-config.md](../../../hsync-client/llm-wiki/modules/cli-config.md))
 > and, if it is an `HSYNC_*`/behavior change, the `packaging/wd-os5` web UI.
