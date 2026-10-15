@@ -84,8 +84,8 @@ the `engine` subprocess helpers (never the store files directly): three tabs
 tab; the settings dialog passes the tab matching the panel that launched it. The
 bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
 stores); *Add* supports "read from node" or manual entry. Device *Add* pre-fills
-the bucket from `sync/bucket`. The tab/column labels are localized in the five
-locales (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
+the bucket from `sync/bucket`. The tab/column labels are localized in every
+locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 `trusted_keys.fingerprint` = the locale's term for the certificate fingerprint).
 The devices tab shows
 `trusted_keys.capability_missing` when the binary lacks the `trust` subcommand
