@@ -946,3 +946,46 @@ class TestActionButtonRows:
         parent = dialog.btn_manage_trusted_keys_server.parent()
         assert parent is dialog.btn_test_connection.parent()
         assert isinstance(parent.layout(), QHBoxLayout)
+
+
+class TestDisabledDuringSyncVisual:
+    """The Sync and p2p panels gray their labels while a sync runs, the same
+    visual the Server Mode tab uses when p2p mode is active."""
+
+    @staticmethod
+    def _labels(dialog, index: int, exclude: tuple = ()) -> list[QLabel]:
+        tab = dialog._tabs.widget(index)
+        assert tab is not None
+        return [
+            lbl
+            for lbl in tab.findChildren(QLabel)
+            if lbl not in dialog._unsupported_labels and lbl not in exclude
+        ]
+
+    def _p2p_labels(self, dialog) -> list[QLabel]:
+        return self._labels(dialog, _P2P_TAB_INDEX, exclude=(dialog._lbl_p2p_mode,))
+
+    def test_labels_are_grayed_while_sync_is_active(self, dialog):
+        dialog.p2p_mode.setChecked(True)
+        dialog.set_connection_active(True)
+        sync_labels = self._labels(dialog, 0)
+        p2p_labels = self._p2p_labels(dialog)
+        assert sync_labels and p2p_labels
+        assert all(not lbl.isEnabled() for lbl in sync_labels)
+        assert all(not lbl.isEnabled() for lbl in p2p_labels)
+
+    def test_labels_are_restored_when_sync_stops(self, dialog):
+        dialog.p2p_mode.setChecked(True)
+        dialog.set_connection_active(True)
+        dialog.set_connection_active(False)
+        assert all(lbl.isEnabled() for lbl in self._labels(dialog, 0))
+        assert all(lbl.isEnabled() for lbl in self._p2p_labels(dialog))
+
+    def test_p2p_labels_stay_grayed_when_p2p_is_off_after_sync(self, dialog):
+        dialog.p2p_mode.setChecked(False)
+        dialog.set_connection_active(True)
+        dialog.set_connection_active(False)
+        p2p_labels = self._p2p_labels(dialog)
+        assert p2p_labels
+        assert all(not lbl.isEnabled() for lbl in p2p_labels)
+        assert all(lbl.isEnabled() for lbl in self._labels(dialog, 0))

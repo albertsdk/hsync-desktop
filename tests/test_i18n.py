@@ -78,8 +78,8 @@ class TestTranslateFunction:
 
     def test_tr_with_format_args(self):
         """Keys with format placeholders should work."""
-        result = i18n.tr("app.version").format(version="1.0.0")
-        assert "1.0.0" in result
+        result = i18n.tr("label.files_fmt").format(count=3, size="1 MB")
+        assert "3" in result
 
 
 class TestCallbacks:

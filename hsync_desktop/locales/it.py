@@ -5,8 +5,9 @@
 
 translations: dict[str, str] = {
     "app.name": "HSYNC Desktop",
-    "app.welcome": "Benvenuto in HSYNC Desktop",
-    "app.version": "Versione {version}",
+    "app.tagline": "Mantieni i tuoi dispositivi sincronizzati",
+    "about.copyright": "Copyright © 2024-2026",
+    "about.author": "Alberto Basso",
     "app.loading": "Caricamento…",
     "status.connected": "Connesso",
     "status.disconnected": "Disconnesso",
@@ -417,7 +418,7 @@ translations: dict[str, str] = {
     "menu.help": "&Aiuto",
     "menu.help.docs": "Documentazione",
     "menu.help.github": "Progetto su GitHub",
-    "menu.help.about": "Informazioni su HSYNC Desktop",
+    "menu.help.about": "Informazioni",
     # Bandwidth dialog
     "bandwidth.title": "Limiti di banda",
     "bandwidth.upload": "Upload",

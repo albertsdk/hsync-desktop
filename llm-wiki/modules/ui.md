@@ -99,6 +99,22 @@ The devices tab shows
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).
 
+## splash_screen.py — Splash / About
+
+`SplashScreen` (`splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and
+doubles as the Help → About window. It is a fixed 420×330 frameless window whose
+vertical order is: the horizontal brand logo
+(`resources/icons/hsync-logo-horizontal.svg`, the same wordmark as the README top
+banner, drawn at 240 px wide) above the app name (`app.name`, bold at the default
+label size), the bare version (`__version__`, `lblVersion`), the tagline
+(`app.tagline`), then the copyright (`about.copyright`) and author
+(`about.author`) with space above. `show_and_dismiss` auto-closes after 2500 ms;
+`show_as_about` (`splash_screen.py::SplashScreen.show_as_about`) keeps it open.
+A click anywhere dismisses it: for the splash it emits `finished`
+(`main.py` connects it to reveal the main window), for the About it just closes.
+The Help → About menu entry is the short `menu.help.about` label ("About" /
+"Informazioni"), no longer carrying the app name.
+
 ## Presentation helpers
 
 | Concern | Code | Notes |

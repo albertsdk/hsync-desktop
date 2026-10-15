@@ -184,3 +184,24 @@ class TestTerminologyConsistency:
                 assert "bootnode" not in module.translations[key].lower(), (
                     f"{module.__name__}:{key}"
                 )
+
+
+class TestAboutContent:
+    """The splash / About content stays short and correctly attributed."""
+
+    ALL = [en, it, de, fr, es]
+
+    def test_tagline_is_short(self):
+        for module in self.ALL:
+            words = module.translations["app.tagline"].split()
+            assert 3 <= len(words) <= 6, module.__name__
+
+    def test_copyright_and_author_are_present(self):
+        for module in self.ALL:
+            assert module.translations["about.copyright"].startswith("Copyright ©")
+            assert module.translations["about.author"] == "Alberto Basso"
+
+    def test_about_menu_item_is_short(self):
+        for module in self.ALL:
+            label = module.translations["menu.help.about"]
+            assert "HSYNC" not in label, module.__name__

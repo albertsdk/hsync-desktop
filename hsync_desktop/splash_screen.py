@@ -4,20 +4,26 @@
 """
 Welcome splash screen shown at application startup.
 
-Displays the application name, version, and auto-dismisses after a few seconds.
-UI is loaded from ui/splash_screen.ui (Qt Designer).
+Shows the brand logo, the app name, the version, a short tagline and the
+copyright, and doubles as the "About" window. UI is loaded from
+ui/splash_screen.ui (Qt Designer).
 """
 
 from __future__ import annotations
 
-import sys
+from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QWidget
 
 from hsync_desktop import __version__
 from hsync_desktop.i18n import tr
 from hsync_desktop.ui.loader import load_ui_widget
+
+# Horizontal wordmark shared with the README top banner (bundled, unthemed).
+_LOGO_PATH = Path(__file__).parent / "resources" / "icons" / "hsync-logo-horizontal.svg"
+_LOGO_WIDTH = 240
 
 
 class SplashScreen(QWidget):
@@ -34,47 +40,49 @@ class SplashScreen(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint,
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setFixedSize(380, 200)
+        self.setFixedSize(420, 330)
 
         # Load UI from .ui file
         load_ui_widget("splash_screen", self)
 
         # Get widget references
+        self._lbl_logo: QLabel = self.findChild(QLabel, "lblLogo")  # type: ignore[assignment]
         self._lbl_app_name: QLabel = self.findChild(QLabel, "lblAppName")  # type: ignore[assignment]
-        self._lbl_welcome: QLabel = self.findChild(QLabel, "lblWelcome")  # type: ignore[assignment]
         self._lbl_version: QLabel = self.findChild(QLabel, "lblVersion")  # type: ignore[assignment]
+        self._lbl_tagline: QLabel = self.findChild(QLabel, "lblTagline")  # type: ignore[assignment]
+        self._lbl_copyright: QLabel = self.findChild(QLabel, "lblCopyright")  # type: ignore[assignment]
+        self._lbl_author: QLabel = self.findChild(QLabel, "lblAuthor")  # type: ignore[assignment]
 
-        # Set translated texts
+        self._set_logo()
         self._apply_translations()
+
+    def _set_logo(self) -> None:
+        """Show the horizontal brand logo above the app name."""
+        if _LOGO_PATH.is_file():
+            self._lbl_logo.setPixmap(QIcon(str(_LOGO_PATH)).pixmap(QSize(_LOGO_WIDTH, _LOGO_WIDTH)))
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
         self._lbl_app_name.setText(tr("app.name"))
-        self._lbl_welcome.setText(tr("app.welcome"))
-        self._lbl_version.setText(tr("app.version").format(version=__version__))
+        self._lbl_version.setText(__version__)
+        self._lbl_tagline.setText(tr("app.tagline"))
+        self._lbl_copyright.setText(tr("about.copyright"))
+        self._lbl_author.setText(tr("about.author"))
 
     def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""
-        # On production (frozen) builds, do not advertise the exact version on
-        # the auto-shown splash. The About dialog (show_as_about) still shows it
-        # on explicit user request.
-        if getattr(sys, "frozen", False):
-            self._lbl_version.hide()
         self.show()
-        # Center on screen
-        screen = self.screen()
-        if screen:
-            geo = screen.availableGeometry()
-            x = geo.x() + (geo.width() - self.width()) // 2
-            y = geo.y() + (geo.height() - self.height()) // 2
-            self.move(x, y)
+        self._center_on_screen()
         QTimer.singleShot(duration_ms, self.close)
 
     def show_as_about(self) -> None:
         """Show the splash screen as an About dialog (no auto-dismiss)."""
         self._is_about = True
         self.show()
-        # Center on screen
+        self._center_on_screen()
+
+    def _center_on_screen(self) -> None:
+        """Center the window on the current screen."""
         screen = self.screen()
         if screen:
             geo = screen.availableGeometry()
@@ -83,9 +91,8 @@ class SplashScreen(QWidget):
             self.move(x, y)
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        """Close on click when shown as About dialog."""
-        if getattr(self, "_is_about", False):
-            self.close()
+        """Dismiss on click: reveal the app for the splash, close for About."""
+        self.close()
         super().mousePressEvent(event)
 
     def keyPressEvent(self, event) -> None:  # type: ignore[override]

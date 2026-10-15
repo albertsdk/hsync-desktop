@@ -1115,11 +1115,11 @@ class SettingsDialog(QDialog):
             widget.setEnabled(not checked)
 
         # Also disable the labels in the Server Mode tab
-        conn_tab = self._tabs.widget(_SERVER_TAB_INDEX)
-        if conn_tab:
-            for lbl in conn_tab.findChildren(QLabel):
-                if lbl not in (self._p2p_banner_icon, self._p2p_banner_text):
-                    lbl.setEnabled(not checked)
+        self._set_tab_labels_enabled(
+            _SERVER_TAB_INDEX,
+            not checked,
+            exclude=(self._p2p_banner_icon, self._p2p_banner_text),
+        )
 
         # Enable/disable p2p tab widgets (except the p2p_mode toggle itself)
         p2p_sub_widgets: list[QWidget] = [
@@ -1141,11 +1141,27 @@ class SettingsDialog(QDialog):
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
 
         # Also enable/disable the labels in the p2p tab (except p2p_mode label)
-        p2p_tab = self._tabs.widget(_P2P_TAB_INDEX)
-        if p2p_tab:
-            for lbl in p2p_tab.findChildren(QLabel):
-                if lbl is not self._lbl_p2p_mode:
-                    lbl.setEnabled(checked and lbl not in self._unsupported_labels)
+        self._set_tab_labels_enabled(_P2P_TAB_INDEX, checked, exclude=(self._lbl_p2p_mode,))
+        # The toggle's own label follows the toggle's availability, not the mode.
+        self._lbl_p2p_mode.setEnabled(self._lbl_p2p_mode not in self._unsupported_labels)
+
+    def _set_tab_labels_enabled(
+        self, tab_index: int, enabled: bool, exclude: tuple[QWidget, ...] = ()
+    ) -> None:
+        """Gray/restore a tab's field labels so a disabled panel reads as disabled.
+
+        Mirrors the widget enable state: the Server Mode tab grays its labels
+        when p2p mode is active, so the Sync and p2p tabs gray theirs while a
+        sync is running. Banner labels and labels unavailable in this build are
+        left untouched.
+        """
+        tab = self._tabs.widget(tab_index)
+        if not tab:
+            return
+        for label in tab.findChildren(QLabel):
+            if label in exclude or label in self._unsupported_labels:
+                continue
+            label.setEnabled(enabled)
 
     def _on_force_master_toggled(self, checked: bool) -> None:
         """Force-master and never-master are mutually exclusive.
@@ -1704,8 +1720,20 @@ class SettingsDialog(QDialog):
             if active:
                 _set_field_tooltip(widget, disabled_tip)
 
-        # Re-apply normal tooltips and p2p-mode state when connection is not active
-        if not active:
+        # Gray the field labels too, so a disabled panel reads as disabled (the
+        # same visual the Server Mode tab uses when p2p mode is active).
+        if active:
+            self._set_tab_labels_enabled(_SYNC_TAB_INDEX, False)
+            self._set_tab_labels_enabled(_P2P_TAB_INDEX, False)
+            self._set_tab_labels_enabled(
+                _SERVER_TAB_INDEX,
+                False,
+                exclude=(self._p2p_banner_icon, self._p2p_banner_text),
+            )
+        else:
+            # Sync labels are managed only here; the p2p/Server labels are
+            # restored by _on_p2p_mode_toggled below.
+            self._set_tab_labels_enabled(_SYNC_TAB_INDEX, True)
             self._apply_tooltips()
             # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
             self._on_p2p_mode_toggled(self.p2p_mode.isChecked())

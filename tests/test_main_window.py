@@ -493,3 +493,11 @@ class TestEngineStartFailure:
         # The window is left usable (start re-enabled), not stuck mid-start.
         assert window._btn_start.isEnabled()
         assert not window._btn_stop.isEnabled()
+
+
+class TestAboutMenu:
+    """The Help > About entry is just 'About' / 'Informazioni', not the app name."""
+
+    def test_about_action_uses_the_short_label(self, window):
+        assert window._act_help_about.text() == tr("menu.help.about")
+        assert "HSYNC" not in window._act_help_about.text()

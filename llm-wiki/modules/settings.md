@@ -60,6 +60,15 @@ Tooltips are mirrored onto the row's label (and a toggle's inline label) through
 `_paired_label`/`_set_field_tooltip`, so hovering the label explains the row too;
 the same applies to the capability and the disabled-during-sync tooltips.
 
+**Disabled while syncing**: `SettingsDialog.set_connection_active`
+(`settings/dialog.py::SettingsDialog.set_connection_active`) shows the warning banner
+(`settings.connection_active_warning`) and disables the connection, sync and p2p
+fields while a sync runs. `_set_tab_labels_enabled`
+(`settings/dialog.py::SettingsDialog._set_tab_labels_enabled`) also grays each tab's
+field labels — the same visual the Server Mode tab uses when p2p mode is active
+(`_on_p2p_mode_toggled`, which now shares the helper) — so a disabled panel reads as
+disabled; banner labels and capability-unsupported labels are skipped.
+
 **Force-master live gate**: `--force-master` is incompatible with a
 non-bidirectional direction (it only applies to bidirectional syncs, and is
 emitted solely in p2p mode). `SettingsDialog._force_master_conflict`
