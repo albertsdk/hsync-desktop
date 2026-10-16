@@ -449,6 +449,8 @@ translations: dict[str, str] = {
     "menu.help.docs": "文档",
     "menu.help.github": "GitHub 上的项目",
     "menu.help.about": "关于",
+    "menu.help.license": "许可证",
+    "license.unavailable": "许可证文本不可用。",
     # Bandwidth dialog
     "bandwidth.title": "带宽限制",
     "bandwidth.upload": "上传",

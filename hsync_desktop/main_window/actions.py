@@ -223,6 +223,12 @@ class ActionsMixin:
         about = SplashScreen(self)
         about.show_as_about()
 
+    def _show_license(self) -> None:
+        """Show the project license in a scrollable, read-only dialog."""
+        from hsync_desktop.license_dialog import LicenseDialog
+
+        LicenseDialog(self).exec()
+
     # ── Signal wiring ────────────────────────────────────────────────────
 
     def _show_preview_summary(self) -> None:

@@ -328,6 +328,10 @@ class TestSelfContainedPackages:
         assert script.count('_collect_add_data_args "${CLIENT_BINARY}"') >= 3
         assert "_require_bundled_client" in script
 
+    def test_license_is_bundled_for_the_help_viewer(self):
+        """The Help → License viewer reads the bundled LICENSE file."""
+        assert "--add-data=LICENSE:hsync_desktop" in _script()
+
     def test_every_client_bundling_target_requires_the_client(self):
         """Regression: native/dmg/appimage/rpi advertised a bundled client but
         only deb/rpm enforced it, so a missing client silently shipped a

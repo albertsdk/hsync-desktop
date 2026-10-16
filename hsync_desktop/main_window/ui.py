@@ -320,6 +320,8 @@ class UiBuildMixin:
             self._act_settings.setText(tr("menu.settings"))
             self._menu_help.setTitle(tr("menu.help"))
             self._act_help_docs.setText(tr("menu.help.docs"))
+            self._act_help_github.setText(tr("menu.help.github"))
+            self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
 
     # ── Menu bar ──────────────────────────────────────────────────────────
@@ -439,6 +441,8 @@ class UiBuildMixin:
         menubar.addAction(self._act_settings)
 
         # ── Help menu ─────────────────────────────────────────────────
+        # External links first, then a separator and the local app-info
+        # dialogs, with "About" kept last (the conventional position).
         self._menu_help = menubar.addMenu(tr("menu.help"))
 
         self._act_help_docs = QAction(tr("menu.help.docs"), self)
@@ -448,6 +452,12 @@ class UiBuildMixin:
         self._act_help_github = QAction(tr("menu.help.github"), self)
         self._act_help_github.triggered.connect(self._open_github)
         self._menu_help.addAction(self._act_help_github)
+
+        self._menu_help.addSeparator()
+
+        self._act_help_license = QAction(tr("menu.help.license"), self)
+        self._act_help_license.triggered.connect(self._show_license)
+        self._menu_help.addAction(self._act_help_license)
 
         self._act_help_about = QAction(tr("menu.help.about"), self)
         self._act_help_about.triggered.connect(self._show_about)

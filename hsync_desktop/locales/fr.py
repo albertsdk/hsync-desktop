@@ -426,6 +426,8 @@ translations: dict[str, str] = {
     "menu.help.docs": "Documentation",
     "menu.help.github": "Projet sur GitHub",
     "menu.help.about": "À propos",
+    "menu.help.license": "Licence",
+    "license.unavailable": "Texte de la licence indisponible.",
     # Bandwidth dialog
     "bandwidth.title": "Limites de bande passante",
     "bandwidth.upload": "Téléversement",

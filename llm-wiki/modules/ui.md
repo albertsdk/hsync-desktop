@@ -35,6 +35,12 @@ notification is wired separately, only when a notifier exists).
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::MainWindow._create_menu_bar`).
 
+Help menu (`main_window/ui.py::MainWindow._create_menu_bar`): external links
+first (Documentation, Project on GitHub), then a separator and the local
+app-info dialogs — **License** (`main_window/actions.py::MainWindow._show_license`
+→ `license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
+`LICENSE`) and **About** last, the conventional position.
+
 ### Engine start failure feedback
 
 `_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps

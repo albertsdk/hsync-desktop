@@ -383,3 +383,28 @@ class TestLanguageChangeRetranslatesTable:
         window._apply_translations()
 
         assert called == [1]
+
+
+class TestHelpMenu:
+    """Help menu: external links first, then License and About (About last)."""
+
+    def test_order_is_links_then_license_then_about(self, window):
+        from hsync_desktop.i18n import tr
+
+        assert [action.text() for action in window._menu_help.actions()] == [
+            tr("menu.help.docs"),
+            tr("menu.help.github"),
+            "",
+            tr("menu.help.license"),
+            tr("menu.help.about"),
+        ]
+
+    def test_license_action_opens_the_dialog(self, window, monkeypatch):
+        from hsync_desktop.license_dialog import LicenseDialog
+
+        opened: list[int] = []
+        monkeypatch.setattr(LicenseDialog, "exec", lambda self: opened.append(1))
+
+        window._act_help_license.trigger()
+
+        assert opened == [1]

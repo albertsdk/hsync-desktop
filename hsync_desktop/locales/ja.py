@@ -449,6 +449,8 @@ translations: dict[str, str] = {
     "menu.help.docs": "ドキュメント",
     "menu.help.github": "GitHub のプロジェクト",
     "menu.help.about": "バージョン情報",
+    "menu.help.license": "ライセンス",
+    "license.unavailable": "ライセンス本文を表示できません。",
     # Bandwidth dialog
     "bandwidth.title": "帯域幅の制限",
     "bandwidth.upload": "アップロード",

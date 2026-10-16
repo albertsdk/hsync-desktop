@@ -509,6 +509,9 @@ _add_data_args() {
 
     add_data_args+=("--add-data=hsync_desktop/ui:hsync_desktop/ui")
     add_data_args+=("--add-data=hsync_desktop/resources/icons:hsync_desktop/resources/icons")
+    # Bundled so the Help → License viewer can show the license from the frozen
+    # app without shipping a second copy in source (LICENSE stays the SSOT).
+    add_data_args+=("--add-data=LICENSE:hsync_desktop")
 
     local arg
     for arg in "${add_data_args[@]}"; do
