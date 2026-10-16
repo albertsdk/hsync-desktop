@@ -23,30 +23,25 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
+from hsync_desktop.settings.dialog import (
+    _GENERAL_TAB_INDEX,
+    _P2P_TAB_INDEX,
+    _SERVER_TAB_INDEX,
+    SettingsDialog,
+)
 
 
-class TestLogPanel:
-    """The log tab shows, in order: Show log panel, Verbose, Log file."""
+class TestAdvancedLoggingPanel:
+    """Verbose + log file live in the Advanced tab's Logging group; the log
+    panel visibility toggle lives in General."""
 
-    def test_field_order(self, dialog):
-        form = dialog.findChild(QFormLayout, "formLog")
-        assert form is not None
-        targets = {
-            id(dialog.show_log_panel.parent()): "show_log_panel",
-            id(dialog.verbose.parent()): "verbose",
-            id(dialog.logfile): "logfile",
-        }
-        order: list[str] = []
-        for row in range(form.rowCount()):
-            item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            widget = item.widget() if item else None
-            if widget is None or widget.isHidden():
-                continue
-            name = targets.get(id(widget))
-            if name:
-                order.append(name)
-        assert order == ["show_log_panel", "verbose", "logfile"]
+    def test_logging_group_holds_verbose_and_logfile(self, dialog):
+        grp = dialog._grp_advanced_logging
+        assert grp.isAncestorOf(dialog.verbose)
+        assert grp.isAncestorOf(dialog.logfile)
+
+    def test_show_log_panel_is_in_general(self, dialog):
+        assert dialog._tabs.widget(_GENERAL_TAB_INDEX).isAncestorOf(dialog.show_log_panel)
 
     def test_show_log_panel_label_is_translated(self, dialog):
         assert dialog._lbl_show_log_panel.text() == tr("settings.show_log_panel")

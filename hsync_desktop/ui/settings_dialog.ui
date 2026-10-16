@@ -233,13 +233,6 @@
          </property>
         </widget>
        </item>
-       <item row="12" column="1">
-        <widget class="QCheckBox" name="startAtLogin">
-         <property name="text">
-          <string>Launch at login</string>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
      <!-- Tab: p2p -->
@@ -433,64 +426,15 @@
        </item>
       </layout>
      </widget>
-     <!-- Tab: Log -->
-     <widget class="QWidget" name="tabLog">
+     <!-- Tab: General -->
+     <widget class="QWidget" name="tabGeneral">
       <attribute name="title">
-       <string>Log</string>
+       <string>General</string>
       </attribute>
       <attribute name="icon">
-       <iconset theme="utilities-log-viewer"/>
+       <iconset theme="preferences-system"/>
       </attribute>
-      <layout class="QFormLayout" name="formLog">
-       <item row="0" column="1">
-        <widget class="QCheckBox" name="showLogPanel">
-         <property name="text">
-          <string>Show log panel</string>
-         </property>
-         <property name="checked">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QCheckBox" name="verbose">
-         <property name="text">
-          <string>Verbose output</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QCheckBox" name="quiet">
-         <property name="text">
-          <string>Quiet mode</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="lblLogfile">
-         <property name="text">
-          <string>Log file:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="1">
-        <widget class="QLineEdit" name="logfile">
-         <property name="placeholderText">
-          <string>/path/to/logfile.log</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <!-- Tab: Appearance -->
-     <widget class="QWidget" name="tabAppearance">
-      <attribute name="title">
-       <string>Appearance</string>
-      </attribute>
-      <attribute name="icon">
-       <iconset theme="preferences-desktop-theme"/>
-      </attribute>
-      <layout class="QFormLayout" name="formAppearance">
+      <layout class="QFormLayout" name="formGeneral">
        <item row="0" column="0">
         <widget class="QLabel" name="lblLanguage">
          <property name="text">
@@ -539,6 +483,92 @@
          </property>
          <property name="checked">
           <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QCheckBox" name="showLogPanel">
+         <property name="text">
+          <string>Show log panel</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QCheckBox" name="startAtLogin">
+         <property name="text">
+          <string>Launch at login</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <!-- Tab: Advanced -->
+     <widget class="QWidget" name="tabAdvanced">
+      <attribute name="title">
+       <string>Advanced</string>
+      </attribute>
+      <attribute name="icon">
+       <iconset theme="preferences-other"/>
+      </attribute>
+      <layout class="QFormLayout" name="formAdvanced">
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="autotuneEnabled">
+         <property name="text">
+          <string>Auto-tune performance</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QCheckBox" name="deltaEnabled">
+         <property name="text">
+          <string>Enable delta transfer</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QCheckBox" name="massDeleteGuard">
+         <property name="text">
+          <string>Deletion protection</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QCheckBox" name="verbose">
+         <property name="text">
+          <string>Verbose output</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QCheckBox" name="quiet">
+         <property name="text">
+          <string>Quiet mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblLogfile">
+         <property name="text">
+          <string>Log file:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QLineEdit" name="logfile">
+         <property name="placeholderText">
+          <string>/path/to/logfile.log</string>
          </property>
         </widget>
        </item>

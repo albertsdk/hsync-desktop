@@ -18,10 +18,21 @@ from typing import cast
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import (
+    BANDWIDTH_MAX_BPS,
+    BANDWIDTH_MAX_MBPS,
+    BANDWIDTH_MIN_BPS,
+    DEFAULT_AUTOTUNE,
     DEFAULT_BUCKET,
+    DEFAULT_DELTA_ENABLED,
+    DEFAULT_DELTA_MIN_FILE_SIZE_KB,
+    DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
     DEFAULT_GROUP,
+    DEFAULT_MASS_DELETE_GUARD,
+    DEFAULT_MASS_DELETE_PERCENT,
+    DEFAULT_MASS_DELETE_THRESHOLD,
     DEFAULT_MAX_INBOUND_SIZE,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_PEER_DOWNLOAD,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -191,6 +202,41 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if force_dry_run or s.value("sync/dry_run", False, bool):
         args.append("-n")
 
+    # Advanced tab (engine tuning). Values matching the client default are
+    # omitted so the engine keeps its own default/auto behaviour.
+    if not s.value("advanced/autotune", DEFAULT_AUTOTUNE, bool):
+        args.append("--no-autotune")
+    max_concurrent = cast(int, s.value("advanced/max_concurrent_transfers", 0, int))
+    max_concurrent = max(0, min(max_concurrent, 20))
+    if max_concurrent > 0:
+        args += ["--max-concurrent-transfers", str(max_concurrent)]
+
+    if not s.value("advanced/delta_enabled", DEFAULT_DELTA_ENABLED, bool):
+        args.append("--no-delta")
+    delta_remote_kb = cast(
+        int, s.value("advanced/delta_min_file_size_kb", DEFAULT_DELTA_MIN_FILE_SIZE_KB, int)
+    )
+    if delta_remote_kb != DEFAULT_DELTA_MIN_FILE_SIZE_KB:
+        args += ["--delta-min-file-size", str(max(0, delta_remote_kb) * 1024)]
+    delta_p2p_kb = cast(
+        int, s.value("advanced/delta_min_file_size_p2p_kb", DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB, int)
+    )
+    if delta_p2p_kb != DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB:
+        args += ["--delta-min-file-size-p2p", str(max(0, delta_p2p_kb) * 1024)]
+
+    if not s.value("advanced/mass_delete_guard", DEFAULT_MASS_DELETE_GUARD, bool):
+        args.append("--no-mass-delete-guard")
+    guard_threshold = cast(
+        int, s.value("advanced/mass_delete_threshold", DEFAULT_MASS_DELETE_THRESHOLD, int)
+    )
+    guard_threshold = max(0, min(guard_threshold, 1_000_000))
+    args += ["--mass-delete-threshold", str(guard_threshold)]
+    guard_percent = cast(
+        int, s.value("advanced/mass_delete_percent", DEFAULT_MASS_DELETE_PERCENT, int)
+    )
+    guard_percent = max(0, min(guard_percent, 100))
+    args += ["--mass-delete-percent", str(guard_percent)]
+
     # p2p
     if p2p_enabled:
         port = cast(int, s.value("p2p/port", 0, int))
@@ -218,6 +264,8 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             args.append("--never-master")
         if s.value("p2p/require_pairing", False, bool):
             args.append("--require-pairing")
+        if not s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool):
+            args.append("--no-peer-download")
 
     # Bandwidth limits
     upload_bps, download_bps = get_bandwidth_limits()
@@ -343,7 +391,7 @@ def get_bandwidth_limits() -> tuple[int | None, int | None]:
             upload_val = float(
                 str(upload_raw)
             )  # Convert to string first to handle weird QSettings values
-            upload = int(upload_val * 1024 * 1024)
+            upload = max(BANDWIDTH_MIN_BPS, min(int(upload_val * 1024 * 1024), BANDWIDTH_MAX_BPS))
         except (ValueError, TypeError):
             # Invalid stored value - remove and treat as unlimited
             s.remove("sync/bandwidth_upload")
@@ -353,7 +401,9 @@ def get_bandwidth_limits() -> tuple[int | None, int | None]:
             download_val = float(
                 str(download_raw)
             )  # Convert to string first to handle weird QSettings values
-            download = int(download_val * 1024 * 1024)
+            download = max(
+                BANDWIDTH_MIN_BPS, min(int(download_val * 1024 * 1024), BANDWIDTH_MAX_BPS)
+            )
         except (ValueError, TypeError):
             # Invalid stored value - remove and treat as unlimited
             s.remove("sync/bandwidth_download")
@@ -370,11 +420,11 @@ def save_bandwidth_limits(upload_mbps: float | None, download_mbps: float | None
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     if upload_mbps is not None and upload_mbps > 0:
-        s.setValue("sync/bandwidth_upload", upload_mbps)
+        s.setValue("sync/bandwidth_upload", min(float(upload_mbps), BANDWIDTH_MAX_MBPS))
     else:
         s.remove("sync/bandwidth_upload")
 
     if download_mbps is not None and download_mbps > 0:
-        s.setValue("sync/bandwidth_download", download_mbps)
+        s.setValue("sync/bandwidth_download", min(float(download_mbps), BANDWIDTH_MAX_MBPS))
     else:
         s.remove("sync/bandwidth_download")

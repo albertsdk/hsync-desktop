@@ -46,25 +46,36 @@ shares the label though it is currently unused), followed by the local folder
 the user names the share before choosing where to materialize it. All group
 titles are refreshed in `_apply_translations`.
 
-**Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2), log
-(3), Appearance (4), sourced from `ui/settings_dialog.ui` (the p2p page precedes
-the Server Mode page). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` / `_SERVER_TAB_INDEX`
-(`settings/tab_indices.py::_P2P_TAB_INDEX`) name the positions; the
+**Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2),
+General (3), Advanced (4), sourced from `ui/settings_dialog.ui` (the p2p page
+precedes the Server Mode page, and Advanced is last, after the app preferences,
+matching comparable tools). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` /
+`_SERVER_TAB_INDEX` / `_GENERAL_TAB_INDEX` / `_ADVANCED_TAB_INDEX`
+(`settings/tab_indices.py::_ADVANCED_TAB_INDEX`) name the positions; the
 prefer-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
-them instead of literals.
+them instead of literals. Advanced holds the engine tuning (performance, delta
+transfer, deletion protection, bandwidth, logging); General holds the app
+preferences (language, theme, notifications, tooltips, log panel, launch at
+login).
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
-`never_master`, `require_pairing`) are disabled + unchecked when the probed
-`CapabilitiesDoc` (from `engine.get_binary_capabilities`) lacks the matching CLI
-option; the unsupported widgets carry the `tip.capability_unsupported` tooltip.
+`never_master`, `require_pairing`, `peer_download` and its caps) are disabled +
+unchecked when the probed `CapabilitiesDoc` (from `engine.get_binary_capabilities`)
+lacks the matching CLI option; the unsupported widgets carry the
+`tip.capability_unsupported` tooltip. The Advanced engine knobs
+(`autotune`, `max_concurrent_transfers`, `delta_enabled`, the delta sizes, the
+deletion-protection controls and the bandwidth limits) are gated on the union of
+the subcommands' advertised options (the same flags exist for p2p and server);
+`--no-peer-download` is p2p-only.
 Tooltips are mirrored onto the row's label (and a toggle's inline label) through
 `_paired_label`/`_set_field_tooltip`, so hovering the label explains the row too;
 the same applies to the capability and the disabled-during-sync tooltips.
 
 **Disabled while syncing**: `SettingsDialog.set_connection_active`
 (`settings/dialog.py::SettingsDialog.set_connection_active`) shows the warning banner
-(`settings.connection_active_warning`) and disables the connection, sync and p2p
-fields while a sync runs. `_set_tab_labels_enabled`
+(`settings.connection_active_warning`) and disables the connection, sync, p2p and
+Advanced fields while a sync runs (the General tab stays live: theme, language
+and the log panel change without a restart). `_set_tab_labels_enabled`
 (`settings/dialog.py::SettingsDialog._set_tab_labels_enabled`) also grays each tab's
 field labels — the same visual the Server Mode tab uses when p2p mode is active
 (`_on_p2p_mode_toggled`, which now shares the helper) — so a disabled panel reads as
@@ -190,11 +201,9 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`se
 
 ## autostart.py — launch at login (desktop-only)
 
-`appearance/start_at_login` is the Sync-tab toggle `start_at_login` (Sync mode
-group, directly above `auto_sync`; built by
-`settings/tab_builders.py::build_sync_tab`, placed by
-`settings/tab_layout.py::reorganize_sync_tab`, label
-`settings.start_at_login`, tip `tip.start_at_login`), a desktop-only
+`appearance/start_at_login` is the General-tab toggle `start_at_login` (built by
+`settings/tab_builders.py::build_general_tab`, placed in the General form,
+label `settings.start_at_login`, tip `tip.start_at_login`), a desktop-only
 preference (no client CLI flag, so `cli_args.py` is not involved). On accept,
 `SettingsDialog._apply_start_at_login` (`settings/dialog.py::SettingsDialog._apply_start_at_login`)
 reconciles the OS login item through `autostart.py` — `autostart.is_supported`,
@@ -222,14 +231,32 @@ available).
 | `build_hsync_args` | `settings/cli_args.py::build_hsync_args` | core translator: QSettings → arg list |
 | `secure_config_file` | `settings/cli_args.py::secure_config_file` | restrict the on-disk settings file perms (0600) |
 | `get_saved_theme` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` | desktop-only prefs |
-| `get_bandwidth_limits` / `save_bandwidth_limits` | `settings/cli_args.py::get_bandwidth_limits` / `settings/cli_args.py::save_bandwidth_limits` | persisted bandwidth caps |
+| `get_bandwidth_limits` / `save_bandwidth_limits` | `settings/cli_args.py::get_bandwidth_limits` / `settings/cli_args.py::save_bandwidth_limits` | persisted bandwidth caps (bytes/s in, MB/s out) |
+
+**Bandwidth limits** have two entry points that share one set of values
+(`sync/bandwidth_upload` / `sync/bandwidth_download`): the Advanced tab's Network
+section and `bandwidth_dialog.py::BandwidthDialog` opened from the status-bar
+sent/received labels (`main_window/actions.py::ActionsMixin._show_bandwidth_dialog`).
+Both use the same strategy — a `0` field means unlimited (no enable checkbox) —
+and the dialog additionally applies the change live through
+`engine/process.py::HsyncEngine.set_bandwidth` while a sync runs.
 
 `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) always appends `--allow-deletions` (non-interactive) and
 `--no-color`; the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
 is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
-`--max-inbound-size`), and the p2p block (the `p2p`/`server` subcommand is the
-first token, then `--prefer-master`, `--never-master`, `--require-pairing`).
+`--max-inbound-size`), the Advanced-tab engine knobs (`--no-autotune`,
+`--max-concurrent-transfers`, `--no-delta`, `--delta-min-file-size[-p2p]`,
+`--no-mass-delete-guard`, `--mass-delete-threshold`, `--mass-delete-percent`),
+and the p2p block (the `p2p`/`server` subcommand is the
+first token, then `--prefer-master`, `--never-master`, `--require-pairing`,
+`--no-peer-download`). Values matching the client default are omitted so the
+engine keeps its own default/auto behaviour; the deletion thresholds are always
+clamped and emitted.
+The peer-download caps (`p2p/peer_read_cap`, `p2p/peer_sources_max`) are env-only
+(no CLI flag) and exported by
+`engine/process.py::apply_settings_env` as `HSYNC_P2P_PEER_READ_CAP` /
+`HSYNC_P2P_PEER_SOURCES_MAX` in p2p mode.
 The UPnP toggle is gated on the client's `--upnp` flag (opt-in since 1.0.3;
 the old `--no-upnp` no longer exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every

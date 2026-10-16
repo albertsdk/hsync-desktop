@@ -17,6 +17,8 @@ from PySide6.QtWidgets import QLabel
 from hsync_desktop.i18n import SUPPORTED_LANGUAGES, tr
 from hsync_desktop.icons import style_ok_cancel_button_box
 from hsync_desktop.settings.tab_indices import (
+    _ADVANCED_TAB_INDEX,
+    _GENERAL_TAB_INDEX,
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
@@ -34,8 +36,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._tabs.setTabText(_SYNC_TAB_INDEX, tr("settings.sync"))
     dlg._tabs.setTabText(_P2P_TAB_INDEX, tr("settings.p2p"))
     dlg._tabs.setTabText(_SERVER_TAB_INDEX, tr("settings.server_mode"))
-    dlg._tabs.setTabText(3, tr("settings.log"))
-    dlg._tabs.setTabText(4, tr("settings.appearance"))
+    dlg._tabs.setTabText(_GENERAL_TAB_INDEX, tr("settings.general"))
+    dlg._tabs.setTabText(_ADVANCED_TAB_INDEX, tr("settings.advanced"))
 
     # Sync tab - shared path label
     lbl_shared: QLabel = dlg.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
@@ -105,6 +107,13 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_p2p_role.setTitle(tr("settings.group.p2p_role"))
     dlg._grp_p2p_advanced.setTitle(tr("settings.group.advanced"))
 
+    # Advanced tab group box titles
+    dlg._grp_advanced_perf.setTitle(tr("settings.group.performance"))
+    dlg._grp_advanced_delta.setTitle(tr("settings.group.delta"))
+    dlg._grp_advanced_guard.setTitle(tr("settings.group.deletion_protection"))
+    dlg._grp_advanced_network.setTitle(tr("settings.group.network"))
+    dlg._grp_advanced_logging.setTitle(tr("settings.group.logging"))
+
     # p2p tab labels
     dlg._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
     lbl = dlg.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
@@ -130,16 +139,33 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_prefer_master.setText(tr("settings.prefer_master"))
     dlg._lbl_never_master.setText(tr("settings.never_master"))
     dlg._lbl_require_pairing.setText(tr("settings.require_pairing"))
+    dlg._lbl_peer_download.setText(tr("settings.peer_download"))
+    dlg._lbl_peer_read_cap.setText(tr("settings.peer_read_cap"))
+    dlg._lbl_peer_sources_max.setText(tr("settings.peer_sources_max"))
 
-    # Log tab labels
+    # Advanced tab labels (engine tuning + logging)
+    dlg._lbl_autotune.setText(tr("settings.autotune"))
+    dlg._lbl_max_concurrent.setText(tr("settings.max_concurrent_transfers"))
+    dlg._lbl_delta_enabled.setText(tr("settings.delta_enabled"))
+    dlg._lbl_delta_min.setText(tr("settings.delta_min_file_size"))
+    dlg._lbl_delta_min_p2p.setText(tr("settings.delta_min_file_size_p2p"))
+    dlg._lbl_mass_delete_guard.setText(tr("settings.mass_delete_guard"))
+    dlg._lbl_guard_threshold.setText(tr("settings.mass_delete_threshold"))
+    dlg._lbl_guard_percent.setText(tr("settings.mass_delete_percent"))
+    dlg._lbl_bandwidth_upload.setText(tr("settings.bandwidth_upload"))
+    dlg._lbl_bandwidth_download.setText(tr("settings.bandwidth_download"))
     dlg._lbl_verbose.setText(tr("settings.verbose"))
-    dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
     dlg._lbl_quiet.setText(tr("settings.quiet"))
     lbl = dlg.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.logfile"))
+    dlg.max_concurrent_transfers.setSpecialValueText(tr("settings.auto"))
+    dlg.mass_delete_threshold.setSpecialValueText(tr("settings.disabled"))
+    dlg.mass_delete_percent.setSpecialValueText(tr("settings.disabled"))
+    dlg.bandwidth_upload.setSpecialValueText(tr("settings.unlimited"))
+    dlg.bandwidth_download.setSpecialValueText(tr("settings.unlimited"))
 
-    # Appearance tab labels
+    # General tab labels (interface + startup)
     lbl = dlg.findChild(QLabel, "lblTheme")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.theme"))
@@ -150,6 +176,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         lbl.setText(tr("settings.p2pguage"))
     dlg._lbl_notifications.setText(tr("settings.notifications"))
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))
+    dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
     dlg._lbl_start_at_login.setText(tr("settings.start_at_login"))
 
     # Button box

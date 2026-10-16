@@ -22,7 +22,11 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.tab_indices import _P2P_TAB_INDEX, _SYNC_TAB_INDEX
+from hsync_desktop.settings.tab_indices import (
+    _ADVANCED_TAB_INDEX,
+    _P2P_TAB_INDEX,
+    _SYNC_TAB_INDEX,
+)
 
 if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
@@ -49,7 +53,6 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     cont_no_comp: QWidget = dlg.compression_enabled.parent()  # type: ignore[assignment]
     cont_dry_run: QWidget = dlg.dry_run.parent()  # type: ignore[assignment]
     cont_auto_sync: QWidget = dlg.auto_sync.parent()  # type: ignore[assignment]
-    cont_start_at_login: QWidget = dlg.start_at_login.parent()  # type: ignore[assignment]
 
     # ── Detach old layout ──────────────────────────────────
     old = sync_tab.layout()
@@ -80,7 +83,6 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     f2.addRow(dlg._lbl_sync_direction, dlg.sync_direction_combo)
     f2.addRow("", cont_ignore)
     f2.addRow("", cont_continuous)
-    f2.addRow("", cont_start_at_login)
     f2.addRow("", cont_auto_sync)
     vbox.addWidget(dlg._grp_sync)
 
@@ -131,6 +133,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     cont_force: QWidget = dlg.prefer_master.parent()  # type: ignore[assignment]
     cont_never: QWidget = dlg.never_master.parent()  # type: ignore[assignment]
     cont_pairing: QWidget = dlg.require_pairing.parent()  # type: ignore[assignment]
+    cont_peer: QWidget = dlg.peer_download.parent()  # type: ignore[assignment]
     trust_container: QWidget = dlg.p2p_bootnode_trust.parent()  # type: ignore[assignment]
     manage_container: QWidget = dlg.btn_manage_trusted_keys.parent()  # type: ignore[assignment]
 
@@ -177,6 +180,79 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g4.addRow(lbl_port, dlg.p2p_port)
     g4.addRow(lbl_discovery, dlg.discovery_timeout)
     g4.addRow(dlg._lbl_ntp_hosts, dlg.ntp_hosts)
+    g4.addRow("", cont_peer)
+    g4.addRow(dlg._lbl_peer_read_cap, dlg.peer_read_cap)
+    g4.addRow(dlg._lbl_peer_sources_max, dlg.peer_sources_max)
     vbox.addWidget(dlg._grp_p2p_advanced)
+
+    vbox.addStretch()
+
+
+def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
+    """Reorganize the Advanced tab into grouped sections using QGroupBox."""
+    advanced_tab = dlg._tabs.widget(_ADVANCED_TAB_INDEX)
+    if not advanced_tab:
+        return
+
+    cont_autotune: QWidget = dlg.autotune.parent()  # type: ignore[assignment]
+    cont_delta: QWidget = dlg.delta_enabled.parent()  # type: ignore[assignment]
+    cont_guard: QWidget = dlg.mass_delete_guard.parent()  # type: ignore[assignment]
+    cont_verbose: QWidget = dlg.verbose.parent()  # type: ignore[assignment]
+    lbl_logfile: QLabel = dlg.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
+
+    old = advanced_tab.layout()
+    if old is not None:
+        while old.count():
+            old.takeAt(0)
+        _tmp = QWidget()
+        _tmp.setLayout(old)
+
+    vbox = QVBoxLayout(advanced_tab)
+    vbox.setContentsMargins(4, 4, 4, 4)
+    vbox.setSpacing(8)
+
+    # Group 1: performance
+    dlg._grp_advanced_perf = QGroupBox(tr("settings.group.performance"))
+    f1 = QFormLayout(dlg._grp_advanced_perf)
+    f1.addRow("", cont_autotune)
+    dlg._lbl_max_concurrent = QLabel(tr("settings.max_concurrent_transfers"))
+    f1.addRow(dlg._lbl_max_concurrent, dlg.max_concurrent_transfers)
+    vbox.addWidget(dlg._grp_advanced_perf)
+
+    # Group 2: delta transfer
+    dlg._grp_advanced_delta = QGroupBox(tr("settings.group.delta"))
+    f2 = QFormLayout(dlg._grp_advanced_delta)
+    f2.addRow("", cont_delta)
+    dlg._lbl_delta_min = QLabel(tr("settings.delta_min_file_size"))
+    f2.addRow(dlg._lbl_delta_min, dlg.delta_min_file_size)
+    dlg._lbl_delta_min_p2p = QLabel(tr("settings.delta_min_file_size_p2p"))
+    f2.addRow(dlg._lbl_delta_min_p2p, dlg.delta_min_file_size_p2p)
+    vbox.addWidget(dlg._grp_advanced_delta)
+
+    # Group 3: deletion protection
+    dlg._grp_advanced_guard = QGroupBox(tr("settings.group.deletion_protection"))
+    f3 = QFormLayout(dlg._grp_advanced_guard)
+    f3.addRow("", cont_guard)
+    dlg._lbl_guard_threshold = QLabel(tr("settings.mass_delete_threshold"))
+    f3.addRow(dlg._lbl_guard_threshold, dlg.mass_delete_threshold)
+    dlg._lbl_guard_percent = QLabel(tr("settings.mass_delete_percent"))
+    f3.addRow(dlg._lbl_guard_percent, dlg.mass_delete_percent)
+    vbox.addWidget(dlg._grp_advanced_guard)
+
+    # Group 4: network
+    dlg._grp_advanced_network = QGroupBox(tr("settings.group.network"))
+    f4 = QFormLayout(dlg._grp_advanced_network)
+    dlg._lbl_bandwidth_upload = QLabel(tr("settings.bandwidth_upload"))
+    f4.addRow(dlg._lbl_bandwidth_upload, dlg.bandwidth_upload)
+    dlg._lbl_bandwidth_download = QLabel(tr("settings.bandwidth_download"))
+    f4.addRow(dlg._lbl_bandwidth_download, dlg.bandwidth_download)
+    vbox.addWidget(dlg._grp_advanced_network)
+
+    # Group 5: logging
+    dlg._grp_advanced_logging = QGroupBox(tr("settings.group.logging"))
+    f5 = QFormLayout(dlg._grp_advanced_logging)
+    f5.addRow("", cont_verbose)
+    f5.addRow(lbl_logfile, dlg.logfile)
+    vbox.addWidget(dlg._grp_advanced_logging)
 
     vbox.addStretch()

@@ -142,35 +142,44 @@ class StartMixin:
         self._update_path_display()
         self._update_menu_state()
 
-    @staticmethod
-    def _simplify_path(path: str) -> str:
-        """Replace the user's HOME prefix with ~ for a shorter display."""
+    def _share_display_name(self) -> str:
+        """User-facing share name shown next to the folder icon.
+
+        Prefers the engine-detected bucket, then the saved share name, then the
+        local folder's own name as a last resort.
+        """
+        if self._bucket:
+            return self._bucket
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        bucket = str(s.value("sync/bucket", "", str)).strip()
+        if bucket:
+            return bucket
         from pathlib import Path as _Path
 
-        home = str(_Path.home())
-        if path.startswith(home):
-            return "~" + path[len(home) :]
-        return path
+        return _Path(self._local_path).name or self._local_path
 
     def _update_path_display(self) -> None:
         """Update the path label, sync direction icon, and remote endpoint."""
         from hsync_desktop.icons import icon as get_icon
 
         if self._local_path:
-            # ── Folder icon + path label ──────────────────────────────
+            # ── Folder icon + share name (local path in the tooltip) ──────
             self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(24, 24))
             self._path_icon_label.show()
-            display_path = self._simplify_path(self._local_path)
-            # Elide the path if it's too long (max ~300px)
-            max_path_px = 300
+            share_name = self._share_display_name()
+            # Elide the name if it's too long (max ~300px)
+            max_name_px = 300
             fm = QFontMetrics(self._path_label.font())
-            elided = fm.elidedText(display_path, Qt.TextElideMode.ElideMiddle, max_path_px)
+            elided = fm.elidedText(share_name, Qt.TextElideMode.ElideMiddle, max_name_px)
             link_color = (
                 self._path_label.palette().color(self._path_label.palette().ColorRole.Link).name()
             )
             self._path_label.setText(
                 f'<a href="open" style="color:{link_color}; text-decoration:none;">{elided}</a>'
             )
+            # The full local path is always reachable here: this tooltip is
+            # intentionally exempt from the "Show tooltips" preference, which
+            # only governs the settings fields.
             self._path_label.setToolTip(self._local_path)
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
 

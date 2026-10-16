@@ -146,6 +146,9 @@ class UiBuildMixin:
         self._path_label.setOpenExternalLinks(False)
         self._path_label.linkActivated.connect(self._on_path_clicked)
         self._local_path: str = ""
+        # Active share name (bucket) shown next to the folder icon; empty until
+        # the engine detects one, then seeded from the configured share.
+        self._bucket: str = ""
 
         # Add folder icon label before path label
         self._path_icon_label = QLabel(self.centralWidget())
@@ -278,8 +281,8 @@ class UiBuildMixin:
         self._btn_refresh.setToolTip(tr("btn.refresh"))
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
-        # Persistent identity (the share name) belongs in the window title, not
-        # the bottom status bar; seed it from the configured share.
+        # Seed the active share name from the configured share; the window title
+        # stays the app name (the share is shown next to the folder icon).
         self._on_bucket_detected(
             str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str)).strip()
         )

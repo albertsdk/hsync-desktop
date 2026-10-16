@@ -355,21 +355,40 @@ class TestPeerCountLifecycle:
         assert window._peers_label.text() == "–"
 
 
-class TestShareNameInTitle:
-    """The share name (persistent identity) lives in the window title, not the
-    bottom status bar."""
+class TestShareNameInActionBar:
+    """The share name labels the local folder (next to the folder icon); the
+    window title stays the app name and the path lives in the tooltip."""
 
-    def test_bucket_sets_the_window_title(self, window):
+    def test_title_stays_the_app_name(self, window):
         window._on_bucket_detected("demo-p2p")
 
-        assert window.windowTitle() == f"{tr('app.name')} — demo-p2p"
+        assert window.windowTitle() == tr("app.name")
 
-    def test_empty_bucket_resets_the_title(self, window):
+    def test_empty_bucket_keeps_the_app_name_title(self, window):
         window._on_bucket_detected("demo-p2p")
 
         window._on_bucket_detected("")
 
         assert window.windowTitle() == tr("app.name")
+
+    def test_bucket_name_labels_the_folder_with_path_tooltip(self, window, tmp_path):
+        window._local_path = str(tmp_path)
+
+        window._on_bucket_detected("demo-p2p")
+
+        assert "demo-p2p" in window._path_label.text()
+        assert window._path_label.toolTip() == str(tmp_path)
+
+    def test_saved_share_name_is_used_before_detection(self, window, monkeypatch, tmp_path):
+        s = _settings(tmp_path)
+        s.setValue("sync/bucket", "saved-share")
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        window._bucket = ""
+
+        window._update_path_display()
+
+        assert "saved-share" in window._path_label.text()
 
     def test_status_bar_no_longer_hosts_the_share_name(self, window):
         assert window.findChild(QLabel, "bucketLabel") is None

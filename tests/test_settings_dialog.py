@@ -117,6 +117,17 @@ class TestCapabilityGating:
                 "--require-pairing",
                 "--port",
                 "--upnp",
+                "--no-autotune",
+                "--max-concurrent-transfers",
+                "--no-delta",
+                "--delta-min-file-size",
+                "--delta-min-file-size-p2p",
+                "--mass-delete-guard",
+                "--mass-delete-threshold",
+                "--mass-delete-percent",
+                "--limit-upload",
+                "--limit-download",
+                "--no-peer-download",
             ],
         )
         dlg.p2p_mode.setChecked(True)

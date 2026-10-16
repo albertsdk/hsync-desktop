@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.icons import style_ok_cancel_button_box
 
 
 class HsyncIgnoreEditorDialog(QDialog):
@@ -42,15 +43,11 @@ class HsyncIgnoreEditorDialog(QDialog):
         layout.addWidget(self._editor, 1)
 
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
-        save_btn = button_box.button(QDialogButtonBox.StandardButton.Save)
-        if save_btn:
-            save_btn.setText(tr("hsyncignore.save"))
-        cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("hsyncignore.cancel"))
+        # Save/Cancel with the app-theme button icons (SettingsDialog style).
+        style_ok_cancel_button_box(button_box)
         button_box.accepted.connect(self._on_save)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)

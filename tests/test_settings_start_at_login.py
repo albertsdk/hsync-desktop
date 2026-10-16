@@ -12,6 +12,7 @@ from __future__ import annotations
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.settings.tab_indices import _GENERAL_TAB_INDEX
 
 
 def _dialog(qtbot, monkeypatch, tmp_path):
@@ -32,9 +33,9 @@ class TestToggle:
         dlg, _ = _dialog(qtbot, monkeypatch, tmp_path)
         assert not dlg.start_at_login.isChecked()
 
-    def test_toggle_lives_in_the_sync_mode_group(self, dialog):
-        """Launch-at-login sits with the sync options, not under Appearance."""
-        assert dialog._grp_sync.isAncestorOf(dialog.start_at_login)
+    def test_toggle_lives_in_the_general_tab(self, dialog):
+        """Launch-at-login sits with the app preferences, not with sync."""
+        assert dialog._tabs.widget(_GENERAL_TAB_INDEX).isAncestorOf(dialog.start_at_login)
 
 
 class TestPersistence:

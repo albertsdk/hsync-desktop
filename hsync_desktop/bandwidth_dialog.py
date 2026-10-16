@@ -4,13 +4,14 @@
 """
 Bandwidth settings dialog for HSYNC Desktop.
 
-Allows users to configure upload and download speed limits.
+Configures the upload and download speed limits. Uses the same 0 = unlimited
+strategy as the Advanced tab's Network section, so both entry points share one
+set of values (`sync/bandwidth_upload` / `sync/bandwidth_download`).
 """
 
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.icons import style_ok_cancel_button_box
 from hsync_desktop.settings.cli_args import get_bandwidth_limits, save_bandwidth_limits
 from hsync_desktop.ui.loader import load_ui_widget
 
@@ -53,15 +55,11 @@ class BandwidthDialog(QDialog):
         self._lbl_upload: QLabel = self.findChild(QLabel, "lblUpload")  # type: ignore[assignment]
         self._lbl_download: QLabel = self.findChild(QLabel, "lblDownload")  # type: ignore[assignment]
         self._lbl_info: QLabel = self.findChild(QLabel, "lblInfo")  # type: ignore[assignment]
-        self._upload_enabled: QCheckBox = self.findChild(QCheckBox, "chkUploadEnabled")  # type: ignore[assignment]
         self._upload_spin: QDoubleSpinBox = self.findChild(QDoubleSpinBox, "spnUpload")  # type: ignore[assignment]
-        self._download_enabled: QCheckBox = self.findChild(QCheckBox, "chkDownloadEnabled")  # type: ignore[assignment]
         self._download_spin: QDoubleSpinBox = self.findChild(QDoubleSpinBox, "spnDownload")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
         # Connect signals
-        self._upload_enabled.toggled.connect(self._on_upload_toggled)
-        self._download_enabled.toggled.connect(self._on_download_toggled)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
@@ -77,56 +75,31 @@ class BandwidthDialog(QDialog):
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
-        self._lbl_upload.setText(tr("bandwidth.upload"))
-        self._lbl_download.setText(tr("bandwidth.download"))
-        self._upload_enabled.setText(tr("bandwidth.limit_enabled"))
-        self._download_enabled.setText(tr("bandwidth.limit_enabled"))
+        # Same wording as the Advanced tab's Network section.
+        self._lbl_upload.setText(tr("settings.bandwidth_upload"))
+        self._lbl_download.setText(tr("settings.bandwidth_download"))
         self._lbl_info.setText(tr("bandwidth.info"))
+        # 0 = unlimited, matching the Settings fields.
+        self._upload_spin.setSpecialValueText(tr("settings.unlimited"))
+        self._download_spin.setSpecialValueText(tr("settings.unlimited"))
 
-        # Update button texts
-        ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
-        if ok_btn:
-            ok_btn.setText(tr("bandwidth.apply"))
-        cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("action.cancel"))
+        # Apply/Cancel with the app-theme button icons (same style as Save/Cancel).
+        style_ok_cancel_button_box(self._button_box, accept_text_key="bandwidth.apply")
 
     def _load_settings(self) -> None:
-        """Load current bandwidth settings."""
+        """Load current bandwidth settings (0 shows as unlimited)."""
         upload_bps, download_bps = get_bandwidth_limits()
 
-        # Convert from bytes/s to MB/s
-        if upload_bps is not None:
-            self._upload_enabled.setChecked(True)
-            self._upload_spin.setValue(upload_bps / (1024 * 1024))
-        else:
-            self._upload_enabled.setChecked(False)
-            self._upload_spin.setValue(10.0)
-
-        if download_bps is not None:
-            self._download_enabled.setChecked(True)
-            self._download_spin.setValue(download_bps / (1024 * 1024))
-        else:
-            self._download_enabled.setChecked(False)
-            self._download_spin.setValue(10.0)
-
-        self._on_upload_toggled(self._upload_enabled.isChecked())
-        self._on_download_toggled(self._download_enabled.isChecked())
-
-    def _on_upload_toggled(self, checked: bool) -> None:
-        """Handle upload enabled toggle."""
-        self._upload_spin.setEnabled(checked)
-
-    def _on_download_toggled(self, checked: bool) -> None:
-        """Handle download enabled toggle."""
-        self._download_spin.setEnabled(checked)
+        # Convert from bytes/s to MB/s; None (unlimited) shows as 0.
+        self._upload_spin.setValue((upload_bps or 0) / (1024 * 1024))
+        self._download_spin.setValue((download_bps or 0) / (1024 * 1024))
 
     def _on_accept(self) -> None:
         """Save settings and accept the dialog."""
-        upload_mbps = self._upload_spin.value() if self._upload_enabled.isChecked() else None
-        download_mbps = self._download_spin.value() if self._download_enabled.isChecked() else None
-
-        save_bandwidth_limits(upload_mbps, download_mbps)
+        save_bandwidth_limits(
+            self._upload_spin.value() or None,
+            self._download_spin.value() or None,
+        )
         self.accept()
 
     def get_bandwidth_values(self) -> tuple[float | None, float | None]:
@@ -135,6 +108,4 @@ class BandwidthDialog(QDialog):
         Returns:
             Tuple of (upload_mbps, download_mbps) where None means unlimited.
         """
-        upload = self._upload_spin.value() if self._upload_enabled.isChecked() else None
-        download = self._download_spin.value() if self._download_enabled.isChecked() else None
-        return upload, download
+        return self._upload_spin.value() or None, self._download_spin.value() or None

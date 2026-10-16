@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.config import BANDWIDTH_MAX_MBPS
 from hsync_desktop.i18n import SUPPORTED_LANGUAGES, tr
 from hsync_desktop.icons import icon
 from hsync_desktop.settings.form_helpers import (
@@ -33,7 +35,13 @@ from hsync_desktop.settings.form_helpers import (
     _insert_row_after,
     _replace_checkbox_with_toggle,
 )
-from hsync_desktop.settings.tab_indices import _SERVER_TAB_INDEX, _SYNC_TAB_INDEX
+from hsync_desktop.settings.tab_indices import (
+    _ADVANCED_TAB_INDEX,
+    _GENERAL_TAB_INDEX,
+    _P2P_TAB_INDEX,
+    _SERVER_TAB_INDEX,
+    _SYNC_TAB_INDEX,
+)
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 if TYPE_CHECKING:
@@ -118,9 +126,6 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     )
     dlg.dry_run, dlg._lbl_dry_run = _replace_checkbox_with_toggle(dlg, "dryRun")
     dlg.auto_sync, dlg._lbl_auto_sync = _replace_checkbox_with_toggle(dlg, "autoSync")
-    # Launch-at-login lives on the Sync tab next to auto-sync: it opens the app
-    # at login, auto-sync starts a transfer once it is open.
-    dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
     # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
     dlg.ignore_patterns = QLineEdit(dlg)
@@ -324,14 +329,40 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
                     nm_layout.insertRow(row + 1, "", cont_require_pairing)
                     break
 
+    # Peer download (p2p only): download file blocks from other devices, not
+    # only the primary. The caps are env-only (HSYNC_P2P_PEER_READ_CAP,
+    # HSYNC_P2P_PEER_SOURCES_MAX); the on/off is --no-peer-download.
+    dlg.peer_download = ToggleSwitch(dlg)
+    dlg.peer_download.setObjectName("peerDownload")
+    dlg._lbl_peer_download = QLabel(dlg)
+    cont_peer = QWidget(dlg)
+    hl_peer = QHBoxLayout(cont_peer)
+    hl_peer.setContentsMargins(0, 0, 0, 0)
+    hl_peer.addWidget(dlg.peer_download)
+    hl_peer.addWidget(dlg._lbl_peer_download)
+    hl_peer.addStretch()
+    dlg.peer_read_cap = QSpinBox(dlg)
+    dlg.peer_read_cap.setObjectName("peerReadCap")
+    dlg.peer_read_cap.setRange(1, 32)
+    dlg._lbl_peer_read_cap = QLabel(dlg)
+    dlg.peer_sources_max = QSpinBox(dlg)
+    dlg.peer_sources_max.setObjectName("peerSourcesMax")
+    dlg.peer_sources_max.setRange(1, 8)
+    dlg._lbl_peer_sources_max = QLabel(dlg)
+
     # Reorganize p2p tab into grouped sections
     dlg._reorganize_p2p_tab()
 
 
-def build_log_tab(dlg: SettingsDialog) -> None:
-    """Build the Log-tab widgets (Quiet mode is hidden)."""
+def build_advanced_tab(dlg: SettingsDialog) -> None:
+    """Build the Advanced-tab widgets (engine tuning + logging)."""
 
-    # Log tab widgets
+    dlg.autotune, dlg._lbl_autotune = _replace_checkbox_with_toggle(dlg, "autotuneEnabled")
+    dlg.delta_enabled, dlg._lbl_delta_enabled = _replace_checkbox_with_toggle(dlg, "deltaEnabled")
+    dlg.mass_delete_guard, dlg._lbl_mass_delete_guard = _replace_checkbox_with_toggle(
+        dlg, "massDeleteGuard"
+    )
+
     dlg.verbose, dlg._lbl_verbose = _replace_checkbox_with_toggle(dlg, "verbose")
     # NOTE: Quiet mode is hidden because hsync-desktop depends on parsing
     # stdout for status updates, file transfers, auth errors, etc.
@@ -343,30 +374,72 @@ def build_log_tab(dlg: SettingsDialog) -> None:
     if isinstance(parent, QWidget):
         parent.hide()
     dlg.logfile = dlg.findChild(QLineEdit, "logfile")
-    dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
+
+    dlg.max_concurrent_transfers = QSpinBox()
+    dlg.max_concurrent_transfers.setObjectName("maxConcurrentTransfers")
+    dlg.max_concurrent_transfers.setRange(0, 20)
+    dlg.max_concurrent_transfers.setSpecialValueText(tr("settings.auto"))
+
+    dlg.delta_min_file_size = QSpinBox()
+    dlg.delta_min_file_size.setObjectName("deltaMinFileSize")
+    dlg.delta_min_file_size.setRange(0, 10_000_000)
+    dlg.delta_min_file_size.setSuffix(" KB")
+
+    dlg.delta_min_file_size_p2p = QSpinBox()
+    dlg.delta_min_file_size_p2p.setObjectName("deltaMinFileSizeP2p")
+    dlg.delta_min_file_size_p2p.setRange(0, 10_000_000)
+    dlg.delta_min_file_size_p2p.setSuffix(" KB")
+
+    dlg.mass_delete_threshold = QSpinBox()
+    dlg.mass_delete_threshold.setObjectName("massDeleteThreshold")
+    dlg.mass_delete_threshold.setRange(0, 1_000_000)
+    dlg.mass_delete_threshold.setSpecialValueText(tr("settings.disabled"))
+
+    dlg.mass_delete_percent = QSpinBox()
+    dlg.mass_delete_percent.setObjectName("massDeletePercent")
+    dlg.mass_delete_percent.setRange(0, 100)
+    dlg.mass_delete_percent.setSuffix(" %")
+    dlg.mass_delete_percent.setSpecialValueText(tr("settings.disabled"))
+
+    dlg.bandwidth_upload = QDoubleSpinBox()
+    dlg.bandwidth_upload.setObjectName("bandwidthUpload")
+    dlg.bandwidth_upload.setRange(0.0, BANDWIDTH_MAX_MBPS)
+    dlg.bandwidth_upload.setDecimals(2)
+    dlg.bandwidth_upload.setSuffix(" MB/s")
+    dlg.bandwidth_upload.setSpecialValueText(tr("settings.unlimited"))
+
+    dlg.bandwidth_download = QDoubleSpinBox()
+    dlg.bandwidth_download.setObjectName("bandwidthDownload")
+    dlg.bandwidth_download.setRange(0.0, BANDWIDTH_MAX_MBPS)
+    dlg.bandwidth_download.setDecimals(2)
+    dlg.bandwidth_download.setSuffix(" MB/s")
+    dlg.bandwidth_download.setSpecialValueText(tr("settings.unlimited"))
+
+    dlg._reorganize_advanced_tab()
 
 
-def build_appearance_tab(dlg: SettingsDialog) -> None:
-    """Build the Appearance-tab widgets."""
+def build_general_tab(dlg: SettingsDialog) -> None:
+    """Build the General-tab widgets (interface + startup)."""
 
-    # Appearance tab widgets
     dlg.theme_combo = dlg.findChild(QComboBox, "themeCombo")
     dlg.lang_combo = dlg.findChild(QComboBox, "langCombo")
     dlg.notifications_enabled, dlg._lbl_notifications = _replace_checkbox_with_toggle(
         dlg, "notificationsEnabled"
     )
     dlg.tooltips_enabled, dlg._lbl_tooltips = _replace_checkbox_with_toggle(dlg, "tooltipsEnabled")
+    dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
+    dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:
     """Set the tab icons programmatically (theme icons are not portable)."""
 
     # Set tab icons programmatically (theme icons don't work cross-platform)
-    dlg._tabs.setTabIcon(0, icon("emblem-synchronizing"))  # Sync (first)
-    dlg._tabs.setTabIcon(1, icon("network-p2p"))  # p2p Mode (second)
-    dlg._tabs.setTabIcon(2, icon("network-cloud"))  # Server Mode (third)
-    dlg._tabs.setTabIcon(3, icon("utilities-log-viewer"))
-    dlg._tabs.setTabIcon(4, icon("preferences-desktop-theme"))
+    dlg._tabs.setTabIcon(_SYNC_TAB_INDEX, icon("emblem-synchronizing"))
+    dlg._tabs.setTabIcon(_P2P_TAB_INDEX, icon("network-p2p"))
+    dlg._tabs.setTabIcon(_SERVER_TAB_INDEX, icon("network-cloud"))
+    dlg._tabs.setTabIcon(_GENERAL_TAB_INDEX, icon("preferences-system"))
+    dlg._tabs.setTabIcon(_ADVANCED_TAB_INDEX, icon("preferences-other"))
 
 
 def setup_language_combo(dlg: SettingsDialog) -> None:

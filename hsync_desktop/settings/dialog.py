@@ -51,10 +51,14 @@ from PySide6.QtWidgets import (
 from hsync_desktop import autostart
 from hsync_desktop.config import (
     DEFAULT_AUTO_SYNC,
+    DEFAULT_AUTOTUNE,
     DEFAULT_BUCKET,
     DEFAULT_CA_CERT,
     DEFAULT_COMPRESSION_ENABLED,
     DEFAULT_CONTINUOUS,
+    DEFAULT_DELTA_ENABLED,
+    DEFAULT_DELTA_MIN_FILE_SIZE_KB,
+    DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_DRY_RUN,
     DEFAULT_FILTER_PATH,
@@ -64,6 +68,10 @@ from hsync_desktop.config import (
     DEFAULT_IGNORE_PATTERNS,
     DEFAULT_INSECURE,
     DEFAULT_LOGFILE,
+    DEFAULT_MASS_DELETE_GUARD,
+    DEFAULT_MASS_DELETE_PERCENT,
+    DEFAULT_MASS_DELETE_THRESHOLD,
+    DEFAULT_MAX_CONCURRENT_TRANSFERS,
     DEFAULT_MAX_INBOUND_SIZE,
     DEFAULT_MAX_WAIT,
     DEFAULT_MIN_FREE_DISK_SPACE,
@@ -75,6 +83,9 @@ from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_KEY,
+    DEFAULT_P2P_PEER_DOWNLOAD,
+    DEFAULT_P2P_PEER_READ_CAP,
+    DEFAULT_P2P_PEER_SOURCES_MAX,
     DEFAULT_P2P_PORT,
     DEFAULT_P2P_REQUIRE_PAIRING,
     DEFAULT_P2P_UPNP_ENABLED,
@@ -105,7 +116,11 @@ from hsync_desktop.i18n import (
     tr,
 )
 from hsync_desktop.icons import icon, style_ok_cancel_button_box
-from hsync_desktop.settings.cli_args import secure_config_file
+from hsync_desktop.settings.cli_args import (
+    get_bandwidth_limits,
+    save_bandwidth_limits,
+    secure_config_file,
+)
 from hsync_desktop.settings.form_helpers import (
     _action_row,
     _insert_row_after,
@@ -116,9 +131,9 @@ from hsync_desktop.settings.form_helpers import (
 )
 from hsync_desktop.settings.hsyncignore_dialog import HsyncIgnoreEditorDialog
 from hsync_desktop.settings.tab_builders import (
-    build_appearance_tab,
+    build_advanced_tab,
     build_connection_banner,
-    build_log_tab,
+    build_general_tab,
     build_p2p_tab,
     build_server_tab,
     build_sync_tab,
@@ -127,11 +142,17 @@ from hsync_desktop.settings.tab_builders import (
     setup_language_combo,
 )
 from hsync_desktop.settings.tab_indices import (
+    _ADVANCED_TAB_INDEX,
+    _GENERAL_TAB_INDEX,
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
-from hsync_desktop.settings.tab_layout import reorganize_p2p_tab, reorganize_sync_tab
+from hsync_desktop.settings.tab_layout import (
+    reorganize_advanced_tab,
+    reorganize_p2p_tab,
+    reorganize_sync_tab,
+)
 from hsync_desktop.settings.tab_translations import apply_translations
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
 from hsync_desktop.trusted_keys import TrustedKeysDialog
@@ -170,8 +191,8 @@ class SettingsDialog(QDialog):
         build_sync_tab(self)
         build_server_tab(self)
         build_p2p_tab(self)
-        build_log_tab(self)
-        build_appearance_tab(self)
+        build_advanced_tab(self)
+        build_general_tab(self)
         set_tab_icons(self)
         setup_language_combo(self)
 
@@ -227,6 +248,10 @@ class SettingsDialog(QDialog):
         """Regroup the p2p tab (implementation in ``tab_layout.py``)."""
         reorganize_p2p_tab(self)
 
+    def _reorganize_advanced_tab(self) -> None:
+        """Regroup the Advanced tab (implementation in ``tab_layout.py``)."""
+        reorganize_advanced_tab(self)
+
     def _apply_translations(self) -> None:
         """Apply i18n strings (implementation in ``tab_translations.py``)."""
         apply_translations(self)
@@ -278,17 +303,31 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.prefer_master, "tip.prefer_master", tips)
         _maybe_tip(self.never_master, "tip.never_master", tips)
         _maybe_tip(self.require_pairing, "tip.require_pairing", tips)
+        _maybe_tip(self.peer_download, "tip.peer_download", tips)
+        _maybe_tip(self.peer_read_cap, "tip.peer_read_cap", tips)
+        _maybe_tip(self.peer_sources_max, "tip.peer_sources_max", tips)
 
-        # Log tab
+        # Advanced tab (engine tuning + logging)
+        _maybe_tip(self.autotune, "tip.autotune", tips)
+        _maybe_tip(self.max_concurrent_transfers, "tip.max_concurrent_transfers", tips)
+        _maybe_tip(self.delta_enabled, "tip.delta_enabled", tips)
+        _maybe_tip(self.delta_min_file_size, "tip.delta_min_file_size", tips)
+        _maybe_tip(self.delta_min_file_size_p2p, "tip.delta_min_file_size_p2p", tips)
+        _maybe_tip(self.mass_delete_guard, "tip.mass_delete_guard", tips)
+        _maybe_tip(self.mass_delete_threshold, "tip.mass_delete_threshold", tips)
+        _maybe_tip(self.mass_delete_percent, "tip.mass_delete_percent", tips)
+        _maybe_tip(self.bandwidth_upload, "tip.bandwidth_upload", tips)
+        _maybe_tip(self.bandwidth_download, "tip.bandwidth_download", tips)
         _maybe_tip(self.verbose, "tip.verbose", tips)
         _maybe_tip(self.quiet, "tip.quiet", tips)
         _maybe_tip(self.logfile, "tip.logfile", tips)
 
-        # Appearance tab
+        # General tab (interface + startup)
         _maybe_tip(self.lang_combo, "tip.language", tips)
         _maybe_tip(self.theme_combo, "tip.theme", tips)
         _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
         _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
+        _maybe_tip(self.show_log_panel, "tip.show_log_panel", tips)
         _maybe_tip(self.start_at_login, "tip.start_at_login", tips)
         # A disabled toggle on a platform without an autostart mechanism still
         # explains itself, overriding the normal tooltip cleared above.
@@ -349,6 +388,52 @@ class SettingsDialog(QDialog):
             _set_field_tooltip(self.p2p_mode, tr("tip.capability_unsupported"))
         # Refresh dependent enable-state with the new gates in effect.
         self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+
+        # Peer download is p2p-only: gate it (and its env-only caps) on the
+        # --no-peer-download flag the p2p subcommand advertises.
+        if not (p2p_supported and supports_cli_option(doc, "--no-peer-download", subcommand="p2p")):
+            for peer_widget, peer_label in (
+                (self.peer_download, self._lbl_peer_download),
+                (self.peer_read_cap, self._lbl_peer_read_cap),
+                (self.peer_sources_max, self._lbl_peer_sources_max),
+            ):
+                self._unsupported_widgets.add(peer_widget)
+                self._unsupported_labels.add(peer_label)
+                peer_widget.setEnabled(False)
+                peer_label.setEnabled(False)
+                _set_field_tooltip(peer_widget, tr("tip.capability_unsupported"))
+
+        # Advanced tab: engine-wide knobs are advertised by both subcommands
+        # (union check, subcommand=None). Disable a control the binary cannot
+        # honour rather than emitting a flag it would reject.
+        advanced_gated: list[tuple[str, QWidget, QLabel]] = [
+            ("--no-autotune", self.autotune, self._lbl_autotune),
+            (
+                "--max-concurrent-transfers",
+                self.max_concurrent_transfers,
+                self._lbl_max_concurrent,
+            ),
+            ("--no-delta", self.delta_enabled, self._lbl_delta_enabled),
+            ("--delta-min-file-size", self.delta_min_file_size, self._lbl_delta_min),
+            (
+                "--delta-min-file-size-p2p",
+                self.delta_min_file_size_p2p,
+                self._lbl_delta_min_p2p,
+            ),
+            ("--mass-delete-guard", self.mass_delete_guard, self._lbl_mass_delete_guard),
+            ("--mass-delete-threshold", self.mass_delete_threshold, self._lbl_guard_threshold),
+            ("--mass-delete-percent", self.mass_delete_percent, self._lbl_guard_percent),
+            ("--limit-upload", self.bandwidth_upload, self._lbl_bandwidth_upload),
+            ("--limit-download", self.bandwidth_download, self._lbl_bandwidth_download),
+        ]
+        for adv_flag, adv_widget, adv_label in advanced_gated:
+            if supports_cli_option(doc, adv_flag):
+                continue
+            self._unsupported_widgets.add(adv_widget)
+            self._unsupported_labels.add(adv_label)
+            adv_widget.setEnabled(False)
+            adv_label.setEnabled(False)
+            _set_field_tooltip(adv_widget, tr("tip.capability_unsupported"))
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
@@ -451,6 +536,9 @@ class SettingsDialog(QDialog):
             self.prefer_master,
             self.never_master,
             self.require_pairing,
+            self.peer_download,
+            self.peer_read_cap,
+            self.peer_sources_max,
         ]
         for widget in p2p_sub_widgets:
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
@@ -853,6 +941,19 @@ class SettingsDialog(QDialog):
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
+        # Advanced tab (engine tuning)
+        s.setValue("advanced/autotune", self.autotune.isChecked())
+        s.setValue("advanced/max_concurrent_transfers", self.max_concurrent_transfers.value())
+        s.setValue("advanced/delta_enabled", self.delta_enabled.isChecked())
+        s.setValue("advanced/delta_min_file_size_kb", self.delta_min_file_size.value())
+        s.setValue("advanced/delta_min_file_size_p2p_kb", self.delta_min_file_size_p2p.value())
+        s.setValue("advanced/mass_delete_guard", self.mass_delete_guard.isChecked())
+        s.setValue("advanced/mass_delete_threshold", self.mass_delete_threshold.value())
+        s.setValue("advanced/mass_delete_percent", self.mass_delete_percent.value())
+        save_bandwidth_limits(
+            self.bandwidth_upload.value() or None,
+            self.bandwidth_download.value() or None,
+        )
         s.setValue("p2p/enabled", self.p2p_mode.isChecked())
         s.setValue("p2p/group", self.p2p_group.text().strip())
         s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
@@ -868,6 +969,9 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/prefer_master", self.prefer_master.isChecked())
         s.setValue("p2p/never_master", self.never_master.isChecked())
         s.setValue("p2p/require_pairing", self.require_pairing.isChecked())
+        s.setValue("p2p/peer_download", self.peer_download.isChecked())
+        s.setValue("p2p/peer_read_cap", self.peer_read_cap.value())
+        s.setValue("p2p/peer_sources_max", self.peer_sources_max.value())
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
@@ -941,6 +1045,48 @@ class SettingsDialog(QDialog):
         self.ignore_patterns.setText(
             str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
         )
+        # Advanced tab (engine tuning)
+        self.autotune.setChecked(bool(s.value("advanced/autotune", DEFAULT_AUTOTUNE, bool)))
+        self.max_concurrent_transfers.setValue(
+            cast(
+                int,
+                s.value("advanced/max_concurrent_transfers", DEFAULT_MAX_CONCURRENT_TRANSFERS, int),
+            )
+        )
+        self.delta_enabled.setChecked(
+            bool(s.value("advanced/delta_enabled", DEFAULT_DELTA_ENABLED, bool))
+        )
+        self.delta_min_file_size.setValue(
+            cast(
+                int,
+                s.value("advanced/delta_min_file_size_kb", DEFAULT_DELTA_MIN_FILE_SIZE_KB, int),
+            )
+        )
+        self.delta_min_file_size_p2p.setValue(
+            cast(
+                int,
+                s.value(
+                    "advanced/delta_min_file_size_p2p_kb",
+                    DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
+                    int,
+                ),
+            )
+        )
+        self.mass_delete_guard.setChecked(
+            bool(s.value("advanced/mass_delete_guard", DEFAULT_MASS_DELETE_GUARD, bool))
+        )
+        self.mass_delete_threshold.setValue(
+            cast(
+                int,
+                s.value("advanced/mass_delete_threshold", DEFAULT_MASS_DELETE_THRESHOLD, int),
+            )
+        )
+        self.mass_delete_percent.setValue(
+            cast(int, s.value("advanced/mass_delete_percent", DEFAULT_MASS_DELETE_PERCENT, int))
+        )
+        upload_bps, download_bps = get_bandwidth_limits()
+        self.bandwidth_upload.setValue((upload_bps or 0) / (1024 * 1024))
+        self.bandwidth_download.setValue((download_bps or 0) / (1024 * 1024))
         self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
         self.p2p_bootnode.setText(str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)))
@@ -961,6 +1107,15 @@ class SettingsDialog(QDialog):
         self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
         self.require_pairing.setChecked(
             bool(s.value("p2p/require_pairing", DEFAULT_P2P_REQUIRE_PAIRING, bool))
+        )
+        self.peer_download.setChecked(
+            bool(s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool))
+        )
+        self.peer_read_cap.setValue(
+            cast(int, s.value("p2p/peer_read_cap", DEFAULT_P2P_PEER_READ_CAP, int))
+        )
+        self.peer_sources_max.setValue(
+            cast(int, s.value("p2p/peer_sources_max", DEFAULT_P2P_PEER_SOURCES_MAX, int))
         )
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
@@ -1074,10 +1229,29 @@ class SettingsDialog(QDialog):
             self.prefer_master,
             self.never_master,
             self.require_pairing,
+            self.peer_download,
+            self.peer_read_cap,
+            self.peer_sources_max,
+        ]
+
+        # Advanced tab - engine tuning and logging need a restart
+        advanced_widgets: list[QWidget] = [
+            self.autotune,
+            self.max_concurrent_transfers,
+            self.delta_enabled,
+            self.delta_min_file_size,
+            self.delta_min_file_size_p2p,
+            self.mass_delete_guard,
+            self.mass_delete_threshold,
+            self.mass_delete_percent,
+            self.bandwidth_upload,
+            self.bandwidth_download,
+            self.verbose,
+            self.logfile,
         ]
 
         # Combine all widgets that should be disabled
-        all_disabled_widgets = connection_widgets + sync_widgets + p2p_widgets
+        all_disabled_widgets = connection_widgets + sync_widgets + p2p_widgets + advanced_widgets
 
         for widget in all_disabled_widgets:
             widget.setEnabled(not active and widget not in self._unsupported_widgets)
@@ -1086,10 +1260,12 @@ class SettingsDialog(QDialog):
                 _set_field_tooltip(widget, disabled_tip)
 
         # Gray the field labels too, so a disabled panel reads as disabled (the
-        # same visual the Server Mode tab uses when p2p mode is active).
+        # same visual the Server Mode tab uses when p2p mode is active). The
+        # General tab stays live: theme/language/startup change without a restart.
         if active:
             self._set_tab_labels_enabled(_SYNC_TAB_INDEX, False)
             self._set_tab_labels_enabled(_P2P_TAB_INDEX, False)
+            self._set_tab_labels_enabled(_ADVANCED_TAB_INDEX, False)
             self._set_tab_labels_enabled(
                 _SERVER_TAB_INDEX,
                 False,
@@ -1099,6 +1275,7 @@ class SettingsDialog(QDialog):
             # Sync labels are managed only here; the p2p/Server labels are
             # restored by _on_p2p_mode_toggled below.
             self._set_tab_labels_enabled(_SYNC_TAB_INDEX, True)
+            self._set_tab_labels_enabled(_ADVANCED_TAB_INDEX, True)
             self._apply_tooltips()
             # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
             self._on_p2p_mode_toggled(self.p2p_mode.isChecked())

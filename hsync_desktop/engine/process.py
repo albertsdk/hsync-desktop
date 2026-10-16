@@ -30,7 +30,12 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from hsync_desktop.config import DEFAULT_P2P_BOOTNODE_TRUST, DEFAULT_SERVER_TRUST
+from hsync_desktop.config import (
+    DEFAULT_P2P_BOOTNODE_TRUST,
+    DEFAULT_P2P_PEER_READ_CAP,
+    DEFAULT_P2P_PEER_SOURCES_MAX,
+    DEFAULT_SERVER_TRUST,
+)
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine.cli import find_hsync_binary
 
@@ -164,6 +169,17 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         env.insert(
             "HSYNC_BOOTNODE_TRUST",
             str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
+        )
+    # p2p peer-download caps are env-only (no CLI flag); the on/off is the
+    # --no-peer-download flag. Only meaningful in p2p mode.
+    if bool(s.value("p2p/enabled", True, bool)):
+        env.insert(
+            "HSYNC_P2P_PEER_READ_CAP",
+            str(s.value("p2p/peer_read_cap", DEFAULT_P2P_PEER_READ_CAP, int)),
+        )
+        env.insert(
+            "HSYNC_P2P_PEER_SOURCES_MAX",
+            str(s.value("p2p/peer_sources_max", DEFAULT_P2P_PEER_SOURCES_MAX, int)),
         )
 
 

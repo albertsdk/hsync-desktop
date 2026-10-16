@@ -13,6 +13,7 @@ truth per store.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from hsync_common.endpoint import format_authority, parse_host_port
@@ -51,12 +52,45 @@ from hsync_desktop.engine import (
     remove_server_trust,
     supports_peer_trust,
 )
+from hsync_desktop.file_panel.utils import format_mtime
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon, style_ok_cancel_button_box
 
 # A host trust helper: ``(binary, host, fingerprint, port) -> bool`` (add) or
 # ``(binary, host, port) -> str | None`` (fingerprint probe).
 _AddTrust = Callable[..., bool]
+
+# Known-hosts ``source`` values (hsync-client ``known_hosts.py::TRUST_SOURCES``)
+# mapped to a user-facing label. An unknown value passes through unchanged.
+_SOURCE_KEYS = {
+    "cli": "trusted_keys.source_cli",
+    "tofu": "trusted_keys.source_tofu",
+    "prompt": "trusted_keys.source_prompt",
+    "flag": "trusted_keys.source_flag",
+}
+
+
+def _source_label(source: str) -> str:
+    """Humanize a known-hosts ``source`` value; unknown values pass through."""
+    key = _SOURCE_KEYS.get(source)
+    return tr(key) if key else source
+
+
+def _format_local_time(iso: str) -> str:
+    """Render a stored UTC ISO-8601 timestamp in the user's local time.
+
+    The trust stores persist UTC (``...Z``), so showing it verbatim would
+    mislead the user. Convert to the local timezone and format it like the file
+    panel's modification times (today / yesterday / absolute date). An empty or
+    unparsable value is returned unchanged.
+    """
+    if not iso:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return iso
+    return format_mtime(dt.timestamp())
 
 
 class _HostAddDialog(QDialog):
@@ -193,7 +227,7 @@ class TrustedKeysDialog(QDialog):
         self._tabs = QTabWidget(self)
         self._bootnode_table = QTableWidget(0, 4, self)
         self._server_table = QTableWidget(0, 4, self)
-        self._peer_table = QTableWidget(0, 2, self)
+        self._peer_table = QTableWidget(0, 3, self)
         self._tabs.addTab(
             self._build_host_tab(self._bootnode_table, self._add_bootnode, self._remove_bootnode),
             tr("trusted_keys.tabs_bootnodes"),
@@ -255,7 +289,13 @@ class TrustedKeysDialog(QDialog):
 
     def _build_peer_tab(self) -> QWidget:
         table = self._peer_table
-        table.setHorizontalHeaderLabels([tr("trusted_keys.peer"), tr("trusted_keys.fingerprint")])
+        table.setHorizontalHeaderLabels(
+            [
+                tr("trusted_keys.peer"),
+                tr("trusted_keys.fingerprint"),
+                tr("trusted_keys.first_seen"),
+            ]
+        )
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.horizontalHeader().setStretchLastSection(True)
@@ -309,8 +349,8 @@ class TrustedKeysDialog(QDialog):
                 [
                     format_authority(host, port),
                     str(entry.get("fingerprint", "")),
-                    str(entry.get("source", "")),
-                    str(entry.get("first_seen", "")),
+                    _source_label(str(entry.get("source", ""))),
+                    _format_local_time(str(entry.get("first_seen", ""))),
                 ],
             )
             # Keep the structured (host, port) pair for a lossless remove, so an
@@ -338,6 +378,7 @@ class TrustedKeysDialog(QDialog):
                 [
                     f"{entry.get('cid', '')}|{entry.get('bucket', '')}",
                     str(entry.get("fingerprint", "")),
+                    _format_local_time(str(entry.get("first_seen", ""))),
                 ],
             )
 

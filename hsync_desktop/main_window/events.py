@@ -120,12 +120,15 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 class EventsMixin:
     @Slot(str)
     def _on_bucket_detected(self, bucket: str) -> None:
-        """Show the active share in the window title.
+        """Record the active share name and show it next to the folder icon.
 
-        The share name is persistent identity, not operational status, so it
-        lives in the title rather than the bottom status bar.
+        The share name is the user-facing identity, so it labels the local
+        folder in the action bar (the local path is a tooltip/click target); the
+        window title stays the app name.
         """
-        self.setWindowTitle(f"{tr('app.name')} — {bucket}" if bucket else tr("app.name"))
+        self._bucket = bucket
+        self.setWindowTitle(tr("app.name"))
+        self._update_path_display()
 
     def _set_status_label(self, status: str) -> None:
         """Update the status dot/label/tray without the connection-loss effects."""

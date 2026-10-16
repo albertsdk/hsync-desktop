@@ -59,15 +59,19 @@ silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the bootnode no longer changes the icon).
 
-### Share name in the window title
+### Share name next to the folder icon
 
-The active share (bucket) is persistent identity, not operational status, so it
-lives in the **window title** (`main_window/events.py::MainWindow._on_bucket_detected`,
-`"HSYNC Desktop — <share>"`) instead of the bottom status bar, which keeps only
-connection state, role, device count and throughput. The title is seeded from
-`sync/bucket`, updated on the client's `bucket` event (signal
-`engine/process.py::HsyncEngine.bucket_detected`), and reset to the bare app name
-when the bucket is empty.
+The active share (bucket) is the user-facing identity, so it labels the local
+folder in the action bar — next to the folder icon — as a clickable link
+(`main_window/start.py::MainWindow._update_path_display`; the name comes from
+`main_window/start.py::MainWindow._share_display_name`: detected bucket →
+`sync/bucket` → folder name). Clicking it opens the local folder
+(`main_window/start.py::MainWindow._on_path_clicked`); the full local path is the
+label's tooltip. That tooltip is **intentionally exempt** from the "Show tooltips"
+preference (`appearance/tooltips`), which only governs the settings fields. The
+window title stays the bare app name (`main_window/events.py::MainWindow._on_bucket_detected`).
+The share name is seeded from `sync/bucket` and updated on the client's `bucket`
+event (signal `engine/process.py::HsyncEngine.bucket_detected`).
 
 ### Trust refusal dialogs (SSH-style, no terminal)
 
@@ -103,6 +107,17 @@ stores); *Add* supports "read from server" or manual entry. Device *Add* pre-fil
 the bucket from `sync/bucket`. The tab/column labels are localized in every
 locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 `trusted_keys.fingerprint` = the locale's term for the certificate fingerprint).
+
+The bootnode/server tabs show host, fingerprint, **source** and **added** date.
+The raw client `source` (`cli` / `tofu` / `prompt` / `flag`, from
+`hsync-client known_hosts.py::TRUST_SOURCES`) is humanized by
+`trusted_keys.py::_source_label` (`trusted_keys.source_cli` …), and the
+`first_seen` column is labelled **Added on** (`trusted_keys.first_seen`), not the
+SSH jargon "first seen". The devices tab shows device, fingerprint and the
+**Added on** date: the client's peer pin store (`hsync-client pinning.py::PinStore`)
+records `{fingerprint, first_seen}` per `(cid, bucket)`, exposed by
+`hsync trust peer list --json`.
+
 The devices tab shows
 `trusted_keys.capability_missing` when the binary lacks the `trust` subcommand
 (`supports_peer_trust`).

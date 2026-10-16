@@ -9,7 +9,7 @@ import pytest
 from PySide6.QtWidgets import QMessageBox
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.trusted_keys import TrustedKeysDialog, _PeerAddDialog
+from hsync_desktop.trusted_keys import TrustedKeysDialog, _format_local_time, _PeerAddDialog
 
 
 def _patch_store(monkeypatch, *, bootnodes=(), servers=(), peers=(), supports_peer=True):
@@ -46,12 +46,27 @@ class TestTrustedKeysDialog:
     def test_peer_list_is_populated(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,
-            peers=[{"cid": "master-1", "bucket": "photos", "fingerprint": "b" * 64}],
+            peers=[
+                {
+                    "cid": "master-1",
+                    "bucket": "photos",
+                    "fingerprint": "b" * 64,
+                    "first_seen": "2026-10-16T13:57:49.852Z",
+                }
+            ],
         )
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
         assert dlg._peer_table.rowCount() == 1
         assert dlg._peer_table.item(0, 0).text() == "master-1|photos"
+        assert dlg._peer_table.item(0, 1).text() == "b" * 64
+        assert dlg._peer_table.item(0, 2).text() == _format_local_time("2026-10-16T13:57:49.852Z")
+
+    def test_peer_table_has_an_added_column(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._peer_table.horizontalHeaderItem(2).text() == tr("trusted_keys.first_seen")
 
     def test_peer_tab_shows_capability_missing(self, qtbot, monkeypatch):
         _patch_store(monkeypatch, supports_peer=False)
@@ -221,6 +236,83 @@ class TestAddDialogButtons:
         self._assert_buttons(dlg)
 
 
+class TestSourceLabel:
+    """The known-hosts ``source`` column is humanized for users."""
+
+    def test_known_sources_are_humanized(self):
+        from hsync_desktop.trusted_keys import _source_label
+
+        assert _source_label("cli") == tr("trusted_keys.source_cli")
+        assert _source_label("tofu") == tr("trusted_keys.source_tofu")
+        assert _source_label("prompt") == tr("trusted_keys.source_prompt")
+        assert _source_label("flag") == tr("trusted_keys.source_flag")
+
+    def test_unknown_source_passes_through(self):
+        from hsync_desktop.trusted_keys import _source_label
+
+        assert _source_label("future-mode") == "future-mode"
+        assert _source_label("") == ""
+
+    def test_relay_source_column_is_humanized(self, qtbot, monkeypatch):
+        _patch_store(
+            monkeypatch,
+            bootnodes=[
+                {
+                    "host": "boot.example.net",
+                    "port": 443,
+                    "fingerprint": "a" * 64,
+                    "source": "tofu",
+                    "first_seen": "2026",
+                }
+            ],
+        )
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._bootnode_table.item(0, 2).text() == tr("trusted_keys.source_tofu")
+
+
+class TestLocalTimeFormatting:
+    """Stored UTC timestamps are shown in the user's local time."""
+
+    def test_utc_is_converted_to_local(self):
+        from datetime import datetime
+
+        from hsync_desktop.file_panel.utils import format_mtime
+
+        iso = "2020-01-02T03:04:05.000Z"
+        expected = format_mtime(
+            datetime.fromisoformat("2020-01-02T03:04:05+00:00").astimezone().timestamp()
+        )
+        assert _format_local_time(iso) == expected
+
+    def test_output_drops_the_raw_utc_markers(self):
+        shown = _format_local_time("2020-01-02T03:04:05.000Z")
+        assert "T" not in shown
+        assert "Z" not in shown
+
+    def test_empty_and_invalid_pass_through(self):
+        assert _format_local_time("") == ""
+        assert _format_local_time("not-a-date") == "not-a-date"
+
+    def test_relay_added_column_is_localized(self, qtbot, monkeypatch):
+        iso = "2020-01-02T03:04:05.000Z"
+        _patch_store(
+            monkeypatch,
+            bootnodes=[
+                {
+                    "host": "boot.example.net",
+                    "port": 443,
+                    "fingerprint": "a" * 64,
+                    "source": "cli",
+                    "first_seen": iso,
+                }
+            ],
+        )
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._bootnode_table.item(0, 3).text() == _format_local_time(iso)
+
+
 class TestDevicesTerminology:
     """The peers tab reads 'Devices' and the fingerprint term is localized."""
 
@@ -229,6 +321,12 @@ class TestDevicesTerminology:
 
         assert en.translations["trusted_keys.tabs_peers"] == "Devices"
         assert en.translations["trusted_keys.peer"] == "Device"
+
+    def test_first_seen_column_is_user_friendly(self):
+        from hsync_desktop.locales import en, it
+
+        assert en.translations["trusted_keys.first_seen"] == "Added on"
+        assert it.translations["trusted_keys.first_seen"] == "Aggiunto il"
 
     def test_fingerprint_is_localized(self):
         from hsync_desktop.locales import de, es, fr, it, ja, nl, pl, pt, ru, zh

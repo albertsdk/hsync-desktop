@@ -118,13 +118,15 @@ The GUI edits the client's three SSH-style trust stores through subprocess helpe
 
 ## Delta transfer compatibility
 
-The desktop GUI is **compatible with delta transfer** (rsync-style block sync)
-without requiring UI changes. Delta transfer is transparent to the user: when both
+The desktop GUI is **compatible with delta transfer** (rsync-style block sync).
+Delta transfer is transparent by default: when both
 the client and server/master support the `delta` capability, large files with small
 changes are transferred more efficiently by sending only changed blocks. The
-capability is negotiated automatically via `--capabilities-json`; no desktop-side
-configuration is needed. Falls back to full transfer if delta is not supported or
-fails.
+capability is negotiated automatically via `--capabilities-json`. The Advanced tab
+adds optional overrides (enable/disable and the per-mode minimum sizes), emitted by
+`settings/cli_args.py::build_hsync_args` as `--no-delta`, `--delta-min-file-size`
+and `--delta-min-file-size-p2p`; defaults keep the engine behaviour. Falls back to
+full transfer if delta is not supported or fails.
 
 > Contract rule (ADR 0004): never bypass this bridge by importing client code —
 > see [decisions.md](../decisions.md).

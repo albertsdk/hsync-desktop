@@ -84,6 +84,7 @@ _FALLBACK_MAP: dict[str, str] = {
     "network-p2p": "network-p2p.svg",
     "utilities-log-viewer": "utilities-log-viewer.svg",
     "preferences-desktop-theme": "preferences-desktop-theme.svg",
+    "preferences-other": "preferences-other.svg",
     # Action icons
     "folder-open": "folder-open.svg",
     "document-save": "document-save.svg",
@@ -226,10 +227,13 @@ def clear_icon_cache() -> None:
     _icon_cache.clear()
 
 
-def style_ok_cancel_button_box(button_box: QDialogButtonBox) -> None:
+def style_ok_cancel_button_box(
+    button_box: QDialogButtonBox, *, accept_text_key: str = "settings.save"
+) -> None:
     """Label and icon a standard OK/Cancel ``QDialogButtonBox`` with the app theme.
 
-    OK is presented as Save and Cancel with the translated labels, both using the
+    The accept button is presented as Save (or the label named by
+    ``accept_text_key``) and Cancel with the translated labels, both using the
     bundled app-theme icons, so the buttons never fall back to the platform
     theme's icons or the (untranslated) Qt standard labels.
     """
@@ -237,7 +241,7 @@ def style_ok_cancel_button_box(button_box: QDialogButtonBox) -> None:
 
     ok = button_box.button(QDialogButtonBox.StandardButton.Ok)
     if ok is not None:
-        ok.setText(tr("settings.save"))
+        ok.setText(tr(accept_text_key))
         ok.setIcon(icon("document-save"))
     cancel = button_box.button(QDialogButtonBox.StandardButton.Cancel)
     if cancel is not None:

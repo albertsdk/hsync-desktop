@@ -14,7 +14,7 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 | Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
 | Args | `settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, localization, tray, OS notifications |
-| Startup | `autostart.py` | launch-at-login entry (XDG / LaunchAgent / Windows `Run`), toggled from the Appearance tab |
+| Startup | `autostart.py` | launch-at-login entry (XDG / LaunchAgent / Windows `Run`), toggled from the General tab |
 
 ## Runtime flow
 

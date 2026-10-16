@@ -24,8 +24,7 @@ tray — use the tray menu to show the window again or quit.
 
 Run `hsync-desktop --minimized` to start straight into the tray without showing
 the window (no tray available falls back to showing the window). Enable
-**Launch at login** in *Settings → Sync* to do this automatically
-at login.
+**Launch at login** in *Settings → General* to do this automatically at login.
 
 ## Configuring a connection
 
@@ -33,7 +32,10 @@ Open **Settings** and fill in the connection for your mode — **p2p Mode**
 (peer-to-peer, no server) or **Server Mode** (against a central HSYNC server).
 Every setting is documented in the
 [Configuration Reference](configuration.md), including the Sync, p2p Mode,
-Server Mode, Log and Appearance tabs and the trusted-key stores.
+Server Mode, General and Advanced tabs and the trusted-key stores. Use
+**General** for app preferences (language, theme, notifications, the log panel
+and launch at login) and **Advanced** for engine tuning (performance, delta
+transfer, deletion protection, bandwidth).
 
 ## Trust prompts while running
 
@@ -53,7 +55,9 @@ the `hsync` CLI see the same keys. The stores can also be edited from
 
 ## Running and watching a sync
 
-1. Confirm your settings, then start the sync from the main window.
+1. Confirm your settings, then start the sync from the main window. The action
+   bar shows the **share name** next to the folder icon; click it to open the
+   shared folder in your file manager, and hover it to see the local path.
 2. The file panel lists each file and its transfer status (queued, in progress,
    done, error); overall progress and throughput are shown live.
    The bottom-right sent/received numbers are the **distinct files** moved this
