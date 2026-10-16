@@ -408,3 +408,121 @@ class TestHelpMenu:
         window._act_help_license.trigger()
 
         assert opened == [1]
+
+
+class TestSelectionSync:
+    """File/context menu "Send now" / "Receive now" act on a selection."""
+
+    @staticmethod
+    def _stub_preflight(window, monkeypatch):
+        for name in (
+            "_check_keyless_p2p",
+            "_check_disk_space",
+            "_ensure_bootnode_trust",
+            "_ensure_server_trust",
+        ):
+            monkeypatch.setattr(window, name, lambda: True)
+
+    def test_subdir_mapping_folders_and_files(self, window):
+        assert window._selection_subdir("media/") == "media"
+        assert window._selection_subdir("media/sub/file.txt") == "media/sub"
+        assert window._selection_subdir("top.txt") == ""
+
+    def test_send_starts_a_scoped_dry_run_preview(self, window, monkeypatch, tmp_path):
+        self._stub_preflight(window, monkeypatch)
+        # Avoid the panel's worker thread: this test only checks args/start.
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda _p: None)
+        seen: dict[str, object] = {}
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.actions.build_selection_args",
+            lambda local, subdir, direction, dry_run=False: (
+                seen.update(subdir=subdir, direction=direction, dry_run=dry_run) or ["--once"]
+            ),
+        )
+        started: list[list[str]] = []
+        monkeypatch.setattr(window, "_start_engine", lambda args: started.append(args) or True)
+        window._local_path = str(tmp_path)
+
+        window._sync_selection("media/sub/", "upload-only")
+
+        assert (seen["subdir"], seen["direction"], seen["dry_run"]) == (
+            "media/sub",
+            "upload-only",
+            True,
+        )
+        assert started == [["--once"]]
+        assert window._pending_selection_sync == ("media/sub", "upload-only")
+
+    def test_receive_keeps_the_deletion_risk_gate(self, window, monkeypatch, tmp_path):
+        self._stub_preflight(window, monkeypatch)
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda: False)
+        started: list[list[str]] = []
+        monkeypatch.setattr(window, "_start_engine", lambda args: started.append(args) or True)
+        window._local_path = str(tmp_path)
+
+        window._sync_selection("media/", "download-only")
+
+        assert started == []  # declined the deletion-risk prompt → never starts
+
+    def test_accepting_the_preview_runs_the_selection(self, window, monkeypatch):
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        started: list[tuple] = []
+        monkeypatch.setattr(
+            window,
+            "_start_selection_run",
+            lambda subdir, direction: started.append((subdir, direction)),
+        )
+        window._pending_selection_sync = ("media", "upload-only")
+        window._preview_stats.to_upload = 1
+        monkeypatch.setattr(
+            PreviewSummaryDialog, "exec", lambda self: PreviewSummaryDialog.DialogCode.Accepted
+        )
+
+        window._show_preview_summary()
+
+        assert started == [("media", "upload-only")]
+        assert window._pending_selection_sync is None
+
+    def test_cancelling_the_preview_runs_nothing(self, window, monkeypatch):
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        started: list[tuple] = []
+        monkeypatch.setattr(window, "_start_selection_run", lambda *a: started.append(a))
+        window._pending_selection_sync = ("media", "download-only")
+        window._preview_stats.to_download = 1
+        monkeypatch.setattr(
+            PreviewSummaryDialog, "exec", lambda self: PreviewSummaryDialog.DialogCode.Rejected
+        )
+
+        window._show_preview_summary()
+
+        assert started == []
+        assert window._pending_selection_sync is None
+
+
+class TestSelectionSyncMenu:
+    """Send/Receive are enabled only with a selection and while stopped."""
+
+    def test_enabled_with_selection_when_idle(self, window):
+        assert not window._engine.is_running
+
+        window._set_file_menu_enabled(True)
+
+        assert window._act_file_send.isEnabled()
+        assert window._act_file_receive.isEnabled()
+
+    def test_disabled_while_running(self, window):
+        # Force ``is_running`` True and restore it *within* the test so the
+        # window teardown never runs against the patched property.
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._set_file_menu_enabled(True)
+
+            assert not window._act_file_send.isEnabled()
+            assert not window._act_file_receive.isEnabled()
+            assert window._act_file_open.isEnabled()
+        finally:
+            engine_cls.is_running = original

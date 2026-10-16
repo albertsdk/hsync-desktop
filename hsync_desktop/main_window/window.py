@@ -152,6 +152,8 @@ class MainWindow(
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
+        # Send/Receive sync pending confirmation: (subdir, direction) or None.
+        self._pending_selection_sync: tuple[str, str] | None = None
         self._last_engine_error: str = ""  # Reason for the last failed engine start
         self._auth_prompt_active = False  # True while the auth re-prompt dialog is open
 
@@ -220,6 +222,12 @@ class MainWindow(
         # File panel selection signals for menu state
         self._file_panel._table.row_selected.connect(self._on_file_selection_changed)
         self._file_panel._table.row_deselected.connect(lambda: self._set_file_menu_enabled(False))
+        self._file_panel._table.send_selection_requested.connect(
+            lambda filepath: self._sync_selection(filepath, "upload-only")
+        )
+        self._file_panel._table.receive_selection_requested.connect(
+            lambda filepath: self._sync_selection(filepath, "download-only")
+        )
 
         # Tray signals are connected in main.py after _tray is set
 

@@ -62,6 +62,13 @@ the `hsync` CLI see the same keys. The stores can also be edited from
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
 
+To sync a single folder on demand, right-click it (or use the **File** menu) and
+choose **Send now** (push it to the other devices) or **Receive now** (pull it
+from them). Both run a one-shot scoped to that folder — or, for a file, to its
+containing folder — and are available only while no sync is running. A preview
+summary is shown first, so you confirm exactly what will be transferred before it
+runs.
+
 ## Secrets
 
 API keys and shared passwords are entered through dedicated dialogs, never typed

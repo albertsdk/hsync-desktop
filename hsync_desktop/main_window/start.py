@@ -403,6 +403,9 @@ class StartMixin:
         if not local_path:
             return
 
+        # A normal start supersedes any pending Send/Receive preview.
+        self._pending_selection_sync = None
+
         # Check for file deletion risk
         if not self._check_deletion_risk():
             return
@@ -425,13 +428,7 @@ class StartMixin:
         # Start in dry-run mode first to show preview
         args = build_hsync_args(local_path, force_dry_run=True)
 
-        # Persist path
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
-        self._log_view.clear()
-        self._file_panel.load_local_files(local_path)
-        self._user_stopped = False
-        if self._notifier:
-            self._notifier.user_stopped = False
+        self._prepare_engine_run(local_path)
         # Set flags to show preview summary when dry-run completes
         self._awaiting_preview_for_sync = True
         self._is_dry_run_preview = True  # We're in dry-run mode for initial preview
@@ -439,16 +436,7 @@ class StartMixin:
         if not self._start_engine(args):
             self._reset_ui_stopped()
             return
-        # Show "connecting" until the client reports the link is up (p2p emits
-        # its own status events; remote emits connected/waiting).
-        self._on_status("connecting")
-        self._btn_start.setEnabled(False)
-        self._btn_stop.setEnabled(True)
-        self._btn_refresh.setEnabled(False)  # Disable until preview completes
-        if self._tray:
-            self._tray.set_running(True)
-        self._apply_button_styles()
-        self._update_menu_state()
+        self._enter_running_ui()
 
     def _start_engine(self, args: list[str]) -> bool:
         """Start the engine, surfacing a visible dialog when it fails.

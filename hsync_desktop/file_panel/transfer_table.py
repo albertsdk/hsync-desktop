@@ -68,6 +68,8 @@ class FileTransferTable(QTableWidget):
     row_deselected = Signal()  # Emitted when clicking on already selected row
     properties_requested = Signal(object)  # Emits FileTransfer for properties panel
     path_changed = Signal(str)  # Emitted when current navigation path changes
+    send_selection_requested = Signal(str)  # Send the selected subtree (filepath)
+    receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -76,6 +78,7 @@ class FileTransferTable(QTableWidget):
         self._row_index: dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         self._base_directory: str = ""
+        self._sync_active: bool = False  # A sync is running: Send/Receive disabled
 
         # Hierarchical navigation state
         self._current_path: str = ""  # Current folder (relative to base, "" = root)
@@ -110,6 +113,10 @@ class FileTransferTable(QTableWidget):
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
         self.setHorizontalHeaderLabels(self._column_headers())
+
+    def set_sync_active(self, active: bool) -> None:
+        """Enable/disable the Send/Receive context entries (sync running)."""
+        self._sync_active = active
 
     def _setup_table(self) -> None:
         headers = self._column_headers()
@@ -572,6 +579,16 @@ class FileTransferTable(QTableWidget):
         menu.addAction(tr("ctx.open_containing"), lambda: self._ctx_open_containing(transfer))
         if not is_dir:
             menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
+        menu.addSeparator()
+        send_action = menu.addAction(
+            tr("action.send_now"), lambda: self.send_selection_requested.emit(transfer.filepath)
+        )
+        receive_action = menu.addAction(
+            tr("action.receive_now"),
+            lambda: self.receive_selection_requested.emit(transfer.filepath),
+        )
+        send_action.setEnabled(not self._sync_active)
+        receive_action.setEnabled(not self._sync_active)
         menu.addSeparator()
         menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
         menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))

@@ -81,6 +81,7 @@ from hsync_desktop.settings import (
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
+    build_selection_args,
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
@@ -202,6 +203,112 @@ class ActionsMixin:
         if t:
             self._file_panel._table._ctx_properties(t)
 
+    def _has_file_selection(self) -> bool:
+        """Return whether a file/folder row is selected in the file panel."""
+        return self._get_selected_transfer() is not None
+
+    def _menu_file_send(self) -> None:
+        transfer = self._get_selected_transfer()
+        if transfer:
+            self._sync_selection(transfer.filepath, "upload-only")
+
+    def _menu_file_receive(self) -> None:
+        transfer = self._get_selected_transfer()
+        if transfer:
+            self._sync_selection(transfer.filepath, "download-only")
+
+    @staticmethod
+    def _selection_subdir(filepath: str) -> str:
+        """Bucket-relative subdirectory a selection sync is scoped to.
+
+        A folder maps to itself; a file maps to its containing folder (per-file
+        sync is not supported by the engine). A root-level entry yields "".
+        """
+        path = filepath.strip("/")
+        if filepath.endswith("/"):
+            return path
+        return os.path.dirname(path)
+
+    def _enter_running_ui(self) -> None:
+        """Reflect a started engine in the buttons, tray and menus."""
+        self._on_status("connecting")
+        self._btn_start.setEnabled(False)
+        self._btn_stop.setEnabled(True)
+        self._btn_refresh.setEnabled(False)
+        if self._tray:
+            self._tray.set_running(True)
+        self._apply_button_styles()
+        self._update_menu_state()
+
+    def _prepare_engine_run(self, local_path: str) -> None:
+        """Common pre-start bookkeeping shared by every engine (re)start."""
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
+        self._log_view.clear()
+        self._file_panel.load_local_files(local_path)
+        self._user_stopped = False
+        if self._notifier:
+            self._notifier.user_stopped = False
+
+    def _sync_selection(self, filepath: str, direction: str) -> None:
+        """Confirm and run a one-shot Send (upload-only) / Receive (download-only)
+        of a selected subtree.
+
+        Only available while stopped (the actions are disabled otherwise). A
+        dry-run preview scoped to the selection runs first, so the preview
+        summary dialog shows the actions that would be taken; the real one-shot
+        starts only on accept. Send is a non-destructive push; Receive is a pull
+        and keeps the deletion-risk confirmation.
+        """
+        if self._engine.is_running:
+            self._append_log(f"⚠ {tr('sync.selection_busy')}")
+            return
+        local_path = self._local_path
+        if not local_path:
+            self._append_log("⚠ Please select a local directory first.")
+            return
+
+        # Same pre-flight prompts as a normal start.
+        if direction == "download-only" and not self._check_deletion_risk():
+            return
+        if not self._check_keyless_p2p():
+            return
+        if not self._check_disk_space():
+            return
+        if not self._ensure_bootnode_trust():
+            return
+        if not self._ensure_server_trust():
+            return
+
+        subdir = self._selection_subdir(filepath)
+        label = tr("action.send_now") if direction == "upload-only" else tr("action.receive_now")
+        self._append_log(f"--- {label}: {subdir or '.'} ---")
+        self._prepare_engine_run(local_path)
+
+        # Preview first (one-shot dry-run scoped to the selection); the real run
+        # starts from _show_preview_summary() once the dialog is accepted.
+        self._pending_selection_sync = (subdir, direction)
+        self._awaiting_preview_for_sync = True
+        self._is_dry_run_preview = False
+        args = build_selection_args(local_path, subdir, direction, dry_run=True)
+        if not self._start_engine(args):
+            self._pending_selection_sync = None
+            self._awaiting_preview_for_sync = False
+            self._reset_ui_stopped()
+            return
+        self._enter_running_ui()
+
+    def _start_selection_run(self, subdir: str, direction: str) -> None:
+        """Start the real one-shot Send/Receive after the preview is confirmed."""
+        local_path = self._local_path
+        if not local_path:
+            return
+        self._prepare_engine_run(local_path)
+        args = build_selection_args(local_path, subdir, direction)
+        if not self._start_engine(args):
+            self._reset_ui_stopped()
+            return
+        self._enter_running_ui()
+
     def _open_documentation(self) -> None:
         """Open the documentation URL in the default browser."""
         from PySide6.QtCore import QUrl
@@ -234,28 +341,36 @@ class ActionsMixin:
     def _show_preview_summary(self) -> None:
         """Show the preview summary dialog and start sync if confirmed."""
         s = self._preview_stats
+        pending = self._pending_selection_sync
         nothing_to_sync = (
             s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0 and s.to_rename == 0
         )
 
         if nothing_to_sync:
-            # Skip the dialog entirely — go straight to live sync
+            # Skip the dialog entirely.
             self._append_log(f"ℹ {tr('preview.no_actions')}")
-            if self._is_dry_run_preview:
+            if pending is None and self._is_dry_run_preview:
                 # Send SYNC command to switch from dry-run to real sync
                 self._engine.sync()
                 self._btn_refresh.setEnabled(True)
                 self._apply_button_styles()
             self._is_dry_run_preview = False
+            self._pending_selection_sync = None
             return
 
         dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
-            # Send SYNC command — the running process will perform
-            # the actual sync without needing a restart.
-            self._engine.sync()
-            self._btn_refresh.setEnabled(True)
-            self._apply_button_styles()
+            if pending is not None:
+                # Selection Send/Receive: the preview process already exited, so
+                # start the confirmed one-shot for real.
+                self._pending_selection_sync = None
+                self._start_selection_run(*pending)
+            else:
+                # Send SYNC command — the running process will perform
+                # the actual sync without needing a restart.
+                self._engine.sync()
+                self._btn_refresh.setEnabled(True)
+                self._apply_button_styles()
             self._is_dry_run_preview = False
         else:
             if self._is_dry_run_preview:
@@ -270,6 +385,7 @@ class ActionsMixin:
                 self._update_menu_state()
             # If stdin preview, just close dialog - process keeps running
             self._is_dry_run_preview = False
+            self._pending_selection_sync = None
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""

@@ -315,6 +315,8 @@ class UiBuildMixin:
             self._act_file_open_with.setText(tr("menu.file.open_with"))
             self._act_file_copy_to.setText(tr("menu.file.copy_to"))
             self._act_file_rename.setText(tr("menu.file.rename"))
+            self._act_file_send.setText(tr("action.send_now"))
+            self._act_file_receive.setText(tr("action.receive_now"))
             self._act_file_trash.setText(tr("menu.file.trash"))
             self._act_file_properties.setText(tr("menu.file.properties"))
             self._act_settings.setText(tr("menu.settings"))
@@ -421,6 +423,16 @@ class UiBuildMixin:
 
         self._menu_file.addSeparator()
 
+        self._act_file_send = QAction(tr("action.send_now"), self)
+        self._act_file_send.triggered.connect(self._menu_file_send)
+        self._menu_file.addAction(self._act_file_send)
+
+        self._act_file_receive = QAction(tr("action.receive_now"), self)
+        self._act_file_receive.triggered.connect(self._menu_file_receive)
+        self._menu_file.addAction(self._act_file_receive)
+
+        self._menu_file.addSeparator()
+
         self._act_file_trash = QAction(tr("menu.file.trash"), self)
         self._act_file_trash.setShortcut("Delete")
         self._act_file_trash.triggered.connect(self._menu_file_trash)
@@ -474,6 +486,10 @@ class UiBuildMixin:
             self._act_file_properties,
         ):
             act.setEnabled(enabled)
+        # Send/Receive also need a stopped engine.
+        selection_sync = enabled and not self._engine.is_running
+        self._act_file_send.setEnabled(selection_sync)
+        self._act_file_receive.setEnabled(selection_sync)
 
     def _update_menu_state(self) -> None:
         """Update menu/button/tray enabled state based on app state."""
@@ -489,6 +505,10 @@ class UiBuildMixin:
             self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running)
         self._act_refresh.setEnabled(is_running and self._btn_refresh.isEnabled())
+        # Send/Receive of a selection are one-shot commands: only while stopped.
+        self._act_file_send.setEnabled(not is_running and self._has_file_selection())
+        self._act_file_receive.setEnabled(not is_running and self._has_file_selection())
+        self._file_panel._table.set_sync_active(is_running)
         self._apply_button_styles()
 
     @Slot(str)

@@ -124,8 +124,19 @@ The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_fil
 offers `Open` — a **folder** navigates into it inside the panel (same as a
 double-click) while a **file** opens with the system default app — followed by
 `Open containing folder` (reveals the entry in the OS file manager:
-`FileTransferTable._ctx_open_containing`), then Open With / Copy To / Rename /
-Trash / Properties.
+`FileTransferTable._ctx_open_containing`), then **Send now** / **Receive now** —
+one-shot upload-only / download-only of the selected subtree (`signals
+FileTransferTable.send_selection_requested` / `receive_selection_requested` →
+`main_window/actions.py::MainWindow._sync_selection`, scoped through
+`settings/cli_args.py::build_selection_args`) — Open With / Copy To / Rename /
+Trash / Properties. Send/Receive first run a scoped dry-run preview whose summary
+dialog confirms the actions; on accept the real one-shot starts from
+`MainWindow._start_selection_run` (the pending selection is carried by
+`MainWindow._pending_selection_sync`, consumed by `MainWindow._show_preview_summary`).
+The entries are disabled while a sync is running
+(`FileTransferTable.set_sync_active`); the File menu hosts the same two actions
+(`main_window/actions.py::MainWindow._menu_file_send` / `_menu_file_receive`),
+enabled only with a selection and a stopped engine.
 
 The table re-localizes its **column headers** on a live language change
 (`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through

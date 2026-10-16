@@ -248,6 +248,48 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     return args
 
 
+def _drop_option(args: list[str], flag: str, takes_value: bool = False) -> list[str]:
+    """Return *args* without *flag* (and its following value when requested)."""
+    out: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == flag:
+            i += 2 if takes_value else 1
+            continue
+        out.append(args[i])
+        i += 1
+    return out
+
+
+def build_selection_args(
+    local_path: str, subdir: str, direction: str, *, dry_run: bool = False
+) -> list[str]:
+    """Build a one-shot Send/Receive of a subdirectory.
+
+    Starts from :func:`build_hsync_args` and forces a single cycle in a single
+    direction scoped to *subdir*, so "Send/Receive now" on a selection never
+    changes the persisted continuous flag, sync direction or folder filter.
+    ``dry_run=True`` adds ``--dry-run`` for the confirmation preview.
+    """
+    args = build_hsync_args(local_path)
+    args = _drop_option(args, "--once")
+    args = _drop_option(args, "--sync-direction", takes_value=True)
+    args = _drop_option(args, "--subdir", takes_value=True)
+    if direction != "bidirectional":
+        args += ["--sync-direction", direction]
+    if subdir:
+        # ``--subdir`` is bucket-relative: keep it relative (never absolutize)
+        # and reject traversal. ``_validate_path`` would resolve it to an
+        # absolute path, so it is not used here.
+        rel = subdir.replace("\\", "/").strip("/")
+        if rel and ".." not in rel.split("/"):
+            args += ["--subdir", rel]
+    if dry_run:
+        args.append("--dry-run")
+    args.append("--once")
+    return args
+
+
 def get_saved_theme() -> str:
     """Return the persisted theme name, defaulting to system theme."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
