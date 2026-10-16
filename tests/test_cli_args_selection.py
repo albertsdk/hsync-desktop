@@ -72,6 +72,31 @@ class TestBuildSelectionArgs:
 
         assert args.count("--once") == 1
 
+    def test_prefer_master_dropped_for_directed_selection(self):
+        """A directed one-shot must not carry the persisted --prefer-master.
+
+        The client rejects --prefer-master together with a non-bidirectional
+        --sync-direction, and Send/Receive now forces the direction.
+        """
+        values = {"p2p/enabled": True, "p2p/prefer_master": True}
+
+        send = _selection_args(values, "media", "upload-only")
+        receive = _selection_args(values, "media", "download-only")
+
+        assert "--prefer-master" not in send
+        assert send[send.index("--sync-direction") + 1] == "upload-only"
+        assert "--prefer-master" not in receive
+        assert receive[receive.index("--sync-direction") + 1] == "download-only"
+
+    def test_prefer_master_kept_for_bidirectional_selection(self):
+        """A bidirectional selection does not force a direction, so it keeps it."""
+        values = {"p2p/enabled": True, "p2p/prefer_master": True}
+
+        args = _selection_args(values, "", "bidirectional")
+
+        assert "--prefer-master" in args
+        assert "--sync-direction" not in args
+
     def test_preview_adds_dry_run_and_keeps_one_shot(self):
         from hsync_desktop.settings import cli_args
 

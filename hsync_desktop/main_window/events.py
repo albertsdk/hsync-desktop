@@ -196,11 +196,15 @@ class EventsMixin:
             self._remote_label.setText(f"p2p ({group})" if group else "p2p")
             self._group_label.hide()
 
-    @Slot(str, str)
-    def _on_file_transferred(self, direction: str, filename: str) -> None:
+    def _refresh_transfer_labels(self) -> None:
+        """Render the session sent/received counters (distinct files + bytes)."""
         st = self._engine.stats
         self._sent_label.setText(f"{st.files_sent} ({format_bytes(st.bytes_sent)})")
         self._recv_label.setText(f"{st.files_received} ({format_bytes(st.bytes_received)})")
+
+    @Slot(str, str)
+    def _on_file_transferred(self, direction: str, filename: str) -> None:
+        self._refresh_transfer_labels()
         # Convert absolute path to relative path for table lookup
         base_path = self._local_path
         rel_path = filename
@@ -283,6 +287,9 @@ class EventsMixin:
             client_cid=client_cid,
             client_ip=client_ip,
         )
+        # A rename can merge two tracked paths into one, changing the distinct
+        # file count even though no bytes moved.
+        self._refresh_transfer_labels()
 
     @Slot(str)
     def _on_directory_created(self, dirpath: str) -> None:

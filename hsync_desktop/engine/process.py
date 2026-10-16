@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import os
 import signal
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
@@ -59,16 +59,62 @@ def write_secret_pipe(secret: str) -> int:
 
 @dataclass
 class TransferStats:
-    """Cumulative transfer statistics."""
+    """Cumulative transfer statistics for the current engine session.
+
+    ``files_sent`` / ``files_received`` count the *distinct* file paths moved
+    (a repeated or renamed transfer of the same file stays one); the path sets
+    are the source of truth for that count. ``bytes_sent`` / ``bytes_received``
+    sum every completed content transfer, repeats included.
+    """
 
     files_sent: int = 0
     files_received: int = 0
     bytes_sent: int = 0
     bytes_received: int = 0
+    sent_paths: set[str] = field(default_factory=set)
+    received_paths: set[str] = field(default_factory=set)
+
+    def record_content(self, op: str, key: str, size: int) -> None:
+        """Record one completed content transfer of *key*.
+
+        *op* is ``"upload"`` or ``"download"``. Bytes are always summed; the
+        path joins the distinct-file set (and the count) only when non-empty, so
+        a malformed event without a path never inflates the file total.
+        """
+        if op == "download":
+            self.bytes_received += size
+            if key:
+                self.received_paths.add(key)
+            self.files_received = len(self.received_paths)
+        elif op == "upload":
+            self.bytes_sent += size
+            if key:
+                self.sent_paths.add(key)
+            self.files_sent = len(self.sent_paths)
+
+    def follow_rename(self, src_key: str, dst_key: str) -> None:
+        """Move tracked identity from *src_key* to *dst_key* after a rename.
+
+        Handles a file (exact key) and a directory (every ``src_key + "/"``
+        descendant). An untracked source is a no-op, so a rename never invents a
+        transferred file.
+        """
+        if not src_key or src_key == dst_key:
+            return
+        prefix = src_key + "/"
+        for paths in (self.sent_paths, self.received_paths):
+            moved = [p for p in paths if p == src_key or p.startswith(prefix)]
+            for old in moved:
+                paths.discard(old)
+                paths.add(dst_key + old[len(src_key) :])
+        self.files_sent = len(self.sent_paths)
+        self.files_received = len(self.received_paths)
 
     def reset(self) -> None:
         self.files_sent = self.files_received = 0
         self.bytes_sent = self.bytes_received = 0
+        self.sent_paths.clear()
+        self.received_paths.clear()
 
 
 def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
@@ -182,6 +228,10 @@ class HsyncEngine(QObject):
         self._status = "disconnected"
         self._cid = ""
         self._server_ip = ""
+        # Root the distinct-file identity keys are made relative to; fed by the
+        # window from the selected local path (empty in unit tests, where event
+        # paths are already treated as keys).
+        self.local_root = ""
         self.stats = TransferStats()
         # Structured-event channel: parent end of the events pipe plus the
         # notifier/buffer used to turn inbound JSON-Lines into Qt signals.
@@ -530,7 +580,10 @@ class HsyncEngine(QObject):
                     int(event.get("size", 0)),
                 )
             elif name == UiEventName.rename:
-                self.file_renamed.emit(str(event.get("src", "")), str(event.get("dst", "")))
+                src = str(event.get("src", ""))
+                dst = str(event.get("dst", ""))
+                self.stats.follow_rename(self._relative_key(src), self._relative_key(dst))
+                self.file_renamed.emit(src, dst)
             elif name == UiEventName.dir_created:
                 path = str(event.get("path", ""))
                 if not path.endswith(_HSYNCKEEP):
@@ -630,6 +683,22 @@ class HsyncEngine(QObject):
             # A malformed payload must never take down the engine.
             self.log_received.emit(f"[EVENT ERROR] {str(event)[:100]}")
 
+    def _relative_key(self, path: str) -> str:
+        """Normalize an event path to a bucket-relative identity key.
+
+        Separators are unified and a ``local_root`` prefix (or its ``./`` form)
+        is stripped, so the absolute download path and the relative upload path
+        for the same file collapse to one key. An empty root keeps the path as
+        given, which is what unit tests rely on.
+        """
+        key = path.replace("\\", "/")
+        root = self.local_root.replace("\\", "/").rstrip("/")
+        if root and (key == root or key.startswith(root + "/")):
+            key = key[len(root) :]
+        while key.startswith("./"):
+            key = key[2:]
+        return key.lstrip("/")
+
     def _handle_transfer(self, event: UiEventDict) -> None:
         """Update transfer stats and emit ``file_transferred`` for a transfer."""
         file = str(event.get("file", ""))
@@ -638,12 +707,10 @@ class HsyncEngine(QObject):
         op = str(event.get("op", ""))
         size = int(event.get("size", 0))
         if op == "download":
-            self.stats.files_received += 1
-            self.stats.bytes_received += size
+            self.stats.record_content("download", self._relative_key(file), size)
             self.file_transferred.emit("↓", file)
         elif op == "upload":
-            self.stats.files_sent += 1
-            self.stats.bytes_sent += size
+            self.stats.record_content("upload", self._relative_key(file), size)
             self.file_transferred.emit("↑", file)
         elif op == "delete":
             self.file_transferred.emit("✕", file)

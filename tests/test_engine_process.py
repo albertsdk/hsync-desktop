@@ -74,6 +74,69 @@ class TestTransferStats:
         assert stats.bytes_sent == 0
         assert stats.bytes_received == 0
 
+    def test_record_content_counts_distinct_paths(self):
+        """The same path transferred twice is one distinct file, bytes add up."""
+        stats = TransferStats()
+        stats.record_content("upload", "a.txt", 100)
+        stats.record_content("upload", "a.txt", 150)
+        stats.record_content("upload", "b.txt", 0)
+        assert stats.files_sent == 2
+        assert stats.bytes_sent == 250
+
+    def test_record_content_empty_key_keeps_bytes_only(self):
+        """A transfer without a path never inflates the distinct-file count."""
+        stats = TransferStats()
+        stats.record_content("download", "", 42)
+        assert stats.files_received == 0
+        assert stats.bytes_received == 42
+
+    def test_follow_rename_moves_identity(self):
+        """A rename carries the tracked file to its new path without adding one."""
+        stats = TransferStats()
+        stats.record_content("upload", "old.txt", 10)
+        stats.follow_rename("old.txt", "new.txt")
+        assert stats.files_sent == 1
+        stats.record_content("upload", "new.txt", 10)
+        assert stats.files_sent == 1
+        stats.record_content("upload", "other.txt", 5)
+        assert stats.files_sent == 2
+
+    def test_follow_rename_rewrites_directory_children(self):
+        """Renaming a tracked directory moves its tracked descendants too."""
+        stats = TransferStats()
+        stats.record_content("download", "dir/a.txt", 1)
+        stats.record_content("download", "dir/sub/b.txt", 1)
+        stats.follow_rename("dir", "dir2")
+        assert stats.files_received == 2
+        assert stats.received_paths == {"dir2/a.txt", "dir2/sub/b.txt"}
+
+    def test_follow_rename_untracked_is_noop(self):
+        """A rename of an untracked path never invents a transferred file."""
+        stats = TransferStats()
+        stats.follow_rename("ghost.txt", "new.txt")
+        assert stats.files_sent == 0
+        assert stats.files_received == 0
+        assert stats.sent_paths == set()
+
+    def test_follow_rename_merge_drops_one(self):
+        """Source and destination both tracked: the merge collapses to one."""
+        stats = TransferStats()
+        stats.record_content("upload", "old.txt", 1)
+        stats.record_content("upload", "new.txt", 1)
+        stats.follow_rename("old.txt", "new.txt")
+        assert stats.files_sent == 1
+
+    def test_reset_clears_sets(self):
+        """Reset drops the tracked paths, not just the derived counts."""
+        stats = TransferStats()
+        stats.record_content("upload", "a.txt", 1)
+        stats.record_content("download", "b.txt", 1)
+        stats.reset()
+        assert stats.sent_paths == set()
+        assert stats.received_paths == set()
+        assert stats.files_sent == 0
+        assert stats.files_received == 0
+
 
 class _EnvFakeSettings:
     """Minimal QSettings stand-in for ``apply_settings_env`` (dict-backed)."""
@@ -285,6 +348,33 @@ class TestHandleEvent:
         out = _capture(engine.file_renamed)
         engine._handle_event(build_event(UiEventName.rename, src="old.txt", dst="new.txt"))
         assert out == [("old.txt", "new.txt")]
+
+    def test_repeated_transfer_counts_one_file(self, engine):
+        """Ten transfers of one path are one distinct file; bytes keep summing."""
+        engine._handle_event(
+            build_event(UiEventName.transfer, op="download", file="f.txt", size=10)
+        )
+        engine._handle_event(build_event(UiEventName.transfer, op="download", file="f.txt", size=5))
+        assert engine.stats.files_received == 1
+        assert engine.stats.bytes_received == 15
+
+    def test_rename_then_reupload_keeps_one_file(self, engine):
+        """The engine follows a rename so a later transfer is not a new file."""
+        engine._handle_event(build_event(UiEventName.transfer, op="upload", file="a.txt", size=1))
+        engine._handle_event(build_event(UiEventName.rename, src="a.txt", dst="b.txt"))
+        engine._handle_event(build_event(UiEventName.transfer, op="upload", file="b.txt", size=1))
+        assert engine.stats.files_sent == 1
+
+    def test_absolute_path_under_root_is_one_key(self, engine):
+        """An absolute transfer path and its relative sibling collapse to one."""
+        engine.local_root = "/bucket"
+        engine._handle_event(
+            build_event(UiEventName.transfer, op="download", file="/bucket/dir/f.txt", size=1)
+        )
+        engine._handle_event(
+            build_event(UiEventName.transfer, op="download", file="dir/f.txt", size=1)
+        )
+        assert engine.stats.files_received == 1
 
     def test_dir_created_event_and_skip(self, engine):
         out = _capture(engine.directory_created)

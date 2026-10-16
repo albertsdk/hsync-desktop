@@ -136,6 +136,9 @@ class StartMixin:
     def _set_path(self, path: str) -> None:
         """Set the local path and update the display."""
         self._local_path = path.strip()
+        # Feed the engine's distinct-file identity keys, so an absolute transfer
+        # path and its bucket-relative form collapse to one key.
+        self._engine.local_root = self._local_path
         self._update_path_display()
         self._update_menu_state()
 
@@ -447,6 +450,7 @@ class StartMixin:
         owns the post-success UI state and the failure reset.
         """
         self._last_engine_error = ""
+        self._engine.local_root = self._local_path
         if self._engine.start(args):
             return True
         self._report_engine_start_failure()

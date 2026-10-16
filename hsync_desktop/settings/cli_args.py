@@ -276,6 +276,14 @@ def build_selection_args(
     args = _drop_option(args, "--sync-direction", takes_value=True)
     args = _drop_option(args, "--subdir", takes_value=True)
     if direction != "bidirectional":
+        # The client rejects --prefer-master with a non-bidirectional
+        # --sync-direction (the p2p master always syncs both ways,
+        # hsync-client cli.py). build_hsync_args emits --prefer-master from the
+        # persisted setting, which the settings dialog only screens for the
+        # continuous combination; this transient one-shot override is not, so it
+        # must drop the flag itself. A directed one-shot cannot act as a
+        # bidirectional master anyway.
+        args = _drop_option(args, "--prefer-master")
         args += ["--sync-direction", direction]
     if subdir:
         # ``--subdir`` is bucket-relative: keep it relative (never absolutize)

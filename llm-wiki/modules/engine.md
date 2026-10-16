@@ -94,6 +94,13 @@ or API-key dialog opens (pre-filled with the current value) and a retry follows
 on accept; events arriving while the prompt is open are ignored.
 
 `TransferStats` (`engine/process.py::TransferStats`) accumulates per-session counters (`engine/process.py::TransferStats.reset`).
+`files_sent` / `files_received` are the size of the distinct-path sets
+(`TransferStats.record_content` adds a path on a completed content upload/download,
+`TransferStats.follow_rename` moves identity on a rename so a moved file is not
+counted twice — an untracked source is a no-op); `bytes_sent` / `bytes_received`
+sum every content transfer, repeats included. The identity key is bucket-relative
+via `HsyncEngine._relative_key`, using `HsyncEngine.local_root` fed from the
+selected path.
 
 ## Trust (known-hosts / known-peers) helpers
 

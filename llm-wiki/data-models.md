@@ -41,7 +41,14 @@ legacy `QUEUED`/`TRANSFERRING`). Render maps: `STATUS_COLORS` (`file_panel/model
 
 ### TransferStats (`engine/process.py::TransferStats`)
 
-Per-session counters accumulated by the engine; `reset` (`engine/process.py::TransferStats.reset`).
+Per-session counters accumulated by the engine; `reset` (`engine/process.py::TransferStats.reset`)
+clears them and the path sets. `files_sent` / `files_received` are the size of
+`sent_paths` / `received_paths`, the distinct bucket-relative paths moved this
+session (a repeated transfer stays one; `record_content` adds a path,
+`follow_rename` moves identity on a rename — including `src/` descendants for a
+directory — and a rename of an untracked path is a no-op). `bytes_sent` /
+`bytes_received` sum every content transfer, repeats included. Keys come from
+`engine/process.py::HsyncEngine._relative_key` against `HsyncEngine.local_root`.
 
 ## Persisted configuration
 

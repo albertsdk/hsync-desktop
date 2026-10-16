@@ -56,6 +56,9 @@ the `hsync` CLI see the same keys. The stores can also be edited from
 1. Confirm your settings, then start the sync from the main window.
 2. The file panel lists each file and its transfer status (queued, in progress,
    done, error); overall progress and throughput are shown live.
+   The bottom-right sent/received numbers are the **distinct files** moved this
+   session (a file transferred or renamed more than once still counts once); the
+   size in parentheses is the total bytes moved, repeats included.
 3. The log panel streams structured messages from the engine. You can hide or
    show it from the view options; the label catalogue is in
    [Log Labels](log-labels.md).
