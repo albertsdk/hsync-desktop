@@ -220,7 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "Enable desktop notifications",
     "settings.p2pguage": "Language:",
     "settings.tooltips": "Show tooltips",
-    "settings.start_at_login": "Launch at system startup",
+    "settings.start_at_login": "Launch at login",
     "settings.save": "Save",
     "settings.cancel": "Cancel",
     # Tooltips

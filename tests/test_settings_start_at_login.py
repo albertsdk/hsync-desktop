@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Tests for the 'Launch at system startup' setting.
+"""Tests for the 'Launch at login' setting.
 
 The autostart side effect is always exercised through the ``fake_autostart``
 fixture (conftest), so no test touches the real OS startup location.
@@ -31,6 +31,10 @@ class TestToggle:
     def test_default_is_off(self, qtbot, monkeypatch, tmp_path):
         dlg, _ = _dialog(qtbot, monkeypatch, tmp_path)
         assert not dlg.start_at_login.isChecked()
+
+    def test_toggle_lives_in_the_sync_mode_group(self, dialog):
+        """Launch-at-login sits with the sync options, not under Appearance."""
+        assert dialog._grp_sync.isAncestorOf(dialog.start_at_login)
 
 
 class TestPersistence:

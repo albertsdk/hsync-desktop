@@ -118,6 +118,9 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     )
     dlg.dry_run, dlg._lbl_dry_run = _replace_checkbox_with_toggle(dlg, "dryRun")
     dlg.auto_sync, dlg._lbl_auto_sync = _replace_checkbox_with_toggle(dlg, "autoSync")
+    # Launch-at-login lives on the Sync tab next to auto-sync: it opens the app
+    # at login, auto-sync starts a transfer once it is open.
+    dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
     # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
     dlg.ignore_patterns = QLineEdit(dlg)
@@ -353,7 +356,6 @@ def build_appearance_tab(dlg: SettingsDialog) -> None:
         dlg, "notificationsEnabled"
     )
     dlg.tooltips_enabled, dlg._lbl_tooltips = _replace_checkbox_with_toggle(dlg, "tooltipsEnabled")
-    dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:

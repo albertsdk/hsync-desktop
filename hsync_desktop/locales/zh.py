@@ -220,7 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "启用桌面通知",
     "settings.p2pguage": "语言：",
     "settings.tooltips": "显示工具提示",
-    "settings.start_at_login": "开机时启动",
+    "settings.start_at_login": "登录时启动",
     "settings.save": "保存",
     "settings.cancel": "取消",
     # Tooltips

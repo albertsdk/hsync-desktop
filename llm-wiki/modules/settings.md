@@ -190,8 +190,10 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`se
 
 ## autostart.py — launch at login (desktop-only)
 
-`appearance/start_at_login` is the Appearance tab toggle `start_at_login`
-(built by `settings/tab_builders.py::build_appearance_tab`, label
+`appearance/start_at_login` is the Sync-tab toggle `start_at_login` (Sync mode
+group, directly above `auto_sync`; built by
+`settings/tab_builders.py::build_sync_tab`, placed by
+`settings/tab_layout.py::reorganize_sync_tab`, label
 `settings.start_at_login`, tip `tip.start_at_login`), a desktop-only
 preference (no client CLI flag, so `cli_args.py` is not involved). On accept,
 `SettingsDialog._apply_start_at_login` (`settings/dialog.py::SettingsDialog._apply_start_at_login`)

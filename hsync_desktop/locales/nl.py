@@ -220,7 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "Bureaubladmeldingen inschakelen",
     "settings.p2pguage": "Taal:",
     "settings.tooltips": "Tooltips tonen",
-    "settings.start_at_login": "Starten bij het opstarten van het systeem",
+    "settings.start_at_login": "Starten bij aanmelden",
     "settings.save": "Opslaan",
     "settings.cancel": "Annuleren",
     # Tooltips

@@ -22,6 +22,7 @@ Server Mode.
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` |
 | Real-time sync | Keep syncing automatically as files change |
 | Keep deleted files (Backup Mode) | Never propagate deletes |
+| Launch at login | Start HSYNC minimized to the tray when you log in |
 | Auto-sync on startup | Start syncing as soon as the app launches |
 | Re-sync interval | Run a full sync every N seconds |
 | Wait before retry | Delay before a failed transfer is retried |
@@ -37,6 +38,13 @@ Server Mode.
 
 Large files are transferred with rsync-style delta blocks automatically; this is
 engine behaviour, not a setting.
+
+**Launch at login.** When enabled, the app registers a per-user autostart entry
+for the platform — an XDG autostart file on Linux/BSD, a LaunchAgent on macOS, a
+`Run` registry value on Windows — that launches `hsync-desktop --minimized`, so
+the window stays in the tray at login. Disabling the option removes the entry.
+This is a desktop preference only; it opens the app but does not start a sync
+(that is **Auto-sync on startup** here, directly below it).
 
 ## p2p Mode
 
@@ -112,18 +120,10 @@ The action labels the log panel can show are listed in
 | Theme | Light or Dark |
 | Enable desktop notifications | Enable or disable desktop notifications |
 | Show tooltips | Show or hide option tooltips |
-| Launch at system startup | Start HSYNC minimized to the tray when you log in |
 
 The interface language follows the system locale (English, Italian, German,
 Spanish, French, Portuguese (Brazil), Chinese (Simplified), Russian, Dutch,
 Polish, Japanese).
-
-**Launch at system startup.** When enabled, the app registers a per-user
-autostart entry for the platform — an XDG autostart file on Linux/BSD, a
-LaunchAgent on macOS, a `Run` registry value on Windows — that launches
-`hsync-desktop --minimized`, so the window stays in the tray at login. Disabling
-the option removes the entry. The setting is a desktop preference only; it does
-not start a sync (use **Auto-sync on startup** on the Sync tab for that).
 
 ## Where settings are stored
 

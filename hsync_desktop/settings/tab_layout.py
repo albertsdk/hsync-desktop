@@ -49,6 +49,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     cont_no_comp: QWidget = dlg.compression_enabled.parent()  # type: ignore[assignment]
     cont_dry_run: QWidget = dlg.dry_run.parent()  # type: ignore[assignment]
     cont_auto_sync: QWidget = dlg.auto_sync.parent()  # type: ignore[assignment]
+    cont_start_at_login: QWidget = dlg.start_at_login.parent()  # type: ignore[assignment]
 
     # ── Detach old layout ──────────────────────────────────
     old = sync_tab.layout()
@@ -79,6 +80,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     f2.addRow(dlg._lbl_sync_direction, dlg.sync_direction_combo)
     f2.addRow("", cont_ignore)
     f2.addRow("", cont_continuous)
+    f2.addRow("", cont_start_at_login)
     f2.addRow("", cont_auto_sync)
     vbox.addWidget(dlg._grp_sync)
 

@@ -220,7 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "デスクトップ通知を有効にする",
     "settings.p2pguage": "言語：",
     "settings.tooltips": "ツールチップを表示",
-    "settings.start_at_login": "システム起動時に起動",
+    "settings.start_at_login": "ログイン時に起動",
     "settings.save": "保存",
     "settings.cancel": "キャンセル",
     # Tooltips

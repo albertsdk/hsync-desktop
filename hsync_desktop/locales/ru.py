@@ -220,7 +220,7 @@ translations: dict[str, str] = {
     "settings.notifications": "Включить уведомления рабочего стола",
     "settings.p2pguage": "Язык:",
     "settings.tooltips": "Показывать подсказки",
-    "settings.start_at_login": "Запускать при входе в систему",
+    "settings.start_at_login": "Запускать при входе",
     "settings.save": "Сохранить",
     "settings.cancel": "Отмена",
     # Tooltips

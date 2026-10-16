@@ -206,7 +206,7 @@ translations: dict[str, str] = {
     "settings.notifications": "Habilitar notificaciones de escritorio",
     "settings.p2pguage": "Idioma:",
     "settings.tooltips": "Mostrar descripciones emergentes",
-    "settings.start_at_login": "Iniciar al arrancar el sistema",
+    "settings.start_at_login": "Iniciar al iniciar sesión",
     "settings.save": "Guardar",
     "settings.cancel": "Cancelar",
     "warn.ignore_delete_title": "Advertencia",
