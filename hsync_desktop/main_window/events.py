@@ -262,14 +262,17 @@ class EventsMixin:
                 old_rel = old_path[len(base_path) :].lstrip("/\\")
             if new_path.startswith(base_path):
                 new_rel = new_path[len(base_path) :].lstrip("/\\")
-        # Read mtime of the renamed file from filesystem
+        # Read the mtime from the filesystem: the destination once the rename
+        # has landed, otherwise the source (the event can arrive just before the
+        # local rename is applied).
         mtime = 0.0
         if base_path:
-            try:
-                full = os.path.join(base_path, new_rel)
-                mtime = os.stat(full).st_mtime
-            except OSError:
-                pass
+            for candidate in (new_rel, old_rel):
+                try:
+                    mtime = os.stat(os.path.join(base_path, candidate)).st_mtime
+                    break
+                except OSError:
+                    continue
         # Gather CID and server IP
         client_cid = self._engine.cid
         client_ip = self._engine.server_ip

@@ -120,6 +120,12 @@ The devices tab shows
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
+Renaming a row (`file_panel/transfer_table.py::FileTransferTable.rename_file`)
+keeps its modification date: the new row inherits the previous row's mtime when
+the filesystem read returns nothing (the rename event may arrive before the local
+rename lands — `main_window/events.py::MainWindow._on_file_renamed` reads the
+destination, falling back to the source).
+
 The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
 offers `Open` — a **folder** navigates into it inside the panel (same as a
 double-click) while a **file** opens with the system default app — followed by

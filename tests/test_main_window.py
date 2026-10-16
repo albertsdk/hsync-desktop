@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
@@ -526,3 +528,25 @@ class TestSelectionSyncMenu:
             assert window._act_file_open.isEnabled()
         finally:
             engine_cls.is_running = original
+
+
+class TestRemoteRenameMtime:
+    """The rename event must not blank out the row's modified date."""
+
+    def test_reads_the_source_mtime_before_the_local_rename_lands(
+        self, window, tmp_path, monkeypatch
+    ):
+        old = tmp_path / "old.txt"
+        old.write_text("x")
+        os.utime(old, (1000, 1000))
+        captured: dict = {}
+        monkeypatch.setattr(
+            window._file_panel, "rename_file", lambda *a, **k: captured.update(kwargs=k)
+        )
+        window._local_path = str(tmp_path)
+
+        # Destination missing (event fired before the local rename): the source
+        # still carries the mtime.
+        window._on_file_renamed(str(old), str(tmp_path / "new.txt"))
+
+        assert captured["kwargs"]["mtime"] == 1000.0

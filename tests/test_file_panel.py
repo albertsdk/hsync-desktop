@@ -405,3 +405,39 @@ class TestColumnHeaderRetranslation:
         expected = [f"IT:{key}" if key else "" for key in tt._COLUMN_KEYS]
         actual = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
         assert actual == expected
+
+
+class TestRenameKeepsTheMtime:
+    """Renaming a row must not drop its modification date."""
+
+    @staticmethod
+    def _table_with(qtbot, filepath: str, mtime: float):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.add_transfer(
+            FileTransfer(
+                filepath=filepath,
+                direction="⇄",
+                size=10,
+                status=TransferStatus.SYNCED,
+                mtime=mtime,
+            )
+        )
+        return table
+
+    def test_keeps_the_previous_mtime_when_the_read_is_empty(self, qtbot):
+        table = self._table_with(qtbot, "old.txt", 1234.0)
+
+        table.rename_file("old.txt", "new.txt", mtime=0.0)
+
+        assert "old.txt" not in table._transfers
+        assert table._transfers["new.txt"].mtime == 1234.0
+
+    def test_uses_the_provided_mtime_when_given(self, qtbot):
+        table = self._table_with(qtbot, "old.txt", 1.0)
+
+        table.rename_file("old.txt", "new.txt", mtime=999.0)
+
+        assert table._transfers["new.txt"].mtime == 999.0

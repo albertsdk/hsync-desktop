@@ -964,9 +964,11 @@ class FileTransferTable(QTableWidget):
     ) -> None:
         """Handle a file rename."""
         old_size = 0
+        old_mtime = 0.0
         with QMutexLocker(self._transfers_mutex):
             if old_path in self._transfers:
                 old_size = self._transfers[old_path].size
+                old_mtime = self._transfers[old_path].mtime
                 del self._transfers[old_path]
             if new_path in self._transfers:
                 t = self._transfers[new_path]
@@ -976,6 +978,10 @@ class FileTransferTable(QTableWidget):
                     t.size = old_size
                 if mtime:
                     t.mtime = mtime
+                elif old_mtime:
+                    # Preserve the previous mtime when the filesystem read
+                    # failed (a rename does not change it).
+                    t.mtime = old_mtime
                 if client_cid:
                     t.client_cid = client_cid
                 if client_ip:
@@ -986,7 +992,7 @@ class FileTransferTable(QTableWidget):
                     direction="⇄",
                     size=old_size,
                     status=TransferStatus.SYNCED,
-                    mtime=mtime,
+                    mtime=mtime or old_mtime,
                     client_cid=client_cid,
                     client_ip=client_ip,
                 )
