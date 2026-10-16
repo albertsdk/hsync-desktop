@@ -131,7 +131,7 @@
    <item>
     <widget class="QLabel" name="lblCopyright">
      <property name="text">
-      <string>Copyright © 2024-2026</string>
+      <string>Copyright © 2022-2026</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>

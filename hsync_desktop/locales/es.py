@@ -6,7 +6,7 @@
 translations: dict[str, str] = {
     "app.name": "HSYNC Desktop",
     "app.tagline": "Mantén tus dispositivos sincronizados",
-    "about.copyright": "Copyright © 2024-2026",
+    "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
     "app.loading": "Cargando…",
     "status.connected": "Conectado",

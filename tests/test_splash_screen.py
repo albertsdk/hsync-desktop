@@ -120,7 +120,7 @@ class TestSplashLayoutAndAbout:
 
         splash = self._make(qtbot)
         assert splash._lbl_tagline.text() == tr("app.tagline")
-        assert splash._lbl_copyright.text() == "Copyright © 2024-2026"
+        assert splash._lbl_copyright.text() == "Copyright © 2022-2026"
         assert splash._lbl_author.text() == "Alberto Basso"
 
     def test_click_dismisses_the_splash_and_reveals_the_app(self, qtbot):
