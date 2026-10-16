@@ -174,6 +174,9 @@ def apply_translations(dlg: SettingsDialog) -> None:
     lbl = dlg.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.p2pguage"))
+    # The first language entry ("System default") is localized; the endonyms are not.
+    if dlg.lang_combo.count():
+        dlg.lang_combo.setItemText(0, tr("settings.language_system"))
     dlg._lbl_notifications.setText(tr("settings.notifications"))
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))
     dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))

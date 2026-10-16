@@ -368,10 +368,13 @@ def _isolated_dialog(qtbot, monkeypatch, tmp_path):
     """A SettingsDialog backed by an isolated INI store (never the real config)."""
     from PySide6.QtCore import QSettings
 
+    import hsync_desktop.i18n as i18n_mod
     import hsync_desktop.settings.dialog as dialog_mod
 
     store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
     monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: store)
+    # ``set_language`` (called by ``save``) reads its own QSettings instance.
+    monkeypatch.setattr(i18n_mod, "QSettings", lambda *a, **k: store)
     dlg = dialog_mod.SettingsDialog()
     qtbot.addWidget(dlg)
     return dlg, store
@@ -456,9 +459,32 @@ class TestLanguageCombo:
     """The language list is alphabetical by endonym and never translated."""
 
     def test_listed_alphabetically_by_endonym(self, dialog):
-        from hsync_desktop.i18n import SUPPORTED_LANGUAGES
+        from hsync_desktop.i18n import AUTO_LANGUAGE, SUPPORTED_LANGUAGES
 
-        names = [dialog.lang_combo.itemText(i) for i in range(dialog.lang_combo.count())]
+        # Item 0 is the "System default" entry; the rest are the endonyms.
+        assert dialog.lang_combo.itemData(0) == AUTO_LANGUAGE
+        names = [dialog.lang_combo.itemText(i) for i in range(1, dialog.lang_combo.count())]
 
         assert len(names) == len(SUPPORTED_LANGUAGES)
         assert names == sorted(names, key=str.casefold)
+
+
+class TestLanguageAutoDefault:
+    """The default preference is "System default" (follow the system locale)."""
+
+    def test_default_selection_is_system(self, qtbot, monkeypatch, tmp_path):
+        from hsync_desktop.i18n import AUTO_LANGUAGE
+
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert dlg.lang_combo.currentData() == AUTO_LANGUAGE
+
+    def test_saving_persists_the_auto_sentinel(self, qtbot, monkeypatch, tmp_path):
+        import hsync_desktop.i18n as i18n_mod
+
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        monkeypatch.setattr(i18n_mod, "_current_lang", i18n_mod.get_language())
+
+        dlg.save()
+
+        assert store.value("appearance/language", "sentinel", str) == i18n_mod.AUTO_LANGUAGE

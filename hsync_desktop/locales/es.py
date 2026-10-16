@@ -209,6 +209,7 @@ translations: dict[str, str] = {
     "settings.theme_dark": "Oscuro",
     "settings.notifications": "Habilitar notificaciones de escritorio",
     "settings.p2pguage": "Idioma:",
+    "settings.language_system": "Predeterminado del sistema",
     "settings.tooltips": "Mostrar descripciones emergentes",
     "settings.start_at_login": "Iniciar al iniciar sesión",
     "settings.advanced": "Avanzado",

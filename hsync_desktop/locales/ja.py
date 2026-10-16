@@ -223,6 +223,7 @@ translations: dict[str, str] = {
     "settings.theme_dark": "ダーク",
     "settings.notifications": "デスクトップ通知を有効にする",
     "settings.p2pguage": "言語：",
+    "settings.language_system": "システム既定",
     "settings.tooltips": "ツールチップを表示",
     "settings.start_at_login": "ログイン時に起動",
     "settings.advanced": "詳細",

@@ -103,7 +103,7 @@ Application-wide preferences.
 
 | Setting | Description |
 |---------|-------------|
-| Language | Interface language; the default follows the system locale |
+| Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
 | Theme | Light or Dark |
 | Enable desktop notifications | Enable or disable desktop notifications |
 | Show tooltips | Show or hide option tooltips |
@@ -112,6 +112,8 @@ Application-wide preferences.
 
 The supported interface languages are English, Italian, German, Spanish, French,
 Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
+**System default** keeps following the system locale, so a first launch starts in
+the system language.
 
 **Launch at login.** When enabled, the app registers a per-user autostart entry
 for the platform — an XDG autostart file on Linux/BSD, a LaunchAgent on macOS, a

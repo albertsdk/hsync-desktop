@@ -150,3 +150,89 @@ class TestLanguageFunctions:
         """get_language should return a supported language code."""
         result = i18n.get_language()
         assert result in i18n.SUPPORTED_LANGUAGES
+
+
+class TestAutoLanguage:
+    """The default preference follows the system locale ("auto")."""
+
+    @staticmethod
+    def _store(monkeypatch, values):
+        data = dict(values)
+
+        class _S:
+            def value(self, key, default=None, type_=None):
+                return data.get(key, default)
+
+            def setValue(self, key, value):
+                data[key] = value
+
+            def contains(self, key):
+                return key in data
+
+        monkeypatch.setattr(i18n, "QSettings", lambda *a, **k: _S())
+        return data
+
+    @staticmethod
+    def _hold_current(monkeypatch):
+        # ``init_language``/``set_language`` mutate the module global; snapshot
+        # it so monkeypatch restores it for the other tests.
+        monkeypatch.setattr(i18n, "_current_lang", i18n.get_language())
+
+    def test_auto_sentinel(self):
+        assert i18n.AUTO_LANGUAGE == "auto"
+
+    def test_missing_preference_follows_the_system(self, monkeypatch):
+        self._store(monkeypatch, {})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        self._hold_current(monkeypatch)
+
+        i18n.init_language()
+
+        assert i18n.get_language() == "it"
+
+    def test_auto_preference_follows_the_system(self, monkeypatch):
+        self._store(monkeypatch, {"appearance/language": "auto"})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        self._hold_current(monkeypatch)
+
+        i18n.init_language()
+
+        assert i18n.get_language() == "it"
+
+    def test_unsupported_preference_follows_the_system(self, monkeypatch):
+        self._store(monkeypatch, {"appearance/language": "xx"})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        self._hold_current(monkeypatch)
+
+        i18n.init_language()
+
+        assert i18n.get_language() == "it"
+
+    def test_explicit_preference_wins_over_the_system(self, monkeypatch):
+        self._store(monkeypatch, {"appearance/language": "fr"})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        self._hold_current(monkeypatch)
+
+        i18n.init_language()
+
+        assert i18n.get_language() == "fr"
+
+    def test_set_language_auto_resolves_and_persists(self, monkeypatch):
+        data = self._store(monkeypatch, {"appearance/language": "fr"})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        monkeypatch.setattr(i18n, "_current_lang", "fr")
+
+        i18n.set_language("auto")
+
+        assert i18n.get_language() == "it"
+        assert data["appearance/language"] == "auto"
+
+    def test_set_language_persists_an_explicit_choice(self, monkeypatch):
+        data = self._store(monkeypatch, {"appearance/language": "auto"})
+        monkeypatch.setattr(i18n, "_detect_system_language", lambda: "it")
+        monkeypatch.setattr(i18n, "_current_lang", "it")
+
+        i18n.set_language("fr")
+
+        assert i18n.get_language() == "fr"
+        assert data["appearance/language"] == "fr"

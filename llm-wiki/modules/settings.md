@@ -25,7 +25,7 @@ emitted subcommand always agree.
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
-| tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_log_tab`, `settings/tab_builders.py::build_appearance_tab` (+ banner/icons/lang/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
+| tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_advanced_tab`, `settings/tab_builders.py::build_general_tab`, `settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
 | tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX` | sync/p2p/server tab positions (shared by dialog + builders + layout) |
 | tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab` | regroup the Sync/p2p tabs into `QGroupBox` sections |
 | tab translations | `settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget |
@@ -295,5 +295,9 @@ next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 `tr` (`i18n.py::tr`) looks up keys across all locales (`SUPPORTED_LANGUAGES`, `i18n.py::SUPPORTED_LANGUAGES`,
 `en/it/de/es/fr/pt/zh/ru/nl/pl/ja`); `init_language` (`i18n.py::init_language`) / `set_language` (`i18n.py::set_language`) with
-`register_language_callback` (`i18n.py::register_language_callback`) for live re-translation. Every user-facing
+`register_language_callback` (`i18n.py::register_language_callback`) for live re-translation. The stored
+`appearance/language` preference may be `AUTO_LANGUAGE` (`i18n.py::AUTO_LANGUAGE` = `"auto"`, the
+default, shown as **System default** in the General tab): it follows the system locale at
+every launch; a supported code pins that language; an absent/unsupported value also
+follows the system locale. Every user-facing
 string **must** exist in all `locales/*.py`.

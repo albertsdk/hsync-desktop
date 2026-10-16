@@ -223,6 +223,7 @@ translations: dict[str, str] = {
     "settings.theme_dark": "Тёмная",
     "settings.notifications": "Включить уведомления рабочего стола",
     "settings.p2pguage": "Язык:",
+    "settings.language_system": "Системный по умолчанию",
     "settings.tooltips": "Показывать подсказки",
     "settings.start_at_login": "Запускать при входе",
     "settings.advanced": "Дополнительно",

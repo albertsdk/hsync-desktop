@@ -34,6 +34,10 @@ P2PG_NL = "nl"
 P2PG_PL = "pl"
 P2PG_JA = "ja"
 
+# Sentinel stored in ``appearance/language`` meaning "follow the system
+# locale" (the default). It is not a language code.
+AUTO_LANGUAGE = "auto"
+
 # Supported languages, keyed by code. Listed alphabetically by their endonym so
 # the settings combo (which iterates this mapping) reads in alphabetical order.
 # Each name is the language's own endonym and is never translated.
@@ -68,29 +72,41 @@ def _detect_system_language() -> str:
 
 
 def init_language() -> None:
-    """Initialize language from saved settings or system detection."""
+    """Initialize the language from the saved preference or the system locale.
+
+    The stored value is either :data:`AUTO_LANGUAGE` (the default: follow the
+    system locale), a supported code, or an unsupported/absent value (which also
+    follows the system locale).
+    """
     global _current_lang
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    saved = s.value("appearance/language", "", str)
-    if saved and saved in SUPPORTED_LANGUAGES:
-        _current_lang = str(saved)
+    saved = str(s.value("appearance/language", AUTO_LANGUAGE, str))
+    if saved in SUPPORTED_LANGUAGES:
+        _current_lang = saved
     else:
         _current_lang = _detect_system_language()
 
 
 def set_language(lang: str) -> None:
-    """Set the current language and notify all registered callbacks."""
+    """Persist the language preference and notify the registered callbacks.
+
+    :data:`AUTO_LANGUAGE` keeps following the system locale; the preference is
+    stored as-is so it stays dynamic on later launches. Callbacks fire only when
+    the effective language actually changes.
+    """
     global _current_lang
-    if lang in SUPPORTED_LANGUAGES and lang != _current_lang:
-        _current_lang = lang
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        s.setValue("appearance/language", lang)
-        # Notify all registered callbacks
-        for callback in _language_change_callbacks:
-            try:
-                callback()
-            except Exception:
-                pass  # Don't let one callback break others
+    if lang != AUTO_LANGUAGE and lang not in SUPPORTED_LANGUAGES:
+        return
+    resolved = _detect_system_language() if lang == AUTO_LANGUAGE else lang
+    QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("appearance/language", lang)
+    if resolved == _current_lang:
+        return
+    _current_lang = resolved
+    for callback in _language_change_callbacks:
+        try:
+            callback()
+        except Exception:
+            pass  # Don't let one callback break others
 
 
 def get_language() -> str:

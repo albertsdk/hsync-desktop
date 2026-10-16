@@ -110,6 +110,7 @@ from hsync_desktop.engine import (
     get_binary_capabilities_cached,
 )
 from hsync_desktop.i18n import (
+    AUTO_LANGUAGE,
     SUPPORTED_LANGUAGES,
     get_language,
     set_language,
@@ -1126,10 +1127,11 @@ class SettingsDialog(QDialog):
             bool(s.value("appearance/notifications", DEFAULT_NOTIFICATIONS, bool))
         )
         # Language
-        saved_lang = s.value("appearance/language", get_language(), str)
+        saved_lang = str(s.value("appearance/language", AUTO_LANGUAGE, str))
         for i in range(self.lang_combo.count()):
             if self.lang_combo.itemData(i) == saved_lang:
                 self.lang_combo.setCurrentIndex(i)
+                break
                 break
         # Tooltips
         self.tooltips_enabled.setChecked(

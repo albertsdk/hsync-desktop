@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.config import BANDWIDTH_MAX_MBPS
-from hsync_desktop.i18n import SUPPORTED_LANGUAGES, tr
+from hsync_desktop.i18n import AUTO_LANGUAGE, SUPPORTED_LANGUAGES, tr
 from hsync_desktop.icons import icon
 from hsync_desktop.settings.form_helpers import (
     _action_row,
@@ -443,10 +443,12 @@ def set_tab_icons(dlg: SettingsDialog) -> None:
 
 
 def setup_language_combo(dlg: SettingsDialog) -> None:
-    """Populate the language combo with the supported languages."""
+    """Populate the language combo: the automatic entry, then the endonyms."""
 
-    # Setup language combo with proper data
+    # Setup language combo with proper data. The first entry follows the system
+    # locale (the default); the rest are the language endonyms, never translated.
     dlg.lang_combo.clear()
+    dlg.lang_combo.addItem(tr("settings.language_system"), AUTO_LANGUAGE)
     for code, name in SUPPORTED_LANGUAGES.items():
         dlg.lang_combo.addItem(name, code)
 
