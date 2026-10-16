@@ -34,17 +34,20 @@ P2PG_NL = "nl"
 P2PG_PL = "pl"
 P2PG_JA = "ja"
 
+# Supported languages, keyed by code. Listed alphabetically by their endonym so
+# the settings combo (which iterates this mapping) reads in alphabetical order.
+# Each name is the language's own endonym and is never translated.
 SUPPORTED_LANGUAGES = {
-    P2PG_EN: "English",
-    P2PG_IT: "Italiano",
     P2PG_DE: "Deutsch",
-    P2PG_FR: "Français",
+    P2PG_EN: "English",
     P2PG_ES: "Español",
-    P2PG_PT: "Português (Brasil)",
-    P2PG_ZH: "中文（简体）",
-    P2PG_RU: "Русский",
+    P2PG_FR: "Français",
+    P2PG_IT: "Italiano",
     P2PG_NL: "Nederlands",
     P2PG_PL: "Polski",
+    P2PG_PT: "Português (Brasil)",
+    P2PG_RU: "Русский",
+    P2PG_ZH: "中文（简体）",
     P2PG_JA: "日本語",
 }
 

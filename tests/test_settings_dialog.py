@@ -439,3 +439,15 @@ class TestPreferMasterDirectionGuard:
 
         assert dlg.prefer_master.isChecked() is False
         assert dlg.sync_direction_combo.currentData() != "bidirectional"
+
+
+class TestLanguageCombo:
+    """The language list is alphabetical by endonym and never translated."""
+
+    def test_listed_alphabetically_by_endonym(self, dialog):
+        from hsync_desktop.i18n import SUPPORTED_LANGUAGES
+
+        names = [dialog.lang_combo.itemText(i) for i in range(dialog.lang_combo.count())]
+
+        assert len(names) == len(SUPPORTED_LANGUAGES)
+        assert names == sorted(names, key=str.casefold)
