@@ -158,7 +158,7 @@ The Help → About menu entry is the short `menu.help.about` label ("About" /
 | Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`) |
 | Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |
 | Tray | `system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`system_tray.py::_make_icon`) |
-| Notifications | `notifications.py::NotificationManager` | OS notifications (gated by pref) |
+| Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; routine (info) events are suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`), warnings/errors always delivered |
 | Single instance | `single_instance.py::SingleInstance` | reject a 2nd launch |
 | UI loading | `ui/loader.py::UiLoader`, `load_ui_widget` (`ui/loader.py::load_ui_widget`) | load `.ui` resources |
 

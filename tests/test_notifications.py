@@ -204,3 +204,51 @@ class TestNotificationManager:
         manager.became_master()
 
         tray_icon.showMessage.assert_called_once()
+
+
+class TestForegroundSuppression:
+    """Routine notifications are suppressed while the window is in the
+    foreground; warnings and errors are still delivered."""
+
+    @staticmethod
+    def _manager(foreground: bool):
+        from hsync_desktop.notifications import NotificationManager
+
+        tray_icon = MagicMock(spec=QSystemTrayIcon)
+        tray_icon.isVisible.return_value = True
+        return NotificationManager(tray_icon, is_foreground=lambda: foreground), tray_icon
+
+    def test_info_suppressed_when_foreground(self):
+        manager, tray_icon = self._manager(True)
+
+        manager.info("Title", "Message")
+
+        tray_icon.showMessage.assert_not_called()
+
+    def test_info_shown_when_background(self):
+        manager, tray_icon = self._manager(False)
+
+        manager.info("Title", "Message")
+
+        tray_icon.showMessage.assert_called_once()
+
+    def test_warning_still_shown_when_foreground(self):
+        manager, tray_icon = self._manager(True)
+
+        manager.warning("Title", "Message")
+
+        tray_icon.showMessage.assert_called_once()
+
+    def test_error_still_shown_when_foreground(self):
+        manager, tray_icon = self._manager(True)
+
+        manager.error("Title", "Message")
+
+        tray_icon.showMessage.assert_called_once()
+
+    def test_important_flag_overrides_foreground(self):
+        manager, tray_icon = self._manager(True)
+
+        manager.notify("Title", "Message", important=True)
+
+        tray_icon.showMessage.assert_called_once()

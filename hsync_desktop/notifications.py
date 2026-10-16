@@ -12,9 +12,14 @@ Policy:
 - Notify only on download complete (not upload).
 - Notify on errors.
 - Do NOT notify when the user explicitly stops the process.
+- While the main window is in the foreground the routine (information) events
+  are already visible in the app, so their system notification is suppressed;
+  warnings and errors are still delivered.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from PySide6.QtWidgets import QSystemTrayIcon
 
@@ -24,8 +29,15 @@ from hsync_desktop.i18n import tr
 class NotificationManager:
     """Emits desktop push notifications via the system tray icon."""
 
-    def __init__(self, tray_icon: QSystemTrayIcon) -> None:
+    def __init__(
+        self,
+        tray_icon: QSystemTrayIcon,
+        is_foreground: Callable[[], bool] | None = None,
+    ) -> None:
         self._tray = tray_icon
+        # ``True`` while the main window is focused: routine events are then
+        # already on screen, so their system notification is skipped.
+        self._is_foreground = is_foreground or (lambda: False)
         self._enabled = True
         self.user_stopped = False  # set True when user clicks Stop
 
@@ -45,10 +57,20 @@ class NotificationManager:
         message: str,
         icon: QSystemTrayIcon.MessageIcon = QSystemTrayIcon.MessageIcon.Information,
         duration_ms: int = 5000,
+        *,
+        important: bool = False,
     ) -> None:
-        """Show a desktop notification if enabled."""
-        if self._enabled and self._tray.isVisible():
-            self._tray.showMessage(title, message, icon, duration_ms)
+        """Show a desktop notification if enabled.
+
+        Routine (non-important) notifications are skipped while the main window
+        is in the foreground — the event is already visible in the app — while
+        important ones (warnings, errors) are always delivered.
+        """
+        if not self._enabled or not self._tray.isVisible():
+            return
+        if self._is_foreground() and not important:
+            return
+        self._tray.showMessage(title, message, icon, duration_ms)
 
     # ── Convenience helpers ──────────────────────────────────────────────
 
@@ -56,13 +78,19 @@ class NotificationManager:
         self.notify(title, message, QSystemTrayIcon.MessageIcon.Information)
 
     def warning(self, title: str, message: str) -> None:
-        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning)
+        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning, important=True)
 
     def error(self, title: str, message: str) -> None:
         """Always notify errors (unless user just stopped the process)."""
         if self.user_stopped:
             return
-        self.notify(title, message, QSystemTrayIcon.MessageIcon.Critical, 8000)
+        self.notify(
+            title,
+            message,
+            QSystemTrayIcon.MessageIcon.Critical,
+            8000,
+            important=True,
+        )
 
     def download_complete(self, filename: str) -> None:
         """Notify when a file has been downloaded (not uploaded)."""

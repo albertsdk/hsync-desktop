@@ -172,8 +172,12 @@ def main(argv: list[str] | None = None) -> int:
     tray.refresh_requested.connect(window._on_refresh)
     tray.settings_requested.connect(window._open_settings)
     tray.quit_requested.connect(window._quit)
-    # Create the notifier now that tray is available
-    window._notifier = NotificationManager(tray)
+    # Create the notifier now that tray is available. Routine notifications are
+    # suppressed while the main window is in the foreground.
+    window._notifier = NotificationManager(
+        tray,
+        is_foreground=lambda: window.isVisible() and window.isActiveWindow(),
+    )
     window._notifier.enabled = are_notifications_enabled()
 
     # Ctrl+C must shut down cleanly rather than interrupt a random slot.
