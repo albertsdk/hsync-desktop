@@ -154,8 +154,16 @@ class MainWindow(
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
         # Send/Receive sync pending confirmation: (subdir, direction) or None.
         self._pending_selection_sync: tuple[str, str] | None = None
+        # Scoped Send/Receive state: a user-invoked one-shot is in flight.
+        self._selection_sync_active = False  # True while a scoped op runs
+        self._selection_sync_phase = ""  # "preview" | "confirm" | "run"
+        self._selection_result_count = 0  # successful transfers in the run phase
+        self._ever_connected = False  # engine reached "connected" this process
         self._last_engine_error: str = ""  # Reason for the last failed engine start
         self._auth_prompt_active = False  # True while the auth re-prompt dialog is open
+        # True only while ``HsyncEngine.start`` runs, so a launch failure is
+        # reported once (by ``_start_engine``) and not also by the error slot.
+        self._engine_starting = False
 
         # Open settings dialog, if any (tray/menu re-clicks raise it instead).
         self._settings_dialog: SettingsDialog | None = None
@@ -199,15 +207,18 @@ class MainWindow(
         if self._notifier:
             notifier = self._notifier
             e.sync_completed.connect(notifier.sync_complete)
-            e.error_occurred.connect(lambda msg: notifier.error(tr("notif.error"), msg))
+        # A completed cycle finishes a scoped Send/Receive with its counts.
+        e.sync_completed.connect(self._on_sync_completed)
         # Engine errors are always mirrored into the log panel; a start failure
-        # additionally raises a modal dialog (see `_start_engine`).
+        # additionally raises a modal dialog (see `_start_engine`). The handler
+        # also owns the outcome of a scoped Send/Receive failure.
         e.error_occurred.connect(self._on_engine_error)
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.auth_required_occurred.connect(self._on_auth_error)
         e.master_conflict.connect(self._on_master_conflict)
         e.no_master_warning.connect(self._on_no_master_warning)
+        e.no_peers_warning.connect(self._on_no_peers)
         e.duplicate_identity.connect(self._on_duplicate_identity)
         e.conflict_resolved.connect(self._on_conflict_resolved)
         e.pairing_needed.connect(self._on_pairing_needed)

@@ -121,6 +121,9 @@ class StartMixin:
     # Open settings dialog, if any (re-declared here so the mixin typing agrees
     # with MainWindow.__init__).
     _settings_dialog: SettingsDialog | None
+    # Scoped Send/Receive target, cleared by a normal start (re-declared so the
+    # mixin typing agrees with MainWindow.__init__).
+    _pending_selection_sync: tuple[str, str] | None
 
     def _reset_ui_stopped(self) -> None:
         """Reset UI buttons to the stopped state."""
@@ -460,8 +463,17 @@ class StartMixin:
         """
         self._last_engine_error = ""
         self._engine.local_root = self._local_path
-        if self._engine.start(args):
+        self._engine_starting = True
+        try:
+            started = self._engine.start(args)
+        finally:
+            self._engine_starting = False
+        if started:
             return True
+        # A scoped Send/Receive that could not launch is ended silently: the
+        # start-failure dialog below is its single, more specific report.
+        if self._selection_sync_active:
+            self._finish_selection_sync("cancelled")
         self._report_engine_start_failure()
         return False
 

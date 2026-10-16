@@ -154,15 +154,20 @@ class EventsMixin:
             # stale "N/M" does not outlive the link.
             self._peers_label.setText("–")
             self._file_panel.reset_all_to_local()
-            if status == "disconnected" and self._notifier:
+            # "Connection lost" only makes sense after a real connection: a
+            # one-shot that never linked must not claim a lost connection.
+            if status == "disconnected" and self._notifier and self._ever_connected:
                 self._notifier.connection_lost()
         elif status == "connected":
-            self._hide_info_banner()
+            self._ever_connected = True
             # Refresh path display (server_ip now available)
             self._update_path_display()
-            # Auto-run preview when connected to show file status
-            if self._engine.is_running:
-                self._engine.preview()
+            # A scoped Send/Receive owns its banner; only the normal flow hides
+            # it and auto-runs the preview on connect.
+            if not self._selection_sync_active:
+                self._hide_info_banner()
+                if self._engine.is_running:
+                    self._engine.preview()
 
     # ── Info banner ──────────────────────────────────────────────────────
 
@@ -171,6 +176,11 @@ class EventsMixin:
         self._peers_label.setText(f"{connected}/{total}")
         if self._notifier:
             self._notifier.peer_joined(connected, total)
+        # Scoped op in progress: surface how many other devices are in reach.
+        if self._selection_sync_active and total > 1:
+            self._show_info_banner(
+                tr("sync.sel_peers_fmt").replace("{count}", str(total - 1)), auto_hide_ms=0
+            )
 
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
@@ -207,6 +217,13 @@ class EventsMixin:
 
     @Slot(str, str)
     def _on_file_transferred(self, direction: str, filename: str) -> None:
+        # Count real transfers of a scoped one-shot for its result summary.
+        if (
+            self._selection_sync_active
+            and self._selection_sync_phase == "run"
+            and direction in ("↓", "↑")
+        ):
+            self._selection_result_count += 1
         self._refresh_transfer_labels()
         # Convert absolute path to relative path for table lookup
         base_path = self._local_path
@@ -382,6 +399,19 @@ class EventsMixin:
             self._notifier.warning(tr("notif.no_master_title"), msg)
         self._append_log(f"⚠ {msg}")
 
+    @Slot(str)
+    def _on_no_peers(self, _message: str) -> None:
+        """A p2p one-shot aborted with no peer: the scoped op has no target."""
+        if self._selection_sync_active:
+            self._finish_selection_sync("no_devices")
+
+    @Slot()
+    def _on_sync_completed(self) -> None:
+        """Finish a scoped Send/Receive once the one-shot cycle completes."""
+        if self._selection_sync_active and self._selection_sync_phase == "run":
+            outcome = "done" if self._selection_result_count > 0 else "already_synced"
+            self._finish_selection_sync(outcome)
+
     @Slot(str, str)
     def _on_duplicate_identity(self, peer_cid: str, peer_address: str) -> None:
         """Handle a duplicated device identity (cloned HSYNC_DEVICE_DIR)."""
@@ -454,6 +484,16 @@ class EventsMixin:
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
+        # A scoped Send/Receive that ended without a typed outcome (crash, user
+        # stop) is finalized here; while the confirmation dialog is open
+        # (phase "confirm") the op is still in flight and must not be closed.
+        if self._selection_sync_active and self._selection_sync_phase != "confirm":
+            if self._user_stopped:
+                self._finish_selection_sync("cancelled")
+            else:
+                outcome = "done" if self._selection_result_count > 0 else "failed"
+                self._finish_selection_sync(outcome)
+        self._ever_connected = False
         # No engine process means no live connection: drop the status out of
         # "connecting"/"connected" (the client cannot report the final state)
         # and clear the now-meaningless peer count.

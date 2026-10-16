@@ -119,6 +119,10 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 
 class ActionsMixin:
+    # Scoped Send/Receive target ``(subdir, direction)``; None when idle. Declared
+    # here so the composed ``MainWindow`` shares the optional type.
+    _pending_selection_sync: tuple[str, str] | None
+
     @Slot(QAction)
     def _on_direction_changed(self, action: QAction) -> None:
         """Handle sync direction change from the menu."""
@@ -246,6 +250,7 @@ class ActionsMixin:
         self._log_view.clear()
         self._file_panel.load_local_files(local_path)
         self._user_stopped = False
+        self._ever_connected = False  # reset per engine process
         if self._notifier:
             self._notifier.user_stopped = False
 
@@ -283,29 +288,113 @@ class ActionsMixin:
         label = tr("action.send_now") if direction == "upload-only" else tr("action.receive_now")
         self._append_log(f"--- {label}: {subdir or '.'} ---")
         self._prepare_engine_run(local_path)
+        self._begin_selection_sync(subdir, direction)
 
         # Preview first (one-shot dry-run scoped to the selection); the real run
         # starts from _show_preview_summary() once the dialog is accepted.
-        self._pending_selection_sync = (subdir, direction)
         self._awaiting_preview_for_sync = True
         self._is_dry_run_preview = False
         args = build_selection_args(local_path, subdir, direction, dry_run=True)
         if not self._start_engine(args):
-            self._pending_selection_sync = None
             self._awaiting_preview_for_sync = False
-            self._reset_ui_stopped()
+            self._finish_selection_sync("cancelled")
             return
         self._enter_running_ui()
+
+    # ── Scoped Send/Receive outcome helpers ──────────────────────────────
+
+    def _is_window_foreground(self) -> bool:
+        """True when the main window is visible and focused."""
+        return self.isVisible() and self.isActiveWindow()
+
+    def _selection_phase_text(self) -> str:
+        """Progress-banner text at the start of a scoped operation."""
+        p2p_enabled = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
+        )
+        return tr("sync.sel_search") if p2p_enabled else tr("sync.sel_server")
+
+    def _begin_selection_sync(self, subdir: str, direction: str) -> None:
+        """Arm the scoped-op state and show a persistent progress banner."""
+        self._selection_sync_active = True
+        self._selection_sync_phase = "preview"
+        self._selection_result_count = 0
+        self._pending_selection_sync = (subdir, direction)
+        self._show_info_banner(self._selection_phase_text(), auto_hide_ms=0)
+
+    def _finish_selection_sync(self, outcome: str) -> bool:
+        """Finalize a scoped Send/Receive and surface its outcome (idempotent).
+
+        Returns True when it actually finalized, so a later engine event (e.g.
+        ``process_finished``) does not re-surface the same result.
+        """
+        if not self._selection_sync_active:
+            return False
+        args = self._pending_selection_sync
+        direction = args[1] if args else ""
+        count = self._selection_result_count
+        self._selection_sync_active = False
+        self._selection_sync_phase = ""
+        self._pending_selection_sync = None
+        self._selection_result_count = 0
+        self._reset_ui_stopped()  # hides the banner, resets buttons/menus
+        self._surface_selection_outcome(outcome, direction=direction, count=count)
+        return True
+
+    def _surface_selection_outcome(self, outcome: str, *, direction: str, count: int) -> None:
+        """Show the scoped-op result (dialog in the foreground, else a notification)."""
+        if outcome == "no_devices":
+            self._important_selection_outcome(
+                tr("sync.sel_no_devices_title"), tr("sync.sel_no_devices_msg")
+            )
+        elif outcome == "server_unreachable":
+            self._important_selection_outcome(
+                tr("sync.sel_server_unreachable_title"), tr("sync.sel_server_unreachable_msg")
+            )
+        elif outcome == "failed":
+            self._important_selection_outcome(
+                tr("sync.sel_failed_title"), tr("sync.sel_failed_msg")
+            )
+        elif outcome == "already_synced":
+            self._info_selection_outcome(tr("sync.sel_already_synced"))
+        elif outcome == "done":
+            key = "sync.sel_sent_fmt" if direction == "upload-only" else "sync.sel_received_fmt"
+            self._info_selection_outcome(tr(key).replace("{count}", str(count)))
+        # "cancelled" / "stopped": nothing to show.
+
+    def _important_selection_outcome(self, title: str, message: str) -> None:
+        """A modal dialog when the window is focused, otherwise a notification."""
+        if self._is_window_foreground():
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setWindowTitle(title)
+            box.setText(title)
+            box.setInformativeText(message)
+            box.exec()
+        elif self._notifier:
+            self._notifier.warning(title, message)
+        else:
+            self._show_info_banner(message)
+
+    def _info_selection_outcome(self, message: str) -> None:
+        """Non-critical result: banner now; the info notification is suppressed
+        by the manager while the window is focused, so exactly one surface shows."""
+        self._show_info_banner(message)
+        if self._notifier:
+            self._notifier.info(tr("app.name"), message)
 
     def _start_selection_run(self, subdir: str, direction: str) -> None:
         """Start the real one-shot Send/Receive after the preview is confirmed."""
         local_path = self._local_path
         if not local_path:
+            self._finish_selection_sync("failed")
             return
+        self._selection_sync_phase = "run"
+        self._selection_result_count = 0
         self._prepare_engine_run(local_path)
         args = build_selection_args(local_path, subdir, direction)
         if not self._start_engine(args):
-            self._reset_ui_stopped()
+            self._finish_selection_sync("failed")
             return
         self._enter_running_ui()
 
@@ -341,7 +430,7 @@ class ActionsMixin:
     def _show_preview_summary(self) -> None:
         """Show the preview summary dialog and start sync if confirmed."""
         s = self._preview_stats
-        pending = self._pending_selection_sync
+        selection = self._selection_sync_active
         nothing_to_sync = (
             s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0 and s.to_rename == 0
         )
@@ -349,22 +438,33 @@ class ActionsMixin:
         if nothing_to_sync:
             # Skip the dialog entirely.
             self._append_log(f"ℹ {tr('preview.no_actions')}")
-            if pending is None and self._is_dry_run_preview:
+            if selection:
+                # Scoped op with nothing to transfer: report it instead of silence.
+                self._finish_selection_sync("already_synced")
+                return
+            if self._is_dry_run_preview:
                 # Send SYNC command to switch from dry-run to real sync
                 self._engine.sync()
                 self._btn_refresh.setEnabled(True)
                 self._apply_button_styles()
             self._is_dry_run_preview = False
-            self._pending_selection_sync = None
             return
+
+        if selection:
+            # The preview process has already exited (or will): keep the scoped
+            # op active, but mark the confirmation phase so a process-finished
+            # event does not finalize while this modal dialog is open.
+            self._selection_sync_phase = "confirm"
 
         dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
-            if pending is not None:
-                # Selection Send/Receive: the preview process already exited, so
-                # start the confirmed one-shot for real.
-                self._pending_selection_sync = None
-                self._start_selection_run(*pending)
+            if selection:
+                # Scoped Send/Receive: start the confirmed one-shot for real.
+                args = self._pending_selection_sync
+                if args:
+                    self._start_selection_run(*args)
+                else:
+                    self._finish_selection_sync("failed")
             else:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.
@@ -373,7 +473,9 @@ class ActionsMixin:
                 self._apply_button_styles()
             self._is_dry_run_preview = False
         else:
-            if self._is_dry_run_preview:
+            if selection:
+                self._finish_selection_sync("cancelled")
+            elif self._is_dry_run_preview:
                 # User cancelled - stop the dry-run process
                 self._engine.stop()
                 # Reset UI state
@@ -385,7 +487,6 @@ class ActionsMixin:
                 self._update_menu_state()
             # If stdin preview, just close dialog - process keeps running
             self._is_dry_run_preview = False
-            self._pending_selection_sync = None
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""

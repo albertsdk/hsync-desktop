@@ -77,7 +77,7 @@ command line:
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
-| `master_conflict` / `no_master` | `master_conflict` / `no_master_warning` |
+| `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals |
@@ -86,6 +86,13 @@ Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`
 Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload shape are SSOT in
 `hsync_common.protocol.events`
 ([common data-models](../../../hsync-common/llm-wiki/data-models.md)).
+
+`error_occurred` carries a second `reason` argument so the UI can name the cause:
+`""` (generic, from the client's `error` event), `"connection"` (a
+`NetworkError` that is not a `ServerError`, tagged by the client's preview/sync),
+`"process"` (a `QProcess` read/write/crash error) and `"start"` (the engine could
+not be launched). `no_peers_warning` is emitted when a p2p one-shot aborts because
+no peer was discovered.
 
 Both `auth_error` (invalid/missing key) and `auth_required` (a shared key is
 required but missing) drive the same credential re-prompt

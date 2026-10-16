@@ -76,6 +76,15 @@ containing folder — and are available only while no sync is running. A preview
 summary is shown first, so you confirm exactly what will be transferred before it
 runs.
 
+While the one-shot runs, a banner shows what it is doing — searching for devices
+(in p2p mode) or connecting to the server, then how many other devices were
+found. When it ends, the result is reported once: the window shows a summary
+dialog when it is in the foreground, or a desktop notification when it is not. In
+both cases you are told whether the transfer completed and how many items moved,
+if nothing was pending ("already up to date"), if no other device was found, or
+if the server could not be reached. A one-shot only reports a lost connection if
+it had actually connected first.
+
 ## Secrets
 
 API keys and shared passwords are entered through dedicated dialogs, never typed

@@ -397,7 +397,15 @@ class TestHandleEvent:
     def test_error_event(self, engine):
         out = _capture(engine.error_occurred)
         engine._handle_event(build_event(UiEventName.error, message="boom"))
-        assert out == [("boom",)]
+        assert out == [("boom", "")]
+
+    def test_error_event_carries_its_reason(self, engine):
+        """A tagged error (e.g. a connection failure) keeps its reason."""
+        out = _capture(engine.error_occurred)
+        engine._handle_event(
+            build_event(UiEventName.error, message="unreachable", reason="connection")
+        )
+        assert out == [("unreachable", "connection")]
 
     def test_transfer_failed_event(self, engine):
         out = _capture(engine.transfer_failed)
@@ -446,6 +454,12 @@ class TestHandleEvent:
         out = _capture(engine.no_master_warning)
         engine._handle_event(build_event(UiEventName.no_master, elapsed=60))
         assert len(out) == 1
+
+    def test_no_peers_event(self, engine):
+        """A p2p one-shot that found no peer is surfaced as its own signal."""
+        out = _capture(engine.no_peers_warning)
+        engine._handle_event(build_event(UiEventName.no_peers, message="none"))
+        assert out == [("none",)]
 
     def test_duplicate_identity_event(self, engine):
         out = _capture(engine.duplicate_identity)

@@ -167,6 +167,38 @@ The table re-localizes its **column headers** on a live language change
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).
 
+### Scoped Send/Receive outcome
+
+A user-invoked *Send now* / *Receive now* is tracked as a one-shot with its own
+lifecycle so its result is surfaced exactly once:
+
+- State: `MainWindow._selection_sync_active`, `_selection_sync_phase`
+  (`"preview"` | `"confirm"` | `"run"`), `_selection_result_count` and
+  `_pending_selection_sync` (`(subdir, direction)`) — `main_window/window.py::MainWindow`.
+  `_begin_selection_sync` arms them and shows a persistent banner
+  (`_show_info_banner(..., auto_hide_ms=0)`); `_finish_selection_sync`
+  (`main_window/actions.py::MainWindow._finish_selection_sync`) clears them and is
+  **idempotent**, so a later engine event never re-surfaces the same result.
+- Progress banner: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
+  (server); `_on_peers` (`main_window/events.py::MainWindow._on_peers`) adds the
+  other-device count (`sync.sel_peers_fmt`) while the op is active.
+- Outcome: `_surface_selection_outcome` (`main_window/actions.py::MainWindow._surface_selection_outcome`)
+  routes an *important* result (no devices, server unreachable, failed) through
+  `_important_selection_outcome` — a modal dialog when the window is in the
+  foreground, otherwise a warning notification — and a *non-critical* result
+  (already up to date, sent/received counts) through `_info_selection_outcome`
+  (banner + info notification, the latter suppressed while the window is
+  focused, so exactly one surface shows).
+- Wiring (in `_connect_signals`): `error_occurred → _on_engine_error`
+  (`main_window/ui.py::MainWindow._on_engine_error`, `reason="connection"` in
+  server mode → *server unreachable*; a launch failure is skipped and reported by
+  `_start_engine`), `no_peers_warning → _on_no_peers`,
+  `sync_completed → _on_sync_completed` and `process_finished → _on_process_finished`
+  finalize. `_on_file_transferred` counts real transfers during the `run` phase.
+- `_ever_connected` (`main_window/window.py::MainWindow`) is set on the first
+  `connected` and reset per engine process, so a one-shot that never linked does
+  not claim a lost connection (`_on_status`, `main_window/events.py::MainWindow._on_status`).
+
 ## splash_screen.py — Splash / About
 
 `SplashScreen` (`splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and

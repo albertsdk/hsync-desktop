@@ -208,7 +208,9 @@ class HsyncEngine(QObject):
     sync_completed = Signal()  # a full sync cycle finished
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
     sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
-    error_occurred = Signal(str)  # error message
+    # error message + reason: "" (generic), "connection" (network failure in
+    # preview/sync), "process" (QProcess error), "start" (engine launch failure).
+    error_occurred = Signal(str, str)
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     auth_required_occurred = Signal(str)  # a shared key is required but missing
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
@@ -216,6 +218,7 @@ class HsyncEngine(QObject):
     process_finished = Signal(int, str)  # exit code, exit status description
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
+    no_peers_warning = Signal(str)  # a p2p one-shot found no peer to sync with
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
     duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
     # Trust refusal events (SSH-style): the GUI must answer instead of the
@@ -295,7 +298,7 @@ class HsyncEngine(QObject):
         if self._running:
             return False
         if not self._binary:
-            self.error_occurred.emit("hsync binary not found.")
+            self.error_occurred.emit("hsync binary not found.", "start")
             return False
 
         self.stats.reset()
@@ -367,7 +370,7 @@ class HsyncEngine(QObject):
                     os.close(fd)
                 except OSError:
                     pass
-            self.error_occurred.emit("Failed to start hsync process.")
+            self.error_occurred.emit("Failed to start hsync process.", "start")
             self._set_status("error")
             return False
 
@@ -501,7 +504,7 @@ class HsyncEngine(QObject):
             QProcess.ProcessError.ReadError: "Read error",
             QProcess.ProcessError.UnknownError: "Unknown error",
         }
-        self.error_occurred.emit(mapping.get(error, "Unknown error"))
+        self.error_occurred.emit(mapping.get(error, "Unknown error"), "process")
         self._set_status("error")
 
     # ── Status helper ─────────────────────────────────────────────────────
@@ -618,7 +621,9 @@ class HsyncEngine(QObject):
                     str(event.get("conflict_copy", "")),
                 )
             elif name == UiEventName.error:
-                self.error_occurred.emit(str(event.get("message", "")))
+                self.error_occurred.emit(
+                    str(event.get("message", "")), str(event.get("reason", ""))
+                )
             elif name == UiEventName.sync_paused:
                 self.sync_paused.emit(
                     str(event.get("reason", "")),
@@ -672,6 +677,8 @@ class HsyncEngine(QObject):
                 )
             elif name == UiEventName.no_master:
                 self.no_master_warning.emit(str(event.get("message", "")))
+            elif name == UiEventName.no_peers:
+                self.no_peers_warning.emit(str(event.get("message", "")))
             elif name == UiEventName.duplicate_identity:
                 self.duplicate_identity.emit(
                     str(event.get("peer_cid", "")),

@@ -293,6 +293,10 @@ class TrustMixin:
             return
         self._auth_prompt_active = True
         try:
+            # An authentication failure aborts a scoped Send/Receive: close its
+            # state silently before the re-prompt so the retry does not fight it.
+            if self._selection_sync_active:
+                self._finish_selection_sync("cancelled")
             self._engine.stop()
 
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)

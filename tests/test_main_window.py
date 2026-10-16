@@ -224,7 +224,7 @@ class TestEngineStartFailure:
         shown = self._capture_dialogs(monkeypatch)
 
         def failing_start(_args):
-            window._engine.error_occurred.emit("hsync binary not found.")
+            window._engine.error_occurred.emit("hsync binary not found.", "start")
             return False
 
         monkeypatch.setattr(window._engine, "start", failing_start)
@@ -256,7 +256,7 @@ class TestEngineStartFailure:
         window._pending_sync_path = str(tmp_path)
 
         def failing_start(_args):
-            window._engine.error_occurred.emit("Failed to start hsync process.")
+            window._engine.error_occurred.emit("Failed to start hsync process.", "start")
             return False
 
         monkeypatch.setattr(window._engine, "start", failing_start)
@@ -494,6 +494,8 @@ class TestSelectionSync:
             "_start_selection_run",
             lambda subdir, direction: started.append((subdir, direction)),
         )
+        window._selection_sync_active = True
+        window._selection_sync_phase = "preview"
         window._pending_selection_sync = ("media", "upload-only")
         window._preview_stats.to_upload = 1
         monkeypatch.setattr(
@@ -503,13 +505,17 @@ class TestSelectionSync:
         window._show_preview_summary()
 
         assert started == [("media", "upload-only")]
-        assert window._pending_selection_sync is None
+        # The confirmed op stays in flight until its result arrives.
+        assert window._selection_sync_active is True
+        assert window._pending_selection_sync == ("media", "upload-only")
 
     def test_cancelling_the_preview_runs_nothing(self, window, monkeypatch):
         from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
 
         started: list[tuple] = []
         monkeypatch.setattr(window, "_start_selection_run", lambda *a: started.append(a))
+        window._selection_sync_active = True
+        window._selection_sync_phase = "preview"
         window._pending_selection_sync = ("media", "download-only")
         window._preview_stats.to_download = 1
         monkeypatch.setattr(
@@ -519,6 +525,7 @@ class TestSelectionSync:
         window._show_preview_summary()
 
         assert started == []
+        assert window._selection_sync_active is False
         assert window._pending_selection_sync is None
 
 

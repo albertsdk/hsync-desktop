@@ -521,12 +521,38 @@ class UiBuildMixin:
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-    @Slot(str)
-    def _on_engine_error(self, message: str) -> None:
-        """Record an engine error and mirror it into the log panel."""
+    @Slot(str, str)
+    def _on_engine_error(self, message: str, reason: str = "") -> None:
+        """Record an engine error, mirror it into the log, and surface it.
+
+        During a scoped Send/Receive the error is that operation's outcome
+        (``_finish_selection_sync``); otherwise it raises the generic error
+        notification. An engine launch failure is skipped here — ``_start_engine``
+        reports it once with its own dialog.
+        """
         self._last_engine_error = message
         if message:
             self._append_log(f"✕ {message}")
+
+        # An engine launch failure has its own dialog (see ``_start_engine``);
+        # ignore it here so it is never surfaced or finalized twice.
+        if self._engine_starting:
+            return
+
+        if self._selection_sync_active:
+            p2p_enabled = bool(
+                QSettings(SETTINGS_ORG, SETTINGS_APP).value(
+                    "p2p/enabled", DEFAULT_P2P_ENABLED, bool
+                )
+            )
+            outcome = (
+                "server_unreachable" if reason == "connection" and not p2p_enabled else "failed"
+            )
+            self._finish_selection_sync(outcome)
+            return
+
+        if message and self._notifier:
+            self._notifier.error(tr("notif.error"), message)
 
     @Slot(QPoint)
     def _show_log_context_menu(self, pos: QPoint) -> None:
@@ -588,11 +614,15 @@ class UiBuildMixin:
         return banner
 
     def _show_info_banner(self, message: str, auto_hide_ms: int = 15000) -> None:
-        """Show the info banner with a message and optional auto-hide timer."""
+        """Show the info banner.
+
+        ``auto_hide_ms <= 0`` keeps it visible until ``_hide_info_banner`` is
+        called (used as a progress indicator during a scoped operation).
+        """
         self._info_banner_label.setText(message)
         self._info_banner.show()
-        # Auto-hide after timeout
-        QTimer.singleShot(auto_hide_ms, self._hide_info_banner)
+        if auto_hide_ms > 0:
+            QTimer.singleShot(auto_hide_ms, self._hide_info_banner)
 
     def _hide_info_banner(self) -> None:
         """Hide the info banner."""
