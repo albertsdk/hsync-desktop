@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from datetime import datetime
 from typing import cast
 from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
+from hsync_common.logger import format_timestamp
 from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
@@ -41,6 +43,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QSplitter,
     QVBoxLayout,
@@ -70,6 +73,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.fonts import small_monospace_font
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
@@ -195,6 +199,8 @@ class UiBuildMixin:
         self._log_view.customContextMenuRequested.connect(self._show_log_context_menu)
         # Limit log lines to prevent memory issues with long-running sessions
         self._log_view.setMaximumBlockCount(10000)
+        # Use the desktop's monospace font, one point smaller for the log box.
+        self._log_view.setFont(small_monospace_font())
 
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
@@ -215,6 +221,20 @@ class UiBuildMixin:
         self._sent_label: QLabel = self.findChild(QLabel, "sentLabel")  # type: ignore[assignment]
         self._lbl_recv: QLabel = self.findChild(QLabel, "lblRecv")  # type: ignore[assignment]
         self._recv_label: QLabel = self.findChild(QLabel, "recvLabel")  # type: ignore[assignment]
+
+        # Share size (local + sync-set total), right side before Peers.
+        self._share_size_label = QLabel(self.centralWidget())
+        self._share_size_label.setText("—")
+        self._share_size_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
+        self._share_local_bytes: int = -1
+        self._share_total_bytes: int = -1
+        if bottom_layout:
+            peers_idx = bottom_layout.indexOf(self._lbl_peers)
+            if peers_idx >= 0:
+                bottom_layout.insertWidget(peers_idx, self._share_size_label)
+                bottom_layout.insertSpacing(peers_idx + 1, 14)
+            else:
+                bottom_layout.addWidget(self._share_size_label)
 
         # Make bandwidth labels clickable (both the label header and value)
         self._lbl_sent.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -242,12 +262,15 @@ class UiBuildMixin:
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
 
-        # Info banner (hidden by default, shown during reconnection)
+        # Info toast: an overlay child of the central widget (never in the
+        # layout, so showing/hiding it cannot move the content).
         self._info_banner = self._create_info_banner()
-        banner_root_layout: QVBoxLayout = self.findChild(QVBoxLayout, "rootLayout")  # type: ignore[assignment]
-        if banner_root_layout:
-            # Insert between action bar (index 0) and mainSplitter (index 1)
-            banner_root_layout.insertWidget(1, self._info_banner)
+        self._info_banner.setParent(self.centralWidget())
+        self._info_banner.hide()
+        self._info_banner_kind: str | None = None
+        self._info_timer = QTimer(self)
+        self._info_timer.setSingleShot(True)
+        self._info_timer.timeout.connect(self._hide_info_banner)
 
         # Apply log panel visibility setting
         self._apply_log_visibility()
@@ -286,13 +309,10 @@ class UiBuildMixin:
         self._on_bucket_detected(
             str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str)).strip()
         )
-        self._role_label.setText(tr("role.client"))
-        self._role_label.setToolTip(tr("role.client_tip"))
-        from hsync_desktop.icons import icon as get_icon
-
-        self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
-        self._role_icon.setToolTip(tr("role.client_tip"))
+        self._retranslate_role()
         self._lbl_peers.setText(tr("label.peers"))
+        self._share_size_label.setToolTip(tr("tip.share_size"))
+        self._render_share_size()
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
         # The file table owns its column headers, so re-localize them here.
@@ -521,6 +541,15 @@ class UiBuildMixin:
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
+    def _append_desktop_log(self, level: str, message: str) -> None:
+        """Append a desktop-originated line in the client log format.
+
+        Client lines carry ``<timestamp> - [pid] [client_id] LEVEL:``; desktop
+        events have no client CID, so ``[desktop]`` takes that slot.
+        """
+        stamp = format_timestamp({"time": datetime.now()})
+        self._append_log(f"{stamp} - [desktop] {level}: {message}")
+
     @Slot(str, str)
     def _on_engine_error(self, message: str, reason: str = "") -> None:
         """Record an engine error, mirror it into the log, and surface it.
@@ -532,7 +561,7 @@ class UiBuildMixin:
         """
         self._last_engine_error = message
         if message:
-            self._append_log(f"✕ {message}")
+            self._append_desktop_log("ERROR", message)
 
         # An engine launch failure has its own dialog (see ``_start_engine``);
         # ignore it here so it is never surfaced or finalized twice.
@@ -576,9 +605,11 @@ class UiBuildMixin:
             self._log_view.clear()
 
     def _create_info_banner(self) -> QFrame:
-        """Create a hidden info banner for reconnection feedback."""
+        """Create a hidden overlay toast for transient feedback."""
         banner = QFrame()
         banner.setObjectName("infoBanner")
+        banner.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        banner.setMaximumWidth(420)
         banner.setStyleSheet(
             "#infoBanner {"
             "  background-color: #0d6efd;"
@@ -599,34 +630,87 @@ class UiBuildMixin:
             "  padding: 0 4px;"
             "}"
             "#infoBannerClose:hover { color: #ccc; }"
+            "#infoProgress {"
+            "  background: rgba(255, 255, 255, 0.35);"
+            "  border: none;"
+            "  border-radius: 2px;"
+            "}"
+            "#infoProgress::chunk {"
+            "  background: #ffffff;"
+            "  border-radius: 2px;"
+            "}"
         )
-        layout = QHBoxLayout(banner)
-        layout.setContentsMargins(12, 4, 8, 4)
+        outer = QVBoxLayout(banner)
+        outer.setContentsMargins(12, 6, 8, 6)
+        outer.setSpacing(4)
+        row = QHBoxLayout()
         self._info_banner_label = QLabel("", banner)
         self._info_banner_label.setObjectName("infoBannerLabel")
-        layout.addWidget(self._info_banner_label, 1)
+        self._info_banner_label.setWordWrap(True)
+        row.addWidget(self._info_banner_label, 1)
         close_btn = QPushButton("✕", banner)
         close_btn.setObjectName("infoBannerClose")
         close_btn.setFixedSize(24, 24)
         close_btn.clicked.connect(self._hide_info_banner)
-        layout.addWidget(close_btn)
+        row.addWidget(close_btn)
+        outer.addLayout(row)
+        # Indeterminate bar for ongoing work (shown only for kind="progress").
+        self._info_progress = QProgressBar(banner)
+        self._info_progress.setObjectName("infoProgress")
+        self._info_progress.setRange(0, 0)
+        self._info_progress.setFixedHeight(4)
+        self._info_progress.setTextVisible(False)
+        self._info_progress.hide()
+        outer.addWidget(self._info_progress)
         banner.hide()
         return banner
 
-    def _show_info_banner(self, message: str, auto_hide_ms: int = 15000) -> None:
-        """Show the info banner.
+    def _position_info_banner(self) -> None:
+        """Place the toast bottom-right, above the bottom bar."""
+        # isHidden() is the explicit hide state; isVisible() is also false when
+        # the main window is not shown yet (startup/background), which must not
+        # skip the placement.
+        if self._info_banner.isHidden():
+            return
+        central = self.centralWidget()
+        if central is None:
+            return
+        margin = 16
+        status_top = self._status_label.mapTo(central, QPoint(0, 0)).y()
+        y = status_top - self._info_banner.height() - 8
+        x = central.width() - self._info_banner.width() - margin
+        self._info_banner.move(max(margin, x), max(margin, y))
 
-        ``auto_hide_ms <= 0`` keeps it visible until ``_hide_info_banner`` is
-        called (used as a progress indicator during a scoped operation).
+    def _show_info_banner(
+        self, message: str, auto_hide_ms: int = 15000, kind: str = "info"
+    ) -> None:
+        """Show the overlay toast.
+
+        ``kind`` is ``progress`` (persistent until hidden), ``warning``,
+        ``info`` or ``outcome``. Outcome toasts survive the engine process
+        finishing; run-scoped ones are cleared. ``auto_hide_ms <= 0`` keeps it
+        visible until ``_hide_info_banner``.
         """
+        self._info_banner_kind = kind
         self._info_banner_label.setText(message)
+        self._info_progress.setVisible(kind == "progress")
+        central = self.centralWidget()
+        if central is not None:
+            self._info_banner.setMaximumWidth(min(420, max(220, central.width() - 32)))
+        self._info_banner.adjustSize()
         self._info_banner.show()
+        self._position_info_banner()
+        self._info_banner.raise_()
         if auto_hide_ms > 0:
-            QTimer.singleShot(auto_hide_ms, self._hide_info_banner)
+            self._info_timer.start(auto_hide_ms)
+        else:
+            self._info_timer.stop()
 
     def _hide_info_banner(self) -> None:
-        """Hide the info banner."""
+        """Hide the toast and stop its auto-hide timer."""
+        self._info_timer.stop()
         self._info_banner.hide()
+        self._info_banner_kind = None
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
@@ -658,19 +742,71 @@ class UiBuildMixin:
     def _refresh_icons_for_theme(self) -> None:
         """Refresh all icons after theme change."""
         from hsync_desktop.icons import clear_icon_cache
-        from hsync_desktop.icons import icon as get_icon
 
         clear_icon_cache()
         # Refresh button icons with theme-appropriate colors
         self._apply_button_styles()
-        # Refresh role icon
-        current_role = self._role_label.text()
-        role_name = "role-master" if current_role == tr("role.master") else "role-client"
-        self._role_icon.setPixmap(get_icon(role_name).pixmap(16, 16))
+        # Refresh role icon (neutral/known, re-coloured for the theme)
+        self._retranslate_role()
         # Refresh path display (includes folder, sync direction, and remote icons)
         self._update_path_display()
         # Refresh file panel icons
         self._file_panel.refresh_icons_for_theme()
+
+    def _retranslate_role(self) -> None:
+        """Render the role icon/label from ``_is_master`` and the language.
+
+        ``_is_master`` is None until the p2p election event: show a neutral icon
+        and no text rather than a misleading "Secondary".
+        """
+        from hsync_desktop.icons import icon as get_icon
+
+        if self._is_master is None:
+            self._role_label.setText("")
+            self._role_label.setToolTip(tr("role.unknown_tip"))
+            self._role_icon.setPixmap(get_icon("role-unknown").pixmap(16, 16))
+            self._role_icon.setToolTip(tr("role.unknown_tip"))
+        elif self._is_master:
+            self._role_label.setText(tr("role.master"))
+            self._role_label.setToolTip(tr("role.master_tip"))
+            self._role_icon.setPixmap(get_icon("role-master").pixmap(16, 16))
+            self._role_icon.setToolTip(tr("role.master_tip"))
+        else:
+            self._role_label.setText(tr("role.client"))
+            self._role_label.setToolTip(tr("role.client_tip"))
+            self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
+            self._role_icon.setToolTip(tr("role.client_tip"))
+        self._apply_role_visibility()
+
+    def _apply_role_visibility(self) -> None:
+        """Show the role only in p2p; the text only when connected and known."""
+        p2p_enabled = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
+        )
+        self._role_icon.setVisible(p2p_enabled)
+        self._role_label.setVisible(p2p_enabled and self._role_known and self._connected)
+
+    def _render_share_size(self) -> None:
+        """Render the local and sync-set size (``-1`` means unknown)."""
+        local = self._share_local_bytes
+        total = self._share_total_bytes
+        if local < 0:
+            text = "—"
+        elif total < 0:
+            text = tr("label.share_size_local_fmt").replace("{size}", format_bytes(local))
+        else:
+            text = (
+                tr("label.share_size_fmt")
+                .replace("{local}", format_bytes(local))
+                .replace("{total}", format_bytes(total))
+            )
+        self._share_size_label.setText(text)
+
+    @Slot(int)
+    def _on_share_size_changed(self, total_bytes: int) -> None:
+        """Update the local size from the folder scan."""
+        self._share_local_bytes = total_bytes
+        self._render_share_size()
 
     def _apply_log_visibility(self) -> None:
         """Show or hide the log panel based on settings."""

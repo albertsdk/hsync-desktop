@@ -337,3 +337,36 @@ class TestDisabledDuringSyncVisual:
         assert p2p_labels
         assert all(not lbl.isEnabled() for lbl in p2p_labels)
         assert all(lbl.isEnabled() for lbl in self._labels(dialog, 0))
+
+
+class TestServerModeSections:
+    """The Server Mode tab is grouped like the other settings tabs."""
+
+    def test_the_three_sections_exist(self, dialog):
+        assert dialog._grp_server.title() == tr("settings.group.server")
+        assert dialog._grp_server_certificates.title() == tr("settings.group.server_certificates")
+        assert dialog._grp_server_advanced.title() == tr("settings.group.advanced")
+
+    def test_each_section_holds_its_fields(self, dialog):
+        assert dialog._grp_server.isAncestorOf(dialog.server_url)
+        assert dialog._grp_server.isAncestorOf(dialog.api_key)
+        assert dialog._grp_server.isAncestorOf(dialog.server_trust)
+        assert dialog._grp_server.isAncestorOf(dialog.btn_manage_trusted_keys_server)
+        assert dialog._grp_server.isAncestorOf(dialog.btn_test_connection)
+        assert dialog._grp_server_certificates.isAncestorOf(dialog.insecure)
+        assert dialog._grp_server_certificates.isAncestorOf(dialog.ca_cert)
+        assert dialog._grp_server_advanced.isAncestorOf(dialog.http_timeout)
+
+    def test_the_sections_live_in_the_server_tab(self, dialog):
+        tab = dialog._tabs.widget(_SERVER_TAB_INDEX)
+        for group in (
+            dialog._grp_server,
+            dialog._grp_server_certificates,
+            dialog._grp_server_advanced,
+        ):
+            assert tab.isAncestorOf(group)
+
+    def test_the_p2p_banner_stays_outside_the_groups(self, dialog):
+        tab = dialog._tabs.widget(_SERVER_TAB_INDEX)
+        assert tab.isAncestorOf(dialog._p2p_banner)
+        assert not dialog._grp_server.isAncestorOf(dialog._p2p_banner)

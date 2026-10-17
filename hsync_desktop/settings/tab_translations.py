@@ -106,6 +106,9 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_p2p_discovery.setTitle(tr("settings.group.p2p_discovery"))
     dlg._grp_p2p_role.setTitle(tr("settings.group.p2p_role"))
     dlg._grp_p2p_advanced.setTitle(tr("settings.group.advanced"))
+    dlg._grp_server.setTitle(tr("settings.group.server"))
+    dlg._grp_server_certificates.setTitle(tr("settings.group.server_certificates"))
+    dlg._grp_server_advanced.setTitle(tr("settings.group.advanced"))
 
     # Advanced tab group box titles
     dlg._grp_advanced_perf.setTitle(tr("settings.group.performance"))
@@ -171,6 +174,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         lbl.setText(tr("settings.theme"))
     dlg.theme_combo.setItemText(0, tr("settings.theme_light"))
     dlg.theme_combo.setItemText(1, tr("settings.theme_dark"))
+    dlg.theme_combo.setItemText(2, tr("settings.theme_system"))
     lbl = dlg.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.p2pguage"))
@@ -181,6 +185,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))
     dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
     dlg._lbl_start_at_login.setText(tr("settings.start_at_login"))
+    dlg._lbl_show_advanced.setText(tr("settings.show_advanced"))
 
     # Button box
     style_ok_cancel_button_box(dlg._button_box)

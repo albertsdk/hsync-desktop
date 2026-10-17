@@ -15,6 +15,8 @@ from PySide6.QtWidgets import QApplication
 # Theme identifiers
 THEME_LIGHT = "light"
 THEME_DARK = "dark"
+# Follow the desktop colour scheme (resolved at launch and on live changes).
+THEME_SYSTEM = "system"
 
 
 def detect_system_theme() -> str:
@@ -163,8 +165,6 @@ QGroupBox::title {{
     padding: 0 6px;
 }}
 QPlainTextEdit#logViewer {{
-    font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
-    font-size: 12px;
     border: 1px solid {border};
     border-radius: 6px;
     padding: 4px;

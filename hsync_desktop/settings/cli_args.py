@@ -65,7 +65,7 @@ from hsync_desktop.settings.validators import (
     _validate_group_name,
     _validate_path,
 )
-from hsync_desktop.themes import detect_system_theme
+from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM, detect_system_theme
 
 
 def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
@@ -346,12 +346,18 @@ def build_selection_args(
     return args
 
 
-def get_saved_theme() -> str:
-    """Return the persisted theme name, defaulting to system theme."""
+def get_theme_setting() -> str:
+    """Return the raw theme preference: ``system``, ``light`` or ``dark``."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    # Use system theme as default if no theme has been saved
-    default_theme = detect_system_theme()
-    return str(s.value("appearance/theme", default_theme, str))
+    return str(s.value("appearance/theme", THEME_SYSTEM, str))
+
+
+def get_saved_theme() -> str:
+    """Return the effective theme name, resolving "system" to the OS scheme."""
+    setting = get_theme_setting()
+    if setting in (THEME_LIGHT, THEME_DARK):
+        return setting
+    return detect_system_theme()
 
 
 def are_notifications_enabled() -> bool:

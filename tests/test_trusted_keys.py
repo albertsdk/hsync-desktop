@@ -12,10 +12,17 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.trusted_keys import TrustedKeysDialog, _format_local_time, _PeerAddDialog
 
 
-def _patch_store(monkeypatch, *, bootnodes=(), servers=(), peers=(), supports_peer=True):
+def _patch_store(
+    monkeypatch, *, bootnodes=(), servers=(), peers=(), supports_peer=True, p2p_enabled=True
+):
     """Point the dialog's module-level helpers at in-memory fakes."""
     import hsync_desktop.trusted_keys as mod
 
+    class _FakeSettings:
+        def value(self, key, default=None, _type=None):
+            return p2p_enabled if key == "p2p/enabled" else default
+
+    monkeypatch.setattr(mod, "QSettings", lambda *a, **k: _FakeSettings())
     monkeypatch.setattr(mod, "find_hsync_binary", lambda: "/fake/hsync")
     monkeypatch.setattr(mod, "list_bootnode_trust", lambda binary: list(bootnodes))
     monkeypatch.setattr(mod, "list_server_trust", lambda binary: list(servers))
@@ -173,10 +180,39 @@ class TestTrustedKeysInitialTab:
         assert dlg._tabs.currentIndex() == 0
 
     def test_servers_selects_the_server_tab(self, qtbot, monkeypatch):
-        _patch_store(monkeypatch)
+        _patch_store(monkeypatch, p2p_enabled=False)
         dlg = TrustedKeysDialog(initial_tab="servers")
         qtbot.addWidget(dlg)
         assert dlg._tabs.currentIndex() == 1
+
+    def test_p2p_mode_hides_the_server_store(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch, p2p_enabled=True)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert not dlg._tabs.isTabVisible(1)
+        assert dlg._tabs.isTabVisible(0)
+        assert dlg._tabs.isTabVisible(2)
+
+    def test_server_mode_hides_the_p2p_stores(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch, p2p_enabled=False)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._tabs.isTabVisible(1)
+        assert not dlg._tabs.isTabVisible(0)
+        assert not dlg._tabs.isTabVisible(2)
+
+    def test_a_hidden_initial_tab_falls_back_to_a_visible_one(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch, p2p_enabled=True)
+        dlg = TrustedKeysDialog(initial_tab="servers")
+        qtbot.addWidget(dlg)
+        assert dlg._tabs.currentIndex() == 0
+
+    def test_the_server_tab_is_labelled_hsync_server(self, qtbot, monkeypatch):
+        _patch_store(monkeypatch, p2p_enabled=False)
+        dlg = TrustedKeysDialog()
+        qtbot.addWidget(dlg)
+        assert dlg._tabs.tabText(1) == tr("trusted_keys.tabs_servers")
+        assert dlg._tabs.tabText(1) == "Server HSYNC"
 
 
 class TestTrustedKeysCloseButton:

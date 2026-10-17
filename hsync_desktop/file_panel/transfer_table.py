@@ -15,12 +15,13 @@ from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
+    QSettings,
     Qt,
     QTimer,
     QUrl,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QDesktopServices
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -36,6 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.file_panel.delegates import CenteredIconDelegate, ProgressBarDelegate
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.models import (
@@ -46,12 +48,14 @@ from hsync_desktop.file_panel.models import (
 )
 from hsync_desktop.file_panel.utils import (
     _COLUMN_KEYS,
+    COL_DIRECTION,
     COL_ETA,
     COL_ICON,
     COL_MODIFIED,
     COL_NAME,
     COL_PROGRESS,
     COL_SIZE,
+    COL_SPEED,
     COL_STATUS,
     COL_TYPE,
     _classify_file,
@@ -59,6 +63,36 @@ from hsync_desktop.file_panel.utils import (
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
+
+# Folder aggregation status priority (lower wins) and the matching i18n keys.
+_STATUS_PRIORITY = {
+    TransferStatus.ERROR: 1,
+    TransferStatus.DOWNLOADING: 2,
+    TransferStatus.UPLOADING: 2,
+    TransferStatus.TO_DOWNLOAD: 3,
+    TransferStatus.TO_UPLOAD: 3,
+    TransferStatus.TO_DELETE: 3,
+    TransferStatus.TO_RENAME: 3,
+    TransferStatus.COMPLETED: 4,
+    TransferStatus.SYNCED: 5,
+    TransferStatus.LOCAL: 6,
+}
+_FOLDER_STATUS_KEYS = {
+    1: "folder.status.error",
+    2: "folder.status.syncing",
+    3: "folder.status.to_sync",
+    4: "folder.status.completed",
+    5: "folder.status.synced",
+    6: "folder.status.local",
+}
+_PRIORITY_TO_STATUS = {
+    1: TransferStatus.ERROR,
+    2: TransferStatus.DOWNLOADING,
+    3: TransferStatus.TO_DOWNLOAD,
+    4: TransferStatus.COMPLETED,
+    5: TransferStatus.SYNCED,
+    6: TransferStatus.LOCAL,
+}
 
 
 class FileTransferTable(QTableWidget):
@@ -71,14 +105,24 @@ class FileTransferTable(QTableWidget):
     send_selection_requested = Signal(str)  # Send the selected subtree (filepath)
     receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
 
+    # Persisted column visibility (comma-separated translation keys).
+    _COLUMN_SETTINGS_KEY = "ui/file_columns_hidden"
+    # Optional columns that start hidden; the current columns stay visible.
+    _DEFAULT_HIDDEN = (COL_SPEED, COL_DIRECTION)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._transfers: dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
         self._transfers_mutex = QMutex()  # Protects _transfers dict
         self._row_index: dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
+        # Restored across a file-panel reload (scoped Send/Receive): keeps the
+        # user's row selected while the fresh scan fills the table.
+        self._sticky_selection: str | None = None
+        self._sticky_applied_row: int = -1
         self._base_directory: str = ""
         self._sync_active: bool = False  # A sync is running: Send/Receive disabled
+        self._connected: bool = False  # A connection is active: "Local" rows are grey
 
         # Hierarchical navigation state
         self._current_path: str = ""  # Current folder (relative to base, "" = root)
@@ -118,6 +162,17 @@ class FileTransferTable(QTableWidget):
         """Enable/disable the Send/Receive context entries (sync running)."""
         self._sync_active = active
 
+    def set_connected(self, connected: bool) -> None:
+        """Grey "Local" rows only while a connection is active.
+
+        Without a connection every row is local, so the grey would read as a
+        disabled list rather than as a status; use the default text colour.
+        """
+        if connected == self._connected:
+            return
+        self._connected = connected
+        self.refresh_view()
+
     def _setup_table(self) -> None:
         headers = self._column_headers()
         self.setColumnCount(len(headers))
@@ -144,6 +199,8 @@ class FileTransferTable(QTableWidget):
         header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_SPEED, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.ResizeToContents)
 
         # Icon column: centered icon with fixed width
         self.setItemDelegateForColumn(COL_ICON, CenteredIconDelegate(self))
@@ -163,6 +220,33 @@ class FileTransferTable(QTableWidget):
 
         self.cellClicked.connect(self._on_cell_clicked)
         self.cellDoubleClicked.connect(self._on_cell_double_clicked)
+
+        # Optional columns start hidden; restore the user's choice if saved.
+        self._restore_column_visibility()
+
+    def _restore_column_visibility(self) -> None:
+        """Apply the persisted (or default) hidden-column set."""
+        header = self.horizontalHeader()
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if settings.contains(self._COLUMN_SETTINGS_KEY):
+            # An explicitly saved empty value means "nothing hidden".
+            saved = str(settings.value(self._COLUMN_SETTINGS_KEY, "", str))
+            hidden = {key.strip() for key in saved.split(",") if key.strip()}
+        else:
+            hidden = {_COLUMN_KEYS[col] for col in self._DEFAULT_HIDDEN}
+        for col, key in enumerate(_COLUMN_KEYS):
+            if key:
+                header.setSectionHidden(col, key in hidden)
+
+    def _save_column_visibility(self) -> None:
+        """Persist the hidden-column set using stable translation keys."""
+        header = self.horizontalHeader()
+        hidden = [
+            _COLUMN_KEYS[col]
+            for col in range(self.columnCount())
+            if _COLUMN_KEYS[col] and header.isSectionHidden(col)
+        ]
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(self._COLUMN_SETTINGS_KEY, ",".join(hidden))
 
     def _show_header_context_menu(self, pos) -> None:
         """Show context menu to toggle column visibility."""
@@ -184,6 +268,7 @@ class FileTransferTable(QTableWidget):
     def _toggle_column(self, col: int, visible: bool) -> None:
         """Toggle visibility of a column."""
         self.horizontalHeader().setSectionHidden(col, not visible)
+        self._save_column_visibility()
 
     def _on_cell_clicked(self, row: int, _col: int) -> None:
         """Defer single-click action to distinguish from double-click."""
@@ -192,6 +277,7 @@ class FileTransferTable(QTableWidget):
 
     def _on_single_click_confirmed(self) -> None:
         """Handle confirmed single click: toggle selection on re-click."""
+        self._clear_sticky_selection()
         row = self._pending_click_row
         if row == self._last_selected_row:
             # Re-click on same row → deselect
@@ -209,6 +295,7 @@ class FileTransferTable(QTableWidget):
     def _on_cell_double_clicked(self, row: int, _col: int) -> None:
         """Handle double-click: navigate into folder or open file."""
         self._click_timer.stop()
+        self._clear_sticky_selection()
         self._last_selected_row = row
         name_item = self.item(row, COL_NAME)
         if not name_item:
@@ -249,6 +336,7 @@ class FileTransferTable(QTableWidget):
         path = path.strip("/")
         if path == self._current_path:
             return
+        self._clear_sticky_selection()
         # Add to history (truncate forward history if navigating from middle)
         self._nav_index += 1
         self._nav_history = [*self._nav_history[: self._nav_index], path]
@@ -257,8 +345,8 @@ class FileTransferTable(QTableWidget):
         self.path_changed.emit(path)
 
     def navigate_back(self) -> None:
-        """Navigate to the previous folder in history."""
         if self._nav_index > 0:
+            self._clear_sticky_selection()
             self._nav_index -= 1
             self._current_path = self._nav_history[self._nav_index]
             self.refresh_view()
@@ -267,6 +355,7 @@ class FileTransferTable(QTableWidget):
     def navigate_forward(self) -> None:
         """Navigate to the next folder in history."""
         if self._nav_index < len(self._nav_history) - 1:
+            self._clear_sticky_selection()
             self._nav_index += 1
             self._current_path = self._nav_history[self._nav_index]
             self.refresh_view()
@@ -277,6 +366,46 @@ class FileTransferTable(QTableWidget):
         if self._current_path:
             parent = str(Path(self._current_path).parent)
             self.navigate_to("" if parent == "." else parent)
+
+    def restore_view(self, path: str, selected: str | None) -> None:
+        """Reopen ``path`` and select ``selected`` after a panel reload.
+
+        ``Send now`` / ``Receive now`` reload the local tree before starting the
+        one-shot; this puts the user back where they were instead of jumping to
+        the root. The selection stays applied across the asynchronous scan's
+        refreshes until the user navigates or selects another row.
+        """
+        if path and path != self._current_path:
+            self.navigate_to(path)  # clears any previous sticky selection
+        self._sticky_selection = selected
+        self._sticky_applied_row = -1
+        self.refresh_view()
+
+    def _clear_sticky_selection(self) -> None:
+        self._sticky_selection = None
+        self._sticky_applied_row = -1
+
+    def _apply_sticky_selection(self) -> None:
+        """Re-select the restored row once it is present at the current level."""
+        if self._sticky_selection is None:
+            return
+        # Resolve from the visible rows, not _row_index: that map is built before
+        # sorting is re-enabled, so after a column sort its indices are stale.
+        row = None
+        for candidate in range(self.rowCount()):
+            item = self.item(candidate, COL_NAME)
+            if item is not None and item.text() == self._sticky_selection:
+                row = candidate
+                break
+        if row is None:
+            return
+        self._last_selected_row = row
+        self.selectRow(row)
+        if row != self._sticky_applied_row:
+            self._sticky_applied_row = row
+            transfer = self._get_transfer_at_row(row)
+            if transfer:
+                self.row_selected.emit(transfer)
 
     def can_go_back(self) -> bool:
         """Check if back navigation is possible."""
@@ -339,36 +468,15 @@ class FileTransferTable(QTableWidget):
         max_mtime = 0.0
         status_priority = 100
 
-        priority_map = {
-            TransferStatus.ERROR: 1,
-            TransferStatus.DOWNLOADING: 2,
-            TransferStatus.UPLOADING: 2,
-            TransferStatus.TO_DOWNLOAD: 3,
-            TransferStatus.TO_UPLOAD: 3,
-            TransferStatus.TO_DELETE: 3,
-            TransferStatus.TO_RENAME: 3,
-            TransferStatus.COMPLETED: 4,
-            TransferStatus.SYNCED: 5,
-            TransferStatus.LOCAL: 6,
-        }
-        status_key_map = {
-            1: "folder.status.error",
-            2: "folder.status.syncing",
-            3: "folder.status.to_sync",
-            4: "folder.status.completed",
-            5: "folder.status.synced",
-            6: "folder.status.local",
-        }
-
         for f in files:
             if not f.filepath.endswith("/"):
                 total_size += f.size
                 total_transferred += f.bytes_transferred
             max_mtime = max(max_mtime, f.mtime)
-            p = priority_map.get(f.status, 100)
+            p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
 
-        status_key = status_key_map.get(status_priority, "folder.status.local")
+        status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
         progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
 
         return {
@@ -412,18 +520,29 @@ class FileTransferTable(QTableWidget):
             self.setRowCount(0)
             self._row_index.clear()
             self._last_selected_row = -1
+            # Constant for the whole refresh: avoid a palette copy per row.
+            default_text_color = self.palette().color(QPalette.ColorRole.Text)
 
             for display_name, transfer, folder_data in items:
                 row = self.rowCount()
                 self.insertRow(row)
                 self._row_index[display_name] = row
-                self._populate_row_hierarchical(row, display_name, transfer, folder_data)
+                self._populate_row_hierarchical(
+                    row, display_name, transfer, folder_data, default_text_color
+                )
         finally:
             self.setSortingEnabled(True)
             self.setUpdatesEnabled(True)
 
+        self._apply_sticky_selection()
+
     def _populate_row_hierarchical(
-        self, row: int, display_name: str, transfer: FileTransfer | None, folder_data: dict | None
+        self,
+        row: int,
+        display_name: str,
+        transfer: FileTransfer | None,
+        folder_data: dict | None,
+        default_text_color: QColor,
     ) -> None:
         """Populate a row for hierarchical view."""
         is_folder = transfer is None or transfer.filepath.endswith("/")
@@ -492,19 +611,21 @@ class FileTransferTable(QTableWidget):
         self.setItem(row, COL_ETA, eta_item)
 
         # Status
-        if is_folder and folder_data:
-            status_key = folder_data.get("status_key", "folder.status.local")
+        if is_folder:
+            if folder_data:
+                status_priority = folder_data.get("status_priority", 6)
+                status_key = folder_data.get("status_key", "folder.status.local")
+            elif transfer is not None:
+                # Empty folder: use its own status. A folder created by a remote
+                # peer is marked SYNCED by _on_directory_created; without this it
+                # would default to "Local" because it has no children to aggregate.
+                status_priority = _STATUS_PRIORITY.get(transfer.status, 6)
+                status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
+            else:
+                status_priority = 6
+                status_key = "folder.status.local"
             status_text = tr(status_key)
-            status_priority = folder_data.get("status_priority", 6)
-            priority_to_status = {
-                1: TransferStatus.ERROR,
-                2: TransferStatus.DOWNLOADING,
-                3: TransferStatus.TO_DOWNLOAD,
-                4: TransferStatus.COMPLETED,
-                5: TransferStatus.SYNCED,
-                6: TransferStatus.LOCAL,
-            }
-            status_for_color = priority_to_status.get(status_priority, TransferStatus.LOCAL)
+            status_for_color = _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
         elif transfer:
             status_map = {
                 TransferStatus.LOCAL: tr("detail.local"),
@@ -528,8 +649,25 @@ class FileTransferTable(QTableWidget):
             status_for_color = TransferStatus.LOCAL
         self.setItem(row, COL_STATUS, QTableWidgetItem(status_text))
 
-        # Apply status color
-        color = STATUS_COLORS.get(status_for_color, QColor(128, 128, 128))
+        # Direction (optional column, hidden by default)
+        direction_text = transfer.direction if (transfer and not is_folder) else ""
+        direction_item = QTableWidgetItem(direction_text)
+        direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setItem(row, COL_DIRECTION, direction_item)
+
+        # Speed (optional column, hidden by default)
+        rate = transfer.speed_bps if (transfer and not is_folder) else None
+        speed_text = f"{format_bytes(rate)}/s" if rate else ""
+        speed_item = QTableWidgetItem(speed_text)
+        speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.setItem(row, COL_SPEED, speed_item)
+
+        # Apply status color. "Local" is the resting state, not a status: only
+        # grey it while a connection can compare the file.
+        if status_for_color is TransferStatus.LOCAL and not self._connected:
+            color = default_text_color
+        else:
+            color = STATUS_COLORS.get(status_for_color, QColor(128, 128, 128))
         for col in range(self.columnCount()):
             item = self.item(row, col)
             if item:
@@ -853,6 +991,7 @@ class FileTransferTable(QTableWidget):
             self._transfers.clear()
         self._cached_items = None  # Invalidate cache
         self._row_index.clear()
+        self._clear_sticky_selection()
         self._current_path = ""
         self._nav_history = [""]
         self._nav_index = 0

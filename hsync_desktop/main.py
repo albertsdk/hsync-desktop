@@ -58,7 +58,9 @@ def _harden_linux_gsettings() -> None:
     expects (``antialiasing``), GLib raises a fatal ``GLib-GIO-ERROR`` that
     aborts the process before the GUI appears. Forcing the built-in
     ``generic`` theme plugin keeps Qt on its own defaults (the app applies
-    its own light/dark QSS anyway). Respects an explicit user value.
+    its own light/dark QSS anyway). The host's configured fonts are applied
+    explicitly instead (``hsync_desktop/fonts.py::apply_system_fonts``).
+    Respects an explicit user value.
     """
     if sys.platform.startswith("linux"):
         os.environ.setdefault("QT_QPA_PLATFORMTHEME", "generic")
@@ -120,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from hsync_desktop import __version__
     from hsync_desktop.engine import BinaryVersionProbe, HsyncEngine, is_binary_version_compatible
+    from hsync_desktop.fonts import apply_system_fonts
     from hsync_desktop.i18n import init_language, tr
     from hsync_desktop.main_window import MainWindow
     from hsync_desktop.notifications import NotificationManager
@@ -135,6 +138,9 @@ def main(argv: list[str] | None = None) -> int:
 
     app = QApplication([sys.argv[0], *(a for a in args if a != MINIMIZED_FLAG)])
     _configure_app(app)
+    # Follow the desktop's configured fonts (the generic platform theme we force
+    # on Linux does not read them; see hsync_desktop/fonts.py).
+    apply_system_fonts(app)
     app.setQuitOnLastWindowClosed(False)  # keep running in tray
 
     # Launched by the OS autostart entry: show only the tray, not the window

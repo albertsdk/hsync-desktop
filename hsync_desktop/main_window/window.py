@@ -29,6 +29,7 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QFontMetrics,
+    QGuiApplication,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -81,6 +82,7 @@ from hsync_desktop.settings import (
     are_notifications_enabled,
     build_hsync_args,
     get_saved_theme,
+    get_theme_setting,
     is_auto_sync_enabled,
     is_log_panel_visible,
 )
@@ -89,7 +91,9 @@ from hsync_desktop.themes import (
     COLOR_CONNECTED,
     COLOR_DISCONNECTED,
     COLOR_WAITING,
+    THEME_SYSTEM,
     apply_theme,
+    detect_system_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
 
@@ -154,11 +158,18 @@ class MainWindow(
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
         # Send/Receive sync pending confirmation: (subdir, direction) or None.
         self._pending_selection_sync: tuple[str, str] | None = None
+        # Folder/row to restore after the scoped op reloads the file panel.
+        self._selection_sync_view: tuple[str, str | None] | None = None
         # Scoped Send/Receive state: a user-invoked one-shot is in flight.
         self._selection_sync_active = False  # True while a scoped op runs
         self._selection_sync_phase = ""  # "preview" | "confirm" | "run"
         self._selection_result_count = 0  # successful transfers in the run phase
         self._ever_connected = False  # engine reached "connected" this process
+        # p2p role: unknown until the first role event; the text is shown only
+        # once connected (see MainWindow._apply_role_visibility).
+        self._role_known = False
+        self._is_master: bool | None = None
+        self._connected = False
         self._last_engine_error: str = ""  # Reason for the last failed engine start
         self._auth_prompt_active = False  # True while the auth re-prompt dialog is open
         # True only while ``HsyncEngine.start`` runs, so a launch failure is
@@ -209,6 +220,8 @@ class MainWindow(
             e.sync_completed.connect(notifier.sync_complete)
         # A completed cycle finishes a scoped Send/Receive with its counts.
         e.sync_completed.connect(self._on_sync_completed)
+        e.folder_size_changed.connect(self._on_folder_size)
+        self._file_panel.share_size_changed.connect(self._on_share_size_changed)
         # Engine errors are always mirrored into the log panel; a start failure
         # additionally raises a modal dialog (see `_start_engine`). The handler
         # also owns the outcome of a scoped Send/Receive failure.
@@ -242,4 +255,19 @@ class MainWindow(
 
         # Tray signals are connected in main.py after _tray is set
 
+        # Follow the desktop colour scheme when the theme is "System default".
+        QGuiApplication.styleHints().colorSchemeChanged.connect(
+            self._on_system_color_scheme_changed
+        )
+
     # ── Slots ────────────────────────────────────────────────────────────
+
+    @Slot()
+    def _on_system_color_scheme_changed(self) -> None:
+        """Re-apply the theme when the desktop scheme changes (system default)."""
+        if get_theme_setting() != THEME_SYSTEM:
+            return
+        app = QApplication.instance()
+        if app:
+            apply_theme(app, detect_system_theme())  # type: ignore[arg-type]
+            self._refresh_icons_for_theme()

@@ -24,3 +24,15 @@ class TestLicenseDialog:
         assert dlg._view.isReadOnly()
         assert dlg._view.toPlainText() == license_text()
         assert dlg._buttons.button(QDialogButtonBox.StandardButton.Close) is not None
+
+    def test_uses_the_small_monospace_font(self, qtbot, monkeypatch) -> None:
+        from PySide6.QtGui import QFont
+
+        import hsync_desktop.license_dialog as mod
+
+        monkeypatch.setattr(mod, "small_monospace_font", lambda: QFont("Probe Small"))
+
+        dlg = LicenseDialog()
+        qtbot.addWidget(dlg)
+
+        assert dlg._view.font().family() == "Probe Small"

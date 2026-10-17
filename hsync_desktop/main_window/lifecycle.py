@@ -30,6 +30,7 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QFontMetrics,
+    QResizeEvent,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -191,3 +192,9 @@ class LifecycleMixin:
             # No tray available – actually close
             self._quit()
             event.accept()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Keep the overlay toast anchored when the window is resized."""
+        super().resizeEvent(event)
+        if getattr(self, "_info_banner", None) is not None and not self._info_banner.isHidden():
+            self._position_info_banner()

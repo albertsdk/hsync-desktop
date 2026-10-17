@@ -152,10 +152,11 @@ from hsync_desktop.settings.tab_indices import (
 from hsync_desktop.settings.tab_layout import (
     reorganize_advanced_tab,
     reorganize_p2p_tab,
+    reorganize_server_tab,
     reorganize_sync_tab,
 )
 from hsync_desktop.settings.tab_translations import apply_translations
-from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, detect_system_theme
+from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
@@ -248,6 +249,10 @@ class SettingsDialog(QDialog):
     def _reorganize_p2p_tab(self) -> None:
         """Regroup the p2p tab (implementation in ``tab_layout.py``)."""
         reorganize_p2p_tab(self)
+
+    def _reorganize_server_tab(self) -> None:
+        """Regroup the Server Mode tab (implementation in ``tab_layout.py``)."""
+        reorganize_server_tab(self)
 
     def _reorganize_advanced_tab(self) -> None:
         """Regroup the Advanced tab (implementation in ``tab_layout.py``)."""
@@ -443,11 +448,32 @@ class SettingsDialog(QDialog):
         self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
         self.prefer_master.toggled.connect(self._on_prefer_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
+        self.verbose.toggled.connect(self._on_verbose_toggled)
+        self.show_advanced.toggled.connect(self._on_show_advanced_toggled)
         self.sync_direction_combo.currentIndexChanged.connect(self._on_sync_direction_changed)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
+
+    def _on_show_advanced_toggled(self, _checked: bool) -> None:
+        """Reflect the advanced toggle immediately."""
+        self._apply_advanced_visibility()
+
+    def _apply_advanced_visibility(self) -> None:
+        """Show the Advanced tab and the advanced sections only when enabled."""
+        show = self.show_advanced.isChecked()
+        self._tabs.setTabVisible(_ADVANCED_TAB_INDEX, show)
+        for group in (
+            getattr(self, "_grp_advanced", None),
+            getattr(self, "_grp_p2p_advanced", None),
+            getattr(self, "_grp_server_certificates", None),
+            getattr(self, "_grp_server_advanced", None),
+        ):
+            if group is not None:
+                group.setVisible(show)
+        if not show and self._tabs.currentIndex() == _ADVANCED_TAB_INDEX:
+            self._tabs.setCurrentIndex(_GENERAL_TAB_INDEX)
 
     def _on_edit_hsyncignore(self) -> None:
         """Open the .hsyncignore editor for the currently configured shared folder."""
@@ -594,6 +620,34 @@ class SettingsDialog(QDialog):
         """Prefer-master and never-master are mutually exclusive."""
         if checked and self.prefer_master.isChecked():
             self.prefer_master.setChecked(False)
+
+    def _on_verbose_toggled(self, checked: bool) -> None:
+        """Offer to show the log panel when detailed logging would be invisible.
+
+        Verbose output has nowhere to go while the log panel is hidden and no
+        log file is configured. We do not block the option (file-only logging is
+        legitimate) but offer to reveal the panel.
+        """
+        if not checked:
+            return
+        if self.show_log_panel.isChecked() or self.logfile.text().strip():
+            return
+        msg = QMessageBox(
+            QMessageBox.Icon.Question,
+            tr("warn.verbose_no_log_title"),
+            tr("warn.verbose_no_log_msg"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self,
+        )
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+        if msg.exec() == QMessageBox.StandardButton.Yes:
+            self.show_log_panel.setChecked(True)
 
     def _on_sync_direction_changed(self, _index: int) -> None:
         """Warn live when the picked direction conflicts with prefer-master.
@@ -976,10 +1030,12 @@ class SettingsDialog(QDialog):
         s.setValue("output/verbose", self.verbose.isChecked())
         s.setValue("output/quiet", self.quiet.isChecked())
         s.setValue("output/logfile", self.logfile.text())
-        # Map translated theme names back to internal keys
-        s.setValue(
-            "appearance/theme", THEME_DARK if self.theme_combo.currentIndex() == 1 else THEME_LIGHT
-        )
+        # Theme preference: "light"/"dark"/"system" (item data).
+        theme_value = self.theme_combo.currentData()
+        if not isinstance(theme_value, str) or not theme_value:
+            theme_value = THEME_DARK if self.theme_combo.currentIndex() == 1 else THEME_LIGHT
+        s.setValue("appearance/theme", theme_value)
+        s.setValue("ui/show_advanced", self.show_advanced.isChecked())
         s.setValue("appearance/notifications", self.notifications_enabled.isChecked())
         # New fields
         lang_code = self.lang_combo.currentData()
@@ -1121,8 +1177,14 @@ class SettingsDialog(QDialog):
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
         self.logfile.setText(str(s.value("output/logfile", DEFAULT_LOGFILE, str)))
-        theme = s.value("appearance/theme", detect_system_theme(), str)
-        self.theme_combo.setCurrentIndex(1 if theme == THEME_DARK else 0)
+        theme_setting = str(s.value("appearance/theme", THEME_SYSTEM, str))
+        theme_index = self.theme_combo.findData(theme_setting)
+        if theme_index < 0:
+            # Legacy values without item data: Light=0, Dark=1.
+            theme_index = 1 if theme_setting == THEME_DARK else 0
+        self.theme_combo.setCurrentIndex(theme_index)
+        self.show_advanced.setChecked(bool(s.value("ui/show_advanced", False, bool)))
+        self._apply_advanced_visibility()
         self.notifications_enabled.setChecked(
             bool(s.value("appearance/notifications", DEFAULT_NOTIFICATIONS, bool))
         )
@@ -1159,8 +1221,13 @@ class SettingsDialog(QDialog):
     # ── Connection-active state management ────────────────────────────────
 
     def set_current_tab(self, index: int) -> None:
-        """Switch the tab widget to the given index."""
+        """Switch the tab widget to the given index (first visible if hidden)."""
         if self._tabs and 0 <= index < self._tabs.count():
+            if not self._tabs.isTabVisible(index):
+                index = next(
+                    (i for i in range(self._tabs.count()) if self._tabs.isTabVisible(i)),
+                    index,
+                )
             self._tabs.setCurrentIndex(index)
 
     def set_connection_active(self, active: bool) -> None:

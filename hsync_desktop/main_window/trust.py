@@ -192,7 +192,7 @@ class TrustMixin:
             return
         bucket = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str))
         if add_peer_pin(binary, cid, bucket, fingerprint):
-            self._append_log(f"🔒 Peer {cid} pinned.")
+            self._append_desktop_log("INFO", f"Peer {cid} pinned.")
         else:
             QMessageBox.warning(
                 self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
@@ -213,7 +213,7 @@ class TrustMixin:
         box.setDefaultButton(ignore_btn)
         box.exec()
         if box.clickedButton() is not trust_btn:
-            self._append_log("⚠ Peer not trusted.")
+            self._append_desktop_log("WARNING", "Peer not trusted.")
             return
         if scope == "master":
             self._accept_peer_pin(cid, fingerprint)
@@ -229,7 +229,7 @@ class TrustMixin:
                 self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
             )
             return
-        self._append_log(f"🔒 {label} {peer} trusted.")
+        self._append_desktop_log("INFO", f"{label} {peer} trusted.")
         self._maybe_offer_restart()
 
     @Slot(str, str, str, str)
@@ -305,12 +305,12 @@ class TrustMixin:
             if p2p_enabled:
                 # p2p mode: prompt for the shared password (pre-filled with the
                 # current one so a mistyped value is easy to correct).
-                self._append_log(f"⚠ {tr('p2pauth.error_message')}")
+                self._append_desktop_log("WARNING", tr("p2pauth.error_message"))
                 p2p_dlg = P2PKeyDialog(self)
                 accepted = p2p_dlg.exec() == P2PKeyDialog.DialogCode.Accepted
             else:
                 # Server mode: prompt for the API key.
-                self._append_log(f"⚠ {tr('apikey.error_message')}")
+                self._append_desktop_log("WARNING", tr("apikey.error_message"))
                 api_dlg = ApiKeyDialog(self)
                 accepted = api_dlg.exec() == ApiKeyDialog.DialogCode.Accepted
 
@@ -327,7 +327,7 @@ class TrustMixin:
         # Immediately update status bar to show "connecting" state
         self._on_status("connecting")
         # Show info banner for extra visibility
-        self._show_info_banner(f"🔄 {tr('banner.reconnecting')}")
+        self._show_info_banner(f"🔄 {tr('banner.reconnecting')}", kind="progress")
         local_path = self._local_path
         if local_path:
             args = build_hsync_args(local_path, force_dry_run=True)
@@ -443,7 +443,9 @@ class TrustMixin:
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
-            self._append_log(f"⚠ {label} certificate not accepted; start cancelled.")
+            self._append_desktop_log(
+                "WARNING", f"{label} certificate not accepted; start cancelled."
+            )
             return False
         if not add_fn(binary, host, fingerprint, port):
             QMessageBox.warning(

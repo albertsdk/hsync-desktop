@@ -92,7 +92,8 @@ class FileTransfer:
         return max(0, self.size - self.bytes_transferred)
 
     @property
-    def eta_seconds(self) -> float | None:
+    def speed_bps(self) -> float | None:
+        """Current transfer rate in bytes/second, or None when not transferring."""
         if self.status not in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING):
             return None
         if self.bytes_transferred == 0:
@@ -101,6 +102,11 @@ class FileTransfer:
         if elapsed <= 0:
             return None
         rate = self.bytes_transferred / elapsed
-        if rate <= 0:
+        return rate if rate > 0 else None
+
+    @property
+    def eta_seconds(self) -> float | None:
+        rate = self.speed_bps
+        if rate is None:
             return None
         return self.remaining / rate

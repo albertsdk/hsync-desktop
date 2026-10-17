@@ -340,3 +340,89 @@ class TestIgnoreDeleteWarning:
         # finishes, so assert both emissions rather than their order.
         assert sorted(emitted) == [False, True]
         assert dialog.ignore_delete.isChecked() is True
+
+
+class TestVerboseLogPanelPrompt:
+    """Enabling detailed logging offers to reveal an otherwise invisible log."""
+
+    @staticmethod
+    def _record(monkeypatch, result):
+        shown: list[str] = []
+
+        def fake_exec(self):
+            shown.append(self.text())
+            return result
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        return shown
+
+    def test_enabling_verbose_offers_the_log_panel(self, dialog, monkeypatch):
+        shown = self._record(monkeypatch, QMessageBox.StandardButton.Yes)
+        dialog.show_log_panel.setChecked(False)
+        dialog.logfile.setText("")
+        dialog.verbose.setChecked(False)
+
+        dialog.verbose.setChecked(True)
+
+        assert shown == [tr("warn.verbose_no_log_msg")]
+        assert dialog.show_log_panel.isChecked() is True
+
+    def test_no_prompt_when_the_panel_is_visible(self, dialog, monkeypatch):
+        shown = self._record(monkeypatch, QMessageBox.StandardButton.Yes)
+        dialog.show_log_panel.setChecked(True)
+        dialog.logfile.setText("")
+        dialog.verbose.setChecked(False)
+
+        dialog.verbose.setChecked(True)
+
+        assert shown == []
+
+    def test_no_prompt_when_a_log_file_is_set(self, dialog, monkeypatch):
+        shown = self._record(monkeypatch, QMessageBox.StandardButton.Yes)
+        dialog.show_log_panel.setChecked(False)
+        dialog.logfile.setText("/tmp/hsync.log")
+        dialog.verbose.setChecked(False)
+
+        dialog.verbose.setChecked(True)
+
+        assert shown == []
+
+    def test_declining_leaves_the_panel_hidden(self, dialog, monkeypatch):
+        self._record(monkeypatch, QMessageBox.StandardButton.No)
+        dialog.show_log_panel.setChecked(False)
+        dialog.logfile.setText("")
+        dialog.verbose.setChecked(False)
+
+        dialog.verbose.setChecked(True)
+
+        assert dialog.show_log_panel.isChecked() is False
+        assert dialog.verbose.isChecked() is True
+
+    def test_turning_verbose_off_never_prompts(self, dialog, monkeypatch):
+        shown = self._record(monkeypatch, QMessageBox.StandardButton.Yes)
+        dialog.show_log_panel.setChecked(False)
+        dialog.logfile.setText("")
+        dialog.verbose.setChecked(True)
+        shown.clear()
+
+        dialog.verbose.setChecked(False)
+
+        assert shown == []
+
+    def test_a_restored_state_does_not_prompt(self, qtbot, monkeypatch, tmp_path):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from tests._helpers import _settings
+
+        s = _settings(tmp_path)
+        s.setValue("output/verbose", True)
+        s.setValue("appearance/show_log", False)
+        s.setValue("output/logfile", "")
+        monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: s)
+        shown = self._record(monkeypatch, QMessageBox.StandardButton.Yes)
+
+        dlg = SettingsDialog()
+        qtbot.addWidget(dlg)
+
+        assert shown == []
+        assert dlg.verbose.isChecked() is True
+        assert dlg.show_log_panel.isChecked() is False

@@ -86,9 +86,8 @@ class FileDetailPanel:
             abs_dir = self._base_directory
             display = "."
         self._current_abs_dir = abs_dir
-        # Render as clickable HTML link (Qt handles underline + color)
-        escaped = html.escape(display)
-        self._lbl_filepath.setText(f'<a href="file://{abs_dir}">{escaped}</a>')
+        self._current_display = display
+        self._render_filepath_link()
 
         self._lbl_filename.setText(transfer.filename)
         self._lbl_size.setText(format_bytes(transfer.size))
@@ -114,6 +113,27 @@ class FileDetailPanel:
         self._lbl_ip.setText(transfer.client_ip or "—")
         self._frame.show()
 
+    def _render_filepath_link(self) -> None:
+        """Render the clickable path with the current palette colour."""
+        display = getattr(self, "_current_display", "")
+        if not display:
+            return
+        escaped = html.escape(display)
+        safe_dir = html.escape(getattr(self, "_current_abs_dir", ""), quote=True)
+        text_color = (
+            self._lbl_filepath.palette()
+            .color(self._lbl_filepath.palette().ColorRole.WindowText)
+            .name()
+        )
+        self._lbl_filepath.setText(
+            f'<a href="file://{safe_dir}" '
+            f'style="color:{text_color}; text-decoration:underline;">{escaped}</a>'
+        )
+
+    def refresh_link_color(self) -> None:
+        """Rebuild the filepath link after a theme change."""
+        self._render_filepath_link()
+
     def _on_filepath_clicked(self, _link: str) -> None:
         """Open the file's directory in the system file manager."""
         abs_dir = getattr(self, "_current_abs_dir", "")
@@ -123,5 +143,6 @@ class FileDetailPanel:
     def clear(self) -> None:
         """Clear and hide the panel."""
         self._current_abs_dir = ""
+        self._current_display = ""
         self._lbl_filepath.setText("—")
         self._frame.hide()

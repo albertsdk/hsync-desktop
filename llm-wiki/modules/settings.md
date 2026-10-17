@@ -27,17 +27,20 @@ emitted subcommand always agree.
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
 | tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_advanced_tab`, `settings/tab_builders.py::build_general_tab`, `settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
 | tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX` | sync/p2p/server tab positions (shared by dialog + builders + layout) |
-| tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab` | regroup the Sync/p2p tabs into `QGroupBox` sections |
+| tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab`, `settings/tab_layout.py::reorganize_server_tab` | regroup the Sync/p2p/Server Mode tabs into `QGroupBox` sections |
 | tab translations | `settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget |
 | form helpers | `settings/form_helpers.py::_replace_checkbox_with_toggle`, `settings/form_helpers.py::_maybe_tip`, `settings/form_helpers.py::_paired_label`, `settings/form_helpers.py::_set_field_tooltip`, `settings/form_helpers.py::_action_row`, `settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
 | `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
 
-**Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab`): the sync tab
-groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options; the p2p
-tab groups Mode & Group, Finding devices & relay, Role & Pairing, Advanced
-Options (the user-facing group titles; the wiki below names the settings keys).
+**Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
+the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
+the p2p tab groups Mode & Group, Finding devices & relay, Role & security, Advanced
+Options; the Server Mode tab groups Server (URL, API key, server identity check and
+the manage/test action row), Certificates (skip-certificate check, CA file) and
+Advanced Options (request timeout), with the p2p-mode banner kept above the groups
+(the user-facing group titles; the wiki below names the settings keys).
 In the sync "Share & Path" group the remote bucket is shown **first** and
 presented as **Share name** (`settings.bucket`; `tip.bucket` and the
 `trusted_keys.bucket` column use the same share terminology, and `label.bucket`
@@ -57,6 +60,31 @@ them instead of literals. Advanced holds the engine tuning (performance, delta
 transfer, deletion protection, bandwidth, logging); General holds the app
 preferences (language, theme, notifications, tooltips, log panel, launch at
 login).
+
+**Standard vs advanced**: the General tab's `show_advanced` toggle
+(`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
+drives `SettingsDialog._apply_advanced_visibility`
+(`settings/dialog.py::SettingsDialog._apply_advanced_visibility`): it hides the
+Advanced tab (`setTabVisible`) and the Advanced Options groups in the Sync/p2p
+tabs plus the Certificates and Advanced Options groups in the Server Mode tab.
+`set_current_tab` (`settings/dialog.py::SettingsDialog.set_current_tab`) falls
+back to the first visible tab so a hidden target never shows a blank page. The
+advanced values themselves are preserved; the toggle only changes visibility.
+
+**Theme**: `appearance/theme` stores `system`/`light`/`dark`.
+`get_theme_setting` (`settings/cli_args.py::get_theme_setting`) returns the raw
+preference and `get_saved_theme` (`settings/cli_args.py::get_saved_theme`)
+resolves `system` through `themes.py::detect_system_theme`. The General combo
+carries stable item data (Light=0, Dark=1, System=2);
+`main_window/window.py::MainWindow._on_system_color_scheme_changed` follows
+`QGuiApplication.styleHints().colorSchemeChanged` and re-applies the theme and
+icons live **only** while the preference is `system`.
+
+**Server address**: `settings.server_url` accepts `host`, `host:port`, IPv6 and a
+full URL; `_normalize_server_endpoint`
+(`settings/dialog.py::SettingsDialog._normalize_server_endpoint`) implies
+`https://` and the default port (`_SERVER_DEFAULT_PORT`), so the field is labelled
+"Server address", not "URL". There is no separate port field.
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
 `never_master`, `require_pairing`, `peer_download` and its caps) are disabled +
@@ -194,6 +222,12 @@ p2p mode is active and while a sync is running.
 with a `LblLogfile` label) render in that order; `quiet` is built but hidden
 (the desktop parses stdout, so suppressing output is unsupported). Labels from
 `settings.show_log_panel` / `settings.verbose` / `settings.logfile` (all locales).
+Enabling `verbose` while the log panel is hidden **and** no log file is set
+(`settings/dialog.py::SettingsDialog._on_verbose_toggled`) shows a non-blocking
+prompt offering to show the panel; "Yes" also checks `show_log_panel`. The option
+is not disabled, because a configured log file still captures verbose output. The
+signal is connected after `load()`, so a restored `output/verbose=true` never
+prompts.
 
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
@@ -230,7 +264,7 @@ available).
 | ------ | -------- | ---- |
 | `build_hsync_args` | `settings/cli_args.py::build_hsync_args` | core translator: QSettings → arg list |
 | `secure_config_file` | `settings/cli_args.py::secure_config_file` | restrict the on-disk settings file perms (0600) |
-| `get_saved_theme` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` | desktop-only prefs |
+| `get_saved_theme` / `get_theme_setting` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::get_theme_setting` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` | desktop-only prefs |
 | `get_bandwidth_limits` / `save_bandwidth_limits` | `settings/cli_args.py::get_bandwidth_limits` / `settings/cli_args.py::save_bandwidth_limits` | persisted bandwidth caps (bytes/s in, MB/s out) |
 
 **Bandwidth limits** have two entry points that share one set of values

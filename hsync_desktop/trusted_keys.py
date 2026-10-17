@@ -36,7 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.config import DEFAULT_P2P_ENABLED, SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.engine import (
     add_bootnode_trust,
     add_peer_pin,
@@ -237,7 +237,7 @@ class TrustedKeysDialog(QDialog):
             tr("trusted_keys.tabs_servers"),
         )
         self._tabs.addTab(self._build_peer_tab(), tr("trusted_keys.tabs_peers"))
-        self._tabs.setCurrentIndex(self._TAB_INDEX.get(initial_tab, 0))
+        self._apply_mode_tab_visibility(initial_tab)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
         close_btn = buttons.button(QDialogButtonBox.StandardButton.Close)
@@ -253,6 +253,25 @@ class TrustedKeysDialog(QDialog):
         self._refresh()
 
     # ── Construction ───────────────────────────────────────────────────────
+
+    def _apply_mode_tab_visibility(self, initial_tab: str) -> None:
+        """Show only the trust stores the active sync mode can use.
+
+        The relay-server and device stores belong to p2p mode; the sync-server
+        store belongs to Server Mode. Hiding the irrelevant ones keeps the
+        dialog focused (each mode's settings panel opens its own tab).
+        """
+        p2p_enabled = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
+        )
+        visible = {"bootnodes": p2p_enabled, "servers": not p2p_enabled, "peers": p2p_enabled}
+        for name, index in self._TAB_INDEX.items():
+            self._tabs.setTabVisible(index, visible[name])
+        # Never select a hidden page: fall back to the first visible one.
+        index = self._TAB_INDEX.get(initial_tab, 0)
+        if not visible.get(initial_tab, True):
+            index = next(self._TAB_INDEX[name] for name, shown in visible.items() if shown)
+        self._tabs.setCurrentIndex(index)
 
     def _build_host_tab(self, table: QTableWidget, on_add, on_remove) -> QWidget:
         """Build a bootnode/server-style tab: a ``host:port`` table + buttons."""

@@ -30,6 +30,15 @@ disable unsupported controls) is realized in
   (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
   `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`).
+- **Host fonts, not a bundled typeface**: the GUI follows the desktop's
+  configured UI/monospace fonts and text scale
+  (`fonts.py::apply_system_fonts`; GNOME `gsettings`, KDE `kdeglobals`,
+  `QFontDatabase` fallback). No font is bundled: a package is built once and
+  host fonts vary, and proprietary system fonts cannot be redistributed. The
+  Linux `QT_QPA_PLATFORMTHEME=generic` harden stays (the GTK3 theme aborts
+  against the bundled GLib); the host `gsettings` probe drops `LD_LIBRARY_PATH`
+  and the other bundled-library overrides (`fonts.py::_host_env`) so it loads
+  the host GLib.
 - **i18n completeness**: every user string must exist in all locales
   (`locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over

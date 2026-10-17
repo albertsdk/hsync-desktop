@@ -394,6 +394,13 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.sync_complete))
         assert out == [()]
 
+    def test_folder_size_event(self, engine):
+        out = _capture(engine.folder_size_changed)
+        engine._handle_event(
+            build_event(UiEventName.folder_size, local_bytes=1024, total_bytes=4096)
+        )
+        assert out == [(1024, 4096)]
+
     def test_error_event(self, engine):
         out = _capture(engine.error_occurred)
         engine._handle_event(build_event(UiEventName.error, message="boom"))

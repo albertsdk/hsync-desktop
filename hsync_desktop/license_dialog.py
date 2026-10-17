@@ -8,7 +8,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -17,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.fonts import small_monospace_font
 from hsync_desktop.i18n import tr
 
 
@@ -57,7 +57,7 @@ class LicenseDialog(QDialog):
         self._view = QPlainTextEdit(self)
         self._view.setReadOnly(True)
         self._view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self._view.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        self._view.setFont(small_monospace_font())
         self._view.setPlainText(license_text() or tr("license.unavailable"))
         layout.addWidget(self._view)
 

@@ -394,6 +394,65 @@ class TestShareNameInActionBar:
         assert window.findChild(QLabel, "bucketLabel") is None
 
 
+class TestRoleVisibility:
+    """The role exists only in p2p; its text appears once connected and known."""
+
+    def test_icon_only_before_the_election(self, window, monkeypatch, tmp_path):
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", True)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+
+        window._update_path_display()
+
+        assert not window._role_icon.isHidden()
+        assert window._role_label.isHidden()
+
+    def test_text_appears_once_connected_and_known(self, window, monkeypatch, tmp_path):
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", True)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+
+        window._on_master(True)
+        window._on_status("connected")
+
+        assert not window._role_icon.isHidden()
+        assert not window._role_label.isHidden()
+
+    def test_role_is_hidden_in_server_mode(self, window, monkeypatch, tmp_path):
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+
+        window._update_path_display()
+
+        assert window._role_label.isHidden()
+        assert window._role_icon.isHidden()
+
+
+class TestFilePanelConnectionState:
+    """The file table grays "Local" rows only while a link is active."""
+
+    def test_status_updates_the_table_connection_state(self, window, monkeypatch):
+        seen: list[bool] = []
+        monkeypatch.setattr(window._file_panel, "set_connected", seen.append)
+
+        window._on_status("connected")
+        window._on_status("disconnected")
+
+        assert seen == [True, False]
+
+    def test_process_finished_returns_the_table_to_idle(self, window, monkeypatch):
+        seen: list[bool] = []
+        monkeypatch.setattr(window._file_panel, "set_connected", seen.append)
+
+        window._on_process_finished(0, "normal")
+
+        assert seen == [False]
+
+
 class TestLanguageChangeRetranslatesTable:
     """The file table column headers must follow a live language change."""
 
@@ -449,10 +508,47 @@ class TestSelectionSync:
         assert window._selection_subdir("media/sub/file.txt") == "media/sub"
         assert window._selection_subdir("top.txt") == ""
 
+    def test_display_name_maps_to_the_visible_row(self, window):
+        assert window._selection_display_name("top.txt", "") == "top.txt"
+        assert window._selection_display_name("media/file.txt", "media") == "file.txt"
+        assert window._selection_display_name("media/sub/", "media") == "sub"
+        assert window._selection_display_name("media/sub/file.txt", "media/sub") == "file.txt"
+
+    def test_send_keeps_the_current_folder_and_row(self, window, monkeypatch, tmp_path):
+        self._stub_preflight(window, monkeypatch)
+        recorded: dict[str, object] = {}
+        monkeypatch.setattr(
+            window._file_panel,
+            "load_local_files",
+            lambda path, **kw: recorded.update(path=path, **kw),
+        )
+        monkeypatch.setattr(window, "_start_engine", lambda args: True)
+        window._local_path = str(tmp_path)
+        window._file_panel._table._current_path = "media"
+
+        window._sync_selection("media/sub/file.txt", "upload-only")
+
+        assert recorded["restore_view"] == ("media", "sub")
+
+    def test_confirming_the_preview_keeps_the_view(self, window, monkeypatch, tmp_path):
+        recorded: dict[str, object] = {}
+        monkeypatch.setattr(
+            window._file_panel,
+            "load_local_files",
+            lambda path, **kw: recorded.update(path=path, **kw),
+        )
+        monkeypatch.setattr(window, "_start_engine", lambda args: True)
+        window._local_path = str(tmp_path)
+        window._selection_sync_view = ("media", "sub")
+
+        window._start_selection_run("media/sub", "upload-only")
+
+        assert recorded["restore_view"] == ("media", "sub")
+
     def test_send_starts_a_scoped_dry_run_preview(self, window, monkeypatch, tmp_path):
         self._stub_preflight(window, monkeypatch)
         # Avoid the panel's worker thread: this test only checks args/start.
-        monkeypatch.setattr(window._file_panel, "load_local_files", lambda _p: None)
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda _p, **_kw: None)
         seen: dict[str, object] = {}
         monkeypatch.setattr(
             "hsync_desktop.main_window.actions.build_selection_args",
@@ -576,3 +672,328 @@ class TestRemoteRenameMtime:
         window._on_file_renamed(str(old), str(tmp_path / "new.txt"))
 
         assert captured["kwargs"]["mtime"] == 1000.0
+
+
+class TestLogViewerFont:
+    """The log viewer uses the resolved monospace font, not a QSS family."""
+
+    def test_log_view_uses_the_monospace_font(self, qtbot, monkeypatch, settings):
+        from PySide6.QtGui import QFont
+
+        import hsync_desktop.main_window.ui as ui_module
+        from hsync_desktop.engine import HsyncEngine
+        from hsync_desktop.main_window import MainWindow
+
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+        _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
+        monkeypatch.setattr(ui_module, "small_monospace_font", lambda: QFont("Probe Mono"))
+
+        win = MainWindow(HsyncEngine(binary_path="/fake/hsync"))
+        qtbot.addWidget(win)
+
+        assert win._log_view.font().family() == "Probe Mono"
+
+
+class TestLinkStyling:
+    """Clickable share/path labels use the default colour and are underlined."""
+
+    def test_share_placeholder_link(self, window):
+        from PySide6.QtGui import QPalette
+
+        window._bucket = ""
+        window._update_path_display()
+
+        text = window._path_label.text()
+        colour = window._path_label.palette().color(QPalette.ColorRole.WindowText).name()
+        assert "text-decoration:underline" in text
+        assert f"color:{colour}" in text
+
+    def test_breadcrumb_links(self, window):
+        from PySide6.QtGui import QPalette
+
+        window._file_panel._table._current_path = "sub/dir"
+        window._file_panel._update_breadcrumb()
+
+        label = window._file_panel._breadcrumb_label
+        colour = label.palette().color(QPalette.ColorRole.WindowText).name()
+        assert "text-decoration:underline" in label.text()
+        assert f"color:{colour}" in label.text()
+
+    def test_detail_panel_filepath_link(self, window):
+        from PySide6.QtGui import QPalette
+
+        from hsync_desktop.file_panel import FileTransfer, TransferStatus
+
+        window._file_panel._detail.show_transfer(
+            FileTransfer(
+                filepath="sub/f.txt",
+                direction="↓",
+                size=1,
+                status=TransferStatus.LOCAL,
+            )
+        )
+
+        label = window._file_panel._detail._lbl_filepath
+        colour = label.palette().color(QPalette.ColorRole.WindowText).name()
+        assert "text-decoration:underline" in label.text()
+        assert f"color:{colour}" in label.text()
+
+    def test_breadcrumb_escapes_folder_names(self, window):
+        window._file_panel._table._current_path = 'a<b>&"c'
+
+        window._file_panel._update_breadcrumb()
+
+        text = window._file_panel._breadcrumb_label.text()
+        assert "<b>" not in text
+        assert "&lt;" in text
+        assert "&quot;" in text
+
+    def test_detail_href_is_escaped(self, window):
+        from hsync_desktop.file_panel import FileTransfer, TransferStatus
+
+        window._file_panel._detail.set_base_directory("/base")
+        window._file_panel._detail.show_transfer(
+            FileTransfer(
+                filepath='a"b/c.txt',
+                direction="↓",
+                size=1,
+                status=TransferStatus.LOCAL,
+            )
+        )
+
+        text = window._file_panel._detail._lbl_filepath.text()
+        assert "&quot;" in text
+        assert 'a"b' not in text
+
+    def test_theme_refresh_rebuilds_both_link_labels(self, window, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(
+            window._file_panel, "_update_breadcrumb", lambda: calls.append("breadcrumb")
+        )
+        monkeypatch.setattr(
+            window._file_panel._detail,
+            "refresh_link_color",
+            lambda: calls.append("detail"),
+        )
+
+        window._file_panel.refresh_icons_for_theme()
+
+        assert calls == ["breadcrumb", "detail"]
+
+
+class TestSystemThemeFollow:
+    """With the "system" theme, a desktop scheme change re-applies it live."""
+
+    def test_system_setting_reapplies_on_scheme_change(self, window, monkeypatch):
+        import hsync_desktop.main_window.window as window_mod
+
+        applied: list[str] = []
+        monkeypatch.setattr(window_mod, "get_theme_setting", lambda: "system")
+        monkeypatch.setattr(window_mod, "detect_system_theme", lambda: "dark")
+        monkeypatch.setattr(window_mod, "apply_theme", lambda app, theme: applied.append(theme))
+        monkeypatch.setattr(window, "_refresh_icons_for_theme", lambda: None)
+
+        window._on_system_color_scheme_changed()
+
+        assert applied == ["dark"]
+
+    def test_fixed_theme_ignores_scheme_change(self, window, monkeypatch):
+        import hsync_desktop.main_window.window as window_mod
+
+        applied: list[str] = []
+        monkeypatch.setattr(window_mod, "get_theme_setting", lambda: "dark")
+        monkeypatch.setattr(window_mod, "apply_theme", lambda app, theme: applied.append(theme))
+
+        window._on_system_color_scheme_changed()
+
+        assert applied == []
+
+
+class TestInfoToast:
+    """The transient feedback is an overlay: it never reflows the window."""
+
+    def test_banner_is_not_in_the_root_layout(self, window):
+        from PySide6.QtWidgets import QVBoxLayout
+
+        root = window.findChild(QVBoxLayout, "rootLayout")
+        assert root is not None
+        assert root.indexOf(window._info_banner) == -1
+        assert window._info_banner.parent() is window.centralWidget()
+
+    def test_showing_the_toast_does_not_reflow_the_splitter(self, window):
+        sizes_before = window._main_splitter.sizes()
+
+        window._show_info_banner("searching", auto_hide_ms=0, kind="progress")
+
+        assert not window._info_banner.isHidden()
+        assert window._main_splitter.sizes() == sizes_before
+        assert not window._info_progress.isHidden()
+
+    def test_toast_is_positioned_bottom_right_on_first_show(self, window):
+        window.resize(900, 600)
+        window.show()
+
+        window._show_info_banner("searching", auto_hide_ms=0, kind="progress")
+
+        central = window.centralWidget()
+        pos = window._info_banner.pos()
+        assert pos.x() >= 16
+        assert pos.x() + window._info_banner.width() <= central.width()
+        assert pos.y() >= 16
+
+    def test_progress_bar_is_only_for_progress(self, window):
+        window._show_info_banner("searching", kind="progress")
+        assert not window._info_progress.isHidden()
+
+        window._show_info_banner("done", kind="outcome")
+        assert window._info_progress.isHidden()
+
+    def test_outcome_survives_process_finish(self, window):
+        window._show_info_banner("done", kind="outcome")
+
+        window._on_process_finished(0, "normal")
+
+        assert not window._info_banner.isHidden()
+
+    def test_progress_is_cleared_on_process_finish(self, window):
+        window._show_info_banner("working", kind="progress")
+
+        window._on_process_finished(0, "normal")
+
+        assert window._info_banner.isHidden()
+
+    def test_a_new_run_clears_the_toast(self, window, monkeypatch, tmp_path):
+        window._show_info_banner("done", kind="outcome")
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
+
+        window._prepare_engine_run(str(tmp_path))
+
+        assert window._info_banner.isHidden()
+
+
+class TestDesktopLogFormat:
+    def test_desktop_line_uses_the_client_timestamp_shape(self, window):
+        import re
+
+        window._append_desktop_log("WARNING", "probe")
+
+        line = window._log_view.toPlainText().splitlines()[-1]
+        assert re.match(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z - \[desktop\] WARNING: probe$",
+            line,
+        )
+
+    def test_selection_busy_logs_and_warns(self, window, monkeypatch):
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._sync_selection("file.txt", "upload-only")
+        finally:
+            engine_cls.is_running = original
+
+        assert window._info_banner_kind == "warning"
+        assert not window._info_banner.isHidden()
+        assert "[desktop] WARNING:" in window._log_view.toPlainText()
+
+    def test_preview_with_no_actions_surfaces_an_outcome(self, window):
+        window._selection_sync_active = False
+        window._is_dry_run_preview = False
+        window._preview_stats.reset()
+
+        window._show_preview_summary()
+
+        assert window._info_banner_kind == "outcome"
+        assert not window._info_banner.isHidden()
+        assert "[desktop] INFO:" in window._log_view.toPlainText()
+
+
+class TestDirectoryCreatedStatus:
+    def test_uses_the_trailing_slash_key(self, window, tmp_path, monkeypatch):
+        window._local_path = str(tmp_path)
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(
+            window._file_panel,
+            "update_file_status",
+            lambda path, status, **kwargs: captured.update(path=path, status=status),
+        )
+
+        window._on_directory_created(str(tmp_path / "newdir"))
+
+        assert captured == {"path": "newdir/", "status": "synced"}
+
+    def test_a_trailing_slash_is_not_duplicated(self, window, tmp_path, monkeypatch):
+        window._local_path = str(tmp_path)
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(
+            window._file_panel,
+            "update_file_status",
+            lambda path, status, **kwargs: captured.update(path=path, status=status),
+        )
+
+        window._on_directory_created(str(tmp_path / "newdir") + "/")
+
+        assert captured["path"] == "newdir/"
+
+
+class TestPeersLabel:
+    def test_is_not_bold(self, window):
+        assert window._peers_label.styleSheet() == ""
+
+
+class TestShareSizeLabel:
+    """The status-bar label renders the local and sync-set sizes."""
+
+    def test_renders_local_only_when_the_total_is_unknown(self, window):
+        from hsync_common.format import format_bytes
+
+        from hsync_desktop.i18n import tr
+
+        window._share_local_bytes = 1024
+        window._share_total_bytes = -1
+
+        window._render_share_size()
+
+        expected = tr("label.share_size_local_fmt").replace("{size}", format_bytes(1024))
+        assert window._share_size_label.text() == expected
+
+    def test_renders_local_and_total(self, window):
+        from hsync_common.format import format_bytes
+
+        from hsync_desktop.i18n import tr
+
+        window._share_local_bytes = 1024
+        window._share_total_bytes = 4096
+
+        window._render_share_size()
+
+        expected = (
+            tr("label.share_size_fmt")
+            .replace("{local}", format_bytes(1024))
+            .replace("{total}", format_bytes(4096))
+        )
+        assert window._share_size_label.text() == expected
+
+    def test_folder_size_event_updates_both_values(self, window):
+        from hsync_common.format import format_bytes
+
+        window._on_folder_size(1024, 4096)
+
+        assert window._share_local_bytes == 1024
+        assert window._share_total_bytes == 4096
+        assert format_bytes(4096) in window._share_size_label.text()
+
+    def test_process_finish_clears_the_total(self, window):
+        from hsync_common.format import format_bytes
+
+        window._on_folder_size(1024, 4096)
+
+        window._on_process_finished(0, "normal")
+
+        assert window._share_total_bytes == -1
+        assert format_bytes(4096) not in window._share_size_label.text()
+
+    def test_scan_updates_the_local_size(self, window):
+        window._file_panel._on_scan_size(2048)
+
+        assert window._share_local_bytes == 2048

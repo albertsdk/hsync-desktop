@@ -25,6 +25,9 @@ COL_MODIFIED = 4
 COL_PROGRESS = 5
 COL_ETA = 6
 COL_STATUS = 7
+# Optional columns, hidden by default (see FileTransferTable._DEFAULT_HIDDEN).
+COL_SPEED = 8
+COL_DIRECTION = 9
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
@@ -36,6 +39,8 @@ _COLUMN_KEYS = [
     "file.progress",
     "file.eta",
     "file.status",
+    "file.speed",
+    "file.direction",
 ]
 
 

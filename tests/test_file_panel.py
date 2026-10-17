@@ -441,3 +441,329 @@ class TestRenameKeepsTheMtime:
         table.rename_file("old.txt", "new.txt", mtime=999.0)
 
         assert table._transfers["new.txt"].mtime == 999.0
+
+
+class TestLocalRowColour:
+    """A "Local" row is grey only while a connection can compare it."""
+
+    @staticmethod
+    def _table_with_local(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.add_transfer(
+            FileTransfer(
+                filepath="a.txt",
+                direction="—",
+                size=1,
+                status=TransferStatus.LOCAL,
+            )
+        )
+        table.refresh_view()
+        return table
+
+    def test_idle_uses_the_default_text_colour(self, qtbot):
+        from PySide6.QtGui import QPalette
+
+        table = self._table_with_local(qtbot)
+
+        colour = table.item(0, 0).foreground().color()
+
+        assert colour == table.palette().color(QPalette.ColorRole.Text)
+
+    def test_connected_uses_the_local_grey(self, qtbot):
+        table = self._table_with_local(qtbot)
+
+        table.set_connected(True)
+
+        colour = table.item(0, 0).foreground().color()
+        assert colour == STATUS_COLORS[TransferStatus.LOCAL]
+
+    def test_disconnecting_restores_the_default_colour(self, qtbot):
+        from PySide6.QtGui import QPalette
+
+        table = self._table_with_local(qtbot)
+        table.set_connected(True)
+
+        table.set_connected(False)
+
+        colour = table.item(0, 0).foreground().color()
+        assert colour == table.palette().color(QPalette.ColorRole.Text)
+
+
+class TestRestoredView:
+    """A scoped Send/Receive reload keeps the user's folder and row."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        for filepath in ("sub/a.txt", "sub/b.txt", "top.txt"):
+            table.add_transfer(
+                FileTransfer(
+                    filepath=filepath,
+                    direction="—",
+                    size=1,
+                    status=TransferStatus.LOCAL,
+                )
+            )
+        return table
+
+    def test_restore_reopens_the_folder_and_selects_the_row(self, qtbot):
+        table = self._table(qtbot)
+
+        table.restore_view("sub", "b.txt")
+
+        assert table.current_path == "sub"
+        assert table._last_selected_row == table._row_index["b.txt"]
+
+    def test_the_selection_survives_status_refreshes(self, qtbot):
+        table = self._table(qtbot)
+        table.restore_view("sub", "b.txt")
+
+        table.refresh_view()
+
+        assert table._last_selected_row == table._row_index["b.txt"]
+
+    def test_a_row_that_appears_later_is_selected(self, qtbot):
+        table = self._table(qtbot)
+        table.restore_view("sub", "later.txt")
+
+        table.add_transfer(
+            FileTransfer(
+                filepath="sub/later.txt",
+                direction="—",
+                size=1,
+                status=TransferStatus.LOCAL,
+            )
+        )
+
+        assert table._last_selected_row == table._row_index["later.txt"]
+
+    def test_user_navigation_clears_the_restored_selection(self, qtbot):
+        table = self._table(qtbot)
+        table.restore_view("sub", "b.txt")
+
+        table.navigate_to("")
+        table.refresh_view()
+
+        assert table._last_selected_row == -1
+
+
+class TestOptionalColumns:
+    """Speed and Direction are available but hidden by default."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def test_speed_and_direction_start_hidden(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+
+        assert header.isSectionHidden(tt.COL_SPEED)
+        assert header.isSectionHidden(tt.COL_DIRECTION)
+        for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_STATUS):
+            assert not header.isSectionHidden(col)
+
+    def test_headers_include_the_optional_columns(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+
+        headers = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
+        assert len(headers) == len(tt._COLUMN_KEYS)
+        assert "Speed" in headers
+        assert "Direction" in headers
+
+    def test_a_downloading_row_reports_direction_and_speed(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="a.bin",
+                direction="↓",
+                size=4096,
+                bytes_transferred=2048,
+                start_time=time() - 2.0,
+                status=TransferStatus.DOWNLOADING,
+            )
+        )
+
+        assert table.item(0, tt.COL_DIRECTION).text() == "↓"
+        assert table.item(0, tt.COL_SPEED).text().endswith("/s")
+
+    def test_a_completed_row_has_no_speed(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="↓", size=10, status=TransferStatus.COMPLETED)
+        )
+
+        assert table.item(0, tt.COL_SPEED).text() == ""
+
+    def test_visibility_is_persisted(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        table._toggle_column(tt.COL_SPEED, True)  # show Speed
+
+        assert not table.horizontalHeader().isSectionHidden(tt.COL_SPEED)
+        fresh = self._table(qtbot)
+        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_SPEED)
+        assert fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
+
+    def test_showing_both_optional_columns_is_persisted(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        table._toggle_column(tt.COL_SPEED, True)
+        table._toggle_column(tt.COL_DIRECTION, True)
+
+        fresh = self._table(qtbot)
+        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_SPEED)
+        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
+
+    def test_restored_selection_is_correct_under_a_column_sort(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        table.add_transfer(
+            FileTransfer(filepath="a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.add_transfer(
+            FileTransfer(filepath="m.txt", direction="—", size=99, status=TransferStatus.LOCAL)
+        )
+        table.sortItems(tt.COL_SIZE, Qt.SortOrder.DescendingOrder)
+
+        table.restore_view("", "a.txt")
+
+        assert table._last_selected_row >= 0
+        assert table.item(table._last_selected_row, tt.COL_NAME).text() == "a.txt"
+
+
+class TestEmptyFolderStatus:
+    """An empty folder shows its own status; a remote-created dir is SYNCED."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        return table
+
+    def test_synced_empty_folder_is_synced_and_green(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="newdir/", direction="—", size=0, status=TransferStatus.SYNCED)
+        )
+        table.refresh_view()
+
+        item = table.item(0, tt.COL_STATUS)
+        assert item.text() == tr("folder.status.synced")
+        assert item.foreground().color() == STATUS_COLORS[TransferStatus.SYNCED]
+
+    def test_local_empty_folder_stays_local(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="newdir/", direction="—", size=0, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+
+        assert table.item(0, tt.COL_STATUS).text() == tr("folder.status.local")
+
+    def test_a_local_child_wins_over_the_folder_status(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="dir/", direction="—", size=0, status=TransferStatus.SYNCED)
+        )
+        table.add_transfer(
+            FileTransfer(filepath="dir/f.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+
+        assert table.item(0, tt.COL_STATUS).text() == tr("folder.status.local")
+
+
+class TestShareSize:
+    """The existing scan exposes the local folder size without a second walk."""
+
+    def test_scan_reports_the_total_size(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / "a.bin").write_bytes(b"x" * 10)
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        (sub / "b.bin").write_bytes(b"y" * 20)
+        worker = DirectoryScanWorker(str(tmp_path))
+        sizes: list[int] = []
+        worker.size_progress.connect(sizes.append)
+
+        worker.run()
+
+        assert sizes[-1] == 30
+
+    def test_an_empty_share_reports_zero(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        worker = DirectoryScanWorker(str(tmp_path))
+        sizes: list[int] = []
+        worker.size_progress.connect(sizes.append)
+
+        worker.run()
+
+        assert sizes == [0]
+
+    def test_panel_forwards_the_scan_size(self, qtbot):
+        from hsync_desktop.file_panel import FilePanel
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        seen: list[int] = []
+        panel.share_size_changed.connect(seen.append)
+
+        panel._on_scan_size(42)
+
+        assert panel._share_size_bytes == 42
+        assert seen[-1] == 42

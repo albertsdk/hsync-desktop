@@ -118,6 +118,12 @@ _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 
 class EventsMixin:
+    # p2p role state (unknown until the election event). Declared here so the
+    # mixin typing agrees with MainWindow.__init__/ActionsMixin.
+    _role_known: bool
+    _is_master: bool | None
+    _connected: bool
+
     @Slot(str)
     def _on_bucket_detected(self, bucket: str) -> None:
         """Record the active share name and show it next to the folder icon.
@@ -148,6 +154,12 @@ class EventsMixin:
     @Slot(str)
     def _on_status(self, status: str) -> None:
         self._set_status_label(status)
+        # "Local" rows are grey only while a link can compare them, so the idle
+        # list keeps the default text colour instead of looking disabled.
+        self._file_panel.set_connected(status == "connected")
+        # The role text appears only once connected (icon is always shown in p2p).
+        self._connected = status == "connected"
+        self._apply_role_visibility()
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
@@ -165,11 +177,19 @@ class EventsMixin:
             # A scoped Send/Receive owns its banner; only the normal flow hides
             # it and auto-runs the preview on connect.
             if not self._selection_sync_active:
-                self._hide_info_banner()
+                if self._info_banner_kind == "progress":
+                    self._hide_info_banner()
                 if self._engine.is_running:
                     self._engine.preview()
 
     # ── Info banner ──────────────────────────────────────────────────────
+
+    @Slot(int, int)
+    def _on_folder_size(self, local_bytes: int, total_bytes: int) -> None:
+        """Show the client-provided local/sync-set totals while the engine runs."""
+        self._share_local_bytes = local_bytes
+        self._share_total_bytes = total_bytes
+        self._render_share_size()
 
     @Slot(int, int)
     def _on_peers(self, connected: int, total: int) -> None:
@@ -179,25 +199,18 @@ class EventsMixin:
         # Scoped op in progress: surface how many other devices are in reach.
         if self._selection_sync_active and total > 1:
             self._show_info_banner(
-                tr("sync.sel_peers_fmt").replace("{count}", str(total - 1)), auto_hide_ms=0
+                tr("sync.sel_peers_fmt").replace("{count}", str(total - 1)),
+                auto_hide_ms=0,
+                kind="progress",
             )
 
     @Slot(bool)
     def _on_master(self, is_master: bool) -> None:
-        from hsync_desktop.icons import icon as get_icon
-
-        if is_master:
-            self._role_label.setText(tr("role.master"))
-            self._role_label.setToolTip(tr("role.master_tip"))
-            self._role_icon.setPixmap(get_icon("role-master").pixmap(16, 16))
-            self._role_icon.setToolTip(tr("role.master_tip"))
-            if self._notifier:
-                self._notifier.became_master()
-        else:
-            self._role_label.setText(tr("role.client"))
-            self._role_label.setToolTip(tr("role.client_tip"))
-            self._role_icon.setPixmap(get_icon("role-client").pixmap(16, 16))
-            self._role_icon.setToolTip(tr("role.client_tip"))
+        self._role_known = True
+        self._is_master = is_master
+        self._retranslate_role()
+        if is_master and self._notifier:
+            self._notifier.became_master()
 
     @Slot(str)
     def _on_group_detected(self, group: str) -> None:
@@ -329,15 +342,18 @@ class EventsMixin:
         # Gather CID and server IP
         client_cid = self._engine.cid
         client_ip = self._engine.server_ip
-        # Add directory to file panel as synced
-        self._file_panel.update_file_status(
-            rel_path,
-            "synced",
-            size=0,
-            mtime=mtime,
-            client_cid=client_cid,
-            client_ip=client_ip,
-        )
+        # Folder entries use a trailing slash as their key; normalize so the
+        # sync status updates the same row instead of creating a file-like key.
+        dir_key = rel_path.strip("/\\").replace("\\", "/")
+        if dir_key:
+            self._file_panel.update_file_status(
+                dir_key + "/",
+                "synced",
+                size=0,
+                mtime=mtime,
+                client_cid=client_cid,
+                client_ip=client_ip,
+            )
 
     @Slot(str, str, str)
     def _on_master_conflict(self, conflict_type: str, peer_cid: str, peer_address: str) -> None:
@@ -360,13 +376,13 @@ class EventsMixin:
             )
         if self._notifier:
             self._notifier.warning(tr("notif.master_conflict_title"), msg)
-        self._append_log(f"⚠ {msg}")
+        self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str, str)
     def _on_transfer_failed(self, op: str, filepath: str, message: str) -> None:
         """Surface a per-file transfer that gave up after retries."""
         arrow = "↑" if op == "upload" else "↓"
-        self._append_log(f"✕ {arrow} {filepath}: {message}")
+        self._append_desktop_log("ERROR", f"{arrow} {filepath}: {message}")
         if self._notifier:
             self._notifier.error(tr("notif.error"), message)
 
@@ -380,7 +396,7 @@ class EventsMixin:
         )
         if self._notifier:
             self._notifier.warning(tr("notif.sync_paused_title"), msg)
-        self._append_log(f"⚠ {msg}")
+        self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str, str)
     def _on_security_rejected(self, op: str, path: str, message: str) -> None:
@@ -389,7 +405,7 @@ class EventsMixin:
         if self._notifier:
             self._notifier.warning(tr("notif.security_rejected_title"), msg)
         detail = f" ({op}: {message})" if message else f" ({op})"
-        self._append_log(f"⚠ {msg}{detail}")
+        self._append_desktop_log("WARNING", f"{msg}{detail}")
 
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:
@@ -397,7 +413,7 @@ class EventsMixin:
         msg = tr("notif.no_master_msg")
         if self._notifier:
             self._notifier.warning(tr("notif.no_master_title"), msg)
-        self._append_log(f"⚠ {msg}")
+        self._append_desktop_log("WARNING", msg)
 
     @Slot(str)
     def _on_no_peers(self, _message: str) -> None:
@@ -419,7 +435,7 @@ class EventsMixin:
         msg = tr("notif.duplicate_identity_msg").replace("{cid}", peer_cid).replace("{ip}", peer)
         if self._notifier:
             self._notifier.warning(tr("notif.duplicate_identity_title"), msg)
-        self._append_log(f"⚠ {msg}")
+        self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str)
     def _on_conflict_resolved(self, filepath: str, conflict_copy: str) -> None:
@@ -431,7 +447,7 @@ class EventsMixin:
         )
         if self._notifier:
             self._notifier.info(tr("notif.conflict_resolved_title"), msg)
-        self._append_log(f"⚠ {msg}")
+        self._append_desktop_log("INFO", msg)
 
     # ── Trust refusal dialogs (SSH-style, no terminal) ──────────────────────
 
@@ -494,17 +510,29 @@ class EventsMixin:
                 outcome = "done" if self._selection_result_count > 0 else "failed"
                 self._finish_selection_sync(outcome)
         self._ever_connected = False
+        # Reset the p2p role too: the next process runs a fresh election.
+        self._role_known = False
+        self._is_master = None
+        self._connected = False
+        # The sync-set total belongs to the engine session; keep the scan local.
+        self._share_total_bytes = -1
+        self._retranslate_role()
+        self._render_share_size()
         # No engine process means no live connection: drop the status out of
         # "connecting"/"connected" (the client cannot report the final state)
         # and clear the now-meaningless peer count.
         self._set_status_label("disconnected")
+        self._file_panel.set_connected(False)
         self._peers_label.setText("–")
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        self._hide_info_banner()
+        # Keep a result toast visible after the process exits; clear run-scoped
+        # progress/warning toasts only.
+        if self._info_banner_kind != "outcome":
+            self._hide_info_banner()
         self._apply_button_styles()
         self._update_menu_state()
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
@@ -522,7 +550,7 @@ class EventsMixin:
         """Handle shared path not found error."""
         self._engine.stop()
         self._reset_ui_stopped()
-        self._append_log(f"⚠ {tr('notif.path_not_found_msg').replace('{path}', path)}")
+        self._append_desktop_log("WARNING", tr("notif.path_not_found_msg").replace("{path}", path))
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(tr("notif.error"))

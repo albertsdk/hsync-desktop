@@ -37,6 +37,14 @@ Server Mode, General and Advanced tabs and the trusted-key stores. Use
 and launch at login) and **Advanced** for engine tuning (performance, delta
 transfer, deletion protection, bandwidth).
 
+The primary/secondary role shown in the status bar exists only in p2p mode and its
+text appears once the device is connected and the role is known (before that the
+bar shows a neutral icon only); Server Mode has no such role. In the trusted-key
+dialog (*Manage trusted servers & devices…*) the tabs follow the active mode: p2p
+shows the relay-server and device stores, Server Mode shows the **Server HSYNC**
+store. Enabling **Detailed log output** while the log panel is hidden offers to
+show the panel.
+
 ## Trust prompts while running
 
 While a p2p sync is running, the app may prompt you when a device presents an
@@ -51,7 +59,8 @@ the client's trust checks):
 
 Accepting a fingerprint pins it in the client's trust store, so both the app and
 the `hsync` CLI see the same keys. The stores can also be edited from
-*Settings → p2p → Manage trusted servers & devices…*.
+*Settings → p2p → Manage trusted servers & devices…* (in Server Mode the dialog
+opens on the **Server HSYNC** store).
 
 ## Running and watching a sync
 
@@ -76,14 +85,21 @@ containing folder — and are available only while no sync is running. A preview
 summary is shown first, so you confirm exactly what will be transferred before it
 runs.
 
-While the one-shot runs, a banner shows what it is doing — searching for devices
+Transient messages (searching for devices, connection results, "nothing to
+sync", a Send/Receive while a sync is running) appear as a small overlay toast in
+the bottom-right corner, so nothing shifts and you do not need the log panel open
+to see the outcome.
+
+While the one-shot runs, a toast shows what it is doing — searching for devices
 (in p2p mode) or connecting to the server, then how many other devices were
 found. When it ends, the result is reported once: the window shows a summary
 dialog when it is in the foreground, or a desktop notification when it is not. In
 both cases you are told whether the transfer completed and how many items moved,
 if nothing was pending ("already up to date"), if no other device was found, or
 if the server could not be reached. A one-shot only reports a lost connection if
-it had actually connected first.
+it had actually connected first. The file list stays in the folder you were
+browsing, with the entry you acted on still selected. Folders created on a remote
+peer appear in the list as **Synced** (green), like the files inside them.
 
 ## Secrets
 
@@ -94,12 +110,26 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 
 ## Preferences
 
-- **Theme** — switch between available light/dark themes.
+- **Theme** — **System default** follows your desktop and updates live; **Light**
+  and **Dark** pin an appearance.
 - **Notifications** — enable desktop notifications for sync events.
 - **Bandwidth limits** — cap upload/download throughput.
+- **Advanced options** — off by default: the Advanced tab and the *Advanced
+  Options* sections stay hidden until you enable **Show advanced options** in
+  General, so the standard view stays simple.
 - **Language** — the UI is available in English, Italian, German, Spanish,
   French, Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and
   Japanese.
+- **Fonts** — the interface follows your desktop's UI and monospace fonts and the
+  system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
+
+The file list shows the standard columns; **Speed** (live transfer rate) and
+**Direction** (↑/↓) are available from the header menu and are hidden until you
+enable them. The status bar shows the shared folder's **local size** and, while a
+sync is running, the **total size of the sync set** (remote + local files not yet
+uploaded); the total is approximate when the two sides disagree on a file's size.
+In Server Mode, the address field accepts a bare hostname or `host:port` —
+`https://` and the default port are implied.
 
 ## Troubleshooting
 

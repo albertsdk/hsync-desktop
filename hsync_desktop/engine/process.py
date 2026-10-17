@@ -206,6 +206,7 @@ class HsyncEngine(QObject):
     directory_created = Signal(str)  # directory path
     file_progress = Signal(str, int, int)  # filepath, bytes_transferred, total_bytes
     sync_completed = Signal()  # a full sync cycle finished
+    folder_size_changed = Signal(int, int)  # (local_bytes, total_bytes)
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
     sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
     # error message + reason: "" (generic), "connection" (network failure in
@@ -609,6 +610,11 @@ class HsyncEngine(QObject):
                     self.directory_created.emit(path)
             elif name == UiEventName.sync_complete:
                 self.sync_completed.emit()
+            elif name == UiEventName.folder_size:
+                self.folder_size_changed.emit(
+                    max(int(event.get("local_bytes", 0)), 0),
+                    max(int(event.get("total_bytes", 0)), 0),
+                )
             elif name == UiEventName.transfer_failed:
                 self.transfer_failed.emit(
                     str(event.get("op", "")),

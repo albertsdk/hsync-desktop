@@ -25,6 +25,7 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
     _P2P_TAB_INDEX,
+    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
 
@@ -184,6 +185,60 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g4.addRow(dlg._lbl_peer_read_cap, dlg.peer_read_cap)
     g4.addRow(dlg._lbl_peer_sources_max, dlg.peer_sources_max)
     vbox.addWidget(dlg._grp_p2p_advanced)
+
+    vbox.addStretch()
+
+
+def reorganize_server_tab(dlg: SettingsDialog) -> None:
+    """Reorganize the Server Mode tab into grouped sections using QGroupBox."""
+    server_tab = dlg._tabs.widget(_SERVER_TAB_INDEX)
+    if not server_tab:
+        return
+
+    lbl_server_url: QLabel = dlg.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
+    lbl_api_key: QLabel = dlg.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
+    lbl_ca_cert: QLabel = dlg.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
+    lbl_timeout: QLabel = dlg.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
+
+    # Toggle/action containers (the widget's parent is the row container).
+    cont_insecure: QWidget = dlg.insecure.parent()  # type: ignore[assignment]
+    action_row: QWidget = dlg.btn_manage_trusted_keys_server.parent()  # type: ignore[assignment]
+
+    old = server_tab.layout()
+    if old is not None:
+        while old.count():
+            old.takeAt(0)
+        _tmp = QWidget()
+        _tmp.setLayout(old)
+
+    vbox = QVBoxLayout(server_tab)
+    vbox.setContentsMargins(4, 4, 4, 4)
+    vbox.setSpacing(8)
+
+    # The p2p-mode warning banner stays at the top, above the groups.
+    vbox.addWidget(dlg._p2p_banner)
+
+    # Group 1: server endpoint, credentials, identity and actions.
+    dlg._grp_server = QGroupBox(tr("settings.group.server"))
+    g1 = QFormLayout(dlg._grp_server)
+    g1.addRow(lbl_server_url, dlg.server_url)
+    g1.addRow(lbl_api_key, dlg.api_key)
+    g1.addRow(dlg._lbl_server_trust, dlg.server_trust)
+    g1.addRow("", action_row)
+    vbox.addWidget(dlg._grp_server)
+
+    # Group 2: TLS/certificate behaviour.
+    dlg._grp_server_certificates = QGroupBox(tr("settings.group.server_certificates"))
+    g2 = QFormLayout(dlg._grp_server_certificates)
+    g2.addRow("", cont_insecure)
+    g2.addRow(lbl_ca_cert, dlg.ca_cert)
+    vbox.addWidget(dlg._grp_server_certificates)
+
+    # Group 3: advanced request tuning.
+    dlg._grp_server_advanced = QGroupBox(tr("settings.group.advanced"))
+    g3 = QFormLayout(dlg._grp_server_advanced)
+    g3.addRow(lbl_timeout, dlg.http_timeout)
+    vbox.addWidget(dlg._grp_server_advanced)
 
     vbox.addStretch()
 

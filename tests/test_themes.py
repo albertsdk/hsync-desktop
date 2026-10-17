@@ -105,3 +105,7 @@ class TestCommonQSS:
 
     def test_common_qss_has_qmenu(self):
         assert "QMenu" in themes._COMMON_QSS
+
+    def test_common_qss_does_not_pin_a_font_family(self):
+        """The font comes from the desktop (see hsync_desktop/fonts.py)."""
+        assert "font-family" not in themes._COMMON_QSS

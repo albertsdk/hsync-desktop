@@ -267,9 +267,6 @@
       </item>
       <item>
        <widget class="QLabel" name="peersLabel">
-        <property name="styleSheet">
-         <string notr="true">font-weight: bold;</string>
-        </property>
         <property name="text">
          <string>–</string>
         </property>

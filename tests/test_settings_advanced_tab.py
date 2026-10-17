@@ -159,3 +159,109 @@ class TestCapabilityGating:
         assert dlg.autotune.isEnabled()
         assert dlg.mass_delete_threshold.isEnabled()
         assert dlg.peer_download.isEnabled()
+
+
+class TestAdvancedToggle:
+    """The Advanced tab and sections are hidden until the toggle is enabled."""
+
+    def test_advanced_is_hidden_by_default(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert not dlg.show_advanced.isChecked()
+        assert not dlg._tabs.isTabVisible(_ADVANCED_TAB_INDEX)
+        assert dlg._grp_advanced.isHidden()
+        assert dlg._grp_p2p_advanced.isHidden()
+        assert dlg._grp_server_certificates.isHidden()
+        assert dlg._grp_server_advanced.isHidden()
+
+    def test_enabling_restores_the_advanced_areas(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
+
+        dlg.show_advanced.setChecked(True)
+
+        assert dlg._tabs.isTabVisible(_ADVANCED_TAB_INDEX)
+        assert not dlg._grp_advanced.isHidden()
+        assert not dlg._grp_p2p_advanced.isHidden()
+
+    def test_persisted_choice_is_restored(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _make_dialog(qtbot, monkeypatch, tmp_path, {"ui/show_advanced": True})
+
+        assert dlg.show_advanced.isChecked()
+        assert dlg._tabs.isTabVisible(_ADVANCED_TAB_INDEX)
+
+        dlg.show_advanced.setChecked(False)
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        monkeypatch.setattr(dialog_mod, "save_bandwidth_limits", lambda *a, **k: None)
+        dlg.save()
+        assert store.value("ui/show_advanced", True, bool) is False
+
+    def test_a_hidden_tab_falls_back_to_a_visible_one(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
+
+        dlg.set_current_tab(_ADVANCED_TAB_INDEX)
+
+        assert dlg._tabs.currentIndex() != _ADVANCED_TAB_INDEX
+        assert dlg._tabs.isTabVisible(dlg._tabs.currentIndex())
+
+
+class TestThemeSystem:
+    """The theme combo carries stable item data and supports "system"."""
+
+    def test_items_carry_stable_data(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert dlg.theme_combo.itemData(0) == "light"
+        assert dlg.theme_combo.itemData(1) == "dark"
+        assert dlg.theme_combo.itemData(2) == "system"
+
+    def test_system_is_the_default(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert dlg.theme_combo.currentData() == "system"
+
+    def test_legacy_light_value_maps_to_the_light_item(self, qtbot, monkeypatch, tmp_path):
+        dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path, {"appearance/theme": "light"})
+
+        assert dlg.theme_combo.currentData() == "light"
+
+    def test_saving_stores_the_item_data(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _make_dialog(qtbot, monkeypatch, tmp_path, {"appearance/theme": "light"})
+
+        dlg.theme_combo.setCurrentIndex(2)  # system
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        monkeypatch.setattr(dialog_mod, "save_bandwidth_limits", lambda *a, **k: None)
+        dlg.save()
+
+        assert store.value("appearance/theme", "", str) == "system"
+
+
+class TestThemeSetting:
+    """The raw theme preference resolves "system" through the OS scheme."""
+
+    def test_defaults_to_system(self, monkeypatch, tmp_path):
+        import hsync_desktop.settings.cli_args as cli
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(cli, "QSettings", lambda *a, **k: store)
+
+        assert cli.get_theme_setting() == "system"
+
+    def test_returns_the_saved_value(self, monkeypatch, tmp_path):
+        import hsync_desktop.settings.cli_args as cli
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        store.setValue("appearance/theme", "dark")
+        monkeypatch.setattr(cli, "QSettings", lambda *a, **k: store)
+
+        assert cli.get_theme_setting() == "dark"
+
+    def test_system_resolves_to_the_os_scheme(self, monkeypatch, tmp_path):
+        import hsync_desktop.settings.cli_args as cli
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(cli, "QSettings", lambda *a, **k: store)
+        monkeypatch.setattr(cli, "detect_system_theme", lambda: "dark")
+
+        assert cli.get_saved_theme() == "dark"

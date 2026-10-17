@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+import html
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Slot
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -34,10 +35,14 @@ from hsync_desktop.ui.loader import load_ui_widget
 class FilePanel(QWidget):
     """Complete file transfer panel with table and collapsible detail panel."""
 
+    # Emits the scanned local size in bytes (-1 = unknown, 0 = empty share).
+    share_size_changed = Signal(int)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
+        self._share_size_bytes: int = -1
         self._current_directory: str = ""
         self._consistency_timer = QTimer(self)
         self._consistency_timer.timeout.connect(self._check_directory_consistency)
@@ -165,9 +170,9 @@ class FilePanel(QWidget):
             self._breadcrumb_label.setText("")
             self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
             return
-        link_color = (
+        text_color = (
             self._breadcrumb_label.palette()
-            .color(self._breadcrumb_label.palette().ColorRole.Link)
+            .color(self._breadcrumb_label.palette().ColorRole.WindowText)
             .name()
         )
         parts = []
@@ -175,8 +180,11 @@ class FilePanel(QWidget):
         path_so_far = ""
         for seg in segments:
             path_so_far = f"{path_so_far}/{seg}" if path_so_far else seg
+            safe_seg = html.escape(seg, quote=True)
+            safe_path = html.escape(path_so_far, quote=True)
             parts.append(
-                f'<a href="nav:{path_so_far}" style="color:{link_color}; text-decoration:none;">{seg}</a>'
+                f'<a href="nav:{safe_path}" '
+                f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
             )
         breadcrumb = " › " + " › ".join(parts)
         self._breadcrumb_label.setText(breadcrumb)
@@ -205,16 +213,36 @@ class FilePanel(QWidget):
         self._table.reset_all_to_local()
         self._detail.clear()
 
-    def load_local_files(self, directory: str) -> None:
+    def set_connected(self, connected: bool) -> None:
+        """Forward the connection state so "Local" rows use the default colour."""
+        self._table.set_connected(connected)
+
+    @property
+    def current_path(self) -> str:
+        """Current folder shown by the table (relative to the sync root)."""
+        return self._table.current_path
+
+    def load_local_files(
+        self,
+        directory: str,
+        *,
+        restore_view: tuple[str, str | None] | None = None,
+    ) -> None:
         self._stop_scan()
         self._consistency_timer.stop()
         self.clear()
+        # A new scan invalidates the previous size until the first batch arrives.
+        self._share_size_bytes = -1
+        self.share_size_changed.emit(-1)
         if not directory or not os.path.isdir(directory):
             self._current_directory = ""
             return
         self._current_directory = directory
         self._table.set_base_directory(directory)
         self._detail.set_base_directory(directory)
+        if restore_view is not None:
+            # Keep the folder/row the user acted on after the reload clears them.
+            self._table.restore_view(*restore_view)
         self._show_loading()
         self._scan_thread = QThread()
         self._scan_worker = DirectoryScanWorker(directory)
@@ -225,6 +253,9 @@ class FilePanel(QWidget):
         )
         self._scan_worker.progress.connect(
             self._on_scan_progress, Qt.ConnectionType.QueuedConnection
+        )
+        self._scan_worker.size_progress.connect(
+            self._on_scan_size, Qt.ConnectionType.QueuedConnection
         )
         self._scan_worker.finished.connect(
             self._on_scan_finished, Qt.ConnectionType.QueuedConnection
@@ -240,6 +271,10 @@ class FilePanel(QWidget):
                 pass
             try:
                 self._scan_worker.progress.disconnect()
+            except RuntimeError:
+                pass
+            try:
+                self._scan_worker.size_progress.disconnect()
             except RuntimeError:
                 pass
             try:
@@ -271,6 +306,12 @@ class FilePanel(QWidget):
             for filepath, size, mtime in files
         ]
         self._table.add_transfers_batch(transfers)
+
+    @Slot(int)
+    def _on_scan_size(self, total_bytes: int) -> None:
+        """Forward the accumulated local size from the scan worker."""
+        self._share_size_bytes = total_bytes
+        self.share_size_changed.emit(total_bytes)
 
     @Slot()
     def _on_scan_finished(self) -> None:
@@ -409,4 +450,7 @@ class FilePanel(QWidget):
         self._btn_up.setIcon(get_icon("go-up"))
         self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
         self._detail._btn_close.setIcon(get_icon("window-close"))
+        # Link colours are baked into the rich text: rebuild them for the theme.
+        self._update_breadcrumb()
+        self._detail.refresh_link_color()
         self._table.refresh_view()

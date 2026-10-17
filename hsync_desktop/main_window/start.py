@@ -132,7 +132,9 @@ class StartMixin:
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        self._hide_info_banner()
+        # Keep a result toast visible; only run-scoped toasts are cleared here.
+        if self._info_banner_kind != "outcome":
+            self._hide_info_banner()
         self._apply_button_styles()
         self._update_menu_state()
 
@@ -165,6 +167,13 @@ class StartMixin:
         """Update the path label, sync direction icon, and remote endpoint."""
         from hsync_desktop.icons import icon as get_icon
 
+        # Primary/secondary is a p2p concept; Server Mode has no such role, so
+        # hide the label and its icon there instead of a permanent "Secondary".
+        p2p_enabled = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
+        )
+        self._apply_role_visibility()
+
         if self._local_path:
             # ── Folder icon + share name (local path in the tooltip) ──────
             self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(24, 24))
@@ -174,11 +183,13 @@ class StartMixin:
             max_name_px = 300
             fm = QFontMetrics(self._path_label.font())
             elided = fm.elidedText(share_name, Qt.TextElideMode.ElideMiddle, max_name_px)
-            link_color = (
-                self._path_label.palette().color(self._path_label.palette().ColorRole.Link).name()
+            text_color = (
+                self._path_label.palette()
+                .color(self._path_label.palette().ColorRole.WindowText)
+                .name()
             )
             self._path_label.setText(
-                f'<a href="open" style="color:{link_color}; text-decoration:none;">{elided}</a>'
+                f'<a href="open" style="color:{text_color}; text-decoration:underline;">{elided}</a>'
             )
             # The full local path is always reachable here: this tooltip is
             # intentionally exempt from the "Show tooltips" preference, which
@@ -205,7 +216,6 @@ class StartMixin:
             self._sync_dir_icon.show()
 
             # ── Remote endpoint icon + label ──────────────────────────
-            p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
             if p2p_enabled:
                 self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
                 group = str(s.value("p2p/group", "", str))
@@ -236,11 +246,13 @@ class StartMixin:
             self._sync_dir_icon.hide()
             self._remote_icon.hide()
             self._remote_label.hide()
-            link_color = (
-                self._path_label.palette().color(self._path_label.palette().ColorRole.Link).name()
+            text_color = (
+                self._path_label.palette()
+                .color(self._path_label.palette().ColorRole.WindowText)
+                .name()
             )
             self._path_label.setText(
-                f'<a href="settings" style="color:{link_color}; text-decoration:none;">'
+                f'<a href="settings" style="color:{text_color}; text-decoration:underline;">'
                 f"{tr('label.path_placeholder')}</a>"
             )
             self._path_label.setToolTip(tr("label.path_placeholder_tip"))
@@ -391,7 +403,7 @@ class StartMixin:
                 )
                 return False
         except OSError as e:
-            self._append_log(f"⚠ Could not check disk space: {e}")
+            self._append_desktop_log("WARNING", f"Could not check disk space: {e}")
         return True
 
     def _on_start(self) -> None:
@@ -404,7 +416,7 @@ class StartMixin:
 
         local_path = self._local_path
         if not local_path:
-            self._append_log("⚠ Please select a local directory first.")
+            self._append_desktop_log("WARNING", "Please select a local directory first.")
             return
 
         # Delay the deletion risk check to prevent accidental double-clicks
@@ -503,7 +515,7 @@ class StartMixin:
         to do, a confirmation dialog is displayed before restarting the sync.
         """
         if not self._engine.is_running:
-            self._append_log("⚠ Please start synchronization first.")
+            self._append_desktop_log("WARNING", "Please start synchronization first.")
             return
         self._append_log(f"--- {tr('preview.title')} ---")
         # Set flags to show preview summary when preview completes

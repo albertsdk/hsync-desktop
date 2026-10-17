@@ -122,6 +122,13 @@ class ActionsMixin:
     # Scoped Send/Receive target ``(subdir, direction)``; None when idle. Declared
     # here so the composed ``MainWindow`` shares the optional type.
     _pending_selection_sync: tuple[str, str] | None
+    # Folder/row captured before the scoped op reloads the file panel.
+    _selection_sync_view: tuple[str, str | None] | None
+    # p2p role state (unknown until the election event). Declared here so the
+    # composed ``MainWindow`` shares the optional type.
+    _role_known: bool
+    _is_master: bool | None
+    _connected: bool
 
     @Slot(QAction)
     def _on_direction_changed(self, action: QAction) -> None:
@@ -233,6 +240,23 @@ class ActionsMixin:
             return path
         return os.path.dirname(path)
 
+    @staticmethod
+    def _selection_display_name(filepath: str, current_path: str) -> str | None:
+        """Row name of the acted-on entry at the folder currently shown.
+
+        The list shows one path segment per row, so a nested target maps to the
+        first segment below ``current_path``; this keeps the highlight on the
+        row the user acted on after the panel reloads.
+        """
+        target = filepath.strip("/")
+        base = current_path.strip("/")
+        if base:
+            if target == base:
+                return None
+            if target.startswith(base + "/"):
+                target = target[len(base) + 1 :]
+        return target.split("/", 1)[0] if target else None
+
     def _enter_running_ui(self) -> None:
         """Reflect a started engine in the buttons, tray and menus."""
         self._on_status("connecting")
@@ -244,13 +268,26 @@ class ActionsMixin:
         self._apply_button_styles()
         self._update_menu_state()
 
-    def _prepare_engine_run(self, local_path: str) -> None:
+    def _prepare_engine_run(
+        self,
+        local_path: str,
+        *,
+        restore_view: tuple[str, str | None] | None = None,
+    ) -> None:
         """Common pre-start bookkeeping shared by every engine (re)start."""
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
         self._log_view.clear()
-        self._file_panel.load_local_files(local_path)
+        self._hide_info_banner()  # a new run clears any stale toast
+        self._file_panel.load_local_files(local_path, restore_view=restore_view)
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
+        # A fresh process runs a fresh p2p election: back to the neutral role.
+        self._role_known = False
+        self._is_master = None
+        self._connected = False
+        self._share_total_bytes = -1
+        self._retranslate_role()
+        self._render_share_size()
         if self._notifier:
             self._notifier.user_stopped = False
 
@@ -265,11 +302,12 @@ class ActionsMixin:
         and keeps the deletion-risk confirmation.
         """
         if self._engine.is_running:
-            self._append_log(f"⚠ {tr('sync.selection_busy')}")
+            self._append_desktop_log("WARNING", tr("sync.selection_busy"))
+            self._show_info_banner(tr("sync.selection_busy"), auto_hide_ms=5000, kind="warning")
             return
         local_path = self._local_path
         if not local_path:
-            self._append_log("⚠ Please select a local directory first.")
+            self._append_desktop_log("WARNING", "Please select a local directory first.")
             return
 
         # Same pre-flight prompts as a normal start.
@@ -287,7 +325,12 @@ class ActionsMixin:
         subdir = self._selection_subdir(filepath)
         label = tr("action.send_now") if direction == "upload-only" else tr("action.receive_now")
         self._append_log(f"--- {label}: {subdir or '.'} ---")
-        self._prepare_engine_run(local_path)
+        view_path = self._file_panel.current_path
+        self._selection_sync_view = (
+            view_path,
+            self._selection_display_name(filepath, view_path),
+        )
+        self._prepare_engine_run(local_path, restore_view=self._selection_sync_view)
         self._begin_selection_sync(subdir, direction)
 
         # Preview first (one-shot dry-run scoped to the selection); the real run
@@ -320,7 +363,7 @@ class ActionsMixin:
         self._selection_sync_phase = "preview"
         self._selection_result_count = 0
         self._pending_selection_sync = (subdir, direction)
-        self._show_info_banner(self._selection_phase_text(), auto_hide_ms=0)
+        self._show_info_banner(self._selection_phase_text(), auto_hide_ms=0, kind="progress")
 
     def _finish_selection_sync(self, outcome: str) -> bool:
         """Finalize a scoped Send/Receive and surface its outcome (idempotent).
@@ -336,6 +379,7 @@ class ActionsMixin:
         self._selection_sync_active = False
         self._selection_sync_phase = ""
         self._pending_selection_sync = None
+        self._selection_sync_view = None
         self._selection_result_count = 0
         self._reset_ui_stopped()  # hides the banner, resets buttons/menus
         self._surface_selection_outcome(outcome, direction=direction, count=count)
@@ -374,12 +418,12 @@ class ActionsMixin:
         elif self._notifier:
             self._notifier.warning(title, message)
         else:
-            self._show_info_banner(message)
+            self._show_info_banner(message, kind="outcome")
 
     def _info_selection_outcome(self, message: str) -> None:
-        """Non-critical result: banner now; the info notification is suppressed
+        """Non-critical result: toast now; the info notification is suppressed
         by the manager while the window is focused, so exactly one surface shows."""
-        self._show_info_banner(message)
+        self._show_info_banner(message, kind="outcome")
         if self._notifier:
             self._notifier.info(tr("app.name"), message)
 
@@ -391,7 +435,7 @@ class ActionsMixin:
             return
         self._selection_sync_phase = "run"
         self._selection_result_count = 0
-        self._prepare_engine_run(local_path)
+        self._prepare_engine_run(local_path, restore_view=self._selection_sync_view)
         args = build_selection_args(local_path, subdir, direction)
         if not self._start_engine(args):
             self._finish_selection_sync("failed")
@@ -437,11 +481,13 @@ class ActionsMixin:
 
         if nothing_to_sync:
             # Skip the dialog entirely.
-            self._append_log(f"ℹ {tr('preview.no_actions')}")
+            self._append_desktop_log("INFO", tr("preview.no_actions"))
             if selection:
                 # Scoped op with nothing to transfer: report it instead of silence.
                 self._finish_selection_sync("already_synced")
                 return
+            # Non-scoped: surface the result without needing the log panel.
+            self._info_selection_outcome(tr("preview.no_actions"))
             if self._is_dry_run_preview:
                 # Send SYNC command to switch from dry-run to real sync
                 self._engine.sync()
@@ -509,11 +555,15 @@ class ActionsMixin:
             # If sync is running, send the new limits via stdin command
             if self._engine.is_running:
                 self._engine.set_bandwidth(upload_bps, download_bps)
-                self._append_log(
-                    f"ℹ {tr('bandwidth.applied').format(upload=upload_display, download=download_display)}"
+                self._append_desktop_log(
+                    "INFO",
+                    tr("bandwidth.applied").format(
+                        upload=upload_display, download=download_display
+                    ),
                 )
             else:
                 # If sync is not running, just save settings for next start
-                self._append_log(
-                    f"ℹ {tr('bandwidth.saved').format(upload=upload_display, download=download_display)}"
+                self._append_desktop_log(
+                    "INFO",
+                    tr("bandwidth.saved").format(upload=upload_display, download=download_display),
                 )

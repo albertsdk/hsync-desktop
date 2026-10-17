@@ -28,6 +28,8 @@ class DirectoryScanWorker(QObject):
     files_found = Signal(list)
     # Emits (processed_count, total_count) for progress
     progress = Signal(int, int)
+    # Emits the accumulated local size in bytes (throttled, plus the final value)
+    size_progress = Signal(int)
     # Emitted when scan is complete
     finished = Signal()
 
@@ -89,10 +91,11 @@ class DirectoryScanWorker(QObject):
         """Scan directory using os.scandir() for better performance."""
         batch: list[tuple[str, int, float]] = []
         processed = 0
+        total_bytes = 0
         last_progress_time = 0.0
 
         def scan_directory(dir_path: Path) -> None:
-            nonlocal processed, last_progress_time, batch
+            nonlocal processed, last_progress_time, batch, total_bytes
 
             if self._cancelled:
                 return
@@ -136,6 +139,7 @@ class DirectoryScanWorker(QObject):
                     current_time = time.monotonic()
                     if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
                         self.progress.emit(processed, total)
+                        self.size_progress.emit(total_bytes)
                         last_progress_time = current_time
                     batch = []
 
@@ -152,6 +156,8 @@ class DirectoryScanWorker(QObject):
                     size = 0
                     mtime = 0.0
 
+                total_bytes += size
+
                 try:
                     rel_path = str(Path(entry.path).relative_to(base_path))
                 except ValueError:
@@ -165,6 +171,7 @@ class DirectoryScanWorker(QObject):
                     current_time = time.monotonic()
                     if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
                         self.progress.emit(processed, total)
+                        self.size_progress.emit(total_bytes)
                         last_progress_time = current_time
                     batch = []
 
@@ -178,6 +185,8 @@ class DirectoryScanWorker(QObject):
         if batch and not self._cancelled:
             self.files_found.emit(batch)
             self.progress.emit(processed, total)
+        if not self._cancelled:
+            self.size_progress.emit(total_bytes)
 
     @Slot()
     def run(self) -> None:
@@ -189,6 +198,8 @@ class DirectoryScanWorker(QObject):
         # First pass: count files for progress
         total = self._count_files()
         if self._cancelled or total == 0:
+            if not self._cancelled:
+                self.size_progress.emit(0)  # empty share: a known 0 B
             self.finished.emit()
             return
 

@@ -256,6 +256,19 @@ class TestTerminologyConsistency:
 
     def test_endpoint_warnings_avoid_raw_host_grammar(self):
         """Invalid-endpoint prompts give an example, not host/port/IPv6 grammar."""
+        server_word = {
+            "en": "server",
+            "de": "server",
+            "es": "servidor",
+            "fr": "serveur",
+            "it": "server",
+            "ja": "サーバー",
+            "nl": "server",
+            "pl": "serwer",
+            "pt": "servidor",
+            "ru": "сервер",
+            "zh": "服务器",
+        }
         for module in self.ALL:
             for key in (
                 "settings.invalid_server_endpoint",
@@ -264,8 +277,9 @@ class TestTerminologyConsistency:
                 value = module.translations[key].lower()
                 assert "ipv6" not in value and "host:port" not in value, f"{module.__name__}:{key}"
                 assert "example.com" in value, f"{module.__name__}:{key}"
-            assert module.translations["label.remote_server"].lower() in (
-                module.translations["settings.test_connection_failure"].lower()
+            code = module.__name__.rsplit(".", 1)[-1]
+            assert (
+                server_word[code] in module.translations["settings.test_connection_failure"].lower()
             ), module.__name__
 
 

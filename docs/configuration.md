@@ -6,7 +6,10 @@ the [Usage Guide](usage.md) covers running a sync and the runtime prompts.
 
 Open **Settings** from the main window (or the tray menu). The dialog is
 organised into five tabs: **Sync**, **p2p Mode**, **Server Mode**, **General**
-and **Advanced**. Controls for features your installed sync engine does not
+and **Advanced**. The **Advanced** tab is hidden until you enable **Show advanced
+options** in General; the same toggle also reveals the **Advanced Options**
+sections in the other tabs, so the standard view stays uncluttered. Controls for
+features your installed sync engine does not
 support are automatically disabled, with a tooltip explaining why. On a fresh
 install (no saved settings yet) the app starts in **p2p Mode**.
 
@@ -48,7 +51,7 @@ for the underlying behaviour.
 | Setting | Description |
 |---------|-------------|
 | Enable p2p mode | Enable device discovery |
-| p2p Group Name | Partition key for p2p discovery: devices only sync with peers using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
+| p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Shared password | Password shared by the devices in the p2p group; with a relay server it is also the relay credential |
 | Relay server (optional) | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
 | Relay identity check | How the app checks the relay server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
@@ -56,12 +59,12 @@ for the underlying behaviour.
 | Open the port on my router automatically | Open the primary port so devices reached through a relay server can connect (only takes effect with a relay server set) |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
-| Require pairing | Only sync with explicitly paired devices |
+| Ask before trusting new devices | Ask for confirmation the first time a new device connects, instead of trusting it automatically |
 | Download from other devices | In p2p mode, fetch file blocks from other devices, not only the primary |
-| Max concurrent peer reads | Maximum files read simultaneously from other devices |
-| Max peer sources | Maximum number of devices a file is fetched from |
+| Max simultaneous reads from other devices | Maximum files read simultaneously from other devices |
+| Max devices per file | Maximum number of devices a file is fetched from |
 | Port | Fixed p2p listening port |
-| Device search timeout | How long to wait for peer discovery |
+| Device search timeout | How long to wait for device discovery |
 | Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
 **Prefer primary role and sync type.** *Prefer primary role* is a preference,
@@ -77,7 +80,9 @@ generic warning when saving.
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
 known-hosts (relay server and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
-source of truth.
+source of truth. The dialog shows only the stores relevant to the active mode:
+p2p shows the relay-server and device stores, Server Mode shows the **Server
+HSYNC** store.
 
 **Keyless runs.** Without a shared password the app confirms before starting:
 devices are not authenticated and reads are open to anyone who can reach this
@@ -88,9 +93,13 @@ confirmation is requested on every start and is not a stored setting.
 
 For syncing against a central HSYNC server.
 
+The tab is grouped into **Server** (URL, API key, identity check and the
+manage/test actions), **Certificates** (skip certificate check and CA file) and
+**Advanced Options** (request timeout).
+
 | Setting | Description |
 |---------|-------------|
-| Server URL | HSYNC server address, e.g. `https://my-nas:9753` |
+| Server address | Hostname, IP or `host:port` of the HSYNC server, e.g. `my-nas` or `my-nas:9753`; `https://` and port 9753 are implied. Leave empty for p2p only |
 | API key | Account token (`hs_<id>_<secret>`); entered through a dedicated dialog (see [Secrets](usage.md#secrets)) |
 | Server identity check | How the app checks the server identity: standard verification (default), ask on first use, accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_SERVER_TRUST` |
 | Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
@@ -104,16 +113,21 @@ Application-wide preferences.
 | Setting | Description |
 |---------|-------------|
 | Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
-| Theme | Light or Dark |
+| Theme | **System default** (follows the desktop and updates live), Light or Dark |
 | Enable desktop notifications | Enable or disable desktop notifications |
 | Show tooltips | Show or hide option tooltips |
 | Show log panel | Toggle the in-app log viewer in the main window |
+| Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |
 | Launch at login | Start HSYNC minimized to the tray when you log in |
 
 The supported interface languages are English, Italian, German, Spanish, French,
 Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
 **System default** keeps following the system locale, so a first launch starts in
 the system language.
+
+The interface uses the desktop's configured **UI and monospace fonts** and follows
+the system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
+Changing the desktop font or scale takes effect on the next launch.
 
 **Launch at login.** When enabled, the app registers a per-user autostart entry
 for the platform — an XDG autostart file on Linux/BSD, a LaunchAgent on macOS, a
@@ -125,7 +139,8 @@ This is a desktop preference only; it opens the app but does not start a sync
 ## Advanced
 
 Engine-level tuning and diagnostics. These are expert options; the defaults suit
-most setups. Changes apply at the next sync start.
+most setups. The tab is hidden until **Show advanced options** is enabled in
+General. Changes apply at the next sync start.
 
 | Setting | Description |
 |---------|-------------|
@@ -133,12 +148,12 @@ most setups. Changes apply at the next sync start.
 | Max concurrent transfers | Ceiling on simultaneous transfers; **Auto** uses the engine default |
 | Enable delta transfer | Transfer only changed blocks of large files |
 | Delta minimum size | Minimum file size for delta transfer in server mode |
-| Delta minimum size (peer-to-peer) | Minimum file size for delta transfer in p2p mode |
+| Delta minimum size (p2p) | Minimum file size for delta transfer in p2p mode |
 | Deletion protection | Pause a cycle that would delete too many local files (see below) |
 | Max deletions per cycle | Number of deletions that trips the guard; 0 disables this rule |
 | Max deletions percent | Percentage of local files whose deletion trips the guard; 0 disables this rule |
 | Upload limit / Download limit | Bandwidth caps in MB/s; 0 (**Unlimited**) uses all available bandwidth |
-| Detailed log output | Enable verbose (debug-level) logging |
+| Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 | Log file | Path to the log file |
 
 **Deletion protection.** When a sync would delete more than the configured

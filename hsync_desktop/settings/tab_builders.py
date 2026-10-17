@@ -42,6 +42,7 @@ from hsync_desktop.settings.tab_indices import (
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
+from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 if TYPE_CHECKING:
@@ -144,6 +145,8 @@ def build_server_tab(dlg: SettingsDialog) -> None:
 
     # Connection tab widgets (now second tab, index 1 — "Server Mode")
     dlg.server_url = dlg.findChild(QLineEdit, "serverUrl")
+    # A bare host (or host:port) is enough: https:// and the default port are implied.
+    dlg.server_url.setPlaceholderText("hsync.example.com")
     dlg.api_key = dlg.findChild(QLineEdit, "apiKey")
     dlg.insecure, dlg._lbl_insecure = _replace_checkbox_with_toggle(dlg, "insecure")
     dlg.ca_cert = dlg.findChild(QLineEdit, "caCert")
@@ -206,6 +209,9 @@ def build_server_tab(dlg: SettingsDialog) -> None:
                         ),
                     )
                     break
+
+    # Regroup the tab into sections, matching the other settings tabs.
+    dlg._reorganize_server_tab()
 
 
 def build_p2p_tab(dlg: SettingsDialog) -> None:
@@ -423,12 +429,33 @@ def build_general_tab(dlg: SettingsDialog) -> None:
 
     dlg.theme_combo = dlg.findChild(QComboBox, "themeCombo")
     dlg.lang_combo = dlg.findChild(QComboBox, "langCombo")
+    # Theme items: Light (0) and Dark (1) keep their indices; append "System
+    # default" (2) with stable item data.
+    dlg.theme_combo.setItemData(0, THEME_LIGHT)
+    dlg.theme_combo.setItemData(1, THEME_DARK)
+    dlg.theme_combo.addItem("", THEME_SYSTEM)
     dlg.notifications_enabled, dlg._lbl_notifications = _replace_checkbox_with_toggle(
         dlg, "notificationsEnabled"
     )
     dlg.tooltips_enabled, dlg._lbl_tooltips = _replace_checkbox_with_toggle(dlg, "tooltipsEnabled")
     dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
     dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
+
+    # "Show advanced options" toggle (no .ui counterpart): hides the Advanced tab
+    # and the advanced sections in the Sync/p2p/Server tabs.
+    dlg.show_advanced = ToggleSwitch(dlg)
+    dlg.show_advanced.setObjectName("showAdvanced")
+    dlg._lbl_show_advanced = QLabel(dlg)
+    cont_show_advanced = QWidget(dlg)
+    hl_show_advanced = QHBoxLayout(cont_show_advanced)
+    hl_show_advanced.setContentsMargins(0, 0, 0, 0)
+    hl_show_advanced.addWidget(dlg.show_advanced)
+    hl_show_advanced.addWidget(dlg._lbl_show_advanced)
+    hl_show_advanced.addStretch()
+    general_tab = dlg._tabs.widget(_GENERAL_TAB_INDEX)
+    general_layout = general_tab.layout() if general_tab else None
+    if isinstance(general_layout, QFormLayout):
+        general_layout.addRow("", cont_show_advanced)
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:
