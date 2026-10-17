@@ -232,8 +232,8 @@ class TestBinaryProbeCache:
 
         self._patch_settings(tmp_path, monkeypatch)
         path = self._make_binary(tmp_path)
-        raw = '{"schema_version": 2, "app_version": "1.0.0"}'
-        doc = {"schema_version": 2, "app_version": "1.0.0"}
+        raw = '{"schema_version": 1, "app_version": "1.0.0"}'
+        doc = {"schema_version": 1, "app_version": "1.0.0"}
         calls = {"n": 0}
 
         def fake_raw(p):

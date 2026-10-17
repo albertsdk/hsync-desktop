@@ -288,7 +288,7 @@ The status bar (right side, before Peers) shows a muted `QLabel`
 integer sum with no extra I/O (`workers.py::DirectoryScanWorker.size_progress` →
 `file_panel/panel.py::FilePanel.share_size_changed` →
 `main_window/ui.py::MainWindow._on_share_size_changed`). **Total** is the
-client's additive `folder_size` event (see the client wiki), computed from the
+client's `folder_size` event (see the client wiki), computed from the
 remote/master listing already fetched plus local-only pending uploads; scoped
 runs skip it. While stopped the total is `—` and the scan value is kept;
 `_on_process_finished` clears the total and `_prepare_engine_run` clears it for
