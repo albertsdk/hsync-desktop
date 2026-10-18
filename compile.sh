@@ -1071,9 +1071,11 @@ build_deb_all() {
         local stage_dir="${arch_build_dir}/${DEB_PKG_NAME}_${deb_version}_${deb_arch}"
         # Fresh, arch-specific home for the client's in-project venv; mounted over
         # /repo/hsync-client/.venv below so the shared checkout keeps its own .venv
-        # and a later arch never reuses this one's venv.
+        # and a later arch never reuses this one's venv. Absolute: Docker treats a
+        # relative source as a named volume, not a bind mount.
         local client_venv_dir="${arch_build_dir}/venv-client"
         mkdir -p "${bin_dir}" "${work_dir}" "${client_venv_dir}"
+        client_venv_dir="$(cd "${client_venv_dir}" && pwd)"
 
         # The container builds and stages this arch's client at
         # hsync_desktop/bin/hsync; bundle it alongside the UI/icon data.
@@ -1424,9 +1426,11 @@ build_rpm_all() {
         local work_dir="${arch_build_dir}/work"
         # Fresh, arch-specific home for the client's in-project venv; mounted over
         # /repo/hsync-client/.venv below so the shared checkout keeps its own .venv
-        # and a later arch never reuses this one's venv.
+        # and a later arch never reuses this one's venv. Absolute: Docker treats a
+        # relative source as a named volume, not a bind mount.
         local client_venv_dir="${arch_build_dir}/venv-client"
         mkdir -p "${bin_dir}" "${work_dir}" "${client_venv_dir}"
+        client_venv_dir="$(cd "${client_venv_dir}" && pwd)"
 
         # The container builds and stages this arch's client; map the rpm arch to
         # the client's Linux platform directory.
