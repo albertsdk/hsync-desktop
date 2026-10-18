@@ -62,6 +62,13 @@ RUN dnf -y install --setopt=install_weak_deps=False \
         dbus-libs \
     && dnf clean all
 
+# Poetry needs a bare ``python`` on PATH when it prepares the project venvs;
+# RHEL ships only ``python3.12`` (and a ``python3`` that is the 3.9 system
+# interpreter), so ``poetry install`` aborts with "[Errno 2] No such file or
+# directory: 'python'" before it can create the venv. /usr/local/bin comes first
+# on PATH, so this shadows nothing the system tools invoke by absolute path.
+RUN ln -sf /usr/bin/python3.12 /usr/local/bin/python
+
 RUN python3.12 -m pip install --no-cache-dir --prefer-binary "poetry==2.3.2"
 
 WORKDIR /src
