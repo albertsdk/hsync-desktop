@@ -280,8 +280,8 @@ panel.
 
 ### Share size
 
-The status bar (right side, before Peers) shows a muted `QLabel`
-(`main_window/ui.py::MainWindow._share_size_label`), rendered as
+The status bar (right side, before Peers) shows a muted `QLabel`, rendered by
+`main_window/ui.py::MainWindow._render_share_size` as
 `label.share_size_fmt` ("Local X · Total Y") or, when the total is unknown,
 `label.share_size_local_fmt`. **Local** reuses the existing
 `DirectoryScanWorker` scan: it already `stat`s every file, so the total is an
