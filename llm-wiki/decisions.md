@@ -60,7 +60,8 @@ disable unsupported controls) is realized in
 - **Debian packaging** (`compile.sh`, targets `deb`/`deb-all`): a `--onedir`
   freeze staged as a `.deb` reusing the shared packaging machinery
   (`packaging/deb/`, `_semver_to_debian`, `_finalize_deb_stage`,
-  `_inject_shlib_depends`). It installs the GUI under `/usr/lib/hsync-desktop`
+  `packaging/deb/deb-depends.sh::_inject_shlib_depends`). It installs the GUI
+  under `/usr/lib/hsync-desktop`
   with a `.desktop` launcher and hicolor icons, and **bundles the `hsync`
   client** (`_add_data_args`, `_require_bundled_client`), so it declares no
   `hsync-client` dependency. `deb-all` cross-builds amd64 + arm64 in Docker
@@ -109,8 +110,9 @@ disable unsupported controls) is realized in
   binary against the **package root** (`hsync_desktop/bin`), so it stays correct
   from the `engine/` subpackage and in a frozen onefile/onedir bundle. The `.deb`
   `Depends:` is computed from the payload
-  (`_compute_runtime_depends`: external DT_NEEDED → packages via `ldconfig`/
-  `dpkg -S`) instead of a hand-maintained list, which had drifted (declared
+  (`packaging/deb/deb-depends.sh::_compute_runtime_depends`: external DT_NEEDED
+  → packages via `ldconfig`/`dpkg -S`) instead of a hand-maintained list, which
+  had drifted (declared
   bundled libraries, missed `libxcb1`/`libdrm2`/`libwayland-*`); the `.rpm`
   `Requires` carries the RHEL names of that same external set. Guarded by
   `tests/test_compile_script.py`.

@@ -47,7 +47,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # PyInstaller tooling + .deb packaging + native-extension build dependencies.
 # The *-dev packages are needed because on armhf PyPI publishes no wheel for
 # ``cryptography``, which is then built from source (hence the Rust toolchain
-# below).
+# below). The X/Qt runtime libraries at the end are what the frozen payload
+# links against at run time: they are installed here so the Depends: scan
+# (packaging/deb/deb-depends.sh) resolves each soname to its owning package
+# with this distro's ldconfig/dpkg -S.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -59,6 +62,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev \
         dpkg-dev \
         fakeroot \
+        libdrm2 \
+        libegl1 \
+        libgl1 \
+        libwayland-client0 \
+        libwayland-cursor0 \
+        libwayland-egl1 \
+        libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Rust toolchain — ``cryptography`` >= 35 uses pyo3 for its native modules and

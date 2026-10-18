@@ -379,8 +379,12 @@ class TestSelfContainedPackages:
         )
         assert "Depends: __DEPENDS__" in control
         script = _script()
-        assert "_compute_runtime_depends" in script
-        assert "_inject_shlib_depends" in script
+        assert "packaging/deb/deb-depends.sh" in script
+        helper = (COMPILE_SH.parent / "packaging" / "deb" / "deb-depends.sh").read_text(
+            encoding="utf-8"
+        )
+        assert "_compute_runtime_depends" in helper
+        assert "_inject_shlib_depends" in helper
 
     def test_rpm_requires_only_external_libraries(self):
         spec = (COMPILE_SH.parent / "packaging" / "rpm" / "hsync-desktop.spec").read_text(

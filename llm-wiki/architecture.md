@@ -86,11 +86,15 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   only in the runner and output path.
 - The `deb`/`deb-all` targets share `_onedir_pyi_flags` and stage
   `packaging/deb/` (DEBIAN control + maintainer scripts, `.desktop` entry,
-  hicolor icons) with `_finalize_deb_stage`; `_inject_shlib_depends` computes the
-  `Depends:` line from the bootloader's `dpkg-shlibdeps` (versioned, e.g. `libc6`)
-  plus the payload's external libraries (`_compute_runtime_depends`: DT_NEEDED
-  sonames not shipped in `_internal`, resolved via `ldconfig`/`dpkg -S`) instead
-  of a hand-maintained list. They bundle the `hsync` client (`_add_data_args`), so the
+  hicolor icons) with `_finalize_deb_stage`;
+  `packaging/deb/deb-depends.sh::_inject_shlib_depends` computes the `Depends:`
+  line from the bootloader's `dpkg-shlibdeps` (versioned, e.g. `libc6`) plus the
+  payload's external libraries
+  (`packaging/deb/deb-depends.sh::_compute_runtime_depends`: DT_NEEDED sonames
+  not shipped in `_internal`, resolved via `ldconfig`/`dpkg -S`) instead of a
+  hand-maintained list. `deb-all` runs that same helper inside the target
+  container, whose binutils/ldconfig/dpkg match the payload's architecture and
+  distro. They bundle the `hsync` client (`_add_data_args`), so the
   package is self-contained and declares no `hsync-client` dependency; the
   `deb-all`/`rpm-all` Docker builds compile the per-arch client inside the same
   container (same arch and distro, hence the same glibc).
