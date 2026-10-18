@@ -4,8 +4,10 @@ The `.rpm` installs HSYNC Desktop system-wide (`/usr/bin/hsync-desktop` plus an
 application-menu entry and the app icon). It is **self-contained**: the matching
 `hsync` engine is bundled, so no separate `hsync-client` package is required.
 
-> The RPM binaries are built on a Rocky Linux 9 baseline (glibc 2.34), so they
-> run on RHEL/Rocky/Alma 9+, recent Fedora, and any distro with glibc ≥ 2.34.
+> The RPM is built per architecture on a RHEL-family baseline: **x86_64** on
+> Rocky Linux 9 (glibc 2.34), so it runs on RHEL/Rocky/Alma 9+, recent Fedora,
+> and any distro with glibc ≥ 2.34; **aarch64** on AlmaLinux 10 (glibc 2.39,
+> required by PySide6's aarch64 wheel), so it needs RHEL/Rocky/Alma 10+.
 
 ## Prerequisites
 

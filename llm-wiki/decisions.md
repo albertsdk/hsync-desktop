@@ -116,3 +116,10 @@ disable unsupported controls) is realized in
   bundled libraries, missed `libxcb1`/`libdrm2`/`libwayland-*`); the `.rpm`
   `Requires` carries the RHEL names of that same external set. Guarded by
   `tests/test_compile_script.py`.
+- **Per-arch Linux builder base**: PySide6 6.12 ships its aarch64 wheel as
+  `manylinux_2_39` (x86_64 as `manylinux_2_34`), so the Debian 12 / RHEL 9 bases
+  cannot host the arm64 build. `deb-all` builds amd64 on `python:3.12-bookworm`
+  (glibc 2.36) and arm64 on `python:3.12-trixie` (glibc 2.41); `rpm-all` builds
+  x86_64 on `rockylinux:9` (glibc 2.34, hence `el9`) and aarch64 on
+  `almalinux:10` (glibc 2.39, hence `el10`). The aarch64 packages therefore
+  require glibc ≥ 2.39 while the amd64 ones keep their older-distro reach.

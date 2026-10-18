@@ -73,7 +73,7 @@
 #     - dist/rpm/hsync-desktop-<ver>-1.<dist>.<arch>.rpm   Installable with dnf
 #   rpm-all:
 #     - dist/rpm/hsync-desktop-<ver>-1.el9.x86_64.rpm
-#     - dist/rpm/hsync-desktop-<ver>-1.el9.aarch64.rpm
+#     - dist/rpm/hsync-desktop-<ver>-1.el10.aarch64.rpm
 #   appimage:
 #     - dist/appimage/hsync-desktop-<ver>-x86_64.AppImage
 #   dmg:
@@ -313,7 +313,7 @@ ${BOLD}Output:${RESET}
         ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.<dist>.<arch>.rpm
     rpm-all:
         ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el9.x86_64.rpm
-        ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el9.aarch64.rpm
+        ${OUTPUT_BASE}/rpm/${DEB_PKG_NAME}-<ver>-1.el10.aarch64.rpm
     appimage:
         ${APPIMAGE_OUTPUT_DIR}/${APP_NAME}-<ver>-x86_64.AppImage
     dmg:
@@ -925,6 +925,13 @@ build_deb_all() {
     arch_docker_platform["amd64"]="linux/amd64"
     arch_docker_platform["arm64"]="linux/arm64"
 
+    # Per-arch base image: PySide6's aarch64 wheel is manylinux_2_39, so the arm64
+    # builder needs trixie (glibc 2.41); bookworm (glibc 2.36) still covers the
+    # amd64 manylinux_2_34 wheel and keeps the amd64 package's glibc floor low.
+    local -A arch_base_image
+    arch_base_image["amd64"]="python:3.12-bookworm"
+    arch_base_image["arm64"]="python:3.12-trixie"
+
     local -a deb_archs=("amd64" "arm64")
     local out_abs
     out_abs="$(cd "${DEB_ALL_OUTPUT_DIR}" && pwd)"
@@ -960,6 +967,7 @@ build_deb_all() {
         DOCKER_BUILDKIT=1 docker build \
             --platform "${docker_platform}" \
             --build-arg TARGET_PLATFORM="${docker_platform}" \
+            --build-arg BASE_IMAGE="${arch_base_image[${deb_arch}]}" \
             -t "${builder_tag}" \
             -f "${DEB_ALL_DIR}/Dockerfile.builder" \
             "${DEB_ALL_DIR}"
@@ -1272,6 +1280,13 @@ build_rpm_all() {
     arch_docker_platform["x86_64"]="linux/amd64"
     arch_docker_platform["aarch64"]="linux/arm64"
 
+    # Per-arch base image: PySide6's aarch64 wheel is manylinux_2_39, so aarch64
+    # needs el10 (glibc 2.39); the x86_64 manylinux_2_34 wheel still installs on
+    # the rockylinux:9 baseline (glibc 2.34), which keeps el9 reach for x86_64.
+    local -A arch_base_image
+    arch_base_image["x86_64"]="rockylinux:9"
+    arch_base_image["aarch64"]="almalinux:10"
+
     local -a rpm_archs=("x86_64" "aarch64")
 
     local pyinstaller_flags="$(_onedir_pyi_flags) --strip"
@@ -1314,6 +1329,7 @@ build_rpm_all() {
         DOCKER_BUILDKIT=1 docker build \
             --platform "${docker_platform}" \
             --build-arg TARGET_PLATFORM="${docker_platform}" \
+            --build-arg BASE_IMAGE="${arch_base_image[${rpm_arch}]}" \
             -t "${builder_tag}" \
             -f "${RPM_DIR}/Dockerfile.builder" \
             "${RPM_DIR}"
@@ -1422,7 +1438,8 @@ build_rpm_all() {
     echo -e "  ${BOLD}Version:${RESET}   ${version}"
     echo -e "  ${BOLD}Output:${RESET}    ${out_abs}/"
     echo
-    echo -e "${DIM}Install with:  sudo dnf install ${out_abs}/${RPM_PKG_NAME}-${version}-1.el9.<arch>.rpm${RESET}"
+    echo -e "${DIM}Install with:  sudo dnf install ${out_abs}/${RPM_PKG_NAME}-${version}-1.el9.x86_64.rpm${RESET}"
+    echo -e "${DIM}              sudo dnf install ${out_abs}/${RPM_PKG_NAME}-${version}-1.el10.aarch64.rpm${RESET}"
 }
 
 # -----------------------------------------------------------------------------

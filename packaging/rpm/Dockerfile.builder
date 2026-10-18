@@ -2,11 +2,14 @@
 #
 # HSYNC — RPM builder image (x86_64 / aarch64)
 #
-# Single-stage builder based on ``rockylinux:9`` (RHEL 9, glibc 2.34), the
-# RHEL-family baseline for the .rpm targets. 64-bit only: RHEL/Rocky publish no
-# armv7 userspace, so RPM covers x86_64 + aarch64 only (armv7 stays on the
+# Single-stage builder on a RHEL-family base, 64-bit only: RHEL/Rocky publish
+# no armv7 userspace, so RPM covers x86_64 + aarch64 only (armv7 stays on the
 # .deb armhf / rpi binaries — and is unsupported for this GUI anyway, since
 # PySide6 publishes no armv7 Linux wheels).
+#
+# BASE_IMAGE is chosen per arch by the rpm-all target (see compile.sh):
+# rockylinux:9 (glibc 2.34) for x86_64, whose PySide6 wheel is manylinux_2_34,
+# and almalinux:10 (glibc 2.39) for aarch64, whose wheel is manylinux_2_39.
 #
 # Installs Python 3.12 (AppStream), Poetry and rpm-build; ready to:
 #   1. invoke PyInstaller on the project sources mounted at /repo
@@ -15,6 +18,7 @@
 # Multi-arch manifest, so ``--platform`` selects the arch:
 #   linux/amd64  -> x86_64
 #   linux/arm64  -> aarch64
+# ``BASE_IMAGE`` (default rockylinux:9) is overridden per arch by rpm-all.
 #
 # Built and consumed locally by:  compile.sh --target rpm-all
 # Never published to any registry.
@@ -34,10 +38,11 @@ ENV LC_ALL=C.UTF-8 \
     POETRY_VIRTUALENVS_CREATE=true \
     POETRY_NO_INTERACTION=1
 
-# Python 3.12 from AppStream, binutils for PyInstaller --strip, rpm-build for
+# Python 3.12 from the distro, binutils for PyInstaller --strip, rpm-build for
 # packaging, plus the minimal X/Qt runtime libraries the frozen GUI links
 # against at run time (also declared as Requires: in the spec). PySide6 ships
-# manylinux_2_28 wheels, so it installs on glibc 2.34 without a source build.
+# binary manylinux wheels, so it installs on the matching glibc baseline
+# without a source build.
 RUN dnf -y install --setopt=install_weak_deps=False \
         python3.12 \
         python3.12-pip \

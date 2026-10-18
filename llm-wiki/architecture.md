@@ -70,9 +70,9 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | ------ | ------ | --- |
 | `native` (default) | `dist/<os>-<arch>/hsync-desktop[.exe]` | host PyInstaller onefile; bundles `../hsync-client/dist/<os>-<arch>/hsync` when present |
 | `deb` | `dist/deb/hsync-desktop_<ver>_<arch>.deb` | host PyInstaller onedir staged under `/usr/lib/hsync-desktop` + `.desktop` launcher + icons, with the host-arch `hsync` client bundled (self-contained) |
-| `deb-all` | `dist/deb/hsync-desktop_<ver>_{amd64,arm64}.deb` | Docker cross-build from `packaging/deb/Dockerfile.builder`; armhf unsupported (no PySide6 armv7 wheels) |
+| `deb-all` | `dist/deb/hsync-desktop_<ver>_{amd64,arm64}.deb` | Docker cross-build from `packaging/deb/Dockerfile.builder` with a per-arch base (amd64: `python:3.12-bookworm`, glibc 2.36; arm64: `python:3.12-trixie`, glibc 2.41, required by PySide6's `manylinux_2_39` aarch64 wheel); armhf unsupported (no PySide6 armv7 wheels) |
 | `rpm` | `dist/rpm/hsync-desktop-<ver>-1.<dist>.<arch>.rpm` | host `.venv` + `rpmbuild`; the same onedir payload staged for `/usr/lib/hsync-desktop` with the host-arch `hsync` client bundled + Qt/X runtime libs (self-contained) |
-| `rpm-all` | `dist/rpm/hsync-desktop-<ver>-1.el9.{x86_64,aarch64}.rpm` | Docker cross-build from `packaging/rpm/Dockerfile.builder` (Rocky Linux 9) under `qemu-user` binfmt |
+| `rpm-all` | `dist/rpm/hsync-desktop-<ver>-1.el9.x86_64.rpm` and `...-1.el10.aarch64.rpm` | Docker cross-build from `packaging/rpm/Dockerfile.builder` under `qemu-user` binfmt with a per-arch base (x86_64: `rockylinux:9`, glibc 2.34, hence `el9`; aarch64: `almalinux:10`, glibc 2.39, hence `el10`, required by PySide6's `manylinux_2_39` aarch64 wheel) |
 | `appimage` | `dist/appimage/hsync-desktop-<ver>-x86_64.AppImage` | host onefile (client bundled) wrapped in an AppDir and packaged with `appimagetool`; Linux x86_64 only |
 | `dmg` | `dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg` | host onefile `--windowed` (client bundled) as `hsync-desktop.app`; `Info.plist` merged from `packaging/macos/Info.plist`, `.icns` via `sips`/`iconutil`, `.dmg` via `hdiutil`; darwin only |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |

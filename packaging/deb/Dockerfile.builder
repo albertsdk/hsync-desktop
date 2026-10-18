@@ -2,9 +2,9 @@
 #
 # HSYNC — Linux builder image (amd64 / arm64 / armhf)
 #
-# Single-stage builder based on the official ``python:3.12-bookworm`` multi-arch
-# image (Debian 12, glibc 2.36, CPython 3.12 built ``--enable-shared``), plus
-# Poetry, the Rust toolchain and ``dpkg-dev``. It is ready to:
+# Single-stage builder based on the official multi-arch ``python:3.12-*`` image
+# (CPython 3.12 built ``--enable-shared``), plus Poetry, the Rust toolchain and
+# ``dpkg-dev``. It is ready to:
 #   1. invoke PyInstaller on the project sources mounted at /repo
 #   2. assemble a .deb package with dpkg-deb
 #
@@ -14,7 +14,11 @@
 # builds crash non-deterministically. ``--enable-shared`` (as built upstream)
 # is required by PyInstaller.
 #
-# debian:bookworm targets Debian 12 / Ubuntu 22.04+ (glibc 2.36).
+# BASE_IMAGE picks the target distro. The default (bookworm) targets Debian 12 /
+# Ubuntu 22.04+ (glibc 2.36) and is used for amd64 and by the rpi target;
+# ``compile.sh --target deb-all`` overrides it per arch, building arm64 on
+# trixie (glibc 2.41) because PySide6's aarch64 wheel is manylinux_2_39 and
+# cannot install on bookworm's 2.36.
 #
 # Built and consumed locally by:
 #   compile.sh --target deb-all
@@ -22,11 +26,12 @@
 # Never published to any registry.
 
 # Base image and target platform are parametrised so the same Dockerfile
-# produces a builder for every CPU family. ``python:3.12-bookworm`` is a
+# produces a builder for every CPU family. ``python:3.12-<distro>`` is a
 # multi-arch manifest, so ``--platform`` alone selects the architecture:
 #   linux/amd64 → amd64
 #   linux/arm64 → arm64
 #   linux/arm/v7 → armhf (armv7)
+# ``BASE_IMAGE`` is overridden per arch by the deb-all target (see compile.sh).
 ARG BASE_IMAGE=python:3.12-bookworm
 ARG TARGET_PLATFORM=linux/amd64
 

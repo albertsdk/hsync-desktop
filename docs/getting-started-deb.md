@@ -11,6 +11,11 @@ provides `/usr/bin/hsync`.
   publishes no 32-bit Linux wheels)
 - A root shell or `sudo`
 
+> The `.deb` is built per architecture: **amd64** on Debian 12 (glibc 2.36), so
+> it runs on Debian 12+ / Ubuntu 22.04+; **arm64** on Debian 13 "trixie" (glibc
+> 2.41, required by PySide6's aarch64 wheel), so it needs Debian 13+ /
+> Ubuntu 25.04+.
+
 ## Install
 
 The package depends on `hsync-client`, so install the client package first (or

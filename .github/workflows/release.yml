@@ -345,7 +345,7 @@ jobs:
             "hsync-desktop_*_amd64.deb|hsync-desktop-amd64.deb" \
             "hsync-desktop_*_arm64.deb|hsync-desktop-arm64.deb" \
             "hsync-desktop-*-1.el9.x86_64.rpm|hsync-desktop-x86_64.rpm" \
-            "hsync-desktop-*-1.el9.aarch64.rpm|hsync-desktop-aarch64.rpm" \
+            "hsync-desktop-*-1.el10.aarch64.rpm|hsync-desktop-aarch64.rpm" \
             "hsync-desktop-*-x86_64.AppImage|hsync-desktop-x86_64.AppImage" \
             "hsync-desktop-*-darwin-arm64.dmg|hsync-desktop-darwin-arm64.dmg" \
             "hsync-desktop-*-darwin-amd64.dmg|hsync-desktop-darwin-amd64.dmg" \
