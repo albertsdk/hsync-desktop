@@ -24,11 +24,13 @@ ARG TARGET_PLATFORM=linux/amd64
 
 FROM --platform=${TARGET_PLATFORM} ${BASE_IMAGE}
 
+# POETRY_VIRTUALENVS_IN_PROJECT must NOT be set here: an environment variable
+# overrides the POETRY_VIRTUALENVS_IN_PROJECT=1 the container command exports
+# for the hsync-client in-project .venv, which that build requires.
 ENV LC_ALL=C.UTF-8 \
     PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=0 \
     POETRY_VIRTUALENVS_CREATE=true \
     POETRY_NO_INTERACTION=1
 

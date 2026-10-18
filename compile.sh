@@ -1069,7 +1069,11 @@ build_deb_all() {
         local bin_dir="${arch_build_dir}/pyinstaller"
         local work_dir="${arch_build_dir}/work"
         local stage_dir="${arch_build_dir}/${DEB_PKG_NAME}_${deb_version}_${deb_arch}"
-        mkdir -p "${bin_dir}" "${work_dir}"
+        # Fresh, arch-specific home for the client's in-project venv; mounted over
+        # /repo/hsync-client/.venv below so the shared checkout keeps its own .venv
+        # and a later arch never reuses this one's venv.
+        local client_venv_dir="${arch_build_dir}/venv-client"
+        mkdir -p "${bin_dir}" "${work_dir}" "${client_venv_dir}"
 
         # The container builds and stages this arch's client at
         # hsync_desktop/bin/hsync; bundle it alongside the UI/icon data.
@@ -1097,6 +1101,7 @@ build_deb_all() {
             -u "$(id -u):$(id -g)" \
             -e HOME=/tmp -e XDG_CACHE_HOME=/tmp \
             -v "${repo_root}:/repo" \
+            -v "${client_venv_dir}:/repo/hsync-client/.venv" \
             -w /repo/hsync-desktop \
             -e LC_ALL=C -e PYTHONWARNINGS=ignore \
             -e PIP_DEFAULT_TIMEOUT=300 -e PIP_RETRIES=10 \
@@ -1105,13 +1110,17 @@ build_deb_all() {
             "${builder_tag}" \
             bash -c "
                 set -euo pipefail
-                poetry config virtualenvs.in-project true
                 poetry config installer.max-workers 4
 
                 # Build the matching-arch, matching-distro hsync-client from the
                 # sibling checkout so the bundled engine shares the GUI's glibc.
+                # The client's compile.sh requires an in-project .venv. Root it in a
+                # fresh per-arch dir mounted over /repo/hsync-client/.venv so the
+                # shared checkout keeps its own .venv and a later arch never reuses
+                # this one's venv. The desktop venv stays container-local.
                 (
                     cd /repo/hsync-client
+                    export POETRY_VIRTUALENVS_IN_PROJECT=1
                     client_ok=0
                     for attempt in 1 2 3; do
                         if poetry install --no-root --without dev; then client_ok=1; break; fi
@@ -1413,7 +1422,11 @@ build_rpm_all() {
         local arch_build_dir="${RPM_ALL_BUILD_DIR}/${rpm_arch}"
         local bin_dir="${arch_build_dir}/pyinstaller"
         local work_dir="${arch_build_dir}/work"
-        mkdir -p "${bin_dir}" "${work_dir}"
+        # Fresh, arch-specific home for the client's in-project venv; mounted over
+        # /repo/hsync-client/.venv below so the shared checkout keeps its own .venv
+        # and a later arch never reuses this one's venv.
+        local client_venv_dir="${arch_build_dir}/venv-client"
+        mkdir -p "${bin_dir}" "${work_dir}" "${client_venv_dir}"
 
         # The container builds and stages this arch's client; map the rpm arch to
         # the client's Linux platform directory.
@@ -1446,6 +1459,7 @@ build_rpm_all() {
             -u "$(id -u):$(id -g)" \
             -e HOME=/tmp -e XDG_CACHE_HOME=/tmp \
             -v "${repo_root}:/repo" \
+            -v "${client_venv_dir}:/repo/hsync-client/.venv" \
             -w /repo/hsync-desktop \
             -e LC_ALL=C -e PYTHONWARNINGS=ignore \
             -e PIP_DEFAULT_TIMEOUT=300 -e PIP_RETRIES=10 \
@@ -1454,13 +1468,17 @@ build_rpm_all() {
             "${builder_tag}" \
             bash -c "
                 set -euo pipefail
-                poetry config virtualenvs.in-project true
                 poetry config installer.max-workers 4
 
                 # Build the matching-arch, matching-distro hsync-client from the
                 # sibling checkout so the bundled engine shares the GUI's glibc.
+                # The client's compile.sh requires an in-project .venv. Root it in a
+                # fresh per-arch dir mounted over /repo/hsync-client/.venv so the
+                # shared checkout keeps its own .venv and a later arch never reuses
+                # this one's venv. The desktop venv stays container-local.
                 (
                     cd /repo/hsync-client
+                    export POETRY_VIRTUALENVS_IN_PROJECT=1
                     client_ok=0
                     for attempt in 1 2 3; do
                         if poetry install --no-root --without dev; then client_ok=1; break; fi
@@ -1942,7 +1960,10 @@ build_windows() {
     icon_abs="$(cd "$(dirname "${WINDOWS_ICON}")" && pwd)/$(basename "${WINDOWS_ICON}")"
     iss_abs="$(cd "$(dirname "${WINDOWS_ISS}")" && pwd)/$(basename "${WINDOWS_ISS}")"
 
-    if ! "${iscc}" \
+    # MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL stop Git Bash from rewriting the
+    # /D... switches into Windows paths; otherwise ISCC reads them as extra
+    # "script filename" arguments and aborts. Both are no-ops outside MSYS.
+    if ! MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "${iscc}" \
         "/DAppVersion=${version}" \
         "/DVersionInfoVersion=$(_windows_numeric_version "${version}")" \
         "/DSourceExe=$(_windows_path "${exe_abs}")" \

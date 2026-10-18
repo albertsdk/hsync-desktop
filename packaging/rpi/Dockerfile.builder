@@ -31,13 +31,16 @@ ARG TARGET_PLATFORM=linux/amd64
 
 FROM --platform=${TARGET_PLATFORM} ${BASE_IMAGE}
 
+# POETRY_VIRTUALENVS_IN_PROJECT must NOT be set here: an environment variable
+# overrides the POETRY_VIRTUALENVS_IN_PROJECT=1 the deb/rpm container commands
+# export for the hsync-client in-project .venv. This builder keeps its venv
+# out-of-tree by default, as its container command intends.
 ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
     P2PG=C.UTF-8 \
     PATH=/opt/rust/cargo/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=0 \
     POETRY_VIRTUALENVS_CREATE=true \
     POETRY_NO_INTERACTION=1
 
