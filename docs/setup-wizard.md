@@ -28,7 +28,8 @@ the main window appears. You can always reopen it later:
    Not sure? Use **Help me choose**: answer a few short questions (are you
    sharing with a team? are your devices on the same network? do you want only a
    copy or edits from both sides?) and the wizard selects the right option for
-   you. Only the questions that apply are shown.
+   you. Questions that do not apply stay visible but are disabled, with a short
+   explanation.
 
 2. **Folder** — pick the folder to protect or share. The suggested locations use
    your own system folders (Documents, Pictures), the free space is shown, and a

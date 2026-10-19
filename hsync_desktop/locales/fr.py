@@ -568,7 +568,7 @@ translations: dict[str, str] = {
     "wizard.review.value_on": "Activé",
     "wizard.review.value_off": "Désactivé",
     "wizard.success.title": "Tout est prêt !",
-    "wizard.success.desc": "HSYNC est configuré. Votre première synchronisation démarre.",
+    "wizard.success.desc": "HSYNC est configuré et prêt quand vous l'êtes.",
     "wizard.success.invite": "Inviter un autre appareil",
     "wizard.success.invite_text": "Groupe : {group}\nMot de passe : {password}",
     "wizard.success.what_next": "La première synchronisation peut prendre du temps et demander une confirmation de sécurité.",
@@ -628,4 +628,6 @@ translations: dict[str, str] = {
     "wizard.tip.continuous": "Garde le dossier partagé à jour pendant que HSYNC fonctionne.",
     "wizard.tip.auto_sync": "Démarrer la synchronisation automatiquement à l'ouverture de HSYNC.",
     "wizard.tip.start_at_login": "Démarrer HSYNC automatiquement à l'ouverture de votre session.",
+    "wizard.help.note_team": "Les questions suivantes ne sont pas nécessaires pour un partage avec une équipe.",
+    "wizard.help.note_same_network": "La question suivante n'est pas nécessaire si vos appareils sont sur le même réseau.",
 }

@@ -265,10 +265,10 @@ class SetupWizard(QDialog):
         if self._step == STEP_REVIEW:
             self._primary.setText(tr("wizard.action.finish"))
             # Completion action: no directional arrow.
-            self._primary.setIcon(QIcon())
+            self._primary.setTrailingIcon(QIcon())
         else:
             self._primary.setText(tr("wizard.action.continue"))
-            self._primary.setIcon(themed_icon("go-next", "#FFFFFF"))
+            self._primary.setTrailingIcon(themed_icon("go-next", "#FFFFFF"))
 
     def _on_back(self) -> None:
         self._store_pages()

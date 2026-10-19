@@ -591,7 +591,7 @@ translations: dict[str, str] = {
     "wizard.review.value_on": "Aan",
     "wizard.review.value_off": "Uit",
     "wizard.success.title": "Alles is klaar!",
-    "wizard.success.desc": "HSYNC is geconfigureerd. Je eerste synchronisatie start nu.",
+    "wizard.success.desc": "HSYNC is geconfigureerd en klaar wanneer jij dat bent.",
     "wizard.success.invite": "Nodig een ander apparaat uit",
     "wizard.success.invite_text": "Groep: {group}\nWachtwoord: {password}",
     "wizard.success.what_next": "De eerste synchronisatie kan even duren en om een beveiligingsbevestiging vragen.",
@@ -651,4 +651,6 @@ translations: dict[str, str] = {
     "wizard.tip.continuous": "Houd de gedeelde map actueel terwijl HSYNC draait.",
     "wizard.tip.auto_sync": "Automatisch synchroniseren wanneer je HSYNC opent.",
     "wizard.tip.start_at_login": "HSYNC automatisch starten wanneer je aanmeldt op je computer.",
+    "wizard.help.note_team": "De volgende vragen zijn niet nodig bij delen met een team.",
+    "wizard.help.note_same_network": "De volgende vraag is niet nodig als je apparaten in hetzelfde netwerk zitten.",
 }

@@ -591,7 +591,7 @@ translations: dict[str, str] = {
     "wizard.review.value_on": "开",
     "wizard.review.value_off": "关",
     "wizard.success.title": "全部就绪！",
-    "wizard.success.desc": "HSYNC 已配置。现在开始首次同步。",
+    "wizard.success.desc": "HSYNC 已配置完成，随时可以开始。",
     "wizard.success.invite": "邀请其他设备",
     "wizard.success.invite_text": "组：{group}\n密码：{password}",
     "wizard.success.what_next": "首次同步可能需要一些时间，并可能要求安全确认。",
@@ -651,4 +651,6 @@ translations: dict[str, str] = {
     "wizard.tip.continuous": "HSYNC 运行时持续保持共享文件夹最新。",
     "wizard.tip.auto_sync": "打开 HSYNC 时自动开始同步。",
     "wizard.tip.start_at_login": "登录计算机时自动启动 HSYNC。",
+    "wizard.help.note_team": "与团队共享时无需回答后面的问题。",
+    "wizard.help.note_same_network": "设备在同一网络时无需回答下一个问题。",
 }

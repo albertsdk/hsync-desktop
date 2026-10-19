@@ -12,8 +12,8 @@ language.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRegularExpression, Qt, Signal
-from PySide6.QtGui import QRegularExpressionValidator
+from PySide6.QtCore import QRegularExpression, QSize, Qt, Signal
+from PySide6.QtGui import QIcon, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -83,11 +83,55 @@ def set_field_error(field: QWidget, error: InlineError, message: str) -> None:
 
 
 class PrimaryButton(QPushButton):
-    """A push button styled with the theme's ``#primaryButton`` accent."""
+    """Accent button whose optional icon sits *after* the text.
+
+    ``QPushButton`` always places ``setIcon`` on the leading side, so the label
+    and the trailing icon are laid out explicitly. The text still comes from
+    :meth:`setText` (and is exposed as the accessible name).
+    """
 
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
-        super().__init__(text, parent)
+        super().__init__(parent)
         self.setObjectName("primaryButton")
+        self._label = QLabel()
+        self._label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._label.setStyleSheet("color: #FFFFFF; background: transparent;")
+        self._icon_label = QLabel()
+        self._icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._icon_label.setVisible(False)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addStretch(1)
+        layout.addWidget(self._label)
+        layout.addWidget(self._icon_label)
+        layout.addStretch(1)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:  # noqa: N802 (Qt naming)
+        self._label.setText(text)
+        self.setAccessibleName(text)
+
+    def text(self) -> str:
+        return self._label.text()
+
+    def setTrailingIcon(self, icon: QIcon) -> None:  # noqa: N802 (Qt naming)
+        """Show *icon* after the text (pass a null icon to hide it)."""
+        self._icon_label.setPixmap(icon.pixmap(16, 16))
+        self._icon_label.setVisible(not icon.isNull())
+
+    def sizeHint(self) -> QSize:
+        base = super().sizeHint()
+        layout = self.layout()
+        if layout is None:
+            return base
+        hint = layout.sizeHint()
+        # Account for the QSS padding (6px vertical, 16px per side).
+        return QSize(
+            max(base.width(), hint.width() + 32),
+            max(base.height(), hint.height() + 12),
+        )
 
 
 class RadioCard(QFrame):

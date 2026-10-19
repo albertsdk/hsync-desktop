@@ -37,10 +37,11 @@ closes so the normal pre-flight dialogs stay on the main window.
 "Help me choose" opens `wizard/pages/mode.py::HelpChoiceDialog`: three explicit
 questions, each with its own `QButtonGroup` and all labels via `tr()`. The first
 ("sharing with a team?") resolves `team_share`; otherwise the same-network
-question resolves `lan_sync` or reveals the "Only a copy" / "Edits from both
-sides" question (`backup` / `remote_sync`). Follow-ups are shown only when they
-apply and Confirm stays disabled until the active path is answered, so all four
-modes are reachable.
+question resolves `lan_sync` or the "Only a copy" / "Edits from both sides"
+question (`backup` / `remote_sync`). Nothing is hidden: follow-ups that do not
+apply stay visible but are disabled, with a short explanation (`wizard.help.note_*`).
+Confirm stays disabled until the active path is answered, so all four modes are
+reachable.
 
 ## Interaction details
 

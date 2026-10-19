@@ -591,7 +591,7 @@ translations: dict[str, str] = {
     "wizard.review.value_on": "Вкл.",
     "wizard.review.value_off": "Выкл.",
     "wizard.success.title": "Всё готово!",
-    "wizard.success.desc": "HSYNC настроен. Первая синхронизация начинается.",
+    "wizard.success.desc": "HSYNC настроен и готов, когда будете готовы вы.",
     "wizard.success.invite": "Пригласить другое устройство",
     "wizard.success.invite_text": "Группа: {group}\nПароль: {password}",
     "wizard.success.what_next": "Первая синхронизация может занять время и запросить подтверждение безопасности.",
@@ -651,4 +651,6 @@ translations: dict[str, str] = {
     "wizard.tip.continuous": "Поддерживать общую папку в актуальном состоянии, пока HSYNC запущен.",
     "wizard.tip.auto_sync": "Автоматически начинать синхронизацию при открытии HSYNC.",
     "wizard.tip.start_at_login": "Автоматически запускать HSYNC при входе в систему.",
+    "wizard.help.note_team": "Следующие вопросы не нужны при работе с командой.",
+    "wizard.help.note_same_network": "Следующий вопрос не нужен, если устройства в одной сети.",
 }

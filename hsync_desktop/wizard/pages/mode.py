@@ -41,11 +41,11 @@ _MODE_ICONS = {
 class HelpChoiceDialog(QDialog):
     """Explicit chooser covering all four use cases.
 
-    Three short questions, with the follow-ups revealed only when they apply:
-    "sharing with a team?" → done; otherwise "same network?" → done or
-    "copy vs edits". Every button is labelled through :func:`tr`, so it is
-    translated in all locales regardless of Qt's own (not bundled)
-    standard-button translations.
+    Three short questions, always visible: "sharing with a team?" → done;
+    otherwise "same network?" → done or "copy vs edits". Follow-ups that do not
+    apply stay visible but are disabled, with a short explanation. Every button
+    is labelled through :func:`tr`, so it is translated in all locales
+    regardless of Qt's own (not bundled) standard-button translations.
     """
 
     def __init__(self, current: WizardMode | None = None, parent: QWidget | None = None) -> None:
@@ -97,6 +97,11 @@ class HelpChoiceDialog(QDialog):
         need_layout.addLayout(self._choice_row(self._copy_only, self._edits_both))
         layout.addWidget(self._need_box)
 
+        # Explains why a follow-up question is disabled (nothing is hidden).
+        self._note = muted_label()
+        self._note.setVisible(False)
+        layout.addWidget(self._note)
+
         self._prefill(current)
 
         buttons = QHBoxLayout()
@@ -144,9 +149,19 @@ class HelpChoiceDialog(QDialog):
             self._copy_only.setChecked(True)
 
     def _on_answer_changed(self, *_args) -> None:
+        # Nothing disappears: a follow-up that does not apply is disabled and
+        # accompanied by an explanation.
         personal = self._personal.isChecked()
-        self._same_box.setVisible(personal)
-        self._need_box.setVisible(personal and self._same_no.isChecked())
+        self._same_box.setEnabled(personal)
+        self._need_box.setEnabled(personal and self._same_no.isChecked())
+        if self._team.isChecked():
+            self._note.setText(tr("wizard.help.note_team"))
+            self._note.setVisible(True)
+        elif personal and self._same_yes.isChecked():
+            self._note.setText(tr("wizard.help.note_same_network"))
+            self._note.setVisible(True)
+        else:
+            self._note.setVisible(False)
         self._update_ok()
 
     def _update_ok(self) -> None:

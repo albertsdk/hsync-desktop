@@ -195,19 +195,27 @@ class TestHelpDialog:
             dlg.close()
         assert reached == set(WizardMode)
 
-    def test_follow_ups_are_hidden_until_they_apply(self, qtbot):
+    def test_follow_ups_stay_visible_but_are_disabled_with_a_note(self, qtbot):
         from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
 
         dlg = HelpChoiceDialog()
         qtbot.addWidget(dlg)
-        assert dlg._same_box.isHidden() and dlg._need_box.isHidden()
+        # Nothing is hidden: the follow-ups exist and are merely disabled.
+        assert not dlg._same_box.isHidden() and not dlg._need_box.isHidden()
+        assert not dlg._same_box.isEnabled() and not dlg._need_box.isEnabled()
+        assert dlg._note.isHidden()
         dlg._personal.setChecked(True)
-        assert not dlg._same_box.isHidden()
-        assert dlg._need_box.isHidden()
+        assert dlg._same_box.isEnabled()
+        assert not dlg._need_box.isEnabled()
         dlg._same_no.setChecked(True)
-        assert not dlg._need_box.isHidden()
+        assert dlg._need_box.isEnabled()
         dlg._team.setChecked(True)
-        assert dlg._same_box.isHidden() and dlg._need_box.isHidden()
+        assert not dlg._same_box.isEnabled() and not dlg._need_box.isEnabled()
+        assert not dlg._note.isHidden()
+        assert dlg._note.text() == tr("wizard.help.note_team")
+        dlg._personal.setChecked(True)
+        dlg._same_yes.setChecked(True)
+        assert dlg._note.text() == tr("wizard.help.note_same_network")
         dlg.close()
 
     def test_buttons_are_translated(self, qtbot):
@@ -456,9 +464,9 @@ class TestLayoutImprovements:
     def test_footer_arrows(self, wizard):
         assert not wizard._back.icon().isNull()
         wizard._set_step(1)
-        assert not wizard._primary.icon().isNull()  # Continue: forward arrow
+        assert not wizard._primary._icon_label.isHidden()  # Continue: trailing arrow
         wizard._set_step(3)  # review
-        assert wizard._primary.icon().isNull()  # Finish: no arrow
+        assert wizard._primary._icon_label.isHidden()  # Finish: no arrow
 
     def test_connection_fields_have_tooltips(self, wizard):
         page = wizard.connection_page

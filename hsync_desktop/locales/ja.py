@@ -591,7 +591,7 @@ translations: dict[str, str] = {
     "wizard.review.value_on": "オン",
     "wizard.review.value_off": "オフ",
     "wizard.success.title": "準備完了です！",
-    "wizard.success.desc": "HSYNC を設定しました。最初の同期を開始します。",
+    "wizard.success.desc": "HSYNC の設定が完了し、いつでも開始できます。",
     "wizard.success.invite": "別の機器を招待",
     "wizard.success.invite_text": "グループ: {group}\nパスワード: {password}",
     "wizard.success.what_next": "最初の同期には時間がかかり、セキュリティ確認を求められることがあります。",
@@ -651,4 +651,6 @@ translations: dict[str, str] = {
     "wizard.tip.continuous": "HSYNC の実行中、共有フォルダーを常に最新に保ちます。",
     "wizard.tip.auto_sync": "HSYNC を開いたときに自動で同期を開始します。",
     "wizard.tip.start_at_login": "コンピューターへのログイン時に HSYNC を自動起動します。",
+    "wizard.help.note_team": "チームと共有する場合、次の質問は不要です。",
+    "wizard.help.note_same_network": "機器が同じネットワークにある場合、次の質問は不要です。",
 }
