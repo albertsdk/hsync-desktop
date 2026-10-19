@@ -56,3 +56,18 @@ Not a model — `QSettings` keyed by `config.py` `DEFAULT_*` constants. Secrets 
 stored Fernet-encrypted (`crypto.py`, `_ENC_PREFIX` marker). See
 [settings.md](modules/settings.md) for keys, encryption, and the
 config→CLI-args mapping.
+
+## Setup wizard models
+
+| Type | Location | Role |
+| ---- | -------- | ---- |
+| `WizardMode` | `wizard/model.py::WizardMode` | StrEnum of the four use cases |
+| `WizardProfile` | `wizard/model.py::WizardProfile` | derived defaults per mode |
+| `WizardDraft` | `wizard/model.py::WizardDraft` | editable wizard state (secrets in clear in memory, encrypted at rest) |
+| `Issue` | `wizard/validation.py::Issue` | `(level, code, field)` validation issue |
+| `ProbeOutcome` | `wizard/probes.py::ProbeOutcome` | async probe result |
+| `ServerProbeResult` | `engine/probes.py::ServerProbeResult` | HTTP probe result (status/latency/auth) |
+| `FolderCheck` | `settings/validators.py::FolderCheck` | sync-folder validation outcome |
+| `ApplyResult` | `wizard/apply.py::ApplyResult` | trust-pin result (`""`/`no_binary`/`failed`) |
+
+The draft is persisted under `wizard/*`; see [wizard.md](modules/wizard.md).

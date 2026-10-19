@@ -307,3 +307,49 @@ class TestAboutContent:
         for module in self.ALL:
             label = module.translations["menu.help.about"]
             assert "HSYNC" not in label, module.__name__
+
+
+class TestWizardTerminology:
+    """The setup wizard strings exist everywhere and avoid topology jargon."""
+
+    MODE_TITLE_KEYS = [
+        "wizard.mode.backup.title",
+        "wizard.mode.lan_sync.title",
+        "wizard.mode.remote_sync.title",
+        "wizard.mode.team_share.title",
+    ]
+
+    def test_wizard_keys_exist_in_all_locales(self):
+        required = [
+            "wizard.title",
+            "wizard.subtitle",
+            "wizard.success.title",
+            "wizard.error.mode_required",
+            "menu.setup_wizard",
+            *self.MODE_TITLE_KEYS,
+        ]
+        for module in ALL_MODULES:
+            for key in required:
+                assert key in module.translations, f"{module.__name__}:{key}"
+
+    def test_wizard_strings_avoid_master_and_bootnode(self):
+        for module in ALL_MODULES:
+            for key, value in module.translations.items():
+                if key.startswith("wizard.") or key == "menu.setup_wizard":
+                    lowered = value.lower()
+                    assert "master" not in lowered, f"{module.__name__}:{key}"
+                    assert "bootnode" not in lowered, f"{module.__name__}:{key}"
+
+
+class TestEllipsisPolicy:
+    """Ellipsis only in the tray menu; the menu bar stays clean."""
+
+    def test_tray_labels_have_ellipsis(self):
+        for module in ALL_MODULES:
+            assert module.translations["tray.settings"].endswith("…"), module.__name__
+            assert module.translations["tray.setup_wizard"].endswith("…"), module.__name__
+
+    def test_menu_bar_labels_have_no_ellipsis(self):
+        for module in ALL_MODULES:
+            assert not module.translations["menu.settings"].endswith("…"), module.__name__
+            assert not module.translations["menu.setup_wizard"].endswith("…"), module.__name__

@@ -164,6 +164,35 @@ QGroupBox::title {{
     left: 12px;
     padding: 0 6px;
 }}
+QFrame#radioCard {{
+    border: 1px solid {border};
+    border-radius: 8px;
+    background-color: transparent;
+}}
+QFrame#radioCard:hover {{
+    border-color: {accent};
+}}
+QFrame#radioCard[selected="true"] {{
+    border: 2px solid {accent};
+    background-color: {card_selected};
+}}
+QLabel#stepBadgeCurrent {{
+    background-color: {accent};
+    color: #FFFFFF;
+    border-radius: 11px;
+    font-weight: bold;
+}}
+QLabel#stepBadgeDone {{
+    background-color: {card_selected};
+    color: {muted_text};
+    border: 1px solid {border};
+    border-radius: 11px;
+}}
+QLabel#stepBadgeTodo {{
+    color: {muted_text};
+    border: 1px solid {border};
+    border-radius: 11px;
+}}
 QPlainTextEdit#logViewer {{
     border: 1px solid {border};
     border-radius: 6px;
@@ -220,6 +249,21 @@ QCheckBox:disabled {{
 QLabel:disabled {{
     color: {disabled_text};
 }}
+QLabel#inlineError {{
+    color: {error_text};
+}}
+QLabel#statusOk {{
+    color: {success_text};
+}}
+QLabel#statusError {{
+    color: {error_text};
+}}
+QLabel#mutedHint {{
+    color: {muted_text};
+}}
+QLineEdit[error="true"], QComboBox[error="true"], QSpinBox[error="true"] {{
+    border: 1px solid {error_text};
+}}
 """
 
 
@@ -232,6 +276,10 @@ def _light_qss() -> str:
         accent_hover=_get_accent_hover().name(),
         disabled_text="#A0A0A0",
         menu_hover="#E0E0E0",
+        error_text="#C0392B",
+        muted_text="#6A6A6A",
+        success_text="#2EA043",
+        card_selected="#EAF5EE",
     )
 
 
@@ -244,6 +292,10 @@ def _dark_qss() -> str:
         accent_hover=_get_accent_hover().name(),
         disabled_text="#606060",
         menu_hover="#3A3A3A",
+        error_text="#FF6B6B",
+        muted_text="#9A9A9A",
+        success_text="#3FB950",
+        card_selected="#1F2A23",
     )
 
 

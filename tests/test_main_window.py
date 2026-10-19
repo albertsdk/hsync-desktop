@@ -997,3 +997,119 @@ class TestShareSizeLabel:
         window._file_panel._on_scan_size(2048)
 
         assert window._share_local_bytes == 2048
+
+
+class _SpyWizard:
+    """Stand-in for SetupWizard recording its lifecycle in the MainWindow."""
+
+    def __init__(self, parent=None, settings=None):
+        self.applied = False
+        self.start_requested = False
+        self.raised = 0
+        self.activated = 0
+
+    def exec(self):
+        return 1
+
+    def raise_(self):
+        self.raised += 1
+
+    def activateWindow(self):
+        self.activated += 1
+
+
+class TestSetupWizardIntegration:
+    def _install_spy(self, monkeypatch) -> list[_SpyWizard]:
+        import hsync_desktop.main_window.start as start_mod
+
+        created: list[_SpyWizard] = []
+
+        def factory(parent=None, settings=None):
+            wizard = _SpyWizard(parent)
+            created.append(wizard)
+            return wizard
+
+        monkeypatch.setattr(start_mod, "SetupWizard", factory, raising=False)
+        return created
+
+    def test_menu_action_present(self, window):
+        assert window._act_setup_wizard.text() == tr("menu.setup_wizard")
+
+    def test_open_runs_and_clears_reference(self, window, monkeypatch):
+        created = self._install_spy(monkeypatch)
+        monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
+        window._open_setup_wizard()
+        assert len(created) == 1
+        assert window._setup_wizard is None
+
+    def test_second_open_raises_existing(self, window, monkeypatch):
+        created = self._install_spy(monkeypatch)
+        monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
+        window._open_setup_wizard()
+        first = created[0]
+        window._setup_wizard = first  # simulate an open dialog
+        window._open_setup_wizard()
+        assert len(created) == 1
+        assert first.raised == 1 and first.activated == 1
+
+    def test_running_sync_prompts_and_can_abort(self, window, monkeypatch):
+        created = self._install_spy(monkeypatch)
+        # A fake engine + a no-op quit keep the teardown close from prompting.
+        monkeypatch.setattr(window, "_quit", lambda: None)
+        monkeypatch.setattr(window, "_engine", type("_Engine", (), {"is_running": True})())
+        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
+        window._open_setup_wizard()
+        assert created == []
+
+    def test_start_requested_triggers_start(self, window, monkeypatch):
+        created = self._install_spy(monkeypatch)
+        started: list[bool] = []
+        monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
+        monkeypatch.setattr(window, "_on_start", lambda: started.append(True))
+
+        def factory(parent=None, settings=None):
+            wizard = _SpyWizard(parent)
+            wizard.applied = True
+            wizard.start_requested = True
+            created.append(wizard)
+            return wizard
+
+        import hsync_desktop.main_window.start as start_mod
+
+        monkeypatch.setattr(start_mod, "SetupWizard", factory, raising=False)
+        window._open_setup_wizard()
+        assert started == [True]
+
+    def test_maybe_show_opens_once_on_first_run(self, window, monkeypatch, settings):
+        created = self._install_spy(monkeypatch)
+        monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
+        settings.remove("path/local")
+        settings.setValue("wizard/auto_shown", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+        window.maybe_show_setup_wizard()
+        assert len(created) == 1
+        assert settings.value("wizard/auto_shown", False, bool) is True
+
+    def test_maybe_show_skips_when_configured(self, window, monkeypatch, settings):
+        created = self._install_spy(monkeypatch)
+        settings.setValue("path/local", "/data")
+        settings.setValue("wizard/auto_shown", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+        window.maybe_show_setup_wizard()
+        assert created == []
+
+    def test_placeholder_routes_to_wizard_when_unconfigured(self, window, monkeypatch):
+        window._local_path = ""
+        opened: list[str] = []
+        monkeypatch.setattr(window, "_open_setup_wizard", lambda: opened.append("wizard"))
+        monkeypatch.setattr(window, "_open_settings", lambda *a, **k: opened.append("settings"))
+        window._on_path_clicked("settings")
+        assert opened == ["wizard"]
+
+    def test_placeholder_opens_settings_when_configured(self, window, monkeypatch, tmp_path):
+        window._local_path = str(tmp_path)
+        opened: list[str] = []
+        monkeypatch.setattr(window, "_open_setup_wizard", lambda: opened.append("wizard"))
+        monkeypatch.setattr(window, "_open_settings", lambda *a, **k: opened.append("settings"))
+        window._on_path_clicked("settings")
+        assert opened == ["settings"]

@@ -93,6 +93,8 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.wizard import SetupWizard
+from hsync_desktop.wizard.model import mark_auto_shown, should_auto_open
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
@@ -121,6 +123,9 @@ class StartMixin:
     # Open settings dialog, if any (re-declared here so the mixin typing agrees
     # with MainWindow.__init__).
     _settings_dialog: SettingsDialog | None
+    # Open setup wizard, if any (re-declared so the mixin typing agrees with
+    # MainWindow.__init__).
+    _setup_wizard: SetupWizard | None
     # Scoped Send/Receive target, cleared by a normal start (re-declared so the
     # mixin typing agrees with MainWindow.__init__).
     _pending_selection_sync: tuple[str, str] | None
@@ -261,7 +266,11 @@ class StartMixin:
     def _on_path_clicked(self, link: str) -> None:
         """Handle clicks on the path label link."""
         if link == "settings":
-            self._open_settings(initial_tab=0)
+            # Unconfigured folder: send the user to the wizard, not Settings.
+            if self._local_path:
+                self._open_settings(initial_tab=0)
+            else:
+                self._open_setup_wizard()
         elif self._local_path and os.path.isdir(self._local_path):
             from PySide6.QtCore import QUrl
 
@@ -294,6 +303,10 @@ class StartMixin:
 
     def _check_auto_sync(self) -> None:
         """Auto-start synchronization if a saved path exists."""
+        # Do not race the setup wizard: defer until it has closed.
+        if self._setup_wizard is not None:
+            QTimer.singleShot(500, self._check_auto_sync)
+            return
         local_path = self._local_path
         if local_path:
             self._on_start()
@@ -547,20 +560,67 @@ class StartMixin:
         finally:
             self._settings_dialog = None
         if accepted:
-            theme = get_saved_theme()
-            app = QApplication.instance()
-            if app:
-                apply_theme(app, theme)  # type: ignore[arg-type]
-                self._refresh_icons_for_theme()
-            if self._notifier:
-                self._notifier.enabled = are_notifications_enabled()
-            self._apply_log_visibility()
-            # Reload path in case it changed in settings
-            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            new_path = str(s.value("path/local", "", str))
-            if new_path != self._local_path:
-                self._set_path(new_path)
-                if new_path:
-                    self._load_local_files(new_path)
-            # Refresh path display (settings may have changed p2p/server/direction)
-            self._update_path_display()
+            self._apply_settings_changes()
+
+    def _apply_settings_changes(self) -> None:
+        """Re-apply settings that changed on disk (Settings dialog or wizard).
+
+        One refresh path so both the Settings dialog and the setup wizard
+        converge: theme/icons/notifications/log visibility plus the local path
+        reload and the path display.
+        """
+        theme = get_saved_theme()
+        app = QApplication.instance()
+        if app:
+            apply_theme(app, theme)  # type: ignore[arg-type]
+            self._refresh_icons_for_theme()
+        if self._notifier:
+            self._notifier.enabled = are_notifications_enabled()
+        self._apply_log_visibility()
+        # Reload path in case it changed in settings
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        new_path = str(s.value("path/local", "", str))
+        if new_path != self._local_path:
+            self._set_path(new_path)
+            if new_path:
+                self._load_local_files(new_path)
+        # Refresh path display (settings may have changed p2p/server/direction)
+        self._update_path_display()
+
+    def _open_setup_wizard(self) -> None:
+        """Open the guided setup wizard (stop a running sync first)."""
+        if self._setup_wizard is not None:
+            self._setup_wizard.raise_()
+            self._setup_wizard.activateWindow()
+            return
+        if self._engine.is_running:
+            answer = QMessageBox.question(
+                self,
+                tr("wizard.title"),
+                tr("wizard.stop_prompt"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            self._on_stop()
+        dlg = SetupWizard(self)
+        self._setup_wizard = dlg
+        try:
+            dlg.exec()
+        finally:
+            self._setup_wizard = None
+        if dlg.applied:
+            self._apply_settings_changes()
+            if dlg.start_requested:
+                self._on_start()
+
+    def maybe_show_setup_wizard(self) -> None:
+        """Auto-open the wizard once on a first run (no folder configured)."""
+        if self._setup_wizard is not None:
+            return
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if not should_auto_open(s):
+            return
+        mark_auto_shown(s)
+        s.sync()
+        self._open_setup_wizard()

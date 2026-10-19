@@ -31,6 +31,18 @@ from hsync_desktop.engine.cli import (
     remove_server_trust,
     supports_peer_trust,
 )
+from hsync_desktop.engine.endpoints import (
+    SERVER_DEFAULT_PORT,
+    build_probe_ssl_context,
+    normalize_bootnode_endpoint,
+    normalize_server_endpoint,
+    unverified_ssl_context,
+)
+from hsync_desktop.engine.probes import (
+    ServerProbeResult,
+    probe_server_bucket,
+    probe_server_health,
+)
 from hsync_desktop.engine.process import (
     _HSYNCKEEP,
     HsyncEngine,
@@ -42,11 +54,14 @@ from hsync_desktop.engine.process import (
 __all__ = [
     "BinaryVersionProbe",
     "HsyncEngine",
+    "ServerProbeResult",
+    "SERVER_DEFAULT_PORT",
     "TransferStats",
     "add_bootnode_trust",
     "add_peer_pin",
     "add_server_trust",
     "apply_settings_env",
+    "build_probe_ssl_context",
     "fetch_bootnode_fingerprint",
     "fetch_server_fingerprint",
     "find_hsync_binary",
@@ -58,9 +73,14 @@ __all__ = [
     "list_bootnode_trust",
     "list_peer_pins",
     "list_server_trust",
+    "normalize_bootnode_endpoint",
+    "normalize_server_endpoint",
+    "probe_server_bucket",
+    "probe_server_health",
     "remove_bootnode_trust",
     "remove_peer_pin",
     "remove_server_trust",
     "supports_peer_trust",
+    "unverified_ssl_context",
     "write_secret_pipe",
 ]

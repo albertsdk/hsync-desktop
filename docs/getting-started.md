@@ -39,7 +39,9 @@ methods are ordered from the simplest and most immediate to the most involved.
 
 ## After installing
 
-1. **Configure a connection** — Server Mode or p2p Mode. Every setting is
-   documented in the [Configuration Reference](configuration.md).
+1. **Configure a connection** — run the [Setup wizard](setup-wizard.md) for the
+   common cases, or open **Settings** (Server Mode or p2p Mode) for full control.
+   Every setting is documented in the
+   [Configuration Reference](configuration.md).
 2. **Run and watch a sync** — [Using HSYNC Desktop](usage.md).
 3. **Read the log** — the action labels are in [Log Labels](log-labels.md).

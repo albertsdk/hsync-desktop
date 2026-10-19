@@ -335,3 +335,24 @@ default, shown as **System default** in the General tab): it follows the system 
 every launch; a supported code pins that language; an absent/unsupported value also
 follows the system locale. Every user-facing
 string **must** exist in all `locales/*.py`.
+
+## Shared endpoint/probe helpers (Settings + wizard)
+
+The server/relay reachability logic is shared so the Settings dialog and the
+setup wizard agree:
+
+- `engine/endpoints.py::normalize_server_endpoint` / `normalize_bootnode_endpoint`
+  (the GUI default port `SERVER_DEFAULT_PORT` = 9753) and
+  `build_probe_ssl_context`; `SettingsDialog._normalize_server_endpoint` /
+  `_normalize_bootnode_endpoint` / `_test_connection_ssl_context` delegate to them.
+  `_on_accept` still normalizes the fields before `save()`.
+- `engine/probes.py::probe_server_health` / `probe_server_bucket` /
+  `ServerProbeResult`; the Settings "Test connection" action and the wizard both
+  use them (`GET /health`, `GET /api/v1/buckets/{bucket}`).
+- `settings/validators.py::validate_sync_folder` / `FolderCheck` back the wizard's
+  folder check (existence/type/permission/root error, home/system/low-space
+  warning); `FolderCheck.free_bytes` feeds the human-readable free-space display
+  (`hsync_common.format.format_bytes`).
+
+The setup wizard writes only a subset of keys; see
+[wizard.md](wizard.md) for the mapping and the `wizard/*` draft/draft-encryption.

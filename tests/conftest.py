@@ -90,9 +90,11 @@ class _FakeAutostart:
 
 @pytest.fixture(autouse=True)
 def fake_autostart(monkeypatch) -> _FakeAutostart:
-    """Replace the dialog's autostart module with an isolated fake."""
+    """Replace the dialog/wizard autostart module with an isolated fake."""
     import hsync_desktop.settings.dialog as dialog_mod
+    import hsync_desktop.wizard.apply as apply_mod
 
     fake = _FakeAutostart()
     monkeypatch.setattr(dialog_mod, "autostart", fake)
+    monkeypatch.setattr(apply_mod, "autostart", fake)
     return fake

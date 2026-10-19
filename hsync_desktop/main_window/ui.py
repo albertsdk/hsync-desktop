@@ -343,6 +343,7 @@ class UiBuildMixin:
             self._act_file_trash.setText(tr("menu.file.trash"))
             self._act_file_properties.setText(tr("menu.file.properties"))
             self._act_settings.setText(tr("menu.settings"))
+            self._act_setup_wizard.setText(tr("menu.setup_wizard"))
             self._menu_help.setTitle(tr("menu.help"))
             self._act_help_docs.setText(tr("menu.help.docs"))
             self._act_help_github.setText(tr("menu.help.github"))
@@ -474,6 +475,10 @@ class UiBuildMixin:
         self._act_settings = QAction(tr("menu.settings"), self)
         self._act_settings.triggered.connect(self._open_settings)
         menubar.addAction(self._act_settings)
+
+        self._act_setup_wizard = QAction(tr("menu.setup_wizard"), self)
+        self._act_setup_wizard.triggered.connect(self._open_setup_wizard)
+        menubar.addAction(self._act_setup_wizard)
 
         # ── Help menu ─────────────────────────────────────────────────
         # External links first, then a separator and the local app-info

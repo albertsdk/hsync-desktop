@@ -4,7 +4,9 @@ Every HSYNC Desktop setting lives in the GUI **Settings** dialog and is persiste
 with Qt `QSettings`. This page is the single source of truth for the settings;
 the [Usage Guide](usage.md) covers running a sync and the runtime prompts.
 
-Open **Settings** from the main window (or the tray menu). The dialog is
+Open **Settings** from the main window (or the tray menu). For the common cases
+you can instead use the [Setup wizard](setup-wizard.md), which configures a
+subset of these settings in four steps. The dialog is
 organised into five tabs: **Sync**, **p2p Mode**, **Server Mode**, **General**
 and **Advanced**. The **Advanced** tab is hidden until you enable **Show advanced
 options** in General; the same toggle also reveals the **Advanced Options**

@@ -303,10 +303,17 @@ vertical order is: the horizontal brand logo
 banner, drawn at 240 px wide) above the app name (`app.name`, bold at the default
 label size), the bare version (`__version__`, `lblVersion`), the tagline
 (`app.tagline`), then the copyright (`about.copyright`) and author
-(`about.author`) with space above. `show_and_dismiss` auto-closes after 2500 ms;
-`show_as_about` (`splash_screen.py::SplashScreen.show_as_about`) keeps it open.
+(`about.author`) with space above. As the startup welcome it is a short,
+click-dismissible overlay (`main.py::SPLASH_MS`, 1500 ms): it is shown **only on
+the first launch** (`main.py::_should_show_splash`: `ui/splash_shown` absent and
+`path/local` empty, so an upgraded install with a configured folder never sees it
+again) and **never delays** the main window — `main.py::main` calls
+`activate_window()` first, then shows the overlay, and connects its `finished` to
+the setup-wizard hook. On later launches the window is revealed immediately with
+no overlay. `show_as_about`
+(`splash_screen.py::SplashScreen.show_as_about`) keeps it open.
 A click anywhere dismisses it: for the splash it emits `finished`
-(`main.py` connects it to reveal the main window), for the About it just closes.
+(`main.py` connects it to the setup-wizard hook), for the About it just closes.
 The Help → About menu entry is the short `menu.help.about` label ("About" /
 "Informazioni"), no longer carrying the app name.
 

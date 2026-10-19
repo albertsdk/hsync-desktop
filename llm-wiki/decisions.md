@@ -30,6 +30,12 @@ disable unsupported controls) is realized in
   (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
   `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`).
+- **Setup wizard is a Settings subset**: the four-mode wizard
+  (`wizard/`, [wizard.md](modules/wizard.md)) writes only the keys it owns and
+  never redefines CLI/env contracts; advanced options stay in the Settings
+  dialog. Its server/relay reachability probes and endpoint grammar are shared
+  with Settings (`engine/probes.py`, `engine/endpoints.py`), and its trust model
+  is TOFU + pin (policy `ask`), never `strict`/`accept-new`.
 - **Host fonts, not a bundled typeface**: the GUI follows the desktop's
   configured UI/monospace fonts and text scale
   (`fonts.py::apply_system_fonts`; GNOME `gsettings`, KDE `kdeglobals`,

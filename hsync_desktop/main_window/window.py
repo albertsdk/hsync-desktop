@@ -96,6 +96,7 @@ from hsync_desktop.themes import (
     detect_system_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.wizard import SetupWizard
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
@@ -178,6 +179,8 @@ class MainWindow(
 
         # Open settings dialog, if any (tray/menu re-clicks raise it instead).
         self._settings_dialog: SettingsDialog | None = None
+        # Open setup wizard, if any (menu/tray re-clicks raise it instead).
+        self._setup_wizard: SetupWizard | None = None
 
         self._load_ui()
         self._connect_signals()

@@ -11,12 +11,17 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from hsync_desktop.config import MINIMIZED_FLAG
+from hsync_desktop.config import MINIMIZED_FLAG, SETTINGS_APP, SETTINGS_ORG
 
 if TYPE_CHECKING:
+    from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import QApplication
 
     from hsync_desktop.main_window import MainWindow
+
+# How long the first-launch welcome overlay stays on top (ms). The main window
+# is already visible underneath, so this only controls the branding stay.
+SPLASH_MS = 1500
 
 
 def _handle_early_cli_args(argv: list[str]) -> int | None:
@@ -47,6 +52,17 @@ def _should_start_minimized(argv: list[str], tray_available: bool) -> bool:
     reached, so the flag is ignored when no tray is available.
     """
     return MINIMIZED_FLAG in argv and tray_available
+
+
+def _should_show_splash(settings: QSettings) -> bool:
+    """First launch only: never shown before and no folder configured yet.
+
+    The ``path/local`` check keeps an existing installation from seeing the
+    welcome overlay again after an upgrade (``ui/splash_shown`` is a new key).
+    """
+    if bool(settings.value("ui/splash_shown", False, bool)):
+        return False
+    return not str(settings.value("path/local", "", str)).strip()
 
 
 def _harden_linux_gsettings() -> None:
@@ -118,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _harden_linux_gsettings()
 
+    from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
     from hsync_desktop import __version__
@@ -177,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     tray.stop_requested.connect(window._on_stop)
     tray.refresh_requested.connect(window._on_refresh)
     tray.settings_requested.connect(window._open_settings)
+    tray.wizard_requested.connect(window._open_setup_wizard)
     tray.quit_requested.connect(window._quit)
     # Create the notifier now that tray is available. Routine notifications are
     # suppressed while the main window is in the foreground.
@@ -199,13 +217,25 @@ def main(argv: list[str] | None = None) -> int:
 
     single_instance.activate_requested.connect(activate_window)
 
-    # Reveal the window after the splash unless the OS autostart entry launched
-    # the app in the tray: then stay hidden. A later manual launch still reveals
-    # the window through the single-instance activation signal above.
+    # Reveal the window immediately (a splash must never delay the app), then:
+    # * first launch only: a short, click-dismissible welcome overlay, whose
+    #   finished signal opens the setup wizard — so the StaysOnTop overlay is
+    #   never stacked above the modal wizard;
+    # * later launches: no overlay, the wizard hook runs directly.
+    # The app stays hidden when the OS autostart entry launched it in the tray;
+    # a later manual launch still reveals the window through the single-instance
+    # activation signal above.
     if not start_minimized:
-        splash = SplashScreen()
-        splash.finished.connect(activate_window)
-        splash.show_and_dismiss(2500)
+        activate_window()
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if _should_show_splash(settings):
+            settings.setValue("ui/splash_shown", True)
+            settings.sync()
+            splash = SplashScreen()
+            splash.finished.connect(window.maybe_show_setup_wizard)
+            splash.show_and_dismiss(SPLASH_MS)
+        else:
+            window.maybe_show_setup_wizard()
 
     tray.show()
 

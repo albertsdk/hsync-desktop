@@ -1,0 +1,149 @@
+# HSYNC Desktop — Setup wizard
+
+Guided, re-runnable configuration assistant (desktop-only). It configures a
+**subset** of QSettings from four use-case choices; the Settings dialog remains
+the full reference and the only place for advanced options.
+
+## Entry points
+
+| Entry | Code |
+| ----- | ---- |
+| Menu bar "Setup wizard" | `main_window/ui.py::UiBuildMixin._create_menu_bar` (after Settings) |
+| Tray menu "Setup wizard…" | `system_tray.py::SystemTray` (`wizard_requested`) |
+| Unconfigured-folder placeholder | `main_window/start.py::StartMixin._on_path_clicked` (empty `_local_path`) |
+| First run (once) | `main_window/start.py::StartMixin.maybe_show_setup_wizard`, called by `main.py::main` after the first-launch welcome overlay (`splash.finished`) or directly when the overlay is skipped |
+
+`StartMixin._open_setup_wizard` stops a running sync (with a prompt) before
+opening, keeps a single instance, and after an applied run calls
+`StartMixin._apply_settings_changes`; "Start syncing" runs after the dialog
+closes so the normal pre-flight dialogs stay on the main window.
+
+## Shell and pages
+
+`wizard/dialog.py::SetupWizard` is a custom `QDialog` + `QStackedWidget` with a
+`wizard/stepper.py::StepIndicator` ("Step N of 4"). Pages implement
+`wizard/pages/base.py::WizardPage` (`load`/`store`/`apply_translations`/
+`field_error_targets`); the dialog owns validation, the draft and the result
+(`applied`, `start_requested`).
+
+| Step | Page | Content |
+| ---- | ---- | ------- |
+| 1 Purpose | `wizard/pages/mode.py::ModePage` | four radio cards (one `QButtonGroup`, single choice) + "Help me choose" |
+| 2 Folder | `wizard/pages/folder.py::FolderPage` | path, browse, localized suggestions, free space |
+| 3 Connection | `wizard/pages/connection.py::ConnectionPage` | mode-specific fields, in-line probe buttons, automation block |
+| 4 Review | `wizard/pages/review.py::ReviewPage` | scrollable summary with uniform Edit buttons |
+| Success | `wizard/pages/success.py::SuccessPage` | confirmation, invite, start/dashboard |
+
+"Help me choose" opens `wizard/pages/mode.py::HelpChoiceDialog`: three explicit
+questions, each with its own `QButtonGroup` and all labels via `tr()`. The first
+("sharing with a team?") resolves `team_share`; otherwise the same-network
+question resolves `lan_sync` or reveals the "Only a copy" / "Edits from both
+sides" question (`backup` / `remote_sync`). Follow-ups are shown only when they
+apply and Confirm stays disabled until the active path is answered, so all four
+modes are reachable.
+
+## Interaction details
+
+- **Folder suggestions** (`wizard/defaults.py::suggested_folders`) resolve the
+  localized user directories through `QStandardPaths`
+  (Documents/Pictures/Home); a suggestion whose path is unset or missing is
+  disabled, and the "create an HSYNC folder" entry creates it on click.
+- **Free space** is rendered with `hsync_common.format.format_bytes`
+  (`FolderCheck.free_bytes`).
+- **Test buttons** sit above their own result line and stay disabled until the
+  required inputs are present (server: address + key; relay: address);
+  `ConnectionPage._update_test_enabled`. The result is a dedicated form row
+  below the button (a long error can never overlap it), reported via
+  `ConnectionPage._set_status` (grey "checking…" / green success / red error;
+  QSS `#statusOk`/`#statusError`), and the relay trust buttons appear under the
+  relay result. Editing a test's fields clears its result and captured
+  fingerprint (`_on_server_edited`/`_on_relay_edited`) so a stale trust pin is
+  never applied.
+- **Tooltips**: every connection field and automation switch has a short
+  explanation (`wizard.tip.*`) without changing the visible labels; the relay
+  field is labelled "Relay server address".
+- **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
+  (via `wizard/widgets.py::ToggleRow`); secrets show/hide through an icon toggle
+  (`view-visible`/`view-hidden` + tooltip).
+- **Input restriction**: `wizard/widgets.py::char_class_validator` blocks
+  disallowed characters on the share name and group; structural rules stay in the
+  on-Continue validation.
+
+## Layout
+
+- **Progress**: `wizard/stepper.py::StepIndicator` shows numbered badges (done =
+  check, current = accent, todo = muted) with labels elided to the available
+  width; it carries the accessible "Step N of M" name. Labels keep a **uniform
+  weight** — step state is carried by the badge and by muting future steps,
+  while the bold page title is the single heading emphasis. The dialog adds a
+  consistent 24/20/16 margin rhythm.
+- **Mode cards**: `wizard/widgets.py::RadioCard` shows a per-mode icon and a
+  `selected` dynamic property; `themes.py` draws the border/background state
+  (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
+  without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
+  `network-p2p` (local peers), `network-cloud` (relay/anywhere), `people`
+  (team share).
+- **Connection**: `ConnectionPage` keeps the share name in a common area and puts
+  the server-only and network-only fields in two dedicated forms inside a
+  `QStackedWidget` (`_server_page`/`_network_page`), so each topology has a clean
+  order instead of interleaved show/hide rows. All form labels are colon-free
+  (`wizard.connection.*` keys) and share one fixed label-column width
+  (`ConnectionPage._align_labels`), so the share-name field aligns with the
+  mode-specific fields; long translations wrap.
+- **Review**: sections are separated by rules and the "Checks" section reflects
+  the last real probe (`server_verified`/`relay_verified` in the draft, rendered
+  as a localised time or the relay fingerprint); editing a section's fields
+  clears it.
+- **Success**: `dialog-ok` icon, the p2p invite is a read-only selectable field
+  (`SuccessPage._invite_text`) that can also be copied with one click, and the
+  action bar is anchored at the bottom of the screen. The success screen is a
+  destination, not a step: the subtitle, the step index and the resume banner
+  are hidden (`SetupWizard._set_step`).
+
+## Modes, defaults and inference
+
+`wizard/model.py::WizardMode` (StrEnum) + `wizard/model.py::profile_for` hold the
+per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, relay,
+server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
+re-run from the distinctive traits (p2p on/off, `sync/direction`,
+`p2p/bootnode`).
+
+Derived names (`wizard/defaults.py::default_share_name`,
+`generate_group_name`, `generate_password`) are sanitized so they always pass the
+client's bucket/group grammars.
+
+## Draft persistence
+
+`wizard/model.py` saves the draft under `wizard/*` (secrets Fernet-encrypted via
+`crypto.py`), debounced from the dialog. Resume restores the last step; a version
+bump discards a stale draft. On finish the draft is cleared and
+`wizard/completed`/`wizard/version` set.
+
+## Validation, probes and apply
+
+- `wizard/validation.py` returns `Issue(level, code, field)`; the dialog maps
+  codes through `wizard/messages.py::issue_message` to `wizard.error|warn.<code>`.
+- `wizard/probes.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
+  `file_panel/workers.py::DirectoryScanWorker`) with a generation counter.
+- `engine/endpoints.py` normalizes the server/relay fields; `engine/probes.py`
+  performs `GET /health` and `GET /api/v1/buckets/{bucket}` (the latter is
+  mode-aware: a 404 is benign for a fresh backup share — auto-created on first
+  upload — and blocks Finish for a team share).
+- `wizard/apply.py::apply_draft` writes only the wizard's keys (see the plan's
+  mapping) and pins a confirmed certificate through
+  `engine/cli.py::add_bootnode_trust` / `add_server_trust`; a failed pin blocks
+  Finish unless the user skips it.
+
+## Trust
+
+Relay and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
+writes the fingerprint to the client known-hosts store, "Ask on first start"
+leaves the existing first-start pre-flight (`main_window/trust.py`) to confirm.
+Never `strict`/`accept-new`.
+
+## Tests
+
+`tests/test_wizard_model.py`, `tests/test_wizard_validation.py`,
+`tests/test_wizard_apply.py`, `tests/test_wizard_probes.py`,
+`tests/test_wizard_ui.py`; MainWindow wiring in `tests/test_main_window.py`;
+terminology/i18n in `tests/test_locales.py`.

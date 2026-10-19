@@ -25,11 +25,15 @@ tray — use the tray menu to show the window again or quit.
 Run `hsync-desktop --minimized` to start straight into the tray without showing
 the window (no tray available falls back to showing the window). Enable
 **Launch at login** in *Settings → General* to do this automatically at login.
+The welcome splash appears only on the first launch and never delays the window.
 
 ## Configuring a connection
 
-Open **Settings** and fill in the connection for your mode — **p2p Mode**
-(peer-to-peer, no server) or **Server Mode** (against a central HSYNC server).
+The quickest path is the [Setup wizard](setup-wizard.md) (**Menu → Setup
+wizard…**), which covers the four common cases in four steps and pre-fills your
+current configuration on re-run. For full control, open **Settings** and fill in
+the connection for your mode — **p2p Mode** (peer-to-peer, no server) or **Server
+Mode** (against a central HSYNC server).
 Every setting is documented in the
 [Configuration Reference](configuration.md), including the Sync, p2p Mode,
 Server Mode, General and Advanced tabs and the trusted-key stores. Use

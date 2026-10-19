@@ -7,6 +7,16 @@ import os
 from unittest.mock import MagicMock
 
 
+class _FakeSettings:
+    """Duck-typed QSettings for the pure splash-gating helper (no Qt state)."""
+
+    def __init__(self, values: dict | None = None) -> None:
+        self._values = values or {}
+
+    def value(self, key: str, default: object = None, _type: object = None) -> object:
+        return self._values.get(key, default)
+
+
 class TestMainModule:
     """Test main entry point module."""
 
@@ -138,6 +148,24 @@ class TestAppMetadata:
         assert _should_start_minimized(["--minimized"], tray_available=False) is False
         assert _should_start_minimized([], tray_available=True) is False
 
+    def test_should_show_splash_on_first_run(self):
+        """A fresh install (no flag, no folder) shows the welcome overlay."""
+        from hsync_desktop.main import _should_show_splash
+
+        assert _should_show_splash(_FakeSettings()) is True
+
+    def test_should_show_splash_skips_after_shown(self):
+        """Once shown, the welcome overlay never appears again."""
+        from hsync_desktop.main import _should_show_splash
+
+        assert _should_show_splash(_FakeSettings({"ui/splash_shown": True})) is False
+
+    def test_should_show_splash_skips_when_configured(self):
+        """An existing install (folder configured) does not re-show it on upgrade."""
+        from hsync_desktop.main import _should_show_splash
+
+        assert _should_show_splash(_FakeSettings({"path/local": "/data"})) is False
+
     def test_harden_gsettings_defaults_to_memory(self, monkeypatch):
         """Linux default keeps Qt off host theme plugins (xsettings abort)."""
         import hsync_desktop.main as main_module
@@ -156,7 +184,7 @@ class TestAppMetadata:
         main_module._harden_linux_gsettings()
         assert os.environ["QT_QPA_PLATFORMTHEME"] == "gtk3"
 
-    def test_main_exits_when_another_instance_is_running(self, monkeypatch):
+    def test_main_exits_when_another_instance_is_running(self, monkeypatch, qapp):
         """main() returns cleanly before creating UI when single-instance lock is held."""
         import sys as _sys
 

@@ -45,6 +45,7 @@ class SystemTray(QSystemTrayIcon):
     stop_requested = Signal()
     refresh_requested = Signal()
     settings_requested = Signal()
+    wizard_requested = Signal()
     quit_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -85,6 +86,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_settings = QAction(tr("tray.settings"), menu)
         self._act_settings.triggered.connect(self.settings_requested.emit)
         menu.addAction(self._act_settings)
+
+        self._act_setup_wizard = QAction(tr("tray.setup_wizard"), menu)
+        self._act_setup_wizard.triggered.connect(self.wizard_requested.emit)
+        menu.addAction(self._act_setup_wizard)
 
         menu.addSeparator()
         self._act_quit = QAction(tr("tray.quit"), menu)
@@ -143,6 +148,7 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.setText(tr("tray.stop"))
         self._act_refresh.setText(tr("tray.refresh"))
         self._act_settings.setText(tr("tray.settings"))
+        self._act_setup_wizard.setText(tr("tray.setup_wizard"))
         self._act_quit.setText(tr("tray.quit"))
         # Update tooltip with current status
         i18n_map = {

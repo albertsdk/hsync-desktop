@@ -12,18 +12,11 @@ The API-key / p2p-key prompts live in credential_dialogs.py and the
 from __future__ import annotations
 
 import ssl
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
-from hsync_common.endpoint import (
-    build_https_url,
-    format_authority,
-    parse_host_port,
-    parse_https_url,
-)
+from hsync_common.endpoint import parse_host_port
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
@@ -105,9 +98,14 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.engine import (
+    build_probe_ssl_context,
     fetch_bootnode_fingerprint,
     find_hsync_binary,
     get_binary_capabilities_cached,
+    normalize_bootnode_endpoint,
+    normalize_server_endpoint,
+    probe_server_health,
+    unverified_ssl_context,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -160,9 +158,6 @@ from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
-
-# The client's server-mode default port (mirrors hsync_client.constants).
-_SERVER_DEFAULT_PORT = 9753
 
 
 class SettingsDialog(QDialog):
@@ -676,22 +671,11 @@ class SettingsDialog(QDialog):
         ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
         canonical HTTPS URL so ``_ensure_server_trust``/``urlsplit`` keep working.
         """
-        raw = self.server_url.text().strip()
-        if not raw:
-            return None
-        if raw.lower().startswith("https://"):
-            return parse_https_url(raw)
-        return build_https_url(parse_host_port(raw), _SERVER_DEFAULT_PORT)
+        return normalize_server_endpoint(self.server_url.text())
 
     def _normalize_bootnode_endpoint(self) -> str | None:
         """Canonicalize the bootnode field, or raise ``ValueError``."""
-        raw = self.p2p_bootnode.text().strip()
-        if not raw:
-            return None
-        endpoint = parse_host_port(raw)
-        if endpoint.port is None:
-            return endpoint.host
-        return format_authority(endpoint.host, endpoint.port)
+        return normalize_bootnode_endpoint(self.p2p_bootnode.text())
 
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
@@ -717,8 +701,6 @@ class SettingsDialog(QDialog):
                 tr("settings.invalid_server_endpoint"),
             )
             return
-        health_url = f"{base}/health"
-
         self.btn_test_connection.setEnabled(False)
         self.btn_test_connection.setText("…")
 
@@ -728,17 +710,12 @@ class SettingsDialog(QDialog):
         self.btn_test_connection.setText(tr("settings.test_connection"))
         self.btn_test_bootnode.setText(tr("settings.test_connection"))
 
-        try:
-            timeout = max(5, self.http_timeout.value())
-            req = urllib.request.Request(health_url, method="GET")
-            with urllib.request.urlopen(
-                req, timeout=timeout, context=self._test_connection_ssl_context()
-            ) as resp:
-                success = resp.status == 200
-        except urllib.error.HTTPError as exc:
-            success = exc.code == 200
-        except Exception:
-            success = False
+        result = probe_server_health(
+            base,
+            ssl_context=self._test_connection_ssl_context(),
+            timeout=max(5, self.http_timeout.value()),
+        )
+        success = result.ok
 
         _restore()
 
@@ -814,29 +791,19 @@ class SettingsDialog(QDialog):
     def _test_connection_ssl_context(self) -> ssl.SSLContext:
         """SSL context for the Test Connection probe, honouring TLS settings.
 
-        The probe must agree with how the client will connect: ``--insecure`` /
-        ``none`` skip verification, ``--ca-cert`` anchors it, a pinning policy
-        (``ask``/``accept-new``/``strict``) trusts the fingerprint rather than the
-        chain (the button cannot prompt, so it probes without chain validation —
-        the real client still enforces the pin), and ``chain`` uses the default CA.
+        Delegates to the shared policy helper so the Settings probe and the setup
+        wizard agree on the certificate handling.
         """
-        policy = self.server_trust.currentData()
-        if self.insecure.isChecked() or policy == "none":
-            return self._unverified_ssl_context()
-        ca_cert = self.ca_cert.text().strip()
-        if ca_cert and Path(ca_cert).exists():
-            return ssl.create_default_context(cafile=ca_cert)
-        if policy in ("ask", "accept-new", "strict"):
-            return self._unverified_ssl_context()
-        return ssl.create_default_context()
+        return build_probe_ssl_context(
+            insecure=self.insecure.isChecked(),
+            trust_policy=self.server_trust.currentData(),
+            ca_cert=self.ca_cert.text().strip(),
+        )
 
     @staticmethod
     def _unverified_ssl_context() -> ssl.SSLContext:
         """An SSLContext that skips chain/hostname verification (fingerprint mode)."""
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        return context
+        return unverified_ssl_context()
 
     def _tips_enabled(self) -> bool:
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)

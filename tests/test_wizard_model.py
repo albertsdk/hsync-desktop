@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025 Alberto Basso
+
+"""Wizard model tests: profiles, inference, first-run gate, draft round-trip."""
+
+from __future__ import annotations
+
+import pytest
+from PySide6.QtCore import QSettings
+
+from hsync_desktop.wizard import model
+from hsync_desktop.wizard.model import (
+    DRAFT_VERSION,
+    WizardDraft,
+    WizardMode,
+    infer_mode_from_settings,
+    load_draft,
+    mark_auto_shown,
+    mark_completed,
+    profile_for,
+    save_draft,
+    should_auto_open,
+)
+
+
+@pytest.fixture
+def store(tmp_path):
+    return QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+
+
+class TestProfiles:
+    def test_backup_defaults(self):
+        p = profile_for(WizardMode.BACKUP)
+        assert p.p2p_enabled is False
+        assert p.direction == "upload-only"
+        assert p.ignore_delete is True
+        assert p.start_at_login is True
+        assert p.requires_relay is False
+
+    def test_lan_defaults(self):
+        p = profile_for(WizardMode.LAN_SYNC)
+        assert p.p2p_enabled is True
+        assert p.requires_relay is False
+        assert p.server_trust is None
+
+    def test_remote_requires_relay(self):
+        assert profile_for(WizardMode.REMOTE_SYNC).requires_relay is True
+
+    def test_team_is_server_mode(self):
+        assert profile_for(WizardMode.TEAM_SHARE).p2p_enabled is False
+
+
+class TestInference:
+    def test_none_without_path(self, store):
+        assert infer_mode_from_settings(store) is None
+
+    def test_lan_when_p2p_without_relay(self, store):
+        store.setValue("path/local", "/data")
+        store.setValue("p2p/enabled", True)
+        store.setValue("p2p/bootnode", "")
+        assert infer_mode_from_settings(store) == WizardMode.LAN_SYNC
+
+    def test_remote_when_relay_set(self, store):
+        store.setValue("path/local", "/data")
+        store.setValue("p2p/enabled", True)
+        store.setValue("p2p/bootnode", "relay.example.com")
+        assert infer_mode_from_settings(store) == WizardMode.REMOTE_SYNC
+
+    def test_backup_on_upload_only(self, store):
+        store.setValue("path/local", "/data")
+        store.setValue("p2p/enabled", False)
+        store.setValue("sync/direction", "upload-only")
+        assert infer_mode_from_settings(store) == WizardMode.BACKUP
+
+    def test_team_otherwise(self, store):
+        store.setValue("path/local", "/data")
+        store.setValue("p2p/enabled", False)
+        store.setValue("sync/direction", "bidirectional")
+        assert infer_mode_from_settings(store) == WizardMode.TEAM_SHARE
+
+
+class TestAutoOpen:
+    def test_opens_on_fresh_install(self, store):
+        assert should_auto_open(store) is True
+
+    def test_not_after_shown(self, store):
+        mark_auto_shown(store)
+        assert should_auto_open(store) is False
+
+    def test_not_when_configured(self, store):
+        store.setValue("path/local", "/data")
+        assert should_auto_open(store) is False
+
+
+class TestDraft:
+    def test_round_trip_encrypts_secrets(self, store):
+        draft = WizardDraft(
+            mode=WizardMode.BACKUP,
+            local_path="/data",
+            bucket="data",
+            server_url="https://host:9753",
+            api_key="secret-api",
+            p2p_key="secret-p2p",
+            start_at_login=True,
+        )
+        save_draft(store, draft, step=2)
+        assert store.value("wizard/draft/api_key") != "secret-api"
+        assert store.value("wizard/draft/api_key").startswith("enc::")
+        loaded, step = load_draft(store)
+        assert step == 2
+        assert loaded.mode == WizardMode.BACKUP
+        assert loaded.api_key == "secret-api"
+        assert loaded.p2p_key == "secret-p2p"
+        assert loaded.start_at_login is True
+
+    def test_absent_draft(self, store):
+        assert load_draft(store) is None
+
+    def test_stale_version_is_discarded(self, store):
+        save_draft(store, WizardDraft(mode=WizardMode.LAN_SYNC), step=0)
+        store.setValue("wizard/version", DRAFT_VERSION + 1)
+        assert load_draft(store) is None
+        assert store.value("wizard/in_progress", False, bool) is False
+
+    def test_completed_clears_draft(self, store):
+        save_draft(store, WizardDraft(mode=WizardMode.LAN_SYNC), step=1)
+        mark_completed(store)
+        assert store.value("wizard/completed", False, bool) is True
+        assert store.value("wizard/in_progress", False, bool) is False
+        assert load_draft(store) is None
+
+    def test_model_helper_defaults_to_global_settings(self, monkeypatch, store):
+        monkeypatch.setattr(model, "QSettings", lambda *a, **k: store)
+        assert model.infer_mode_from_settings() is None
+
+    def test_round_trip_verification_fields(self, store):
+        draft = WizardDraft(
+            mode=WizardMode.BACKUP,
+            server_verified=True,
+            server_verified_at="2026-01-02T10:00:00+00:00",
+            relay_verified=True,
+            relay_verified_at="2026-01-02T11:00:00+00:00",
+        )
+        save_draft(store, draft, step=3)
+        loaded, _step = load_draft(store)
+        assert loaded.server_verified is True
+        assert loaded.server_verified_at == "2026-01-02T10:00:00+00:00"
+        assert loaded.relay_verified is True
+        assert loaded.relay_verified_at == "2026-01-02T11:00:00+00:00"

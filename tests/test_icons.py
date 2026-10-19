@@ -85,3 +85,18 @@ class TestLoadThemedSvg:
     def test_load_themed_svg_function_exists(self):
         """_load_themed_svg function should exist."""
         assert callable(icons._load_themed_svg)
+
+
+class TestWizardModeIcons:
+    """The four wizard modes use registered, loadable bundled icons."""
+
+    def test_mode_icons_are_registered(self):
+        from hsync_desktop.wizard.pages.mode import _MODE_ICONS
+
+        assert set(_MODE_ICONS.values()) <= set(icons._FALLBACK_MAP)
+
+    def test_mode_icons_load(self, qapp):
+        from hsync_desktop.wizard.pages.mode import _MODE_ICONS
+
+        for name in set(_MODE_ICONS.values()):
+            assert not icons.icon(name).isNull(), name

@@ -37,8 +37,12 @@ no Docker image): it is a desktop application that drives the bundled client.
 
 ### 2. Configure a connection
 
-Open **Settings** (p2p Mode or Server Mode). Every setting is documented in the
-[Configuration Reference](configuration.md).
+**New here?** Use the [Setup wizard](setup-wizard.md): four steps that cover the
+common cases (back up, sync on the same network, sync from anywhere, share with a
+team).
+
+For full control, open **Settings** (p2p Mode or Server Mode). Every setting is
+documented in the [Configuration Reference](configuration.md).
 
 ### 3. Run and watch a sync
 
@@ -49,6 +53,7 @@ runtime trust prompts, secrets and preferences.
 
 | Document | What it covers |
 | -------- | -------------- |
+| [setup-wizard.md](setup-wizard.md) | Guided four-step setup for the common cases. |
 | [configuration.md](configuration.md) | Every setting in the Settings dialog (the single source of truth). |
 | [usage.md](usage.md) | Running and watching syncs, trust prompts, secrets, tray, themes, troubleshooting. |
 | [log-labels.md](log-labels.md) | Action labels shown in the log panel and what they mean. |

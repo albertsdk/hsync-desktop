@@ -105,6 +105,10 @@ _FALLBACK_MAP: dict[str, str] = {
     "window-close": "window-close.svg",
     # Dialog action icons
     "dialog-cancel": "dialog-cancel.svg",
+    "dialog-ok": "dialog-ok.svg",
+    # Password visibility toggles
+    "view-visible": "view-visible.svg",
+    "view-hidden": "view-hidden.svg",
     # File type icons (FreeDesktop MIME type names)
     "folder": "folder.svg",
     "image-x-generic": "image-x-generic.svg",
@@ -123,6 +127,9 @@ _FALLBACK_MAP: dict[str, str] = {
     "role-master": "role-master.svg",
     "role-client": "role-client.svg",
     "role-unknown": "role-unknown.svg",
+    # Wizard mode icons
+    "backup": "backup.svg",
+    "people": "people.svg",
     # Application icon (bundled brand icon; full-colour, not themed)
     "hsync-desktop": "hsync-desktop.svg",
 }
