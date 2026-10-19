@@ -22,13 +22,6 @@ is the agent map; start here, then drill into the linked files.
 | [data-models.md](data-models.md) | `TransferStats`, `FileTransfer`/`TransferStatus`, reused common types, wizard models |
 | [decisions.md](decisions.md) | ADR→desktop-code map; GUI-only rules |
 
-## Plans
-
-| Doc | Status |
-| --- | ------ |
-| [plans/setup-wizard-implementation.md](plans/setup-wizard-implementation.md) | Implemented — setup wizard |
-| [plans/wizard-layout-improvements.md](plans/wizard-layout-improvements.md) | Implemented — wizard layout/UX polish |
-
 ## Cross-repo SSOT
 
 The desktop is a **consumer**: the event names, capabilities doc and protocol
