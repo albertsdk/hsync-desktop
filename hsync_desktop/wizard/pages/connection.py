@@ -99,6 +99,7 @@ class ConnectionPage(WizardPage):
         layout.addLayout(common_form)
         self.bucket = QLineEdit()
         self.bucket.setValidator(char_class_validator("A-Za-z0-9_-"))
+        self.bucket.setPlaceholderText("my-share")
         self.bucket.textChanged.connect(self._on_edit)
         self.bucket.textChanged.connect(self._on_server_edited)
         common_form.addRow(*self._row("bucket", "wizard.connection.share", self.bucket))
@@ -112,6 +113,7 @@ class ConnectionPage(WizardPage):
         server_form.setContentsMargins(0, 0, 0, 0)
 
         self.server_url = QLineEdit()
+        self.server_url.setPlaceholderText("https://hsync.example.com:9753")
         self.server_url.textChanged.connect(self._on_edit)
         self.server_url.textChanged.connect(self._on_server_edited)
         server_form.addRow(
@@ -119,6 +121,7 @@ class ConnectionPage(WizardPage):
         )
 
         self.api_key = SecretField()
+        self.api_key.edit.setPlaceholderText("access-key")
         self.api_key.edit.textChanged.connect(self._on_edit)
         self.api_key.edit.textChanged.connect(self._on_server_edited)
         server_form.addRow(*self._row("api_key", "wizard.connection.api_key", self.api_key))
@@ -149,6 +152,7 @@ class ConnectionPage(WizardPage):
 
         self.group = QLineEdit()
         self.group.setValidator(char_class_validator("A-Za-z0-9._-"))
+        self.group.setPlaceholderText("my-devices")
         self.group.textChanged.connect(self._on_edit)
         network_form.addRow(*self._row("p2p_group", "wizard.connection.group", self.group))
 
@@ -159,6 +163,7 @@ class ConnectionPage(WizardPage):
         network_form.addRow(*self._row("p2p_key", "wizard.connection.password", self.password))
 
         self.relay = QLineEdit()
+        self.relay.setPlaceholderText("relay.example.com")
         self.relay.textChanged.connect(self._on_edit)
         self.relay.textChanged.connect(self._on_relay_edited)
         network_form.addRow(*self._row("relay", "wizard.connection.relay", self.relay))

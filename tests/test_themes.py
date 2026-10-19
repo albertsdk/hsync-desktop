@@ -109,3 +109,77 @@ class TestCommonQSS:
     def test_common_qss_does_not_pin_a_font_family(self):
         """The font comes from the desktop (see hsync_desktop/fonts.py)."""
         assert "font-family" not in themes._COMMON_QSS
+
+
+class TestSystemThemeDetection:
+    """Qt's scheme first; the Linux desktop settings when Qt reports Unknown."""
+
+    def test_qt_dark_wins(self, monkeypatch):
+        monkeypatch.setattr(themes, "_qt_color_scheme", lambda: themes.Qt.ColorScheme.Dark)
+        assert themes.detect_system_theme() == themes.THEME_DARK
+
+    def test_qt_light_wins(self, monkeypatch):
+        monkeypatch.setattr(themes, "_qt_color_scheme", lambda: themes.Qt.ColorScheme.Light)
+        assert themes.detect_system_theme() == themes.THEME_LIGHT
+
+    def test_unknown_uses_linux_desktop_dark(self, monkeypatch):
+        monkeypatch.setattr(themes, "_qt_color_scheme", lambda: themes.Qt.ColorScheme.Unknown)
+        monkeypatch.setattr(themes, "_linux_desktop_is_dark", lambda: True)
+        monkeypatch.setattr(themes.sys, "platform", "linux")
+        assert themes.detect_system_theme() == themes.THEME_DARK
+
+    def test_unknown_uses_linux_desktop_light(self, monkeypatch):
+        monkeypatch.setattr(themes, "_qt_color_scheme", lambda: themes.Qt.ColorScheme.Unknown)
+        monkeypatch.setattr(themes, "_linux_desktop_is_dark", lambda: False)
+        monkeypatch.setattr(themes.sys, "platform", "linux")
+        assert themes.detect_system_theme() == themes.THEME_LIGHT
+
+    def test_gtk_theme_env_is_honoured(self, monkeypatch):
+        monkeypatch.setenv("GTK_THEME", "Adwaita:dark")
+        assert themes._linux_desktop_is_dark() is True
+
+    def test_gnome_prefer_dark(self, monkeypatch):
+        import hsync_desktop.fonts as fonts
+
+        monkeypatch.delenv("GTK_THEME", raising=False)
+        monkeypatch.setattr(
+            fonts,
+            "_gsettings_values",
+            lambda keys: {"color-scheme": "'prefer-dark'", "gtk-theme": "'Adwaita'"},
+        )
+        assert themes._linux_desktop_is_dark() is True
+
+    def test_kde_dark_scheme(self, monkeypatch, tmp_path):
+        import hsync_desktop.fonts as fonts
+
+        (tmp_path / "kdeglobals").write_text(
+            "[General]\nColorScheme=BreezeDark\n", encoding="utf-8"
+        )
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        monkeypatch.delenv("GTK_THEME", raising=False)
+        monkeypatch.setattr(fonts, "_gsettings_values", lambda keys: {})
+        assert themes._linux_desktop_is_dark() is True
+
+    def test_gtk_ini_dark_theme(self, monkeypatch, tmp_path):
+        import hsync_desktop.fonts as fonts
+
+        settings = tmp_path / "gtk-3.0"
+        settings.mkdir()
+        (settings / "settings.ini").write_text(
+            "[Settings]\ngtk-application-prefer-dark-theme=1\n", encoding="utf-8"
+        )
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        monkeypatch.delenv("GTK_THEME", raising=False)
+        monkeypatch.setattr(fonts, "_gsettings_values", lambda keys: {})
+        assert themes._linux_desktop_is_dark() is True
+
+    def test_palette_fallback_is_dark(self, monkeypatch, qapp):
+        monkeypatch.setattr(themes, "_qt_color_scheme", lambda: themes.Qt.ColorScheme.Unknown)
+        monkeypatch.setattr(themes, "_linux_desktop_is_dark", lambda: None)
+        monkeypatch.setattr(themes.sys, "platform", "linux")
+        original = qapp.palette()
+        try:
+            qapp.setPalette(themes._build_dark_palette())
+            assert themes.detect_system_theme() == themes.THEME_DARK
+        finally:
+            qapp.setPalette(original)

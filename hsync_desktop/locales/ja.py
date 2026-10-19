@@ -653,4 +653,7 @@ translations: dict[str, str] = {
     "wizard.tip.start_at_login": "コンピューターへのログイン時に HSYNC を自動起動します。",
     "wizard.help.note_team": "チームと共有する場合、次の質問は不要です。",
     "wizard.help.note_same_network": "機器が同じネットワークにある場合、次の質問は不要です。",
+    "wizard.folder.suggest_music": "音楽",
+    "wizard.folder.suggest_videos": "動画",
+    "label.users": "接続中のユーザー：",
 }

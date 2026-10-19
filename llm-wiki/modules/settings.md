@@ -74,11 +74,17 @@ advanced values themselves are preserved; the toggle only changes visibility.
 **Theme**: `appearance/theme` stores `system`/`light`/`dark`.
 `get_theme_setting` (`settings/cli_args.py::get_theme_setting`) returns the raw
 preference and `get_saved_theme` (`settings/cli_args.py::get_saved_theme`)
-resolves `system` through `themes.py::detect_system_theme`. The General combo
-carries stable item data (Light=0, Dark=1, System=2);
+resolves `system` through `themes.py::detect_system_theme`. Qt's
+`styleHints().colorScheme()` is the primary source; on Linux the app forces
+`QT_QPA_PLATFORMTHEME=generic`, so Qt usually reports `Unknown` and detection
+falls back to the host settings (`GTK_THEME`, GNOME `gsettings`,
+KDE `kdeglobals`, GTK `settings.ini`) and finally the host palette. The General
+combo carries stable item data (Light=0, Dark=1, System=2);
 `main_window/window.py::MainWindow._on_system_color_scheme_changed` follows
 `QGuiApplication.styleHints().colorSchemeChanged` and re-applies the theme and
-icons live **only** while the preference is `system`.
+icons live **only** while the preference is `system` (with the generic Linux
+platform theme that signal may not fire; launch/settings-apply re-detection is
+the reliable path there).
 
 **Server address**: `settings.server_url` accepts `host`, `host:port`, IPv6 and a
 full URL; `_normalize_server_endpoint`

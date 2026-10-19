@@ -73,8 +73,12 @@ def suggested_folders() -> list[tuple[str, str | None]]:
         home = os.path.expanduser("~")
     documents = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
     pictures = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
+    music = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.MusicLocation)
+    videos = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.MoviesLocation)
     return [
         ("wizard.folder.suggest_documents", documents or None),
         ("wizard.folder.suggest_pictures", pictures or None),
+        ("wizard.folder.suggest_music", music or None),
+        ("wizard.folder.suggest_videos", videos or None),
         ("wizard.folder.suggest_home", os.path.join(home, "HSYNC")),
     ]

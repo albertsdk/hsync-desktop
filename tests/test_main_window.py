@@ -355,6 +355,34 @@ class TestPeerCountLifecycle:
         assert window._peers_label.text() == "–"
 
 
+class TestPeerLabelSemantics:
+    """The title says what the counter counts: devices (p2p) or members (server)."""
+
+    def test_p2p_mode_labels_devices(self, window, settings, monkeypatch):
+        settings.setValue("p2p/enabled", True)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+
+        window._update_peers_label_title()
+
+        assert window._lbl_peers.text() == tr("label.peers")
+
+    def test_server_mode_labels_connected_members(self, window, settings, monkeypatch):
+        settings.setValue("p2p/enabled", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+
+        window._update_peers_label_title()
+
+        assert window._lbl_peers.text() == tr("label.users")
+
+    def test_applying_settings_relabels_the_presence_title(self, window, settings, monkeypatch):
+        settings.setValue("p2p/enabled", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+
+        window._apply_settings_changes()
+
+        assert window._lbl_peers.text() == tr("label.users")
+
+
 class TestShareNameInActionBar:
     """The share name labels the local folder (next to the folder icon); the
     window title stays the app name and the path lives in the tooltip."""
@@ -841,6 +869,18 @@ class TestInfoToast:
         assert pos.x() + window._info_banner.width() <= central.width()
         assert pos.y() >= 16
 
+    def test_banner_is_enlarged_and_fits_the_window(self, window):
+        window.resize(900, 600)
+        window.show()
+
+        window._show_info_banner("Invia e ricevi ora", auto_hide_ms=0, kind="progress")
+
+        central = window.centralWidget()
+        expected = min(640, max(220, central.width() - 32))
+        assert window._info_banner.width() == expected
+        assert window._info_banner.width() > 420  # clearly larger than the old cap
+        assert window._info_banner.pos().x() + window._info_banner.width() <= central.width()
+
     def test_progress_bar_is_only_for_progress(self, window):
         window._show_info_banner("searching", kind="progress")
         assert not window._info_progress.isHidden()
@@ -1057,7 +1097,7 @@ class TestSetupWizardIntegration:
         # A fake engine + a no-op quit keep the teardown close from prompting.
         monkeypatch.setattr(window, "_quit", lambda: None)
         monkeypatch.setattr(window, "_engine", type("_Engine", (), {"is_running": True})())
-        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
+        monkeypatch.setattr(window, "_confirm_stop_sync", lambda: False)
         window._open_setup_wizard()
         assert created == []
 
@@ -1079,6 +1119,15 @@ class TestSetupWizardIntegration:
         monkeypatch.setattr(start_mod, "SetupWizard", factory, raising=False)
         window._open_setup_wizard()
         assert started == [True]
+
+    def test_stop_confirm_has_translated_labels_and_icons(self, window):
+        msg = window._build_stop_sync_dialog()
+        yes = msg.button(QMessageBox.StandardButton.Yes)
+        no = msg.button(QMessageBox.StandardButton.No)
+        assert yes is not None and yes.text() == tr("action.yes")
+        assert no is not None and no.text() == tr("action.no")
+        assert not yes.icon().isNull()
+        assert not no.icon().isNull()
 
     def test_maybe_show_opens_once_on_first_run(self, window, monkeypatch, settings):
         created = self._install_spy(monkeypatch)

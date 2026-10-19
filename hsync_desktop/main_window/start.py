@@ -71,6 +71,7 @@ from hsync_desktop.engine import (
 )
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
+from hsync_desktop.icons import icon
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings import (
@@ -586,6 +587,8 @@ class StartMixin:
                 self._load_local_files(new_path)
         # Refresh path display (settings may have changed p2p/server/direction)
         self._update_path_display()
+        # The presence title follows the mode (devices vs connected members).
+        self._update_peers_label_title()
 
     def _open_setup_wizard(self) -> None:
         """Open the guided setup wizard (stop a running sync first)."""
@@ -594,13 +597,7 @@ class StartMixin:
             self._setup_wizard.activateWindow()
             return
         if self._engine.is_running:
-            answer = QMessageBox.question(
-                self,
-                tr("wizard.title"),
-                tr("wizard.stop_prompt"),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if answer != QMessageBox.StandardButton.Yes:
+            if not self._confirm_stop_sync():
                 return
             self._on_stop()
         dlg = SetupWizard(self)
@@ -613,6 +610,27 @@ class StartMixin:
             self._apply_settings_changes()
             if dlg.start_requested:
                 self._on_start()
+
+    def _build_stop_sync_dialog(self) -> QMessageBox:
+        """Stop-to-reconfigure confirmation with translated labels and app icons."""
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setWindowTitle(tr("wizard.title"))
+        msg.setText(tr("wizard.stop_prompt"))
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        if yes_btn:
+            yes_btn.setText(tr("action.yes"))
+            yes_btn.setIcon(icon("dialog-ok"))
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        if no_btn:
+            no_btn.setText(tr("action.no"))
+            no_btn.setIcon(icon("dialog-cancel"))
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        return msg
+
+    def _confirm_stop_sync(self) -> bool:
+        return self._build_stop_sync_dialog().exec() == QMessageBox.StandardButton.Yes
 
     def maybe_show_setup_wizard(self) -> None:
         """Auto-open the wizard once on a first run (no folder configured)."""

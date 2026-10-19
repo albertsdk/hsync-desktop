@@ -32,8 +32,8 @@ the main window appears. You can always reopen it later:
    explanation.
 
 2. **Folder** — pick the folder to protect or share. The suggested locations use
-   your own system folders (Documents, Pictures), the free space is shown, and a
-   folder that does not exist, a file, or a system root is refused.
+   your own system folders (Documents, Pictures, Music, Videos), the free space is
+   shown, and a folder that does not exist, a file, or a system root is refused.
 
 3. **Connection** — the fields depend on the purpose:
    - *Back up* / *Share*: server address, access key, share name. **Test

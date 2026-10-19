@@ -20,6 +20,7 @@ window's attributes.
 | `_create_menu_bar` | `main_window/ui.py::MainWindow._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window/ui.py::MainWindow._apply_translations` | re-translate on language change |
+| `_update_peers_label_title` | `main_window/ui.py::MainWindow._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
 | `_update_menu_state` | `main_window/ui.py::MainWindow._update_menu_state` | enable/disable actions by run state |
 | `_quit` | `main_window/lifecycle.py::MainWindow._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
 | `_shutdown` | `main_window/lifecycle.py::MainWindow._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
@@ -35,6 +36,11 @@ which stores the message and mirrors it into the log panel (the desktop
 notification is wired separately, only when a notifier exists).
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::MainWindow._create_menu_bar`).
+
+The presence value (`peersLabel`, set by `_on_peers`) is `connected/total`. p2p
+counts **devices** (self + peers); Server Mode counts **share accounts** with a
+live WebSocket (admins excluded), so its title is "Connected users"
+(`label.users`) — two devices on the same account count once.
 
 Help menu (`main_window/ui.py::MainWindow._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local

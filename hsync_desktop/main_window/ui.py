@@ -310,7 +310,7 @@ class UiBuildMixin:
             str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str)).strip()
         )
         self._retranslate_role()
-        self._lbl_peers.setText(tr("label.peers"))
+        self._update_peers_label_title()
         self._share_size_label.setToolTip(tr("tip.share_size"))
         self._render_share_size()
         self._lbl_sent.setText(tr("label.sent"))
@@ -349,6 +349,17 @@ class UiBuildMixin:
             self._act_help_github.setText(tr("menu.help.github"))
             self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
+
+    def _update_peers_label_title(self) -> None:
+        """Label the presence count for what it actually counts.
+
+        p2p counts devices (self + peers); server mode counts the share accounts
+        with a live WebSocket, so "Devices" would overstate it when two devices
+        share one account.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
+        self._lbl_peers.setText(tr("label.peers" if p2p_enabled else "label.users"))
 
     # ── Menu bar ──────────────────────────────────────────────────────────
 
@@ -614,22 +625,24 @@ class UiBuildMixin:
         banner = QFrame()
         banner.setObjectName("infoBanner")
         banner.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        banner.setMaximumWidth(420)
+        # 640px keeps the toast comfortable without spanning the window; the
+        # effective width is sized in _position_info_banner (220px..this cap).
+        banner.setMaximumWidth(640)
         banner.setStyleSheet(
             "#infoBanner {"
             "  background-color: #0d6efd;"
-            "  border-radius: 6px;"
-            "  padding: 6px 12px;"
+            "  border-radius: 8px;"
+            "  padding: 8px 16px;"
             "}"
             "#infoBannerLabel {"
             "  color: #ffffff;"
             "  font-weight: bold;"
-            "  font-size: 13px;"
+            "  font-size: 14px;"
             "}"
             "#infoBannerClose {"
             "  color: #ffffff;"
             "  font-weight: bold;"
-            "  font-size: 16px;"
+            "  font-size: 18px;"
             "  background: transparent;"
             "  border: none;"
             "  padding: 0 4px;"
@@ -646,7 +659,7 @@ class UiBuildMixin:
             "}"
         )
         outer = QVBoxLayout(banner)
-        outer.setContentsMargins(12, 6, 8, 6)
+        outer.setContentsMargins(14, 8, 10, 8)
         outer.setSpacing(4)
         row = QHBoxLayout()
         self._info_banner_label = QLabel("", banner)
@@ -655,7 +668,7 @@ class UiBuildMixin:
         row.addWidget(self._info_banner_label, 1)
         close_btn = QPushButton("✕", banner)
         close_btn.setObjectName("infoBannerClose")
-        close_btn.setFixedSize(24, 24)
+        close_btn.setFixedSize(26, 26)
         close_btn.clicked.connect(self._hide_info_banner)
         row.addWidget(close_btn)
         outer.addLayout(row)
@@ -663,7 +676,7 @@ class UiBuildMixin:
         self._info_progress = QProgressBar(banner)
         self._info_progress.setObjectName("infoProgress")
         self._info_progress.setRange(0, 0)
-        self._info_progress.setFixedHeight(4)
+        self._info_progress.setFixedHeight(5)
         self._info_progress.setTextVisible(False)
         self._info_progress.hide()
         outer.addWidget(self._info_progress)
@@ -680,6 +693,11 @@ class UiBuildMixin:
         central = self.centralWidget()
         if central is None:
             return
+        # Comfortably larger than the old 420px cap, but not full-width; at
+        # least 220px and never wider than the window. Re-applied on resize.
+        width = min(640, max(220, central.width() - 32))
+        self._info_banner.setFixedWidth(width)
+        self._info_banner.adjustSize()
         margin = 16
         status_top = self._status_label.mapTo(central, QPoint(0, 0)).y()
         y = status_top - self._info_banner.height() - 8
@@ -699,9 +717,6 @@ class UiBuildMixin:
         self._info_banner_kind = kind
         self._info_banner_label.setText(message)
         self._info_progress.setVisible(kind == "progress")
-        central = self.centralWidget()
-        if central is not None:
-            self._info_banner.setMaximumWidth(min(420, max(220, central.width() - 32)))
         self._info_banner.adjustSize()
         self._info_banner.show()
         self._position_info_banner()

@@ -16,7 +16,9 @@ the full reference and the only place for advanced options.
 `StartMixin._open_setup_wizard` stops a running sync (with a prompt) before
 opening, keeps a single instance, and after an applied run calls
 `StartMixin._apply_settings_changes`; "Start syncing" runs after the dialog
-closes so the normal pre-flight dialogs stay on the main window.
+closes so the normal pre-flight dialogs stay on the main window. The stop prompt
+is a themed confirmation whose Yes/No labels are translated and carry the app
+`dialog-ok`/`dialog-cancel` icons (`StartMixin._build_stop_sync_dialog`).
 
 ## Shell and pages
 
@@ -39,7 +41,8 @@ questions, each with its own `QButtonGroup` and all labels via `tr()`. The first
 ("sharing with a team?") resolves `team_share`; otherwise the same-network
 question resolves `lan_sync` or the "Only a copy" / "Edits from both sides"
 question (`backup` / `remote_sync`). Nothing is hidden: follow-ups that do not
-apply stay visible but are disabled, with a short explanation (`wizard.help.note_*`).
+apply stay visible but are disabled, with a short explanation (`wizard.help.note_*`);
+the theme grays the disabled radio labels too (`QRadioButton:disabled`).
 Confirm stays disabled until the active path is answered, so all four modes are
 reachable.
 
@@ -47,8 +50,10 @@ reachable.
 
 - **Folder suggestions** (`wizard/defaults.py::suggested_folders`) resolve the
   localized user directories through `QStandardPaths`
-  (Documents/Pictures/Home); a suggestion whose path is unset or missing is
-  disabled, and the "create an HSYNC folder" entry creates it on click.
+  (Documents/Pictures/Music/Videos/Home); each suggestion carries its own icon
+  (`x-office-document`, `image-x-generic`, `audio-x-generic`,
+  `video-x-generic`, `folder-open`). A suggestion whose path is unset or missing
+  is disabled, and the "create an HSYNC folder" entry creates it on click.
 - **Free space** is rendered with `hsync_common.format.format_bytes`
   (`FolderCheck.free_bytes`).
 - **Test buttons** sit above their own result line and stay disabled until the
@@ -60,9 +65,10 @@ reachable.
   relay result. Editing a test's fields clears its result and captured
   fingerprint (`_on_server_edited`/`_on_relay_edited`) so a stale trust pin is
   never applied.
-- **Tooltips**: every connection field and automation switch has a short
-  explanation (`wizard.tip.*`) without changing the visible labels; the relay
-  field is labelled "Relay server address".
+- **Tooltips and placeholders**: every connection field and automation switch
+  has a short explanation (`wizard.tip.*`) without changing the visible labels;
+  the text fields show language-neutral example placeholders. The relay field is
+  labelled "Relay server address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
   (via `wizard/widgets.py::ToggleRow`); secrets show/hide through an icon toggle
   (`view-visible`/`view-hidden` + tooltip).

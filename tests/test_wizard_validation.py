@@ -154,6 +154,8 @@ class TestSuggestedFolders:
             QStandardPaths.StandardLocation.HomeLocation: "/home/u",
             QStandardPaths.StandardLocation.DocumentsLocation: "/home/u/Documenti",
             QStandardPaths.StandardLocation.PicturesLocation: "/home/u/Immagini",
+            QStandardPaths.StandardLocation.MusicLocation: "/home/u/Musica",
+            QStandardPaths.StandardLocation.MoviesLocation: "/home/u/Video",
         }
         monkeypatch.setattr(
             defaults.QStandardPaths,
@@ -163,6 +165,8 @@ class TestSuggestedFolders:
         folders = dict(defaults.suggested_folders())
         assert folders["wizard.folder.suggest_documents"] == "/home/u/Documenti"
         assert folders["wizard.folder.suggest_pictures"] == "/home/u/Immagini"
+        assert folders["wizard.folder.suggest_music"] == "/home/u/Musica"
+        assert folders["wizard.folder.suggest_videos"] == "/home/u/Video"
         assert folders["wizard.folder.suggest_home"] == "/home/u/HSYNC"
 
     def test_unset_standard_dir_is_none(self, monkeypatch):

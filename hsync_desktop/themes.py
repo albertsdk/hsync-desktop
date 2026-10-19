@@ -8,6 +8,13 @@ Provides light and dark themes using QPalette and QSS stylesheets
 for a modern, consistent look across platforms.
 """
 
+from __future__ import annotations
+
+import configparser
+import os
+import sys
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
@@ -19,22 +26,111 @@ THEME_DARK = "dark"
 THEME_SYSTEM = "system"
 
 
+def _qt_color_scheme() -> Qt.ColorScheme | None:
+    """Qt's view of the desktop scheme, or ``None`` when unavailable."""
+    if QApplication.instance() is None:
+        return None
+    try:
+        return QGuiApplication.styleHints().colorScheme()
+    except (AttributeError, RuntimeError):
+        return None
+
+
+def _strip_gvariant(value: str | None) -> str:
+    return (value or "").strip().strip("'\"").lower()
+
+
+def _kde_color_scheme() -> str | None:
+    """Read ``[General] ColorScheme`` from ``kdeglobals`` (KDE/Plasma)."""
+    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    path = Path(config_home) / "kdeglobals"
+    if not path.is_file():
+        return None
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read(path, encoding="utf-8")
+    except (OSError, configparser.Error):
+        return None
+    scheme = parser.get("General", "ColorScheme", fallback="").strip().lower()
+    return scheme or None
+
+
+def _gtk_ini_prefers_dark() -> bool | None:
+    """Read the GTK 3/4 ``settings.ini`` preference, if present."""
+    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    for directory in ("gtk-4.0", "gtk-3.0"):
+        path = Path(config_home) / directory / "settings.ini"
+        if not path.is_file():
+            continue
+        parser = configparser.ConfigParser(interpolation=None)
+        try:
+            parser.read(path, encoding="utf-8")
+        except (OSError, configparser.Error):
+            continue
+        prefer = parser.get("Settings", "gtk-application-prefer-dark-theme", fallback="")
+        if prefer.strip().lower() in {"1", "true", "yes"}:
+            return True
+        theme = parser.get("Settings", "gtk-theme-name", fallback="").strip().lower()
+        if theme:
+            return "dark" in theme
+    return None
+
+
+def _linux_desktop_is_dark() -> bool | None:
+    """Best-effort Linux scheme when Qt's platform theme reports ``Unknown``.
+
+    The app forces ``QT_QPA_PLATFORMTHEME=generic`` on Linux (see
+    ``main.py::_harden_linux_gsettings``) to avoid a GTK plugin crash, which
+    also hides the desktop scheme from ``styleHints()``. Read the host settings
+    directly instead: an explicit ``GTK_THEME``, GNOME gsettings, KDE
+    ``kdeglobals``, then the GTK ``settings.ini``.
+    """
+    gtk_theme = os.environ.get("GTK_THEME", "").strip().lower()
+    if gtk_theme:
+        return "dark" in gtk_theme
+
+    # Reuse the host gsettings reader (it strips the bundled-library env so the
+    # host binary and schemas are used); the local import avoids a cycle.
+    from hsync_desktop.fonts import _gsettings_values
+
+    values = _gsettings_values(("color-scheme", "gtk-theme"))
+    scheme = _strip_gvariant(values.get("color-scheme"))
+    if scheme == "prefer-dark":
+        return True
+    if scheme == "prefer-light":
+        return False
+    theme = _strip_gvariant(values.get("gtk-theme"))
+    if theme:
+        return "dark" in theme
+
+    kde = _kde_color_scheme()
+    if kde:
+        return "dark" in kde
+
+    return _gtk_ini_prefers_dark()
+
+
 def detect_system_theme() -> str:
     """Detect the system's color scheme (light or dark).
 
-    Uses Qt's styleHints().colorScheme() which works cross-platform
-    on Windows, macOS, and Linux (Qt 6.5+).
-
-    Returns:
-        THEME_DARK if the system is in dark mode, THEME_LIGHT otherwise.
+    Qt's ``styleHints().colorScheme()`` is the primary source. When it reports
+    ``Unknown`` (Linux with the hardened generic platform theme), the desktop
+    settings are read directly; the host palette is the last fallback.
     """
-    try:
-        color_scheme = QGuiApplication.styleHints().colorScheme()
-        if color_scheme == Qt.ColorScheme.Dark:
+    scheme = _qt_color_scheme()
+    if scheme == Qt.ColorScheme.Dark:
+        return THEME_DARK
+    if scheme == Qt.ColorScheme.Light:
+        return THEME_LIGHT
+    if sys.platform.startswith("linux"):
+        desktop = _linux_desktop_is_dark()
+        if desktop is not None:
+            return THEME_DARK if desktop else THEME_LIGHT
+    app = QApplication.instance()
+    if isinstance(app, QApplication):
+        window = app.palette().color(QPalette.ColorRole.Window)
+        if window.lightness() < 128:
             return THEME_DARK
-    except AttributeError:
-        # Fallback for older Qt versions without colorScheme()
-        pass
     return THEME_LIGHT
 
 
@@ -244,6 +340,9 @@ QComboBox:disabled {{
     color: {disabled_text};
 }}
 QCheckBox:disabled {{
+    color: {disabled_text};
+}}
+QRadioButton:disabled {{
     color: {disabled_text};
 }}
 QLabel:disabled {{

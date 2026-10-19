@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.icons import icon
 from hsync_desktop.settings.validators import validate_sync_folder
 from hsync_desktop.wizard.defaults import suggested_folders
 from hsync_desktop.wizard.model import WizardDraft
@@ -31,6 +32,14 @@ __all__ = ["FolderPage"]
 # Suggestion that creates its target folder on click (the others only select an
 # existing, localized user directory).
 _CREATE_KEY = "wizard.folder.suggest_home"
+
+_SUGGESTION_ICONS = {
+    "wizard.folder.suggest_documents": "x-office-document",
+    "wizard.folder.suggest_pictures": "image-x-generic",
+    "wizard.folder.suggest_music": "audio-x-generic",
+    "wizard.folder.suggest_videos": "video-x-generic",
+    "wizard.folder.suggest_home": "folder-open",
+}
 
 
 class FolderPage(WizardPage):
@@ -58,27 +67,38 @@ class FolderPage(WizardPage):
 
         self._suggestions = QGridLayout()
         self._suggestion_buttons: list[QPushButton] = []
-        for index, (key, path) in enumerate(suggested_folders()):
-            button = QPushButton()
-            target = path or ""
-            button.setProperty("wizardPath", target)
-            button.setProperty("wizardKey", key)
-            button.setProperty("wizardCreate", key == _CREATE_KEY)
-            button.clicked.connect(self._on_suggestion)
-            # Never offer a path that would immediately fail validation.
-            button.setEnabled(bool(target) and (key == _CREATE_KEY or Path(target).is_dir()))
+        entries = suggested_folders()
+        standard = [(key, path) for key, path in entries if key != _CREATE_KEY]
+        create = [(key, path) for key, path in entries if key == _CREATE_KEY]
+        for index, (key, path) in enumerate(standard):
+            button = self._make_suggestion(key, path)
+            self._suggestions.addWidget(button, index // 2, index % 2)
             self._suggestion_buttons.append(button)
-            if index < 2:
-                self._suggestions.addWidget(button, 0, index)
-            else:
-                # The "create" suggestion spans the row so long labels fit.
-                self._suggestions.addWidget(button, 1, 0, 1, 2)
+        for key, path in create:
+            button = self._make_suggestion(key, path)
+            # The "create" suggestion spans the row so long labels fit.
+            self._suggestions.addWidget(button, (len(standard) + 1) // 2, 0, 1, 2)
+            self._suggestion_buttons.append(button)
         layout.addLayout(self._suggestions)
 
         self.free_space = muted_label()
         layout.addWidget(self.free_space)
         layout.addStretch(1)
         self.apply_translations()
+
+    def _make_suggestion(self, key: str, path: str | None) -> QPushButton:
+        button = QPushButton()
+        target = path or ""
+        button.setProperty("wizardPath", target)
+        button.setProperty("wizardKey", key)
+        button.setProperty("wizardCreate", key == _CREATE_KEY)
+        button.clicked.connect(self._on_suggestion)
+        icon_name = _SUGGESTION_ICONS.get(key)
+        if icon_name:
+            button.setIcon(icon(icon_name))
+        # Never offer a path that would immediately fail validation.
+        button.setEnabled(bool(target) and (key == _CREATE_KEY or Path(target).is_dir()))
+        return button
 
     def _on_text_changed(self, _text: str) -> None:
         self._refresh_free_space()

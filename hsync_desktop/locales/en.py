@@ -653,4 +653,7 @@ translations: dict[str, str] = {
     "wizard.tip.start_at_login": "Launch HSYNC automatically when you log in to your computer.",
     "wizard.help.note_team": "The next questions are not needed when sharing with a team.",
     "wizard.help.note_same_network": "The next question is not needed when your devices are on the same network.",
+    "wizard.folder.suggest_music": "Music",
+    "wizard.folder.suggest_videos": "Videos",
+    "label.users": "Connected users:",
 }

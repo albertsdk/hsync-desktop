@@ -476,6 +476,18 @@ class TestLayoutImprovements:
         assert page.relay.toolTip() == tr("wizard.tip.relay")
         assert page.continuous.toolTip() == tr("wizard.tip.continuous")
 
+    def test_folder_suggestions_have_icons(self, wizard):
+        assert wizard.folder_page._suggestion_buttons
+        for button in wizard.folder_page._suggestion_buttons:
+            assert not button.icon().isNull(), button.property("wizardKey")
+
+    def test_connection_placeholders(self, wizard):
+        page = wizard.connection_page
+        assert page.server_url.placeholderText() == "https://hsync.example.com:9753"
+        assert page.relay.placeholderText() == "relay.example.com"
+        assert page.bucket.placeholderText() == "my-share"
+        assert page.group.placeholderText() == "my-devices"
+
     def test_success_hides_the_progress_header(self, wizard):
         wizard._resume.setText("resume")
         wizard._set_step(1)
