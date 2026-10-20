@@ -114,14 +114,14 @@ class TestConnectionValidation:
         )
         assert [i.code for i in validate_connection(draft)] == ["server_invalid"]
 
-    def test_remote_requires_relay(self):
+    def test_remote_requires_discovery_server(self):
         draft = WizardDraft(
             mode=WizardMode.REMOTE_SYNC,
             bucket="data",
             p2p_group="grp",
             p2p_key="pw",
         )
-        assert [i.code for i in validate_connection(draft)] == ["relay_required"]
+        assert [i.code for i in validate_connection(draft)] == ["discovery_server_required"]
 
     def test_lan_needs_no_server(self):
         draft = WizardDraft(mode=WizardMode.LAN_SYNC, bucket="data", p2p_group="grp", p2p_key="pw")

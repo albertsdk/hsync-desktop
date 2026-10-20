@@ -90,21 +90,21 @@ def _check_server(draft: WizardDraft) -> list[Issue]:
     return issues
 
 
-def _check_p2p(draft: WizardDraft, requires_relay: bool) -> list[Issue]:
+def _check_p2p(draft: WizardDraft, requires_discovery_server: bool) -> list[Issue]:
     issues: list[Issue] = []
     if _validate_group_name(draft.p2p_group.strip()) is None:
         issues.append(Issue("error", "group_invalid", "p2p_group"))
     if not draft.p2p_key.strip():
         issues.append(Issue("error", "password_required", "p2p_key"))
-    if requires_relay:
-        relay = draft.relay.strip()
-        if not relay:
-            issues.append(Issue("error", "relay_required", "relay"))
+    if requires_discovery_server:
+        discovery_server = draft.discovery_server.strip()
+        if not discovery_server:
+            issues.append(Issue("error", "discovery_server_required", "discovery_server"))
         else:
             try:
-                normalize_bootnode_endpoint(relay)
+                normalize_bootnode_endpoint(discovery_server)
             except ValueError:
-                issues.append(Issue("error", "relay_invalid", "relay"))
+                issues.append(Issue("error", "discovery_server_invalid", "discovery_server"))
     return issues
 
 
@@ -114,7 +114,7 @@ def validate_connection(draft: WizardDraft) -> list[Issue]:
         return []
     profile = profile_for(draft.mode)
     if profile.p2p_enabled:
-        issues = _check_p2p(draft, profile.requires_relay)
+        issues = _check_p2p(draft, profile.requires_discovery_server)
     else:
         issues = _check_server(draft)
     share = _check_share(draft)

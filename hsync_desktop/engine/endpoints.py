@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Server/relay endpoint grammar and probe TLS context for the desktop GUI.
+"""Server/discovery-server endpoint grammar and probe TLS context for the desktop GUI.
 
 The endpoint grammar itself lives in ``hsync_common.endpoint`` (SSOT). This
 module fixes only the GUI's server default port and the probe's SSL policy, so
 the Settings dialog and the setup wizard interpret the "server address" and
-"relay server" fields identically.
+"discovery server" fields identically.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def normalize_server_endpoint(raw: str) -> str | None:
 
 
 def normalize_bootnode_endpoint(raw: str) -> str | None:
-    """Canonicalize the relay field; raise ``ValueError`` on invalid input.
+    """Canonicalize the discovery-server field; raise ``ValueError`` on invalid input.
 
     Returns ``host`` (no port) or ``host:port``/``[IPv6]:port``; empty input
     yields ``None``.

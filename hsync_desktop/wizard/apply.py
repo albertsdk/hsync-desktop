@@ -35,7 +35,7 @@ __all__ = ["ApplyResult", "apply_draft"]
 
 # Trust port when the endpoint carries none: mirrors the client/GUI pre-flight
 # (``TrustMixin._ensure_server_trust`` uses 443 for https, 9753 otherwise; the
-# relay pre-flight uses 443).
+# discovery-server pre-flight uses 443).
 _HTTPS_PORT = 443
 _SERVER_DEFAULT_PORT = 9753
 
@@ -61,9 +61,9 @@ def _server_host_port(url: str) -> tuple[str, int] | None:
     return parts.hostname, port
 
 
-def _relay_host_port(relay: str) -> tuple[str, int] | None:
+def _discovery_server_host_port(discovery_server: str) -> tuple[str, int] | None:
     try:
-        endpoint = parse_host_port(relay)
+        endpoint = parse_host_port(discovery_server)
     except ValueError:
         return None
     return endpoint.host, endpoint.port or _HTTPS_PORT
@@ -80,8 +80,8 @@ def _pin_server(binary: str, url: str, fingerprint: str) -> str:
     return "" if add_server_trust(binary, host, fingerprint, port) else "failed"
 
 
-def _pin_relay(binary: str, relay: str, fingerprint: str) -> str:
-    target = _relay_host_port(relay)
+def _pin_discovery_server(binary: str, discovery_server: str, fingerprint: str) -> str:
+    target = _discovery_server_host_port(discovery_server)
     if target is None:
         return "failed"
     host, port = target
@@ -96,8 +96,10 @@ def _pin_requested(draft: WizardDraft, *, server_mode: bool) -> list[tuple[str, 
     requests: list[tuple[str, str, str]] = []
     if server_mode and draft.server_pin and draft.server_url.strip():
         requests.append(("server", draft.server_url.strip(), draft.server_fingerprint))
-    if draft.relay_pin and draft.relay.strip():
-        requests.append(("relay", draft.relay.strip(), draft.relay_fingerprint))
+    if draft.discovery_server_pin and draft.discovery_server.strip():
+        requests.append(
+            ("discovery_server", draft.discovery_server.strip(), draft.discovery_server_fingerprint)
+        )
     return requests
 
 
@@ -121,7 +123,7 @@ def apply_draft(
     server_mode = profile is not None and not profile.p2p_enabled
     if server_mode:
         s.setValue("p2p/enabled", False)
-        # Clear a stale relay so it cannot leak HSYNC_BOOTNODE into a server run.
+        # Clear a stale discovery server so it cannot leak HSYNC_BOOTNODE into a server run.
         s.setValue("p2p/bootnode", "")
         s.setValue("connection/server_url", normalize_server_endpoint(draft.server_url) or "")
         s.setValue("connection/api_key", encrypt_value(draft.api_key) if draft.api_key else "")
@@ -132,10 +134,12 @@ def apply_draft(
         s.setValue("p2p/group", draft.p2p_group.strip())
         s.setValue("p2p/key", encrypt_value(draft.p2p_key) if draft.p2p_key else "")
         s.setValue("p2p/bootnode_trust", "ask")
-        relay = (
-            normalize_bootnode_endpoint(draft.relay) if profile and profile.requires_relay else ""
+        discovery_server = (
+            normalize_bootnode_endpoint(draft.discovery_server)
+            if profile and profile.requires_discovery_server
+            else ""
         )
-        s.setValue("p2p/bootnode", relay or "")
+        s.setValue("p2p/bootnode", discovery_server or "")
 
     s.setValue("appearance/start_at_login", draft.start_at_login)
     if autostart.is_supported():
@@ -157,7 +161,7 @@ def apply_draft(
         error = (
             _pin_server(binary, endpoint, fingerprint)
             if kind == "server"
-            else _pin_relay(binary, endpoint, fingerprint)
+            else _pin_discovery_server(binary, endpoint, fingerprint)
         )
         if error:
             return ApplyResult(pin_error=error)

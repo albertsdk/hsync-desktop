@@ -45,7 +45,7 @@ The primary/secondary role shown in the status bar exists only in p2p mode and i
 text appears once the device is connected and the role is known (before that the
 bar shows a neutral icon only); Server Mode has no such role. In the trusted-key
 dialog (*Manage trusted servers & devices…*) the tabs follow the active mode: p2p
-shows the relay-server and device stores, Server Mode shows the **Server HSYNC**
+shows the discovery-server and device stores, Server Mode shows the **Server HSYNC**
 store. Enabling **Detailed log output** while the log panel is hidden offers to
 show the panel.
 
@@ -152,7 +152,7 @@ In Server Mode, the address field accepts a bare hostname or `host:port` —
   with mDNS allowed through the firewall, and that they use the same **group
   name** (a device with no group only sees other no-group devices). A shared
   password is only needed to authorize writes; devices on different networks
-  need a **relay server** set in the p2p tab.
+  need a **discovery server** set in the p2p tab.
 - **p2p authentication failed** — a device you are syncing with requires a shared
   password that this device is missing or has differently. The app stops and
   opens the password prompt so you can enter the correct one (it is saved and the

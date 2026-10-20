@@ -63,7 +63,7 @@ _TOOLTIP_KEYS = {
     "bucket": "wizard.tip.share_name",
     "p2p_group": "wizard.tip.group",
     "p2p_key": "wizard.tip.password",
-    "relay": "wizard.tip.relay",
+    "discovery_server": "wizard.tip.discovery_server",
     "receive_only": "wizard.tip.receive_only",
     "cert": "wizard.tip.cert",
 }
@@ -80,11 +80,11 @@ class ConnectionPage(WizardPage):
         super().__init__()
         self._mode: WizardMode | None = None
         self._server_fingerprint = ""
-        self._relay_fingerprint = ""
+        self._discovery_server_fingerprint = ""
         self._server_verified = False
         self._server_verified_at = ""
-        self._relay_verified = False
-        self._relay_verified_at = ""
+        self._discovery_server_verified = False
+        self._discovery_server_verified_at = ""
         self._share_missing = False
         self._probing = False
         self._active_target = ""
@@ -162,34 +162,38 @@ class ConnectionPage(WizardPage):
             self.password.regenerate.clicked.connect(self._on_regenerate)
         network_form.addRow(*self._row("p2p_key", "wizard.connection.password", self.password))
 
-        self.relay = QLineEdit()
-        self.relay.setPlaceholderText("relay.example.com")
-        self.relay.textChanged.connect(self._on_edit)
-        self.relay.textChanged.connect(self._on_relay_edited)
-        network_form.addRow(*self._row("relay", "wizard.connection.relay", self.relay))
+        self.discovery_server = QLineEdit()
+        self.discovery_server.setPlaceholderText("boot.example.net")
+        self.discovery_server.textChanged.connect(self._on_edit)
+        self.discovery_server.textChanged.connect(self._on_discovery_server_edited)
+        network_form.addRow(
+            *self._row(
+                "discovery_server", "wizard.connection.discovery_server", self.discovery_server
+            )
+        )
 
-        self.test_relay = QPushButton()
-        self.test_relay.clicked.connect(self._on_test_relay)
-        self.relay_status = self._make_status()
-        network_form.addRow(*self._action_row("test_relay", self.test_relay))
+        self.test_discovery_server = QPushButton()
+        self.test_discovery_server.clicked.connect(self._on_test_discovery_server)
+        self.discovery_server_status = self._make_status()
+        network_form.addRow(*self._action_row("test_discovery_server", self.test_discovery_server))
         # Its own row: a long error can never overlap the button.
-        network_form.addRow("", self.relay_status)
+        network_form.addRow("", self.discovery_server_status)
 
-        # Relay trust buttons, shown under the relay result after a good check.
-        self.relay_trust_box = QWidget()
-        trust_layout = QHBoxLayout(self.relay_trust_box)
+        # Discovery-server trust buttons, shown under the result after a good check.
+        self.discovery_server_trust_box = QWidget()
+        trust_layout = QHBoxLayout(self.discovery_server_trust_box)
         trust_layout.setContentsMargins(0, 0, 0, 0)
         self.trust_save = QPushButton()
         self.trust_save.setCheckable(True)
         self.trust_ask = QPushButton()
         self.trust_ask.setCheckable(True)
-        self.trust_save.clicked.connect(lambda: self._set_relay_pin(True))
-        self.trust_ask.clicked.connect(lambda: self._set_relay_pin(False))
+        self.trust_save.clicked.connect(lambda: self._set_discovery_server_pin(True))
+        self.trust_ask.clicked.connect(lambda: self._set_discovery_server_pin(False))
         trust_layout.addWidget(self.trust_save)
         trust_layout.addWidget(self.trust_ask)
         trust_layout.addStretch(1)
-        self.relay_trust_box.setVisible(False)
-        network_form.addRow("", self.relay_trust_box)
+        self.discovery_server_trust_box.setVisible(False)
+        network_form.addRow("", self.discovery_server_trust_box)
 
         self.receive_only = ToggleSwitch()
         self.receive_only.toggled.connect(self._on_edit)
@@ -291,15 +295,15 @@ class ConnectionPage(WizardPage):
         self._server_verified_at = ""
         self._clear_status(self.server_status)
 
-    def _on_relay_edited(self, *_args) -> None:
-        """A relay edit invalidates its result, fingerprint and trust choice."""
-        self._relay_fingerprint = ""
-        self._relay_verified = False
-        self._relay_verified_at = ""
-        self.relay_trust_box.setVisible(False)
+    def _on_discovery_server_edited(self, *_args) -> None:
+        """A discovery-server edit invalidates its result, fingerprint and trust choice."""
+        self._discovery_server_fingerprint = ""
+        self._discovery_server_verified = False
+        self._discovery_server_verified_at = ""
+        self.discovery_server_trust_box.setVisible(False)
         self.trust_save.setChecked(False)
         self.trust_ask.setChecked(False)
-        self._clear_status(self.relay_status)
+        self._clear_status(self.discovery_server_status)
 
     def _on_regenerate(self) -> None:
         self.password.setText(generate_password())
@@ -308,9 +312,11 @@ class ConnectionPage(WizardPage):
         """Test buttons stay disabled until their required inputs are present."""
         server_ready = bool(self.server_url.text().strip() and self.api_key.text().strip())
         self.test_server.setEnabled(not self._probing and server_ready)
-        self.test_relay.setEnabled(not self._probing and bool(self.relay.text().strip()))
+        self.test_discovery_server.setEnabled(
+            not self._probing and bool(self.discovery_server.text().strip())
+        )
 
-    def _set_relay_pin(self, pinned: bool) -> None:
+    def _set_discovery_server_pin(self, pinned: bool) -> None:
         self.trust_save.setChecked(pinned)
         self.trust_ask.setChecked(not pinned)
         self.changed.emit()
@@ -324,12 +330,12 @@ class ConnectionPage(WizardPage):
         current = self._server_page if (profile is None or server) else self._network_page
         self._stack.setCurrentWidget(current)
         self._set_visible("direction", mode == WizardMode.TEAM_SHARE)
-        for name in ("relay", "test_relay"):
-            self._set_visible(name, bool(profile and profile.requires_relay))
+        for name in ("discovery_server", "test_discovery_server"):
+            self._set_visible(name, bool(profile and profile.requires_discovery_server))
         self._set_visible("receive_only", p2p)
-        self.relay_trust_box.setVisible(False)
+        self.discovery_server_trust_box.setVisible(False)
         self._clear_status(self.server_status)
-        self._clear_status(self.relay_status)
+        self._clear_status(self.discovery_server_status)
         self._update_test_enabled()
 
     def _current_direction(self) -> str:
@@ -397,28 +403,34 @@ class ConnectionPage(WizardPage):
 
         self._probe.start(job)
 
-    def _on_test_relay(self) -> None:
-        raw = self.relay.text().strip()
+    def _on_test_discovery_server(self) -> None:
+        raw = self.discovery_server.text().strip()
         try:
             normalized = normalize_bootnode_endpoint(raw)
             if normalized is None:
                 raise ValueError
         except ValueError:
-            set_field_error(self.relay, self._rows["relay"][2], tr("wizard.error.relay_invalid"))
+            set_field_error(
+                self.discovery_server,
+                self._rows["discovery_server"][2],
+                tr("wizard.error.discovery_server_invalid"),
+            )
             return
-        set_field_error(self.relay, self._rows["relay"][2], "")
-        self._relay_fingerprint = ""
-        self._relay_verified = False
-        self._relay_verified_at = ""
-        self.relay_trust_box.setVisible(False)
+        set_field_error(self.discovery_server, self._rows["discovery_server"][2], "")
+        self._discovery_server_fingerprint = ""
+        self._discovery_server_verified = False
+        self._discovery_server_verified_at = ""
+        self.discovery_server_trust_box.setVisible(False)
         self.trust_save.setChecked(False)
         self.trust_ask.setChecked(False)
         binary = find_hsync_binary()
         if not binary:
-            self._set_status(self.relay_status, "error", tr("wizard.error.pin_no_binary"))
+            self._set_status(
+                self.discovery_server_status, "error", tr("wizard.error.pin_no_binary")
+            )
             return
-        self._active_target = "relay"
-        self._set_status(self.relay_status, "working", tr("wizard.connection.testing"))
+        self._active_target = "discovery_server"
+        self._set_status(self.discovery_server_status, "working", tr("wizard.connection.testing"))
         self._probing = True
         self._update_test_enabled()
         from hsync_common.endpoint import parse_host_port
@@ -445,26 +457,30 @@ class ConnectionPage(WizardPage):
         if target == "server":
             if self._mode not in (WizardMode.BACKUP, WizardMode.TEAM_SHARE):
                 return
-        elif target == "relay":
+        elif target == "discovery_server":
             if self._mode != WizardMode.REMOTE_SYNC:
                 return
         else:
             return
-        if target == "relay":
+        if target == "discovery_server":
             if outcome.fingerprint:
-                self._relay_fingerprint = outcome.fingerprint
-                self._relay_verified = True
-                self._relay_verified_at = datetime.now(UTC).isoformat()
+                self._discovery_server_fingerprint = outcome.fingerprint
+                self._discovery_server_verified = True
+                self._discovery_server_verified_at = datetime.now(UTC).isoformat()
                 self._set_status(
-                    self.relay_status,
+                    self.discovery_server_status,
                     "ok",
-                    tr("wizard.connection.test_relay_ok").format(fingerprint=outcome.fingerprint),
+                    tr("wizard.connection.test_discovery_server_ok").format(
+                        fingerprint=outcome.fingerprint
+                    ),
                 )
-                self.relay_trust_box.setVisible(True)
-                self._set_relay_pin(True)
+                self.discovery_server_trust_box.setVisible(True)
+                self._set_discovery_server_pin(True)
             else:
                 self._set_status(
-                    self.relay_status, "error", tr("wizard.connection.relay_unreachable")
+                    self.discovery_server_status,
+                    "error",
+                    tr("wizard.connection.discovery_server_unreachable"),
                 )
             self.changed.emit()
             return
@@ -491,7 +507,7 @@ class ConnectionPage(WizardPage):
                 if isinstance(field, ToggleSwitch):
                     field.setAccessibleName(text)
         self.test_server.setText(tr("settings.test_connection"))
-        self.test_relay.setText(tr("settings.test_connection"))
+        self.test_discovery_server.setText(tr("settings.test_connection"))
         self.trust_save.setText(tr("wizard.connection.trust_save"))
         self.trust_ask.setText(tr("wizard.connection.trust_ask"))
         self.direction.setItemText(0, tr("settings.sync_direction.bidirectional"))
@@ -542,18 +558,18 @@ class ConnectionPage(WizardPage):
         self.group.setText(draft.p2p_group)
         self.password.setText(draft.p2p_key)
         self.receive_only.setChecked(draft.direction == "download-only")
-        self.relay.setText(draft.relay)
+        self.discovery_server.setText(draft.discovery_server)
         index = _DIRECTIONS.index(draft.direction) if draft.direction in _DIRECTIONS else 0
         self.direction.setCurrentIndex(index)
         self.continuous.setChecked(draft.continuous)
         self.auto_sync.setChecked(draft.auto_sync)
         self.start_at_login.setChecked(draft.start_at_login)
         self._server_fingerprint = draft.server_fingerprint
-        self._relay_fingerprint = draft.relay_fingerprint
+        self._discovery_server_fingerprint = draft.discovery_server_fingerprint
         self._server_verified = draft.server_verified
         self._server_verified_at = draft.server_verified_at
-        self._relay_verified = draft.relay_verified
-        self._relay_verified_at = draft.relay_verified_at
+        self._discovery_server_verified = draft.discovery_server_verified
+        self._discovery_server_verified_at = draft.discovery_server_verified_at
         if draft.p2p_group == "" and draft.mode in (WizardMode.LAN_SYNC, WizardMode.REMOTE_SYNC):
             self.group.setText(generate_group_name(draft.local_path))
         self._update_test_enabled()
@@ -565,19 +581,21 @@ class ConnectionPage(WizardPage):
         draft.accept_server_cert = self.cert_switch.isChecked()
         draft.p2p_group = self.group.text().strip()
         draft.p2p_key = self.password.text().strip()
-        draft.relay = self.relay.text().strip()
+        draft.discovery_server = self.discovery_server.text().strip()
         draft.direction = self._current_direction()
         draft.continuous = self.continuous.isChecked()
         draft.auto_sync = self.auto_sync.isChecked()
         draft.start_at_login = self.start_at_login.isChecked()
         draft.server_pin = self.cert_switch.isChecked()
-        draft.relay_pin = self.trust_save.isChecked() and bool(self._relay_fingerprint)
+        draft.discovery_server_pin = self.trust_save.isChecked() and bool(
+            self._discovery_server_fingerprint
+        )
         draft.server_fingerprint = self._server_fingerprint
-        draft.relay_fingerprint = self._relay_fingerprint
+        draft.discovery_server_fingerprint = self._discovery_server_fingerprint
         draft.server_verified = self._server_verified
         draft.server_verified_at = self._server_verified_at
-        draft.relay_verified = self._relay_verified
-        draft.relay_verified_at = self._relay_verified_at
+        draft.discovery_server_verified = self._discovery_server_verified
+        draft.discovery_server_verified_at = self._discovery_server_verified_at
 
     def field_error_targets(self) -> dict[str, tuple[QWidget, InlineError]]:
         return {name: (field, error) for name, (_c, field, error, _l) in self._rows.items()}

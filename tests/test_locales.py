@@ -4,6 +4,7 @@
 """Tests for hsync_desktop.locales modules."""
 
 import re
+import string
 
 from hsync_desktop.locales import de, en, es, fr, it, ja, nl, pl, pt, ru, zh
 
@@ -68,11 +69,58 @@ class TestTerminologyConsistency:
     """Keep the visible wording coherent for non-technical users, in every locale.
 
     Guards that the incompatibility warnings name the option exactly as its
-    checkbox label reads, and that role/relay wording avoids master/bootnode
-    jargon.
+    checkbox label reads, and that role/discovery wording avoids
+    master/relay/bootnode jargon.
     """
 
     ALL = ALL_MODULES
+
+    # User-facing name of the `boot/1` node in each locale. It is a discovery
+    # service (it never relays file data), so "relay" and "bootnode" are jargon.
+    DISCOVERY_TERMS = {
+        "en": "discovery",
+        "it": "individuazione",
+        "de": "erkennung",
+        "fr": "découverte",
+        "es": "descubrimiento",
+        "pt": "descoberta",
+        "zh": "发现",
+        "ru": "обнаружения",
+        "nl": "detectie",
+        "pl": "wykrywania",
+        "ja": "探索",
+    }
+
+    # Locale-independent tokens that wrongly imply a data relay.
+    RELAY_TOKENS = ("relay", "relais", "中继", "リレー", "ретрансляц", "przekaźnik")
+
+    BOOTNODE_KEYS = (
+        "settings.test_bootnode_no_host",
+        "settings.test_bootnode_no_binary",
+        "settings.test_bootnode_success",
+        "settings.test_bootnode_failure",
+        "settings.invalid_bootnode_endpoint",
+        "settings.p2p_bootnode",
+        "settings.p2p_bootnode_trust",
+        "dialogs.bootnode_trust_title",
+        "dialogs.bootnode_trust_body",
+        "dialogs.bootnode_unreachable",
+        "trusted_keys.tabs_bootnodes",
+        "tip.p2p_mode",
+        "tip.p2p_bootnode",
+        "tip.p2p_bootnode_trust",
+        "tip.manage_trusted_keys",
+        "tip.test_bootnode",
+        "tip.p2p_key",
+        "wizard.mode.remote_sync.desc",
+        "wizard.connection.discovery_server",
+        "wizard.connection.test_discovery_server_ok",
+        "wizard.connection.trust_save",
+        "wizard.error.discovery_server_required",
+        "wizard.error.discovery_server_invalid",
+        "wizard.connection.discovery_server_unreachable",
+        "wizard.tip.discovery_server",
+    )
 
     def test_prefer_role_warning_quotes_the_visible_label(self):
         """The warnings must name the option exactly as its label reads."""
@@ -98,19 +146,43 @@ class TestTerminologyConsistency:
             ):
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
 
-    def test_relay_terms_avoid_bootnode_jargon(self):
-        """User-facing strings call the bootnode a relay server."""
+    def test_discovery_terms_avoid_relay_and_bootnode_jargon(self):
+        """The boot/1 node is a discovery server, never a relay or a bootnode."""
         for module in self.ALL:
-            for key in (
-                "settings.p2p_bootnode",
-                "settings.p2p_bootnode_trust",
-                "tip.p2p_bootnode",
-                "trusted_keys.tabs_bootnodes",
-                "dialogs.bootnode_trust_title",
-            ):
-                assert "bootnode" not in module.translations[key].lower(), (
+            name = module.__name__.rsplit(".", 1)[-1]
+            term = self.DISCOVERY_TERMS[name]
+            for key in self.BOOTNODE_KEYS:
+                text = module.translations[key].lower()
+                assert term in text, f"{module.__name__}:{key}: missing {term!r}"
+                assert "bootnode" not in text, f"{module.__name__}:{key}"
+                for token in self.RELAY_TOKENS:
+                    assert token not in text, f"{module.__name__}:{key}: {token!r}"
+
+    def test_device_finding_group_is_about_devices_only(self):
+        """The settings group names device finding, not the discovery server."""
+        for module in self.ALL:
+            text = module.translations["settings.group.p2p_discovery"].lower()
+            for token in self.RELAY_TOKENS:
+                assert token not in text, f"{module.__name__}:{token!r}"
+
+    def test_translation_placeholders_match_english(self):
+        """Every locale keeps the same {placeholders} as English."""
+
+        def fields(text):
+            return {name for _, name, _, _ in string.Formatter().parse(text) if name}
+
+        for module in self.ALL:
+            for key, english in en.translations.items():
+                assert fields(module.translations[key]) == fields(english), (
                     f"{module.__name__}:{key}"
                 )
+
+    def test_invite_carries_share_group_and_password(self):
+        """The invite must let another device join the same share and group."""
+        for module in self.ALL:
+            text = module.translations["wizard.success.invite_text"]
+            fields = {name for _, name, _, _ in string.Formatter().parse(text) if name}
+            assert fields == {"bucket", "group", "password"}, module.__name__
 
     def test_p2p_warning_names_the_credential_like_its_label(self):
         """The keyless-run prompt says "shared password", not "shared key"."""
@@ -276,7 +348,7 @@ class TestTerminologyConsistency:
             ):
                 value = module.translations[key].lower()
                 assert "ipv6" not in value and "host:port" not in value, f"{module.__name__}:{key}"
-                assert "example.com" in value, f"{module.__name__}:{key}"
+                assert "example.com" in value or "example.net" in value, f"{module.__name__}:{key}"
             code = module.__name__.rsplit(".", 1)[-1]
             assert (
                 server_word[code] in module.translations["settings.test_connection_failure"].lower()

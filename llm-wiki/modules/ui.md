@@ -118,7 +118,7 @@ the `engine` subprocess helpers (never the store files directly): three tabs
 tab; the settings dialog passes the tab matching the panel that launched it.
 Tabs are filtered by the active mode
 (`trusted_keys.py::TrustedKeysDialog._apply_mode_tab_visibility`, reading
-`p2p/enabled`): p2p shows **Relay servers** + **Devices** and hides the server
+`p2p/enabled`): p2p shows **Discovery servers** + **Devices** and hides the server
 store; Server Mode shows only **Server HSYNC** and hides the p2p stores. When
 `initial_tab` is hidden, the dialog falls back to the first visible page. The
 server tab is labelled **Server HSYNC** (`trusted_keys.tabs_servers`). The

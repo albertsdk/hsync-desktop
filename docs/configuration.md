@@ -54,11 +54,11 @@ for the underlying behaviour.
 |---------|-------------|
 | Enable p2p mode | Enable device discovery |
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the p2p group; with a relay server it is also the relay credential |
-| Relay server (optional) | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
-| Relay identity check | How the app checks the relay server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
-| Manage trusted servers & devices | List, add and remove the relay server, server and device fingerprints the client actually uses |
-| Open the port on my router automatically | Open the primary port so devices reached through a relay server can connect (only takes effect with a relay server set) |
+| Shared password | Password shared by the devices in the p2p group; with a protected discovery server it is also the group key the client authenticates with |
+| Discovery server (optional) | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
+| Discovery server identity check | How the app checks the discovery server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
+| Manage trusted servers & devices | List, add and remove the discovery server, server and device fingerprints the client actually uses |
+| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | Ask before trusting new devices | Ask for confirmation the first time a new device connects, instead of trusting it automatically |
@@ -80,10 +80,10 @@ jumps to the Sync tab). Declining either prompt keeps your choice and repeats th
 generic warning when saving.
 
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
-known-hosts (relay server and sync server) and known-devices stores directly —
+known-hosts (discovery server and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
 source of truth. The dialog shows only the stores relevant to the active mode:
-p2p shows the relay-server and device stores, Server Mode shows the **Server
+p2p shows the discovery-server and device stores, Server Mode shows the **Server
 HSYNC** store.
 
 **Keyless runs.** Without a shared password the app confirms before starting:

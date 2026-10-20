@@ -257,7 +257,7 @@ class TrustedKeysDialog(QDialog):
     def _apply_mode_tab_visibility(self, initial_tab: str) -> None:
         """Show only the trust stores the active sync mode can use.
 
-        The relay-server and device stores belong to p2p mode; the sync-server
+        The discovery-server and device stores belong to p2p mode; the sync-server
         store belongs to Server Mode. Hiding the irrelevant ones keeps the
         dialog focused (each mode's settings panel opens its own tab).
         """

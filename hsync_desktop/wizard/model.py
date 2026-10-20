@@ -42,7 +42,7 @@ __all__ = [
 
 # Bumped when the draft layout changes: a draft with another version is
 # discarded instead of being partially restored.
-DRAFT_VERSION = 2
+DRAFT_VERSION = 3
 
 _DRAFT_PREFIX = "wizard/draft"
 
@@ -65,7 +65,7 @@ class WizardProfile:
     direction: str  # "bidirectional" | "upload-only" | "download-only"
     ignore_delete: bool
     start_at_login: bool
-    requires_relay: bool
+    requires_discovery_server: bool
     server_trust: str | None  # None = mode has no server field
 
 
@@ -76,7 +76,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="upload-only",
         ignore_delete=True,
         start_at_login=True,
-        requires_relay=False,
+        requires_discovery_server=False,
         server_trust="chain",
     ),
     WizardMode.LAN_SYNC: WizardProfile(
@@ -85,7 +85,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         ignore_delete=False,
         start_at_login=False,
-        requires_relay=False,
+        requires_discovery_server=False,
         server_trust=None,
     ),
     WizardMode.REMOTE_SYNC: WizardProfile(
@@ -94,7 +94,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         ignore_delete=False,
         start_at_login=False,
-        requires_relay=True,
+        requires_discovery_server=True,
         server_trust=None,
     ),
     WizardMode.TEAM_SHARE: WizardProfile(
@@ -103,7 +103,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         ignore_delete=False,
         start_at_login=False,
-        requires_relay=False,
+        requires_discovery_server=False,
         server_trust="chain",
     ),
 }
@@ -125,7 +125,7 @@ class WizardDraft:
     api_key: str = ""
     p2p_group: str = ""
     p2p_key: str = ""
-    relay: str = ""
+    discovery_server: str = ""
     direction: str = "bidirectional"
     ignore_delete: bool = False
     continuous: bool = True
@@ -135,13 +135,13 @@ class WizardDraft:
     accept_server_cert: bool = False
     server_fingerprint: str = ""
     server_pin: bool = False
-    relay_fingerprint: str = ""
-    relay_pin: bool = False
+    discovery_server_fingerprint: str = ""
+    discovery_server_pin: bool = False
     # Last successful reachability check (ISO 8601 UTC); cleared on edit.
     server_verified: bool = False
     server_verified_at: str = ""
-    relay_verified: bool = False
-    relay_verified_at: str = ""
+    discovery_server_verified: bool = False
+    discovery_server_verified_at: str = ""
 
 
 def _settings() -> QSettings:
@@ -156,8 +156,8 @@ def infer_mode_from_settings(settings: QSettings | None = None) -> WizardMode | 
     p2p = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
     direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
     if p2p:
-        relay = str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)).strip()
-        return WizardMode.REMOTE_SYNC if relay else WizardMode.LAN_SYNC
+        discovery_server = str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)).strip()
+        return WizardMode.REMOTE_SYNC if discovery_server else WizardMode.LAN_SYNC
     if direction == "upload-only":
         return WizardMode.BACKUP
     return WizardMode.TEAM_SHARE

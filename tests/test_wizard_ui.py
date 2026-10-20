@@ -251,12 +251,12 @@ class TestTestGating:
         page.api_key.setText("key")
         assert page.test_server.isEnabled()
 
-    def test_relay_test_needs_relay(self, wizard):
+    def test_discovery_server_test_needs_discovery_server(self, wizard):
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        assert not page.test_relay.isEnabled()
-        page.relay.setText("relay.example.com")
-        assert page.test_relay.isEnabled()
+        assert not page.test_discovery_server.isEnabled()
+        page.discovery_server.setText("boot.example.net")
+        assert page.test_discovery_server.isEnabled()
 
 
 class TestSwitches:
@@ -309,7 +309,7 @@ class TestProbeStatus:
         page._on_probe_done(ProbeOutcome(True, 200))
         assert not page.server_status.isHidden()
         assert page.server_status.text() == tr("settings.test_connection_success")
-        assert page.relay_status.isHidden()
+        assert page.discovery_server_status.isHidden()
 
     def test_server_error_lands_on_server_status(self, wizard):
         from hsync_desktop.wizard.probes import ProbeOutcome
@@ -319,29 +319,31 @@ class TestProbeStatus:
         page._active_target = "server"
         page._on_probe_done(ProbeOutcome(False, None, reason="unreachable"))
         assert page.server_status.text() == tr("wizard.probe.unreachable")
-        assert page.relay_status.isHidden()
+        assert page.discovery_server_status.isHidden()
 
-    def test_relay_success_lands_on_relay_status(self, wizard):
+    def test_discovery_server_success_lands_on_discovery_server_status(self, wizard):
         from hsync_desktop.wizard.probes import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page._active_target = "relay"
+        page._active_target = "discovery_server"
         page._on_probe_done(ProbeOutcome(True, fingerprint="AA:BB"))
-        assert page.relay_status.text() == tr("wizard.connection.test_relay_ok").format(
-            fingerprint="AA:BB"
-        )
-        assert not page.relay_trust_box.isHidden()
+        assert page.discovery_server_status.text() == tr(
+            "wizard.connection.test_discovery_server_ok"
+        ).format(fingerprint="AA:BB")
+        assert not page.discovery_server_trust_box.isHidden()
         assert page.server_status.isHidden()
 
-    def test_relay_error_uses_relay_message(self, wizard):
+    def test_discovery_server_error_uses_discovery_server_message(self, wizard):
         from hsync_desktop.wizard.probes import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page._active_target = "relay"
+        page._active_target = "discovery_server"
         page._on_probe_done(ProbeOutcome(False, reason="unreachable"))
-        assert page.relay_status.text() == tr("wizard.connection.relay_unreachable")
+        assert page.discovery_server_status.text() == tr(
+            "wizard.connection.discovery_server_unreachable"
+        )
 
     def test_result_ignored_when_section_hidden(self, wizard):
         from hsync_desktop.wizard.probes import ProbeOutcome
@@ -362,18 +364,18 @@ class TestProbeStatus:
         assert page.server_status.isHidden()
         assert page._server_fingerprint == ""
 
-    def test_editing_relay_clears_status_fingerprint_and_trust(self, wizard):
+    def test_editing_discovery_server_clears_status_fingerprint_and_trust(self, wizard):
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page.relay_status.setVisible(True)
-        page.relay_status.setText("ok")
-        page.relay_trust_box.setVisible(True)
+        page.discovery_server_status.setVisible(True)
+        page.discovery_server_status.setText("ok")
+        page.discovery_server_trust_box.setVisible(True)
         page.trust_save.setChecked(True)
-        page._relay_fingerprint = "AA:BB"
-        page.relay.setText("relay.example.com")
-        assert page.relay_status.isHidden()
-        assert page._relay_fingerprint == ""
-        assert page.relay_trust_box.isHidden()
+        page._discovery_server_fingerprint = "AA:BB"
+        page.discovery_server.setText("boot.example.net")
+        assert page.discovery_server_status.isHidden()
+        assert page._discovery_server_fingerprint == ""
+        assert page.discovery_server_trust_box.isHidden()
         assert not page.trust_save.isChecked()
 
 
@@ -400,8 +402,8 @@ class TestReviewChecks:
         wizard.review_page.load(
             WizardDraft(
                 mode=WizardMode.REMOTE_SYNC,
-                relay_verified=True,
-                relay_fingerprint="AA:BB",
+                discovery_server_verified=True,
+                discovery_server_fingerprint="AA:BB",
             )
         )
         assert "AA:BB" in self._checks(wizard)
@@ -444,10 +446,22 @@ class TestLayoutImprovements:
 
     def test_invite_is_selectable(self, wizard):
         wizard.success_page.load(
-            WizardDraft(mode=WizardMode.LAN_SYNC, p2p_group="grp", p2p_key="pw")
+            WizardDraft(
+                mode=WizardMode.LAN_SYNC,
+                bucket="share-a",
+                p2p_group="grp",
+                p2p_key="pw",
+            )
         )
+        text = wizard.success_page._invite_text.toPlainText()
         assert wizard.success_page._invite_text.isReadOnly()
-        assert "grp" in wizard.success_page._invite_text.toPlainText()
+        assert "share-a" in text
+        assert "grp" in text
+
+    def test_invite_height_fits_all_lines(self, wizard):
+        """Three lines (share, group, password) must fit without clipping."""
+        invite = wizard.success_page._invite_text
+        assert invite.height() >= invite.fontMetrics().lineSpacing() * 3
 
     def test_stepper_exposes_progress(self, wizard):
         wizard._set_step(1)
@@ -473,7 +487,7 @@ class TestLayoutImprovements:
         assert page.server_url.toolTip() == tr("wizard.tip.server_url")
         assert page.api_key.edit.toolTip() == tr("wizard.tip.api_key")
         assert page.bucket.toolTip() == tr("wizard.tip.share_name")
-        assert page.relay.toolTip() == tr("wizard.tip.relay")
+        assert page.discovery_server.toolTip() == tr("wizard.tip.discovery_server")
         assert page.continuous.toolTip() == tr("wizard.tip.continuous")
 
     def test_folder_suggestions_have_icons(self, wizard):
@@ -484,7 +498,7 @@ class TestLayoutImprovements:
     def test_connection_placeholders(self, wizard):
         page = wizard.connection_page
         assert page.server_url.placeholderText() == "https://hsync.example.com:9753"
-        assert page.relay.placeholderText() == "relay.example.com"
+        assert page.discovery_server.placeholderText() == "boot.example.net"
         assert page.bucket.placeholderText() == "my-share"
         assert page.group.placeholderText() == "my-devices"
 

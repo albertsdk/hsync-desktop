@@ -36,7 +36,7 @@ emitted subcommand always agree.
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
 the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
-the p2p tab groups Mode & Group, Finding devices & relay, Role & security, Advanced
+the p2p tab groups Mode & Group, Finding devices, Role & security, Advanced
 Options; the Server Mode tab groups Server (URL, API key, server identity check and
 the manage/test action row), Certificates (skip-certificate check, CA file) and
 Advanced Options (request timeout), with the p2p-mode banner kept above the groups
@@ -162,7 +162,9 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
-**Bootnode** (user-facing label **Relay server**, `settings.p2p_bootnode`):
+**Bootnode** (user-facing label **Discovery server**, translated in every
+locale — `Server di individuazione`, `Erkennungsserver`, `Serveur de
+découverte`, … — `settings.p2p_bootnode`):
 `p2p_bootnode` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
 by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
@@ -177,7 +179,7 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
 `QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
-(`settings.group.p2p_mode`), Finding devices & relay (`settings.group.p2p_discovery`),
+(`settings.group.p2p_mode`), Finding devices (`settings.group.p2p_discovery`),
 Role & Pairing (`settings.group.p2p_role`) and Advanced Options
 (`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is
@@ -344,8 +346,8 @@ string **must** exist in all `locales/*.py`.
 
 ## Shared endpoint/probe helpers (Settings + wizard)
 
-The server/relay reachability logic is shared so the Settings dialog and the
-setup wizard agree:
+The server/discovery-server reachability logic is shared so the Settings dialog
+and the setup wizard agree:
 
 - `engine/endpoints.py::normalize_server_endpoint` / `normalize_bootnode_endpoint`
   (the GUI default port `SERVER_DEFAULT_PORT` = 9753) and

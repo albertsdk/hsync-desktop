@@ -289,7 +289,7 @@ class TestSourceLabel:
         assert _source_label("future-mode") == "future-mode"
         assert _source_label("") == ""
 
-    def test_relay_source_column_is_humanized(self, qtbot, monkeypatch):
+    def test_discovery_server_source_column_is_humanized(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,
             bootnodes=[
@@ -330,7 +330,7 @@ class TestLocalTimeFormatting:
         assert _format_local_time("") == ""
         assert _format_local_time("not-a-date") == "not-a-date"
 
-    def test_relay_added_column_is_localized(self, qtbot, monkeypatch):
+    def test_discovery_server_added_column_is_localized(self, qtbot, monkeypatch):
         iso = "2020-01-02T03:04:05.000Z"
         _patch_store(
             monkeypatch,

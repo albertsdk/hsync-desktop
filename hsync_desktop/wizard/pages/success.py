@@ -50,10 +50,12 @@ class SuccessPage(WizardPage):
 
         self._invite_title = QLabel()
         layout.addWidget(self._invite_title)
-        # Read-only selectable field so the group/password can be selected too.
+        # Read-only selectable field so the share, group and password can be copied.
         self._invite_text = QPlainTextEdit()
         self._invite_text.setReadOnly(True)
-        self._invite_text.setFixedHeight(56)
+        # The invite carries three lines (share, group, password): size the box
+        # from the font so none of them is clipped, whatever the host font/DPI.
+        self._invite_text.setFixedHeight(self._invite_text.fontMetrics().lineSpacing() * 3 + 16)
         self._invite_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self._invite_text)
         self._copy = QPushButton()
@@ -93,7 +95,7 @@ class SuccessPage(WizardPage):
         if is_p2p:
             self._invite_text.setPlainText(
                 tr("wizard.success.invite_text").format(
-                    group=draft.p2p_group, password=draft.p2p_key
+                    bucket=draft.bucket, group=draft.p2p_group, password=draft.p2p_key
                 )
             )
 

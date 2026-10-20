@@ -181,7 +181,7 @@ class SetupWizard(QDialog):
         d.api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
         d.p2p_group = str(s.value("p2p/group", DEFAULT_GROUP, str))
         d.p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
-        d.relay = str(s.value("p2p/bootnode", "", str))
+        d.discovery_server = str(s.value("p2p/bootnode", "", str))
         d.direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
         d.ignore_delete = bool(s.value("sync/ignore_delete", DEFAULT_IGNORE_DELETE, bool))
         d.auto_sync = bool(s.value("sync/auto_sync", False, bool))

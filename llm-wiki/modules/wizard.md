@@ -57,18 +57,18 @@ reachable.
 - **Free space** is rendered with `hsync_common.format.format_bytes`
   (`FolderCheck.free_bytes`).
 - **Test buttons** sit above their own result line and stay disabled until the
-  required inputs are present (server: address + key; relay: address);
+  required inputs are present (server: address + key; discovery server: address);
   `ConnectionPage._update_test_enabled`. The result is a dedicated form row
   below the button (a long error can never overlap it), reported via
   `ConnectionPage._set_status` (grey "checking…" / green success / red error;
-  QSS `#statusOk`/`#statusError`), and the relay trust buttons appear under the
-  relay result. Editing a test's fields clears its result and captured
-  fingerprint (`_on_server_edited`/`_on_relay_edited`) so a stale trust pin is
+  QSS `#statusOk`/`#statusError`), and the discovery-server trust buttons appear
+  under the result. Editing a test's fields clears its result and captured
+  fingerprint (`_on_server_edited`/`_on_discovery_server_edited`) so a stale trust pin is
   never applied.
 - **Tooltips and placeholders**: every connection field and automation switch
   has a short explanation (`wizard.tip.*`) without changing the visible labels;
-  the text fields show language-neutral example placeholders. The relay field is
-  labelled "Relay server address".
+  the text fields show language-neutral example placeholders. The discovery-server
+  field is labelled "Discovery server address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
   (via `wizard/widgets.py::ToggleRow`); secrets show/hide through an icon toggle
   (`view-visible`/`view-hidden` + tooltip).
@@ -88,7 +88,7 @@ reachable.
   `selected` dynamic property; `themes.py` draws the border/background state
   (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
   without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
-  `network-p2p` (local peers), `network-cloud` (relay/anywhere), `people`
+  `network-p2p` (local peers), `network-cloud` (discovery server/anywhere), `people`
   (team share).
 - **Connection**: `ConnectionPage` keeps the share name in a common area and puts
   the server-only and network-only fields in two dedicated forms inside a
@@ -98,9 +98,9 @@ reachable.
   (`ConnectionPage._align_labels`), so the share-name field aligns with the
   mode-specific fields; long translations wrap.
 - **Review**: sections are separated by rules and the "Checks" section reflects
-  the last real probe (`server_verified`/`relay_verified` in the draft, rendered
-  as a localised time or the relay fingerprint); editing a section's fields
-  clears it.
+  the last real probe (`server_verified`/`discovery_server_verified` in the draft, rendered
+  as a localised time or the discovery server fingerprint); editing a section's
+  fields clears it.
 - **Success**: `dialog-ok` icon, the p2p invite is a read-only selectable field
   (`SuccessPage._invite_text`) that can also be copied with one click, and the
   action bar is anchored at the bottom of the screen. The success screen is a
@@ -110,8 +110,8 @@ reachable.
 ## Modes, defaults and inference
 
 `wizard/model.py::WizardMode` (StrEnum) + `wizard/model.py::profile_for` hold the
-per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, relay,
-server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
+per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, discovery
+server, server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
 re-run from the distinctive traits (p2p on/off, `sync/direction`,
 `p2p/bootnode`).
 
@@ -132,7 +132,7 @@ bump discards a stale draft. On finish the draft is cleared and
   codes through `wizard/messages.py::issue_message` to `wizard.error|warn.<code>`.
 - `wizard/probes.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
   `file_panel/workers.py::DirectoryScanWorker`) with a generation counter.
-- `engine/endpoints.py` normalizes the server/relay fields; `engine/probes.py`
+- `engine/endpoints.py` normalizes the server/discovery-server fields; `engine/probes.py`
   performs `GET /health` and `GET /api/v1/buckets/{bucket}` (the latter is
   mode-aware: a 404 is benign for a fresh backup share — auto-created on first
   upload — and blocks Finish for a team share).
@@ -143,7 +143,7 @@ bump discards a stale draft. On finish the draft is cleared and
 
 ## Trust
 
-Relay and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
+Discovery server and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
 writes the fingerprint to the client known-hosts store, "Ask on first start"
 leaves the existing first-start pre-flight (`main_window/trust.py`) to confirm.
 Never `strict`/`accept-new`.
