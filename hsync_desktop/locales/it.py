@@ -149,6 +149,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Azzera stato di sincronizzazione",
     "settings.reset_state.confirm": "Dimenticare la cronologia di sincronizzazione di questa cartella?\n\nLa prossima sincronizzazione analizzerà di nuovo ogni file. I file identici da entrambe le parti non vengono trasferiti, ma il primo ciclo richiede più tempo e i file cancellati poco prima dell'azzeramento possono ricomparire.",
     "settings.reset_state.details": "L'azzeramento elimina solo le basi di merge e i marcatori di cancellazione di questa cartella. I tuoi file, le regole .hsyncignore, le impostazioni, le password, l'identità del dispositivo e le impronte fidate non vengono toccati. Ferma la sincronizzazione prima di azzerare.",
+    "settings.reset_state.show_details": "Mostra dettagli",
+    "settings.reset_state.hide_details": "Nascondi dettagli",
     "settings.reset_state.no_folder": "Scegli prima la cartella locale.",
     "settings.reset_state.stop_first": "Ferma la sincronizzazione prima di azzerarne lo stato.",
     "settings.reset_state.done": "Stato di sincronizzazione azzerato: rimossi {versions} voci di versione e {tombstones} marcatori di cancellazione. La prossima sincronizzazione analizzerà ogni file.",

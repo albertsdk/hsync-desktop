@@ -11,12 +11,18 @@ the confirmation gate and the capability/sync-state gating.
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
+from hsync_desktop.settings.reset_state_dialog import ResetStateDialog
 from hsync_desktop.settings.tab_indices import _SYNC_TAB_INDEX
-from tests._helpers import _resolve_dialog
+
+
+def _answer(monkeypatch, *, accepted: bool) -> None:
+    """Make the reset confirmation return Accepted/Rejected without a window."""
+    result = QDialog.DialogCode.Accepted if accepted else QDialog.DialogCode.Rejected
+    monkeypatch.setattr(ResetStateDialog, "exec", lambda self: result)
 
 
 @pytest.fixture(autouse=True)
@@ -51,7 +57,7 @@ class TestRequest:
         assert warned == [tr("settings.reset_state.no_folder")]
 
     def test_confirm_requests_a_reset_and_accepts(self, dialog, monkeypatch):
-        _resolve_dialog(monkeypatch, tr("settings.reset_state.action"))
+        _answer(monkeypatch, accepted=True)
         dialog.shared_path.setText("/data/photos")
 
         dialog._on_reset_state()
@@ -63,7 +69,7 @@ class TestRequest:
         """The reset must persist the session's edits before closing as Accepted."""
         saved: list[int] = []
         monkeypatch.setattr(dialog, "save", lambda: saved.append(1))
-        _resolve_dialog(monkeypatch, tr("settings.reset_state.action"))
+        _answer(monkeypatch, accepted=True)
         dialog.shared_path.setText("/data/photos")
 
         dialog._on_reset_state()
@@ -72,7 +78,7 @@ class TestRequest:
         assert dialog.reset_state_folder == "/data/photos"
 
     def test_a_vetoed_commit_keeps_the_dialog_open_without_a_reset(self, dialog, monkeypatch):
-        _resolve_dialog(monkeypatch, tr("settings.reset_state.action"))
+        _answer(monkeypatch, accepted=True)
         dialog.shared_path.setText("/data/photos")
         monkeypatch.setattr(dialog, "_commit", lambda: False)
 
@@ -82,7 +88,7 @@ class TestRequest:
         assert dialog.result() != SettingsDialog.DialogCode.Accepted
 
     def test_cancel_keeps_the_dialog_open(self, dialog, monkeypatch):
-        _resolve_dialog(monkeypatch, tr("action.cancel"))
+        _answer(monkeypatch, accepted=False)
         dialog.shared_path.setText("/data/photos")
 
         dialog._on_reset_state()
@@ -91,7 +97,7 @@ class TestRequest:
         assert dialog.result() != SettingsDialog.DialogCode.Accepted
 
     def test_dismissed_dialog_changes_nothing(self, dialog, monkeypatch):
-        _resolve_dialog(monkeypatch, None)
+        _answer(monkeypatch, accepted=False)
         dialog.shared_path.setText("/data/photos")
 
         dialog._on_reset_state()
@@ -99,19 +105,45 @@ class TestRequest:
         assert dialog.reset_state_folder == ""
 
     def test_default_button_is_cancel(self, dialog, monkeypatch):
-        captured: list[QMessageBox] = []
+        captured: list[ResetStateDialog] = []
 
-        def fake_exec(box):
-            captured.append(box)
-            return 0
+        def fake_exec(prompt):
+            captured.append(prompt)
+            return QDialog.DialogCode.Rejected
 
-        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        monkeypatch.setattr(ResetStateDialog, "exec", fake_exec)
         dialog.shared_path.setText("/data/photos")
 
         dialog._on_reset_state()
 
         assert captured
-        assert captured[0].defaultButton() is captured[0].button(QMessageBox.StandardButton.Cancel)
+        assert captured[0]._cancel.isDefault()
+
+
+class TestDialogChrome:
+    """The custom dialog keeps the toggle translated and the app icons."""
+
+    def test_details_toggle_is_translated_and_themed(self, qtbot):
+        dlg = ResetStateDialog()
+        qtbot.addWidget(dlg)
+
+        assert dlg._details.isHidden()
+        assert dlg._toggle.text() == tr("settings.reset_state.show_details")
+        assert not dlg._toggle.icon().isNull()
+
+        dlg._toggle.setChecked(True)
+
+        assert not dlg._details.isHidden()
+        assert dlg._toggle.text() == tr("settings.reset_state.hide_details")
+
+    def test_actions_use_the_app_icons(self, qtbot):
+        dlg = ResetStateDialog()
+        qtbot.addWidget(dlg)
+
+        assert dlg._reset.text() == tr("settings.reset_state.action")
+        assert dlg._cancel.text() == tr("action.cancel")
+        assert not dlg._reset.icon().isNull()
+        assert not dlg._cancel.icon().isNull()
 
 
 class TestGating:

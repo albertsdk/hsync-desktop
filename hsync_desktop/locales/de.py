@@ -149,6 +149,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Synchronisierungsstatus zurücksetzen",
     "settings.reset_state.confirm": "Den Synchronisierungsverlauf dieses Ordners vergessen?\n\nDie nächste Synchronisierung prüft jede Datei erneut. Auf beiden Seiten identische Dateien werden nicht übertragen, aber der erste Durchlauf dauert länger und kurz vor dem Zurücksetzen gelöschte Dateien können zurückkehren.",
     "settings.reset_state.details": "Das Zurücksetzen löscht nur die Merge-Basisstände und die Löschmarker dieses Ordners. Ihre Dateien, die .hsyncignore-Regeln, die Einstellungen, die Passwörter, die Geräteidentität und die vertrauenswürdigen Fingerabdrücke bleiben unberührt. Beenden Sie die Synchronisierung vor dem Zurücksetzen.",
+    "settings.reset_state.show_details": "Details anzeigen",
+    "settings.reset_state.hide_details": "Details ausblenden",
     "settings.reset_state.no_folder": "Wählen Sie zuerst den lokalen Ordner.",
     "settings.reset_state.stop_first": "Beenden Sie die Synchronisierung, bevor Sie ihren Status zurücksetzen.",
     "settings.reset_state.done": "Synchronisierungsstatus zurückgesetzt: {versions} Versionseinträge und {tombstones} Löschmarker entfernt. Die nächste Synchronisierung prüft jede Datei.",

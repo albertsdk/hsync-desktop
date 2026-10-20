@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Zresetuj stan synchronizacji",
     "settings.reset_state.confirm": "Zapomnieć historię synchronizacji tego folderu?\n\nNastępna synchronizacja ponownie przeskanuje każdy plik. Pliki identyczne po obu stronach nie są przesyłane, ale pierwszy cykl trwa dłużej, a pliki usunięte tuż przed resetem mogą wrócić.",
     "settings.reset_state.details": "Reset usuwa tylko stany bazowe scalania i znaczniki usunięcia tego folderu. Twoje pliki, reguły .hsyncignore, ustawienia, hasła, tożsamość urządzenia i zaufane odciski pozostają nietknięte. Zatrzymaj synchronizację przed resetem.",
+    "settings.reset_state.show_details": "Pokaż szczegóły",
+    "settings.reset_state.hide_details": "Ukryj szczegóły",
     "settings.reset_state.no_folder": "Najpierw wybierz folder lokalny.",
     "settings.reset_state.stop_first": "Zatrzymaj synchronizację przed zresetowaniem jej stanu.",
     "settings.reset_state.done": "Stan synchronizacji zresetowany: usunięto {versions} wpisów wersji i {tombstones} znaczników usunięcia. Następna synchronizacja przeskanuje każdy plik.",

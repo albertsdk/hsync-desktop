@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "同期状態をリセット",
     "settings.reset_state.confirm": "このフォルダーの同期履歴を忘れますか？\n\n次回の同期ではすべてのファイルが再スキャンされます。両側で同一のファイルは転送されませんが、最初のサイクルに時間がかかり、リセット直前に削除されたファイルが復活する可能性があります。",
     "settings.reset_state.details": "リセットはこのフォルダーのマージベースと削除マーカーのみを消去します。ファイル、.hsyncignore のルール、設定、パスワード、デバイス ID、信頼済みのフィンガープリントは変更されません。リセットする前に同期を停止してください。",
+    "settings.reset_state.show_details": "詳細を表示",
+    "settings.reset_state.hide_details": "詳細を隠す",
     "settings.reset_state.no_folder": "先にローカルフォルダーを選択してください。",
     "settings.reset_state.stop_first": "状態をリセットする前に同期を停止してください。",
     "settings.reset_state.done": "同期状態をリセットしました：バージョン {versions} 件、削除マーカー {tombstones} 件を削除しました。次回の同期ではすべてのファイルがスキャンされます。",

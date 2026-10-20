@@ -149,6 +149,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Réinitialiser l'état de synchronisation",
     "settings.reset_state.confirm": "Oublier l'historique de synchronisation de ce dossier ?\n\nLa prochaine synchronisation analysera à nouveau chaque fichier. Les fichiers identiques des deux côtés ne sont pas transférés, mais le premier cycle est plus long et les fichiers supprimés peu avant la réinitialisation peuvent réapparaître.",
     "settings.reset_state.details": "La réinitialisation efface uniquement les bases de fusion et les marqueurs de suppression de ce dossier. Vos fichiers, les règles .hsyncignore, les paramètres, les mots de passe, l'identité de l'appareil et les empreintes de confiance ne sont pas touchés. Arrêtez la synchronisation avant de réinitialiser.",
+    "settings.reset_state.show_details": "Afficher les détails",
+    "settings.reset_state.hide_details": "Masquer les détails",
     "settings.reset_state.no_folder": "Choisissez d'abord le dossier local.",
     "settings.reset_state.stop_first": "Arrêtez la synchronisation avant de réinitialiser son état.",
     "settings.reset_state.done": "État de synchronisation réinitialisé : {versions} entrées de version et {tombstones} marqueurs de suppression supprimés. La prochaine synchronisation analysera chaque fichier.",

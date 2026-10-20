@@ -149,6 +149,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Restablecer el estado de sincronización",
     "settings.reset_state.confirm": "¿Olvidar el historial de sincronización de esta carpeta?\n\nLa próxima sincronización analizará de nuevo cada archivo. Los archivos idénticos en ambos lados no se transfieren, pero el primer ciclo tarda más y los archivos eliminados poco antes del restablecimiento pueden reaparecer.",
     "settings.reset_state.details": "El restablecimiento borra solo las bases de fusión y los marcadores de eliminación de esta carpeta. Tus archivos, las reglas .hsyncignore, la configuración, las contraseñas, la identidad del dispositivo y las huellas de confianza no se tocan. Detén la sincronización antes de restablecer.",
+    "settings.reset_state.show_details": "Mostrar detalles",
+    "settings.reset_state.hide_details": "Ocultar detalles",
     "settings.reset_state.no_folder": "Elige primero la carpeta local.",
     "settings.reset_state.stop_first": "Detén la sincronización antes de restablecer su estado.",
     "settings.reset_state.done": "Estado de sincronización restablecido: se eliminaron {versions} entradas de versión y {tombstones} marcadores de eliminación. La próxima sincronización analizará cada archivo.",

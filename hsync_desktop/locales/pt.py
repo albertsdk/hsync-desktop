@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Redefinir o estado de sincronização",
     "settings.reset_state.confirm": "Esquecer o histórico de sincronização desta pasta?\n\nA próxima sincronização analisará novamente cada arquivo. Arquivos idênticos dos dois lados não são transferidos, mas o primeiro ciclo demora mais e arquivos excluídos pouco antes da redefinição podem voltar.",
     "settings.reset_state.details": "A redefinição apaga apenas as bases de mesclagem e os marcadores de exclusão desta pasta. Seus arquivos, as regras .hsyncignore, as configurações, as senhas, a identidade do dispositivo e as impressões confiáveis não são tocados. Pare a sincronização antes de redefinir.",
+    "settings.reset_state.show_details": "Mostrar detalhes",
+    "settings.reset_state.hide_details": "Ocultar detalhes",
     "settings.reset_state.no_folder": "Escolha primeiro a pasta local.",
     "settings.reset_state.stop_first": "Pare a sincronização antes de redefinir o estado.",
     "settings.reset_state.done": "Estado de sincronização redefinido: {versions} entradas de versão e {tombstones} marcadores de exclusão removidos. A próxima sincronização analisará cada arquivo.",

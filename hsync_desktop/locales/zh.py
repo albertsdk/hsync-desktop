@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "重置同步状态",
     "settings.reset_state.confirm": "忘记此文件夹的同步历史吗？\n\n下次同步将重新扫描每个文件。两侧相同的文件不会被传输，但第一次同步耗时更长，重置前不久删除的文件可能会重新出现。",
     "settings.reset_state.details": "重置只会清除此文件夹的合并基准和删除标记。你的文件、.hsyncignore 规则、设置、密码、设备身份和受信任的指纹都不会被改动。重置前请先停止同步。",
+    "settings.reset_state.show_details": "显示详细信息",
+    "settings.reset_state.hide_details": "隐藏详细信息",
     "settings.reset_state.no_folder": "请先选择本地文件夹。",
     "settings.reset_state.stop_first": "重置状态前请先停止同步。",
     "settings.reset_state.done": "同步状态已重置：已删除 {versions} 条版本记录和 {tombstones} 个删除标记。下次同步将扫描每个文件。",

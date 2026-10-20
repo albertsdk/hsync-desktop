@@ -129,6 +129,7 @@ from hsync_desktop.settings.form_helpers import (
     _set_field_tooltip,
 )
 from hsync_desktop.settings.hsyncignore_dialog import HsyncIgnoreEditorDialog
+from hsync_desktop.settings.reset_state_dialog import ResetStateDialog
 from hsync_desktop.settings.tab_builders import (
     build_advanced_tab,
     build_connection_banner,
@@ -511,22 +512,8 @@ class SettingsDialog(QDialog):
                 tr("settings.reset_state.no_folder"),
             )
             return
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle(tr("settings.reset_state.title"))
-        msg.setText(tr("settings.reset_state.confirm"))
-        msg.setDetailedText(tr("settings.reset_state.details"))
-        msg.setStandardButtons(QMessageBox.StandardButton.Reset | QMessageBox.StandardButton.Cancel)
-        reset_btn = msg.button(QMessageBox.StandardButton.Reset)
-        if reset_btn:
-            reset_btn.setText(tr("settings.reset_state.action"))
-        cancel_btn = msg.button(QMessageBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("action.cancel"))
-        # Destructive: a stray Enter must cancel, never reset.
-        msg.setDefaultButton(QMessageBox.StandardButton.Cancel)
-        msg.exec()
-        if msg.clickedButton() is not reset_btn:
+        dialog = ResetStateDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         # Persist through the same validated path as OK, so closing as Accepted
         # never silently drops the session's edits; request the reset only once

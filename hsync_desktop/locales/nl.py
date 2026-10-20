@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Synchronisatiestatus resetten",
     "settings.reset_state.confirm": "De synchronisatiegeschiedenis van deze map vergeten?\n\nDe volgende synchronisatie scant elk bestand opnieuw. Bestanden die aan beide kanten identiek zijn worden niet overgedragen, maar de eerste cyclus duurt langer en bestanden die kort voor de reset zijn verwijderd kunnen terugkomen.",
     "settings.reset_state.details": "De reset wist alleen de merge-basissen en de verwijderingsmarkeringen van deze map. Je bestanden, de .hsyncignore-regels, de instellingen, de wachtwoorden, de apparaatidentiteit en de vertrouwde vingerafdrukken blijven onaangeroerd. Stop de synchronisatie voordat je reset.",
+    "settings.reset_state.show_details": "Details tonen",
+    "settings.reset_state.hide_details": "Details verbergen",
     "settings.reset_state.no_folder": "Kies eerst de lokale map.",
     "settings.reset_state.stop_first": "Stop de synchronisatie voordat je de status reset.",
     "settings.reset_state.done": "Synchronisatiestatus gereset: {versions} versie-items en {tombstones} verwijderingsmarkeringen verwijderd. De volgende synchronisatie scant elk bestand.",

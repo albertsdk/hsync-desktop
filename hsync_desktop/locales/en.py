@@ -160,6 +160,8 @@ translations: dict[str, str] = {
     "settings.reset_state.title": "Reset sync state",
     "settings.reset_state.confirm": "Forget the sync history of this folder?\n\nThe next sync will scan every file again. Files that are identical on both sides are not transferred, but the first cycle takes longer and files deleted shortly before the reset can come back.",
     "settings.reset_state.details": "The reset clears the merge bases and the deletion markers of this folder only. Your files, the .hsyncignore rules, the settings, the passwords, the device identity and the trusted fingerprints are not touched. Stop the sync before resetting.",
+    "settings.reset_state.show_details": "Show details",
+    "settings.reset_state.hide_details": "Hide details",
     "settings.reset_state.no_folder": "Choose the local folder first.",
     "settings.reset_state.stop_first": "Stop the sync before resetting its state.",
     "settings.reset_state.done": "Sync state reset: {versions} version entries and {tombstones} deletion markers removed. The next sync will scan every file.",
