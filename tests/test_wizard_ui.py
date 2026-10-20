@@ -148,40 +148,60 @@ class TestHelpDialog:
         assert dlg.mode() == WizardMode.TEAM_SHARE
         dlg.close()
 
+    def test_copy_needs_no_network_answer(self, qtbot):
+        from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
+
+        dlg = HelpChoiceDialog()
+        qtbot.addWidget(dlg)
+        dlg._personal.setChecked(True)
+        assert not dlg._ok.isEnabled()  # copy/edits still unanswered
+        dlg._copy_only.setChecked(True)
+        assert dlg._ok.isEnabled()
+        assert dlg.mode() == WizardMode.BACKUP
+        # A backup copy is server-side, so the network question never applies.
+        assert not dlg._same_box.isEnabled()
+        assert dlg._note.text() == tr("wizard.help.note_backup")
+        dlg.close()
+
     def test_personal_same_network_maps_to_lan(self, qtbot):
         from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
 
         dlg = HelpChoiceDialog()
         qtbot.addWidget(dlg)
         dlg._personal.setChecked(True)
-        assert not dlg._ok.isEnabled()  # same-network still unanswered
+        dlg._edits_both.setChecked(True)
+        assert not dlg._ok.isEnabled()  # network still unanswered
         dlg._same_yes.setChecked(True)
         assert dlg._ok.isEnabled()
         assert dlg.mode() == WizardMode.LAN_SYNC
         dlg.close()
 
-    def test_personal_different_network_copy_maps_to_backup(self, qtbot):
+    def test_edits_across_networks_maps_to_remote(self, qtbot):
         from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
 
         dlg = HelpChoiceDialog()
         qtbot.addWidget(dlg)
         dlg._personal.setChecked(True)
+        dlg._edits_both.setChecked(True)
         dlg._same_no.setChecked(True)
-        assert not dlg._ok.isEnabled()  # copy/edits still unanswered
-        dlg._copy_only.setChecked(True)
         assert dlg._ok.isEnabled()
-        assert dlg.mode() == WizardMode.BACKUP
+        assert dlg.mode() == WizardMode.REMOTE_SYNC
         dlg.close()
 
-    def test_personal_different_network_edits_maps_to_remote(self, qtbot):
+    def test_network_question_follows_the_copy_choice(self, qtbot):
+        """The network question is asked only for sync, never for a backup copy."""
         from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
 
         dlg = HelpChoiceDialog()
         qtbot.addWidget(dlg)
+        assert not dlg._need_box.isEnabled() and not dlg._same_box.isEnabled()
         dlg._personal.setChecked(True)
-        dlg._same_no.setChecked(True)
+        assert dlg._need_box.isEnabled()
+        assert not dlg._same_box.isEnabled()  # direction not chosen yet
+        dlg._copy_only.setChecked(True)
+        assert not dlg._same_box.isEnabled()  # a copy needs no network
         dlg._edits_both.setChecked(True)
-        assert dlg.mode() == WizardMode.REMOTE_SYNC
+        assert dlg._same_box.isEnabled()  # syncing needs the network answer
         dlg.close()
 
     def test_all_four_modes_are_reachable(self, qtbot):
@@ -201,21 +221,21 @@ class TestHelpDialog:
         dlg = HelpChoiceDialog()
         qtbot.addWidget(dlg)
         # Nothing is hidden: the follow-ups exist and are merely disabled.
-        assert not dlg._same_box.isHidden() and not dlg._need_box.isHidden()
-        assert not dlg._same_box.isEnabled() and not dlg._need_box.isEnabled()
+        assert not dlg._need_box.isHidden() and not dlg._same_box.isHidden()
+        assert not dlg._need_box.isEnabled() and not dlg._same_box.isEnabled()
         assert dlg._note.isHidden()
         dlg._personal.setChecked(True)
-        assert dlg._same_box.isEnabled()
-        assert not dlg._need_box.isEnabled()
-        dlg._same_no.setChecked(True)
         assert dlg._need_box.isEnabled()
+        assert not dlg._same_box.isEnabled()
+        dlg._copy_only.setChecked(True)
+        assert not dlg._note.isHidden()
+        assert dlg._note.text() == tr("wizard.help.note_backup")
+        dlg._edits_both.setChecked(True)
+        assert dlg._note.isHidden()
         dlg._team.setChecked(True)
-        assert not dlg._same_box.isEnabled() and not dlg._need_box.isEnabled()
+        assert not dlg._need_box.isEnabled() and not dlg._same_box.isEnabled()
         assert not dlg._note.isHidden()
         assert dlg._note.text() == tr("wizard.help.note_team")
-        dlg._personal.setChecked(True)
-        dlg._same_yes.setChecked(True)
-        assert dlg._note.text() == tr("wizard.help.note_same_network")
         dlg.close()
 
     def test_buttons_are_translated(self, qtbot):

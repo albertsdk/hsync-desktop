@@ -17,7 +17,13 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.wizard.model import WizardDraft, WizardMode
+from hsync_desktop.wizard.model import (
+    ChoiceAnswers,
+    ChoiceAudience,
+    WizardDraft,
+    WizardMode,
+    resolve_mode,
+)
 from hsync_desktop.wizard.pages.base import WizardPage
 from hsync_desktop.wizard.widgets import PrimaryButton, RadioCard, muted_label
 
@@ -42,10 +48,11 @@ class HelpChoiceDialog(QDialog):
     """Explicit chooser covering all four use cases.
 
     Three short questions, always visible: "sharing with a team?" → done;
-    otherwise "same network?" → done or "copy vs edits". Follow-ups that do not
-    apply stay visible but are disabled, with a short explanation. Every button
-    is labelled through :func:`tr`, so it is translated in all locales
-    regardless of Qt's own (not bundled) standard-button translations.
+    otherwise "only a copy, or edits?" picks the server backup, and the network
+    question then separates the two p2p sync modes. Follow-ups that do not apply
+    stay visible but are disabled, with a short explanation. Every button is
+    labelled through :func:`tr`, so it is translated in all locales regardless of
+    Qt's own (not bundled) standard-button translations.
     """
 
     def __init__(self, current: WizardMode | None = None, parent: QWidget | None = None) -> None:
@@ -67,28 +74,13 @@ class HelpChoiceDialog(QDialog):
         self._share_group.addButton(self._personal)
         layout.addLayout(self._choice_row(self._team, self._personal))
 
-        # Same network? (personal use only)
-        self._same_box = QWidget()
-        same_layout = QVBoxLayout(self._same_box)
-        same_layout.setContentsMargins(0, 0, 0, 0)
-        self._q1 = QLabel(tr("wizard.help.q1"))
-        self._q1.setWordWrap(True)
-        same_layout.addWidget(self._q1)
-        self._same_yes = QRadioButton(tr("action.yes"))
-        self._same_no = QRadioButton(tr("action.no"))
-        self._same_group = QButtonGroup(self)
-        self._same_group.addButton(self._same_yes)
-        self._same_group.addButton(self._same_no)
-        same_layout.addLayout(self._choice_row(self._same_yes, self._same_no))
-        layout.addWidget(self._same_box)
-
-        # Only a copy, or edits from both sides? (different networks only)
+        # Only a copy, or edits from both sides? (personal use only)
         self._need_box = QWidget()
         need_layout = QVBoxLayout(self._need_box)
         need_layout.setContentsMargins(0, 0, 0, 0)
-        self._q2 = QLabel(tr("wizard.help.q2"))
-        self._q2.setWordWrap(True)
-        need_layout.addWidget(self._q2)
+        self._q_copy_edits = QLabel(tr("wizard.help.q_copy_edits"))
+        self._q_copy_edits.setWordWrap(True)
+        need_layout.addWidget(self._q_copy_edits)
         self._copy_only = QRadioButton(tr("wizard.help.copy_only"))
         self._edits_both = QRadioButton(tr("wizard.help.edits_both"))
         self._need_group = QButtonGroup(self)
@@ -96,6 +88,21 @@ class HelpChoiceDialog(QDialog):
         self._need_group.addButton(self._edits_both)
         need_layout.addLayout(self._choice_row(self._copy_only, self._edits_both))
         layout.addWidget(self._need_box)
+
+        # Same network? (only relevant when syncing, i.e. edits from both sides)
+        self._same_box = QWidget()
+        same_layout = QVBoxLayout(self._same_box)
+        same_layout.setContentsMargins(0, 0, 0, 0)
+        self._q_network = QLabel(tr("wizard.help.q_network"))
+        self._q_network.setWordWrap(True)
+        same_layout.addWidget(self._q_network)
+        self._same_yes = QRadioButton(tr("action.yes"))
+        self._same_no = QRadioButton(tr("action.no"))
+        self._same_group = QButtonGroup(self)
+        self._same_group.addButton(self._same_yes)
+        self._same_group.addButton(self._same_no)
+        same_layout.addLayout(self._choice_row(self._same_yes, self._same_no))
+        layout.addWidget(self._same_box)
 
         # Explains why a follow-up question is disabled (nothing is hidden).
         self._note = muted_label()
@@ -136,57 +143,58 @@ class HelpChoiceDialog(QDialog):
     def _prefill(self, current: WizardMode | None) -> None:
         if current == WizardMode.TEAM_SHARE:
             self._team.setChecked(True)
+        elif current == WizardMode.BACKUP:
+            self._personal.setChecked(True)
+            self._copy_only.setChecked(True)
         elif current == WizardMode.LAN_SYNC:
             self._personal.setChecked(True)
+            self._edits_both.setChecked(True)
             self._same_yes.setChecked(True)
         elif current == WizardMode.REMOTE_SYNC:
             self._personal.setChecked(True)
-            self._same_no.setChecked(True)
             self._edits_both.setChecked(True)
-        elif current == WizardMode.BACKUP:
-            self._personal.setChecked(True)
             self._same_no.setChecked(True)
-            self._copy_only.setChecked(True)
+
+    def _answers(self) -> ChoiceAnswers:
+        audience: ChoiceAudience | None = None
+        if self._team.isChecked():
+            audience = ChoiceAudience.TEAM
+        elif self._personal.isChecked():
+            audience = ChoiceAudience.PERSONAL
+        copy_only: bool | None = None
+        if self._copy_only.isChecked():
+            copy_only = True
+        elif self._edits_both.isChecked():
+            copy_only = False
+        same_network: bool | None = None
+        if self._same_yes.isChecked():
+            same_network = True
+        elif self._same_no.isChecked():
+            same_network = False
+        return ChoiceAnswers(audience=audience, copy_only=copy_only, same_network=same_network)
 
     def _on_answer_changed(self, *_args) -> None:
         # Nothing disappears: a follow-up that does not apply is disabled and
         # accompanied by an explanation.
         personal = self._personal.isChecked()
-        self._same_box.setEnabled(personal)
-        self._need_box.setEnabled(personal and self._same_no.isChecked())
-        if self._team.isChecked():
+        self._need_box.setEnabled(personal)
+        self._same_box.setEnabled(personal and self._edits_both.isChecked())
+        # The note and Confirm share the single mapping in resolve_mode, so they
+        # can never disagree with the mode the answers select.
+        mode = resolve_mode(self._answers())
+        if mode is WizardMode.TEAM_SHARE:
             self._note.setText(tr("wizard.help.note_team"))
             self._note.setVisible(True)
-        elif personal and self._same_yes.isChecked():
-            self._note.setText(tr("wizard.help.note_same_network"))
+        elif mode is WizardMode.BACKUP:
+            self._note.setText(tr("wizard.help.note_backup"))
             self._note.setVisible(True)
         else:
             self._note.setVisible(False)
-        self._update_ok()
+        self._ok.setEnabled(mode is not None)
 
-    def _update_ok(self) -> None:
-        """Confirm is enabled only when the answers on the active path suffice."""
-        if self._team.isChecked():
-            enabled = True
-        elif not self._personal.isChecked():
-            enabled = False
-        elif self._same_yes.isChecked():
-            enabled = True
-        else:
-            enabled = self._same_no.isChecked() and (
-                self._copy_only.isChecked() or self._edits_both.isChecked()
-            )
-        self._ok.setEnabled(enabled)
-
-    def mode(self) -> WizardMode:
-        """Map the explicit answers to a mode (all four are reachable)."""
-        if self._team.isChecked():
-            return WizardMode.TEAM_SHARE
-        if self._same_yes.isChecked():
-            return WizardMode.LAN_SYNC
-        if self._copy_only.isChecked():
-            return WizardMode.BACKUP
-        return WizardMode.REMOTE_SYNC
+    def mode(self) -> WizardMode | None:
+        """The mode for the current answers, or ``None`` while incomplete."""
+        return resolve_mode(self._answers())
 
 
 class ModePage(WizardPage):
@@ -219,7 +227,10 @@ class ModePage(WizardPage):
     def _on_help(self) -> None:
         dialog = HelpChoiceDialog(self._current_mode(), self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self._cards[dialog.mode()].set_selected(True)
+            mode = dialog.mode()
+            if mode is None:  # unreachable: Confirm is gated on a full answer
+                return
+            self._cards[mode].set_selected(True)
             self.changed.emit()
 
     def apply_translations(self) -> None:

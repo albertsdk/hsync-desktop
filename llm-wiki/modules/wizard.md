@@ -38,13 +38,16 @@ is a themed confirmation whose Yes/No labels are translated and carry the app
 
 "Help me choose" opens `wizard/pages/mode.py::HelpChoiceDialog`: three explicit
 questions, each with its own `QButtonGroup` and all labels via `tr()`. The first
-("sharing with a team?") resolves `team_share`; otherwise the same-network
-question resolves `lan_sync` or the "Only a copy" / "Edits from both sides"
-question (`backup` / `remote_sync`). Nothing is hidden: follow-ups that do not
-apply stay visible but are disabled, with a short explanation (`wizard.help.note_*`);
-the theme grays the disabled radio labels too (`QRadioButton:disabled`).
-Confirm stays disabled until the active path is answered, so all four modes are
-reachable.
+("sharing with a team?") resolves `team_share`; otherwise the "Only a copy" /
+"Edits from both sides" answer resolves `backup` (a server copy never needs the
+network) or, for edits, the same-network question separates `lan_sync` from
+`remote_sync`. Nothing is hidden: follow-ups that do not apply stay visible but
+are disabled, with a short explanation (`wizard.help.note_*`); the theme grays
+the disabled radio labels too (`QRadioButton:disabled`). Confirm stays disabled
+until the active path is answered, so all four modes are reachable. The mapping
+is `wizard/model.py::resolve_mode` (Qt-free, unit-tested; answers as
+`wizard/model.py::ChoiceAnswers`/`ChoiceAudience`), shared by the Confirm gating
+and the returned mode so the two can never disagree.
 
 ## Interaction details
 

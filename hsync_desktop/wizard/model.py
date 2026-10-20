@@ -27,6 +27,8 @@ from hsync_desktop.crypto import decrypt_value, encrypt_value
 
 __all__ = [
     "DRAFT_VERSION",
+    "ChoiceAnswers",
+    "ChoiceAudience",
     "WizardDraft",
     "WizardMode",
     "WizardProfile",
@@ -36,6 +38,7 @@ __all__ = [
     "mark_auto_shown",
     "mark_completed",
     "profile_for",
+    "resolve_mode",
     "save_draft",
     "should_auto_open",
 ]
@@ -112,6 +115,43 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
 def profile_for(mode: WizardMode) -> WizardProfile:
     """Return the derived defaults for *mode*."""
     return _PROFILES[mode]
+
+
+class ChoiceAudience(StrEnum):
+    """Who the help chooser says the files are for."""
+
+    TEAM = "team"
+    PERSONAL = "personal"
+
+
+@dataclass(frozen=True, slots=True)
+class ChoiceAnswers:
+    """Answers collected by the help chooser (``None`` = not answered yet)."""
+
+    audience: ChoiceAudience | None = None
+    copy_only: bool | None = None  # True = "Only a copy", False = "Edits from both sides"
+    same_network: bool | None = None
+
+
+def resolve_mode(answers: ChoiceAnswers) -> WizardMode | None:
+    """Map explicit help-chooser answers to a mode (``None`` while incomplete).
+
+    Team sharing resolves at once. Otherwise the "only a copy" answer selects the
+    server backup, and the network answer only separates the two p2p sync modes;
+    a backup never needs the network answer, so it is ignored there. This single
+    mapping backs both the chooser's Confirm gating and the mode it returns.
+    """
+    if answers.audience is ChoiceAudience.TEAM:
+        return WizardMode.TEAM_SHARE
+    if answers.audience is not ChoiceAudience.PERSONAL:
+        return None
+    if answers.copy_only is None:
+        return None
+    if answers.copy_only:
+        return WizardMode.BACKUP
+    if answers.same_network is None:
+        return None
+    return WizardMode.LAN_SYNC if answers.same_network else WizardMode.REMOTE_SYNC
 
 
 @dataclass

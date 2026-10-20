@@ -26,8 +26,8 @@ the main window appears. You can always reopen it later:
    | Share a folder with my team | Several people edit the same folder on a server. |
 
    Not sure? Use **Help me choose**: answer a few short questions (are you
-   sharing with a team? are your devices on the same network? do you want only a
-   copy or edits from both sides?) and the wizard selects the right option for
+   sharing with a team? do you want only a copy or edits from both sides? are
+   your devices on the same network?) and the wizard selects the right option for
    you. Questions that do not apply stay visible but are disabled, with a short
    explanation.
 

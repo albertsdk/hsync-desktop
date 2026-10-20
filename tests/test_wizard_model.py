@@ -11,6 +11,8 @@ from PySide6.QtCore import QSettings
 from hsync_desktop.wizard import model
 from hsync_desktop.wizard.model import (
     DRAFT_VERSION,
+    ChoiceAnswers,
+    ChoiceAudience,
     WizardDraft,
     WizardMode,
     infer_mode_from_settings,
@@ -18,6 +20,7 @@ from hsync_desktop.wizard.model import (
     mark_auto_shown,
     mark_completed,
     profile_for,
+    resolve_mode,
     save_draft,
     should_auto_open,
 )
@@ -48,6 +51,38 @@ class TestProfiles:
 
     def test_team_is_server_mode(self):
         assert profile_for(WizardMode.TEAM_SHARE).p2p_enabled is False
+
+
+class TestResolveMode:
+    """The pure help-chooser mapping: answers to a mode, ``None`` while incomplete."""
+
+    def test_incomplete_answers_resolve_to_none(self):
+        assert resolve_mode(ChoiceAnswers()) is None
+        assert resolve_mode(ChoiceAnswers(audience=ChoiceAudience.PERSONAL)) is None
+        unresolved_edits = ChoiceAnswers(audience=ChoiceAudience.PERSONAL, copy_only=False)
+        assert resolve_mode(unresolved_edits) is None
+
+    def test_team_share_resolves_on_the_first_answer(self):
+        # A team answer wins even if a stale direction remains selected.
+        answers = ChoiceAnswers(audience=ChoiceAudience.TEAM, copy_only=False)
+        assert resolve_mode(answers) == WizardMode.TEAM_SHARE
+
+    def test_copy_is_backup_regardless_of_the_network_answer(self):
+        for same_network in (None, True, False):
+            answers = ChoiceAnswers(
+                audience=ChoiceAudience.PERSONAL,
+                copy_only=True,
+                same_network=same_network,
+            )
+            assert resolve_mode(answers) == WizardMode.BACKUP
+
+    def test_edits_split_on_the_network_answer(self):
+        same = ChoiceAnswers(audience=ChoiceAudience.PERSONAL, copy_only=False, same_network=True)
+        different = ChoiceAnswers(
+            audience=ChoiceAudience.PERSONAL, copy_only=False, same_network=False
+        )
+        assert resolve_mode(same) == WizardMode.LAN_SYNC
+        assert resolve_mode(different) == WizardMode.REMOTE_SYNC
 
 
 class TestInference:
