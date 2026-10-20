@@ -593,7 +593,7 @@ translations: dict[str, str] = {
     "wizard.success.title": "全部就绪！",
     "wizard.success.desc": "HSYNC 已配置完成，随时可以开始。",
     "wizard.success.invite": "邀请其他设备",
-    "wizard.success.invite_text": "共享：{bucket}\n组：{group}\n密码：{password}",
+    "wizard.success.invite_text": "{share_label}：{bucket}\n{group_label}：{group}\n{password_label}：{password}",
     "wizard.success.what_next": "首次同步可能需要一些时间，并可能要求安全确认。",
     "wizard.resume.banner": "从第 {step} 步继续",
     "wizard.stop_prompt": "同步正在进行。要停止并重新配置吗？",

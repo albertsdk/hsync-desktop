@@ -93,9 +93,16 @@ class SuccessPage(WizardPage):
         self._invite_text.setVisible(is_p2p)
         self._copy.setVisible(is_p2p)
         if is_p2p:
+            # Reuse the Connection-step labels so the invite names each value
+            # exactly as the wizard asked for it.
             self._invite_text.setPlainText(
                 tr("wizard.success.invite_text").format(
-                    bucket=draft.bucket, group=draft.p2p_group, password=draft.p2p_key
+                    share_label=tr("wizard.connection.share"),
+                    group_label=tr("wizard.connection.group"),
+                    password_label=tr("wizard.connection.password"),
+                    bucket=draft.bucket,
+                    group=draft.p2p_group,
+                    password=draft.p2p_key,
                 )
             )
 

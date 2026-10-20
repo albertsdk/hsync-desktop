@@ -593,7 +593,7 @@ translations: dict[str, str] = {
     "wizard.success.title": "準備完了です！",
     "wizard.success.desc": "HSYNC の設定が完了し、いつでも開始できます。",
     "wizard.success.invite": "別の機器を招待",
-    "wizard.success.invite_text": "共有：{bucket}\nグループ：{group}\nパスワード：{password}",
+    "wizard.success.invite_text": "{share_label}：{bucket}\n{group_label}：{group}\n{password_label}：{password}",
     "wizard.success.what_next": "最初の同期には時間がかかり、セキュリティ確認を求められることがあります。",
     "wizard.resume.banner": "ステップ {step} から再開",
     "wizard.stop_prompt": "同期が実行中です。停止して再設定しますか？",

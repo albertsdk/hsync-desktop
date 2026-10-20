@@ -458,6 +458,24 @@ class TestLayoutImprovements:
         assert "share-a" in text
         assert "grp" in text
 
+    def test_invite_uses_the_connection_labels(self, wizard):
+        """The invite names each value exactly as the Connection step does."""
+        wizard.success_page.load(
+            WizardDraft(
+                mode=WizardMode.LAN_SYNC,
+                bucket="share-a",
+                p2p_group="grp",
+                p2p_key="pw",
+            )
+        )
+        text = wizard.success_page._invite_text.toPlainText()
+        for key in (
+            "wizard.connection.share",
+            "wizard.connection.group",
+            "wizard.connection.password",
+        ):
+            assert tr(key) in text, key
+
     def test_invite_height_fits_all_lines(self, wizard):
         """Three lines (share, group, password) must fit without clipping."""
         invite = wizard.success_page._invite_text

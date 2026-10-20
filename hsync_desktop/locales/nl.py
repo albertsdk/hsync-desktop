@@ -593,7 +593,7 @@ translations: dict[str, str] = {
     "wizard.success.title": "Alles is klaar!",
     "wizard.success.desc": "HSYNC is geconfigureerd en klaar wanneer jij dat bent.",
     "wizard.success.invite": "Nodig een ander apparaat uit",
-    "wizard.success.invite_text": "Share: {bucket}\nGroep: {group}\nWachtwoord: {password}",
+    "wizard.success.invite_text": "{share_label}: {bucket}\n{group_label}: {group}\n{password_label}: {password}",
     "wizard.success.what_next": "De eerste synchronisatie kan even duren en om een beveiligingsbevestiging vragen.",
     "wizard.resume.banner": "Hervatten vanaf stap {step}",
     "wizard.stop_prompt": "Synchronisatie loopt. Stoppen om opnieuw te configureren?",

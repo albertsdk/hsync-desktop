@@ -55,9 +55,10 @@ the main window appears. You can always reopen it later:
 ## After finishing
 
 The success screen can **Start syncing** immediately or take you back to the main
-window. For network (p2p) setups it shows the share name, group and password to
-copy to your other devices — use the same values there; the invite can be
-selected directly or copied with one click.
+window. For network (p2p) setups it shows the share name, group name and shared
+password to copy to your other devices — the invite uses the same field names as
+the Connection step; use the same values there. The invite can be selected
+directly or copied with one click.
 
 If a discovery server's certificate was not saved during setup, the app asks for
 confirmation the first time you connect (a one-time security check).

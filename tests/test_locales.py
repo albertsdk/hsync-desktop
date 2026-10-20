@@ -178,11 +178,22 @@ class TestTerminologyConsistency:
                 )
 
     def test_invite_carries_share_group_and_password(self):
-        """The invite must let another device join the same share and group."""
+        """The invite must let another device join the same share and group.
+
+        Its labels are injected from the Connection-step keys, so the invite
+        names every value exactly as the wizard asks for it.
+        """
         for module in self.ALL:
             text = module.translations["wizard.success.invite_text"]
             fields = {name for _, name, _, _ in string.Formatter().parse(text) if name}
-            assert fields == {"bucket", "group", "password"}, module.__name__
+            assert fields == {
+                "share_label",
+                "group_label",
+                "password_label",
+                "bucket",
+                "group",
+                "password",
+            }, module.__name__
 
     def test_p2p_warning_names_the_credential_like_its_label(self):
         """The keyless-run prompt says "shared password", not "shared key"."""

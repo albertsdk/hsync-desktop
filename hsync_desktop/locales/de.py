@@ -570,7 +570,7 @@ translations: dict[str, str] = {
     "wizard.success.title": "Alles bereit!",
     "wizard.success.desc": "HSYNC ist eingerichtet und bereit, wenn du es bist.",
     "wizard.success.invite": "Weiteres Gerät einladen",
-    "wizard.success.invite_text": "Freigabe: {bucket}\nGruppe: {group}\nPasswort: {password}",
+    "wizard.success.invite_text": "{share_label}: {bucket}\n{group_label}: {group}\n{password_label}: {password}",
     "wizard.success.what_next": "Die erste Synchronisierung kann dauern und eine Sicherheitsbestätigung verlangen.",
     "wizard.resume.banner": "Fortsetzen ab Schritt {step}",
     "wizard.stop_prompt": "Die Synchronisierung läuft. Zum Neukonfigurieren stoppen?",

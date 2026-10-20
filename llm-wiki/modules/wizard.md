@@ -103,7 +103,9 @@ reachable.
   fields clears it.
 - **Success**: `dialog-ok` icon, the p2p invite is a read-only selectable field
   (`SuccessPage._invite_text`) that can also be copied with one click, and the
-  action bar is anchored at the bottom of the screen. The success screen is a
+  action bar is anchored at the bottom of the screen. The invite labels are
+  injected from `wizard.connection.share/group/password`, so it names each value
+  exactly like the Connection step and the Review page. The success screen is a
   destination, not a step: the subtitle, the step index and the resume banner
   are hidden (`SetupWizard._set_step`).
 
