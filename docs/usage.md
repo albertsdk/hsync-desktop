@@ -82,6 +82,11 @@ opens on the **Server HSYNC** store).
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
 
+The first time you start a sync, the app shows a liability disclaimer: choose
+**I understand** to continue, or **Not now** to close it without starting the
+sync. Check **Don't show this message again** to stop asking; the app prompts
+again only when the disclaimer text changes.
+
 To sync a single folder on demand, right-click it (or use the **File** menu) and
 choose **Send now** (push it to the other devices) or **Receive now** (pull it
 from them). Both run a one-shot scoped to that folder — or, for a file, to its

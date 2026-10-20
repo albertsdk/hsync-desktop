@@ -48,6 +48,20 @@ app-info dialogs — **License** (`main_window/actions.py::MainWindow._show_lice
 → `license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
 `LICENSE`) and **About** last, the conventional position.
 
+### Startup disclaimer
+
+`main_window/start.py::MainWindow._show_disclaimer` gates the first start of a
+sync. `main_window/start.py::MainWindow._build_disclaimer_dialog` offers two
+explicit actions with the app icons: **I understand**
+(`disclaimer.acknowledge`, default) and **Not now** (`disclaimer.not_now`,
+escape button). Closing the window or pressing Esc defers and never
+acknowledges, so only the acknowledge button starts the sync. The "don't show
+again" checkbox stores `ui/disclaimer_version` =
+`main_window/start.py::DISCLAIMER_VERSION`; the previous bare boolean
+(`ui/disclaimer_accepted`) counts as version 1 through
+`main_window/start.py::_accepted_disclaimer_version`, so a later wording change
+prompts again.
+
 ### Engine start failure feedback
 
 `_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps

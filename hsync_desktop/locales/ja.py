@@ -409,7 +409,9 @@ translations: dict[str, str] = {
     "preview.no_actions": "実行する操作はありません — すべて同期済みです。",
     # Disclaimer
     "disclaimer.title": "免責事項",
-    "disclaimer.message": "このソフトウェアの使用は完全にユーザー自身の責任で行ってください。作者および貢献者は、その使用によって生じたいかなる損害についても責任を負いません。\n\n「OK」をクリックすると、この免責事項を読み、理解したものとみなされます。",
+    "disclaimer.message": "このソフトウェアの使用は完全にユーザー自身の責任で行ってください。作者および貢献者は、その使用によって生じたいかなる損害についても責任を負いません。\n\n続行すると、この免責事項を読み、理解したことを確認したものとみなされます。",
+    "disclaimer.acknowledge": "理解しました",
+    "disclaimer.not_now": "今はしない",
     "disclaimer.dont_show": "このメッセージを今後表示しない",
     # Preview Summary Dialog
     "preview_summary.title": "同期プレビュー",

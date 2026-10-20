@@ -409,7 +409,9 @@ translations: dict[str, str] = {
     "preview.no_actions": "Geen acties uit te voeren — alles is gesynchroniseerd.",
     # Disclaimer
     "disclaimer.title": "Vrijwaring",
-    "disclaimer.message": "Het gebruik van deze software is volledig op eigen risico van de gebruiker. De auteur en eventuele bijdragers aanvaarden geen verantwoordelijkheid voor schade veroorzaakt door het gebruik ervan.\n\nDoor op OK te klikken bevestigt u dat u deze vrijwaring hebt gelezen en begrepen.",
+    "disclaimer.message": "Het gebruik van deze software is volledig op eigen risico van de gebruiker. De auteur en eventuele bijdragers aanvaarden geen verantwoordelijkheid voor schade veroorzaakt door het gebruik ervan.\n\nDoor verder te gaan bevestigt u dat u deze vrijwaring hebt gelezen en begrepen.",
+    "disclaimer.acknowledge": "Ik begrijp het",
+    "disclaimer.not_now": "Niet nu",
     "disclaimer.dont_show": "Dit bericht niet meer tonen",
     # Preview Summary Dialog
     "preview_summary.title": "Synchronisatievoorbeeld",

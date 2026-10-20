@@ -98,6 +98,24 @@ from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.wizard import SetupWizard
 from hsync_desktop.wizard.model import mark_auto_shown, should_auto_open
 
+# ── Startup disclaimer ───────────────────────────────────────────────────────
+# Bumped when the wording changes, so an earlier acknowledgement does not cover
+# a text the user never saw. The legacy boolean from previous releases counts as
+# acceptance of version 1 only.
+DISCLAIMER_VERSION = 1
+_DISCLAIMER_VERSION_KEY = "ui/disclaimer_version"
+_LEGACY_DISCLAIMER_KEY = "ui/disclaimer_accepted"
+_LEGACY_DISCLAIMER_VERSION = 1
+
+
+def _accepted_disclaimer_version(settings: QSettings) -> int:
+    """Highest disclaimer version the user acknowledged."""
+    version = int(settings.value(_DISCLAIMER_VERSION_KEY, 0) or 0)
+    if version == 0 and settings.value(_LEGACY_DISCLAIMER_KEY, False, bool):
+        version = _LEGACY_DISCLAIMER_VERSION
+    return version
+
+
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
 _BTN_START_ACTIVE = (
@@ -278,30 +296,41 @@ class StartMixin:
 
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
-    def _show_disclaimer(self) -> bool:
-        """Show disclaimer dialog. Returns True if user accepts."""
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if s.value("ui/disclaimer_accepted", False, bool):
-            return True
-
+    def _build_disclaimer_dialog(
+        self,
+    ) -> tuple[QMessageBox, QPushButton, QPushButton, QCheckBox]:
+        """Disclaimer with explicit acknowledge/defer labels and the app's icons."""
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(tr("disclaimer.title"))
         msg.setText(tr("disclaimer.message"))
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
-        cancel_btn = msg.button(QMessageBox.StandardButton.Cancel)
-        if cancel_btn:
-            cancel_btn.setText(tr("action.cancel"))
 
-        checkbox = QCheckBox(tr("disclaimer.dont_show"))
-        msg.setCheckBox(checkbox)
+        acknowledge = msg.addButton(tr("disclaimer.acknowledge"), QMessageBox.ButtonRole.AcceptRole)
+        acknowledge.setIcon(icon("dialog-ok"))
+        not_now = msg.addButton(tr("disclaimer.not_now"), QMessageBox.ButtonRole.RejectRole)
+        not_now.setIcon(icon("dialog-cancel"))
+        msg.setDefaultButton(acknowledge)
+        # Closing the window or pressing Esc defers; it never acknowledges.
+        msg.setEscapeButton(not_now)
 
-        result = msg.exec()
-        if result == QMessageBox.StandardButton.Ok:
-            if checkbox.isChecked():
-                s.setValue("ui/disclaimer_accepted", True)
+        dont_show = QCheckBox(tr("disclaimer.dont_show"))
+        msg.setCheckBox(dont_show)
+        return msg, acknowledge, not_now, dont_show
+
+    def _show_disclaimer(self) -> bool:
+        """Show the disclaimer; True only when the user acknowledges it."""
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if _accepted_disclaimer_version(s) >= DISCLAIMER_VERSION:
             return True
-        return False
+
+        msg, acknowledge, _not_now, dont_show = self._build_disclaimer_dialog()
+        msg.exec()
+        # Window close and Esc leave clickedButton() empty: no acknowledgement.
+        if msg.clickedButton() is not acknowledge:
+            return False
+        if dont_show.isChecked():
+            s.setValue(_DISCLAIMER_VERSION_KEY, DISCLAIMER_VERSION)
+        return True
 
     def _check_auto_sync(self) -> None:
         """Auto-start synchronization if a saved path exists."""
