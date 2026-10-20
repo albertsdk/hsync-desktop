@@ -47,7 +47,9 @@ documented in the [Configuration Reference](configuration.md).
 ### 3. Run and watch a sync
 
 [Using HSYNC Desktop](usage.md) covers running a sync, watching transfers, the
-runtime trust prompts, secrets and preferences.
+runtime trust prompts, secrets and preferences. If a folder keeps re-syncing or
+reports phantom conflicts, the [FAQ](faq.md) explains how to start it from a
+clean sync state.
 
 ### 4. Reference
 
@@ -56,6 +58,7 @@ runtime trust prompts, secrets and preferences.
 | [setup-wizard.md](setup-wizard.md) | Guided four-step setup for the common cases. |
 | [configuration.md](configuration.md) | Every setting in the Settings dialog (the single source of truth). |
 | [usage.md](usage.md) | Running and watching syncs, trust prompts, secrets, tray, themes, troubleshooting. |
+| [faq.md](faq.md) | Common questions, including how to reset a folder's sync state. |
 | [log-labels.md](log-labels.md) | Action labels shown in the log panel and what they mean. |
 
 ## Associated Ecosystem Components
