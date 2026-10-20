@@ -37,5 +37,5 @@ client takes the folder's instance lock), `index.db` is shared between folders,
 `HSYNC_STATE_DB` can make a single database hold every folder, and a file-level
 delete can reset the wrong folder. Use the Desktop button, or `hsync state reset`
 from the CLI: it deletes the folder's rows in one transaction and keeps the
-folder/index rows. If the database is unreadable, the Desktop already moves it
-aside instead of failing (the CLI does the same with `--quarantine`).
+folder/index rows. If the database is unreadable, the Desktop reports the error;
+the CLI moves it aside with `hsync state reset --folder DIR --quarantine`.

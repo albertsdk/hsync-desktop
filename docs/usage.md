@@ -154,8 +154,9 @@ know what to expect on the next cycle:
 
 It never touches your files, `.hsyncignore`, the settings, the saved keys, the
 device identity or the trusted fingerprints — only the folder's internal
-version/deletion state. If the state file is unreadable, the app reports it and
-the folder is rebuilt from scratch.
+version/deletion state. If the state file is unreadable, the app reports the
+error instead of guessing; `hsync state reset --folder DIR --quarantine` from the
+client moves it aside and the folder starts from scratch.
 
 ## Troubleshooting
 
