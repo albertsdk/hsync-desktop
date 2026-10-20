@@ -250,7 +250,7 @@ QPushButton#primaryButton:hover {{
 QGroupBox {{
     font-weight: bold;
     background-color: transparent;
-    border: 1px solid {border};
+    border: 1px solid {group_border};
     border-radius: 6px;
     margin-top: 12px;
     padding-top: 16px;
@@ -369,6 +369,7 @@ QLineEdit[error="true"], QComboBox[error="true"], QSpinBox[error="true"] {{
 def _light_qss() -> str:
     return _COMMON_QSS.format(
         border="#D0D0D0",
+        group_border="#D0D0D0",
         btn_hover="#DCDCDC",
         btn_pressed="#C8C8C8",
         accent=_get_system_accent().name(),
@@ -385,6 +386,9 @@ def _light_qss() -> str:
 def _dark_qss() -> str:
     return _COMMON_QSS.format(
         border="#404040",
+        # Lighter than the shared border: #404040 sat at ~1.6:1 against the
+        # #1E1E1E window and the Settings section frames disappeared.
+        group_border="#555555",
         btn_hover="#3A3A3A",
         btn_pressed="#454545",
         accent=_get_system_accent().name(),

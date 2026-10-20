@@ -3,7 +3,38 @@
 
 """Tests for hsync_desktop.themes module."""
 
+import re
+
+from PySide6.QtGui import QColor
+
 import hsync_desktop.themes as themes
+
+
+def _relative_luminance(color: QColor) -> float:
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    return (
+        0.2126 * channel(color.red())
+        + 0.7152 * channel(color.green())
+        + 0.0722 * channel(color.blue())
+    )
+
+
+def _contrast_ratio(first: QColor, second: QColor) -> float:
+    light = max(_relative_luminance(first), _relative_luminance(second))
+    dark = min(_relative_luminance(first), _relative_luminance(second))
+    return (light + 0.05) / (dark + 0.05)
+
+
+def _group_box_border(qss: str) -> str:
+    """Return the ``QGroupBox`` frame colour from *qss* (lowercase hex)."""
+    rule = re.search(r"QGroupBox \{[^}]*\}", qss)
+    assert rule is not None
+    match = re.search(r"border:\s*1px solid (#[0-9A-Fa-f]{6})", rule.group(0))
+    assert match is not None
+    return match.group(1).lower()
 
 
 class TestThemeConstants:
@@ -82,6 +113,18 @@ class TestQSSGeneration:
         qss = themes._dark_qss()
         # Dark theme border should be darker (without extra quotes)
         assert "#404040" in qss
+
+    def test_dark_group_box_border_is_visible(self):
+        """The Settings section frames must stand out from the window background."""
+        hex_value = _group_box_border(themes._dark_qss())
+        window = themes._build_dark_palette().color(themes.QPalette.ColorRole.Window)
+
+        # A dedicated colour, not the shared (too faint) dark border.
+        assert hex_value != "#404040"
+        assert _contrast_ratio(QColor(hex_value), window) >= 2.0
+
+    def test_light_group_box_border_is_unchanged(self):
+        assert _group_box_border(themes._light_qss()) == "#d0d0d0"
 
 
 class TestCommonQSS:
