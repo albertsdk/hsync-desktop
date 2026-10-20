@@ -133,7 +133,9 @@ enable them. The status bar's **Shared: X / Y** indicator shows the shared
 folder's size on this device (**X**) and the size of the whole share (**Y**, a
 dash while it is not yet known): the whole-share value is the sync set (remote
 files plus local files not yet uploaded) and is approximate when the two sides
-disagree on a file's size.
+disagree on a file's size. Files and folders whose name starts with a dot are
+hidden from the list; enable **Show hidden files** from the table header menu to
+see them (this changes only the list, not what is synchronised).
 In Server Mode, the address field accepts a bare hostname or `host:port` —
 `https://` and the default port are implied.
 

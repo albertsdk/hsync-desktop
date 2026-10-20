@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.file_panel.delegates import CenteredIconDelegate, ProgressBarDelegate
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
+from hsync_desktop.file_panel.filter import has_dot_segment
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     STATUS_COLORS,
@@ -107,6 +108,8 @@ class FileTransferTable(QTableWidget):
 
     # Persisted column visibility (comma-separated translation keys).
     _COLUMN_SETTINGS_KEY = "ui/file_columns_hidden"
+    # Persisted "show hidden files" view option (display only).
+    _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden; the current columns stay visible.
     _DEFAULT_HIDDEN = (COL_SPEED, COL_DIRECTION)
 
@@ -123,6 +126,9 @@ class FileTransferTable(QTableWidget):
         self._base_directory: str = ""
         self._sync_active: bool = False  # A sync is running: Send/Receive disabled
         self._connected: bool = False  # A connection is active: "Local" rows are grey
+        self._show_hidden: bool = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value(self._SHOW_HIDDEN_SETTINGS_KEY, False, bool)
+        )
 
         # Hierarchical navigation state
         self._current_path: str = ""  # Current folder (relative to base, "" = root)
@@ -263,12 +269,29 @@ class FileTransferTable(QTableWidget):
             action.toggled.connect(lambda checked, c=col: self._toggle_column(c, checked))
             menu.addAction(action)
 
+        menu.addSeparator()
+        hidden_action = QAction(tr("file.show_hidden"), menu)
+        hidden_action.setCheckable(True)
+        hidden_action.setChecked(self._show_hidden)
+        hidden_action.setToolTip(tr("tip.show_hidden"))
+        hidden_action.toggled.connect(self.set_show_hidden)
+        menu.addAction(hidden_action)
+
         menu.exec(header.mapToGlobal(pos))
 
     def _toggle_column(self, col: int, visible: bool) -> None:
         """Toggle visibility of a column."""
         self.horizontalHeader().setSectionHidden(col, not visible)
         self._save_column_visibility()
+
+    def set_show_hidden(self, show: bool) -> None:
+        """Show or hide dot-prefixed entries (view only, never sync state)."""
+        if show == self._show_hidden:
+            return
+        self._show_hidden = show
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(self._SHOW_HIDDEN_SETTINGS_KEY, show)
+        self._cached_items = None
+        self.refresh_view()
 
     def _on_cell_clicked(self, row: int, _col: int) -> None:
         """Defer single-click action to distinguish from double-click."""
@@ -426,23 +449,22 @@ class FileTransferTable(QTableWidget):
         for filepath, transfer in self._transfers.items():
             if prefix and not filepath.startswith(prefix):
                 continue
-            if not prefix and "/" in filepath.rstrip("/"):
-                top_part = filepath.split("/")[0]
-                if top_part not in folder_files:
-                    folder_files[top_part] = []
-                folder_files[top_part].append(transfer)
-                continue
             remainder = filepath[prefix_len:] if prefix else filepath
             remainder_clean = remainder.rstrip("/")
             if not remainder_clean:
                 continue
-            if "/" in remainder_clean:
-                subfolder = remainder_clean.split("/")[0]
-                if subfolder not in folder_files:
-                    folder_files[subfolder] = []
-                folder_files[subfolder].append(transfer)
+            head, sep, _rest = remainder_clean.partition("/")
+            if not self._show_hidden and head.startswith("."):
+                # Dot-prefixed item: hidden by name, together with its subtree.
+                continue
+            if sep:
+                # The folder row exists even when every child is view-hidden;
+                # only visible children contribute to its counts and size.
+                children = folder_files.setdefault(head, [])
+                if self._show_hidden or not has_dot_segment(remainder_clean):
+                    children.append(transfer)
             else:
-                items[remainder_clean] = (transfer, {})
+                items[head] = (transfer, {})
 
         for folder_name, files in folder_files.items():
             folder_data = self._aggregate_folder(files)

@@ -13,9 +13,11 @@ import os
 import time
 from pathlib import Path
 
+from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, Signal, Slot
 
 from hsync_desktop.config import FILE_BATCH_SIZE
+from hsync_desktop.file_panel.filter import is_synced_entry
 
 # Minimum time between progress updates (seconds) to avoid flooding the UI
 _PROGRESS_THROTTLE_MS = 100
@@ -33,9 +35,10 @@ class DirectoryScanWorker(QObject):
     # Emitted when scan is complete
     finished = Signal()
 
-    def __init__(self, directory: str) -> None:
+    def __init__(self, directory: str, matcher: IgnoreMatcher) -> None:
         super().__init__()
         self._directory = directory
+        self._matcher = matcher
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -66,15 +69,19 @@ class DirectoryScanWorker(QObject):
         dirs: list[os.DirEntry[str]] = []
         file_count = 0
         for entry in entries:
-            if entry.name.startswith("."):
-                continue
             try:
-                if entry.is_dir(follow_symlinks=False):
-                    dirs.append(entry)
-                elif entry.is_file(follow_symlinks=False):
-                    file_count += 1
+                is_dir = entry.is_dir(follow_symlinks=False)
+                is_file = not is_dir and entry.is_file(follow_symlinks=False)
             except OSError:
                 continue
+            if not (is_dir or is_file):
+                continue
+            if not is_synced_entry(self._matcher, entry.path, is_dir=is_dir):
+                continue
+            if is_dir:
+                dirs.append(entry)
+            else:
+                file_count += 1
 
         # Leaf empty directory (not root)
         if not file_count and not dirs and str(dir_path) != str(base_path):
@@ -110,15 +117,19 @@ class DirectoryScanWorker(QObject):
             files = []
 
             for entry in entries:
-                if entry.name.startswith("."):
-                    continue
                 try:
-                    if entry.is_dir(follow_symlinks=False):
-                        dirs.append(entry)
-                    elif entry.is_file(follow_symlinks=False):
-                        files.append(entry)
+                    is_dir = entry.is_dir(follow_symlinks=False)
+                    is_file = not is_dir and entry.is_file(follow_symlinks=False)
                 except OSError:
                     continue
+                if not (is_dir or is_file):
+                    continue
+                if not is_synced_entry(self._matcher, entry.path, is_dir=is_dir):
+                    continue
+                if is_dir:
+                    dirs.append(entry)
+                else:
+                    files.append(entry)
 
             # Handle empty directories (leaf dirs)
             if not files and not dirs and str(dir_path) != str(base_path):

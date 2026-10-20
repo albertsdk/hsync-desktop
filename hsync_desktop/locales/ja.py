@@ -57,6 +57,7 @@ translations: dict[str, str] = {
     "file.status": "状態",
     "file.speed": "速度",
     "file.direction": "方向",
+    "file.show_hidden": "隠しファイルを表示",
     # File type categories
     "ftype.folder": "フォルダー",
     "ftype.image": "画像",
@@ -278,6 +279,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "最大アップロード速度。無制限では利用可能な帯域をすべて使用します。",
     "tip.bandwidth_download": "最大ダウンロード速度。無制限では利用可能な帯域をすべて使用します。",
     "tip.show_log_panel": "メインウィンドウにログパネルを表示します。",
+    "tip.show_hidden": "名前がドットで始まるファイルとフォルダーを表示します。一覧のみが変わり、同期内容は変わりません。",
     "tip.peer_download": "ピア間モードでは、プライマリだけでなく他のデバイスからもブロックをダウンロードします。",
     "tip.peer_read_cap": "他のデバイスから同時に読み取るファイルの最大数。",
     "tip.peer_sources_max": "1つのファイルを取得するデバイスの最大数。",

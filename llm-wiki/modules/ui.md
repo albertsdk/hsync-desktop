@@ -155,6 +155,23 @@ The devices tab shows
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
+The panel lists exactly what the engine synchronises: the local scan, the
+consistency pass and the status-bar size share
+`file_panel/filter.py::is_synced_entry`, built on the engine's
+`hsync_common.ignore.IgnoreMatcher` (so `.hsyncignore`, the built-in default
+patterns, internal names and `*.part` artifacts are excluded) plus an explicit
+`.hsynckeep` exclusion — the sentinel is synced by the engine but stays internal
+to the UI, and the client's folder-size totals exclude it too. `.hsyncignore` is
+re-read when its `(mtime_ns, size)` changes (`filter.py::ignore_file_stamp`).
+
+Dot-prefixed names are only a **view** option: `ui/show_hidden_files`
+(`FileTransferTable._SHOW_HIDDEN_SETTINGS_KEY`) hides an item when its own name
+at the current level starts with `.`, toggled from the header context menu next
+to the column toggles (`FileTransferTable.set_show_hidden`). It changes neither
+`_transfers` nor the scanned size; a non-dot folder whose children are all
+view-hidden stays listed, with counts from its visible children only. The
+default is off (hidden).
+
 Renaming a row (`file_panel/transfer_table.py::FileTransferTable.rename_file`)
 keeps its modification date: the new row inherits the previous row's mtime when
 the filesystem read returns nothing (the rename event may arrive before the local

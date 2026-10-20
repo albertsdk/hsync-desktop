@@ -50,6 +50,7 @@ translations: dict[str, str] = {
     "file.status": "Statut",
     "file.speed": "Vitesse",
     "file.direction": "Sens",
+    "file.show_hidden": "Afficher les fichiers cachés",
     # File type categories
     "ftype.folder": "Dossier",
     "ftype.image": "Image",
@@ -264,6 +265,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "Débit d'envoi maximal. Illimité utilise toute la bande passante disponible.",
     "tip.bandwidth_download": "Débit de réception maximal. Illimité utilise toute la bande passante disponible.",
     "tip.show_log_panel": "Afficher le panneau de journal dans la fenêtre principale.",
+    "tip.show_hidden": "Affiche les fichiers et dossiers dont le nom commence par un point. Modifie uniquement la liste, pas ce qui est synchronisé.",
     "tip.peer_download": "En mode pair-à-pair, télécharge des blocs depuis d'autres appareils, pas seulement le primaire.",
     "tip.peer_read_cap": "Nombre maximal de fichiers lus simultanément depuis d'autres appareils.",
     "tip.peer_sources_max": "Nombre maximal d'appareils depuis lesquels un fichier est récupéré.",

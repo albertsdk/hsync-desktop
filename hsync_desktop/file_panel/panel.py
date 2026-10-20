@@ -9,6 +9,7 @@ import html
 import os
 from pathlib import Path
 
+from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS
 from hsync_desktop.file_panel.detail_panel import FileDetailPanel
+from hsync_desktop.file_panel.filter import ignore_file_stamp, is_synced_entry
 from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
 from hsync_desktop.file_panel.overlay import LoadingOverlay
 from hsync_desktop.file_panel.transfer_table import FileTransferTable
@@ -44,6 +46,8 @@ class FilePanel(QWidget):
         self._scan_worker: DirectoryScanWorker | None = None
         self._share_size_bytes: int = -1
         self._current_directory: str = ""
+        self._matcher: IgnoreMatcher | None = None
+        self._ignore_stamp: tuple[int, int] | None = None
         self._consistency_timer = QTimer(self)
         self._consistency_timer.timeout.connect(self._check_directory_consistency)
         self._build_ui()
@@ -236,8 +240,12 @@ class FilePanel(QWidget):
         self.share_size_changed.emit(-1)
         if not directory or not os.path.isdir(directory):
             self._current_directory = ""
+            self._matcher = None
+            self._ignore_stamp = None
             return
         self._current_directory = directory
+        self._matcher = IgnoreMatcher(directory)
+        self._ignore_stamp = ignore_file_stamp(directory)
         self._table.set_base_directory(directory)
         self._detail.set_base_directory(directory)
         if restore_view is not None:
@@ -245,7 +253,7 @@ class FilePanel(QWidget):
             self._table.restore_view(*restore_view)
         self._show_loading()
         self._scan_thread = QThread()
-        self._scan_worker = DirectoryScanWorker(directory)
+        self._scan_worker = DirectoryScanWorker(directory, self._matcher)
         self._scan_worker.moveToThread(self._scan_thread)
         self._scan_thread.started.connect(self._scan_worker.run)
         self._scan_worker.files_found.connect(
@@ -347,6 +355,19 @@ class FilePanel(QWidget):
             self._loading_overlay.setGeometry(self._table_container.rect())
         return super().eventFilter(watched, event)
 
+    def _refresh_matcher(self) -> IgnoreMatcher:
+        """Return the bucket matcher, reloading it when .hsyncignore changed."""
+        directory = self._current_directory
+        if self._matcher is None:
+            self._matcher = IgnoreMatcher(directory)
+            self._ignore_stamp = ignore_file_stamp(directory)
+            return self._matcher
+        stamp = ignore_file_stamp(directory)
+        if stamp != self._ignore_stamp:
+            self._ignore_stamp = stamp
+            self._matcher.reload()
+        return self._matcher
+
     @Slot()
     def _check_directory_consistency(self) -> None:
         if not self._current_directory or not os.path.isdir(self._current_directory):
@@ -354,10 +375,15 @@ class FilePanel(QWidget):
             return
         current_files: set[str] = set()
         base_path = Path(self._current_directory)
+        matcher = self._refresh_matcher()
         try:
             for root, dirs, files in os.walk(self._current_directory):
-                dirs[:] = [d for d in dirs if not d.startswith(".")]
-                visible_files = [f for f in files if not f.startswith(".")]
+                dirs[:] = [
+                    d for d in dirs if is_synced_entry(matcher, str(Path(root) / d), is_dir=True)
+                ]
+                visible_files = [
+                    f for f in files if is_synced_entry(matcher, str(Path(root) / f), is_dir=False)
+                ]
                 if not visible_files and not dirs and root != self._current_directory:
                     try:
                         rel_dir = str(Path(root).relative_to(base_path))

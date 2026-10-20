@@ -7,6 +7,7 @@ from time import time
 
 from hsync_common.format import format_bytes as _format_size
 from hsync_common.format import format_duration
+from hsync_common.ignore import IgnoreMatcher
 
 from hsync_desktop.file_panel import (
     _FILE_TYPE_MAP,
@@ -736,7 +737,7 @@ class TestShareSize:
         sub = tmp_path / "sub"
         sub.mkdir()
         (sub / "b.bin").write_bytes(b"y" * 20)
-        worker = DirectoryScanWorker(str(tmp_path))
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
         sizes: list[int] = []
         worker.size_progress.connect(sizes.append)
 
@@ -747,7 +748,7 @@ class TestShareSize:
     def test_an_empty_share_reports_zero(self, tmp_path):
         from hsync_desktop.file_panel.workers import DirectoryScanWorker
 
-        worker = DirectoryScanWorker(str(tmp_path))
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
         sizes: list[int] = []
         worker.size_progress.connect(sizes.append)
 
@@ -767,3 +768,216 @@ class TestShareSize:
 
         assert panel._share_size_bytes == 42
         assert seen[-1] == 42
+
+
+class TestEntryFiltering:
+    """The sync-set predicate mirrors the engine, not a dot-name heuristic."""
+
+    def test_dotfiles_are_synced_entries(self, tmp_path):
+        from hsync_desktop.file_panel.filter import is_synced_entry
+
+        matcher = IgnoreMatcher(str(tmp_path))
+
+        assert is_synced_entry(matcher, str(tmp_path / ".env"), is_dir=False)
+        assert is_synced_entry(matcher, str(tmp_path / ".git"), is_dir=True)
+
+    def test_internal_and_cache_names_are_not_synced_entries(self, tmp_path):
+        from hsync_desktop.file_panel.filter import is_synced_entry
+
+        matcher = IgnoreMatcher(str(tmp_path))
+
+        for name, is_dir in (
+            (".hsynckeep", False),
+            (".hsyncignore", False),
+            (".DS_Store", False),
+            ("Thumbs.db", False),
+            ("a.bin.part", False),
+        ):
+            assert not is_synced_entry(matcher, str(tmp_path / name), is_dir=is_dir), name
+
+    def test_hsyncignore_patterns_apply(self, tmp_path):
+        from hsync_desktop.file_panel.filter import is_synced_entry
+
+        (tmp_path / ".hsyncignore").write_text("data/\n")
+        matcher = IgnoreMatcher(str(tmp_path))
+
+        assert not is_synced_entry(matcher, str(tmp_path / "data"), is_dir=True)
+        assert is_synced_entry(matcher, str(tmp_path / "docs"), is_dir=True)
+
+    def test_has_dot_segment(self):
+        from hsync_desktop.file_panel.filter import has_dot_segment
+
+        assert has_dot_segment(".env")
+        assert has_dot_segment("sub/.env")
+        assert has_dot_segment(".git/config")
+        assert not has_dot_segment("sub/file.txt")
+        assert not has_dot_segment("a.b/c.txt")
+
+
+class TestScanFiltering:
+    """DirectoryScanWorker lists and counts exactly what the engine syncs."""
+
+    def test_scan_includes_dotfiles_and_excludes_internal_entries(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / "visible.bin").write_bytes(b"a" * 10)
+        (tmp_path / ".env").write_bytes(b"b" * 7)
+        (tmp_path / ".hsynckeep").write_bytes(b"")
+        (tmp_path / ".DS_Store").write_bytes(b"c" * 3)
+        (tmp_path / ".hsyncignore").write_text("*.log\n")
+        (tmp_path / "debug.log").write_text("ignored")
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        (sub / "b.bin").write_bytes(b"d" * 5)
+
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
+        found: list[tuple[str, int, float]] = []
+        sizes: list[int] = []
+        worker.files_found.connect(found.extend)
+        worker.size_progress.connect(sizes.append)
+
+        worker.run()
+
+        paths = {path for path, _size, _mtime in found}
+        assert "visible.bin" in paths
+        assert ".env" in paths
+        assert "sub/b.bin" in paths
+        assert ".hsynckeep" not in paths
+        assert ".DS_Store" not in paths
+        assert ".hsyncignore" not in paths
+        assert "debug.log" not in paths
+        assert sizes[-1] == 22  # 10 + 7 + 5; .hsynckeep and ignored files excluded
+
+    def test_a_dot_only_directory_is_not_reported_as_empty(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        dotonly = tmp_path / "dotonly"
+        dotonly.mkdir()
+        (dotonly / ".env").write_bytes(b"x" * 4)
+
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
+        found: list[tuple[str, int, float]] = []
+        worker.files_found.connect(found.extend)
+
+        worker.run()
+
+        paths = {path for path, _size, _mtime in found}
+        assert "dotonly/.env" in paths
+        assert "dotonly/" not in paths
+
+    def test_a_directory_with_only_ignored_files_is_an_empty_dir_entry(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / ".hsyncignore").write_text("*.log\n")
+        cache = tmp_path / "cache"
+        cache.mkdir()
+        (cache / "debug.log").write_text("x")
+
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
+        found: list[tuple[str, int, float]] = []
+        worker.files_found.connect(found.extend)
+
+        worker.run()
+
+        paths = {path for path, _size, _mtime in found}
+        assert "cache/" in paths
+
+
+class TestShowHiddenToggle:
+    """Dot-prefixed names are a persisted view option (default: hidden)."""
+
+    @staticmethod
+    def _settings(tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        return store
+
+    @staticmethod
+    def _table(qtbot, files):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        table.add_transfers_batch(
+            [
+                FileTransfer(
+                    filepath=path,
+                    direction="—",
+                    size=1,
+                    status=TransferStatus.LOCAL,
+                )
+                for path in files
+            ]
+        )
+        table.refresh_view()
+        return table
+
+    def test_dot_entries_are_hidden_by_default(self, qtbot, tmp_path, monkeypatch):
+        self._settings(tmp_path, monkeypatch)
+        table = self._table(
+            qtbot, ["visible.txt", ".env", ".git/config", "sub/.hidden", "sub/a.txt"]
+        )
+
+        assert "visible.txt" in table._row_index
+        assert "sub" in table._row_index
+        assert ".env" not in table._row_index
+        assert ".git" not in table._row_index
+
+    def test_enabling_shows_dot_entries(self, qtbot, tmp_path, monkeypatch):
+        self._settings(tmp_path, monkeypatch)
+        table = self._table(qtbot, ["visible.txt", ".env", ".git/config"])
+
+        table.set_show_hidden(True)
+
+        assert ".env" in table._row_index
+        assert ".git" in table._row_index
+
+    def test_the_choice_is_persisted(self, qtbot, tmp_path, monkeypatch):
+        self._settings(tmp_path, monkeypatch)
+        table = self._table(qtbot, ["a.txt"])
+        table.set_show_hidden(True)
+
+        fresh = self._table(qtbot, ["a.txt"])
+
+        assert fresh._show_hidden is True
+
+    def test_folder_counts_ignore_view_hidden_children(self, qtbot, tmp_path, monkeypatch):
+        self._settings(tmp_path, monkeypatch)
+        table = self._table(qtbot, ["sub/a.txt", "sub/.hidden"])
+
+        assert table._cached_items is not None
+        data = next(fd for name, _transfer, fd in table._cached_items if name == "sub")
+        assert data["count"] == 1
+
+    def test_a_folder_with_only_hidden_children_stays_listed(self, qtbot, tmp_path, monkeypatch):
+        self._settings(tmp_path, monkeypatch)
+        table = self._table(qtbot, ["onlyhidden/.env"])
+
+        assert "onlyhidden" in table._row_index
+
+
+class TestConsistencyFiltering:
+    """The periodic consistency pass uses the same engine predicate."""
+
+    def test_a_dot_only_directory_is_not_emptied(self, qtbot, tmp_path):
+        from hsync_desktop.file_panel import FilePanel
+
+        dotonly = tmp_path / "dotonly"
+        dotonly.mkdir()
+        (dotonly / ".env").write_text("x")
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel._current_directory = str(tmp_path)
+        panel._matcher = IgnoreMatcher(str(tmp_path))
+        panel._table.set_base_directory(str(tmp_path))
+
+        panel._check_directory_consistency()
+
+        assert "dotonly/.env" in panel._table._transfers
+        assert "dotonly/" not in panel._table._transfers

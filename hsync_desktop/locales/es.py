@@ -50,6 +50,7 @@ translations: dict[str, str] = {
     "file.status": "Estado",
     "file.speed": "Velocidad",
     "file.direction": "Dirección",
+    "file.show_hidden": "Mostrar archivos ocultos",
     # File type categories
     "ftype.folder": "Carpeta",
     "ftype.image": "Imagen",
@@ -264,6 +265,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "Velocidad máxima de subida. Sin límite usa todo el ancho de banda disponible.",
     "tip.bandwidth_download": "Velocidad máxima de bajada. Sin límite usa todo el ancho de banda disponible.",
     "tip.show_log_panel": "Mostrar el panel de registro en la ventana principal.",
+    "tip.show_hidden": "Muestra los archivos y carpetas cuyo nombre empieza por un punto. Solo cambia la lista, no lo que se sincroniza.",
     "tip.peer_download": "En modo entre pares, descarga bloques también de otros dispositivos, no solo del primario.",
     "tip.peer_read_cap": "Número máximo de archivos leídos a la vez desde otros dispositivos.",
     "tip.peer_sources_max": "Número máximo de dispositivos desde los que se descarga un archivo.",

@@ -50,6 +50,7 @@ translations: dict[str, str] = {
     "file.status": "Status",
     "file.speed": "Geschwindigkeit",
     "file.direction": "Richtung",
+    "file.show_hidden": "Versteckte Dateien anzeigen",
     # File type categories
     "ftype.folder": "Ordner",
     "ftype.image": "Bild",
@@ -264,6 +265,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "Maximale Upload-Rate. Unbegrenzt nutzt die gesamte verfügbare Bandbreite.",
     "tip.bandwidth_download": "Maximale Download-Rate. Unbegrenzt nutzt die gesamte verfügbare Bandbreite.",
     "tip.show_log_panel": "Das Protokollfenster im Hauptfenster anzeigen.",
+    "tip.show_hidden": "Zeigt Dateien und Ordner, deren Name mit einem Punkt beginnt. Ändert nur die Liste, nicht die Synchronisierung.",
     "tip.peer_download": "Im p2p-Modus Dateiblöcke auch von anderen Geräten laden, nicht nur vom Primärgerät.",
     "tip.peer_read_cap": "Maximale Anzahl gleichzeitig von anderen Geräten gelesener Dateien.",
     "tip.peer_sources_max": "Maximale Anzahl von Geräten, von denen eine Datei geladen wird.",

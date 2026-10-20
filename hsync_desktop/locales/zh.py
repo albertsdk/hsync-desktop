@@ -57,6 +57,7 @@ translations: dict[str, str] = {
     "file.status": "状态",
     "file.speed": "速度",
     "file.direction": "方向",
+    "file.show_hidden": "显示隐藏文件",
     # File type categories
     "ftype.folder": "文件夹",
     "ftype.image": "图像",
@@ -278,6 +279,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "最大上传速率。无限制将使用所有可用带宽。",
     "tip.bandwidth_download": "最大下载速率。无限制将使用所有可用带宽。",
     "tip.show_log_panel": "在主窗口中显示日志面板。",
+    "tip.show_hidden": "显示名称以点开头的文件和文件夹。仅改变列表，不影响同步内容。",
     "tip.peer_download": "在点对点模式下，可从其他设备下载数据块，而不仅从主设备。",
     "tip.peer_read_cap": "同时从其他设备读取的最大文件数。",
     "tip.peer_sources_max": "获取一个文件的最大设备数。",

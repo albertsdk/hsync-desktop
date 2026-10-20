@@ -12,6 +12,7 @@ This module provides the file transfer panel functionality, split into:
 - overlay: LoadingOverlay
 - delegates: ProgressBarDelegate / CenteredIconDelegate
 - dialogs: shared confirmation dialog
+- filter: engine-aligned scan predicate and hidden-name view helper
 - workers: Background workers (DirectoryScanWorker)
 - utils: Utility functions (formatting, classification)
 """

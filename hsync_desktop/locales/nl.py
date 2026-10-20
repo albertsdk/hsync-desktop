@@ -57,6 +57,7 @@ translations: dict[str, str] = {
     "file.status": "Status",
     "file.speed": "Snelheid",
     "file.direction": "Richting",
+    "file.show_hidden": "Verborgen bestanden tonen",
     # File type categories
     "ftype.folder": "Map",
     "ftype.image": "Afbeelding",
@@ -278,6 +279,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "Maximale uploadsnelheid. Onbeperkt gebruikt alle beschikbare bandbreedte.",
     "tip.bandwidth_download": "Maximale downloadsnelheid. Onbeperkt gebruikt alle beschikbare bandbreedte.",
     "tip.show_log_panel": "Het logboekpaneel in het hoofdvenster tonen.",
+    "tip.show_hidden": "Toont bestanden en mappen waarvan de naam met een punt begint. Wijzigt alleen de lijst, niet wat wordt gesynchroniseerd.",
     "tip.peer_download": "Download in p2p-modus blokken ook van andere apparaten, niet alleen van het primaire.",
     "tip.peer_read_cap": "Maximaal aantal bestanden dat tegelijk van andere apparaten wordt gelezen.",
     "tip.peer_sources_max": "Maximaal aantal apparaten waarvan een bestand wordt gehaald.",

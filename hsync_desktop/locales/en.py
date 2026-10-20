@@ -57,6 +57,7 @@ translations: dict[str, str] = {
     "file.status": "Status",
     "file.speed": "Speed",
     "file.direction": "Direction",
+    "file.show_hidden": "Show hidden files",
     # File type categories
     "ftype.folder": "Folder",
     "ftype.image": "Image",
@@ -278,6 +279,7 @@ translations: dict[str, str] = {
     "tip.bandwidth_upload": "Maximum upload rate. Unlimited uses all available bandwidth.",
     "tip.bandwidth_download": "Maximum download rate. Unlimited uses all available bandwidth.",
     "tip.show_log_panel": "Show the log panel in the main window.",
+    "tip.show_hidden": "Show files and folders whose name starts with a dot. This only changes the list, not what is synchronised.",
     "tip.peer_download": "In p2p mode, download file blocks from other devices, not only the primary.",
     "tip.peer_read_cap": "Maximum files read simultaneously from other devices.",
     "tip.peer_sources_max": "Maximum number of devices a file is fetched from.",
