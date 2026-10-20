@@ -96,9 +96,9 @@ class FilePanel(QWidget):
         self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
         self._breadcrumb_icon.setFixedSize(20, 20)
         self._breadcrumb_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._breadcrumb_icon.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._breadcrumb_icon.setCursor(Qt.CursorShape.ArrowCursor)
         self._breadcrumb_icon.setToolTip(tr("nav.root"))
-        self._breadcrumb_icon.mousePressEvent = lambda _: self._table.navigate_to("")  # type: ignore[method-assign]
+        self._breadcrumb_icon.mousePressEvent = lambda _: self._navigate_to_root()  # type: ignore[method-assign]
         nav_layout.addWidget(self._breadcrumb_icon)
 
         self._breadcrumb_label = QLabel()
@@ -167,13 +167,21 @@ class FilePanel(QWidget):
         self._btn_up.setEnabled(bool(self._table.current_path))
         self._update_breadcrumb()
 
+    def _navigate_to_root(self) -> None:
+        """Open the share root, unless the visible list already shows it."""
+        if self._table.current_path:
+            self._table.navigate_to("")
+
     def _update_breadcrumb(self) -> None:
         self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
         current_folder = self._table.current_path
         if not current_folder:
             self._breadcrumb_label.setText("")
             self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self._breadcrumb_icon.setCursor(Qt.CursorShape.ArrowCursor)
             return
+        # The root icon is an ancestor from a subfolder, so it navigates.
+        self._breadcrumb_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         text_color = (
             self._breadcrumb_label.palette()
             .color(self._breadcrumb_label.palette().ColorRole.WindowText)
@@ -182,17 +190,24 @@ class FilePanel(QWidget):
         parts = []
         segments = current_folder.split("/")
         path_so_far = ""
-        for seg in segments:
+        for index, seg in enumerate(segments):
             path_so_far = f"{path_so_far}/{seg}" if path_so_far else seg
             safe_seg = html.escape(seg, quote=True)
-            safe_path = html.escape(path_so_far, quote=True)
-            parts.append(
-                f'<a href="nav:{safe_path}" '
-                f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
-            )
+            if index == len(segments) - 1:
+                # The current folder is what the list already shows: plain
+                # text, never a link that would do nothing when clicked.
+                parts.append(f'<span style="color:{text_color};">{safe_seg}</span>')
+            else:
+                safe_path = html.escape(path_so_far, quote=True)
+                parts.append(
+                    f'<a href="nav:{safe_path}" '
+                    f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
+                )
         breadcrumb = " › " + " › ".join(parts)
         self._breadcrumb_label.setText(breadcrumb)
-        self._breadcrumb_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        # QLabel shows the hand over the links and the arrow over the plain
+        # current segment, so leave the cursor to it.
+        self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _on_breadcrumb_clicked(self, link: str) -> None:
         if link.startswith("nav:"):

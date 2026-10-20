@@ -250,10 +250,13 @@ Visibility is toggled from the header menu and persisted as stable keys in
 (`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
 stay consistent.
 
-**Clickable links**: the share name, the breadcrumb segments and the detail-panel
-file path use the default text colour with `text-decoration: underline` instead
-of the palette link colour, so they read as normal text; the hand cursor and the
-`linkActivated` handlers still mark them as clickable.
+**Clickable links**: the share name, the ancestor breadcrumb segments and the
+detail-panel file path use the default text colour with
+`text-decoration: underline` instead of the palette link colour, so they read as
+normal text; the hand cursor and the `linkActivated` handlers still mark them as
+clickable. The current breadcrumb segment is plain text, and the root icon is
+inert when the list already shows the root, so a click never targets the folder
+already displayed.
 
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).

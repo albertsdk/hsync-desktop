@@ -776,6 +776,40 @@ class TestLinkStyling:
         assert "&lt;" in text
         assert "&quot;" in text
 
+    def test_current_breadcrumb_segment_is_not_a_link(self, window):
+        """The folder already shown must not look clickable."""
+        window._file_panel._table._current_path = "sub/dir"
+
+        window._file_panel._update_breadcrumb()
+
+        text = window._file_panel._breadcrumb_label.text()
+        assert 'href="nav:sub/dir"' not in text
+        assert 'href="nav:sub"' in text
+        assert '<span style="color:' in text
+
+    def test_single_segment_breadcrumb_has_no_link(self, window):
+        from PySide6.QtCore import Qt
+
+        window._file_panel._table._current_path = "dir"
+
+        window._file_panel._update_breadcrumb()
+
+        label = window._file_panel._breadcrumb_label
+        assert "<a " not in label.text()
+        assert label.cursor().shape() == Qt.CursorShape.ArrowCursor
+
+    def test_root_icon_is_inert_at_root(self, window):
+        from PySide6.QtCore import Qt
+
+        panel = window._file_panel
+        panel._table._current_path = ""
+        panel._update_breadcrumb()
+        assert panel._breadcrumb_icon.cursor().shape() == Qt.CursorShape.ArrowCursor
+
+        panel._table._current_path = "sub"
+        panel._update_breadcrumb()
+        assert panel._breadcrumb_icon.cursor().shape() == Qt.CursorShape.PointingHandCursor
+
     def test_detail_href_is_escaped(self, window):
         from hsync_desktop.file_panel import FileTransfer, TransferStatus
 
