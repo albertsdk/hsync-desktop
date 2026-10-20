@@ -267,16 +267,21 @@ class FilePanel(QWidget):
             # Keep the folder/row the user acted on after the reload clears them.
             self._table.restore_view(*restore_view)
         self._show_loading()
+        self._start_scan(directory, emit_rows=True)
+
+    def _start_scan(self, directory: str, *, emit_rows: bool) -> None:
+        """Run a scan worker in its own thread (table rows and/or the size)."""
         self._scan_thread = QThread()
-        self._scan_worker = DirectoryScanWorker(directory, self._matcher)
+        self._scan_worker = DirectoryScanWorker(directory, self._matcher, emit_rows=emit_rows)
         self._scan_worker.moveToThread(self._scan_thread)
         self._scan_thread.started.connect(self._scan_worker.run)
-        self._scan_worker.files_found.connect(
-            self._on_files_found, Qt.ConnectionType.QueuedConnection
-        )
-        self._scan_worker.progress.connect(
-            self._on_scan_progress, Qt.ConnectionType.QueuedConnection
-        )
+        if emit_rows:
+            self._scan_worker.files_found.connect(
+                self._on_files_found, Qt.ConnectionType.QueuedConnection
+            )
+            self._scan_worker.progress.connect(
+                self._on_scan_progress, Qt.ConnectionType.QueuedConnection
+            )
         self._scan_worker.size_progress.connect(
             self._on_scan_size, Qt.ConnectionType.QueuedConnection
         )
@@ -284,6 +289,21 @@ class FilePanel(QWidget):
             self._on_scan_finished, Qt.ConnectionType.QueuedConnection
         )
         self._scan_thread.start()
+
+    def refresh_share_size(self) -> None:
+        """Recompute the local size without reloading the file table.
+
+        The size a run reports describes the folder as of the *start* of its
+        cycle (the client emits ``folder_size`` before transferring) and nothing
+        rescanned the folder when the run ended, so the status bar kept the
+        pre-sync value until the next run. Skipped while a full scan is already
+        computing the same number.
+        """
+        if not self._current_directory or self._matcher is None:
+            return
+        if self._scan_worker is not None:
+            return
+        self._start_scan(self._current_directory, emit_rows=False)
 
     def _stop_scan(self) -> None:
         self._hide_loading()

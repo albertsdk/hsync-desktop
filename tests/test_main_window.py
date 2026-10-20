@@ -1084,6 +1084,29 @@ class TestShareSizeLabel:
 
         assert window._share_local_bytes == 2048
 
+    def test_cycle_completion_rescans_the_local_size(self, window, monkeypatch):
+        """A finished cycle must not leave the pre-transfer size on screen."""
+        refreshes: list[str] = []
+        monkeypatch.setattr(
+            window._file_panel, "refresh_share_size", lambda: refreshes.append("refresh")
+        )
+
+        window._on_sync_completed()
+
+        assert refreshes == ["refresh"]
+
+    def test_process_finish_rescans_the_local_size(self, window, monkeypatch):
+        refreshes: list[str] = []
+        monkeypatch.setattr(
+            window._file_panel, "refresh_share_size", lambda: refreshes.append("refresh")
+        )
+
+        window._on_folder_size(1024, 4096)
+        window._on_process_finished(0, "normal")
+
+        assert refreshes == ["refresh"]
+        assert window._share_total_bytes == -1
+
 
 class _SpyWizard:
     """Stand-in for SetupWizard recording its lifecycle in the MainWindow."""

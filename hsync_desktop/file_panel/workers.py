@@ -35,10 +35,17 @@ class DirectoryScanWorker(QObject):
     # Emitted when scan is complete
     finished = Signal()
 
-    def __init__(self, directory: str, matcher: IgnoreMatcher) -> None:
+    def __init__(
+        self,
+        directory: str,
+        matcher: IgnoreMatcher,
+        *,
+        emit_rows: bool = True,
+    ) -> None:
         super().__init__()
         self._directory = directory
         self._matcher = matcher
+        self._emit_rows = emit_rows
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -132,7 +139,7 @@ class DirectoryScanWorker(QObject):
                     files.append(entry)
 
             # Handle empty directories (leaf dirs)
-            if not files and not dirs and str(dir_path) != str(base_path):
+            if self._emit_rows and not files and not dirs and str(dir_path) != str(base_path):
                 try:
                     stat = dir_path.stat()
                     mtime = stat.st_mtime
@@ -169,6 +176,9 @@ class DirectoryScanWorker(QObject):
 
                 total_bytes += size
 
+                if not self._emit_rows:
+                    continue
+
                 try:
                     rel_path = str(Path(entry.path).relative_to(base_path))
                 except ValueError:
@@ -201,8 +211,19 @@ class DirectoryScanWorker(QObject):
 
     @Slot()
     def run(self) -> None:
-        """Scan the directory and emit files in batches."""
+        """Scan the directory and emit files in batches.
+
+        With ``emit_rows=False`` the walk only accumulates the size (no counting
+        pass, no ``files_found``/``progress``): the caller wants the total for the
+        current folder state, not a table reload.
+        """
         if not self._directory or not os.path.isdir(self._directory):
+            self.finished.emit()
+            return
+
+        base_path = Path(self._directory)
+        if not self._emit_rows:
+            self._scan_with_scandir(base_path, 0)
             self.finished.emit()
             return
 
@@ -215,8 +236,6 @@ class DirectoryScanWorker(QObject):
             return
 
         self.progress.emit(0, total)
-
-        base_path = Path(self._directory)
 
         # Use optimized scandir-based scanner
         self._scan_with_scandir(base_path, total)

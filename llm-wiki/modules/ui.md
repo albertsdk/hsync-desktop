@@ -334,7 +334,18 @@ every file, so the total is an integer sum with no extra I/O
 listing sizes plus local-only pending uploads, so it is the whole share, not
 local + remote; scoped runs skip it. While stopped the total is `—` and the scan
 value is kept; `_on_process_finished` clears the total and `_prepare_engine_run`
-clears it for the new session. Sizes use `hsync_common.format.format_bytes`.
+clears it for the new session.
+
+The client emits `folder_size` once per cycle, *before* that cycle's transfers,
+so the value it leaves behind describes the folder as of the cycle start.
+`FilePanel.refresh_share_size` (`file_panel/panel.py::FilePanel.refresh_share_size`)
+therefore re-runs the walk in size-only mode
+(`workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
+pass, no `files_found`/`progress`) when a cycle completes
+(`main_window/events.py::MainWindow._on_sync_completed`) and when the process
+ends (`main_window/events.py::MainWindow._on_process_finished`), without
+reloading the file table. It is skipped while a full scan is already running.
+Sizes use `hsync_common.format.format_bytes`.
 
 ## splash_screen.py — Splash / About
 

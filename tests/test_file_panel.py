@@ -882,6 +882,57 @@ class TestScanFiltering:
         paths = {path for path, _size, _mtime in found}
         assert "cache/" in paths
 
+    def test_size_only_scan_reports_the_total_without_rows(self, tmp_path):
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / "a.bin").write_bytes(b"x" * 10)
+        (tmp_path / ".env").write_bytes(b"y" * 7)
+        (tmp_path / ".hsynckeep").write_bytes(b"")
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        (sub / "b.bin").write_bytes(b"z" * 5)
+
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)), emit_rows=False)
+        rows: list[tuple[str, int, float]] = []
+        sizes: list[int] = []
+        worker.files_found.connect(rows.extend)
+        worker.size_progress.connect(sizes.append)
+
+        worker.run()
+
+        assert rows == []
+        assert sizes[-1] == 22  # 10 + 7 + 5; .hsynckeep excluded
+
+
+class TestShareSizeRefresh:
+    """``refresh_share_size`` recomputes the total without reloading the table."""
+
+    def test_is_skipped_without_a_folder(self, qtbot):
+        from hsync_desktop.file_panel import FilePanel
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+
+        panel.refresh_share_size()
+
+        assert panel._scan_worker is None
+
+    def test_reports_the_current_total(self, qtbot, tmp_path):
+        from hsync_desktop.file_panel import FilePanel
+
+        (tmp_path / "a.bin").write_bytes(b"x" * 10)
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel._current_directory = str(tmp_path)
+        panel._matcher = IgnoreMatcher(str(tmp_path))
+        seen: list[int] = []
+        panel.share_size_changed.connect(seen.append)
+
+        panel.refresh_share_size()
+        qtbot.waitUntil(lambda: bool(seen), timeout=5000)
+
+        assert seen[-1] == 10
+
 
 class TestShowHiddenToggle:
     """Dot-prefixed names are a persisted view option (default: hidden)."""

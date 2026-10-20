@@ -427,6 +427,9 @@ class EventsMixin:
         if self._selection_sync_active and self._selection_sync_phase == "run":
             outcome = "done" if self._selection_result_count > 0 else "already_synced"
             self._finish_selection_sync(outcome)
+        # The cycle just moved files: recompute the local size instead of keeping
+        # the value the client reported before its transfers.
+        self._file_panel.refresh_share_size()
 
     @Slot(str, str)
     def _on_duplicate_identity(self, peer_cid: str, peer_address: str) -> None:
@@ -518,6 +521,9 @@ class EventsMixin:
         self._share_total_bytes = -1
         self._retranslate_role()
         self._render_share_size()
+        # The run moved files: rescan so the local size is post-sync, not the
+        # value the client reported at the start of its last cycle.
+        self._file_panel.refresh_share_size()
         # No engine process means no live connection: drop the status out of
         # "connecting"/"connected" (the client cannot report the final state)
         # and clear the now-meaningless peer count.
