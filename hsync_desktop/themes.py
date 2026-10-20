@@ -223,7 +223,7 @@ QToolTip {{
 }}
 QPushButton {{
     padding: 6px 16px;
-    border: 1px solid {border};
+    border: 1px solid {button_border};
     border-radius: 6px;
     min-height: 28px;
 }}
@@ -370,6 +370,7 @@ def _light_qss() -> str:
     return _COMMON_QSS.format(
         border="#D0D0D0",
         group_border="#D0D0D0",
+        button_border="#D0D0D0",
         btn_hover="#DCDCDC",
         btn_pressed="#C8C8C8",
         accent=_get_system_accent().name(),
@@ -389,6 +390,9 @@ def _dark_qss() -> str:
         # Lighter than the shared border: #404040 sat at ~1.6:1 against the
         # #1E1E1E window and the Settings section frames disappeared.
         group_border="#555555",
+        # The button surface is #333333, so the shared #404040 border was
+        # invisible; keep the section-frame tone but a step lighter.
+        button_border="#666666",
         btn_hover="#3A3A3A",
         btn_pressed="#454545",
         accent=_get_system_accent().name(),

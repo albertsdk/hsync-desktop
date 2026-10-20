@@ -37,6 +37,15 @@ def _group_box_border(qss: str) -> str:
     return match.group(1).lower()
 
 
+def _push_button_border(qss: str) -> str:
+    """Return the ``QPushButton`` border colour from *qss* (lowercase hex)."""
+    rule = re.search(r"QPushButton \{[^}]*\}", qss)
+    assert rule is not None
+    match = re.search(r"border:\s*1px solid (#[0-9A-Fa-f]{6})", rule.group(0))
+    assert match is not None
+    return match.group(1).lower()
+
+
 class TestThemeConstants:
     """Test theme constants."""
 
@@ -125,6 +134,18 @@ class TestQSSGeneration:
 
     def test_light_group_box_border_is_unchanged(self):
         assert _group_box_border(themes._light_qss()) == "#d0d0d0"
+
+    def test_dark_push_button_border_is_visible(self):
+        """Buttons must keep a visible outline on the dark button surface."""
+        hex_value = _push_button_border(themes._dark_qss())
+        surface = themes._build_dark_palette().color(themes.QPalette.ColorRole.Button)
+
+        # A dedicated colour, not the shared (invisible) dark border.
+        assert hex_value != "#404040"
+        assert _contrast_ratio(QColor(hex_value), surface) >= 2.0
+
+    def test_light_push_button_border_is_unchanged(self):
+        assert _push_button_border(themes._light_qss()) == "#d0d0d0"
 
 
 class TestCommonQSS:
