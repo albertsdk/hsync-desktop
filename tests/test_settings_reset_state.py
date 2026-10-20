@@ -145,6 +145,30 @@ class TestDialogChrome:
         assert not dlg._reset.icon().isNull()
         assert not dlg._cancel.icon().isNull()
 
+    def test_wrapped_labels_are_tall_enough_for_their_text(self, qtbot):
+        """The details must never be squeezed onto the confirmation text."""
+        dlg = ResetStateDialog()
+        qtbot.addWidget(dlg)
+        dlg.show()
+        qtbot.wait(50)
+
+        layout = dlg.layout()
+        confirm = layout.itemAt(0).widget()
+        assert confirm.height() >= confirm.heightForWidth(confirm.width())
+
+        collapsed = dlg.height()
+        dlg._toggle.setChecked(True)
+        qtbot.wait(50)
+
+        assert dlg._details.isVisible()
+        assert dlg._details.height() >= dlg._details.heightForWidth(dlg._details.width())
+        assert confirm.height() >= confirm.heightForWidth(confirm.width())
+        assert dlg.height() > collapsed
+
+        dlg._toggle.setChecked(False)
+        qtbot.wait(50)
+        assert dlg.height() == collapsed
+
 
 class TestGating:
     @staticmethod

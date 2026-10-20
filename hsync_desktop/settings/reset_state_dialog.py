@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -38,6 +39,7 @@ class ResetStateDialog(QDialog):
         confirm = QLabel(tr("settings.reset_state.confirm"))
         confirm.setWordWrap(True)
         layout.addWidget(confirm)
+        self._confirm = confirm
 
         self._details = QLabel(tr("settings.reset_state.details"))
         self._details.setWordWrap(True)
@@ -67,6 +69,32 @@ class ResetStateDialog(QDialog):
         self._reset.clicked.connect(self.accept)
         layout.addWidget(buttons)
 
+        self._fit_to_content()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Re-fit once the real width is known (wrapped labels depend on it)."""
+        super().showEvent(event)
+        self._fit_to_content()
+
+    def _fit_to_content(self) -> None:
+        """Give every visible wrapped label the height its text needs.
+
+        A ``QVBoxLayout`` sizes a word-wrapped ``QLabel`` from a ``sizeHint``
+        computed for another width, so both labels ended up shorter than their
+        text and the dialog kept its collapsed height. ``QLabel`` then paints the
+        extra lines outside its own rectangle — over the neighbouring paragraph —
+        and the bottom of the details is cut off. Set the height for the current
+        width, then re-fit the dialog to its content.
+        """
+        layout = self.layout()
+        if layout is None:
+            return
+        layout.activate()
+        for label in (self._confirm, self._details):
+            if label.isVisible():
+                label.setMinimumHeight(label.heightForWidth(label.width()))
+        self.adjustSize()
+
     def _on_toggle_details(self, shown: bool) -> None:
         self._details.setVisible(shown)
         self._toggle.setText(
@@ -76,3 +104,4 @@ class ResetStateDialog(QDialog):
                 else "settings.reset_state.show_details"
             )
         )
+        self._fit_to_content()
