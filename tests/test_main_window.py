@@ -1162,3 +1162,116 @@ class TestSetupWizardIntegration:
         monkeypatch.setattr(window, "_open_settings", lambda *a, **k: opened.append("settings"))
         window._on_path_clicked("settings")
         assert opened == ["settings"]
+
+
+class TestResetSyncState:
+    """The window runs the client's `state reset` for the folder the dialog asked for."""
+
+    @staticmethod
+    def _patch_dialogs(monkeypatch, *, warning=None, information=None):
+        if warning is not None:
+            monkeypatch.setattr(QMessageBox, "warning", staticmethod(warning))
+        if information is not None:
+            monkeypatch.setattr(QMessageBox, "information", staticmethod(information))
+
+    def test_runs_the_client_and_logs_the_outcome(self, window, monkeypatch):
+        from hsync_desktop.engine import ResetStateResult
+
+        calls: list[tuple[str, str]] = []
+        info: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: (
+                calls.append((binary, folder))
+                or ResetStateResult(ok=True, found=True, versions=7, tombstones=2)
+            ),
+        )
+        self._patch_dialogs(monkeypatch, information=lambda *a: info.append(a[2]))
+
+        window._reset_sync_state("/data/photos")
+
+        assert calls == [(window._engine.binary_path, "/data/photos")]
+        assert info == [
+            tr("settings.reset_state.done").replace("{versions}", "7").replace("{tombstones}", "2")
+        ]
+        assert "[STATE RESET]" in window._log_view.toPlainText()
+
+    def test_reports_an_empty_folder_as_a_noop(self, window, monkeypatch):
+        from hsync_desktop.engine import ResetStateResult
+
+        info: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: ResetStateResult(ok=True, found=False),
+        )
+        self._patch_dialogs(monkeypatch, information=lambda *a: info.append(a[2]))
+
+        window._reset_sync_state("/data/photos")
+
+        assert info == [tr("settings.reset_state.nothing")]
+
+    def test_reports_a_quarantined_database(self, window, monkeypatch):
+        from hsync_desktop.engine import ResetStateResult
+
+        info: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: ResetStateResult(ok=True, found=True, quarantined=True),
+        )
+        self._patch_dialogs(monkeypatch, information=lambda *a: info.append(a[2]))
+
+        window._reset_sync_state("/data/photos")
+
+        assert info == [tr("settings.reset_state.quarantined")]
+
+    def test_shows_the_client_error(self, window, monkeypatch):
+        from hsync_desktop.engine import ResetStateResult
+
+        warnings: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: ResetStateResult(
+                ok=False, message="Another hsync process is already syncing '/data/photos'"
+            ),
+        )
+        self._patch_dialogs(monkeypatch, warning=lambda *a: warnings.append(a[2]))
+
+        window._reset_sync_state("/data/photos")
+
+        assert warnings == ["Another hsync process is already syncing '/data/photos'"]
+        assert "[STATE RESET]" in window._log_view.toPlainText()
+
+    def test_refuses_while_a_sync_is_running(self, window, monkeypatch):
+        called: list[str] = []
+        warnings: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: called.append(folder),
+        )
+        self._patch_dialogs(monkeypatch, warning=lambda *a: warnings.append(a[2]))
+        monkeypatch.setattr(type(window._engine), "is_running", property(lambda self: True))
+        try:
+            window._reset_sync_state("/data/photos")
+        finally:
+            # Teardown closes the window, which waits for a stop: restore the
+            # real property first or the close would never complete.
+            monkeypatch.undo()
+
+        assert called == []
+        assert warnings == [tr("settings.reset_state.stop_first")]
+
+    def test_warns_when_no_binary_is_configured(self, window, monkeypatch):
+        """A broken install (no client binary) must warn, not raise out of the slot."""
+        called: list[str] = []
+        warnings: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.start.reset_sync_state",
+            lambda binary, folder: called.append(folder),
+        )
+        self._patch_dialogs(monkeypatch, warning=lambda *a: warnings.append(a[2]))
+        monkeypatch.setattr(type(window._engine), "binary_path", property(lambda self: None))
+
+        window._reset_sync_state("/data/photos")
+
+        assert called == []
+        assert warnings == [tr("settings.reset_state.failed")]

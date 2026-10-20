@@ -524,3 +524,112 @@ class TestServerTrustSubprocessHelpers:
             "--port",
             "9753",
         ]
+
+
+class TestResetSyncState:
+    """`hsync state reset` wrapper: JSON parsing, error text, capability gate."""
+
+    def _patch(self, monkeypatch, result):
+        from hsync_desktop.engine import cli as engine
+
+        calls: list[list[str]] = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return result
+
+        monkeypatch.setattr(engine.subprocess, "run", fake_run)
+        return calls
+
+    def test_parses_the_json_summary(self, monkeypatch):
+        calls = self._patch(
+            monkeypatch,
+            _FakeCompleted(
+                stdout=(
+                    '{"found": true, "versions_deleted": 12, '
+                    '"tombstones_deleted": 3, "quarantined": ""}'
+                )
+            ),
+        )
+
+        from hsync_desktop.engine import reset_sync_state
+
+        result = reset_sync_state("/bin/hsync", "/data/photos")
+
+        assert calls[0] == [
+            "/bin/hsync",
+            "state",
+            "reset",
+            "--folder",
+            "/data/photos",
+            "--quarantine",
+            "--json",
+        ]
+        assert result.ok is True
+        assert result.found is True
+        assert (result.versions, result.tombstones) == (12, 3)
+        assert result.quarantined is False
+
+    def test_empty_state_is_a_successful_noop(self, monkeypatch):
+        self._patch(monkeypatch, _FakeCompleted(stdout='{"found": false}'))
+
+        from hsync_desktop.engine import reset_sync_state
+
+        result = reset_sync_state("/bin/hsync", "/data/photos")
+
+        assert result.ok is True
+        assert result.found is False
+
+    def test_failure_carries_the_client_message(self, monkeypatch):
+        self._patch(
+            monkeypatch,
+            _FakeCompleted(
+                stderr="Another hsync process is already syncing '/data/photos' (pid 42).",
+                returncode=1,
+            ),
+        )
+
+        from hsync_desktop.engine import reset_sync_state
+
+        result = reset_sync_state("/bin/hsync", "/data/photos")
+
+        assert result.ok is False
+        assert "already syncing" in result.message
+
+    def test_malformed_json_is_a_failure(self, monkeypatch):
+        self._patch(monkeypatch, _FakeCompleted(stdout="not json"))
+
+        from hsync_desktop.engine import reset_sync_state
+
+        assert reset_sync_state("/bin/hsync", "/data/photos").ok is False
+
+    def test_quarantined_db_is_reported(self, monkeypatch):
+        """An unreadable DB moved aside (``--quarantine``) is a successful reset."""
+        self._patch(
+            monkeypatch,
+            _FakeCompleted(
+                stdout=(
+                    '{"found": true, "versions_deleted": 0, "tombstones_deleted": 0, '
+                    '"quarantined": "/data/photos/.hsync-state.corrupt"}'
+                )
+            ),
+        )
+
+        from hsync_desktop.engine import reset_sync_state
+
+        result = reset_sync_state("/bin/hsync", "/data/photos")
+
+        assert result.ok is True
+        assert result.quarantined is True
+
+    def test_os_error_is_a_failure(self, monkeypatch):
+        from hsync_desktop.engine import cli as engine
+
+        def _raise(*a, **k):
+            raise OSError("cannot exec")
+
+        monkeypatch.setattr(engine.subprocess, "run", _raise)
+
+        from hsync_desktop.engine import reset_sync_state
+
+        assert reset_sync_state("/bin/hsync", "/data/photos").ok is False

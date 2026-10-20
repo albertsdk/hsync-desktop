@@ -33,6 +33,7 @@ emitted subcommand always agree.
 | `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
+| reset sync state | `settings/dialog.py::SettingsDialog._on_reset_state` → `SettingsDialog.reset_state_folder` → `main_window/start.py::MainWindow._reset_sync_state` | **Settings → Sync → Advanced options → "Reset sync state…"**: the dialog only confirms and closes (setting `reset_state_folder`); the window runs `engine/cli.py::reset_sync_state` and logs the outcome. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
 the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;

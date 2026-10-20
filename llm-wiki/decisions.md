@@ -20,6 +20,17 @@ disable unsupported controls) is realized in
 
 ## Desktop-only rules
 
+- **Sync-state reset is a client operation the GUI only requests**: the
+  per-folder state DB is client-owned and guarded by the per-directory
+  `InstanceLock`, so the Settings button
+  (`settings/dialog.py::SettingsDialog._on_reset_state`) never touches it — it
+  confirms, sets `reset_state_folder` and closes; `MainWindow._reset_sync_state`
+  runs `hsync state reset --folder … --json`
+  (`engine/cli.py::reset_sync_state`). Gated on
+  `supports_subcommand(doc, "state")` and disabled while the sync runs. Rationale
+  (and the rejected alternative of deleting the DB from the GUI): the GUI cannot
+  see a CLI/service sync on the same folder, so a file-level delete would reset
+  state a live process keeps writing.
 - **Subprocess contract is the only API**: never import `hsync_client.*`. All
   coupling is through CLI flags + the event stream + stdin commands. New
   capabilities land in the client (and `hsync-common` vocabulary) first; the

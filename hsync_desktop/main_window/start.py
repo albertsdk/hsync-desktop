@@ -67,6 +67,7 @@ from hsync_desktop.engine import (
     remove_bootnode_trust,
     remove_peer_pin,
     remove_server_trust,
+    reset_sync_state,
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
@@ -560,8 +561,52 @@ class StartMixin:
             accepted = dlg.exec() == SettingsDialog.DialogCode.Accepted
         finally:
             self._settings_dialog = None
+        # The dialog only *asks* for the reset; the window owns the engine and
+        # performs the call once the modal is gone (the log shows the outcome).
+        reset_folder = dlg.reset_state_folder
         if accepted:
             self._apply_settings_changes()
+        if reset_folder:
+            self._reset_sync_state(reset_folder)
+
+    def _reset_sync_state(self, folder: str) -> None:
+        """Forget *folder*'s client-side sync state (Settings → Sync → Advanced).
+
+        The client takes the folder's instance lock, so a running sync makes the
+        command refuse; the button is disabled in that state and this guard only
+        covers a race.
+        """
+        if self._engine.is_running:
+            QMessageBox.warning(
+                self, tr("settings.reset_state.title"), tr("settings.reset_state.stop_first")
+            )
+            return
+        binary = self._engine.binary_path
+        if not binary:
+            # No bundled client (broken install): report it instead of letting
+            # ``subprocess.run([None, ...])`` raise out of this slot.
+            QMessageBox.warning(
+                self, tr("settings.reset_state.title"), tr("settings.reset_state.failed")
+            )
+            return
+        result = reset_sync_state(binary, folder)
+        if not result.ok:
+            detail = result.message or tr("settings.reset_state.failed")
+            self._append_desktop_log("ERROR", f"[STATE RESET] {detail}")
+            QMessageBox.warning(self, tr("settings.reset_state.title"), detail)
+            return
+        if not result.found:
+            message = tr("settings.reset_state.nothing")
+        elif result.quarantined:
+            message = tr("settings.reset_state.quarantined")
+        else:
+            message = (
+                tr("settings.reset_state.done")
+                .replace("{versions}", str(result.versions))
+                .replace("{tombstones}", str(result.tombstones))
+            )
+        self._append_desktop_log("INFO", f"[STATE RESET] {message}")
+        QMessageBox.information(self, tr("settings.reset_state.title"), message)
 
     def _apply_settings_changes(self) -> None:
         """Re-apply settings that changed on disk (Settings dialog or wizard).

@@ -12,6 +12,7 @@ from hsync_desktop.engine.cli import (
     _EXPECTED_VERSION,
     _VERSION_CACHE_KEY,
     BinaryVersionProbe,
+    ResetStateResult,
     add_bootnode_trust,
     add_peer_pin,
     add_server_trust,
@@ -29,6 +30,7 @@ from hsync_desktop.engine.cli import (
     remove_bootnode_trust,
     remove_peer_pin,
     remove_server_trust,
+    reset_sync_state,
     supports_peer_trust,
 )
 from hsync_desktop.engine.endpoints import (
@@ -54,6 +56,7 @@ from hsync_desktop.engine.process import (
 __all__ = [
     "BinaryVersionProbe",
     "HsyncEngine",
+    "ResetStateResult",
     "ServerProbeResult",
     "SERVER_DEFAULT_PORT",
     "TransferStats",
@@ -80,6 +83,7 @@ __all__ = [
     "remove_bootnode_trust",
     "remove_peer_pin",
     "remove_server_trust",
+    "reset_sync_state",
     "supports_peer_trust",
     "unverified_ssl_context",
     "write_secret_pipe",

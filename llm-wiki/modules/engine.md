@@ -122,6 +122,8 @@ The GUI edits the client's three SSH-style trust stores through subprocess helpe
 | `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine/cli.py::list_server_trust` / `engine/cli.py::add_server_trust` / `engine/cli.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
 | `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine/cli.py::list_peer_pins` / `engine/cli.py::add_peer_pin` / `engine/cli.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
 | `supports_peer_trust` | `engine/cli.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |
+| `_run_hsync_capture` | `engine/cli.py::_run_hsync_capture` | the single `subprocess.run` entry point; returns the `CompletedProcess` (stdout/stderr/exit code) or None when the binary cannot run. The three helpers above are thin wrappers |
+| `reset_sync_state` | `engine/cli.py::reset_sync_state` | `hsync state reset --folder DIR --quarantine --json` → `ResetStateResult` (`ok`, `found`, `versions`, `tombstones`, `quarantined`, `message`), parsed from the client's `versions_deleted`/`tombstones_deleted`; an unreadable DB is moved aside (`--quarantine`) so `quarantined` carries the new path; a non-zero exit carries the client's own text (e.g. the instance-lock holder). 60 s timeout: the command takes the folder lock and rewrites a SQLite file |
 
 ## Delta transfer compatibility
 

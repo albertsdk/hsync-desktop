@@ -84,15 +84,16 @@ class TestCapabilityGating:
     def _make_dialog(self, qtbot, monkeypatch, p2p_supported=True, p2p_flags=()):
         """Build a dialog whose binary advertises the ``p2p`` subcommand with
         exactly ``p2p_flags`` (or no ``p2p`` subcommand when ``p2p_supported``
-        is False)."""
+        is False). The maintenance ``state`` subcommand is always advertised, so
+        this fixture exercises the p2p gates only."""
         from hsync_common.protocol.capabilities import build_capabilities
 
         from hsync_desktop.settings import dialog as dialog_mod
 
         doc = build_capabilities(
             app_version="1.0.0",
-            subcommands=["p2p"] if p2p_supported else ["server"],
-            cli_options_by_subcommand={"p2p": list(p2p_flags)} if p2p_supported else {},
+            subcommands=["p2p", "state"] if p2p_supported else ["server", "state"],
+            cli_options_by_subcommand=({"p2p": list(p2p_flags)} if p2p_supported else {}),
         )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
         dlg = SettingsDialog()

@@ -169,6 +169,8 @@ class SettingsDialog(QDialog):
         # by the p2p-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
         self._unsupported_labels: set[QLabel] = set()
+        # Folder whose sync state the user asked to reset ("" = no request).
+        self._reset_state_folder = ""
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
@@ -279,6 +281,7 @@ class SettingsDialog(QDialog):
         _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
         _maybe_tip(self.ignore_patterns, "tip.ignore_patterns", tips)
         _maybe_tip(self.btn_edit_hsyncignore, "tip.edit_hsyncignore", tips)
+        _maybe_tip(self.btn_reset_state, "tip.reset_state", tips)
 
         # Server Mode tab
         _maybe_tip(self.server_url, "tip.server_url", tips)
@@ -436,6 +439,14 @@ class SettingsDialog(QDialog):
             adv_label.setEnabled(False)
             _set_field_tooltip(adv_widget, tr("tip.capability_unsupported"))
 
+        # Sync-state reset: the maintenance ``state`` subcommand is the gate (it
+        # is introspected into the capabilities document, so an older bundled
+        # binary simply hides the button).
+        if not supports_subcommand(doc, "state"):
+            self._unsupported_widgets.add(self.btn_reset_state)
+            self.btn_reset_state.setEnabled(False)
+            _set_field_tooltip(self.btn_reset_state, tr("tip.capability_unsupported"))
+
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
@@ -448,6 +459,7 @@ class SettingsDialog(QDialog):
         self.sync_direction_combo.currentIndexChanged.connect(self._on_sync_direction_changed)
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
+        self.btn_reset_state.clicked.connect(self._on_reset_state)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
 
@@ -482,6 +494,52 @@ class SettingsDialog(QDialog):
             return
         dlg = HsyncIgnoreEditorDialog(Path(shared), self)
         dlg.exec()
+
+    def _on_reset_state(self) -> None:
+        """Confirm a sync-state reset and hand the request to the main window.
+
+        The dialog never touches the state DB: the window owns the engine (so it
+        knows whether a sync is running) and calls the client, which takes the
+        folder's instance lock. Accepting closes the dialog so the window can
+        report the outcome in the log.
+        """
+        shared = self.shared_path.text().strip()
+        if not shared:
+            QMessageBox.warning(
+                self,
+                tr("settings.reset_state.title"),
+                tr("settings.reset_state.no_folder"),
+            )
+            return
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("settings.reset_state.title"))
+        msg.setText(tr("settings.reset_state.confirm"))
+        msg.setDetailedText(tr("settings.reset_state.details"))
+        msg.setStandardButtons(QMessageBox.StandardButton.Reset | QMessageBox.StandardButton.Cancel)
+        reset_btn = msg.button(QMessageBox.StandardButton.Reset)
+        if reset_btn:
+            reset_btn.setText(tr("settings.reset_state.action"))
+        cancel_btn = msg.button(QMessageBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setText(tr("action.cancel"))
+        # Destructive: a stray Enter must cancel, never reset.
+        msg.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        msg.exec()
+        if msg.clickedButton() is not reset_btn:
+            return
+        # Persist through the same validated path as OK, so closing as Accepted
+        # never silently drops the session's edits; request the reset only once
+        # the settings are really saved.
+        if not self._commit():
+            return
+        self._reset_state_folder = shared
+        self.accept()
+
+    @property
+    def reset_state_folder(self) -> str:
+        """Folder whose sync state the user asked to reset (empty = none)."""
+        return self._reset_state_folder
 
     def _on_ignore_delete_toggled(self, checked: bool) -> None:
         """Show a warning when the user disables ignore-delete."""
@@ -852,37 +910,49 @@ class SettingsDialog(QDialog):
         return msg.exec() == QMessageBox.StandardButton.Yes
 
     def _on_accept(self) -> None:
+        """Validate and persist the dialog, then close it as Accepted."""
+        if not self._commit():
+            return  # Go back to dialog
+        self.accept()
+
+    def _commit(self) -> bool:
+        """Validate every field and persist; False when a check vetoes.
+
+        Shared by the OK button and the sync-state reset, so both leave the
+        dialog through the same validated path: neither may close as Accepted
+        (which makes the window re-apply the settings) without saving.
+        """
         # Validate: prefer-master is incompatible with directional sync
         if self._prefer_master_conflict():
             if not self._maybe_warn_prefer_master("warn.prefer_master_msg"):
-                return  # Go back to dialog
+                return False  # Go back to dialog
             # Reset to bidirectional and continue saving
             self.sync_direction_combo.setCurrentIndex(0)
         # Validate: the API key is never sent over an unencrypted channel.
         if not self._confirm_insecure_api_key():
-            return  # Go back to dialog
+            return False  # Go back to dialog
         # Validate + normalize the server and bootnode endpoints (shared grammar).
         try:
             normalized_server = self._normalize_server_endpoint()
         except ValueError:
             QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_server_endpoint"))
-            return
+            return False
         try:
             normalized_bootnode = self._normalize_bootnode_endpoint()
         except ValueError:
             QMessageBox.warning(
                 self, tr("settings.title"), tr("settings.invalid_bootnode_endpoint")
             )
-            return
+            return False
         if normalized_server is not None:
             self.server_url.setText(normalized_server)
         if normalized_bootnode is not None:
             self.p2p_bootnode.setText(normalized_bootnode)
         # Validate: the OS login item must match the toggle before persisting.
         if not self._apply_start_at_login():
-            return  # Go back to dialog
+            return False  # Go back to dialog
         self.save()
-        self.accept()
+        return True
 
     def _apply_start_at_login(self) -> bool:
         """Register/unregister the OS login item to match the toggle.
@@ -1247,6 +1317,7 @@ class SettingsDialog(QDialog):
             self.dry_run,
             self.ignore_patterns,
             self.btn_edit_hsyncignore,
+            self.btn_reset_state,
         ]
 
         # p2p tab - all settings affect p2p mode behavior

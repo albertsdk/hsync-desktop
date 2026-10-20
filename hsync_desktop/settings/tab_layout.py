@@ -112,6 +112,9 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
 
     # Edit .hsyncignore button (no left label, like a regular action)
     f4.addRow("", dlg.btn_edit_hsyncignore)
+
+    # Maintenance: forget the folder's sync history (client-side state DB).
+    f4.addRow("", dlg.btn_reset_state)
     vbox.addWidget(dlg._grp_advanced)
 
     vbox.addStretch()

@@ -59,9 +59,10 @@ def _resolve_dialog(monkeypatch, label: str | None) -> list[int]:
 class _FakeCompleted:
     """Minimal stand-in for subprocess.CompletedProcess."""
 
-    def __init__(self, stdout: str = "", stderr: str = ""):
+    def __init__(self, stdout: str = "", stderr: str = "", returncode: int = 0):
         self.stdout = stdout
         self.stderr = stderr
+        self.returncode = returncode
 
 
 def _capture(signal) -> list:

@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
@@ -53,15 +54,26 @@ def _platform_tag() -> str:
     return f"{system}-{arch}"
 
 
-def _run_hsync_line(binary: str, args: list[str], timeout: float = 15.0) -> str | None:
-    """Run ``<binary> <args>`` and return the last non-empty stdout line, or None."""
+def _run_hsync_capture(
+    binary: str, args: list[str], timeout: float = 15.0
+) -> subprocess.CompletedProcess[str] | None:
+    """Run ``<binary> <args>`` and return the completed process, or None.
+
+    The single subprocess entry point for the CLI helpers: callers decide how to
+    treat a non-zero exit and how to read stdout/stderr.
+    """
     try:
-        result = subprocess.run(
+        return subprocess.run(
             [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    if result.returncode != 0:
+
+
+def _run_hsync_line(binary: str, args: list[str], timeout: float = 15.0) -> str | None:
+    """Run ``<binary> <args>`` and return the last non-empty stdout line, or None."""
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None or result.returncode != 0:
         return None
     lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     return lines[-1] if lines else None
@@ -94,24 +106,14 @@ def fetch_server_fingerprint(binary: str, host: str, port: int | None = None) ->
 
 def _run_hsync_success(binary: str, args: list[str], timeout: float = 15.0) -> bool:
     """Run ``<binary> <args>`` and return True only on a clean exit (code 0)."""
-    try:
-        result = subprocess.run(
-            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return result.returncode == 0
+    result = _run_hsync_capture(binary, args, timeout)
+    return result is not None and result.returncode == 0
 
 
 def _run_hsync_json(binary: str, args: list[str], timeout: float = 15.0) -> object | None:
     """Run ``<binary> <args>`` and parse JSON from stdout; None on any failure."""
-    try:
-        result = subprocess.run(
-            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None or result.returncode != 0:
         return None
     try:
         return json.loads(result.stdout)
@@ -192,6 +194,57 @@ def supports_peer_trust(binary: str | None = None) -> bool:
     if doc is None:
         return True
     return supports_subcommand(doc, "trust")
+
+
+@dataclass(frozen=True)
+class ResetStateResult:
+    """Outcome of ``hsync state reset`` for one folder.
+
+    ``found`` is False when the folder had no state yet (a successful no-op);
+    ``quarantined`` means an unreadable DB was moved aside instead of deleted.
+    ``message`` carries the client's own error text (e.g. the lock holder).
+    """
+
+    ok: bool
+    found: bool = False
+    versions: int = 0
+    tombstones: int = 0
+    quarantined: bool = False
+    message: str = ""
+
+
+def reset_sync_state(binary: str, folder: str, timeout: float = 60.0) -> ResetStateResult:
+    """Forget *folder*'s client-side sync state (``hsync state reset --json``).
+
+    Runs with ``--quarantine`` so an unreadable state DB is moved aside instead
+    of failing (``quarantined`` then carries the new path). A longer timeout
+    than the trust helpers: the command takes the folder's instance lock and
+    rewrites a SQLite file, so a large state DB can take a moment. Every
+    non-zero exit carries the client's explanation in ``message`` (notably
+    "another hsync process is already syncing").
+    """
+    args = ["state", "reset", "--folder", folder, "--quarantine", "--json"]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None:
+        return ResetStateResult(ok=False)
+    if result.returncode != 0:
+        lines = [
+            line.strip() for line in (result.stderr or result.stdout).splitlines() if line.strip()
+        ]
+        return ResetStateResult(ok=False, message=lines[-1] if lines else "")
+    try:
+        payload = json.loads(result.stdout)
+        if not isinstance(payload, dict):
+            return ResetStateResult(ok=False)
+        return ResetStateResult(
+            ok=True,
+            found=bool(payload.get("found", False)),
+            versions=int(payload.get("versions_deleted", 0) or 0),
+            tombstones=int(payload.get("tombstones_deleted", 0) or 0),
+            quarantined=bool(str(payload.get("quarantined", "") or "").strip()),
+        )
+    except (ValueError, TypeError):
+        return ResetStateResult(ok=False)
 
 
 def find_hsync_binary() -> str | None:

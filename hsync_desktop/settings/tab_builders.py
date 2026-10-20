@@ -135,6 +135,10 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg._lbl_ignore_patterns = QLabel(dlg)
     dlg.btn_edit_hsyncignore = QPushButton(dlg)
     dlg.btn_edit_hsyncignore.setObjectName("btnEditHsyncignore")
+    # Client-side sync-state reset (merge bases + deletion markers). Lives in the
+    # client because only it can take the per-directory instance lock.
+    dlg.btn_reset_state = QPushButton(dlg)
+    dlg.btn_reset_state.setObjectName("btnResetState")
 
     # Reorganize sync tab into grouped sections
     dlg._reorganize_sync_tab()

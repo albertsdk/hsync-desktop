@@ -135,6 +135,28 @@ uploaded); the total is approximate when the two sides disagree on a file's size
 In Server Mode, the address field accepts a bare hostname or `host:port` —
 `https://` and the default port are implied.
 
+## Reset the sync state
+
+When a folder keeps re-syncing, reports conflicts on files nobody edited, or the
+log shows a database error, the folder's local sync history is inconsistent.
+**Settings → Sync → Advanced options → Reset sync state…** makes the next sync
+reconcile the folder from scratch.
+
+Before you confirm: stop the sync (the button is disabled while it runs), and
+know what to expect on the next cycle:
+
+- every file is read and hashed again, so the first sync is slower;
+- files that are identical on both devices are **not** transferred;
+- differences are resolved normally, and a conflict copy is kept when both
+  sides changed;
+- files deleted shortly before the reset can come back, because the deletion
+  history is forgotten.
+
+It never touches your files, `.hsyncignore`, the settings, the saved keys, the
+device identity or the trusted fingerprints — only the folder's internal
+version/deletion state. If the state file is unreadable, the app reports it and
+the folder is rebuilt from scratch.
+
 ## Troubleshooting
 
 - **Synchronization does not start** — when the engine cannot start (for

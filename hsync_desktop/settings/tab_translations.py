@@ -96,6 +96,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_auto_sync.setText(tr("settings.auto_sync"))
     dlg._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
     dlg.btn_edit_hsyncignore.setText(tr("settings.edit_hsyncignore"))
+    dlg.btn_reset_state.setText(tr("settings.reset_state.button"))
 
     # Sync tab group box titles
     dlg._grp_path.setTitle(tr("settings.group.path_bucket"))
