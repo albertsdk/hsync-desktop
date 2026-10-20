@@ -27,8 +27,7 @@ translations: dict[str, str] = {
     "label.bucket": "Имя общего ресурса:",
     "label.group": "Группа p2p:",
     "label.peers": "Устройства:",
-    "label.share_size_fmt": "Локально {local} · Всего {total}",
-    "label.share_size_local_fmt": "Локально {size}",
+    "label.share_size_fmt": "Общий объём: {local} / {total}",
     "label.path_placeholder": "📂 Выберите папку для синхронизации…",
     "label.path_placeholder_tip": "Нажмите, чтобы открыть настройки и выбрать общую папку",
     "label.remote_server": "Сервер HSYNC",
@@ -286,7 +285,7 @@ translations: dict[str, str] = {
     "settings.cancel": "Отмена",
     # Tooltips
     "tip.server_url": "Имя хоста, IP или host:port сервера HSYNC; https:// и порт 9753 подразумеваются. Оставьте пустым для режима только p2p.",
-    "tip.share_size": "Размер файлов на этом устройстве и набора синхронизации (удалённые + ещё не загруженные локальные файлы).",
+    "tip.share_size": "Объём, занимаемый общей папкой на этом устройстве, и общий размер общего ресурса (файлы на удалённом сервере + ещё не загруженные локальные файлы).",
     "tip.api_key": "Ключ API для аутентификации на сервере",
     "tip.insecure": "Не проверять сертификат сервера (менее безопасно).",
     "tip.ca_cert": "Файл сертификата для сервера с самоподписанным сертификатом.",

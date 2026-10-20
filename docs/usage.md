@@ -129,9 +129,11 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 
 The file list shows the standard columns; **Speed** (live transfer rate) and
 **Direction** (↑/↓) are available from the header menu and are hidden until you
-enable them. The status bar shows the shared folder's **local size** and, while a
-sync is running, the **total size of the sync set** (remote + local files not yet
-uploaded); the total is approximate when the two sides disagree on a file's size.
+enable them. The status bar's **Shared: X / Y** indicator shows the shared
+folder's size on this device (**X**) and the size of the whole share (**Y**, a
+dash while it is not yet known): the whole-share value is the sync set (remote
+files plus local files not yet uploaded) and is approximate when the two sides
+disagree on a file's size.
 In Server Mode, the address field accepts a bare hostname or `host:port` —
 `https://` and the default port are implied.
 

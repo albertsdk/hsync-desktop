@@ -982,9 +982,17 @@ class TestPeersLabel:
 
 
 class TestShareSizeLabel:
-    """The status-bar label renders the local and sync-set sizes."""
+    """The status-bar label renders the shared-folder size as ``local / total``."""
 
-    def test_renders_local_only_when_the_total_is_unknown(self, window):
+    def test_renders_dash_when_the_local_size_is_unknown(self, window):
+        window._share_local_bytes = -1
+        window._share_total_bytes = -1
+
+        window._render_share_size()
+
+        assert window._share_size_label.text() == "—"
+
+    def test_renders_dash_when_the_total_is_unknown(self, window):
         from hsync_common.format import format_bytes
 
         from hsync_desktop.i18n import tr
@@ -994,7 +1002,11 @@ class TestShareSizeLabel:
 
         window._render_share_size()
 
-        expected = tr("label.share_size_local_fmt").replace("{size}", format_bytes(1024))
+        expected = (
+            tr("label.share_size_fmt")
+            .replace("{local}", format_bytes(1024))
+            .replace("{total}", "—")
+        )
         assert window._share_size_label.text() == expected
 
     def test_renders_local_and_total(self, window):

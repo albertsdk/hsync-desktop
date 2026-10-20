@@ -27,8 +27,7 @@ translations: dict[str, str] = {
     "label.bucket": "Share name:",
     "label.group": "p2p Group:",
     "label.peers": "Devices:",
-    "label.share_size_fmt": "Local {local} · Total {total}",
-    "label.share_size_local_fmt": "Local {size}",
+    "label.share_size_fmt": "Shared: {local} / {total}",
     "label.path_placeholder": "📂 Select a folder to sync…",
     "label.path_placeholder_tip": "Click to open settings and select the shared folder",
     "label.remote_server": "Server HSYNC",
@@ -286,7 +285,7 @@ translations: dict[str, str] = {
     "settings.cancel": "Cancel",
     # Tooltips
     "tip.server_url": "Hostname, IP or host:port of the HSYNC server; https:// and port 9753 are implied. Leave empty for p2p only.",
-    "tip.share_size": "Size of the files on this device and of the sync set (remote + local files not yet uploaded).",
+    "tip.share_size": "Space used by the shared folder on this device, and the total share size (remote/server files plus local files not yet uploaded).",
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Do not verify the server certificate (less secure).",
     "tip.ca_cert": "Certificate file for a server with a self-signed certificate.",

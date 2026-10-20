@@ -222,7 +222,7 @@ class UiBuildMixin:
         self._lbl_recv: QLabel = self.findChild(QLabel, "lblRecv")  # type: ignore[assignment]
         self._recv_label: QLabel = self.findChild(QLabel, "recvLabel")  # type: ignore[assignment]
 
-        # Share size (local + sync-set total), right side before Peers.
+        # Shared-folder size (local / total of the share), right side before Peers.
         self._share_size_label = QLabel(self.centralWidget())
         self._share_size_label.setText("—")
         self._share_size_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
@@ -807,18 +807,17 @@ class UiBuildMixin:
         self._role_label.setVisible(p2p_enabled and self._role_known and self._connected)
 
     def _render_share_size(self) -> None:
-        """Render the local and sync-set size (``-1`` means unknown)."""
+        """Render the shared-folder size as ``local / total`` (``-1`` = unknown)."""
         local = self._share_local_bytes
         total = self._share_total_bytes
         if local < 0:
             text = "—"
-        elif total < 0:
-            text = tr("label.share_size_local_fmt").replace("{size}", format_bytes(local))
         else:
+            total_text = format_bytes(total) if total >= 0 else "—"
             text = (
                 tr("label.share_size_fmt")
                 .replace("{local}", format_bytes(local))
-                .replace("{total}", format_bytes(total))
+                .replace("{total}", total_text)
             )
         self._share_size_label.setText(text)
 

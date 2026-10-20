@@ -27,8 +27,7 @@ translations: dict[str, str] = {
     "label.bucket": "共享名称：",
     "label.group": "p2p 组：",
     "label.peers": "设备：",
-    "label.share_size_fmt": "本地 {local} · 总计 {total}",
-    "label.share_size_local_fmt": "本地 {size}",
+    "label.share_size_fmt": "共享: {local} / {total}",
     "label.path_placeholder": "📂 选择要同步的文件夹…",
     "label.path_placeholder_tip": "点击打开设置并选择共享文件夹",
     "label.remote_server": "HSYNC 服务器",
@@ -286,7 +285,7 @@ translations: dict[str, str] = {
     "settings.cancel": "取消",
     # Tooltips
     "tip.server_url": "HSYNC 服务器的主机名、IP 或 host:port；默认使用 https:// 和端口 9753。仅使用 p2p 时留空。",
-    "tip.share_size": "此设备上的文件与同步集（远程 + 尚未上传的本地文件）的大小。",
+    "tip.share_size": "此设备上共享文件夹占用的空间，以及共享总大小（远程服务器上的文件 + 尚未上传的本地文件）。",
     "tip.api_key": "用于服务器身份验证的 API 密钥",
     "tip.insecure": "不验证服务器证书（安全性较低）。",
     "tip.ca_cert": "用于使用自签名证书的服务器的证书文件。",

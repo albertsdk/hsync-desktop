@@ -287,18 +287,20 @@ panel.
 ### Share size
 
 The status bar (right side, before Peers) shows a muted `QLabel`, rendered by
-`main_window/ui.py::MainWindow._render_share_size` as
-`label.share_size_fmt` ("Local X · Total Y") or, when the total is unknown,
-`label.share_size_local_fmt`. **Local** reuses the existing
-`DirectoryScanWorker` scan: it already `stat`s every file, so the total is an
-integer sum with no extra I/O (`workers.py::DirectoryScanWorker.size_progress` →
+`main_window/ui.py::MainWindow._render_share_size` from the single key
+`label.share_size_fmt` ("Shared: X / Y"; `Condivisi: X / Y` in Italian). **X** is
+the local size and **Y** the whole-share size; when the total is unknown the
+label reads "X / —", and it is a bare `—` before the first value arrives.
+**Local** reuses the existing `DirectoryScanWorker` scan: it already `stat`s
+every file, so the total is an integer sum with no extra I/O
+(`workers.py::DirectoryScanWorker.size_progress` →
 `file_panel/panel.py::FilePanel.share_size_changed` →
 `main_window/ui.py::MainWindow._on_share_size_changed`). **Total** is the
-client's `folder_size` event (see the client wiki), computed from the
-remote/master listing already fetched plus local-only pending uploads; scoped
-runs skip it. While stopped the total is `—` and the scan value is kept;
-`_on_process_finished` clears the total and `_prepare_engine_run` clears it for
-the new session. Sizes use `hsync_common.format.format_bytes`.
+`folder_size` event's sync-set union (see the client wiki): the remote/master
+listing sizes plus local-only pending uploads, so it is the whole share, not
+local + remote; scoped runs skip it. While stopped the total is `—` and the scan
+value is kept; `_on_process_finished` clears the total and `_prepare_engine_run`
+clears it for the new session. Sizes use `hsync_common.format.format_bytes`.
 
 ## splash_screen.py — Splash / About
 

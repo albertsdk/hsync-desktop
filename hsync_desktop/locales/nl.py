@@ -27,8 +27,7 @@ translations: dict[str, str] = {
     "label.bucket": "Naam van share:",
     "label.group": "p2p-groep:",
     "label.peers": "Apparaten:",
-    "label.share_size_fmt": "Lokaal {local} · Totaal {total}",
-    "label.share_size_local_fmt": "Lokaal {size}",
+    "label.share_size_fmt": "Gedeeld: {local} / {total}",
     "label.path_placeholder": "📂 Selecteer een map om te synchroniseren…",
     "label.path_placeholder_tip": "Klik om instellingen te openen en de gedeelde map te selecteren",
     "label.remote_server": "HSYNC-server",
@@ -286,7 +285,7 @@ translations: dict[str, str] = {
     "settings.cancel": "Annuleren",
     # Tooltips
     "tip.server_url": "Hostnaam, IP of host:poort van de HSYNC-server; https:// en poort 9753 zijn impliciet. Laat leeg voor alleen p2p.",
-    "tip.share_size": "Grootte van de bestanden op dit apparaat en van de synchronisatieset (remote + nog niet geüploade lokale bestanden).",
+    "tip.share_size": "Ruimte van de gedeelde map op dit apparaat en de totale grootte van de share (bestanden op de externe server + nog niet geüploade lokale bestanden).",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
     "tip.ca_cert": "Certificaatbestand voor een server met een zelfondertekend certificaat.",

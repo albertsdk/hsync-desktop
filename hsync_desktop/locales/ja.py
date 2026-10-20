@@ -27,8 +27,7 @@ translations: dict[str, str] = {
     "label.bucket": "共有名：",
     "label.group": "p2p グループ：",
     "label.peers": "デバイス：",
-    "label.share_size_fmt": "ローカル {local} · 合計 {total}",
-    "label.share_size_local_fmt": "ローカル {size}",
+    "label.share_size_fmt": "共有: {local} / {total}",
     "label.path_placeholder": "📂 同期するフォルダーを選択…",
     "label.path_placeholder_tip": "クリックして設定を開き、共有フォルダーを選択します",
     "label.remote_server": "HSYNC サーバー",
@@ -286,7 +285,7 @@ translations: dict[str, str] = {
     "settings.cancel": "キャンセル",
     # Tooltips
     "tip.server_url": "HSYNC サーバーのホスト名、IP、または host:port。https:// とポート 9753 は省略できます。p2p のみの場合は空欄にします。",
-    "tip.share_size": "このデバイスのファイルと同期セット（リモート + 未アップロードのローカルファイル）のサイズ。",
+    "tip.share_size": "このデバイスの共有フォルダーが使用する容量と、共有の合計サイズ（リモートサーバー上のファイル + 未アップロードのローカルファイル）。",
     "tip.api_key": "サーバー認証用の API キー",
     "tip.insecure": "サーバー証明書を検証しません（安全性が低下）。",
     "tip.ca_cert": "自己署名証明書を使用するサーバー用の証明書ファイル。",
