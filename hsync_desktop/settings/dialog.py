@@ -170,6 +170,9 @@ class SettingsDialog(QDialog):
         # by the p2p-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
         self._unsupported_labels: set[QLabel] = set()
+        # Per-tab purpose labels; exempt from the label-greying state machines so
+        # a disabled tab still says what it is for.
+        self._tab_descriptions: dict[int, QLabel] = {}
         # Folder whose sync state the user asked to reset ("" = no request).
         self._reset_state_folder = ""
 
@@ -622,14 +625,15 @@ class SettingsDialog(QDialog):
 
         Mirrors the widget enable state: the Server Mode tab grays its labels
         when p2p mode is active, so the Sync and p2p tabs gray theirs while a
-        sync is running. Banner labels and labels unavailable in this build are
-        left untouched.
+        sync is running. Banner labels, the tab's purpose description and labels
+        unavailable in this build are left untouched.
         """
         tab = self._tabs.widget(tab_index)
         if not tab:
             return
+        description = self._tab_descriptions.get(tab_index)
         for label in tab.findChildren(QLabel):
-            if label in exclude or label in self._unsupported_labels:
+            if label in exclude or label in self._unsupported_labels or label is description:
                 continue
             label.setEnabled(enabled)
 

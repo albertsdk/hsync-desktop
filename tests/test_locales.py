@@ -436,3 +436,46 @@ class TestEllipsisPolicy:
         for module in ALL_MODULES:
             assert not module.translations["menu.settings"].endswith("…"), module.__name__
             assert not module.translations["menu.setup_wizard"].endswith("…"), module.__name__
+
+
+class TestTabDescriptions:
+    """The Settings tabs open with one short, jargon-free purpose sentence."""
+
+    KEYS = (
+        "settings.sync.description",
+        "settings.p2p.description",
+        "settings.server_mode.description",
+    )
+
+    def test_keys_exist_in_all_locales(self):
+        for module in ALL_MODULES:
+            for key in self.KEYS:
+                assert key in module.translations, f"{module.__name__}:{key}"
+
+    def test_descriptions_stay_short(self):
+        # Must fit one or two lines at the 640 px dialog width. Space-less
+        # scripts are measured by length instead of word count.
+        for module in ALL_MODULES:
+            for key in self.KEYS:
+                text = module.translations[key]
+                if any(ch.isspace() for ch in text):
+                    assert len(text.split()) <= 24, f"{module.__name__}:{key}"
+                else:
+                    assert len(text) <= 70, f"{module.__name__}:{key}"
+
+    def test_descriptions_avoid_topology_jargon(self):
+        for module in ALL_MODULES:
+            for key in self.KEYS:
+                lowered = module.translations[key].lower()
+                assert "master" not in lowered, f"{module.__name__}:{key}"
+                assert "bootnode" not in lowered, f"{module.__name__}:{key}"
+                for token in TestTerminologyConsistency.RELAY_TOKENS:
+                    assert token not in lowered, f"{module.__name__}:{key}"
+
+    def test_p2p_description_names_the_discovery_server(self):
+        # The discovery-server option is the non-obvious part of the tab: every
+        # locale must call it a discovery service, never a relay or a bootnode.
+        for module in ALL_MODULES:
+            code = module.__name__.rsplit(".", 1)[-1]
+            lowered = module.translations["settings.p2p.description"].lower()
+            assert TestTerminologyConsistency.DISCOVERY_TERMS[code] in lowered, module.__name__

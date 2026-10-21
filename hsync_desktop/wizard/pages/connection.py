@@ -32,6 +32,8 @@ from hsync_desktop.engine import (
     probe_server_health,
 )
 from hsync_desktop.i18n import tr
+from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 from hsync_desktop.wizard.defaults import generate_group_name, generate_password
 from hsync_desktop.wizard.model import WizardDraft, WizardMode, profile_for
@@ -42,7 +44,6 @@ from hsync_desktop.wizard.widgets import (
     SecretField,
     ToggleRow,
     char_class_validator,
-    muted_label,
     set_field_error,
 )
 
@@ -513,7 +514,7 @@ class ConnectionPage(WizardPage):
         self.direction.setItemText(0, tr("settings.sync_direction.bidirectional"))
         self.direction.setItemText(1, tr("settings.sync_direction.upload_only"))
         self.direction.setItemText(2, tr("settings.sync_direction.download_only"))
-        self._automation.setTitle(tr("wizard.automation.title"))
+        self._automation.setTitle(escape_mnemonics(tr("wizard.automation.title")))
         for row in self._automation_rows:
             row.apply_translations()
         self.password.apply_translations()

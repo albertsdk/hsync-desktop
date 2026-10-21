@@ -22,10 +22,11 @@ from PySide6.QtWidgets import (
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 from hsync_desktop.settings.validators import validate_sync_folder
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.defaults import suggested_folders
 from hsync_desktop.wizard.model import WizardDraft
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import InlineError, muted_label, set_field_error
+from hsync_desktop.wizard.widgets import InlineError, set_field_error
 
 __all__ = ["FolderPage"]
 

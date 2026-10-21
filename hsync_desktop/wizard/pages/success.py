@@ -17,9 +17,10 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.model import WizardDraft, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import PrimaryButton, muted_label
+from hsync_desktop.wizard.widgets import PrimaryButton
 
 __all__ = ["SuccessPage"]
 

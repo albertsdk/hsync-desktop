@@ -26,9 +26,9 @@ emitted subcommand always agree.
 | ------ | -------- | ---- |
 | `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
 | tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_advanced_tab`, `settings/tab_builders.py::build_general_tab`, `settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
-| tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX` | sync/p2p/server tab positions (shared by dialog + builders + layout) |
-| tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab`, `settings/tab_layout.py::reorganize_server_tab` | regroup the Sync/p2p/Server Mode tabs into `QGroupBox` sections |
-| tab translations | `settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget |
+| tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX`, `settings/tab_indices.py::_TAB_DESCRIPTION_KEYS` | sync/p2p/server tab positions and the per-tab purpose string keys (shared by dialog + builders + layout) |
+| tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab`, `settings/tab_layout.py::reorganize_server_tab`, `settings/tab_layout.py::_group_box`, `settings/tab_layout.py::_add_tab_description` | regroup the Sync/p2p/Server Mode tabs into `QGroupBox` sections and open each with its purpose line |
+| tab translations | `settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget, including the tab descriptions and group titles |
 | form helpers | `settings/form_helpers.py::_replace_checkbox_with_toggle`, `settings/form_helpers.py::_maybe_tip`, `settings/form_helpers.py::_paired_label`, `settings/form_helpers.py::_set_field_tooltip`, `settings/form_helpers.py::_action_row`, `settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
 | `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
@@ -48,7 +48,29 @@ presented as **Share name** (`settings.bucket`; `tip.bucket` and the
 shares the label though it is currently unused), followed by the local folder
 (`settings.shared_path`), so
 the user names the share before choosing where to materialize it. All group
-titles are refreshed in `_apply_translations`.
+titles are refreshed in `_apply_translations`, and both that refresh and the
+`_group_box` constructor pass them through `widgets/text.py::escape_mnemonics`, so
+the `&` of "Share & Path" / "Zeiten & Intervalle" is displayed instead of being
+consumed as a keyboard mnemonic (see [ui.md](ui.md)).
+
+**Tab descriptions** (`_add_tab_description`): the Sync, p2p and Server Mode tabs
+open with one muted sentence stating what the tab is for, built from
+`_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
+`settings.p2p.description` / `settings.server_mode.description`). The label uses
+`widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
+helper text — so it does not introduce a second visual language. General and
+Advanced are deliberately left undescribed (their group titles already read as an
+index), so `_TAB_DESCRIPTION_KEYS` is the single place that decides which tabs get
+one. Two constraints to keep:
+* `SettingsDialog._set_tab_labels_enabled` skips
+  `SettingsDialog._tab_descriptions`, so the sentence stays readable while p2p mode
+  grays the Server Mode tab or a running sync grays the others.
+* `_TAB_DESCRIPTION_MAX_WIDTH` caps the label: a wrapped `QLabel` reports its
+  unwrapped text width as `sizeHint`, and `finalize_size` pins the dialog to its
+  size hint, so a longer translation would widen the window instead of wrapping.
+  Keep every locale within `tests/test_locales.py::TestTabDescriptions` (≤ 24
+  words, no master/bootnode/relay jargon, discovery-server wording in the p2p
+  line).
 
 **Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2),
 General (3), Advanced (4), sourced from `ui/settings_dialog.ui` (the p2p page

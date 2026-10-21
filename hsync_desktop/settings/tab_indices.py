@@ -13,3 +13,12 @@ _P2P_TAB_INDEX = 1
 _SERVER_TAB_INDEX = 2
 _GENERAL_TAB_INDEX = 3
 _ADVANCED_TAB_INDEX = 4
+
+# One-line purpose shown at the top of the mode tabs, where the choice between
+# p2p and server is not self-evident. General/Advanced stay undescribed: their
+# group titles already read as an index.
+_TAB_DESCRIPTION_KEYS: dict[int, str] = {
+    _SYNC_TAB_INDEX: "settings.sync.description",
+    _P2P_TAB_INDEX: "settings.p2p.description",
+    _SERVER_TAB_INDEX: "settings.server_mode.description",
+}

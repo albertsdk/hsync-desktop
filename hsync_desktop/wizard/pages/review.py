@@ -17,9 +17,10 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.model import WizardDraft, WizardMode, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import muted_label, section_title
+from hsync_desktop.wizard.widgets import section_title
 
 __all__ = ["ReviewPage"]
 

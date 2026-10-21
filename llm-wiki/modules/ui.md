@@ -421,3 +421,12 @@ every locale).
 
 > Strings shown here must be looked up via `i18n.tr` and exist in all locales
 > (see [settings.md](settings.md)).
+
+> **Ampersands.** `QGroupBox`, `QAbstractButton` and the tab bar read `&` as a
+> mnemonic marker and underline the character after it, so prose such as
+> "Share & Path" or "Save & Retry" used to render as "Share_Path" / "Save_Retry".
+> Those sinks must receive `widgets/text.py::escape_mnemonics` output; menus keep
+> the single `&`, which there *is* the Alt shortcut. A `QLabel` without a buddy,
+> the combo-box items, window titles and message boxes already show the
+> ampersand and take the raw string. `tests/test_mnemonic_escaping.py` scans
+> every locale for a leftover single `&` in the Settings and credential dialogs.

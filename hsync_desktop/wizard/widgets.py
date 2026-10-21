@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 __all__ = [
@@ -37,18 +38,9 @@ __all__ = [
     "SecretField",
     "ToggleRow",
     "char_class_validator",
-    "muted_label",
     "section_title",
     "set_field_error",
 ]
-
-
-def muted_label(text: str = "") -> QLabel:
-    """A muted helper label (object name ``mutedHint``)."""
-    label = QLabel(text)
-    label.setObjectName("mutedHint")
-    label.setWordWrap(True)
-    return label
 
 
 def char_class_validator(allowed: str) -> QRegularExpressionValidator:

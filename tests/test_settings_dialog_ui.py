@@ -304,10 +304,12 @@ class TestDisabledDuringSyncVisual:
     def _labels(dialog, index: int, exclude: tuple = ()) -> list[QLabel]:
         tab = dialog._tabs.widget(index)
         assert tab is not None
+        # The tab's purpose line stays readable even when its controls are off.
+        skip = (*exclude, dialog._tab_descriptions.get(index))
         return [
             lbl
             for lbl in tab.findChildren(QLabel)
-            if lbl not in dialog._unsupported_labels and lbl not in exclude
+            if lbl not in dialog._unsupported_labels and lbl not in skip
         ]
 
     def _p2p_labels(self, dialog) -> list[QLabel]:

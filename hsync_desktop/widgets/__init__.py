@@ -3,6 +3,7 @@
 
 """Custom Qt widgets for hsync-desktop."""
 
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
-__all__ = ["ToggleSwitch"]
+__all__ = ["ToggleSwitch", "muted_label"]

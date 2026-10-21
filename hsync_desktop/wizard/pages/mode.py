@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.model import (
     ChoiceAnswers,
     ChoiceAudience,
@@ -25,7 +26,7 @@ from hsync_desktop.wizard.model import (
     resolve_mode,
 )
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import PrimaryButton, RadioCard, muted_label
+from hsync_desktop.wizard.widgets import PrimaryButton, RadioCard
 
 __all__ = ["HelpChoiceDialog", "ModePage"]
 

@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Regroup the Sync and p2p settings tabs into ``QGroupBox`` sections.
+"""Regroup the Sync/p2p/Server tabs into ``QGroupBox`` sections.
 
-Split out of ``SettingsDialog`` (the methods are pure UI construction on the
-dialog instance); ``SettingsDialog`` keeps thin wrappers calling these.
+Each mode tab also opens with its one-line purpose label. Split out of
+``SettingsDialog`` (the methods are pure UI construction on the dialog
+instance); ``SettingsDialog`` keeps thin wrappers calling these.
 """
 
 from __future__ import annotations
@@ -27,10 +28,40 @@ from hsync_desktop.settings.tab_indices import (
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
+    _TAB_DESCRIPTION_KEYS,
 )
+from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.text import escape_mnemonics
 
 if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
+
+# ``tab_builders.finalize_size`` pins the dialog to a 640 px minimum width; the
+# description must wrap inside that page instead of asking for more.
+_TAB_DESCRIPTION_MAX_WIDTH = 600
+
+
+def _group_box(title_key: str) -> QGroupBox:
+    """A titled group box whose title shows its ``&`` literally."""
+
+    return QGroupBox(escape_mnemonics(tr(title_key)))
+
+
+def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int) -> None:
+    """Insert the tab's one-line purpose label above its groups.
+
+    The label keeps the ``mutedHint`` style of the wizard helper text and is
+    registered on the dialog so re-translation and the "disable this tab"
+    state machines can reach it.
+    """
+
+    label = muted_label(tr(_TAB_DESCRIPTION_KEYS[tab_index]))
+    # A word-wrapped QLabel reports its *unwrapped* text width as sizeHint;
+    # cap it below the 640 px page so a longer translation wraps instead of
+    # asking the fixed-size dialog to grow.
+    label.setMaximumWidth(_TAB_DESCRIPTION_MAX_WIDTH)
+    dlg._tab_descriptions[tab_index] = label
+    vbox.addWidget(label)
 
 
 def reorganize_sync_tab(dlg: SettingsDialog) -> None:
@@ -68,8 +99,10 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.setContentsMargins(4, 4, 4, 4)
     vbox.setSpacing(8)
 
+    _add_tab_description(dlg, vbox, _SYNC_TAB_INDEX)
+
     # Group 1: Path & Bucket
-    dlg._grp_path = QGroupBox(tr("settings.group.path_bucket"))
+    dlg._grp_path = _group_box("settings.group.path_bucket")
     f1 = QFormLayout(dlg._grp_path)
     path_row = QHBoxLayout()
     path_row.addWidget(dlg.shared_path)
@@ -79,7 +112,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_path)
 
     # Group 2: Sync Mode
-    dlg._grp_sync = QGroupBox(tr("settings.group.sync_mode"))
+    dlg._grp_sync = _group_box("settings.group.sync_mode")
     f2 = QFormLayout(dlg._grp_sync)
     f2.addRow(dlg._lbl_sync_direction, dlg.sync_direction_combo)
     f2.addRow("", cont_ignore)
@@ -88,7 +121,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_sync)
 
     # Group 3: Timing & Intervals
-    dlg._grp_timing = QGroupBox(tr("settings.group.timing"))
+    dlg._grp_timing = _group_box("settings.group.timing")
     f3 = QFormLayout(dlg._grp_timing)
     f3.addRow(lbl_resync, dlg.resync)
     f3.addRow(lbl_retry, dlg.retry_delay)
@@ -97,7 +130,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_timing)
 
     # Group 4: Advanced Options
-    dlg._grp_advanced = QGroupBox(tr("settings.group.advanced"))
+    dlg._grp_advanced = _group_box("settings.group.advanced")
     f4 = QFormLayout(dlg._grp_advanced)
     dlg._lbl_min_free_disk_space = QLabel(tr("settings.min_free_disk_space"))
     f4.addRow(dlg._lbl_min_free_disk_space, dlg.min_free_disk_space)
@@ -153,8 +186,10 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     vbox.setContentsMargins(4, 4, 4, 4)
     vbox.setSpacing(8)
 
+    _add_tab_description(dlg, vbox, _P2P_TAB_INDEX)
+
     # Group 1: mode + group identity
-    dlg._grp_p2p_mode = QGroupBox(tr("settings.group.p2p_mode"))
+    dlg._grp_p2p_mode = _group_box("settings.group.p2p_mode")
     g1 = QFormLayout(dlg._grp_p2p_mode)
     g1.addRow("", cont_mode)
     g1.addRow(lbl_group, dlg.p2p_group)
@@ -162,7 +197,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_p2p_mode)
 
     # Group 2: cross-network discovery through a bootnode
-    dlg._grp_p2p_discovery = QGroupBox(tr("settings.group.p2p_discovery"))
+    dlg._grp_p2p_discovery = _group_box("settings.group.p2p_discovery")
     g2 = QFormLayout(dlg._grp_p2p_discovery)
     g2.addRow(dlg._lbl_p2p_bootnode, dlg.p2p_bootnode)
     g2.addRow(dlg._lbl_p2p_bootnode_trust, trust_container)
@@ -171,7 +206,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_p2p_discovery)
 
     # Group 3: role election + pairing
-    dlg._grp_p2p_role = QGroupBox(tr("settings.group.p2p_role"))
+    dlg._grp_p2p_role = _group_box("settings.group.p2p_role")
     g3 = QFormLayout(dlg._grp_p2p_role)
     g3.addRow("", cont_force)
     g3.addRow("", cont_never)
@@ -179,7 +214,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_p2p_role)
 
     # Group 4: advanced tuning
-    dlg._grp_p2p_advanced = QGroupBox(tr("settings.group.advanced"))
+    dlg._grp_p2p_advanced = _group_box("settings.group.advanced")
     g4 = QFormLayout(dlg._grp_p2p_advanced)
     g4.addRow(lbl_port, dlg.p2p_port)
     g4.addRow(lbl_discovery, dlg.discovery_timeout)
@@ -218,11 +253,13 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     vbox.setContentsMargins(4, 4, 4, 4)
     vbox.setSpacing(8)
 
-    # The p2p-mode warning banner stays at the top, above the groups.
+    # Orientation first (stable), then the p2p-mode warning that explains why
+    # the whole tab is disabled.
+    _add_tab_description(dlg, vbox, _SERVER_TAB_INDEX)
     vbox.addWidget(dlg._p2p_banner)
 
     # Group 1: server endpoint, credentials, identity and actions.
-    dlg._grp_server = QGroupBox(tr("settings.group.server"))
+    dlg._grp_server = _group_box("settings.group.server")
     g1 = QFormLayout(dlg._grp_server)
     g1.addRow(lbl_server_url, dlg.server_url)
     g1.addRow(lbl_api_key, dlg.api_key)
@@ -231,14 +268,14 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_server)
 
     # Group 2: TLS/certificate behaviour.
-    dlg._grp_server_certificates = QGroupBox(tr("settings.group.server_certificates"))
+    dlg._grp_server_certificates = _group_box("settings.group.server_certificates")
     g2 = QFormLayout(dlg._grp_server_certificates)
     g2.addRow("", cont_insecure)
     g2.addRow(lbl_ca_cert, dlg.ca_cert)
     vbox.addWidget(dlg._grp_server_certificates)
 
     # Group 3: advanced request tuning.
-    dlg._grp_server_advanced = QGroupBox(tr("settings.group.advanced"))
+    dlg._grp_server_advanced = _group_box("settings.group.advanced")
     g3 = QFormLayout(dlg._grp_server_advanced)
     g3.addRow(lbl_timeout, dlg.http_timeout)
     vbox.addWidget(dlg._grp_server_advanced)
@@ -270,7 +307,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     vbox.setSpacing(8)
 
     # Group 1: performance
-    dlg._grp_advanced_perf = QGroupBox(tr("settings.group.performance"))
+    dlg._grp_advanced_perf = _group_box("settings.group.performance")
     f1 = QFormLayout(dlg._grp_advanced_perf)
     f1.addRow("", cont_autotune)
     dlg._lbl_max_concurrent = QLabel(tr("settings.max_concurrent_transfers"))
@@ -278,7 +315,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_advanced_perf)
 
     # Group 2: delta transfer
-    dlg._grp_advanced_delta = QGroupBox(tr("settings.group.delta"))
+    dlg._grp_advanced_delta = _group_box("settings.group.delta")
     f2 = QFormLayout(dlg._grp_advanced_delta)
     f2.addRow("", cont_delta)
     dlg._lbl_delta_min = QLabel(tr("settings.delta_min_file_size"))
@@ -288,7 +325,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_advanced_delta)
 
     # Group 3: deletion protection
-    dlg._grp_advanced_guard = QGroupBox(tr("settings.group.deletion_protection"))
+    dlg._grp_advanced_guard = _group_box("settings.group.deletion_protection")
     f3 = QFormLayout(dlg._grp_advanced_guard)
     f3.addRow("", cont_guard)
     dlg._lbl_guard_threshold = QLabel(tr("settings.mass_delete_threshold"))
@@ -298,7 +335,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_advanced_guard)
 
     # Group 4: network
-    dlg._grp_advanced_network = QGroupBox(tr("settings.group.network"))
+    dlg._grp_advanced_network = _group_box("settings.group.network")
     f4 = QFormLayout(dlg._grp_advanced_network)
     dlg._lbl_bandwidth_upload = QLabel(tr("settings.bandwidth_upload"))
     f4.addRow(dlg._lbl_bandwidth_upload, dlg.bandwidth_upload)
@@ -307,7 +344,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     vbox.addWidget(dlg._grp_advanced_network)
 
     # Group 5: logging
-    dlg._grp_advanced_logging = QGroupBox(tr("settings.group.logging"))
+    dlg._grp_advanced_logging = _group_box("settings.group.logging")
     f5 = QFormLayout(dlg._grp_advanced_logging)
     f5.addRow("", cont_verbose)
     f5.addRow(lbl_logfile, dlg.logfile)

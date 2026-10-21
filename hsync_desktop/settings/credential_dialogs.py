@@ -19,6 +19,7 @@ from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.i18n import tr
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.text import escape_mnemonics
 
 
 class ApiKeyDialog(QDialog):
@@ -55,7 +56,9 @@ class ApiKeyDialog(QDialog):
         self._api_key_edit.setText(current_key)
 
         # Buttons
-        self._button_box.addButton(tr("apikey.save"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self._button_box.addButton(
+            escape_mnemonics(tr("apikey.save")), QDialogButtonBox.ButtonRole.AcceptRole
+        )
         self._cancel_btn = self._button_box.addButton(
             tr("apikey.cancel"), QDialogButtonBox.ButtonRole.RejectRole
         )
@@ -118,7 +121,9 @@ class P2PKeyDialog(QDialog):
         self._p2p_key_edit.setText(current_key)
 
         # Buttons
-        self._button_box.addButton(tr("p2pauth.save"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self._button_box.addButton(
+            escape_mnemonics(tr("p2pauth.save")), QDialogButtonBox.ButtonRole.AcceptRole
+        )
         self._cancel_btn = self._button_box.addButton(
             tr("p2pauth.cancel"), QDialogButtonBox.ButtonRole.RejectRole
         )

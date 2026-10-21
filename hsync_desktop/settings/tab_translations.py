@@ -22,7 +22,9 @@ from hsync_desktop.settings.tab_indices import (
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
+    _TAB_DESCRIPTION_KEYS,
 )
+from hsync_desktop.widgets.text import escape_mnemonics
 
 if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
@@ -33,11 +35,17 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg.setWindowTitle(tr("settings.title"))
 
     # Tab titles
-    dlg._tabs.setTabText(_SYNC_TAB_INDEX, tr("settings.sync"))
-    dlg._tabs.setTabText(_P2P_TAB_INDEX, tr("settings.p2p"))
-    dlg._tabs.setTabText(_SERVER_TAB_INDEX, tr("settings.server_mode"))
-    dlg._tabs.setTabText(_GENERAL_TAB_INDEX, tr("settings.general"))
-    dlg._tabs.setTabText(_ADVANCED_TAB_INDEX, tr("settings.advanced"))
+    dlg._tabs.setTabText(_SYNC_TAB_INDEX, escape_mnemonics(tr("settings.sync")))
+    dlg._tabs.setTabText(_P2P_TAB_INDEX, escape_mnemonics(tr("settings.p2p")))
+    dlg._tabs.setTabText(_SERVER_TAB_INDEX, escape_mnemonics(tr("settings.server_mode")))
+    dlg._tabs.setTabText(_GENERAL_TAB_INDEX, escape_mnemonics(tr("settings.general")))
+    dlg._tabs.setTabText(_ADVANCED_TAB_INDEX, escape_mnemonics(tr("settings.advanced")))
+
+    # Tab descriptions (mode tabs only, see _TAB_DESCRIPTION_KEYS)
+    for tab_index, key in _TAB_DESCRIPTION_KEYS.items():
+        hint = dlg._tab_descriptions.get(tab_index)
+        if hint is not None:
+            hint.setText(tr(key))
 
     # Sync tab - shared path label
     lbl_shared: QLabel = dlg.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
@@ -60,7 +68,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         lbl.setText(tr("settings.http_timeout"))
     dlg._lbl_server_trust.setText(tr("settings.server_trust"))
     dlg._populate_server_trust()
-    dlg.btn_test_connection.setText(tr("settings.test_connection"))
+    dlg.btn_test_connection.setText(escape_mnemonics(tr("settings.test_connection")))
 
     # Sync tab labels
     lbl = dlg.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
@@ -95,28 +103,30 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_dry_run.setText(tr("settings.dry_run"))
     dlg._lbl_auto_sync.setText(tr("settings.auto_sync"))
     dlg._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
-    dlg.btn_edit_hsyncignore.setText(tr("settings.edit_hsyncignore"))
-    dlg.btn_reset_state.setText(tr("settings.reset_state.button"))
+    dlg.btn_edit_hsyncignore.setText(escape_mnemonics(tr("settings.edit_hsyncignore")))
+    dlg.btn_reset_state.setText(escape_mnemonics(tr("settings.reset_state.button")))
 
     # Sync tab group box titles
-    dlg._grp_path.setTitle(tr("settings.group.path_bucket"))
-    dlg._grp_sync.setTitle(tr("settings.group.sync_mode"))
-    dlg._grp_timing.setTitle(tr("settings.group.timing"))
-    dlg._grp_advanced.setTitle(tr("settings.group.advanced"))
-    dlg._grp_p2p_mode.setTitle(tr("settings.group.p2p_mode"))
-    dlg._grp_p2p_discovery.setTitle(tr("settings.group.p2p_discovery"))
-    dlg._grp_p2p_role.setTitle(tr("settings.group.p2p_role"))
-    dlg._grp_p2p_advanced.setTitle(tr("settings.group.advanced"))
-    dlg._grp_server.setTitle(tr("settings.group.server"))
-    dlg._grp_server_certificates.setTitle(tr("settings.group.server_certificates"))
-    dlg._grp_server_advanced.setTitle(tr("settings.group.advanced"))
+    dlg._grp_path.setTitle(escape_mnemonics(tr("settings.group.path_bucket")))
+    dlg._grp_sync.setTitle(escape_mnemonics(tr("settings.group.sync_mode")))
+    dlg._grp_timing.setTitle(escape_mnemonics(tr("settings.group.timing")))
+    dlg._grp_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
+    dlg._grp_p2p_mode.setTitle(escape_mnemonics(tr("settings.group.p2p_mode")))
+    dlg._grp_p2p_discovery.setTitle(escape_mnemonics(tr("settings.group.p2p_discovery")))
+    dlg._grp_p2p_role.setTitle(escape_mnemonics(tr("settings.group.p2p_role")))
+    dlg._grp_p2p_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
+    dlg._grp_server.setTitle(escape_mnemonics(tr("settings.group.server")))
+    dlg._grp_server_certificates.setTitle(
+        escape_mnemonics(tr("settings.group.server_certificates"))
+    )
+    dlg._grp_server_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
 
     # Advanced tab group box titles
-    dlg._grp_advanced_perf.setTitle(tr("settings.group.performance"))
-    dlg._grp_advanced_delta.setTitle(tr("settings.group.delta"))
-    dlg._grp_advanced_guard.setTitle(tr("settings.group.deletion_protection"))
-    dlg._grp_advanced_network.setTitle(tr("settings.group.network"))
-    dlg._grp_advanced_logging.setTitle(tr("settings.group.logging"))
+    dlg._grp_advanced_perf.setTitle(escape_mnemonics(tr("settings.group.performance")))
+    dlg._grp_advanced_delta.setTitle(escape_mnemonics(tr("settings.group.delta")))
+    dlg._grp_advanced_guard.setTitle(escape_mnemonics(tr("settings.group.deletion_protection")))
+    dlg._grp_advanced_network.setTitle(escape_mnemonics(tr("settings.group.network")))
+    dlg._grp_advanced_logging.setTitle(escape_mnemonics(tr("settings.group.logging")))
 
     # p2p tab labels
     dlg._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
@@ -132,9 +142,9 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
     dlg._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
     dlg._populate_bootnode_trust()
-    dlg.btn_manage_trusted_keys.setText(tr("settings.manage_trusted_keys"))
-    dlg.btn_manage_trusted_keys_server.setText(tr("settings.manage_trusted_keys"))
-    dlg.btn_test_bootnode.setText(tr("settings.test_connection"))
+    dlg.btn_manage_trusted_keys.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
+    dlg.btn_manage_trusted_keys_server.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
+    dlg.btn_test_bootnode.setText(escape_mnemonics(tr("settings.test_connection")))
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
     lbl = dlg.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
     if lbl:

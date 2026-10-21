@@ -74,7 +74,9 @@ and the returned mode so the two can never disagree.
   field is labelled "Discovery server address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
   (via `wizard/widgets.py::ToggleRow`); secrets show/hide through an icon toggle
-  (`view-visible`/`view-hidden` + tooltip).
+  (`view-visible`/`view-hidden` + tooltip). Helper paragraphs use the shared
+  `widgets/labels.py::muted_label` (`QLabel#mutedHint`), the same widget the
+  Settings tab descriptions use.
 - **Input restriction**: `wizard/widgets.py::char_class_validator` blocks
   disallowed characters on the share name and group; structural rules stay in the
   on-Continue validation.
