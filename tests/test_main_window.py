@@ -1035,6 +1035,33 @@ class TestInfoToast:
         assert window._info_banner.isHidden()
 
 
+class TestMasterRoleNotification:
+    """A prefer_master takeover is the expected outcome; only a real conflict warns."""
+
+    def test_takeover_is_logged_without_a_toast(self, window):
+        window._on_master_conflict("takeover", "peerCID", "10.0.0.9")
+
+        expected = (
+            tr("notif.master_takeover").replace("{cid}", "peerCID").replace("{ip}", "10.0.0.9")
+        )
+        log = window._log_view.toPlainText()
+        assert expected in log
+        assert "[desktop] INFO:" in log
+        assert window._info_banner.isHidden()
+
+    def test_conflict_lost_still_warns(self, window):
+        window._on_master_conflict("conflict_lost", "peerCID", "10.0.0.9")
+
+        assert window._info_banner_kind == "warning"
+        assert not window._info_banner.isHidden()
+
+    def test_conflict_won_still_warns(self, window):
+        window._on_master_conflict("conflict_won", "peerCID", "10.0.0.9")
+
+        assert window._info_banner_kind == "warning"
+        assert not window._info_banner.isHidden()
+
+
 class TestDesktopLogFormat:
     def test_desktop_line_uses_the_client_timestamp_shape(self, window):
         import re

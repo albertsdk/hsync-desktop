@@ -37,7 +37,8 @@ desktop notification (the latter only while the window is in the background):
 | `[FINGERPRINT CHANGED]` | Master cert changed — security warning notification |
 | `[PAIRING NEEDED]` | Strict pairing required — notification |
 | `[INSECURE MASTER]` | Insecure master refused — notification |
-| `[MASTER CONFLICT]` / `[MASTER TAKEOVER]` | Master election conflict — notification |
+| `[MASTER CONFLICT]` | Two devices both prefer the primary role — warning notification |
+| `[MASTER TAKEOVER]` | A peer that prefers the primary role took over — expected handover, logged only (no notification) |
 
 ## Desktop-only markers
 

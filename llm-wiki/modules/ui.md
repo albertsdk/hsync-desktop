@@ -391,7 +391,10 @@ the pid/CID (no client session exists), reusing
 `hsync_common.logger.format_timestamp`: `<timestamp> - [desktop] LEVEL: message`.
 Events surfaced to the user (Send/Receive busy, nothing to sync, connection
 results) additionally raise a toast, so their outcome is visible without the log
-panel.
+panel. Master role changes (`_on_master_conflict`,
+`main_window/events.py::MainWindow._on_master_conflict`) are informational: a
+takeover by a peer that prefers the primary role is logged only (the role
+indicator updates), while a genuine two-prefer_master conflict raises a warning.
 
 ### Share size
 

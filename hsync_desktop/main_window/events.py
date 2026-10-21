@@ -362,7 +362,14 @@ class EventsMixin:
 
     @Slot(str, str, str)
     def _on_master_conflict(self, conflict_type: str, peer_cid: str, peer_address: str) -> None:
-        """Handle a prefer_master conflict or takeover notification."""
+        """Handle a prefer_master conflict or takeover notification.
+
+        A ``takeover`` means the peer is configured to prefer the primary role
+        and this device is not, so the handover is the expected election
+        outcome: it is logged but does not raise a warning (the new role is
+        shown in the status bar). Only a genuine two-prefer_master conflict
+        (``conflict_lost`` / ``conflict_won``) is surfaced as a warning.
+        """
         if conflict_type == "conflict_lost":
             msg = (
                 tr("notif.master_conflict_lost")
@@ -375,10 +382,12 @@ class EventsMixin:
                 .replace("{cid}", peer_cid)
                 .replace("{ip}", peer_address)
             )
-        else:  # takeover
+        else:  # takeover by a peer that prefers the primary role
             msg = (
                 tr("notif.master_takeover").replace("{cid}", peer_cid).replace("{ip}", peer_address)
             )
+            self._append_desktop_log("INFO", msg)
+            return
         self._notify_warning(tr("notif.master_conflict_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
