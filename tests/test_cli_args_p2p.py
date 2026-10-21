@@ -67,6 +67,28 @@ class TestContinuousMapping:
         assert "-w" not in args
 
 
+class TestSimulationMode:
+    """Simulation Mode is a preview-only one-shot, never a waiting session."""
+
+    def test_simulation_forces_dry_run_and_one_shot(self):
+        args = _build_args({"sync/continuous": True, "sync/dry_run": True})
+
+        assert "-n" in args
+        assert args.count("--once") == 1
+
+    def test_simulation_does_not_duplicate_once(self):
+        args = _build_args({"sync/continuous": False, "sync/dry_run": True})
+
+        assert args.count("--once") == 1
+        assert "-n" in args
+
+    def test_simulation_off_keeps_the_continuous_session(self):
+        args = _build_args({"sync/continuous": True, "sync/dry_run": False})
+
+        assert "--once" not in args
+        assert "-n" not in args
+
+
 class TestP2PSectionConsistency:
     """Cross-flag consistency of the p2p argument block."""
 

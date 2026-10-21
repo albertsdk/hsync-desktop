@@ -62,6 +62,25 @@ again" checkbox stores `ui/disclaimer_version` =
 `main_window/start.py::_accepted_disclaimer_version`, so a later wording change
 prompts again.
 
+### Pre-flight gates
+
+Before a run starts, `_continue_start_after_disclaimer`
+(`main_window/start.py::MainWindow._continue_start_after_disclaimer`) chains the
+gates in this order: `_check_deletion_risk`, `_check_keyless_p2p`,
+`_check_disk_space`, `_ensure_bootnode_trust`, `_ensure_server_trust`; the scoped
+Send/Receive path (`main_window/actions.py`) reuses the same checks. The
+deletion-risk confirmation (`notif.deletion_risk`, p2p without *Prefer primary
+role* or Receive-only) is a guard for a run that actually applies changes, so
+`_check_deletion_risk` (`main_window/start.py::MainWindow._check_deletion_risk`)
+returns early when **Simulation Mode** (`sync/dry_run`) is on. That setting makes
+every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
+client shows the preview and exits instead of parking in the dry-run "wait for a
+`SYNC` command" state, where `SYNC` would flip it to a real sync
+(`hsync-client` `preview.py::_run_stdin_wait`). For the same reason
+`_show_preview_summary` (`main_window/actions.py`) never sends `SYNC` under
+simulation: it logs and toasts `preview.simulation_no_changes` and lets the
+one-shot process finish.
+
 ### Engine start failure feedback
 
 `_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps

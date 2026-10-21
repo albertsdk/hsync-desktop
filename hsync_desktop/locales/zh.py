@@ -412,6 +412,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "同步预览",
     "preview.no_actions": "没有要执行的操作 — 一切已同步。",
+    "preview.simulation_no_changes": "模拟模式：未应用任何更改。在“设置 → 同步”中关闭它即可实际执行。",
     # Disclaimer
     "disclaimer.title": "免责声明",
     "disclaimer.message": "使用本软件完全由用户自行承担风险。作者及任何贡献者对因使用本软件造成的任何损害概不负责。\n\n继续即表示您已阅读并理解本免责声明。",

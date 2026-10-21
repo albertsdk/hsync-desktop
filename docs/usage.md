@@ -94,6 +94,9 @@ containing folder — and are available only while no sync is running. A preview
 summary is shown first, so you confirm exactly what will be transferred before it
 runs.
 
+With **Simulation Mode** enabled (Settings → Sync) the run stops at that summary:
+nothing is transferred or deleted, and the app tells you so.
+
 Transient messages (searching for devices, connection results, "nothing to
 sync", a Send/Receive while a sync is running) appear as a small overlay toast in
 the bottom-right corner, so nothing shifts and you do not need the log panel open

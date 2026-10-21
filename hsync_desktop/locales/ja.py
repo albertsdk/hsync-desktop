@@ -412,6 +412,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "同期プレビュー",
     "preview.no_actions": "実行する操作はありません — すべて同期済みです。",
+    "preview.simulation_no_changes": "シミュレーションモード：変更は適用されていません。実際に実行するには「設定 → 同期」でオフにしてください。",
     # Disclaimer
     "disclaimer.title": "免責事項",
     "disclaimer.message": "このソフトウェアの使用は完全にユーザー自身の責任で行ってください。作者および貢献者は、その使用によって生じたいかなる損害についても責任を負いません。\n\n続行すると、この免責事項を読み、理解したことを確認したものとみなされます。",

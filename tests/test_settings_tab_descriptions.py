@@ -63,6 +63,14 @@ class TestTabDescriptions:
         for label in dialog._tab_descriptions.values():
             assert label.maximumWidth() < dialog.minimumWidth()
 
+    def test_description_has_breathing_room(self, dialog):
+        """The purpose line is inset from the tab edge and the first group."""
+        for tab_index in _MODE_TABS:
+            margins = dialog._tab_descriptions[tab_index].contentsMargins()
+            assert margins.left() > 0
+            assert margins.right() > 0
+            assert margins.bottom() > 0
+
     def test_descriptions_follow_a_language_change(self, dialog):
         previous = i18n.get_language()
         try:

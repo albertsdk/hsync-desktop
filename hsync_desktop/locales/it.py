@@ -334,6 +334,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} è stato modificato su entrambi i lati. La versione remota è stata mantenuta; la tua versione locale è stata salvata come {conflict_copy}.",
     "preview.title": "Anteprima sincronizzazione",
     "preview.no_actions": "Nessuna azione da eseguire — tutto è sincronizzato.",
+    "preview.simulation_no_changes": "Esecuzione simulata: nessuna modifica applicata. Disattivala in Impostazioni → Sincronizzazione per eseguire davvero.",
     "tip.server_url": "Nome host, IP o host:porta del server HSYNC; https:// e la porta 9753 sono sottintesi. Lasciare vuoto per la sola modalità p2p.",
     "tip.share_size": "Spazio occupato dalla cartella condivisa su questo dispositivo e dimensione totale della condivisione (file sul server remoto + file locali non ancora inviati).",
     "tip.api_key": "Chiave API per l'autenticazione con il server",

@@ -85,6 +85,7 @@ from hsync_desktop.settings import (
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    is_simulation_mode,
 )
 from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
@@ -475,6 +476,9 @@ class ActionsMixin:
         """Show the preview summary dialog and start sync if confirmed."""
         s = self._preview_stats
         selection = self._selection_sync_active
+        # Simulation Mode never applies the preview: the client exits after its
+        # one-shot dry-run, so no SYNC command is ever sent.
+        simulation = is_simulation_mode()
         nothing_to_sync = (
             s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0 and s.to_rename == 0
         )
@@ -488,7 +492,7 @@ class ActionsMixin:
                 return
             # Non-scoped: surface the result without needing the log panel.
             self._info_selection_outcome(tr("preview.no_actions"))
-            if self._is_dry_run_preview:
+            if self._is_dry_run_preview and not simulation:
                 # Send SYNC command to switch from dry-run to real sync
                 self._engine.sync()
                 self._btn_refresh.setEnabled(True)
@@ -511,6 +515,10 @@ class ActionsMixin:
                     self._start_selection_run(*args)
                 else:
                     self._finish_selection_sync("failed")
+            elif simulation:
+                # Preview-only run: report it and let the one-shot process exit.
+                self._append_desktop_log("INFO", tr("preview.simulation_no_changes"))
+                self._info_selection_outcome(tr("preview.simulation_no_changes"))
             else:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.

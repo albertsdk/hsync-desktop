@@ -86,6 +86,7 @@ from hsync_desktop.settings import (
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    is_simulation_mode,
 )
 from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
@@ -345,7 +346,9 @@ class StartMixin:
     def _check_deletion_risk(self) -> bool:
         """Check if sync settings could cause local file deletion.
 
-        Returns True if safe to proceed (no risk or user confirmed).
+        Returns True if safe to proceed (no risk or user confirmed). Simulation
+        Mode always proceeds: the client only previews in ``--dry-run``, so a
+        run with it enabled can neither delete nor transfer anything.
         """
         local_path = self._local_path
         if not local_path or not os.path.exists(local_path):
@@ -360,6 +363,11 @@ class StartMixin:
             return True
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        # Simulation Mode never applies changes (the run is a preview-only
+        # one-shot), so nothing can be deleted and the confirmation would be a
+        # false alarm.
+        if is_simulation_mode():
+            return True
         p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         prefer_master = s.value("p2p/prefer_master", False, bool)
         sync_dir = s.value("sync/direction", "bidirectional", str)

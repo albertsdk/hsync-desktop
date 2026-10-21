@@ -128,8 +128,12 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     args += ["--http-timeout", str(http_timeout)]
 
     # Sync. Continuous/daemon mode is the client default: only the one-shot
-    # opt-out is emitted.
-    if not s.value("sync/continuous", True, bool):
+    # opt-out is emitted. A simulation is inherently one-shot: the client must
+    # exit after its preview, otherwise the preview's confirm step (a SYNC
+    # command) would switch it to a real sync and apply the very changes the
+    # setting promises to skip.
+    simulation = bool(s.value("sync/dry_run", False, bool))
+    if simulation or not s.value("sync/continuous", True, bool):
         args.append("--once")
     resync = cast(int, s.value("sync/resync", 0, int))
     resync = max(0, min(resync, 86400))  # Clamp to 0-24 hours
@@ -199,7 +203,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         compression_on = not bool(s.value("sync/no_compression", False, bool))
     if not compression_on:
         args.append("--no-compression")
-    if force_dry_run or s.value("sync/dry_run", False, bool):
+    if force_dry_run or simulation:
         args.append("-n")
 
     # Advanced tab (engine tuning). Values matching the client default are
@@ -376,6 +380,17 @@ def is_auto_sync_enabled() -> bool:
     """Return whether auto-sync on startup is enabled (default: disabled)."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("sync/auto_sync", False, bool))
+
+
+def is_simulation_mode() -> bool:
+    """Return whether Simulation Mode is enabled (default: disabled).
+
+    Simulation Mode makes every run a preview-only one-shot (``--once -n``), so
+    nothing is transferred or deleted. Callers use it to skip the prompts and
+    follow-ups that only make sense for a run that applies changes.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return bool(s.value("sync/dry_run", False, bool))
 
 
 def get_bandwidth_limits() -> tuple[int | None, int | None]:

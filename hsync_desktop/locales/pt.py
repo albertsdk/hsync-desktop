@@ -412,6 +412,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Pré-visualização da sincronização",
     "preview.no_actions": "Nenhuma ação a executar — tudo está sincronizado.",
+    "preview.simulation_no_changes": "Modo de simulação: nada foi aplicado. Desative-o em Configurações → Sincronização para executar de verdade.",
     # Disclaimer
     "disclaimer.title": "Aviso",
     "disclaimer.message": "O uso deste software é inteiramente por conta e risco do usuário. O autor e quaisquer contribuidores não assumem nenhuma responsabilidade por danos causados pelo seu uso.\n\nAo continuar, você confirma que leu e compreendeu este aviso.",

@@ -412,6 +412,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",
+    "preview.simulation_no_changes": "Simulation Mode: nothing was applied. Turn it off in Settings → Sync to run for real.",
     # Disclaimer
     "disclaimer.title": "Disclaimer",
     "disclaimer.message": "The use of this software is entirely at the user's own risk. The author and any contributors assume no responsibility for any damage caused by its use.\n\nBy continuing, you acknowledge that you have read and understood this disclaimer.",

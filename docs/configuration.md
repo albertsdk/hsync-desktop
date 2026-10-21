@@ -36,7 +36,7 @@ Server Mode.
 | Max inbound file size | Refuse files larger than this |
 | Sync only a specific subfolder | Restrict sync to a subfolder of the local folder |
 | Enable compression | Compress transfers |
-| Simulation Mode | Preview changes without applying them |
+| Simulation Mode | Preview changes without applying them: the run is a one-shot preview that stops after the summary, so nothing is transferred or deleted and the pre-start file-deletion confirmation is skipped |
 | Extra ignore patterns | Additional gitignore-style exclusion patterns |
 | Ignore rules… | Edit the ignore patterns for the selected folder (stored as `.hsyncignore`) |
 

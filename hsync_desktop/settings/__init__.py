@@ -18,6 +18,7 @@ from hsync_desktop.settings.cli_args import (
     get_theme_setting,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    is_simulation_mode,
     save_bandwidth_limits,
     secure_config_file,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "get_theme_setting",
     "is_auto_sync_enabled",
     "is_log_panel_visible",
+    "is_simulation_mode",
     "save_bandwidth_limits",
     "secure_config_file",
 ]

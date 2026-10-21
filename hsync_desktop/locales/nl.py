@@ -412,6 +412,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Synchronisatievoorbeeld",
     "preview.no_actions": "Geen acties uit te voeren — alles is gesynchroniseerd.",
+    "preview.simulation_no_changes": "Simulatiemodus: er is niets toegepast. Schakel hem uit in Instellingen → Synchronisatie om echt uit te voeren.",
     # Disclaimer
     "disclaimer.title": "Vrijwaring",
     "disclaimer.message": "Het gebruik van deze software is volledig op eigen risico van de gebruiker. De auteur en eventuele bijdragers aanvaarden geen verantwoordelijkheid voor schade veroorzaakt door het gebruik ervan.\n\nDoor verder te gaan bevestigt u dat u deze vrijwaring hebt gelezen en begrepen.",

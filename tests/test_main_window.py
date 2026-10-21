@@ -1344,3 +1344,112 @@ class TestResetSyncState:
 
         assert called == []
         assert warnings == [tr("settings.reset_state.failed")]
+
+
+class TestSimulationModePreview:
+    """Simulation Mode shows the preview and never asks the client to apply it."""
+
+    @staticmethod
+    def _spy_sync(window, monkeypatch) -> list[str]:
+        sent: list[str] = []
+        monkeypatch.setattr(type(window._engine), "sync", lambda self: sent.append("sync"))
+        return sent
+
+    @staticmethod
+    def _answer_preview(monkeypatch, *, accepted: bool) -> None:
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        code = (
+            PreviewSummaryDialog.DialogCode.Accepted
+            if accepted
+            else PreviewSummaryDialog.DialogCode.Rejected
+        )
+        monkeypatch.setattr(PreviewSummaryDialog, "exec", lambda self: int(code))
+
+    def test_accepted_preview_is_not_applied(self, window, monkeypatch):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: True)
+        self._answer_preview(monkeypatch, accepted=True)
+        sent = self._spy_sync(window, monkeypatch)
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 2
+        window._is_dry_run_preview = True
+
+        window._show_preview_summary()
+
+        assert sent == []
+        assert window._info_banner_label.text() == tr("preview.simulation_no_changes")
+        assert window._is_dry_run_preview is False
+
+    def test_accepted_preview_is_applied_when_simulation_is_off(self, window, monkeypatch):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        self._answer_preview(monkeypatch, accepted=True)
+        sent = self._spy_sync(window, monkeypatch)
+        window._preview_stats.reset()
+        window._preview_stats.to_download = 1
+        window._is_dry_run_preview = True
+
+        window._show_preview_summary()
+
+        assert sent == ["sync"]
+
+    def test_nothing_to_sync_does_not_start_a_sync_either(self, window, monkeypatch):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: True)
+        sent = self._spy_sync(window, monkeypatch)
+        window._preview_stats.reset()
+        window._is_dry_run_preview = True
+
+        window._show_preview_summary()
+
+        assert sent == []
+        assert window._info_banner_label.text() == tr("preview.no_actions")
+
+    """The "File Deletion Risk" prompt only guards a run that can delete."""
+
+    @staticmethod
+    def _risky_folder(window, settings, tmp_path) -> str:
+        """A non-empty folder with the p2p configuration that risks deletions."""
+
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        (folder / "file.txt").write_text("x", encoding="utf-8")
+        settings.setValue("p2p/enabled", True)
+        settings.setValue("p2p/prefer_master", False)
+        settings.setValue("sync/direction", "bidirectional")
+        window._local_path = str(folder)
+        return str(folder)
+
+    def test_simulation_mode_skips_the_prompt(self, window, settings, monkeypatch, tmp_path):
+        """--dry-run only previews, so nothing can be deleted: no confirmation."""
+        self._risky_folder(window, settings, tmp_path)
+        settings.setValue("sync/dry_run", True)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: True)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+
+        assert window._check_deletion_risk() is True
+        assert shown == []
+
+    def test_risky_configuration_still_prompts(self, window, settings, monkeypatch, tmp_path):
+        self._risky_folder(window, settings, tmp_path)
+        settings.setValue("sync/dry_run", False)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(
+            QMessageBox,
+            "exec",
+            lambda self: shown.append(self) or int(QMessageBox.StandardButton.Yes),
+        )
+
+        assert window._check_deletion_risk() is True
+        assert len(shown) == 1
+        assert shown[0].windowTitle() == tr("notif.deletion_risk")

@@ -108,3 +108,10 @@ class TestBuildSelectionArgs:
 
         assert "--dry-run" in args
         assert args.count("--once") == 1
+
+    def test_simulation_mode_keeps_the_confirmed_run_a_simulation(self):
+        """A confirmed Send/Receive inherits ``-n``, so it cannot apply changes."""
+        args = _selection_args({"sync/dry_run": True}, "media", "upload-only")
+
+        assert "-n" in args
+        assert args.count("--once") == 1

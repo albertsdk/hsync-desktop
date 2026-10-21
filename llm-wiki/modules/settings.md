@@ -58,7 +58,9 @@ open with one muted sentence stating what the tab is for, built from
 `_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
 `settings.p2p.description` / `settings.server_mode.description`). The label uses
 `widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
-helper text — so it does not introduce a second visual language. General and
+helper text — so it does not introduce a second visual language. The label keeps
+8 px side insets and a 6 px bottom inset (`setContentsMargins`, not QSS), so it
+does not sit flush against the tab edge or the first group box. General and
 Advanced are deliberately left undescribed (their group titles already read as an
 index), so `_TAB_DESCRIPTION_KEYS` is the single place that decides which tabs get
 one. Two constraints to keep:
@@ -327,8 +329,11 @@ the old `--no-upnp` no longer exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every
 emitted long flag is advertised by the client help output.
 One-shot is
-expressed only via the global `sync/continuous` setting, which maps to
-`--once`. Secrets are
+expressed via the global `sync/continuous` setting, which maps to
+`--once`; **Simulation Mode** (`sync/dry_run`, read through
+`cli_args.py::is_simulation_mode`) also forces `--once` alongside `-n`, so the
+run is a preview-only one-shot instead of a continuous session that a `SYNC`
+command could turn into a real sync. Secrets are
 **not** here — they go through engine pipe FDs.
 
 **`--group` is optional**, so `build_hsync_args` emits the flag only when
