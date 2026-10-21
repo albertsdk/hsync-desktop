@@ -318,7 +318,7 @@ class TestHandleEvent:
         engine._handle_event(
             build_event(UiEventName.transfer, op="download", file="f.txt", size=2048)
         )
-        assert out == [("↓", "f.txt")]
+        assert out == [("↓", "f.txt", 2048)]
         assert engine.stats.files_received == 1
         assert engine.stats.bytes_received == 2048
 
@@ -327,14 +327,14 @@ class TestHandleEvent:
         engine._handle_event(
             build_event(UiEventName.transfer, op="upload", file="f.txt", size=1024)
         )
-        assert out == [("↑", "f.txt")]
+        assert out == [("↑", "f.txt", 1024)]
         assert engine.stats.files_sent == 1
         assert engine.stats.bytes_sent == 1024
 
     def test_transfer_delete(self, engine):
         out = _capture(engine.file_transferred)
         engine._handle_event(build_event(UiEventName.transfer, op="delete", file="f.txt"))
-        assert out == [("✕", "f.txt")]
+        assert out == [("✕", "f.txt", 0)]
 
     def test_transfer_skips_hsynckeep(self, engine):
         out = _capture(engine.file_transferred)
@@ -387,7 +387,7 @@ class TestHandleEvent:
         engine._handle_event(
             build_event(UiEventName.progress, file="f.txt", transferred=10, total=100)
         )
-        assert out == [("f.txt", 10, 100)]
+        assert out == [("f.txt", 10, 100, "")]
 
     def test_sync_complete_event(self, engine):
         out = _capture(engine.sync_completed)

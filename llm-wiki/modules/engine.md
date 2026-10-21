@@ -73,7 +73,8 @@ command line:
 | `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip |
 | `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup |
-| `transfer` / `rename` / `dir_created` / `progress` | `file_transferred` / `file_renamed` / `directory_created` / `file_progress` |
+| `transfer` / `rename` / `dir_created` | `file_transferred(direction, file, size)` / `file_renamed(old, new)` / `directory_created(path)` |
+| `progress` | `file_progress(file, transferred, total, op)` — `op` gives the direction of a file that has no local row yet |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |

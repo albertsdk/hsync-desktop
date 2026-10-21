@@ -228,8 +228,15 @@ class EventsMixin:
         self._sent_label.setText(f"{st.files_sent} ({format_bytes(st.bytes_sent)})")
         self._recv_label.setText(f"{st.files_received} ({format_bytes(st.bytes_received)})")
 
-    @Slot(str, str)
-    def _on_file_transferred(self, direction: str, filename: str) -> None:
+    def _rel_path(self, path: str) -> str:
+        """Map a client-reported absolute path onto the table's relative key."""
+        base = self._local_path
+        if base and path.startswith(base):
+            return path[len(base) :].lstrip("/\\")
+        return path
+
+    @Slot(str, str, int)
+    def _on_file_transferred(self, direction: str, filename: str, size: int) -> None:
         # Count real transfers of a scoped one-shot for its result summary.
         if (
             self._selection_sync_active
@@ -238,17 +245,15 @@ class EventsMixin:
         ):
             self._selection_result_count += 1
         self._refresh_transfer_labels()
-        # Convert absolute path to relative path for table lookup
-        base_path = self._local_path
-        rel_path = filename
-        if base_path and filename.startswith(base_path):
-            rel_path = filename[len(base_path) :].lstrip("/\\")
-        # Read current mtime from filesystem for the transferred file
+        rel_path = self._rel_path(filename)
+        # Read the current mtime (and the size, when the event omits it) from disk.
         mtime = 0.0
-        if direction in ("↓", "↑") and base_path:
+        if direction in ("↓", "↑") and self._local_path:
             try:
-                full = os.path.join(base_path, rel_path)
-                mtime = os.stat(full).st_mtime
+                st = os.stat(os.path.join(self._local_path, rel_path))
+                mtime = st.st_mtime
+                if size <= 0:
+                    size = st.st_size
             except OSError:
                 pass
         # Gather CID and server IP for detail panel
@@ -261,6 +266,7 @@ class EventsMixin:
             self._file_panel.update_file_status(
                 rel_path,
                 "synced",
+                size=size,
                 mtime=mtime,
                 client_cid=client_cid,
                 client_ip=client_ip,
@@ -269,6 +275,7 @@ class EventsMixin:
             self._file_panel.update_file_status(
                 rel_path,
                 "synced",
+                size=size,
                 mtime=mtime,
                 client_cid=client_cid,
                 client_ip=client_ip,
@@ -277,16 +284,14 @@ class EventsMixin:
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
 
-    @Slot(str, int, int)
-    def _on_file_progress(self, filepath: str, bytes_transferred: int, total_bytes: int) -> None:
+    @Slot(str, int, int, str)
+    def _on_file_progress(
+        self, filepath: str, bytes_transferred: int, total_bytes: int, op: str
+    ) -> None:
         """Handle real-time file transfer progress updates."""
-        # Convert absolute path to relative path for table lookup
-        base_path = self._local_path
-        rel_path = filepath
-        if base_path and filepath.startswith(base_path):
-            rel_path = filepath[len(base_path) :].lstrip("/\\")
-        # Update the file panel with the progress
-        self._file_panel.update_transfer_progress(rel_path, bytes_transferred, total_bytes)
+        self._file_panel.update_transfer_progress(
+            self._rel_path(filepath), bytes_transferred, total_bytes, op
+        )
 
     @Slot(str, str)
     def _on_file_renamed(self, old_path: str, new_path: str) -> None:
@@ -383,6 +388,8 @@ class EventsMixin:
         """Surface a per-file transfer that gave up after retries."""
         arrow = "↑" if op == "upload" else "↓"
         self._append_desktop_log("ERROR", f"{arrow} {filepath}: {message}")
+        # The row would otherwise keep showing an in-flight progress bar.
+        self._file_panel.mark_failed(self._rel_path(filepath))
         if self._notifier:
             self._notifier.error(tr("notif.error"), message)
 
@@ -528,6 +535,8 @@ class EventsMixin:
         # "connecting"/"connected" (the client cannot report the final state)
         # and clear the now-meaningless peer count.
         self._set_status_label("disconnected")
+        # Interrupted transfers never report an outcome: clear their rows.
+        self._file_panel.clear_transient_progress(self._local_path or "")
         self._file_panel.set_connected(False)
         self._peers_label.setText("–")
         self._btn_start.setEnabled(bool(self._local_path))

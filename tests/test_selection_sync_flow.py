@@ -197,12 +197,12 @@ class TestSuccessOutcomes:
 
     def test_transfers_are_counted_only_while_running(self, window):
         _arm(window, phase="preview")
-        window._on_file_transferred("↓", "a.txt")
+        window._on_file_transferred("↓", "a.txt", 0)
         assert window._selection_result_count == 0
 
         window._selection_sync_phase = "run"
-        window._on_file_transferred("↓", "a.txt")
-        window._on_file_transferred("↑", "b.txt")
+        window._on_file_transferred("↓", "a.txt", 0)
+        window._on_file_transferred("↑", "b.txt", 0)
         assert window._selection_result_count == 2
 
     def test_finishing_twice_surfaces_the_result_once(self, window, monkeypatch):

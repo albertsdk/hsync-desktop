@@ -492,7 +492,7 @@ class FileTransferTable(QTableWidget):
 
         for f in files:
             if not f.filepath.endswith("/"):
-                total_size += f.size
+                total_size += f.total_bytes
                 total_transferred += f.bytes_transferred
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
@@ -617,9 +617,9 @@ class FileTransferTable(QTableWidget):
         elif transfer:
             if transfer.status in _NO_PROGRESS_STATUSES:
                 progress_item.setData(Qt.ItemDataRole.UserRole, -1)
-            elif transfer.size > 0:
-                pct = int(transfer.bytes_transferred / transfer.size * 100)
-                progress_item.setData(Qt.ItemDataRole.UserRole, pct)
+            elif transfer.total_bytes > 0:
+                pct = int(transfer.bytes_transferred / transfer.total_bytes * 100)
+                progress_item.setData(Qt.ItemDataRole.UserRole, max(0, min(100, pct)))
             else:
                 progress_item.setData(Qt.ItemDataRole.UserRole, -1)
         else:
@@ -1166,21 +1166,81 @@ class FileTransferTable(QTableWidget):
         self._remove_file(filepath)
 
     def update_transfer_progress(
-        self, filepath: str, bytes_transferred: int, total_bytes: int
+        self, filepath: str, bytes_transferred: int, total_bytes: int, op: str = ""
     ) -> None:
-        """Update the progress of a transfer in real-time.
+        """Update — or create — the row of an in-flight transfer.
+
+        A download writes a file that does not exist locally yet, so no scan
+        row exists for it: without creating the row here every progress event
+        of a received file would be dropped and the file would only appear
+        once completed.
 
         Args:
             filepath: The file path to update
             bytes_transferred: Number of bytes transferred so far
-            total_bytes: Total size of the file in bytes
+            total_bytes: Bytes the transfer moves in total (compressed size for
+                a compressed upload, payload size for a delta download)
+            op: ``download``/``upload`` from the client; empty when unknown
+        """
+        direction = "↑" if op == "upload" else "↓"
+        with QMutexLocker(self._transfers_mutex):
+            t = self._transfers.get(filepath)
+            if t is None:
+                t = FileTransfer(filepath=filepath, direction=direction)
+                self._transfers[filepath] = t
+            if op:
+                t.direction = direction
+            elif t.direction not in ("↓", "↑"):
+                # Older clients send no ``op``: fall back to the row's arrow.
+                t.direction = direction
+            if t.status not in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING):
+                t.start_transfer(t.direction)
+            if total_bytes > 0:
+                t.progress_total = total_bytes
+                # Never overwrite a known on-disk size: a compressed upload
+                # reports the smaller wire size as its total.
+                if t.size <= 0:
+                    t.size = total_bytes
+            t.note_progress(bytes_transferred)
+        self._cached_items = None  # Invalidate cache
+        self._schedule_refresh()
+
+    def mark_failed(self, filepath: str) -> None:
+        """Flag a row whose transfer gave up, so no stale progress bar remains."""
+        with QMutexLocker(self._transfers_mutex):
+            t = self._transfers.get(filepath)
+            if t is None:
+                t = FileTransfer(filepath=filepath, direction="—")
+                self._transfers[filepath] = t
+            t.status = TransferStatus.ERROR
+        self._cached_items = None  # Invalidate cache
+        self.refresh_view()
+
+    def clear_transient_progress(self, base_path: str = "") -> None:
+        """Drop in-flight markers left behind when the engine stops.
+
+        A transfer interrupted by Stop or a crash never reports an outcome, so
+        its row would keep showing a progress bar. Rows whose file reached the
+        disk fall back to LOCAL; the others are removed — there is nothing to
+        show once the partial file is gone.
         """
         with QMutexLocker(self._transfers_mutex):
-            if filepath in self._transfers:
-                t = self._transfers[filepath]
-                t.bytes_transferred = bytes_transferred
-                t.size = total_bytes
-                # Set status to transferring if not already set
-                if t.status not in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING):
-                    t.status = TransferStatus.DOWNLOADING
-        self._schedule_refresh()
+            stale = [
+                key
+                for key, t in self._transfers.items()
+                if t.status in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING)
+            ]
+            for key in stale:
+                exists = False
+                if base_path:
+                    try:
+                        exists = os.path.exists(os.path.join(base_path, key))
+                    except (OSError, ValueError):
+                        exists = False
+                if not exists:
+                    del self._transfers[key]
+                    continue
+                self._transfers[key].stop_transfer()
+        if stale:
+            self._cached_items = None  # Invalidate cache
+            self.refresh_view()

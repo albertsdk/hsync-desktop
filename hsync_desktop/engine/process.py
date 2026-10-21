@@ -201,10 +201,12 @@ class HsyncEngine(QObject):
     discovery_changed = Signal(
         str, str
     )  # plan ("mdns"|"mdns+bootnode"), bootnode host ("" without one)
-    file_transferred = Signal(str, str)  # direction ("↓"|"↑"|"✕"), filename
+    file_transferred = Signal(str, str, int)  # direction ("↓"|"↑"|"✕"), filename, size
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
-    file_progress = Signal(str, int, int)  # filepath, bytes_transferred, total_bytes
+    # filepath, transferred, total, op ("download"|"upload") — a download has
+    # no local row yet, so the panel needs the direction to create one.
+    file_progress = Signal(str, int, int, str)
     sync_completed = Signal()  # a full sync cycle finished
     folder_size_changed = Signal(int, int)  # (local_bytes, total_bytes)
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
@@ -584,6 +586,7 @@ class HsyncEngine(QObject):
                     str(event.get("file", "")),
                     int(event.get("transferred", 0)),
                     int(event.get("total", 0)),
+                    str(event.get("op", "")),
                 )
             elif name == UiEventName.transfer:
                 self._handle_transfer(event)
@@ -737,9 +740,9 @@ class HsyncEngine(QObject):
         size = int(event.get("size", 0))
         if op == "download":
             self.stats.record_content("download", self._relative_key(file), size)
-            self.file_transferred.emit("↓", file)
+            self.file_transferred.emit("↓", file, size)
         elif op == "upload":
             self.stats.record_content("upload", self._relative_key(file), size)
-            self.file_transferred.emit("↑", file)
+            self.file_transferred.emit("↑", file, size)
         elif op == "delete":
-            self.file_transferred.emit("✕", file)
+            self.file_transferred.emit("✕", file, 0)

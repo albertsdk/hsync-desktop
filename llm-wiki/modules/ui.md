@@ -290,6 +290,23 @@ Visibility is toggled from the header menu and persisted as stable keys in
 (`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
 stay consistent.
 
+**Live progress**: a received file does not exist on disk before it completes, so
+its row cannot come from the scan. `update_transfer_progress`
+(`file_panel/transfer_table.py::FileTransferTable.update_transfer_progress`)
+creates the row on the first `progress` event (direction taken from the event's
+`op`, `size` from the event's total) and the completion handler writes the final
+size (`file_panel/models.py::FileTransfer`), so a receive shows its percentage
+and rate while it happens and its real size afterwards. A transfer that gives up
+is flagged `TransferStatus.ERROR`
+(`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
+in flight when the engine stops are reset or dropped
+(`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
+The rate is a time-weighted average of the last `SPEED_WINDOW_SECONDS`
+(`file_panel/models.py::FileTransfer.note_progress`), not
+`bytes / (now - start_time)`, so a token-bucket burst and an idle pause do not
+distort it. `progress_total` keeps the wire total (compressed upload size, delta
+payload) separate from the on-disk `size`.
+
 **Clickable links**: the share name, the ancestor breadcrumb segments and the
 detail-panel file path use the default text colour with
 `text-decoration: underline` instead of the palette link colour, so they read as

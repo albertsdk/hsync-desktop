@@ -154,7 +154,7 @@ General. Changes apply at the next sync start.
 | Deletion protection | Pause a cycle that would delete too many local files (see below) |
 | Max deletions per cycle | Number of deletions that trips the guard; 0 disables this rule |
 | Max deletions percent | Percentage of local files whose deletion trips the guard; 0 disables this rule |
-| Upload limit / Download limit | Bandwidth caps in MB/s; 0 (**Unlimited**) uses all available bandwidth |
+| Upload limit / Download limit | Sustained bandwidth caps in MB/s; 0 (**Unlimited**) uses all available bandwidth. A short burst at the start of a transfer can exceed the cap (the client shapes traffic with a token bucket) and the Speed column averages the last few seconds, so it settles on the cap instead of reporting a single peak |
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 | Log file | Path to the log file |
 

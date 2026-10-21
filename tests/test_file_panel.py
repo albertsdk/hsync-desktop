@@ -102,18 +102,15 @@ class TestFileTransfer:
         assert transfer.remaining == 0
 
     def test_eta_seconds_active_download(self):
-        """ETA is computed while a download is in progress."""
-        transfer = FileTransfer(
-            filepath="test.txt",
-            direction="↓",
-            size=1000,
-            bytes_transferred=500,
-            status=TransferStatus.DOWNLOADING,
-            start_time=time() - 10,
-        )
+        """ETA follows the sampled rate while a download is in progress."""
+        transfer = FileTransfer(filepath="test.txt", direction="↓", size=1000)
+        transfer.start_transfer("↓", now=100.0)
+        transfer.note_progress(0, now=100.0)
+        transfer.note_progress(50, now=110.0)  # 50 B over 10 s → 5 B/s
+
         eta = transfer.eta_seconds
         assert eta is not None
-        assert 5 <= eta <= 15
+        assert 150 <= eta <= 250  # 950 B left at 5 B/s
 
     def test_eta_seconds_none_when_inactive_or_no_progress(self):
         """ETA is None for a non-active status or before any progress."""
@@ -595,16 +592,11 @@ class TestOptionalColumns:
         from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
-        table.add_transfer(
-            FileTransfer(
-                filepath="a.bin",
-                direction="↓",
-                size=4096,
-                bytes_transferred=2048,
-                start_time=time() - 2.0,
-                status=TransferStatus.DOWNLOADING,
-            )
-        )
+        transfer = FileTransfer(filepath="a.bin", direction="↓", size=4096)
+        transfer.start_transfer("↓", now=100.0)
+        transfer.note_progress(0, now=100.0)
+        transfer.note_progress(2048, now=101.0)
+        table.add_transfer(transfer)
 
         assert table.item(0, tt.COL_DIRECTION).text() == "↓"
         assert table.item(0, tt.COL_SPEED).text().endswith("/s")
@@ -1032,3 +1024,143 @@ class TestConsistencyFiltering:
 
         assert "dotonly/.env" in panel._table._transfers
         assert "dotonly/" not in panel._table._transfers
+
+
+class TestTransferRate:
+    """The displayed rate comes from progress samples, not from the start time."""
+
+    def test_rate_uses_the_sample_window(self):
+        transfer = FileTransfer(filepath="a.bin", direction="↓", size=10_000_000)
+        transfer.start_transfer("↓", now=1000.0)
+        transfer.note_progress(0, now=1000.0)
+        transfer.note_progress(1_048_576, now=1001.0)
+
+        assert transfer.speed_bps is not None
+        assert abs(transfer.speed_bps - 1_048_576) < 1024
+        expected_eta = (10_000_000 - 1_048_576) / 1_048_576
+        assert transfer.eta_seconds is not None
+        assert abs(transfer.eta_seconds - expected_eta) < 1.0
+
+    def test_a_burst_decays_towards_the_sustained_rate(self):
+        """A token-bucket burst is shown, then the window converges on the cap."""
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=100_000_000)
+        transfer.start_transfer("↑", now=0.0)
+        transfer.note_progress(0, now=0.0)
+        transfer.note_progress(2_097_152, now=1.0)  # 2 MiB in 1 s → burst
+        assert transfer.speed_bps is not None
+        assert transfer.speed_bps > 1_900_000
+
+        sent = 2_097_152
+        for second in range(1, 9):
+            sent += 1_048_576  # 1 MiB/s sustained from now on
+            transfer.note_progress(sent, now=1.0 + second)
+        assert transfer.speed_bps is not None
+        assert transfer.speed_bps < 1_200_000
+
+    def test_a_backwards_sample_restarts_the_measurement(self):
+        transfer = FileTransfer(filepath="a.bin", direction="↓", size=1000)
+        transfer.start_transfer("↓", now=10.0)
+        transfer.note_progress(0, now=10.0)
+        transfer.note_progress(500, now=11.0)
+        transfer.note_progress(100, now=11.5)  # resume restarted the counter
+
+        assert transfer.speed_bps is None
+
+    def test_stop_transfer_returns_the_row_to_rest(self):
+        transfer = FileTransfer(filepath="a.bin", direction="↓", size=1000)
+        transfer.start_transfer("↓", now=1.0)
+        transfer.note_progress(0, now=1.0)
+        transfer.note_progress(500, now=2.0)
+
+        transfer.stop_transfer()
+
+        assert transfer.status is TransferStatus.LOCAL
+        assert transfer.direction == "—"
+        assert transfer.bytes_transferred == 0
+        assert transfer.speed_bps is None
+
+
+class TestLiveTransferProgress:
+    """A progress event creates the row of a file that is not on disk yet."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def test_progress_creates_the_row_of_a_received_file(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("incoming.bin", 512_000, 1_024_000, "download")
+        table.refresh_view()  # flush the debounce
+
+        assert table.rowCount() == 1
+        assert table.item(0, tt.COL_DIRECTION).text() == "↓"
+        assert table.item(0, tt.COL_SIZE).text() == _format_size(1_024_000)
+        pct = table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole)
+        assert pct == 50
+
+    def test_progress_keeps_the_on_disk_size_of_a_compressed_upload(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="big.bin",
+                direction="↑",
+                size=1_000_000,
+                status=TransferStatus.TO_UPLOAD,
+            )
+        )
+        table.update_transfer_progress("big.bin", 400_000, 400_000, "upload")
+        table.refresh_view()
+
+        assert table._transfers["big.bin"].size == 1_000_000  # the file
+        assert table._transfers["big.bin"].total_bytes == 400_000  # the wire
+        assert table.item(0, tt.COL_DIRECTION).text() == "↑"
+        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == 100
+
+    def test_a_completed_download_shows_the_final_size(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("incoming.bin", 512, 1024, "download")
+        table.update_file_status("incoming.bin", "synced", size=1024, mtime=1.0)
+
+        assert table.item(0, tt.COL_SIZE).text() == _format_size(1024)
+        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == -1
+        assert table.item(0, tt.COL_SPEED).text() == ""
+
+    def test_a_failed_transfer_flags_the_row_as_error(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("incoming.bin", 512, 1024, "download")
+        table.mark_failed("incoming.bin")
+
+        assert table._transfers["incoming.bin"].status is TransferStatus.ERROR
+        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == -1
+        assert table.item(0, tt.COL_SPEED).text() == ""
+
+    def test_stop_clears_in_flight_rows(self, qtbot, tmp_path):
+        table = self._table(qtbot)
+        (tmp_path / "kept.bin").write_bytes(b"abcd")
+        table.update_transfer_progress("kept.bin", 2, 4, "download")
+        table.update_transfer_progress("gone.bin", 2, 4, "download")
+
+        table.clear_transient_progress(str(tmp_path))
+
+        assert "gone.bin" not in table._transfers
+        assert table._transfers["kept.bin"].status is TransferStatus.LOCAL

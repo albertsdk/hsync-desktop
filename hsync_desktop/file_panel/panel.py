@@ -486,16 +486,18 @@ class FilePanel(QWidget):
         self._table.rename_file(old_path, new_path, mtime, client_cid, client_ip)
 
     def update_transfer_progress(
-        self, filepath: str, bytes_transferred: int, total_bytes: int
+        self, filepath: str, bytes_transferred: int, total_bytes: int, op: str = ""
     ) -> None:
-        """Update the progress of a transfer in real-time.
+        """Update — or create — the row of an in-flight transfer."""
+        self._table.update_transfer_progress(filepath, bytes_transferred, total_bytes, op)
 
-        Args:
-            filepath: The file path to update
-            bytes_transferred: Number of bytes transferred so far
-            total_bytes: Total size of the file in bytes
-        """
-        self._table.update_transfer_progress(filepath, bytes_transferred, total_bytes)
+    def mark_failed(self, filepath: str) -> None:
+        """Flag a row whose transfer gave up after retries."""
+        self._table.mark_failed(filepath)
+
+    def clear_transient_progress(self, base_path: str = "") -> None:
+        """Drop in-flight markers left behind when the engine stops."""
+        self._table.clear_transient_progress(base_path)
 
     @property
     def table(self) -> FileTransferTable:

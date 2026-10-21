@@ -72,7 +72,9 @@ opens on the **Server HSYNC** store).
    bar shows the **share name** next to the folder icon; click it to open the
    shared folder in your file manager, and hover it to see the local path.
 2. The file panel lists each file and its transfer status (queued, in progress,
-   done, error); overall progress and throughput are shown live.
+   done, error); overall progress and throughput are shown live. A file you are
+   receiving appears in the list while it is still being written, with its
+   percentage and rate, and shows its real size once complete.
    The bottom-right sent/received numbers are the **distinct files** moved this
    session (a file transferred or renamed more than once still counts once); the
    size in parentheses is the total bytes moved, repeats included.
