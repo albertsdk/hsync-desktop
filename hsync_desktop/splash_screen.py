@@ -40,6 +40,10 @@ class SplashScreen(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint,
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        # A plain QWidget does not paint its stylesheet background/border
+        # without this; the splash frame comes from the theme's
+        # ``QWidget#SplashScreen`` rule.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedSize(420, 330)
 
         # Load UI from .ui file

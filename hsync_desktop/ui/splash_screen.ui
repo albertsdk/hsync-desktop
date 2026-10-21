@@ -25,13 +25,6 @@
   <property name="windowTitle">
    <string>HSYNC Desktop</string>
   </property>
-  <property name="styleSheet">
-   <string>QWidget#SplashScreen {
-  background-color: palette(window);
-  border: 1px solid palette(mid);
-  border-radius: 10px;
-}</string>
-  </property>
   <layout class="QVBoxLayout" name="mainLayout">
    <property name="leftMargin">
     <number>24</number>

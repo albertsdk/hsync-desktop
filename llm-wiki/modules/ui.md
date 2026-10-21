@@ -370,6 +370,14 @@ A click anywhere dismisses it: for the splash it emits `finished`
 The Help → About menu entry is the short `menu.help.about` label ("About" /
 "Informazioni"), no longer carrying the app name.
 
+**Frame.** Being frameless, the window draws a 1 px border from the theme's
+`QWidget#SplashScreen` rule (`themes.py::_COMMON_QSS`, colours `window_bg` /
+`window_border`), so it follows light/dark like the rest of the app. A plain
+`QWidget` ignores its stylesheet background/border unless `WA_StyledBackground`
+is set, so `SplashScreen.__init__` opts into it; `ui/splash_screen.ui`
+deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
+`tests/test_splash_screen.py::TestSplashFrame` guards both halves.
+
 ## Presentation helpers
 
 | Concern | Code | Notes |

@@ -214,6 +214,12 @@ def _build_dark_palette() -> QPalette:
 # ─── Global QSS ─────────────────────────────────────────────────────────────
 
 _COMMON_QSS = """
+/* The splash is the only plain QWidget top-level window; it opts into
+   WA_StyledBackground so this frame is painted at all. */
+QWidget#SplashScreen {{
+    background-color: {window_bg};
+    border: 1px solid {window_border};
+}}
 QToolTip {{
     background-color: #FFFFC8;
     color: #1E1E1E;
@@ -381,6 +387,10 @@ def _light_qss() -> str:
         muted_text="#6A6A6A",
         success_text="#2EA043",
         card_selected="#EAF5EE",
+        # Window frame of the frameless splash/About overlay: a step stronger
+        # than the in-app frames (#D0D0D0) so it reads against any desktop.
+        window_bg="#F5F5F5",
+        window_border="#C0C0C0",
     )
 
 
@@ -403,6 +413,8 @@ def _dark_qss() -> str:
         muted_text="#9A9A9A",
         success_text="#3FB950",
         card_selected="#1F2A23",
+        window_bg="#1E1E1E",
+        window_border="#555555",
     )
 
 

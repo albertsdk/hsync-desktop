@@ -3,6 +3,8 @@
 
 """Tests for hsync_desktop.splash_screen module."""
 
+import re
+
 
 class TestSplashScreen:
     """Test SplashScreen class."""
@@ -144,3 +146,40 @@ class TestSplashLayoutAndAbout:
         qtbot.mouseClick(splash, Qt.MouseButton.LeftButton)
         assert not splash.isVisible()
         assert fired == []
+
+
+class TestSplashFrame:
+    """The frameless window draws a themed border around the About surface."""
+
+    def test_opts_into_the_styled_background(self, qtbot):
+        # A plain QWidget ignores its stylesheet background/border unless
+        # WA_StyledBackground is set, so the frame would never be painted.
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.splash_screen import SplashScreen
+
+        splash = SplashScreen()
+        qtbot.addWidget(splash)
+        assert splash.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+
+    def test_the_theme_owns_the_frame(self, qtbot):
+        from hsync_desktop import themes
+        from hsync_desktop.splash_screen import SplashScreen
+
+        splash = SplashScreen()
+        qtbot.addWidget(splash)
+        # The .ui must not carry a palette-based frame of its own: the theme
+        # rule is what makes the border follow light/dark.
+        assert splash.styleSheet() == ""
+
+    def test_both_themes_paint_a_one_pixel_border(self):
+        from hsync_desktop import themes
+
+        def border_color(qss: str) -> str:
+            rule = re.search(r"QWidget#SplashScreen \{[^}]*\}", qss)
+            assert rule is not None
+            match = re.search(r"border:\s*1px solid (#[0-9A-Fa-f]{6})", rule.group(0))
+            assert match is not None
+            return match.group(1).lower()
+
+        assert border_color(themes._light_qss()) != border_color(themes._dark_qss())
