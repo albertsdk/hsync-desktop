@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 import pytest
 from PySide6.QtCore import QSettings
@@ -943,6 +944,17 @@ class TestInfoToast:
         window._prepare_engine_run(str(tmp_path))
 
         assert window._info_banner.isHidden()
+
+    def test_banner_background_is_translucent(self, window):
+        """The toast background is semi-transparent; the text stays opaque."""
+        sheet = window._info_banner.styleSheet()
+        match = re.search(
+            r"#infoBanner\s*\{[^}]*background-color:\s*rgba\([^)]*,\s*([\d.]+)\)",
+            sheet,
+        )
+        assert match is not None, sheet
+        assert float(match.group(1)) < 1.0
+        assert "color: #ffffff" in sheet
 
 
 class TestDesktopLogFormat:

@@ -692,7 +692,7 @@ class UiBuildMixin:
         banner.setMaximumWidth(640)
         banner.setStyleSheet(
             "#infoBanner {"
-            "  background-color: #0d6efd;"
+            "  background-color: rgba(13, 110, 253, 0.85);"
             "  border-radius: 8px;"
             "  padding: 8px 16px;"
             "}"
