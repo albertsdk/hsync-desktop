@@ -1409,6 +1409,8 @@ class TestSimulationModePreview:
         assert sent == []
         assert window._info_banner_label.text() == tr("preview.no_actions")
 
+
+class TestDeletionRiskGate:
     """The "File Deletion Risk" prompt only guards a run that can delete."""
 
     @staticmethod
@@ -1453,3 +1455,77 @@ class TestSimulationModePreview:
         assert window._check_deletion_risk() is True
         assert len(shown) == 1
         assert shown[0].windowTitle() == tr("notif.deletion_risk")
+
+
+class TestSimulationIndicator:
+    """Simulation Mode is visible from the main window, not only in Settings."""
+
+    @staticmethod
+    def _set_simulation(monkeypatch, enabled: bool) -> None:
+        import hsync_desktop.main_window.ui as ui_module
+
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: enabled)
+
+    def test_badge_is_hidden_when_the_mode_is_off(self, window, monkeypatch):
+        self._set_simulation(monkeypatch, False)
+        window._refresh_simulation_state()
+
+        assert window._simulation_badge.isHidden()
+        assert window.windowTitle() == tr("app.name")
+        assert window._btn_start.toolTip() == tr("btn.start")
+
+    def test_badge_title_and_hints_appear_with_the_mode(self, window, monkeypatch):
+        self._set_simulation(monkeypatch, True)
+        window._refresh_simulation_state()
+
+        assert not window._simulation_badge.isHidden()
+        assert window._simulation_badge.text() == tr("simulation.badge")
+        assert window._simulation_badge.toolTip() == tr("simulation.tip")
+        assert window.windowTitle() == tr("app.name") + tr("simulation.window_title_suffix")
+        assert window._btn_start.toolTip() == tr("tip.start_simulation")
+
+    def test_turning_the_mode_off_clears_the_indicator(self, window, monkeypatch):
+        self._set_simulation(monkeypatch, True)
+        window._refresh_simulation_state()
+        self._set_simulation(monkeypatch, False)
+        window._refresh_simulation_state()
+
+        assert window._simulation_badge.isHidden()
+        assert window._simulation_badge.toolTip() == ""
+        assert window.windowTitle() == tr("app.name")
+        assert window._btn_start.toolTip() == tr("btn.start")
+
+    def test_settings_save_refreshes_the_indicator(self, window, monkeypatch):
+        import hsync_desktop.main_window.ui as ui_module
+
+        self._set_simulation(monkeypatch, False)
+        window._refresh_simulation_state()
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: True)
+
+        window._apply_settings_changes()
+
+        assert not window._simulation_badge.isHidden()
+
+    def test_run_start_logs_the_simulation_delimiter(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: True)
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        window._log_view.clear()
+
+        window._prepare_engine_run(str(folder))
+
+        assert tr("simulation.log_start") in window._log_view.toPlainText()
+
+    def test_run_start_has_no_delimiter_when_the_mode_is_off(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        window._log_view.clear()
+
+        window._prepare_engine_run(str(folder))
+
+        assert tr("simulation.log_start") not in window._log_view.toPlainText()

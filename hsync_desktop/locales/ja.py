@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "待機中…",
     "status.error": "エラー",
     "status.unknown": "不明",
+    "simulation.badge": "シミュレーション — 変更なし",
+    "simulation.tip": "シミュレーションモードが有効です：実行はプレビューのみで、転送も削除も行われません。「設定 → 同期」でオフにしてください。",
+    "simulation.window_title_suffix": " — シミュレーション",
+    "simulation.log_start": "--- シミュレーション：変更は適用されません ---",
+    "tip.start_simulation": "シミュレーションモード：この実行はプレビューのみで、何も適用されません。",
     # Roles
     "role.master": "プライマリノード",
     "role.client": "セカンダリノード",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "このメッセージを今後表示しない",
     # Preview Summary Dialog
     "preview_summary.title": "同期プレビュー",
+    "preview_summary.simulation": "シミュレーションモード — 何も適用されません。",
     "preview_summary.downloads": "ダウンロード",
     "preview_summary.uploads": "アップロード",
     "preview_summary.files": "ファイル",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "名前の変更",
     "preview_summary.synced": "同期済み",
     "preview_summary.cancel": "キャンセル",
+    "preview_summary.close": "閉じる",
     "preview_summary.sync": "同期",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "スキャン中…",

@@ -181,6 +181,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QLabel" name="simulationBadge">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Simulation — no changes</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="statusSpacer1">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>

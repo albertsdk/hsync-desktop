@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "Aguardando…",
     "status.error": "Erro",
     "status.unknown": "Desconhecido",
+    "simulation.badge": "Simulação — nenhuma alteração",
+    "simulation.tip": "O modo de simulação está ativo: cada execução mostra apenas a pré-visualização, nada é transferido ou excluído. Desative-o em Configurações → Sincronização.",
+    "simulation.window_title_suffix": " — Simulação",
+    "simulation.log_start": "--- Simulação: nenhuma alteração será aplicada ---",
+    "tip.start_simulation": "Modo de simulação: esta execução mostra apenas a pré-visualização, nada é aplicado.",
     # Roles
     "role.master": "Nó primário",
     "role.client": "Nó secundário",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Não mostrar esta mensagem novamente",
     # Preview Summary Dialog
     "preview_summary.title": "Pré-visualização da sincronização",
+    "preview_summary.simulation": "Modo de simulação — nada será aplicado.",
     "preview_summary.downloads": "Downloads",
     "preview_summary.uploads": "Uploads",
     "preview_summary.files": "arquivos",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "Renomeações",
     "preview_summary.synced": "Já sincronizados",
     "preview_summary.cancel": "Cancelar",
+    "preview_summary.close": "Fechar",
     "preview_summary.sync": "Sincronizar",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "Verificando…",

@@ -17,6 +17,15 @@ from PySide6.QtWidgets import QMenu, QSystemTrayIcon, QWidget
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.themes import COLOR_CONNECTED, COLOR_DISCONNECTED, COLOR_WAITING
 
+# Connection status → i18n key, shared by the tooltip builder.
+_STATUS_KEYS = {
+    "connected": "status.connected",
+    "disconnected": "status.disconnected",
+    "connecting": "status.connecting",
+    "waiting": "status.waiting",
+    "error": "status.error",
+}
+
 
 def _make_icon(color: QColor, letter: str = "H") -> QIcon:
     """Create a simple colored icon with a letter for the tray."""
@@ -101,6 +110,8 @@ class SystemTray(QSystemTrayIcon):
 
         # Track current status for tooltip updates
         self._current_status = "disconnected"
+        # Simulation Mode note in the tooltip (set by the main window).
+        self._simulation = False
 
         # Register for language change notifications
         register_language_callback(self._apply_translations)
@@ -110,21 +121,26 @@ class SystemTray(QSystemTrayIcon):
     def update_status(self, status: str) -> None:
         """Update tray icon and tooltip based on connection status."""
         self._current_status = status
-        i18n_map = {
-            "connected": "status.connected",
-            "disconnected": "status.disconnected",
-            "connecting": "status.connecting",
-            "waiting": "status.waiting",
-            "error": "status.error",
-        }
         icon_key = (
             "connected"
             if status == "connected"
             else ("waiting" if status in ("connecting", "waiting") else "disconnected")
         )
         self.setIcon(self._icons[icon_key])
-        key = i18n_map.get(status, status)
-        self.setToolTip(f"HSYNC Desktop - {tr(key)}")
+        self._update_tooltip()
+
+    def set_simulation(self, simulation: bool) -> None:
+        """Append the Simulation Mode note to the tooltip while it is active."""
+        self._simulation = simulation
+        self._update_tooltip()
+
+    def _update_tooltip(self) -> None:
+        """Tray tooltip: app, connection status and, when active, the mode."""
+        key = _STATUS_KEYS.get(self._current_status, self._current_status)
+        text = f"HSYNC Desktop - {tr(key)}"
+        if self._simulation:
+            text += f" ({tr('simulation.badge')})"
+        self.setToolTip(text)
 
     def set_running(self, running: bool) -> None:
         """Update menu items based on running state."""
@@ -150,16 +166,7 @@ class SystemTray(QSystemTrayIcon):
         self._act_settings.setText(tr("tray.settings"))
         self._act_setup_wizard.setText(tr("tray.setup_wizard"))
         self._act_quit.setText(tr("tray.quit"))
-        # Update tooltip with current status
-        i18n_map = {
-            "connected": "status.connected",
-            "disconnected": "status.disconnected",
-            "connecting": "status.connecting",
-            "waiting": "status.waiting",
-            "error": "status.error",
-        }
-        key = i18n_map.get(self._current_status, self._current_status)
-        self.setToolTip(f"HSYNC Desktop - {tr(key)}")
+        self._update_tooltip()
 
     # ── Slots ────────────────────────────────────────────────────────────
 

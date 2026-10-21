@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "Ожидание…",
     "status.error": "Ошибка",
     "status.unknown": "Неизвестно",
+    "simulation.badge": "Симуляция — без изменений",
+    "simulation.tip": "Режим симуляции включён: каждый запуск показывает только предпросмотр, ничего не передаётся и не удаляется. Отключите его в Настройки → Синхронизация.",
+    "simulation.window_title_suffix": " — Симуляция",
+    "simulation.log_start": "--- Симуляция: изменения не будут применены ---",
+    "tip.start_simulation": "Режим симуляции: этот запуск только показывает предпросмотр, ничего не применяется.",
     # Roles
     "role.master": "Основной узел",
     "role.client": "Вторичный узел",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Больше не показывать это сообщение",
     # Preview Summary Dialog
     "preview_summary.title": "Предпросмотр синхронизации",
+    "preview_summary.simulation": "Режим симуляции — изменения не будут применены.",
     "preview_summary.downloads": "Загрузки",
     "preview_summary.uploads": "Отправки",
     "preview_summary.files": "файлов",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "Переименования",
     "preview_summary.synced": "Уже синхронизировано",
     "preview_summary.cancel": "Отмена",
+    "preview_summary.close": "Закрыть",
     "preview_summary.sync": "Синхронизировать",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "Сканирование…",

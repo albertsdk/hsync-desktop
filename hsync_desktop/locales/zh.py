@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "正在等待…",
     "status.error": "错误",
     "status.unknown": "未知",
+    "simulation.badge": "模拟 — 不做任何更改",
+    "simulation.tip": "模拟模式已开启：每次运行只显示预览，不会传输或删除任何内容。在设置 → 同步中关闭。",
+    "simulation.window_title_suffix": " — 模拟",
+    "simulation.log_start": "--- 模拟：不会应用任何更改 ---",
+    "tip.start_simulation": "模拟模式：本次运行仅显示预览，不会应用任何内容。",
     # Roles
     "role.master": "主节点",
     "role.client": "从节点",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "不再显示此消息",
     # Preview Summary Dialog
     "preview_summary.title": "同步预览",
+    "preview_summary.simulation": "模拟模式 — 不会应用任何更改。",
     "preview_summary.downloads": "下载",
     "preview_summary.uploads": "上传",
     "preview_summary.files": "个文件",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "重命名",
     "preview_summary.synced": "已同步",
     "preview_summary.cancel": "取消",
+    "preview_summary.close": "关闭",
     "preview_summary.sync": "同步",
     "preview_summary.ok": "确定",
     "preview_summary.scanning": "正在扫描…",

@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "Wachten…",
     "status.error": "Fout",
     "status.unknown": "Onbekend",
+    "simulation.badge": "Simulatie — geen wijzigingen",
+    "simulation.tip": "De simulatiemodus staat aan: elke run toont alleen het voorbeeld, er wordt niets overgedragen of verwijderd. Schakel hem uit in Instellingen → Synchronisatie.",
+    "simulation.window_title_suffix": " — Simulatie",
+    "simulation.log_start": "--- Simulatie: er worden geen wijzigingen toegepast ---",
+    "tip.start_simulation": "Simulatiemodus: deze run toont alleen een voorbeeld, er wordt niets toegepast.",
     # Roles
     "role.master": "Primair knooppunt",
     "role.client": "Secundair knooppunt",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Dit bericht niet meer tonen",
     # Preview Summary Dialog
     "preview_summary.title": "Synchronisatievoorbeeld",
+    "preview_summary.simulation": "Simulatiemodus — er wordt niets toegepast.",
     "preview_summary.downloads": "Downloads",
     "preview_summary.uploads": "Uploads",
     "preview_summary.files": "bestanden",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "Naamswijzigingen",
     "preview_summary.synced": "Al gesynchroniseerd",
     "preview_summary.cancel": "Annuleren",
+    "preview_summary.close": "Sluiten",
     "preview_summary.sync": "Synchroniseren",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "Scannen…",

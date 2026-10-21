@@ -291,6 +291,8 @@ class ActionsMixin:
         self._render_share_size()
         if self._notifier:
             self._notifier.user_stopped = False
+        if is_simulation_mode():
+            self._append_desktop_log("INFO", tr("simulation.log_start"))
 
     def _sync_selection(self, filepath: str, direction: str) -> None:
         """Confirm and run a one-shot Send (upload-only) / Receive (download-only)
@@ -506,7 +508,7 @@ class ActionsMixin:
             # event does not finalize while this modal dialog is open.
             self._selection_sync_phase = "confirm"
 
-        dlg = PreviewSummaryDialog(self._preview_stats, parent=self)
+        dlg = PreviewSummaryDialog(self._preview_stats, parent=self, simulation=simulation)
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
             if selection:
                 # Scoped Send/Receive: start the confirmed one-shot for real.

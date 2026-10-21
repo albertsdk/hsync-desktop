@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "Waiting…",
     "status.error": "Error",
     "status.unknown": "Unknown",
+    "simulation.badge": "Simulation — no changes",
+    "simulation.tip": "Simulation Mode is on: every run only shows the preview, nothing is transferred or deleted. Turn it off in Settings → Sync.",
+    "simulation.window_title_suffix": " — Simulation",
+    "simulation.log_start": "--- Simulation: no changes will be applied ---",
+    "tip.start_simulation": "Simulation Mode: this run only previews, nothing is applied.",
     # Roles
     "role.master": "Primary node",
     "role.client": "Secondary node",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Don't show this message again",
     # Preview Summary Dialog
     "preview_summary.title": "Sync Preview",
+    "preview_summary.simulation": "Simulation Mode — nothing will be applied.",
     "preview_summary.downloads": "Downloads",
     "preview_summary.uploads": "Uploads",
     "preview_summary.files": "files",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "Renames",
     "preview_summary.synced": "Already synced",
     "preview_summary.cancel": "Cancel",
+    "preview_summary.close": "Close",
     "preview_summary.sync": "Synchronize",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "Scanning…",

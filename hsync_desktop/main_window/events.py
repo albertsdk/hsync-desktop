@@ -133,7 +133,7 @@ class EventsMixin:
         window title stays the app name.
         """
         self._bucket = bucket
-        self.setWindowTitle(tr("app.name"))
+        self._update_window_title()
         self._update_path_display()
 
     def _set_status_label(self, status: str) -> None:

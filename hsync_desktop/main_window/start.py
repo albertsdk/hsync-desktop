@@ -660,6 +660,8 @@ class StartMixin:
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
         self._apply_log_visibility()
+        # The Simulation Mode badge/title/tray follow the saved setting too.
+        self._refresh_simulation_state()
         # Reload path in case it changed in settings
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         new_path = str(s.value("path/local", "", str))

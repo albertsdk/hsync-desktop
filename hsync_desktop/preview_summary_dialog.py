@@ -74,10 +74,15 @@ class PreviewSummaryDialog(QDialog):
         stats: PreviewStats,
         network_speed: float = DEFAULT_SPEED,
         parent: QWidget | None = None,
+        *,
+        simulation: bool = False,
     ) -> None:
         super().__init__(parent)
         self._stats = stats
         self._network_speed = network_speed if network_speed > 0 else self.DEFAULT_SPEED
+        # Simulation Mode: the dialog only reports what a run would do, so the
+        # primary action must not promise an application that cannot happen.
+        self._simulation = simulation
 
         self._load_ui()
         self._populate()
@@ -86,7 +91,10 @@ class PreviewSummaryDialog(QDialog):
         """Load UI from .ui file and setup widget references."""
         load_ui_widget("preview_summary_dialog", self)
 
-        self.setWindowTitle(tr("preview_summary.title"))
+        title = tr("preview_summary.title")
+        if self._simulation:
+            title += tr("simulation.window_title_suffix")
+        self.setWindowTitle(title)
 
         # Get widget references from .ui
         self._lbl_title: QLabel = self.findChild(QLabel, "lblTitle")  # type: ignore[assignment]
@@ -115,7 +123,10 @@ class PreviewSummaryDialog(QDialog):
         files = tr("preview_summary.files")
 
         # Translated labels
-        self._lbl_title.setText(f"<h2>{tr('preview_summary.title')}</h2>")
+        heading = f"<h2>{tr('preview_summary.title')}</h2>"
+        if self._simulation:
+            heading += f"<p><b>{tr('preview_summary.simulation')}</b></p>"
+        self._lbl_title.setText(heading)
         self._lbl_downloads.setText(f"<b>{tr('preview_summary.downloads')}:</b>")
         self._lbl_download_size.setText(f"  {tr('preview_summary.total_size')}:")
         self._lbl_download_time.setText(f"  {tr('preview_summary.estimated_time')}:")
@@ -149,7 +160,7 @@ class PreviewSummaryDialog(QDialog):
             or self._stats.to_rename > 0
         )
 
-        if has_work:
+        if has_work and not self._simulation:
             self._cancel_btn = QPushButton(tr("preview_summary.cancel"))
             self._sync_btn = QPushButton(tr("preview_summary.sync"))
             self._sync_btn.setDefault(True)
@@ -157,6 +168,13 @@ class PreviewSummaryDialog(QDialog):
             self._button_box.addButton(self._sync_btn, QDialogButtonBox.ButtonRole.AcceptRole)
             self._cancel_btn.clicked.connect(self.reject)
             self._sync_btn.clicked.connect(self.accept)
+        elif has_work:
+            # Simulation Mode: nothing can be applied, so the only action is to
+            # close the report (accept so the caller records the outcome).
+            self._close_btn = QPushButton(tr("preview_summary.close"))
+            self._close_btn.setDefault(True)
+            self._button_box.addButton(self._close_btn, QDialogButtonBox.ButtonRole.AcceptRole)
+            self._close_btn.clicked.connect(self.accept)
         else:
             self._ok_btn = QPushButton(tr("preview_summary.ok"))
             self._ok_btn.setDefault(True)

@@ -17,6 +17,11 @@ translations: dict[str, str] = {
     "status.waiting": "Oczekiwanie…",
     "status.error": "Błąd",
     "status.unknown": "Nieznany",
+    "simulation.badge": "Symulacja — bez zmian",
+    "simulation.tip": "Tryb symulacji jest włączony: każde uruchomienie pokazuje tylko podgląd, nic nie jest przesyłane ani usuwane. Wyłącz go w Ustawienia → Synchronizacja.",
+    "simulation.window_title_suffix": " — Symulacja",
+    "simulation.log_start": "--- Symulacja: żadne zmiany nie zostaną zastosowane ---",
+    "tip.start_simulation": "Tryb symulacji: to uruchomienie tylko pokazuje podgląd, nic nie jest stosowane.",
     # Roles
     "role.master": "Węzeł główny",
     "role.client": "Węzeł podrzędny",
@@ -421,6 +426,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Nie pokazuj ponownie tego komunikatu",
     # Preview Summary Dialog
     "preview_summary.title": "Podgląd synchronizacji",
+    "preview_summary.simulation": "Tryb symulacji — nic nie zostanie zastosowane.",
     "preview_summary.downloads": "Pobierania",
     "preview_summary.uploads": "Wysyłania",
     "preview_summary.files": "plików",
@@ -433,6 +439,7 @@ translations: dict[str, str] = {
     "preview_summary.renames": "Zmiany nazw",
     "preview_summary.synced": "Już zsynchronizowane",
     "preview_summary.cancel": "Anuluj",
+    "preview_summary.close": "Zamknij",
     "preview_summary.sync": "Synchronizuj",
     "preview_summary.ok": "OK",
     "preview_summary.scanning": "Skanowanie…",

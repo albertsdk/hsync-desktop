@@ -39,6 +39,12 @@ def window(qtbot, monkeypatch, settings):
     from hsync_desktop.main_window import MainWindow
 
     _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+    # Settings readers that live in settings/cli_args (e.g. is_simulation_mode,
+    # build_hsync_args) open their own QSettings: isolate those too, or a host
+    # setting would leak into the test expectations.
+    import hsync_desktop.settings.cli_args as cli_args_module
+
+    monkeypatch.setattr(cli_args_module, "QSettings", lambda *a, **k: settings)
     _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
     engine = HsyncEngine(binary_path="/fake/hsync")
     win = MainWindow(engine)

@@ -300,6 +300,13 @@ QPlainTextEdit#logView {{
     border-radius: 6px;
     padding: 4px;
 }}
+QLabel#simulationBadge {{
+    background-color: {simulation_bg};
+    color: {simulation_fg};
+    border: 1px solid {simulation_border};
+    border-radius: 4px;
+    padding: 1px 8px;
+}}
 QStatusBar {{
     border-top: 1px solid {border};
 }}
@@ -391,6 +398,11 @@ def _light_qss() -> str:
         # than the in-app frames (#D0D0D0) so it reads against any desktop.
         window_bg="#F5F5F5",
         window_border="#C0C0C0",
+        # Simulation Mode badge: the warning tone of the info banners, so the
+        # "nothing is applied" state reads the same everywhere.
+        simulation_bg="#FFF3CD",
+        simulation_fg="#856404",
+        simulation_border="#FFC107",
     )
 
 
@@ -415,6 +427,9 @@ def _dark_qss() -> str:
         card_selected="#1F2A23",
         window_bg="#1E1E1E",
         window_border="#555555",
+        simulation_bg="#3A3000",
+        simulation_fg="#FFD866",
+        simulation_border="#8A6D00",
     )
 
 

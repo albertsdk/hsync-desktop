@@ -95,7 +95,12 @@ summary is shown first, so you confirm exactly what will be transferred before i
 runs.
 
 With **Simulation Mode** enabled (Settings → Sync) the run stops at that summary:
-nothing is transferred or deleted, and the app tells you so.
+nothing is transferred or deleted, and the app tells you so. While the mode is
+on, the main window shows a **Simulation — no changes** badge next to the
+connection status, the title bar ends with **— Simulation**, the Start button
+tooltip says the run only previews, and every run starts with a
+`--- Simulation: no changes will be applied ---` line in the log. The summary
+dialog's only action is **Close**.
 
 Transient messages (searching for devices, connection results, "nothing to
 sync", a Send/Receive while a sync is running) appear as a small overlay toast in

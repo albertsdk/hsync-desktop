@@ -88,6 +88,7 @@ from hsync_desktop.settings import (
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
+    is_simulation_mode,
 )
 from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
@@ -206,6 +207,7 @@ class UiBuildMixin:
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
         self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
+        self._simulation_badge: QLabel = self.findChild(QLabel, "simulationBadge")  # type: ignore[assignment]
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
         # Add role icon before roleLabel in the bottom bar layout
         self._role_icon = QLabel()
@@ -350,6 +352,35 @@ class UiBuildMixin:
             self._act_help_github.setText(tr("menu.help.github"))
             self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
+
+        # Simulation Mode badge/title/hints follow the language too.
+        self._refresh_simulation_state()
+
+    def _update_window_title(self) -> None:
+        """App name, with the Simulation Mode suffix while it is active."""
+        title = tr("app.name")
+        if self._simulation_mode:
+            title += tr("simulation.window_title_suffix")
+        self.setWindowTitle(title)
+
+    def _refresh_simulation_state(self) -> None:
+        """Reflect Simulation Mode in the window and the tray.
+
+        Called at build time and whenever settings change: the badge, the window
+        title, the tray tooltip and the Start hint must agree with
+        ``sync/dry_run`` without the user reopening anything.
+        """
+        self._simulation_mode = is_simulation_mode()
+        self._simulation_badge.setVisible(self._simulation_mode)
+        self._simulation_badge.setText(tr("simulation.badge"))
+        self._simulation_badge.setToolTip(tr("simulation.tip") if self._simulation_mode else "")
+        self._btn_start.setToolTip(
+            tr("tip.start_simulation") if self._simulation_mode else tr("btn.start")
+        )
+        self._update_window_title()
+        tray = getattr(self, "_tray", None)
+        if tray is not None:
+            tray.set_simulation(self._simulation_mode)
 
     def _update_peers_label_title(self) -> None:
         """Label the presence count for what it actually counts.

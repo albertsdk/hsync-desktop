@@ -81,6 +81,27 @@ client shows the preview and exits instead of parking in the dry-run "wait for a
 simulation: it logs and toasts `preview.simulation_no_changes` and lets the
 one-shot process finish.
 
+### Simulation Mode indicator
+
+While `sync/dry_run` is on the window says so everywhere, because the mode is a
+setting the user would otherwise have to remember. `_refresh_simulation_state`
+(`main_window/ui.py`) is the single refresh point, called from `_apply_translations`
+(so a language change re-reads it), from `MainWindow.__init__` and from
+`_apply_settings_changes` (`main_window/start.py`, the shared post-settings/wizard
+hook). It drives:
+* `QLabel#simulationBadge` in the bottom bar (`ui/main_window.ui`, `simulation.badge`,
+  themed by `QLabel#simulationBadge` in `themes.py`), with the `simulation.tip` tooltip;
+* the window title suffix (`simulation.window_title_suffix`) via
+  `main_window/ui.py::MainWindow._update_window_title`, also used by
+  `_on_bucket_detected`;
+* the tray tooltip note (`system_tray.py::SystemTray.set_simulation`) and the Start
+  button hint (`tip.start_simulation`).
+
+The run itself opens with `simulation.log_start` (`_prepare_engine_run`,
+`main_window/actions.py`) and the preview dialog swaps *Synchronize* for *Close*
+(`preview_summary_dialog.py::PreviewSummaryDialog`, `simulation=True`), so no
+control ever promises an application that cannot happen.
+
 ### Engine start failure feedback
 
 `_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps
