@@ -383,7 +383,7 @@ deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
 | Concern | Code | Notes |
 | ------- | ---- | ----- |
 | Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`) |
-| Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `monospace_font` (`fonts.py::monospace_font`), `small_monospace_font` (`fonts.py::small_monospace_font`) — desktop UI/monospace fonts + text scaling |
+| Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `monospace_font` (`fonts.py::monospace_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
 | Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |
 | Tray | `system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`system_tray.py::_make_icon`) |
 | Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; routine (info) events are suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`), warnings/errors always delivered |
@@ -405,11 +405,18 @@ unknown desktop falls back to `QFontDatabase.systemFont`. The `gsettings`
 subprocess runs with
 `LD_LIBRARY_PATH`/`PYTHONHOME`/`PYTHONPATH`/`GI_TYPELIB_PATH`/
 `GDK_PIXBUF_MODULE_FILE` removed (`fonts.py::_host_env`) so the host binary does
-not load the bundled GLib. No fonts are bundled. The log viewer and the license
-dialog use `small_monospace_font` (`fonts.py::small_monospace_font`): the desktop
-monospace one point smaller, floored at 8 pt. The fonts are set programmatically
+not load the bundled GLib. No fonts are bundled. All three sizes derive from the
+same cached monospace font (`fonts.py::_point_smaller_monospace`): the license
+dialog uses `small_monospace_font` (`fonts.py::small_monospace_font`, one point
+smaller, floor 8 pt) and the log viewer uses `log_monospace_font`
+(`fonts.py::log_monospace_font`, two points smaller, floor 7 pt) because its lines
+are long — at a 9 pt desktop monospace that is 13 visible lines and ~22% more
+characters per line than the 8 pt size. The fonts are set programmatically
 (`main_window/ui.py::MainWindow._load_ui`, `license_dialog.py::LicenseDialog`);
-the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`).
+the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
+does frame the log box via `QPlainTextEdit#logView` (the selector must match the
+object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
+guards it).
 
 Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
 the bundled SVG (recoloured per light/dark) over the system theme, falling back

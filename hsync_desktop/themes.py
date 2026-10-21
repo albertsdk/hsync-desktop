@@ -295,7 +295,7 @@ QLabel#stepBadgeTodo {{
     border: 1px solid {border};
     border-radius: 11px;
 }}
-QPlainTextEdit#logViewer {{
+QPlainTextEdit#logView {{
     border: 1px solid {border};
     border-radius: 6px;
     padding: 4px;

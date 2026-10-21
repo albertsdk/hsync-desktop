@@ -703,9 +703,9 @@ class TestRemoteRenameMtime:
 
 
 class TestLogViewerFont:
-    """The log viewer uses the resolved monospace font, not a QSS family."""
+    """The log viewer uses the dedicated log font, not a QSS family."""
 
-    def test_log_view_uses_the_monospace_font(self, qtbot, monkeypatch, settings):
+    def test_log_view_uses_the_log_monospace_font(self, qtbot, monkeypatch, settings):
         from PySide6.QtGui import QFont
 
         import hsync_desktop.main_window.ui as ui_module
@@ -714,12 +714,12 @@ class TestLogViewerFont:
 
         _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
         _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
-        monkeypatch.setattr(ui_module, "small_monospace_font", lambda: QFont("Probe Mono"))
+        monkeypatch.setattr(ui_module, "log_monospace_font", lambda: QFont("Probe Log Mono"))
 
         win = MainWindow(HsyncEngine(binary_path="/fake/hsync"))
         qtbot.addWidget(win)
 
-        assert win._log_view.font().family() == "Probe Mono"
+        assert win._log_view.font().family() == "Probe Log Mono"
 
 
 class TestLinkStyling:

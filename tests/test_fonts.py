@@ -287,3 +287,36 @@ class TestSmallMonospaceFont:
         monkeypatch.setattr(fonts, "_mono_font", base)
 
         assert fonts.small_monospace_font().pointSizeF() <= 0
+
+
+class TestLogMonospaceFont:
+    """The log viewer is two points smaller than the desktop monospace."""
+
+    def test_two_points_smaller(self, qapp, monkeypatch):
+        base = QFont("Probe Mono")
+        base.setPointSizeF(11.0)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+
+        assert fonts.log_monospace_font().pointSizeF() == pytest.approx(9.0)
+
+    def test_floor_at_seven(self, qapp, monkeypatch):
+        for size in (8.0, 7.0, 6.0):
+            base = QFont("Probe Mono")
+            base.setPointSizeF(size)
+            monkeypatch.setattr(fonts, "_mono_font", base)
+
+            assert fonts.log_monospace_font().pointSizeF() == pytest.approx(7.0)
+
+    def test_smaller_than_the_license_font(self, qapp, monkeypatch):
+        base = QFont("Probe Mono")
+        base.setPointSizeF(12.0)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+
+        assert fonts.log_monospace_font().pointSizeF() < fonts.small_monospace_font().pointSizeF()
+
+    def test_pixel_sized_font_is_unchanged(self, qapp, monkeypatch):
+        base = QFont("Probe Mono")
+        base.setPixelSize(12)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+
+        assert fonts.log_monospace_font().pointSizeF() <= 0

@@ -41,6 +41,11 @@ _MAX_SCALE = 3.0
 _SMALL_FONT_DELTA = -1.0
 _MIN_SMALL_POINT_SIZE = 8.0
 
+# The log viewer carries the longest lines (timestamp + level + paths), so it
+# goes one point further down than the other dense text.
+_LOG_FONT_DELTA = -2.0
+_MIN_LOG_POINT_SIZE = 7.0
+
 # Environment variables that must not leak the PyInstaller/AppImage libraries
 # into the host ``gsettings`` binary (it would then load the bundled GLib/schemas
 # and can crash or misread the settings).
@@ -275,10 +280,31 @@ def monospace_font() -> QFont:
     return QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
 
 
-def small_monospace_font() -> QFont:
-    """Return the monospace font one point smaller for dense text (floor 8 pt)."""
+def _point_smaller_monospace(delta: float, floor: float) -> QFont:
+    """Return the monospace font *delta* points smaller, never below *floor*."""
+
     font = monospace_font()
     size = font.pointSizeF()
     if size > 0:
-        font.setPointSizeF(max(size + _SMALL_FONT_DELTA, _MIN_SMALL_POINT_SIZE))
+        font.setPointSizeF(max(size + delta, floor))
     return font
+
+
+def small_monospace_font() -> QFont:
+    """Return the monospace font one point smaller for dense text (floor 8 pt).
+
+    Consumers: the license dialog.
+    """
+
+    return _point_smaller_monospace(_SMALL_FONT_DELTA, _MIN_SMALL_POINT_SIZE)
+
+
+def log_monospace_font() -> QFont:
+    """Return the log-viewer font: two points below the desktop monospace (floor 7 pt).
+
+    The log lines are long, so the panel spends one extra point of size to fit
+    more characters per line without horizontal scrolling. Consumers:
+    the main window log panel.
+    """
+
+    return _point_smaller_monospace(_LOG_FONT_DELTA, _MIN_LOG_POINT_SIZE)

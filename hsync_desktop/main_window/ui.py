@@ -73,7 +73,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
-from hsync_desktop.fonts import small_monospace_font
+from hsync_desktop.fonts import log_monospace_font
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
@@ -199,8 +199,9 @@ class UiBuildMixin:
         self._log_view.customContextMenuRequested.connect(self._show_log_context_menu)
         # Limit log lines to prevent memory issues with long-running sessions
         self._log_view.setMaximumBlockCount(10000)
-        # Use the desktop's monospace font, one point smaller for the log box.
-        self._log_view.setFont(small_monospace_font())
+        # Use the desktop's monospace font, two points smaller: the log lines are
+        # long, so the extra width keeps them readable without scrolling.
+        self._log_view.setFont(log_monospace_font())
 
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]

@@ -247,3 +247,18 @@ class TestSystemThemeDetection:
             assert themes.detect_system_theme() == themes.THEME_DARK
         finally:
             qapp.setPalette(original)
+
+
+class TestObjectNameSelectors:
+    """QSS rules must target object names the widgets actually carry."""
+
+    def test_log_view_rule_matches_the_main_window_widget(self):
+        from pathlib import Path
+
+        ui = (Path(themes.__file__).parent / "ui" / "main_window.ui").read_text(encoding="utf-8")
+        match = re.search(r'<widget class="QPlainTextEdit" name="([^"]+)"', ui)
+        assert match is not None, "no QPlainTextEdit in main_window.ui"
+        name = match.group(1)
+        # A renamed widget silently orphaned the #logViewer rule once.
+        assert f"QPlainTextEdit#{name} {{" in themes._light_qss()
+        assert f"QPlainTextEdit#{name} {{" in themes._dark_qss()
