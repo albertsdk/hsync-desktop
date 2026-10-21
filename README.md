@@ -6,7 +6,7 @@
 
 **HSYNC Desktop** is the graphical application for Windows, macOS, and Linux. It
 gives you a visual interface to control the HSYNC Client: start or stop sync,
-monitor transfer progress, adjust settings, and get desktop notifications — all
+monitor transfer progress, adjust settings, and get system notifications — all
 without touching the command line.
 
 > New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using HSYNC Desktop.

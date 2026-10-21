@@ -178,20 +178,6 @@ class TestNotificationManager:
 
         tray_icon.showMessage.assert_called_once()
 
-    def test_connection_lost_skips_when_user_stopped(self):
-        """Test connection_lost() skips when user stopped."""
-        from hsync_desktop.notifications import NotificationManager
-
-        tray_icon = MagicMock(spec=QSystemTrayIcon)
-        tray_icon.isVisible.return_value = True
-
-        manager = NotificationManager(tray_icon)
-        manager.user_stopped = True
-
-        manager.connection_lost()
-
-        tray_icon.showMessage.assert_not_called()
-
     def test_became_master_helper(self):
         """Test became_master() helper method."""
         from hsync_desktop.notifications import NotificationManager
@@ -207,8 +193,8 @@ class TestNotificationManager:
 
 
 class TestForegroundSuppression:
-    """Routine notifications are suppressed while the window is in the
-    foreground; warnings and errors are still delivered."""
+    """Every system notification is suppressed while the window is in the
+    foreground: errors and warnings are surfaced by the in-app toast instead."""
 
     @staticmethod
     def _manager(foreground: bool):
@@ -232,23 +218,23 @@ class TestForegroundSuppression:
 
         tray_icon.showMessage.assert_called_once()
 
-    def test_warning_still_shown_when_foreground(self):
+    def test_warning_suppressed_when_foreground(self):
         manager, tray_icon = self._manager(True)
 
         manager.warning("Title", "Message")
 
-        tray_icon.showMessage.assert_called_once()
+        tray_icon.showMessage.assert_not_called()
 
-    def test_error_still_shown_when_foreground(self):
+    def test_error_suppressed_when_foreground(self):
         manager, tray_icon = self._manager(True)
 
         manager.error("Title", "Message")
 
-        tray_icon.showMessage.assert_called_once()
+        tray_icon.showMessage.assert_not_called()
 
-    def test_important_flag_overrides_foreground(self):
-        manager, tray_icon = self._manager(True)
+    def test_error_shown_when_background(self):
+        manager, tray_icon = self._manager(False)
 
-        manager.notify("Title", "Message", important=True)
+        manager.error("Title", "Message")
 
         tray_icon.showMessage.assert_called_once()

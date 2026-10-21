@@ -30,9 +30,6 @@ class _FakeNotifier:
     def error(self, title: str, message: str) -> None:
         self.calls.append(("error", title, message))
 
-    def connection_lost(self) -> None:
-        self.calls.append(("connection_lost",))
-
     def peer_joined(self, connected: int, total: int) -> None:
         self.calls.append(("peer_joined", connected, total))
 
@@ -57,7 +54,11 @@ def _capture_important(monkeypatch, window) -> list[tuple]:
 
 def _capture_info(monkeypatch, window) -> list[str]:
     recorded: list[str] = []
-    monkeypatch.setattr(window, "_info_selection_outcome", lambda message: recorded.append(message))
+    monkeypatch.setattr(
+        window,
+        "_info_selection_outcome",
+        lambda message, **kwargs: recorded.append(message),
+    )
     return recorded
 
 
@@ -258,7 +259,9 @@ class TestConnectionLost:
 
         window._on_status("disconnected")
 
-        assert ("connection_lost",) not in notifier.calls
+        assert ("warning", tr("notif.connection_lost"), tr("notif.connection_lost_msg")) not in (
+            notifier.calls
+        )
 
     def test_a_dropped_link_after_connecting_reports_the_loss(self, window):
         notifier = _FakeNotifier()
@@ -267,7 +270,11 @@ class TestConnectionLost:
 
         window._on_status("disconnected")
 
-        assert ("connection_lost",) in notifier.calls
+        assert (
+            "warning",
+            tr("notif.connection_lost"),
+            tr("notif.connection_lost_msg"),
+        ) in notifier.calls
 
     def test_a_lone_waiting_master_never_reports_a_loss(self, window):
         notifier = _FakeNotifier()
@@ -275,4 +282,8 @@ class TestConnectionLost:
 
         window._on_status("waiting")
 
-        assert ("connection_lost",) not in notifier.calls
+        assert (
+            "warning",
+            tr("notif.connection_lost"),
+            tr("notif.connection_lost_msg"),
+        ) not in notifier.calls

@@ -168,8 +168,8 @@ class EventsMixin:
             self._file_panel.reset_all_to_local()
             # "Connection lost" only makes sense after a real connection: a
             # one-shot that never linked must not claim a lost connection.
-            if status == "disconnected" and self._notifier and self._ever_connected:
-                self._notifier.connection_lost()
+            if status == "disconnected" and self._ever_connected and not self._user_stopped:
+                self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
         elif status == "connected":
             self._ever_connected = True
             # Refresh path display (server_ip now available)
@@ -379,8 +379,7 @@ class EventsMixin:
             msg = (
                 tr("notif.master_takeover").replace("{cid}", peer_cid).replace("{ip}", peer_address)
             )
-        if self._notifier:
-            self._notifier.warning(tr("notif.master_conflict_title"), msg)
+        self._notify_warning(tr("notif.master_conflict_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str, str)
@@ -390,6 +389,10 @@ class EventsMixin:
         self._append_desktop_log("ERROR", f"{arrow} {filepath}: {message}")
         # The row would otherwise keep showing an in-flight progress bar.
         self._file_panel.mark_failed(self._rel_path(filepath))
+        # Per-file failures are aggregated into a single toast at the end of the
+        # run; the OS notification stays per file (the in-app toast is not shown
+        # for each, to avoid flooding).
+        self._transfer_failure_count += 1
         if self._notifier:
             self._notifier.error(tr("notif.error"), message)
 
@@ -401,16 +404,14 @@ class EventsMixin:
             .replace("{deletes}", str(deletes))
             .replace("{reason}", reason)
         )
-        if self._notifier:
-            self._notifier.warning(tr("notif.sync_paused_title"), msg)
+        self._notify_warning(tr("notif.sync_paused_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str, str)
     def _on_security_rejected(self, op: str, path: str, message: str) -> None:
         """Surface an unsafe remote path refused by the client's inbound guards."""
         msg = tr("notif.security_rejected_msg").replace("{path}", path or "?")
-        if self._notifier:
-            self._notifier.warning(tr("notif.security_rejected_title"), msg)
+        self._notify_warning(tr("notif.security_rejected_title"), msg)
         detail = f" ({op}: {message})" if message else f" ({op})"
         self._append_desktop_log("WARNING", f"{msg}{detail}")
 
@@ -418,8 +419,7 @@ class EventsMixin:
     def _on_no_master_warning(self, _detail: str) -> None:
         """Handle the [NO MASTER] warning (no node will serve files)."""
         msg = tr("notif.no_master_msg")
-        if self._notifier:
-            self._notifier.warning(tr("notif.no_master_title"), msg)
+        self._notify_warning(tr("notif.no_master_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str)
@@ -443,8 +443,7 @@ class EventsMixin:
         """Handle a duplicated device identity (cloned HSYNC_DEVICE_DIR)."""
         peer = peer_address or "?"
         msg = tr("notif.duplicate_identity_msg").replace("{cid}", peer_cid).replace("{ip}", peer)
-        if self._notifier:
-            self._notifier.warning(tr("notif.duplicate_identity_title"), msg)
+        self._notify_warning(tr("notif.duplicate_identity_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str)
@@ -513,6 +512,7 @@ class EventsMixin:
         # A scoped Send/Receive that ended without a typed outcome (crash, user
         # stop) is finalized here; while the confirmation dialog is open
         # (phase "confirm") the op is still in flight and must not be closed.
+        was_scoped = self._selection_sync_active
         if self._selection_sync_active and self._selection_sync_phase != "confirm":
             if self._user_stopped:
                 self._finish_selection_sync("cancelled")
@@ -544,21 +544,28 @@ class EventsMixin:
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        # Keep a result toast visible after the process exits; clear run-scoped
-        # progress/warning toasts only.
-        if self._info_banner_kind != "outcome":
-            self._hide_info_banner()
+        # Keep result/error toasts visible after the process exits; clear only
+        # run-scoped progress/info toasts.
+        self._clear_run_toast()
         self._apply_button_styles()
         self._update_menu_state()
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
 
         # Notify only for truly unexpected crashes (not user stop, auth error,
         # force sync, app quit, etc.)
-        if desc == "crashed" and not self._user_stopped and self._notifier:
-            self._notifier.error(
+        if desc == "crashed" and not self._user_stopped:
+            self._notify_error(
                 tr("notif.error"),
                 tr("notif.process_crashed").replace("{code}", str(code)),
             )
+        elif not was_scoped and not self._user_stopped and self._transfer_failure_count > 0:
+            # Consolidate per-file failures into one toast at the end of a run.
+            self._show_info_banner(
+                tr("notif.transfers_failed").replace("{count}", str(self._transfer_failure_count)),
+                kind="error",
+                title=tr("notif.error"),
+            )
+        self._transfer_failure_count = 0
 
     @Slot(str)
     def _on_path_not_found(self, path: str) -> None:

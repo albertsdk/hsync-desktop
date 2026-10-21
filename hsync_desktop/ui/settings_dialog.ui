@@ -469,7 +469,7 @@
        <item row="2" column="1">
         <widget class="QCheckBox" name="notificationsEnabled">
          <property name="text">
-          <string>Enable notifications</string>
+          <string>Enable system notifications</string>
          </property>
          <property name="checked">
           <bool>true</bool>

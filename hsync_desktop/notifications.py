@@ -12,9 +12,9 @@ Policy:
 - Notify only on download complete (not upload).
 - Notify on errors.
 - Do NOT notify when the user explicitly stops the process.
-- While the main window is in the foreground the routine (information) events
-  are already visible in the app, so their system notification is suppressed;
-  warnings and errors are still delivered.
+- While the main window is in the foreground every system notification is
+  suppressed: errors and warnings are surfaced by the in-app toast, and routine
+  events are already visible in the app UI.
 """
 
 from __future__ import annotations
@@ -57,18 +57,16 @@ class NotificationManager:
         message: str,
         icon: QSystemTrayIcon.MessageIcon = QSystemTrayIcon.MessageIcon.Information,
         duration_ms: int = 5000,
-        *,
-        important: bool = False,
     ) -> None:
         """Show a desktop notification if enabled.
 
-        Routine (non-important) notifications are skipped while the main window
-        is in the foreground — the event is already visible in the app — while
-        important ones (warnings, errors) are always delivered.
+        Suppressed while the main window is in the foreground: the event is
+        surfaced in-app instead (the window shows a toast for errors/warnings,
+        and routine events are part of the UI).
         """
         if not self._enabled or not self._tray.isVisible():
             return
-        if self._is_foreground() and not important:
+        if self._is_foreground():
             return
         self._tray.showMessage(title, message, icon, duration_ms)
 
@@ -78,10 +76,10 @@ class NotificationManager:
         self.notify(title, message, QSystemTrayIcon.MessageIcon.Information)
 
     def warning(self, title: str, message: str) -> None:
-        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning, important=True)
+        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning)
 
     def error(self, title: str, message: str) -> None:
-        """Always notify errors (unless user just stopped the process)."""
+        """Notify an error (unless the user just stopped the process)."""
         if self.user_stopped:
             return
         self.notify(
@@ -89,7 +87,6 @@ class NotificationManager:
             message,
             QSystemTrayIcon.MessageIcon.Critical,
             8000,
-            important=True,
         )
 
     def download_complete(self, filename: str) -> None:
@@ -108,11 +105,6 @@ class NotificationManager:
             .replace("{total}", str(total))
         )
         self.info(tr("notif.peer_update"), msg)
-
-    def connection_lost(self) -> None:
-        if self.user_stopped:
-            return
-        self.warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
 
     def became_master(self) -> None:
         self.info(tr("notif.master_elected"), tr("notif.master_elected_msg"))

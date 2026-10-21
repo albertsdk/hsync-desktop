@@ -110,6 +110,13 @@ sync", a Send/Receive while a sync is running) appear as a small overlay toast i
 the bottom-right corner, so nothing shifts and you do not need the log panel open
 to see the outcome.
 
+Toast colours follow the severity: blue for information, green for a completed
+result, amber for a warning, red for an error (an icon and a title make the
+severity recognisable without colour). Errors and warnings stay in the window
+until you close them, whatever the notifications preference, and survive a new
+sync; they are the in-app counterpart of the desktop notification, which is sent
+only while the window is in the background.
+
 While the one-shot runs, a toast shows what it is doing — searching for devices
 (in p2p mode) or connecting to the server, then how many other devices were
 found. When it ends, the result is reported once: the window shows a summary
@@ -132,7 +139,9 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 
 - **Theme** — **System default** follows your desktop and updates live; **Light**
   and **Dark** pin an appearance.
-- **Notifications** — enable desktop notifications for sync events.
+- **Notifications** — show desktop/system notifications for sync events. Errors
+  and warnings are always shown in the app window, so turning this off only
+  silences the operating-system notifications.
 - **Bandwidth limits** — cap upload/download throughput.
 - **Advanced options** — off by default: the Advanced tab and the *Advanced
   Options* sections stay hidden until you enable **Show advanced options** in

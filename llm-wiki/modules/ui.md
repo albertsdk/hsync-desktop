@@ -32,8 +32,9 @@ Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow.
 `file_panel.share_size_changed→_on_share_size_changed`,
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
 `error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::MainWindow._on_engine_error`),
-which stores the message and mirrors it into the log panel (the desktop
-notification is wired separately, only when a notifier exists).
+which stores the message, mirrors it into the log panel and raises an in-app
+error toast through `_notify_error` (an OS notification is sent too, only when a
+notifier exists and the window is out of focus).
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::MainWindow._create_menu_bar`).
 
@@ -337,10 +338,12 @@ lifecycle so its result is surfaced exactly once:
 - Outcome: `_surface_selection_outcome` (`main_window/actions.py::MainWindow._surface_selection_outcome`)
   routes an *important* result (no devices, server unreachable, failed) through
   `_important_selection_outcome` — a modal dialog when the window is in the
-  foreground, otherwise a warning notification — and a *non-critical* result
-  (already up to date, sent/received counts) through `_info_selection_outcome`
-  (outcome toast + info notification, the latter suppressed while the window is
-  focused, so exactly one surface shows).
+  foreground, otherwise a warning notification (`_notify_warning`, which also
+  raises the in-app warning toast) — and a *non-critical* result through
+  `_info_selection_outcome` (a green `success` toast for a sent/received count, a
+  plain `info` toast for *already up to date* / *nothing to do*, plus an info
+  notification suppressed while the window is focused, so exactly one surface
+  shows).
 - Wiring (in `_connect_signals`): `error_occurred → _on_engine_error`
   (`main_window/ui.py::MainWindow._on_engine_error`, `reason="connection"` in
   server mode → *server unreachable*; a launch failure is skipped and reported by
@@ -356,14 +359,28 @@ lifecycle so its result is surfaced exactly once:
 `MainWindow._info_banner` is an **overlay child of `centralWidget()`**, never in
 `rootLayout` (`main_window/ui.py::MainWindow._create_info_banner`), so
 showing/hiding it cannot reflow the splitter. `_show_info_banner(message,
-auto_hide_ms, kind)` places it bottom-right above the bottom bar
-(`_position_info_banner`, kept anchored on `resizeEvent`) and sets `kind`:
-`progress` (indeterminate bar, persistent until hidden), `warning`, `info` or
-`outcome`. Lifecycle: `_prepare_engine_run` clears any toast; `_on_process_finished`
-and `_reset_ui_stopped` clear run-scoped toasts **except** `outcome`, so a result
-survives the engine exiting; the normal `connected` path hides the `progress`
-toast. One instance `QTimer` (`_info_timer`) owns the auto-hide, so a newer
-message is never hidden by an older timeout.
+auto_hide_ms, kind, title)` places it bottom-right above the bottom bar
+(`_position_info_banner`, kept anchored on `resizeEvent`) and maps `kind`
+(`progress`, `info`, `success`, `warning`, `error`) to a severity colour through a
+dynamic `severity` QSS property; `error`/`warning`/`success` also prefix a
+severity glyph and the given title, so the severity is recognisable without
+relying on colour. Persistence: `error`/`warning` stay until dismissed (`✕`) and
+survive both the engine process finishing and a new run, `success` survives the
+process finishing, `progress`/`info` auto-hide (`_clear_run_toast` with
+`_SURVIVES_FINISH`/`_PERSISTENT_ACROSS_RUNS`). Errors and warnings are surfaced
+in-app regardless of the notifications preference:
+
+- `_notify_error` (`main_window/ui.py::MainWindow._notify_error`) and
+  `_notify_warning` (`main_window/ui.py::MainWindow._notify_warning`) always show
+  the in-app toast and, when the window is out of focus, the OS notification.
+- Per-file transfer failures are consolidated into a single error toast at the end
+  of a non-scoped run (`_on_transfer_failed` increments `_transfer_failure_count`,
+  `_on_process_finished` aggregates).
+- `info`/`progress` keep the plain message; the normal `connected` path hides the
+  `progress` toast.
+
+One instance `QTimer` (`_info_timer`) owns the auto-hide, so a newer message is
+never hidden by an older timeout.
 
 ### Desktop log lines
 
@@ -444,7 +461,7 @@ deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
 | Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `monospace_font` (`fonts.py::monospace_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
 | Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |
 | Tray | `system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`system_tray.py::_make_icon`) |
-| Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; routine (info) events are suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`), warnings/errors always delivered |
+| Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`) and delivered only when out of focus — errors/warnings are then covered by the in-app toast |
 | Single instance | `single_instance.py::SingleInstance` | reject a 2nd launch |
 | UI loading | `ui/loader.py::UiLoader`, `load_ui_widget` (`ui/loader.py::load_ui_widget`) | load `.ui` resources |
 

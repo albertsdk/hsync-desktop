@@ -116,7 +116,7 @@ Application-wide preferences.
 |---------|-------------|
 | Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
 | Theme | **System default** (follows the desktop and updates live), Light or Dark |
-| Enable desktop notifications | Enable or disable desktop notifications |
+| Enable system notifications | Show desktop/system notifications for sync events. Errors and warnings are always shown in the app window; this setting only controls the OS notifications |
 | Show tooltips | Show or hide option tooltips |
 | Show log panel | Toggle the in-app log viewer in the main window |
 | Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |

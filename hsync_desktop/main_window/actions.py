@@ -278,10 +278,13 @@ class ActionsMixin:
         """Common pre-start bookkeeping shared by every engine (re)start."""
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
         self._log_view.clear()
-        self._hide_info_banner()  # a new run clears any stale toast
+        # A new run clears stale run-scoped toasts but keeps persistent
+        # error/warning toasts the user has not dismissed yet.
+        self._clear_run_toast(across_runs=True)
         self._file_panel.load_local_files(local_path, restore_view=restore_view)
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
+        self._transfer_failure_count = 0  # reset per engine process
         # A fresh process runs a fresh p2p election: back to the neutral role.
         self._role_known = False
         self._is_master = None
@@ -306,7 +309,7 @@ class ActionsMixin:
         """
         if self._engine.is_running:
             self._append_desktop_log("WARNING", tr("sync.selection_busy"))
-            self._show_info_banner(tr("sync.selection_busy"), auto_hide_ms=5000, kind="warning")
+            self._show_info_banner(tr("sync.selection_busy"), auto_hide_ms=5000, kind="info")
             return
         local_path = self._local_path
         if not local_path:
@@ -403,7 +406,7 @@ class ActionsMixin:
                 tr("sync.sel_failed_title"), tr("sync.sel_failed_msg")
             )
         elif outcome == "already_synced":
-            self._info_selection_outcome(tr("sync.sel_already_synced"))
+            self._info_selection_outcome(tr("sync.sel_already_synced"), success=False)
         elif outcome == "done":
             key = "sync.sel_sent_fmt" if direction == "upload-only" else "sync.sel_received_fmt"
             self._info_selection_outcome(tr(key).replace("{count}", str(count)))
@@ -421,12 +424,16 @@ class ActionsMixin:
         elif self._notifier:
             self._notifier.warning(title, message)
         else:
-            self._show_info_banner(message, kind="outcome")
+            self._show_info_banner(message, kind="error", title=title)
 
-    def _info_selection_outcome(self, message: str) -> None:
-        """Non-critical result: toast now; the info notification is suppressed
-        by the manager while the window is focused, so exactly one surface shows."""
-        self._show_info_banner(message, kind="outcome")
+    def _info_selection_outcome(self, message: str, *, success: bool = True) -> None:
+        """Non-critical scoped result: a toast now, plus an OS notification when
+        the window is out of focus (the manager suppresses it in the foreground,
+        so exactly one surface shows)."""
+        if success:
+            self._show_info_banner(message, kind="success", title=tr("notif.success"))
+        else:
+            self._show_info_banner(message, kind="info")
         if self._notifier:
             self._notifier.info(tr("app.name"), message)
 
@@ -493,7 +500,7 @@ class ActionsMixin:
                 self._finish_selection_sync("already_synced")
                 return
             # Non-scoped: surface the result without needing the log panel.
-            self._info_selection_outcome(tr("preview.no_actions"))
+            self._info_selection_outcome(tr("preview.no_actions"), success=False)
             if self._is_dry_run_preview and not simulation:
                 # Send SYNC command to switch from dry-run to real sync
                 self._engine.sync()
@@ -520,7 +527,7 @@ class ActionsMixin:
             elif simulation:
                 # Preview-only run: report it and let the one-shot process exit.
                 self._append_desktop_log("INFO", tr("preview.simulation_no_changes"))
-                self._info_selection_outcome(tr("preview.simulation_no_changes"))
+                self._info_selection_outcome(tr("preview.simulation_no_changes"), success=False)
             else:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.

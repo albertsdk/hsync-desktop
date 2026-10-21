@@ -920,11 +920,11 @@ class TestInfoToast:
         window._show_info_banner("searching", kind="progress")
         assert not window._info_progress.isHidden()
 
-        window._show_info_banner("done", kind="outcome")
+        window._show_info_banner("done", kind="success")
         assert window._info_progress.isHidden()
 
-    def test_outcome_survives_process_finish(self, window):
-        window._show_info_banner("done", kind="outcome")
+    def test_success_survives_process_finish(self, window):
+        window._show_info_banner("done", kind="success")
 
         window._on_process_finished(0, "normal")
 
@@ -938,7 +938,7 @@ class TestInfoToast:
         assert window._info_banner.isHidden()
 
     def test_a_new_run_clears_the_toast(self, window, monkeypatch, tmp_path):
-        window._show_info_banner("done", kind="outcome")
+        window._show_info_banner("done", kind="success")
         monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
 
         window._prepare_engine_run(str(tmp_path))
@@ -955,6 +955,84 @@ class TestInfoToast:
         assert match is not None, sheet
         assert float(match.group(1)) < 1.0
         assert "color: #ffffff" in sheet
+
+    def test_error_toast_uses_the_error_severity(self, window):
+        window._notify_error(tr("notif.error"), "boom")
+
+        assert window._info_banner_kind == "error"
+        assert window._info_banner.property("severity") == "error"
+        assert "rgba(220, 53, 69, 0.85)" in window._info_banner.styleSheet()
+        text = window._info_banner_label.text()
+        assert text.startswith("⛔")
+        assert tr("notif.error") in text and "boom" in text
+
+    def test_warning_toast_uses_the_warning_severity(self, window):
+        window._notify_warning(tr("notif.no_master_title"), "no master")
+
+        assert window._info_banner_kind == "warning"
+        assert window._info_banner.property("severity") == "warning"
+        assert "rgba(180, 83, 9, 0.85)" in window._info_banner.styleSheet()
+        assert window._info_banner_label.text().startswith("⚠")
+
+    def test_success_toast_is_green_and_auto_hides(self, window):
+        window._info_selection_outcome("sent")
+
+        assert window._info_banner_kind == "success"
+        assert window._info_banner.property("severity") == "success"
+        assert "rgba(25, 135, 84, 0.85)" in window._info_banner.styleSheet()
+        assert window._info_timer.isActive()
+
+    def test_error_is_persistent_until_dismissed(self, window):
+        window._notify_error(tr("notif.error"), "boom")
+
+        assert not window._info_timer.isActive()
+        assert not window._info_banner.isHidden()
+
+    def test_error_and_warning_survive_finish_and_new_run(self, window, monkeypatch, tmp_path):
+        window._notify_error(tr("notif.error"), "boom")
+
+        window._on_process_finished(0, "normal")
+        assert window._info_banner_kind == "error"
+        assert not window._info_banner.isHidden()
+
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
+        window._prepare_engine_run(str(tmp_path))
+        assert window._info_banner_kind == "error"
+        assert not window._info_banner.isHidden()
+
+    def test_engine_error_shows_in_app_even_when_notifications_disabled(self, window):
+        from unittest.mock import MagicMock
+
+        from PySide6.QtWidgets import QSystemTrayIcon
+
+        from hsync_desktop.notifications import NotificationManager
+
+        tray = MagicMock(spec=QSystemTrayIcon)
+        tray.isVisible.return_value = True
+        window._notifier = NotificationManager(tray, is_foreground=lambda: True)
+        window._notifier.enabled = False
+
+        window._engine.error_occurred.emit("boom", "process")
+
+        assert window._info_banner_kind == "error"
+        assert not window._info_banner.isHidden()
+
+    def test_aggregated_transfer_failures_surface_one_error_toast(self, window):
+        window._transfer_failure_count = 2
+
+        window._on_process_finished(0, "normal")
+
+        assert window._info_banner_kind == "error"
+        expected = tr("notif.transfers_failed").replace("{count}", "2")
+        assert expected in window._info_banner_label.text()
+
+    def test_aggregated_transfer_failures_skipped_after_user_stop(self, window):
+        window._transfer_failure_count = 2
+        window._user_stopped = True
+
+        window._on_process_finished(0, "stopped")
+
+        assert window._info_banner.isHidden()
 
 
 class TestDesktopLogFormat:
@@ -978,18 +1056,18 @@ class TestDesktopLogFormat:
         finally:
             engine_cls.is_running = original
 
-        assert window._info_banner_kind == "warning"
+        assert window._info_banner_kind == "info"
         assert not window._info_banner.isHidden()
         assert "[desktop] WARNING:" in window._log_view.toPlainText()
 
-    def test_preview_with_no_actions_surfaces_an_outcome(self, window):
+    def test_preview_with_no_actions_surfaces_an_info_result(self, window):
         window._selection_sync_active = False
         window._is_dry_run_preview = False
         window._preview_stats.reset()
 
         window._show_preview_summary()
 
-        assert window._info_banner_kind == "outcome"
+        assert window._info_banner_kind == "info"
         assert not window._info_banner.isHidden()
         assert "[desktop] INFO:" in window._log_view.toPlainText()
 

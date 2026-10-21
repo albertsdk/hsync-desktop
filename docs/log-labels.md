@@ -28,7 +28,8 @@ are re-rendered when you switch theme. Lines the desktop produces itself
 (`[desktop] …`) have no terminal colors, so they fall back to the same
 level/label categories.
 
-The security/warning labels in particular drive desktop notifications:
+The security/warning labels in particular drive an in-app warning toast and a
+desktop notification (the latter only while the window is in the background):
 
 | Label | Desktop behavior |
 |-------|------------------|

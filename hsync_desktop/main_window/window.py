@@ -169,6 +169,7 @@ class MainWindow(
         self._selection_sync_active = False  # True while a scoped op runs
         self._selection_sync_phase = ""  # "preview" | "confirm" | "run"
         self._selection_result_count = 0  # successful transfers in the run phase
+        self._transfer_failure_count = 0  # failed per-file transfers this run
         self._ever_connected = False  # engine reached "connected" this process
         # p2p role: unknown until the first role event; the text is shown only
         # once connected (see MainWindow._apply_role_visibility).

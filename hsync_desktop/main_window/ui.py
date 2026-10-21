@@ -124,6 +124,22 @@ _BTN_REFRESH_ACTIVE = (
 )
 _BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
+# ── Info toast severities ────────────────────────────────────────────────────
+# `kind` → severity, used as the dynamic QSS property on #infoBanner.
+_SEVERITY_BY_KIND = {
+    "progress": "info",
+    "info": "info",
+    "success": "success",
+    "warning": "warning",
+    "error": "error",
+}
+# Non-colour cue (accessibility): a leading glyph for error/warning/success.
+_SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "success": "✔"}
+# Toasts that survive the engine process finishing.
+_SURVIVES_FINISH = {"success", "error", "warning"}
+# Toasts that survive starting a new run.
+_PERSISTENT_ACROSS_RUNS = {"error", "warning"}
+
 
 class UiBuildMixin:
     def _load_ui(self) -> None:
@@ -658,8 +674,8 @@ class UiBuildMixin:
             self._finish_selection_sync(outcome)
             return
 
-        if message and self._notifier:
-            self._notifier.error(tr("notif.error"), message)
+        if message:
+            self._notify_error(tr("notif.error"), message)
 
     @Slot(QPoint)
     def _show_log_context_menu(self, pos: QPoint) -> None:
@@ -696,6 +712,9 @@ class UiBuildMixin:
             "  border-radius: 8px;"
             "  padding: 8px 16px;"
             "}"
+            '#infoBanner[severity="success"] { background-color: rgba(25, 135, 84, 0.85); }'
+            '#infoBanner[severity="warning"] { background-color: rgba(180, 83, 9, 0.85); }'
+            '#infoBanner[severity="error"] { background-color: rgba(220, 53, 69, 0.85); }'
             "#infoBannerLabel {"
             "  color: #ffffff;"
             "  font-weight: bold;"
@@ -767,32 +786,85 @@ class UiBuildMixin:
         self._info_banner.move(max(margin, x), max(margin, y))
 
     def _show_info_banner(
-        self, message: str, auto_hide_ms: int = 15000, kind: str = "info"
+        self,
+        message: str,
+        auto_hide_ms: int | None = None,
+        kind: str = "info",
+        *,
+        title: str = "",
     ) -> None:
         """Show the overlay toast.
 
-        ``kind`` is ``progress`` (persistent until hidden), ``warning``,
-        ``info`` or ``outcome``. Outcome toasts survive the engine process
-        finishing; run-scoped ones are cleared. ``auto_hide_ms <= 0`` keeps it
-        visible until ``_hide_info_banner``.
+        ``kind`` is ``progress``, ``info``, ``success``, ``warning`` or
+        ``error``. ``error``/``warning`` stay visible until dismissed and
+        survive the engine process finishing and a new run; ``success``
+        survives the process finishing; ``progress``/``info`` auto-hide.
+        ``auto_hide_ms`` overrides the per-kind default (``<= 0`` keeps it
+        visible until ``_hide_info_banner``).
         """
+        severity = _SEVERITY_BY_KIND.get(kind, "info")
         self._info_banner_kind = kind
-        self._info_banner_label.setText(message)
+        self._info_banner_label.setText(self._toast_text(kind, title, message))
+        # The background colour is driven by a dynamic property so a single
+        # stylesheet carries every severity; repolish applies the new match.
+        self._info_banner.setProperty("severity", severity)
+        style = self._info_banner.style()
+        style.unpolish(self._info_banner)
+        style.polish(self._info_banner)
         self._info_progress.setVisible(kind == "progress")
         self._info_banner.adjustSize()
         self._info_banner.show()
         self._position_info_banner()
         self._info_banner.raise_()
+        if auto_hide_ms is None:
+            auto_hide_ms = 0 if kind in ("error", "warning") else 15000
         if auto_hide_ms > 0:
             self._info_timer.start(auto_hide_ms)
         else:
             self._info_timer.stop()
+
+    @staticmethod
+    def _toast_text(kind: str, title: str, message: str) -> str:
+        """Compose the toast label, adding a severity glyph and title.
+
+        ``info``/``progress`` keep their plain message; ``error``/``warning``/
+        ``success`` prefix a glyph and (when given) the translated title, so the
+        severity is recognisable without relying on colour.
+        """
+        icon = _SEVERITY_ICON.get(kind)
+        if not icon:
+            return message
+        return f"{icon} {title} — {message}" if title else f"{icon} {message}"
+
+    def _notify_error(self, title: str, message: str) -> None:
+        """Surface an error in-app (always) and via the OS when out of focus."""
+        if self._user_stopped:
+            return
+        self._show_info_banner(message, kind="error", title=title)
+        if self._notifier:
+            self._notifier.error(title, message)
+
+    def _notify_warning(self, title: str, message: str) -> None:
+        """Surface a warning in-app (always) and via the OS when out of focus."""
+        self._show_info_banner(message, kind="warning", title=title)
+        if self._notifier:
+            self._notifier.warning(title, message)
 
     def _hide_info_banner(self) -> None:
         """Hide the toast and stop its auto-hide timer."""
         self._info_timer.stop()
         self._info_banner.hide()
         self._info_banner_kind = None
+
+    def _clear_run_toast(self, *, across_runs: bool = False) -> None:
+        """Hide the toast on a run boundary unless it must persist.
+
+        Persistent kinds (``error``/``warning``) survive the engine process
+        finishing and, with ``across_runs``, also the start of a new run.
+        """
+        keep = _PERSISTENT_ACROSS_RUNS if across_runs else _SURVIVES_FINISH
+        if self._info_banner_kind not in keep:
+            self._hide_info_banner()
 
     def _apply_button_styles(self) -> None:
         """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""

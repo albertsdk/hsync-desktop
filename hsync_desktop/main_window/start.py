@@ -158,9 +158,8 @@ class StartMixin:
         self._btn_refresh.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        # Keep a result toast visible; only run-scoped toasts are cleared here.
-        if self._info_banner_kind != "outcome":
-            self._hide_info_banner()
+        # Keep result/error toasts visible; only run-scoped toasts are cleared.
+        self._clear_run_toast()
         self._apply_button_styles()
         self._update_menu_state()
 
