@@ -282,11 +282,12 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     # confirmation via its own dialog.
     args.append("--allow-deletions")
 
-    # Output – always use --no-color for machine-friendly parsing
-    # NOTE: We intentionally NEVER pass -q (quiet) because hsync-desktop
-    # depends on parsing stdout for status updates, file transfers,
-    # authentication errors, etc. Quiet mode would break all UI feedback.
-    args.append("--no-color")
+    # Output – keep the client's own palette: --color=always forces the SGR
+    # sequences over the (non-TTY) pipe so the log panel can render them. The
+    # structured events fd, not stdout, is what drives the UI.
+    # NOTE: We intentionally NEVER pass -q (quiet) because hsync-desktop needs
+    # stdout for the log panel.
+    args.append("--color=always")
     if s.value("output/verbose", False, bool):
         args.append("-v")
 

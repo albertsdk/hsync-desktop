@@ -657,6 +657,10 @@ class StartMixin:
         if app:
             apply_theme(app, theme)  # type: ignore[arg-type]
             self._refresh_icons_for_theme()
+        if theme != self._log_theme:
+            # The log colors are baked into the text formats: recolor on change.
+            self._log_theme = theme
+            self._rerender_log()
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
         self._apply_log_visibility()

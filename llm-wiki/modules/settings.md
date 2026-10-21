@@ -309,7 +309,8 @@ and the dialog additionally applies the change live through
 `engine/process.py::HsyncEngine.set_bandwidth` while a sync runs.
 
 `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) always appends `--allow-deletions` (non-interactive) and
-`--no-color`; the engine appends `--allow-unauthenticated-p2p` for a
+`--color=always` (the client's own palette over the pipe, rendered by the log
+panel); the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
 is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
 `--max-inbound-size`), the Advanced-tab engine knobs (`--no-autotune`,

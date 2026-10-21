@@ -458,6 +458,27 @@ does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
 guards it).
 
+### Log panel colors
+
+`build_hsync_args` (`settings/cli_args.py`) launches the engine with
+`--color=always` (the client's `--color` contract, `hsync_common.runtime.ColorMode`),
+so the raw stdout feed carries the SGR sequences loguru builds from
+`hsync_common.logger.LEVEL_STYLES` and `hsync_common.labels.LABEL_STYLES`.
+`ansi.py::parse_sgr` splits each line into `ansi.py::AnsiRun`s (foreground index,
+bold, dim) and `log_style.py::styled_runs` turns them into `QTextCharFormat`s via
+`LOG_COLORS` (`log_style.py`, per theme). Lines without SGR — the Desktop's own
+`[desktop] LEVEL:` markers, plain logs — fall back to the same two shared
+mappings, matched by `log_style.py::_LEVEL_RE` / `log_style.py::_LABEL_RE`
+(labels longest-first so `[REMOTE DOWNLOAD]` never collapses into `[DOWNLOAD]`).
+
+`ui.py::MainWindow._append_log` inserts the runs with a `QTextCursor` (never
+`appendPlainText` for styled lines), so the escape sequences are stripped from
+`toPlainText()` (copy, tests, `maximumBlockCount` unchanged). Colors are baked
+into the formats, so `_rerender_log` (`ui.py`) re-renders the document when the
+theme changes, called from `_apply_settings_changes` and
+`_on_system_color_scheme_changed`; the re-render works from the plain text and
+therefore re-applies the level/label fallback colors.
+
 Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
 the bundled SVG (recoloured per light/dark) over the system theme, falling back
 to the system theme only when no bundled icon exists. The application icon

@@ -16,8 +16,17 @@ lists what you can see.
 The desktop log panel shows whatever the underlying `hsync-client` engine
 emits. See [the client label reference](https://github.com/albertsdk/hsync-client/blob/main/docs/log-labels.md)
 for the full list and meanings — sync operations, preview (dry-run), p2p
-client/master operations, and security/warning labels are all surfaced here and
-colored by the same categories.
+client/master operations, and security/warning labels are all surfaced here.
+
+**Colors.** The app launches the engine with `--color=always`, so the panel
+renders the client's own palette: level columns (WARNING amber, ERROR red,
+CRITICAL bold red, DEBUG muted) and label categories (downloads cyan, uploads
+and creates green, modifies and renames blue, deletes and security red,
+transport magenta, in-sync grey). The same colors are re-mapped to a
+light/dark-friendly tone — they never vanish on either background, and they
+are re-rendered when you switch theme. Lines the desktop produces itself
+(`[desktop] …`) have no terminal colors, so they fall back to the same
+level/label categories.
 
 The security/warning labels in particular drive desktop notifications:
 

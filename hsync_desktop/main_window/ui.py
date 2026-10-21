@@ -32,6 +32,7 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QFontMetrics,
+    QTextCursor,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -75,6 +76,7 @@ from hsync_desktop.engine import (
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.fonts import log_monospace_font
 from hsync_desktop.i18n import register_language_callback, tr
+from hsync_desktop.log_style import styled_runs
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings import (
@@ -95,6 +97,7 @@ from hsync_desktop.themes import (
     COLOR_CONNECTED,
     COLOR_DISCONNECTED,
     COLOR_WAITING,
+    THEME_LIGHT,
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
@@ -584,10 +587,37 @@ class UiBuildMixin:
 
     @Slot(str)
     def _append_log(self, line: str) -> None:
-        self._log_view.appendPlainText(line)
+        """Append one log line, colored with the engine/theme palette.
+
+        The line may carry the client's SGR sequences (it is launched with
+        ``--color=always``); ``styled_runs`` turns them into char formats and
+        strips them from the text, so ``toPlainText()`` stays clean.
+        """
+        cursor = self._log_view.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        text_document = self._log_view.document()
+        if text_document.blockCount() > 1 or not text_document.isEmpty():
+            cursor.insertBlock()
+        theme = getattr(self, "_log_theme", THEME_LIGHT)
+        for run in styled_runs(line, theme):
+            cursor.insertText(run.text, run.fmt)
+        self._log_view.setTextCursor(cursor)
         # Auto-scroll to bottom
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+    def _rerender_log(self) -> None:
+        """Re-render the log panel after a theme change.
+
+        The document keeps no SGR sequences, so the re-render recolors from the
+        shared level/label mapping: same semantic categories, no encoded colors.
+        """
+        text = self._log_view.toPlainText()
+        self._log_view.clear()
+        if not text:
+            return
+        for line in text.splitlines():
+            self._append_log(line)
 
     def _append_desktop_log(self, level: str, message: str) -> None:
         """Append a desktop-originated line in the client log format.

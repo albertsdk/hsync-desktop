@@ -349,7 +349,7 @@ class TestClientCapabilitiesParity:
             "--min-free-disk-space",
             "--never-master",
             "--no-autotune",
-            "--no-color",
+            "--color",
             "--no-compression",
             "--no-delta",
             "--no-mass-delete-guard",
@@ -395,7 +395,7 @@ class TestClientCapabilitiesParity:
             "--max-wait-timeout",
             "--min-free-disk-space",
             "--no-autotune",
-            "--no-color",
+            "--color",
             "--no-compression",
             "--no-delta",
             "--no-mass-delete-guard",
@@ -426,17 +426,35 @@ class TestClientCapabilitiesParity:
 
     def test_p2p_args_are_advertised(self):
         args = _build_args({"p2p/enabled": True})
-        long_flags = {a for a in args if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL}
+        long_flags = {
+            a.split("=", 1)[0]
+            for a in args
+            if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL
+        }
         assert long_flags <= self._P2P_ADVERTISED | frozenset(self._ENGINE_P2P_FLAGS)
 
     def test_server_args_are_advertised(self):
         args = _build_args({"p2p/enabled": False})
-        long_flags = {a for a in args if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL}
+        long_flags = {
+            a.split("=", 1)[0]
+            for a in args
+            if a.startswith("--") and a not in self._SHORT_OR_EXTERNAL
+        }
         assert long_flags <= self._SERVER_ADVERTISED | frozenset(self._ENGINE_SERVER_FLAGS)
 
     def test_gated_upnp_flag_matches_client(self):
         assert "--upnp" in self._P2P_ADVERTISED
         assert "--no-upnp" not in self._P2P_ADVERTISED
+
+
+class TestClientPaletteFlag:
+    """The panel renders the client's own palette, so the flag is always sent."""
+
+    def test_color_always_is_passed_to_the_engine(self):
+        args = _build_args({})
+
+        assert "--color=always" in args
+        assert "--no-color" not in args
 
 
 class TestDefaultMode:

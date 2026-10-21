@@ -76,9 +76,10 @@ opens on the **Server HSYNC** store).
    The bottom-right sent/received numbers are the **distinct files** moved this
    session (a file transferred or renamed more than once still counts once); the
    size in parentheses is the total bytes moved, repeats included.
-3. The log panel streams structured messages from the engine. You can hide or
-   show it from the view options; the label catalogue is in
-   [Log Labels](log-labels.md).
+3. The log panel streams structured messages from the engine, colored with the
+   engine's own palette (levels and label categories, adapted to the light or
+   dark theme). You can hide or show it from the view options; the label
+   catalogue is in [Log Labels](log-labels.md).
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
 

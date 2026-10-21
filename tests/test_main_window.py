@@ -1529,3 +1529,63 @@ class TestSimulationIndicator:
         window._prepare_engine_run(str(folder))
 
         assert tr("simulation.log_start") not in window._log_view.toPlainText()
+
+
+class TestColoredLog:
+    """The log panel renders the client palette and recolors on a theme change."""
+
+    @staticmethod
+    def _first_line_colors(window) -> dict[str, str]:
+        block = window._log_view.document().firstBlock()
+        colors: dict[str, str] = {}
+        iterator = block.begin()
+        while not iterator.atEnd():
+            fragment = iterator.fragment()
+            if fragment.isValid() and fragment.text().strip():
+                colors[fragment.text()] = fragment.charFormat().foreground().color().name()
+            iterator += 1
+        return colors
+
+    def test_client_sgr_is_rendered_and_stripped(self, window):
+        from PySide6.QtGui import QColor
+
+        from hsync_desktop.log_style import LOG_COLORS
+        from hsync_desktop.themes import THEME_LIGHT
+
+        window._log_view.clear()
+        window._log_theme = THEME_LIGHT
+        window._append_log(
+            "\x1b[2m2026-10-21T14:48:07Z\x1b[0m - [1] [N/A] \x1b[33mWARNING\x1b[0m: x"
+        )
+
+        assert window._log_view.toPlainText() == "2026-10-21T14:48:07Z - [1] [N/A] WARNING: x"
+        colors = self._first_line_colors(window)
+        assert colors["WARNING"] == QColor(LOG_COLORS[THEME_LIGHT]["yellow"]).name()
+
+    def test_desktop_lines_use_the_shared_categories(self, window):
+        from PySide6.QtGui import QColor
+
+        from hsync_desktop.log_style import LOG_COLORS
+        from hsync_desktop.themes import THEME_LIGHT
+
+        window._log_view.clear()
+        window._log_theme = THEME_LIGHT
+        window._append_log("2026-10-21T14:48:08Z - [desktop] ERROR: [EVENT ERROR] boom")
+
+        colors = self._first_line_colors(window)
+        assert colors["ERROR"] == QColor(LOG_COLORS[THEME_LIGHT]["red"]).name()
+
+    def test_theme_change_recolors_the_existing_lines(self, window):
+        from hsync_desktop.themes import THEME_DARK, THEME_LIGHT
+
+        window._log_view.clear()
+        window._log_theme = THEME_LIGHT
+        window._append_log("2026-10-21T14:48:08Z - [desktop] ERROR: boom")
+        light = self._first_line_colors(window)["ERROR"]
+
+        window._log_theme = THEME_DARK
+        window._rerender_log()
+        dark = self._first_line_colors(window)["ERROR"]
+
+        assert light != dark
+        assert window._log_view.toPlainText() == "2026-10-21T14:48:08Z - [desktop] ERROR: boom"

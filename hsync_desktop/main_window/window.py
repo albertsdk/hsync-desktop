@@ -159,6 +159,8 @@ class MainWindow(
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
         # Simulation Mode: read from settings and reflected in badge/title/tray.
         self._simulation_mode = False
+        # Theme the log panel's colors are rendered with (updated on a theme change).
+        self._log_theme = get_saved_theme()
         # Send/Receive sync pending confirmation: (subdir, direction) or None.
         self._pending_selection_sync: tuple[str, str] | None = None
         # Folder/row to restore after the scoped op reloads the file panel.
@@ -274,5 +276,9 @@ class MainWindow(
             return
         app = QApplication.instance()
         if app:
-            apply_theme(app, detect_system_theme())  # type: ignore[arg-type]
+            theme = detect_system_theme()
+            apply_theme(app, theme)  # type: ignore[arg-type]
             self._refresh_icons_for_theme()
+            if theme != self._log_theme:
+                self._log_theme = theme
+                self._rerender_log()
