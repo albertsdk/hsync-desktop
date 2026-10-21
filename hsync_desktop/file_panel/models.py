@@ -9,6 +9,7 @@ Contains TransferStatus enum, FileTransfer dataclass, and related constants.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -64,11 +65,12 @@ _NO_PROGRESS_STATUSES = {
 }
 
 
-# Transfer-rate smoothing. Progress events arrive at most every 0.5 s, so the
-# displayed rate is averaged over SPEED_WINDOW_SECONDS: a per-sample rate would
-# flicker, and a since-start average would stay stale across an idle pause.
-SPEED_WINDOW_SECONDS = 2.0
-MIN_SAMPLE_INTERVAL = 0.05
+# Transfer-rate window. Progress samples arrive every 0.25 s (the client's
+# PROGRESS_MIN_INTERVAL), so the displayed rate is the bytes moved over the last
+# ~1 s of samples: unbiased (no ramp like an EMA), reacts within a second and
+# still hides the per-chunk staircase of the limiter.
+SPEED_WINDOW_SECONDS = 1.0
+_SAMPLE_HISTORY = 64
 
 
 @dataclass
@@ -89,9 +91,9 @@ class FileTransfer:
     # Size column. 0 means "same as size".
     progress_total: int = 0
     _speed_bps: float = field(default=0.0, repr=False, compare=False)
-    _sample_bytes: int = field(default=0, repr=False, compare=False)
-    _sample_ts: float = field(default=0.0, repr=False, compare=False)
-    _have_sample: bool = field(default=False, repr=False, compare=False)
+    _samples: deque[tuple[float, int]] = field(
+        default_factory=lambda: deque(maxlen=_SAMPLE_HISTORY), repr=False, compare=False
+    )
 
     @property
     def filename(self) -> str:
@@ -112,7 +114,7 @@ class FileTransfer:
         return max(0, self.total_bytes - self.bytes_transferred)
 
     def start_transfer(self, direction: str, now: float | None = None) -> None:
-        """Mark a (re)started transfer and reset rate sampling."""
+        """Mark a (re)started transfer and restart rate sampling."""
         ts = time() if now is None else now
         self.direction = direction
         self.status = TransferStatus.UPLOADING if direction == "↑" else TransferStatus.DOWNLOADING
@@ -120,9 +122,7 @@ class FileTransfer:
         self.progress_total = 0
         self.start_time = ts
         self._speed_bps = 0.0
-        self._sample_bytes = 0
-        self._sample_ts = 0.0
-        self._have_sample = False
+        self._samples.clear()
 
     def stop_transfer(self) -> None:
         """Return an interrupted row to its resting state."""
@@ -131,38 +131,34 @@ class FileTransfer:
         self.bytes_transferred = 0
         self.progress_total = 0
         self._speed_bps = 0.0
+        self._samples.clear()
 
     def note_progress(self, transferred: int, now: float | None = None) -> None:
-        """Record a progress sample and refresh the smoothed transfer rate.
+        """Record a progress sample and refresh the transfer rate.
 
-        The engine throttles progress events to one every 0.5 s, so the rate is
-        a time-weighted average over ``SPEED_WINDOW_SECONDS`` instead of
-        ``bytes / (now - start_time)``: the since-start average overshoots on the
-        first sample of a burst and stays low after an idle pause.
+        The rate is ``bytes moved / time elapsed`` across the samples of the
+        last ``SPEED_WINDOW_SECONDS``: a since-start average would stay low
+        after an idle pause and overshoot on a burst, and a per-sample rate
+        would flicker with the chunk granularity of the limiter.
         """
         ts = time() if now is None else now
         self.bytes_transferred = transferred
-        if not self._have_sample:
-            self._sample_bytes = transferred
-            self._sample_ts = ts
-            self._have_sample = True
-            return
-        if transferred < self._sample_bytes:
-            # Progress went backwards (restart/resume): start a fresh baseline.
-            self._sample_bytes = transferred
-            self._sample_ts = ts
+        if self._samples and transferred < self._samples[-1][1]:
+            # Progress went backwards (restart/resume): drop the history.
+            self._samples.clear()
             self._speed_bps = 0.0
+        self._samples.append((ts, transferred))
+        if len(self._samples) < 2:
             return
-        dt = ts - self._sample_ts
-        if dt < MIN_SAMPLE_INTERVAL:
-            return
-        instant = (transferred - self._sample_bytes) / dt
-        alpha = min(1.0, dt / SPEED_WINDOW_SECONDS)
-        self._speed_bps = (
-            instant if self._speed_bps <= 0.0 else alpha * instant + (1.0 - alpha) * self._speed_bps
-        )
-        self._sample_bytes = transferred
-        self._sample_ts = ts
+        # Keep one anchor sample at (or just before) the window edge, so the
+        # measured interval is the window itself, not the whole transfer.
+        edge = ts - SPEED_WINDOW_SECONDS
+        while len(self._samples) > 2 and self._samples[1][0] <= edge:
+            self._samples.popleft()
+        t0, b0 = self._samples[0]
+        dt = ts - t0
+        if dt > 0:
+            self._speed_bps = max(0.0, (transferred - b0) / dt)
 
     @property
     def speed_bps(self) -> float | None:

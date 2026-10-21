@@ -301,10 +301,11 @@ is flagged `TransferStatus.ERROR`
 (`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
 (`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
-The rate is a time-weighted average of the last `SPEED_WINDOW_SECONDS`
-(`file_panel/models.py::FileTransfer.note_progress`), not
-`bytes / (now - start_time)`, so a token-bucket burst and an idle pause do not
-distort it. `progress_total` keeps the wire total (compressed upload size, delta
+The rate is the bytes moved over the last `SPEED_WINDOW_SECONDS` of progress
+samples (`file_panel/models.py::FileTransfer.note_progress`), not
+`bytes / (now - start_time)`: the column follows the real stream, drops back to
+the sustained rate within a second and hides the per-chunk pacing of the
+limiter. `progress_total` keeps the wire total (compressed upload size, delta
 payload) separate from the on-disk `size`.
 
 **Clickable links**: the share name, the ancestor breadcrumb segments and the

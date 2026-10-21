@@ -5,6 +5,7 @@
 
 from time import time
 
+import pytest
 from hsync_common.format import format_bytes as _format_size
 from hsync_common.format import format_duration
 from hsync_common.ignore import IgnoreMatcher
@@ -1041,21 +1042,23 @@ class TestTransferRate:
         assert transfer.eta_seconds is not None
         assert abs(transfer.eta_seconds - expected_eta) < 1.0
 
-    def test_a_burst_decays_towards_the_sustained_rate(self):
-        """A token-bucket burst is shown, then the window converges on the cap."""
+    def test_a_burst_settles_on_the_sustained_rate(self):
+        """The window reports the last second, so a burst stops dominating it."""
         transfer = FileTransfer(filepath="a.bin", direction="↑", size=100_000_000)
         transfer.start_transfer("↑", now=0.0)
         transfer.note_progress(0, now=0.0)
-        transfer.note_progress(2_097_152, now=1.0)  # 2 MiB in 1 s → burst
-        assert transfer.speed_bps is not None
-        assert transfer.speed_bps > 1_900_000
 
+        # 2 MiB in 1 s: 512 KiB every 0.25 s.
+        for step in range(1, 5):
+            transfer.note_progress(step * 524_288, now=step * 0.25)
+        assert transfer.speed_bps == pytest.approx(2_097_152)
+
+        # 1 MiB/s sustained afterwards: 256 KiB every 0.25 s.
         sent = 2_097_152
-        for second in range(1, 9):
-            sent += 1_048_576  # 1 MiB/s sustained from now on
-            transfer.note_progress(sent, now=1.0 + second)
-        assert transfer.speed_bps is not None
-        assert transfer.speed_bps < 1_200_000
+        for step in range(1, 9):
+            sent += 262_144
+            transfer.note_progress(sent, now=1.0 + step * 0.25)
+        assert transfer.speed_bps == pytest.approx(1_048_576, rel=0.01)
 
     def test_a_backwards_sample_restarts_the_measurement(self):
         transfer = FileTransfer(filepath="a.bin", direction="↓", size=1000)
