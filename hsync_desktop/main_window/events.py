@@ -17,6 +17,7 @@ UI is loaded from ui/main_window.ui (Qt Designer).
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Callable
 from typing import cast
 from urllib.parse import urlsplit
@@ -47,6 +48,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop import debug_events
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
@@ -89,6 +91,7 @@ from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
     COLOR_CONNECTED,
     COLOR_DISCONNECTED,
+    COLOR_SYNCING,
     COLOR_WAITING,
     apply_theme,
 )
@@ -96,6 +99,9 @@ from hsync_desktop.ui.loader import load_ui_widget
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
+# Minimum spacing between scan-triggered previews: a burst of missed events
+# (many renames in a row) coalesces into at most one extra full scan per window.
+_SCAN_PREVIEW_COOLDOWN_S = 15.0
 _BTN_START_ACTIVE = (
     f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
     f" border: none; {_BTN_PAD} }}"
@@ -143,6 +149,7 @@ class EventsMixin:
             "disconnected": ("status.disconnected", COLOR_DISCONNECTED),
             "connecting": ("status.connecting", COLOR_WAITING),
             "waiting": ("status.waiting", COLOR_WAITING),
+            "syncing": ("status.syncing", COLOR_SYNCING),
             "error": ("status.error", COLOR_DISCONNECTED),
         }
         key, color = i18n_map.get(status, ("status.unknown", COLOR_DISCONNECTED))
@@ -180,7 +187,29 @@ class EventsMixin:
                 if self._info_banner_kind == "progress":
                     self._hide_info_banner()
                 if self._engine.is_running:
-                    self._engine.preview()
+                    self._on_connected_refresh()
+        debug_events.log(
+            "status_applied",
+            status=status,
+            connected=self._connected,
+            rows=len(self._file_panel.table._transfers),
+        )
+
+    def _on_connected_refresh(self) -> None:
+        """Refresh the file list after a connect, with a one-off catch-up.
+
+        The realtime channel is opened only after the initial sync, so peer
+        changes made meanwhile (e.g. a remote delete) were not delivered. On the
+        first connect of a p2p run, mark them with a preview and run one real
+        cycle now instead of waiting for the periodic resync. Later reconnects
+        only refresh the preview.
+        """
+        if self._p2p_enabled and not self._initial_reconcile_done:
+            self._initial_reconcile_done = True
+            self._engine.preview()
+            self._engine.sync()
+        else:
+            self._engine.preview()
 
     # ── Info banner ──────────────────────────────────────────────────────
 
@@ -283,14 +312,33 @@ class EventsMixin:
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
+        row = self._file_panel.table._transfers.get(rel_path)
+        stats = self._engine.stats
+        debug_events.log(
+            "transfer_applied",
+            file=rel_path,
+            direction=direction,
+            size=size,
+            row_status=row.status.value if row else None,
+            bytes_received=stats.bytes_received,
+            bytes_sent=stats.bytes_sent,
+        )
 
     @Slot(str, int, int, str)
     def _on_file_progress(
         self, filepath: str, bytes_transferred: int, total_bytes: int, op: str
     ) -> None:
         """Handle real-time file transfer progress updates."""
-        self._file_panel.update_transfer_progress(
-            self._rel_path(filepath), bytes_transferred, total_bytes, op
+        rel = self._rel_path(filepath)
+        self._file_panel.update_transfer_progress(rel, bytes_transferred, total_bytes, op)
+        row = self._file_panel.table._transfers.get(rel)
+        debug_events.log(
+            "progress_applied",
+            file=rel,
+            op=op,
+            transferred=bytes_transferred,
+            total=total_bytes,
+            row_status=row.status.value if row else None,
         )
 
     @Slot(str, str)
@@ -324,6 +372,13 @@ class EventsMixin:
             mtime=mtime,
             client_cid=client_cid,
             client_ip=client_ip,
+        )
+        row = self._file_panel.table._transfers.get(new_rel)
+        debug_events.log(
+            "file_renamed_applied",
+            old=old_rel,
+            new=new_rel,
+            row_status=row.status.value if row else None,
         )
         # A rename can merge two tracked paths into one, changing the distinct
         # file count even though no bytes moved.
@@ -398,10 +453,17 @@ class EventsMixin:
         self._append_desktop_log("ERROR", f"{arrow} {filepath}: {message}")
         # The row would otherwise keep showing an in-flight progress bar.
         self._file_panel.mark_failed(self._rel_path(filepath))
-        # Per-file failures are aggregated into a single toast at the end of the
-        # run; the OS notification stays per file (the in-app toast is not shown
-        # for each, to avoid flooding).
+        # Per-file failures are aggregated into one in-app error toast (updated
+        # in place, so a burst cannot flood the window); the OS notification
+        # stays per file. Continuous runs never reach _on_process_finished, so
+        # surfacing it here is what makes the failure visible in the window.
         self._transfer_failure_count += 1
+        if not self._selection_sync_active:
+            self._show_info_banner(
+                tr("notif.transfers_failed").replace("{count}", str(self._transfer_failure_count)),
+                kind="error",
+                title=tr("notif.error"),
+            )
         if self._notifier:
             self._notifier.error(tr("notif.error"), message)
 
@@ -440,12 +502,46 @@ class EventsMixin:
     @Slot()
     def _on_sync_completed(self) -> None:
         """Finish a scoped Send/Receive once the one-shot cycle completes."""
-        if self._selection_sync_active and self._selection_sync_phase == "run":
+        was_scoped = self._selection_sync_active
+        if was_scoped and self._selection_sync_phase == "run":
             outcome = "done" if self._selection_result_count > 0 else "already_synced"
             self._finish_selection_sync(outcome)
         # The cycle just moved files: recompute the local size instead of keeping
         # the value the client reported before its transfers.
         self._file_panel.refresh_share_size()
+        if not was_scoped and self._engine.is_running:
+            # The cycle may have reconciled a path whose live rename/add event
+            # was missed while the link was down (the scan then shows a stale
+            # "Local"). Refresh the statuses so a file now present on both sides
+            # reads "Synced" again instead of waiting for the next connect/manual
+            # preview.
+            self._engine.preview()
+
+    @Slot()
+    def _on_files_added_on_disk(self) -> None:
+        """Refresh the statuses when the scan finds paths outside the event flow.
+
+        A remote rename/add event lost while the link was down leaves the new
+        path created by the consistency scan as a stale "Local"; a preview
+        classifies it (typically "Synced") within the scan interval instead of
+        waiting for the periodic sync.
+
+        The scan reports the whole batch, so a burst of missed renames is one
+        call, not one per file. The cooldown caps the extra full scans too: a
+        continuous stream of external renames cannot trigger one every 5 s.
+        """
+        if not (
+            self._engine.is_running
+            and self._connected
+            and self._p2p_enabled
+            and not self._selection_sync_active
+        ):
+            return
+        now = time.monotonic()
+        if now - self._last_scan_preview_at < _SCAN_PREVIEW_COOLDOWN_S:
+            return
+        self._last_scan_preview_at = now
+        self._engine.preview()
 
     @Slot(str, str)
     def _on_duplicate_identity(self, peer_cid: str, peer_address: str) -> None:
@@ -493,7 +589,15 @@ class EventsMixin:
         rel_path = filepath
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path) :].lstrip("/\\")
-        self._file_panel.update_file_status(rel_path, status, size)
+        self._file_panel.update_file_status(rel_path, status, size, preview=True)
+        row = self._file_panel.table._transfers.get(rel_path)
+        debug_events.log(
+            "preview_file_status",
+            file=rel_path,
+            status=status,
+            size=size,
+            row_status=row.status.value if row else None,
+        )
         # Accumulate preview statistics
         if status == "to_download":
             self._preview_stats.to_download += 1
@@ -513,7 +617,7 @@ class EventsMixin:
         rel_old = old_path
         if base_path and old_path.startswith(base_path):
             rel_old = old_path[len(base_path) :].lstrip("/\\")
-        self._file_panel.update_file_status(rel_old, "to_rename", size)
+        self._file_panel.update_file_status(rel_old, "to_rename", size, preview=True)
         self._preview_stats.to_rename += 1
 
     @Slot(int, str)

@@ -21,7 +21,7 @@ from PySide6.QtCore import (
     QUrl,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QPalette
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -44,6 +44,7 @@ from hsync_desktop.file_panel.filter import has_dot_segment
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     STATUS_COLORS,
+    STATUS_COLORS_DARK,
     FileTransfer,
     TransferStatus,
 )
@@ -111,7 +112,7 @@ class FileTransferTable(QTableWidget):
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden; the current columns stay visible.
-    _DEFAULT_HIDDEN = (COL_SPEED, COL_DIRECTION)
+    _DEFAULT_HIDDEN = (COL_SPEED,)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -339,6 +340,20 @@ class FileTransferTable(QTableWidget):
             if transfer:
                 self._ctx_open(transfer)
 
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Enter/Return opens the selected row (reliable folder navigation).
+
+        Double-click keeps working, but a rebuild during a busy sync can swallow
+        it; the keyboard path always opens the folder under the cursor.
+        """
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            row = self.currentRow()
+            if row >= 0:
+                self._on_cell_double_clicked(row, COL_NAME)
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
     def set_base_directory(self, directory: str) -> None:
         """Set the base directory for resolving absolute file paths."""
         self._base_directory = directory
@@ -489,6 +504,12 @@ class FileTransferTable(QTableWidget):
         total_transferred = 0
         max_mtime = 0.0
         status_priority = 100
+        ops = {
+            TransferStatus.TO_UPLOAD: 0,
+            TransferStatus.TO_DOWNLOAD: 0,
+            TransferStatus.TO_DELETE: 0,
+            TransferStatus.TO_RENAME: 0,
+        }
 
         for f in files:
             if not f.filepath.endswith("/"):
@@ -497,9 +518,14 @@ class FileTransferTable(QTableWidget):
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
+            if f.status in ops:
+                ops[f.status] += 1
 
         status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
         progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
+        # Aggregate throughput of the folder's in-flight children
+        # (speed_bps is None for anything not transferring).
+        speed = sum(f.speed_bps or 0.0 for f in files)
 
         return {
             "count": count,
@@ -508,6 +534,11 @@ class FileTransferTable(QTableWidget):
             "progress": progress,
             "status_key": status_key,
             "status_priority": status_priority,
+            "speed": speed,
+            # Planned-operation breakdown for the folder tooltip: a folder can
+            # mix uploads/downloads/deletes, so the neutral aggregate status
+            # alone does not say what will actually happen.
+            "ops": {status: n for status, n in ops.items() if n},
         }
 
     def _schedule_refresh(self) -> None:
@@ -517,7 +548,17 @@ class FileTransferTable(QTableWidget):
             self._refresh_timer.start()
 
     def _do_refresh_view(self) -> None:
-        """Execute the pending refresh."""
+        """Execute the pending refresh, unless a click is pending.
+
+        During an active sync the table is rebuilt every few hundred ms.
+        Replacing the item under the pointer between the two clicks of a
+        double-click defeats folder navigation, so the rebuild waits for the
+        click window to close.
+        """
+        if self._click_timer.isActive():
+            self._refresh_pending = True
+            self._refresh_timer.start(QApplication.doubleClickInterval())
+            return
         if self._refresh_pending:
             self._refresh_pending = False
             self.refresh_view()
@@ -580,7 +621,8 @@ class FileTransferTable(QTableWidget):
         self.setItem(row, COL_ICON, icon_item)
 
         # Name
-        self.setItem(row, COL_NAME, QTableWidgetItem(display_name))
+        name_item = QTableWidgetItem(display_name)
+        self.setItem(row, COL_NAME, name_item)
 
         # Type
         self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))
@@ -669,7 +711,28 @@ class FileTransferTable(QTableWidget):
         else:
             status_text = ""
             status_for_color = TransferStatus.LOCAL
-        self.setItem(row, COL_STATUS, QTableWidgetItem(status_text))
+        status_item = QTableWidgetItem(status_text)
+        self.setItem(row, COL_STATUS, status_item)
+
+        # Folder tooltip: the neutral aggregate status hides the mix of planned
+        # operations, so spell out what will actually happen (e.g.
+        # "To upload: 3, To download: 1"). Files keep their precise status.
+        if is_folder and folder_data:
+            ops = folder_data.get("ops") or {}
+            parts = []
+            for op_status, label_key in (
+                (TransferStatus.TO_UPLOAD, "detail.to_upload"),
+                (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
+                (TransferStatus.TO_DELETE, "detail.to_delete"),
+                (TransferStatus.TO_RENAME, "detail.to_rename"),
+            ):
+                count = ops.get(op_status, 0)
+                if count:
+                    parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+            if parts:
+                tooltip = ", ".join(parts)
+                name_item.setToolTip(tooltip)
+                status_item.setToolTip(tooltip)
 
         # Direction (optional column, hidden by default)
         direction_text = transfer.direction if (transfer and not is_folder) else ""
@@ -677,8 +740,12 @@ class FileTransferTable(QTableWidget):
         direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setItem(row, COL_DIRECTION, direction_item)
 
-        # Speed (optional column, hidden by default)
-        rate = transfer.speed_bps if (transfer and not is_folder) else None
+        # Speed (optional column, hidden by default). A folder shows the sum of
+        # its in-flight children so the aggregate rate is visible too.
+        if is_folder:
+            rate = folder_data.get("speed") if folder_data else None
+        else:
+            rate = transfer.speed_bps if transfer else None
         speed_text = f"{format_bytes(rate)}/s" if rate else ""
         speed_item = QTableWidgetItem(speed_text)
         speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -689,7 +756,11 @@ class FileTransferTable(QTableWidget):
         if status_for_color is TransferStatus.LOCAL and not self._connected:
             color = default_text_color
         else:
-            color = STATUS_COLORS.get(status_for_color, QColor(128, 128, 128))
+            # The light theme needs the darker palette; the dark theme the
+            # brighter one, so the status stays readable on either background.
+            dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
+            colors = STATUS_COLORS_DARK if dark else STATUS_COLORS
+            color = colors.get(status_for_color, QColor(128, 128, 128))
         for col in range(self.columnCount()):
             item = self.item(row, col)
             if item:
@@ -1020,12 +1091,30 @@ class FileTransferTable(QTableWidget):
         self.setRowCount(0)
 
     def reset_all_to_local(self) -> None:
-        """Reset every file's status to LOCAL."""
+        """Reset resting rows to LOCAL, keeping active/transient states.
+
+        A link flap (disconnected/waiting) must not erase the progress of a
+        transfer in flight nor a "Deleted" marker the user has not acknowledged
+        yet: only resting rows fall back to LOCAL, so the 5s consistency pass
+        cannot then drop a row whose file is not on disk yet.
+        """
+        from hsync_desktop import debug_events
+
+        protected_states = (
+            TransferStatus.DOWNLOADING,
+            TransferStatus.UPLOADING,
+            TransferStatus.DELETED,
+        )
+        protected: list[tuple[str, str]] = []
         with QMutexLocker(self._transfers_mutex):
-            for transfer in self._transfers.values():
+            for key, transfer in self._transfers.items():
+                if transfer.status in protected_states:
+                    protected.append((key, transfer.status.value))
+                    continue
                 transfer.status = TransferStatus.LOCAL
                 transfer.direction = "—"
                 transfer.bytes_transferred = 0
+        debug_events.log("reset_all_to_local", protected=protected)
         self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
@@ -1047,8 +1136,15 @@ class FileTransferTable(QTableWidget):
         mtime: float = 0.0,
         client_cid: str = "",
         client_ip: str = "",
+        *,
+        preview: bool = False,
     ) -> None:
-        """Update or add a file with the given status."""
+        """Update or add a file with the given status.
+
+        ``preview`` marks a dry-run status from the preview pass: it must never
+        downgrade a row that is actively transferring, or a preview triggered by
+        a reconnect would hide the live progress of an in-flight transfer.
+        """
         status_mapping = {
             "synced": TransferStatus.SYNCED,
             "to_download": TransferStatus.TO_DOWNLOAD,
@@ -1072,6 +1168,11 @@ class FileTransferTable(QTableWidget):
         with QMutexLocker(self._transfers_mutex):
             if filepath in self._transfers:
                 t = self._transfers[filepath]
+                if preview and t.status in (
+                    TransferStatus.DOWNLOADING,
+                    TransferStatus.UPLOADING,
+                ):
+                    return
                 t.status = transfer_status
                 t.direction = direction
                 if size:
@@ -1104,7 +1205,14 @@ class FileTransferTable(QTableWidget):
                 t.status = TransferStatus.DELETED
                 t.direction = "✕"
         self.refresh_view()
-        QTimer.singleShot(3000, lambda: self._remove_file(filepath))
+        # Show the marker for a moment, then remove the row. The timer is
+        # parented to the table so it is destroyed with the widget instead of
+        # firing into a deleted C++ object (window closed or test teardown
+        # before the delay elapses).
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda: self._remove_file(filepath))
+        timer.start(3000)
 
     def _remove_file(self, filepath: str) -> None:
         """Remove a file from the table."""

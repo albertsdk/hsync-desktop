@@ -163,6 +163,7 @@ def _get_accent_hover() -> QColor:
 COLOR_CONNECTED = QColor("#2EA043")
 COLOR_DISCONNECTED = QColor("#CF222E")
 COLOR_WAITING = QColor("#BF8700")
+COLOR_SYNCING = QColor("#0969DA")
 
 
 def _build_light_palette() -> QPalette:

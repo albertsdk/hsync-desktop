@@ -285,6 +285,11 @@ class ActionsMixin:
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
         self._transfer_failure_count = 0  # reset per engine process
+        self._p2p_enabled = bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", False, bool)
+        )
+        self._initial_reconcile_done = False
+        self._last_scan_preview_at = 0.0
         # A fresh process runs a fresh p2p election: back to the neutral role.
         self._role_known = False
         self._is_master = None

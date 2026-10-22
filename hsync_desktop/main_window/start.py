@@ -396,9 +396,11 @@ class StartMixin:
         yes_btn = msg.button(QMessageBox.StandardButton.Yes)
         if yes_btn:
             yes_btn.setText(tr("action.yes"))
+            yes_btn.setIcon(icon("dialog-ok"))
         no_btn = msg.button(QMessageBox.StandardButton.No)
         if no_btn:
             no_btn.setText(tr("action.no"))
+            no_btn.setIcon(icon("dialog-cancel"))
         msg.setDefaultButton(QMessageBox.StandardButton.No)
         return msg.exec() == QMessageBox.StandardButton.Yes
 
@@ -424,9 +426,11 @@ class StartMixin:
         yes_btn = msg.button(QMessageBox.StandardButton.Yes)
         if yes_btn:
             yes_btn.setText(tr("action.yes"))
+            yes_btn.setIcon(icon("dialog-ok"))
         no_btn = msg.button(QMessageBox.StandardButton.No)
         if no_btn:
             no_btn.setText(tr("action.no"))
+            no_btn.setIcon(icon("dialog-cancel"))
         msg.setDefaultButton(QMessageBox.StandardButton.No)
         return msg.exec() == QMessageBox.StandardButton.Yes
 

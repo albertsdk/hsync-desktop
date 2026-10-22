@@ -811,6 +811,52 @@ class TestLinkStyling:
         panel._update_breadcrumb()
         assert panel._breadcrumb_icon.cursor().shape() == Qt.CursorShape.PointingHandCursor
 
+    def test_breadcrumb_uses_slashes_on_posix(self, window, monkeypatch):
+        from hsync_desktop.file_panel import panel as panel_mod
+
+        monkeypatch.setattr(panel_mod, "_platform", lambda: "linux")
+        window._file_panel._table._current_path = "sub/dir"
+
+        window._file_panel._update_breadcrumb()
+
+        text = window._file_panel._breadcrumb_label.text()
+        assert " / " in text
+        assert "›" not in text
+        # The root is the icon, so a leading slash would read as an absolute path.
+        assert not text.startswith("/")
+
+    def test_breadcrumb_uses_explorer_separator_on_windows(self, window, monkeypatch):
+        from hsync_desktop.file_panel import panel as panel_mod
+
+        monkeypatch.setattr(panel_mod, "_platform", lambda: "win32")
+        window._file_panel._table._current_path = "sub/dir"
+
+        window._file_panel._update_breadcrumb()
+
+        text = window._file_panel._breadcrumb_label.text()
+        assert " > " in text
+        assert not text.startswith(">")
+
+    def test_nav_buttons_use_the_larger_icon_size(self, window):
+        from PySide6.QtCore import QSize
+
+        panel = window._file_panel
+        for button in (panel._btn_back, panel._btn_forward, panel._btn_up):
+            assert button.iconSize() == QSize(20, 20)
+
+    def test_root_icon_uses_the_larger_icon_size(self, window):
+        from PySide6.QtCore import QSize
+
+        panel = window._file_panel
+        panel._table._current_path = "sub"
+
+        panel._update_breadcrumb()
+
+        pixmap = panel._breadcrumb_icon.pixmap()
+        assert not pixmap.isNull()
+        assert pixmap.size() == QSize(20, 20)
+        assert panel._breadcrumb_icon.size() == QSize(24, 24)
+
     def test_detail_href_is_escaped(self, window):
         from hsync_desktop.file_panel import FileTransfer, TransferStatus
 
@@ -1033,6 +1079,204 @@ class TestInfoToast:
         window._on_process_finished(0, "stopped")
 
         assert window._info_banner.isHidden()
+
+    def test_a_transfer_failure_shows_an_in_app_error_toast(self, window, tmp_path):
+        """A failed per-file transfer is visible in-window (continuous runs never
+        reach _on_process_finished), consolidated into one updated toast."""
+        window._on_transfer_failed("upload", str(tmp_path / "big.bin"), "boom")
+
+        assert window._info_banner_kind == "error"
+        assert not window._info_banner.isHidden()
+        assert (
+            tr("notif.transfers_failed").replace("{count}", "1") in window._info_banner_label.text()
+        )
+
+        window._on_transfer_failed("upload", str(tmp_path / "other.bin"), "boom")
+
+        assert (
+            tr("notif.transfers_failed").replace("{count}", "2") in window._info_banner_label.text()
+        )
+
+
+class TestInFlightRowsSurviveStatusFlap:
+    """A link flap keeps an in-flight transfer visible (no progress wipe)."""
+
+    def test_upload_progress_is_kept_across_a_waiting_status(self, window, tmp_path):
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+
+        window._on_file_progress(str(tmp_path / "big.bin"), 262144, 6924474, "upload")
+        window._on_status("waiting")
+
+        row = window._file_panel.table._transfers["big.bin"]
+        assert row.status is TransferStatus.UPLOADING
+
+    def test_preview_status_keeps_an_in_flight_row(self, window, tmp_path):
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+
+        window._on_file_progress(str(tmp_path / "big.bin"), 262144, 6924474, "upload")
+        window._on_file_status("synced", str(tmp_path / "big.bin"), 6924474)
+
+        row = window._file_panel.table._transfers["big.bin"]
+        assert row.status is TransferStatus.UPLOADING
+
+
+class TestLogViewScrolling:
+    """New log lines must not steal the user's scroll position."""
+
+    def test_a_long_line_keeps_the_horizontal_position(self, window, qtbot):
+        window.resize(900, 600)
+        window.show()
+
+        window._append_log("x" * 20_000)
+        qtbot.wait(20)
+
+        bar = window._log_view.horizontalScrollBar()
+        assert bar.maximum() > 0
+        assert bar.value() == 0  # left-aligned by default
+
+        bar.setValue(10)
+        window._append_log("y" * 20_000)
+        qtbot.wait(20)
+        assert bar.value() == 10  # the user's position is preserved
+
+    def test_a_reader_scrolled_up_keeps_the_vertical_position(self, window, qtbot):
+        window.resize(900, 600)
+        window.show()
+        for i in range(500):
+            window._append_log(f"line {i}")
+        qtbot.wait(20)
+
+        bar = window._log_view.verticalScrollBar()
+        assert bar.maximum() > 0
+        bar.setValue(5)
+        window._append_log("new line")
+        qtbot.wait(20)
+
+        assert bar.value() == 5
+
+
+class TestInitialReconcile:
+    """The first connect after the initial sync runs one real catch-up cycle."""
+
+    @staticmethod
+    def _stub(p2p: bool):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        return SimpleNamespace(
+            _engine=MagicMock(is_running=True),
+            _p2p_enabled=p2p,
+            _initial_reconcile_done=False,
+        )
+
+    def test_first_connect_runs_preview_then_sync(self):
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = self._stub(p2p=True)
+        EventsMixin._on_connected_refresh(stub)
+
+        stub._engine.preview.assert_called_once()
+        stub._engine.sync.assert_called_once()
+
+        # A later reconnect only refreshes the preview (the periodic resync
+        # covers the gap); the catch-up must not repeat.
+        EventsMixin._on_connected_refresh(stub)
+        assert stub._engine.preview.call_count == 2
+        stub._engine.sync.assert_called_once()
+
+    def test_no_catch_up_in_server_mode(self):
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = self._stub(p2p=False)
+        EventsMixin._on_connected_refresh(stub)
+
+        stub._engine.preview.assert_called_once()
+        stub._engine.sync.assert_not_called()
+
+
+class TestSyncingStatus:
+    """The initial full sync reports "Syncing…", not "Connecting…"."""
+
+    def test_the_syncing_status_has_its_own_label_and_colour(self, window):
+        from hsync_desktop.themes import COLOR_SYNCING
+
+        window._on_status("syncing")
+
+        assert window._status_label.text() == tr("status.syncing")
+        assert COLOR_SYNCING.name() in window._status_dot.styleSheet()
+
+
+class TestPostSyncStatusRefresh:
+    """A completed cycle refreshes the file statuses (self-heals a stale Local)."""
+
+    def test_a_completed_cycle_triggers_a_preview(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = SimpleNamespace(
+            _selection_sync_active=False,
+            _selection_sync_phase="run",
+            _engine=MagicMock(is_running=True),
+            _file_panel=MagicMock(),
+        )
+
+        EventsMixin._on_sync_completed(stub)
+
+        stub._file_panel.refresh_share_size.assert_called_once()
+        stub._engine.preview.assert_called_once()
+
+
+class TestScanStatusRefresh:
+    """A path found on disk outside the event flow triggers a preview."""
+
+    @staticmethod
+    def _stub(**overrides):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        values = {
+            "_engine": MagicMock(is_running=True),
+            "_connected": True,
+            "_p2p_enabled": True,
+            "_selection_sync_active": False,
+            "_last_scan_preview_at": 0.0,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_a_new_on_disk_path_refreshes_the_statuses(self):
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = self._stub()
+        EventsMixin._on_files_added_on_disk(stub)
+        stub._engine.preview.assert_called_once()
+
+    def test_no_preview_while_disconnected_or_scoped(self):
+        from hsync_desktop.main_window.events import EventsMixin
+
+        for overrides in ({"_connected": False}, {"_selection_sync_active": True}):
+            stub = self._stub(**overrides)
+            EventsMixin._on_files_added_on_disk(stub)
+            stub._engine.preview.assert_not_called()
+
+    def test_the_scan_preview_is_rate_limited(self):
+        """A burst of batches within the cooldown yields one extra scan."""
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = self._stub()
+        EventsMixin._on_files_added_on_disk(stub)
+        stub._engine.preview.assert_called_once()
+
+        EventsMixin._on_files_added_on_disk(stub)
+        stub._engine.preview.assert_called_once()
 
 
 class TestMasterRoleNotification:
@@ -1572,6 +1816,37 @@ class TestDeletionRiskGate:
         assert window._check_deletion_risk() is True
         assert len(shown) == 1
         assert shown[0].windowTitle() == tr("notif.deletion_risk")
+        # The Yes/No buttons use the app theme icons, not the system ones.
+        from hsync_desktop.icons import icon
+
+        yes = shown[0].button(QMessageBox.StandardButton.Yes)
+        no = shown[0].button(QMessageBox.StandardButton.No)
+        assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
+        assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+
+class TestKeylessP2pPrompt:
+    """The keyless-P2P confirmation uses the app theme icons too."""
+
+    def test_yes_no_buttons_use_the_app_icons(self, window, settings, monkeypatch):
+        settings.setValue("p2p/enabled", True)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(
+            QMessageBox,
+            "exec",
+            lambda self: shown.append(self) or int(QMessageBox.StandardButton.Yes),
+        )
+
+        assert window._check_keyless_p2p() is True
+
+        assert len(shown) == 1
+        assert shown[0].windowTitle() == tr("warn.keyless_p2p_title")
+        from hsync_desktop.icons import icon
+
+        yes = shown[0].button(QMessageBox.StandardButton.Yes)
+        no = shown[0].button(QMessageBox.StandardButton.No)
+        assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
+        assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
 
 class TestSimulationIndicator:

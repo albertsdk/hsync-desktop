@@ -23,6 +23,7 @@ _STATUS_KEYS = {
     "disconnected": "status.disconnected",
     "connecting": "status.connecting",
     "waiting": "status.waiting",
+    "syncing": "status.syncing",
     "error": "status.error",
 }
 
@@ -124,7 +125,7 @@ class SystemTray(QSystemTrayIcon):
         icon_key = (
             "connected"
             if status == "connected"
-            else ("waiting" if status in ("connecting", "waiting") else "disconnected")
+            else ("waiting" if status in ("connecting", "waiting", "syncing") else "disconnected")
         )
         self.setIcon(self._icons[icon_key])
         self._update_tooltip()

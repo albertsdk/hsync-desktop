@@ -171,6 +171,9 @@ class MainWindow(
         self._selection_result_count = 0  # successful transfers in the run phase
         self._transfer_failure_count = 0  # failed per-file transfers this run
         self._ever_connected = False  # engine reached "connected" this process
+        self._p2p_enabled = False  # p2p mode for the current engine run
+        self._initial_reconcile_done = False  # post-initial-sync catch-up ran
+        self._last_scan_preview_at = 0.0  # cooldown for scan-triggered previews
         # p2p role: unknown until the first role event; the text is shown only
         # once connected (see MainWindow._apply_role_visibility).
         self._role_known = False
@@ -230,6 +233,7 @@ class MainWindow(
         e.sync_completed.connect(self._on_sync_completed)
         e.folder_size_changed.connect(self._on_folder_size)
         self._file_panel.share_size_changed.connect(self._on_share_size_changed)
+        self._file_panel.scan_found_new_files.connect(self._on_files_added_on_disk)
         # Engine errors are always mirrored into the log panel; a start failure
         # additionally raises a modal dialog (see `_start_engine`). The handler
         # also owns the outcome of a scoped Send/Receive failure.

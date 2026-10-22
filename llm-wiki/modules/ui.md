@@ -283,13 +283,17 @@ The table re-localizes its **column headers** on a live language change
 `main_window/ui.py::MainWindow._apply_translations`).
 
 **Columns**: the table ships the standard columns plus two optional ones —
-**Speed** (`file.speed`, the live `speed_bps` rate, blank when not transferring)
-and **Direction** (`file.direction`, the ↑/↓ arrow) — both hidden by default.
-Visibility is toggled from the header menu and persisted as stable keys in
-`ui/file_columns_hidden` (`FileTransferTable._save_column_visibility` /
+**Speed** (`file.speed`, the live `speed_bps` rate, blank when not transferring),
+hidden by default, and **Direction** (`file.direction`, the ↑/↓ arrow — ✕ on a
+deleted row), visible by default. Visibility is toggled from the header menu and
+persisted as stable keys in `ui/file_columns_hidden`
+(`FileTransferTable._save_column_visibility` /
 `FileTransferTable._restore_column_visibility`). `FileTransfer.speed_bps`
 (`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
-stay consistent.
+stay consistent. A folder keeps the neutral aggregate status (`folder.status.to_sync`)
+because it can mix operations; its tooltip spells out the planned actions
+(`folder.ops_item`, e.g. "To upload: 3, To download: 1") while files keep the
+precise per-action label (`detail.to_upload`, `detail.to_download`, …).
 
 **Live progress**: a received file does not exist on disk before it completes, so
 its row cannot come from the scan. `update_transfer_progress`
@@ -316,6 +320,16 @@ normal text; the hand cursor and the `linkActivated` handlers still mark them as
 clickable. The current breadcrumb segment is plain text, and the root icon is
 inert when the list already shows the root, so a click never targets the folder
 already displayed.
+
+**Breadcrumb notation**: segments are joined by
+`file_panel/panel.py::_breadcrumb_separator` — `" / "` (GNOME Files, and every
+textual path on macOS) or `" > "` on Windows (Explorer) — and the breadcrumb
+never starts with a separator: the root icon is the first segment, so a leading
+`/` would read as an absolute path. The navigation buttons and the root icon
+render at `panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled 24×24
+SVGs); the root icon keeps a `panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
+the WCAG 2.2 minimum. `panel.py::FilePanel._refresh_breadcrumb_icon` is the only
+place that re-renders that icon, including after a theme change.
 
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).

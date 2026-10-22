@@ -168,7 +168,19 @@ def main(argv: list[str] | None = None) -> int:
     single_instance = SingleInstance(app)
     if not single_instance.try_start():
         # Another instance is already running - we signaled it to activate
+        from hsync_desktop import debug_events
+
+        debug_events.log("app_start_secondary", pid=os.getpid())
         return 0
+
+    from hsync_desktop import debug_events
+
+    debug_events.log(
+        "app_start",
+        pid=os.getpid(),
+        debug_file=debug_events.output_path(),
+        argv=sys.argv,
+    )
 
     # Tighten permissions on the QSettings config file (owner-only) in case a
     # previous run created it world-readable.

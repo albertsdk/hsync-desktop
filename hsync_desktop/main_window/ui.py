@@ -609,6 +609,17 @@ class UiBuildMixin:
         ``--color=always``); ``styled_runs`` turns them into char formats and
         strips them from the text, so ``toPlainText()`` stays clean.
         """
+        vertical = self._log_view.verticalScrollBar()
+        horizontal = self._log_view.horizontalScrollBar()
+        # Appending moves the cursor to the end of the new (possibly long) line,
+        # which would scroll horizontally to the right edge and hide the start of
+        # the line. Keep the user's horizontal position (left by default).
+        # Also auto-follow the tail only when the user is already at the bottom;
+        # otherwise a reader scrolled up keeps their place.
+        horizontal_pos = horizontal.value()
+        vertical_pos = vertical.value()
+        at_bottom = vertical_pos >= vertical.maximum() - 2
+
         cursor = self._log_view.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         text_document = self._log_view.document()
@@ -618,9 +629,12 @@ class UiBuildMixin:
         for run in styled_runs(line, theme):
             cursor.insertText(run.text, run.fmt)
         self._log_view.setTextCursor(cursor)
-        # Auto-scroll to bottom
-        scrollbar = self._log_view.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+
+        if at_bottom:
+            vertical.setValue(vertical.maximum())
+        else:
+            vertical.setValue(vertical_pos)
+        horizontal.setValue(horizontal_pos)
 
     def _rerender_log(self) -> None:
         """Re-render the log panel after a theme change.

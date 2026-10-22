@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import html
 import os
+import sys
 from pathlib import Path
 
 from hsync_common.ignore import IgnoreMatcher
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -33,12 +34,34 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.ui.loader import load_ui_widget
 
+# Explorer's breadcrumb separates segments with ">", while GNOME Files and
+# macOS textual paths use "/". The separator never leads the breadcrumb: the
+# root icon is the first segment, so a leading "/" would read as an absolute
+# path.
+_BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
+_NAV_ICON_PX = 20
+# Click target around the glyph, at the WCAG 2.2 target-size minimum.
+_NAV_ICON_BOX_PX = 24
+
+
+def _platform() -> str:
+    """The current platform string (a seam for tests)."""
+    return sys.platform
+
+
+def _breadcrumb_separator() -> str:
+    """The breadcrumb separator matching the host file manager."""
+    return _BREADCRUMB_SEPARATORS.get(_platform(), _BREADCRUMB_SEPARATORS["default"])
+
 
 class FilePanel(QWidget):
     """Complete file transfer panel with table and collapsible detail panel."""
 
     # Emits the scanned local size in bytes (-1 = unknown, 0 = empty share).
     share_size_changed = Signal(int)
+    # Emits when the consistency scan added paths that were not tracked (a
+    # missed live event, e.g. a remote rename): the window refreshes statuses.
+    scan_found_new_files = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -72,18 +95,21 @@ class FilePanel(QWidget):
 
         self._btn_back = QToolButton()
         self._btn_back.setIcon(get_icon("go-previous"))
+        self._btn_back.setIconSize(QSize(_NAV_ICON_PX, _NAV_ICON_PX))
         self._btn_back.setToolTip(tr("nav.back"))
         self._btn_back.setEnabled(False)
         self._btn_back.setAutoRaise(True)
 
         self._btn_forward = QToolButton()
         self._btn_forward.setIcon(get_icon("go-next"))
+        self._btn_forward.setIconSize(QSize(_NAV_ICON_PX, _NAV_ICON_PX))
         self._btn_forward.setToolTip(tr("nav.forward"))
         self._btn_forward.setEnabled(False)
         self._btn_forward.setAutoRaise(True)
 
         self._btn_up = QToolButton()
         self._btn_up.setIcon(get_icon("go-up"))
+        self._btn_up.setIconSize(QSize(_NAV_ICON_PX, _NAV_ICON_PX))
         self._btn_up.setToolTip(tr("nav.up"))
         self._btn_up.setEnabled(False)
         self._btn_up.setAutoRaise(True)
@@ -93,8 +119,7 @@ class FilePanel(QWidget):
         nav_layout.addWidget(self._btn_up)
 
         self._breadcrumb_icon = QLabel(nav_bar)
-        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
-        self._breadcrumb_icon.setFixedSize(20, 20)
+        self._refresh_breadcrumb_icon()
         self._breadcrumb_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._breadcrumb_icon.setCursor(Qt.CursorShape.ArrowCursor)
         self._breadcrumb_icon.setToolTip(tr("nav.root"))
@@ -172,8 +197,13 @@ class FilePanel(QWidget):
         if self._table.current_path:
             self._table.navigate_to("")
 
+    def _refresh_breadcrumb_icon(self) -> None:
+        """Re-render the root icon at the navigation icon size."""
+        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(_NAV_ICON_PX, _NAV_ICON_PX))
+        self._breadcrumb_icon.setFixedSize(_NAV_ICON_BOX_PX, _NAV_ICON_BOX_PX)
+
     def _update_breadcrumb(self) -> None:
-        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
+        self._refresh_breadcrumb_icon()
         current_folder = self._table.current_path
         if not current_folder:
             self._breadcrumb_label.setText("")
@@ -203,7 +233,7 @@ class FilePanel(QWidget):
                     f'<a href="nav:{safe_path}" '
                     f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
                 )
-        breadcrumb = " › " + " › ".join(parts)
+        breadcrumb = _breadcrumb_separator().join(parts)
         self._breadcrumb_label.setText(breadcrumb)
         # QLabel shows the hand over the links and the arrow over the plain
         # current segment, so leave the cursor to it.
@@ -455,11 +485,41 @@ class FilePanel(QWidget):
                 mtime=mtime,
             )
             self._table.add_transfer(transfer)
+        if new_files:
+            # A path appeared on disk that the event flow never reported (e.g. a
+            # rename destination whose live event was lost). Let the window
+            # refresh the statuses so it stops reading as a stale "Local".
+            self.scan_found_new_files.emit()
         deleted_files = table_files - current_files
+        removed: list[str] = []
         for rel_path in deleted_files:
             existing = self._table._transfers.get(rel_path)
-            if existing and existing.status == TransferStatus.LOCAL:
+            if existing is None:
+                continue
+            if existing.status in (
+                TransferStatus.DOWNLOADING,
+                TransferStatus.UPLOADING,
+                TransferStatus.DELETED,
+            ):
+                # In flight (the final file is not on disk yet) or already
+                # showing the deletion marker: leave it alone.
+                continue
+            # The path is gone from disk. A resting LOCAL row is a stale scan
+            # entry, while a SYNCED/ERROR/... row was a real file deleted
+            # locally after a previous sync: it must disappear from the view
+            # too, even when the structured delete event was missed.
+            removed.append(rel_path)
+            if existing.status == TransferStatus.LOCAL:
+                # Never-synced scan entry: nothing to announce, remove at once.
                 self._table.remove_transfer(rel_path)
+            else:
+                # Mirror the remote-deletion UX (red "Deleted" for 3 s) even
+                # when the scan is the one detecting the local deletion.
+                self._table.mark_deleted(rel_path)
+        if new_files or removed:
+            from hsync_desktop import debug_events
+
+            debug_events.log("consistency", added=sorted(new_files), removed=removed)
 
     def update_file_status(
         self,
@@ -469,8 +529,12 @@ class FilePanel(QWidget):
         mtime: float = 0.0,
         client_cid: str = "",
         client_ip: str = "",
+        *,
+        preview: bool = False,
     ) -> None:
-        self._table.update_file_status(filepath, status, size, mtime, client_cid, client_ip)
+        self._table.update_file_status(
+            filepath, status, size, mtime, client_cid, client_ip, preview=preview
+        )
 
     def mark_deleted(self, filepath: str) -> None:
         self._table.mark_deleted(filepath)
@@ -511,7 +575,6 @@ class FilePanel(QWidget):
         self._btn_back.setIcon(get_icon("go-previous"))
         self._btn_forward.setIcon(get_icon("go-next"))
         self._btn_up.setIcon(get_icon("go-up"))
-        self._breadcrumb_icon.setPixmap(get_icon("folder-open").pixmap(16, 16))
         self._detail._btn_close.setIcon(get_icon("window-close"))
         # Link colours are baked into the rich text: rebuild them for the theme.
         self._update_breadcrumb()

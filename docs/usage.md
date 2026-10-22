@@ -152,9 +152,11 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 - **Fonts** — the interface follows your desktop's UI and monospace fonts and the
   system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
 
-The file list shows the standard columns; **Speed** (live transfer rate) and
-**Direction** (↑/↓) are available from the header menu and are hidden until you
-enable them. The status bar's **Shared: X / Y** indicator shows the shared
+The file list shows the standard columns plus **Direction** (↑/↓, ✕ on a deleted
+row), visible by default; **Speed** (live transfer rate) is available from the
+header menu and hidden until you enable it. Files show the planned action ("To
+upload" / "To download" / …), while a folder shows a neutral aggregate ("To
+sync") whose tooltip breaks down the mixed operations. The status bar's **Shared: X / Y** indicator shows the shared
 folder's size on this device (**X**) and the size of the whole share (**Y**, a
 dash while it is not yet known): the whole-share value is the sync set (remote
 files plus local files not yet uploaded) and is approximate when the two sides

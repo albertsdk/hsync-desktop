@@ -20,6 +20,7 @@ This module provides the file transfer panel functionality, split into:
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     STATUS_COLORS,
+    STATUS_COLORS_DARK,
     FileTransfer,
     TransferStatus,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "COL_STATUS",
     "COL_TYPE",
     "STATUS_COLORS",
+    "STATUS_COLORS_DARK",
     "_FILE_TYPE_MAP",
     "_NO_PROGRESS_STATUSES",
     "DirectoryScanWorker",

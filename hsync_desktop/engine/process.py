@@ -366,6 +366,9 @@ class HsyncEngine(QObject):
         args = [*args, *pipe_args]
 
         proc.start(self._binary, args)
+        from hsync_desktop import debug_events
+
+        debug_events.log("engine_start", binary=self._binary)
         if not proc.waitForStarted(5000):
             # Failed to start - close all pipe fds (secrets + events)
             for fd in (*pipe_fds, events_read_fd, events_write_fd):
@@ -478,6 +481,9 @@ class HsyncEngine(QObject):
             line = raw_line.rstrip()
             if line:
                 self.log_received.emit(line)
+                from hsync_desktop import debug_events
+
+                debug_events.log("client_log", line=line)
 
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
@@ -574,6 +580,21 @@ class HsyncEngine(QObject):
         never crashes the engine.
         """
         name = event.get("event")
+        from hsync_desktop import debug_events
+
+        debug_events.log(
+            "engine_event",
+            name=str(name),
+            file=event.get("file"),
+            op=event.get("op"),
+            transferred=event.get("transferred"),
+            total=event.get("total"),
+            size=event.get("size"),
+            state=event.get("state"),
+            status=event.get("status"),
+            is_master=event.get("is_master"),
+            connected=event.get("connected"),
+        )
         try:
             # Branch order is deliberate: the high-frequency sync events
             # (progress/transfer/file_status/rename_status...) are checked first

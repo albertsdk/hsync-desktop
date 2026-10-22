@@ -36,21 +36,40 @@ class TransferStatus(Enum):
     ERROR = "error"
 
 
-# Status colors for the file table
+# Status colors for the file table. The light-theme palette is deliberately
+# darker than the material 400 shades: on a white background the green, amber
+# and blue were hard to read. The dark-theme palette keeps the brighter shades.
 STATUS_COLORS = {
-    TransferStatus.LOCAL: QColor(128, 128, 128),  # Gray
-    TransferStatus.SYNCED: QColor(76, 175, 80),  # Green (#4caf50)
-    TransferStatus.TO_DOWNLOAD: QColor(0, 188, 212),  # Cyan (#00bcd4)
-    TransferStatus.TO_UPLOAD: QColor(255, 152, 0),  # Orange (#ff9800)
-    TransferStatus.TO_DELETE: QColor(244, 67, 54),  # Red (#f44336)
-    TransferStatus.TO_RENAME: QColor(156, 39, 176),  # Purple (#9c27b0)
-    TransferStatus.DOWNLOADING: QColor(33, 150, 243),  # Blue (#2196f3)
-    TransferStatus.UPLOADING: QColor(255, 193, 7),  # Amber (#ffc107)
-    TransferStatus.DELETED: QColor(244, 67, 54),  # Red (#f44336)
-    TransferStatus.QUEUED: QColor(128, 128, 128),  # Gray
-    TransferStatus.TRANSFERRING: QColor(33, 150, 243),  # Blue (#2196f3)
-    TransferStatus.COMPLETED: QColor(76, 175, 80),  # Green (#4caf50)
-    TransferStatus.ERROR: QColor(244, 67, 54),  # Red (#f44336)
+    TransferStatus.LOCAL: QColor(97, 97, 97),  # Gray 700
+    TransferStatus.SYNCED: QColor(46, 125, 50),  # Green 800 (#2e7d32)
+    TransferStatus.TO_DOWNLOAD: QColor(0, 131, 143),  # Cyan 800 (#00838f)
+    TransferStatus.TO_UPLOAD: QColor(239, 108, 0),  # Orange 800 (#ef6c00)
+    TransferStatus.TO_DELETE: QColor(198, 40, 40),  # Red 800 (#c62828)
+    TransferStatus.TO_RENAME: QColor(106, 27, 154),  # Purple 800 (#6a1b9a)
+    TransferStatus.DOWNLOADING: QColor(21, 101, 192),  # Blue 800 (#1565c0)
+    TransferStatus.UPLOADING: QColor(166, 124, 0),  # Dark amber (#a67c00)
+    TransferStatus.DELETED: QColor(198, 40, 40),  # Red 800
+    TransferStatus.QUEUED: QColor(97, 97, 97),  # Gray 700
+    TransferStatus.TRANSFERRING: QColor(21, 101, 192),  # Blue 800
+    TransferStatus.COMPLETED: QColor(46, 125, 50),  # Green 800
+    TransferStatus.ERROR: QColor(198, 40, 40),  # Red 800
+}
+
+# Brighter variants for the dark theme (material 400 shades).
+STATUS_COLORS_DARK = {
+    TransferStatus.LOCAL: QColor(158, 158, 158),  # Gray 400
+    TransferStatus.SYNCED: QColor(102, 187, 106),  # Green 400 (#66bb6a)
+    TransferStatus.TO_DOWNLOAD: QColor(38, 198, 218),  # Cyan 400 (#26c6da)
+    TransferStatus.TO_UPLOAD: QColor(255, 167, 38),  # Orange 400 (#ffa726)
+    TransferStatus.TO_DELETE: QColor(239, 83, 80),  # Red 400 (#ef5350)
+    TransferStatus.TO_RENAME: QColor(171, 71, 188),  # Purple 400 (#ab47bc)
+    TransferStatus.DOWNLOADING: QColor(66, 165, 245),  # Blue 400 (#42a5f5)
+    TransferStatus.UPLOADING: QColor(255, 202, 40),  # Amber 400 (#ffca28)
+    TransferStatus.DELETED: QColor(239, 83, 80),  # Red 400
+    TransferStatus.QUEUED: QColor(158, 158, 158),  # Gray 400
+    TransferStatus.TRANSFERRING: QColor(66, 165, 245),  # Blue 400
+    TransferStatus.COMPLETED: QColor(102, 187, 106),  # Green 400
+    TransferStatus.ERROR: QColor(239, 83, 80),  # Red 400
 }
 
 
