@@ -28,7 +28,6 @@ from PySide6.QtGui import (
     QAction,
     QActionGroup,
     QCloseEvent,
-    QDesktopServices,
     QFontMetrics,
 )
 from PySide6.QtWidgets import (
@@ -458,18 +457,16 @@ class ActionsMixin:
         self._enter_running_ui()
 
     def _open_documentation(self) -> None:
-        """Open the documentation URL in the default browser."""
-        from PySide6.QtCore import QUrl
+        """Open the documentation index in the default browser."""
+        from hsync_desktop.docs_links import DOCS_INDEX, open_docs_link
 
-        QDesktopServices.openUrl(
-            QUrl("https://github.com/albertsdk/hsync-desktop/blob/main/README.md")
-        )
+        open_docs_link(DOCS_INDEX)
 
     def _open_github(self) -> None:
         """Open the project page on GitHub in the default browser."""
-        from PySide6.QtCore import QUrl
+        from hsync_desktop.docs_links import GITHUB_REPO, open_docs_link
 
-        QDesktopServices.openUrl(QUrl("https://github.com/albertsdk/hsync-desktop"))
+        open_docs_link(GITHUB_REPO)
 
     def _show_about(self) -> None:
         """Show the splash screen as an About dialog."""

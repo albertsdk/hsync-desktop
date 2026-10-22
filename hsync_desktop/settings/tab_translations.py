@@ -24,6 +24,7 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
+from hsync_desktop.widgets.links import set_help_link_text
 from hsync_desktop.widgets.text import escape_mnemonics
 
 if TYPE_CHECKING:
@@ -197,6 +198,10 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
     dlg._lbl_start_at_login.setText(tr("settings.start_at_login"))
     dlg._lbl_show_advanced.setText(tr("settings.show_advanced"))
+
+    # Contextual documentation links (fixed URLs; only the text is localized).
+    set_help_link_text(dlg._lbl_help_server, "help.server_setup")
+    set_help_link_text(dlg._lbl_help_bootnode, "help.bootnode_setup")
 
     # Button box
     style_ok_cancel_button_box(dlg._button_box)

@@ -47,7 +47,19 @@ Help menu (`main_window/ui.py::MainWindow._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local
 app-info dialogs — **License** (`main_window/actions.py::MainWindow._show_license`
 → `license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
-`LICENSE`) and **About** last, the conventional position.
+`LICENSE`) and **About** last, the conventional position. The two external
+targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
+`docs_links.open_docs_link`, which only allows the project HTTPS pages.
+
+**Contextual documentation links**: the Server tab links to the hsync-server
+setup guide (`help.server_setup`), the p2p discovery group to the hsync-bootnode
+guide (`help.bootnode_setup`), and the wizard's mode step plus its "Not sure?"
+dialog to the desktop connection-modes guide (`help.connection_modes`). They are
+`QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
+accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
+Settings dialog re-applies the translated text in
+`settings/tab_translations.py::apply_translations`. Link colours are themed
+through `QPalette.Link`/`LinkVisited` in `themes.py`.
 
 ### Startup disclaimer
 
@@ -475,7 +487,7 @@ deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
 | Concern | Code | Notes |
 | ------- | ---- | ----- |
 | Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`) |
-| Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `monospace_font` (`fonts.py::monospace_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
+| Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `ui_font` (`fonts.py::ui_font`), `monospace_font` (`fonts.py::monospace_font`), `table_font` (`fonts.py::table_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
 | Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |
 | Tray | `system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`system_tray.py::_make_icon`) |
 | Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`) and delivered only when out of focus — errors/warnings are then covered by the in-app toast |
@@ -503,7 +515,11 @@ dialog uses `small_monospace_font` (`fonts.py::small_monospace_font`, one point
 smaller, floor 8 pt) and the log viewer uses `log_monospace_font`
 (`fonts.py::log_monospace_font`, two points smaller, floor 7 pt) because its lines
 are long — at a 9 pt desktop monospace that is 13 visible lines and ~22% more
-characters per line than the 8 pt size. The fonts are set programmatically
+characters per line than the 8 pt size. The file table uses `table_font`
+(`fonts.py::table_font`, one point below the cached UI font, floor 9 pt) with a
+minimum row height from `table_row_height` (`fonts.py::table_row_height`, WCAG 2.2
+target size), applied in `file_panel/transfer_table.py::FileTransferTable._setup_table`.
+The fonts are set programmatically
 (`main_window/ui.py::MainWindow._load_ui`, `license_dialog.py::LicenseDialog`);
 the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the

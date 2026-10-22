@@ -12,6 +12,8 @@ Covers the API-key security constraint of the desktop settings:
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from hsync_desktop import docs_links
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import (
     _GENERAL_TAB_INDEX,
@@ -29,6 +32,7 @@ from hsync_desktop.settings.dialog import (
     _SERVER_TAB_INDEX,
     SettingsDialog,
 )
+from hsync_desktop.widgets.text import escape_mnemonics
 
 
 class TestAdvancedLoggingPanel:
@@ -145,18 +149,18 @@ class TestP2pPanelSections:
 
     def test_four_sections_with_expected_titles(self, dialog):
         assert set(self._groups(dialog)) == {
-            tr("settings.group.p2p_mode"),
-            tr("settings.group.p2p_discovery"),
-            tr("settings.group.p2p_role"),
-            tr("settings.group.advanced"),
+            escape_mnemonics(tr("settings.group.p2p_mode")),
+            escape_mnemonics(tr("settings.group.p2p_discovery")),
+            escape_mnemonics(tr("settings.group.p2p_role")),
+            escape_mnemonics(tr("settings.group.advanced")),
         }
 
     def test_fields_are_in_the_expected_section(self, dialog):
         groups = self._groups(dialog)
-        mode = groups[tr("settings.group.p2p_mode")]
-        discovery = groups[tr("settings.group.p2p_discovery")]
-        role = groups[tr("settings.group.p2p_role")]
-        advanced = groups[tr("settings.group.advanced")]
+        mode = groups[escape_mnemonics(tr("settings.group.p2p_mode"))]
+        discovery = groups[escape_mnemonics(tr("settings.group.p2p_discovery"))]
+        role = groups[escape_mnemonics(tr("settings.group.p2p_role"))]
+        advanced = groups[escape_mnemonics(tr("settings.group.advanced"))]
 
         assert dialog.p2p_group.parent() is mode
         assert dialog.p2p_key.parent() is mode
@@ -372,3 +376,41 @@ class TestServerModeSections:
         tab = dialog._tabs.widget(_SERVER_TAB_INDEX)
         assert tab.isAncestorOf(dialog._p2p_banner)
         assert not dialog._grp_server.isAncestorOf(dialog._p2p_banner)
+
+
+class TestServerSetupLink:
+    """The Server group links to the hsync-server setup guide."""
+
+    def test_it_lives_in_the_server_group_with_the_expected_target(self, dialog):
+        label = dialog._lbl_help_server
+
+        assert dialog._grp_server.isAncestorOf(label)
+        assert label.objectName() == "helpLink"
+        assert label.property("docsUrl") == docs_links.SERVER_SETUP
+        assert docs_links.SERVER_SETUP in label.text()
+        assert tr("help.server_setup") in label.text()
+
+    def test_clicking_it_opens_the_server_guide(self, dialog):
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            dialog._lbl_help_server.linkActivated.emit(docs_links.SERVER_SETUP)
+
+        open_url.assert_called_once()
+
+
+class TestBootnodeSetupLink:
+    """The p2p discovery group links to the hsync-bootnode guide."""
+
+    def test_it_lives_in_the_discovery_group_with_the_expected_target(self, dialog):
+        label = dialog._lbl_help_bootnode
+
+        assert dialog._grp_p2p_discovery.isAncestorOf(label)
+        assert label.objectName() == "helpLink"
+        assert label.property("docsUrl") == docs_links.BOOTNODE_SETUP
+        assert docs_links.BOOTNODE_SETUP in label.text()
+        assert tr("help.bootnode_setup") in label.text()
+
+    def test_clicking_it_opens_the_bootnode_guide(self, dialog):
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            dialog._lbl_help_bootnode.linkActivated.emit(docs_links.BOOTNODE_SETUP)
+
+        open_url.assert_called_once()

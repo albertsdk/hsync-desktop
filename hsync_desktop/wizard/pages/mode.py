@@ -16,8 +16,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import CONNECTION_MODES
 from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.links import help_link, set_help_link_text
 from hsync_desktop.wizard.model import (
     ChoiceAnswers,
     ChoiceAudience,
@@ -109,6 +111,8 @@ class HelpChoiceDialog(QDialog):
         self._note = muted_label()
         self._note.setVisible(False)
         layout.addWidget(self._note)
+
+        layout.addWidget(help_link("help.connection_modes", CONNECTION_MODES))
 
         self._prefill(current)
 
@@ -216,6 +220,8 @@ class ModePage(WizardPage):
         self._help = QPushButton()
         self._help.clicked.connect(self._on_help)
         layout.addWidget(self._help)
+        self._modes_link = help_link("help.connection_modes", CONNECTION_MODES)
+        layout.addWidget(self._modes_link)
         layout.addStretch(1)
         self.apply_translations()
 
@@ -241,6 +247,7 @@ class ModePage(WizardPage):
                 tr(f"wizard.mode.{mode.value}.title"), tr(f"wizard.mode.{mode.value}.desc")
             )
         self._help.setText(tr("wizard.help.not_sure"))
+        set_help_link_text(self._modes_link, "help.connection_modes")
 
     def load(self, draft: WizardDraft) -> None:
         for mode, card in self._cards.items():

@@ -1279,6 +1279,32 @@ class TestScanStatusRefresh:
         stub._engine.preview.assert_called_once()
 
 
+class TestHelpMenuLinks:
+    """Help menu targets are the centralised documentation constants."""
+
+    def test_documentation_opens_the_docs_index(self, window):
+        from unittest.mock import patch
+
+        from hsync_desktop import docs_links
+
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            window._open_documentation()
+
+        open_url.assert_called_once()
+        assert open_url.call_args.args[0].toString() == docs_links.DOCS_INDEX
+
+    def test_github_opens_the_repository(self, window):
+        from unittest.mock import patch
+
+        from hsync_desktop import docs_links
+
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            window._open_github()
+
+        open_url.assert_called_once()
+        assert open_url.call_args.args[0].toString() == docs_links.GITHUB_REPO
+
+
 class TestMasterRoleNotification:
     """A prefer_master takeover is the expected outcome; only a real conflict warns."""
 

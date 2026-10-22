@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import BOOTNODE_SETUP, SERVER_SETUP
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
@@ -31,6 +32,7 @@ from hsync_desktop.settings.tab_indices import (
     _TAB_DESCRIPTION_KEYS,
 )
 from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.links import help_link
 from hsync_desktop.widgets.text import escape_mnemonics
 
 if TYPE_CHECKING:
@@ -205,6 +207,8 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g2.addRow(dlg._lbl_p2p_bootnode_trust, trust_container)
     g2.addRow("", manage_container)
     g2.addRow("", cont_upnp)
+    dlg._lbl_help_bootnode = help_link("help.bootnode_setup", BOOTNODE_SETUP)
+    g2.addRow("", dlg._lbl_help_bootnode)
     vbox.addWidget(dlg._grp_p2p_discovery)
 
     # Group 3: role election + pairing
@@ -267,6 +271,8 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     g1.addRow(lbl_api_key, dlg.api_key)
     g1.addRow(dlg._lbl_server_trust, dlg.server_trust)
     g1.addRow("", action_row)
+    dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
+    g1.addRow("", dlg._lbl_help_server)
     vbox.addWidget(dlg._grp_server)
 
     # Group 2: TLS/certificate behaviour.

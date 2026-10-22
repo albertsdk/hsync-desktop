@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import QSettings
+from PySide6.QtWidgets import QLabel
 
 import hsync_desktop.wizard.apply as apply_mod
 from hsync_desktop.i18n import tr
@@ -572,3 +573,26 @@ class TestLayoutImprovements:
         connection = wizard.review_page._sections["connection"][1].text()
         assert connection.startswith(f"{tr('wizard.connection.share')}: ")
         assert ":" not in tr("wizard.connection.share")
+
+
+class TestModeDocumentationLink:
+    """The mode step links to the desktop connection-modes guide."""
+
+    def test_the_mode_page_links_to_the_modes_guide(self, wizard):
+        from hsync_desktop import docs_links
+
+        label = wizard.mode_page._modes_link
+        assert label.objectName() == "helpLink"
+        assert label.property("docsUrl") == docs_links.CONNECTION_MODES
+        assert docs_links.CONNECTION_MODES in label.text()
+        assert tr("help.connection_modes") in label.text()
+
+    def test_the_help_choice_dialog_links_to_the_modes_guide(self, qtbot):
+        from hsync_desktop import docs_links
+        from hsync_desktop.wizard.pages.mode import HelpChoiceDialog
+
+        dlg = HelpChoiceDialog()
+        qtbot.addWidget(dlg)
+        label = dlg.findChild(QLabel, "helpLink")
+        assert label is not None
+        assert label.property("docsUrl") == docs_links.CONNECTION_MODES

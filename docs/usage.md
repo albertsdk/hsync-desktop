@@ -41,6 +41,12 @@ Server Mode, General and Advanced tabs and the trusted-key stores. Use
 and launch at login) and **Advanced** for engine tuning (performance, delta
 transfer, deletion protection, bandwidth).
 
+The Server and p2p tabs include a **Learn more** link to the matching external
+guide — the [hsync-server setup guide](https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md)
+and the [hsync-bootnode guide](https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md)
+— and the Setup wizard's mode step links to this guide's connection-mode
+sections. **Help → Documentation** opens the same documentation index.
+
 The primary/secondary role shown in the status bar exists only in p2p mode and its
 text appears once the device is connected and the role is known (before that the
 bar shows a neutral icon only); Server Mode has no such role. In the trusted-key
@@ -151,6 +157,8 @@ listings or logs. Use the credential dialogs to replace a password at any time.
   Japanese.
 - **Fonts** — the interface follows your desktop's UI and monospace fonts and the
   system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
+  The file list is one point smaller than the UI font (never below 9 pt) with a
+  comfortable row height, so it fits more rows without shrinking the click target.
 
 The file list shows the standard columns plus **Direction** (↑/↓, ✕ on a deleted
 row), visible by default; **Speed** (live transfer rate) is available from the
