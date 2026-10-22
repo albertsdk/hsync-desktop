@@ -241,27 +241,40 @@ class TestResolveSystemFonts:
 
 
 class TestApplySystemFonts:
-    def test_sets_the_app_font_and_caches_the_monospace_font(self, qapp, monkeypatch):
+    def test_sets_the_app_font_and_caches_both_fonts(self, qapp, monkeypatch):
         monkeypatch.setattr(fonts, "_mono_font", None)
+        monkeypatch.setattr(fonts, "_ui_font", None)
+        probe = QFont("Probe UI")
+        probe.setPointSizeF(11.0)
+        mono = QFont("Probe Mono")
+        mono.setPointSizeF(12.0)
         monkeypatch.setattr(
             fonts,
             "resolve_system_fonts",
-            lambda: fonts.SystemFonts(QFont("Probe UI"), QFont("Probe Mono")),
+            lambda: fonts.SystemFonts(probe, mono),
         )
         previous = QFont(qapp.font())
         try:
             fonts.apply_system_fonts(qapp)
 
             assert qapp.font().family() == "Probe UI"
+            assert fonts.ui_font().family() == "Probe UI"
             assert fonts.monospace_font().family() == "Probe Mono"
         finally:
             qapp.setFont(previous)
+            monkeypatch.setattr(fonts, "_ui_font", None)
 
     def test_without_resolution_the_fixed_font_is_used(self, qapp, monkeypatch):
         monkeypatch.setattr(fonts, "_mono_font", None)
 
         expected = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
         assert fonts.monospace_font().family() == expected.family()
+
+    def test_without_resolution_the_general_font_is_used(self, qapp, monkeypatch):
+        monkeypatch.setattr(fonts, "_ui_font", None)
+
+        expected = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+        assert fonts.ui_font().family() == expected.family()
 
 
 class TestSmallMonospaceFont:
@@ -320,3 +333,36 @@ class TestLogMonospaceFont:
         monkeypatch.setattr(fonts, "_mono_font", base)
 
         assert fonts.log_monospace_font().pointSizeF() <= 0
+
+
+class TestTableFont:
+    """The file table is one point below the UI font, never below 9 pt."""
+
+    def test_one_point_smaller(self, qapp, monkeypatch):
+        base = QFont("Probe UI")
+        base.setPointSizeF(12.0)
+        monkeypatch.setattr(fonts, "_ui_font", base)
+
+        assert fonts.table_font().pointSizeF() == pytest.approx(11.0)
+
+    def test_floor_at_nine(self, qapp, monkeypatch):
+        for size in (10.0, 9.0, 8.0):
+            base = QFont("Probe UI")
+            base.setPointSizeF(size)
+            monkeypatch.setattr(fonts, "_ui_font", base)
+
+            assert fonts.table_font().pointSizeF() == pytest.approx(9.0)
+
+    def test_pixel_sized_font_is_unchanged(self, qapp, monkeypatch):
+        base = QFont("Probe UI")
+        base.setPixelSize(14)
+        monkeypatch.setattr(fonts, "_ui_font", base)
+
+        assert fonts.table_font().pointSizeF() <= 0
+
+    def test_row_height_keeps_a_comfortable_target(self, qapp, monkeypatch):
+        base = QFont("Probe UI")
+        base.setPointSizeF(9.0)
+        monkeypatch.setattr(fonts, "_ui_font", base)
+
+        assert fonts.table_row_height() >= fonts._MIN_TABLE_ROW_HEIGHT

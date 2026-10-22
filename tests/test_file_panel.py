@@ -618,6 +618,37 @@ class TestNavigationDuringSync:
         assert table._refresh_pending is False
 
 
+class TestTableTypography:
+    """The dense file table uses the smaller, still-accessible table font."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def test_the_table_uses_the_table_font(self, qtbot, monkeypatch):
+        from hsync_desktop import fonts
+
+        probe = fonts.ui_font()
+        probe.setPointSizeF(12.0)
+        monkeypatch.setattr(fonts, "_ui_font", probe)
+
+        table = self._table(qtbot)
+
+        assert table.font().pointSizeF() == pytest.approx(11.0)
+        assert table.horizontalHeader().font().pointSizeF() == pytest.approx(11.0)
+
+    def test_rows_keep_a_comfortable_height(self, qtbot):
+        from hsync_desktop.fonts import _MIN_TABLE_ROW_HEIGHT
+
+        table = self._table(qtbot)
+
+        assert table.verticalHeader().defaultSectionSize() >= _MIN_TABLE_ROW_HEIGHT
+
+
 class TestOptionalColumns:
     """Speed is hidden by default; Direction is visible by default."""
 

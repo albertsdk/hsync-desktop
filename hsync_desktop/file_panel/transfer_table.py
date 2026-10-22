@@ -190,12 +190,19 @@ class FileTransferTable(QTableWidget):
         self.setSortingEnabled(True)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
+        # Dense list: one point below the UI font, with a comfortable row
+        # height so the smaller text does not shrink the click target.
+        from hsync_desktop.fonts import table_font, table_row_height
+
+        self.setFont(table_font())
+        self.verticalHeader().setDefaultSectionSize(table_row_height())
         from PySide6.QtCore import QSize
 
         self.setIconSize(QSize(16, 16))
 
         # Column sizing and behavior
         header = self.horizontalHeader()
+        header.setFont(table_font())  # keep the header aligned with the body size
         header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)

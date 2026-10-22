@@ -22,7 +22,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
 from PySide6.QtWidgets import QApplication
 
 # GNOME settings that hold the UI font, the monospace font and the text scale.
@@ -46,6 +46,14 @@ _MIN_SMALL_POINT_SIZE = 8.0
 _LOG_FONT_DELTA = -2.0
 _MIN_LOG_POINT_SIZE = 7.0
 
+# The file table is dense (many columns), so it goes one point below the UI
+# font, never below this floor (readability and click targets).
+_TABLE_FONT_DELTA = -1.0
+_MIN_TABLE_POINT_SIZE = 9.0
+# Minimum row height in device-independent pixels: WCAG 2.2 target size (24 px)
+# with a little breathing room.
+_MIN_TABLE_ROW_HEIGHT = 26
+
 # Environment variables that must not leak the PyInstaller/AppImage libraries
 # into the host ``gsettings`` binary (it would then load the bundled GLib/schemas
 # and can crash or misread the settings).
@@ -63,6 +71,9 @@ _PANGO_STYLE_SUFFIXES = (" Bold Italic", " Bold", " Italic", " Regular")
 
 # Cached monospace font (set by apply_system_fonts, read by monospace_font).
 _mono_font: QFont | None = None
+
+# Cached UI font (set by apply_system_fonts, read by ui_font).
+_ui_font: QFont | None = None
 
 
 @dataclass(frozen=True)
@@ -266,11 +277,19 @@ def resolve_system_fonts() -> SystemFonts:
 
 
 def apply_system_fonts(app: QApplication) -> None:
-    """Apply the desktop's fonts to ``app`` and cache the monospace font."""
-    global _mono_font
+    """Apply the desktop's fonts to ``app`` and cache the UI and monospace ones."""
+    global _mono_font, _ui_font
     fonts = resolve_system_fonts()
     app.setFont(fonts.ui)
+    _ui_font = fonts.ui
     _mono_font = fonts.mono
+
+
+def ui_font() -> QFont:
+    """Return the resolved UI font (the application font before resolution)."""
+    if _ui_font is not None:
+        return QFont(_ui_font)
+    return QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
 
 
 def monospace_font() -> QFont:
@@ -288,6 +307,32 @@ def _point_smaller_monospace(delta: float, floor: float) -> QFont:
     if size > 0:
         font.setPointSizeF(max(size + delta, floor))
     return font
+
+
+def table_font() -> QFont:
+    """Return the file-table font: one point below the UI font (floor 9 pt).
+
+    A relative size keeps the desktop's own font preference and HiDPI scaling
+    authoritative; the floor stops an aggressive host setting from making the
+    list unreadable. Consumers: the file-panel table.
+    """
+
+    font = ui_font()
+    size = font.pointSizeF()
+    if size > 0:
+        font.setPointSizeF(max(size + _TABLE_FONT_DELTA, _MIN_TABLE_POINT_SIZE))
+    return font
+
+
+def table_row_height() -> int:
+    """Minimum file-table row height in device-independent pixels.
+
+    Keeps the click target comfortable (WCAG 2.2 target size) even though the
+    table font is one point smaller than the UI font.
+    """
+
+    metrics = QFontMetrics(table_font())
+    return max(metrics.height() + 8, _MIN_TABLE_ROW_HEIGHT)
 
 
 def small_monospace_font() -> QFont:
