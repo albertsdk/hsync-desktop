@@ -161,10 +161,14 @@ listings or logs. Use the credential dialogs to replace a password at any time.
   comfortable row height, so it fits more rows without shrinking the click target.
 
 The file list shows the standard columns plus **Direction** (↑/↓, ✕ on a deleted
-row), visible by default; **Speed** (live transfer rate) is available from the
-header menu and hidden until you enable it. Files show the planned action ("To
-upload" / "To download" / …), while a folder shows a neutral aggregate ("To
-sync") whose tooltip breaks down the mixed operations. The status bar's **Shared: X / Y** indicator shows the shared
+row, ⇄ on a rename), visible by default; the direction is blank when there is no
+operation and its glyphs are bold for emphasis. **Speed** (live transfer rate) is
+available from the header menu and hidden until you enable it. Files show the
+planned action ("To upload" / "To download" / …), while a folder shows a neutral
+aggregate ("To sync") whose tooltip breaks down the mixed operations. You can
+**drag the column edges** to resize any data column; the widths are remembered,
+and **Reset columns** in the header menu restores the default layout. The status
+bar's **Shared: X / Y** indicator shows the shared
 folder's size on this device (**X**) and the size of the whole share (**Y**, a
 dash while it is not yet known): the whole-share value is the sync set (remote
 files plus local files not yet uploaded) and is approximate when the two sides

@@ -64,6 +64,8 @@ translations: dict[str, str] = {
     "file.speed": "Snelheid",
     "file.direction": "Richting",
     "file.show_hidden": "Verborgen bestanden tonen",
+    "file.reset_columns": "Kolommen resetten",
+    "tip.reset_columns": "Herstelt de standaard kolomindeling: zichtbaarheid en passende breedtes.",
     # File type categories
     "ftype.folder": "Map",
     "ftype.image": "Afbeelding",

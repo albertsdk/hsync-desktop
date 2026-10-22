@@ -64,6 +64,8 @@ translations: dict[str, str] = {
     "file.speed": "Speed",
     "file.direction": "Direction",
     "file.show_hidden": "Show hidden files",
+    "file.reset_columns": "Reset columns",
+    "tip.reset_columns": "Restore the default column layout: visibility and fitted widths.",
     # File type categories
     "ftype.folder": "Folder",
     "ftype.image": "Image",

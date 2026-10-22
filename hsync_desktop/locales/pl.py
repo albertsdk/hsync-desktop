@@ -64,6 +64,8 @@ translations: dict[str, str] = {
     "file.speed": "Prędkość",
     "file.direction": "Kierunek",
     "file.show_hidden": "Pokaż ukryte pliki",
+    "file.reset_columns": "Zresetuj kolumny",
+    "tip.reset_columns": "Przywraca domyślny układ kolumn: widoczność i dopasowane szerokości.",
     # File type categories
     "ftype.folder": "Folder",
     "ftype.image": "Obraz",

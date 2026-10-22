@@ -297,10 +297,21 @@ The table re-localizes its **column headers** on a live language change
 **Columns**: the table ships the standard columns plus two optional ones —
 **Speed** (`file.speed`, the live `speed_bps` rate, blank when not transferring),
 hidden by default, and **Direction** (`file.direction`, the ↑/↓ arrow — ✕ on a
-deleted row), visible by default. Visibility is toggled from the header menu and
-persisted as stable keys in `ui/file_columns_hidden`
+deleted row, ⇄ on a rename), visible by default. Direction is **empty at rest**
+(the dash placeholder is noise in a dense column) and its operative glyphs are
+**bold**, a second cue beside the status colour. Visibility is toggled from the
+header menu and persisted as stable keys in `ui/file_columns_hidden`
 (`FileTransferTable._save_column_visibility` /
-`FileTransferTable._restore_column_visibility`). `FileTransfer.speed_bps`
+`FileTransferTable._restore_column_visibility`). The **data columns are
+user-resizable** (`Interactive`, global floor `_MIN_SECTION_WIDTH`, data floor
+`_MIN_COLUMN_WIDTH`): widths are seeded once from the content on the first
+populated refresh
+(`FileTransferTable._size_columns_to_contents`) and then persisted in
+`ui/file_columns_width` as `"<translation_key>:<px>,…"`
+(`FileTransferTable._save_column_widths` / `_restore_column_widths`); **Name**
+stays `Stretch` (the flexible column) and **Icon** stays `Fixed`. The header menu
+also has **Reset columns** (`file.reset_columns`) that clears both keys and
+re-fits the widths. `FileTransfer.speed_bps`
 (`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
 stay consistent. A folder keeps the neutral aggregate status (`folder.status.to_sync`)
 because it can mix operations; its tooltip spells out the planned actions

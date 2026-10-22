@@ -807,6 +807,153 @@ class TestOptionalColumns:
         assert table.item(table._last_selected_row, tt.COL_NAME).text() == "a.txt"
 
 
+class TestDirectionColumn:
+    """Direction is empty at rest and its operative glyphs are bold."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        return table
+
+    def test_a_resting_file_has_no_direction_text(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="idle.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+
+        assert table.item(0, tt.COL_DIRECTION).text() == ""
+
+    def test_a_planned_operation_is_shown_in_bold(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="up.bin", direction="↑", size=10, status=TransferStatus.TO_UPLOAD)
+        )
+
+        item = table.item(0, tt.COL_DIRECTION)
+        assert item.text() == "↑"
+        assert item.font().bold()
+
+    def test_a_folder_has_no_direction(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="dir/a.bin", direction="↑", size=10, status=TransferStatus.TO_UPLOAD
+            )
+        )
+
+        assert table.item(0, tt.COL_DIRECTION).text() == ""
+
+
+class TestColumnResizing:
+    """Data columns are user-resizable and their widths are persisted."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def test_data_columns_are_interactive(self, qtbot):
+        from PySide6.QtWidgets import QHeaderView
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+
+        for col in (
+            tt.COL_SIZE,
+            tt.COL_TYPE,
+            tt.COL_MODIFIED,
+            tt.COL_PROGRESS,
+            tt.COL_ETA,
+            tt.COL_STATUS,
+            tt.COL_SPEED,
+            tt.COL_DIRECTION,
+        ):
+            assert header.sectionResizeMode(col) is QHeaderView.ResizeMode.Interactive
+        assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Stretch
+        assert header.sectionResizeMode(tt.COL_ICON) is QHeaderView.ResizeMode.Fixed
+        assert header.minimumSectionSize() == tt._MIN_SECTION_WIDTH
+
+    def test_a_user_width_is_persisted_and_restored(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)  # triggers save
+
+        fresh = self._table(qtbot)
+        assert fresh.horizontalHeader().sectionSize(tt.COL_SIZE) == 222
+
+    def test_reset_columns_clears_the_saved_widths(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)
+        assert store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+
+        table._reset_columns()
+
+        assert not store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+
+    def test_setup_does_not_persist_widths(self, qtbot, tmp_path, monkeypatch):
+        """Constructing the table must not save unfitted widths."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+
+        assert not store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+        assert not table._columns_sized
+
+    def test_columns_are_fitted_once_from_the_content(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        assert not table._columns_sized
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+
+        assert table._columns_sized
+        header = table.horizontalHeader()
+        assert header.sectionSize(tt.COL_SIZE) >= tt._MIN_COLUMN_WIDTH
+        # The fitted pass touches only data columns.
+        assert header.sectionSize(tt.COL_ICON) == 32
+        assert header.sectionSize(tt.COL_PROGRESS) == 130
+
+
 class TestEmptyFolderStatus:
     """An empty folder shows its own status; a remote-created dir is SYNCED."""
 

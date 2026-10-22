@@ -64,6 +64,8 @@ translations: dict[str, str] = {
     "file.speed": "速度",
     "file.direction": "方向",
     "file.show_hidden": "显示隐藏文件",
+    "file.reset_columns": "重置列",
+    "tip.reset_columns": "恢复默认列布局：可见性和自适应宽度。",
     # File type categories
     "ftype.folder": "文件夹",
     "ftype.image": "图像",

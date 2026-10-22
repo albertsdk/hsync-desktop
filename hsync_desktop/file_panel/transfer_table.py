@@ -96,6 +96,16 @@ _PRIORITY_TO_STATUS = {
     6: TransferStatus.LOCAL,
 }
 
+# Global minimum section width (matches the fixed Icon column, which must stay
+# narrow); data columns get a larger floor when seeded/restored.
+_MIN_SECTION_WIDTH = 32
+# Minimum width a data column keeps when fitted or restored, in px.
+_MIN_COLUMN_WIDTH = 48
+
+# Data columns whose width is fitted to the content once (the Icon is fixed,
+# Name stretches and Progress keeps its explicit default width).
+_FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_ETA, COL_STATUS, COL_SPEED, COL_DIRECTION)
+
 
 class FileTransferTable(QTableWidget):
     """Sortable table showing file transfers with hierarchical folder navigation."""
@@ -109,6 +119,8 @@ class FileTransferTable(QTableWidget):
 
     # Persisted column visibility (comma-separated translation keys).
     _COLUMN_SETTINGS_KEY = "ui/file_columns_hidden"
+    # Persisted column widths ("<translation_key>:<px>,…"), data columns only.
+    _COLUMN_WIDTH_SETTINGS_KEY = "ui/file_columns_width"
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden; the current columns stay visible.
@@ -130,6 +142,12 @@ class FileTransferTable(QTableWidget):
         self._show_hidden: bool = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value(self._SHOW_HIDDEN_SETTINGS_KEY, False, bool)
         )
+        # Column-width state: the first populated refresh seeds sensible widths
+        # from the content when no width has been saved; `_restoring_columns`
+        # suppresses the save handler while applying/repairing widths (it starts
+        # on so the setup-time resizeSection calls are not persisted).
+        self._columns_sized: bool = False
+        self._restoring_columns: bool = True
 
         # Hierarchical navigation state
         self._current_path: str = ""  # Current folder (relative to base, "" = root)
@@ -196,6 +214,10 @@ class FileTransferTable(QTableWidget):
 
         self.setFont(table_font())
         self.verticalHeader().setDefaultSectionSize(table_row_height())
+        # Bold variant for the Direction glyphs (emphasis on the operation); a
+        # second channel beside the status colour.
+        self._direction_font = table_font()
+        self._direction_font.setBold(True)
         from PySide6.QtCore import QSize
 
         self.setIconSize(QSize(16, 16))
@@ -207,14 +229,16 @@ class FileTransferTable(QTableWidget):
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_SPEED, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_SPEED, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.Interactive)
+        # Keep every column wide enough to stay readable when dragged narrow.
+        header.setMinimumSectionSize(_MIN_SECTION_WIDTH)
 
         # Icon column: centered icon with fixed width
         self.setItemDelegateForColumn(COL_ICON, CenteredIconDelegate(self))
@@ -227,6 +251,8 @@ class FileTransferTable(QTableWidget):
         # Enable context menu on header for column visibility
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(self._show_header_context_menu)
+        # Persist user column widths as they are dragged.
+        header.sectionResized.connect(self._save_column_widths)
 
         # Enable context menu on table rows
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -237,6 +263,9 @@ class FileTransferTable(QTableWidget):
 
         # Optional columns start hidden; restore the user's choice if saved.
         self._restore_column_visibility()
+        self._restore_column_widths()
+        # From here on, user-driven resizes are persisted.
+        self._restoring_columns = False
 
     def _restore_column_visibility(self) -> None:
         """Apply the persisted (or default) hidden-column set."""
@@ -262,6 +291,62 @@ class FileTransferTable(QTableWidget):
         ]
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(self._COLUMN_SETTINGS_KEY, ",".join(hidden))
 
+    def _restore_column_widths(self) -> None:
+        """Apply the persisted data-column widths, if any.
+
+        When nothing is saved the widths stay auto-fit and are seeded from the
+        content on the first populated refresh (``_size_columns_to_contents``).
+        """
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        saved = str(settings.value(self._COLUMN_WIDTH_SETTINGS_KEY, "", str))
+        widths: dict[str, int] = {}
+        for entry in saved.split(","):
+            key, sep, value = entry.partition(":")
+            if sep and key.strip() and value.strip().isdigit():
+                widths[key.strip()] = int(value)
+        if not widths:
+            return
+        header = self.horizontalHeader()
+        for col, key in enumerate(_COLUMN_KEYS):
+            if key and key in widths:
+                header.resizeSection(col, max(widths[key], _MIN_COLUMN_WIDTH))
+        self._columns_sized = True
+
+    def _save_column_widths(self) -> None:
+        """Persist the current data-column widths (stable keys)."""
+        if self._restoring_columns:
+            return
+        header = self.horizontalHeader()
+        parts = [
+            f"{_COLUMN_KEYS[col]}:{header.sectionSize(col)}"
+            for col in range(self.columnCount())
+            if _COLUMN_KEYS[col]
+        ]
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
+            self._COLUMN_WIDTH_SETTINGS_KEY, ",".join(parts)
+        )
+
+    def _size_columns_to_contents(self) -> None:
+        """Seed sensible widths from the content, once, before user resizing.
+
+        ``Interactive`` columns have no default width, so the first populated
+        refresh fits them to their contents (like the old ``ResizeToContents``
+        behaviour); afterwards the user's widths are kept. Only the data columns
+        are touched: Icon stays fixed, Name stretches and Progress keeps its
+        default width.
+        """
+        if self._columns_sized or self.rowCount() == 0:
+            return
+        header = self.horizontalHeader()
+        self._restoring_columns = True
+        try:
+            for col in _FITTED_COLUMNS:
+                width = max(self.sizeHintForColumn(col), header.sectionSizeHint(col)) + 8
+                header.resizeSection(col, max(width, _MIN_COLUMN_WIDTH))
+            self._columns_sized = True
+        finally:
+            self._restoring_columns = False
+
     def _show_header_context_menu(self, pos) -> None:
         """Show context menu to toggle column visibility."""
         menu = QMenu(self)
@@ -278,6 +363,12 @@ class FileTransferTable(QTableWidget):
             menu.addAction(action)
 
         menu.addSeparator()
+        reset_action = QAction(tr("file.reset_columns"), menu)
+        reset_action.setToolTip(tr("tip.reset_columns"))
+        reset_action.triggered.connect(self._reset_columns)
+        menu.addAction(reset_action)
+
+        menu.addSeparator()
         hidden_action = QAction(tr("file.show_hidden"), menu)
         hidden_action.setCheckable(True)
         hidden_action.setChecked(self._show_hidden)
@@ -290,6 +381,17 @@ class FileTransferTable(QTableWidget):
     def _toggle_column(self, col: int, visible: bool) -> None:
         """Toggle visibility of a column."""
         self.horizontalHeader().setSectionHidden(col, not visible)
+        self._save_column_visibility()
+
+    def _reset_columns(self) -> None:
+        """Restore the default column layout: visibility and fitted widths."""
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        settings.remove(self._COLUMN_WIDTH_SETTINGS_KEY)
+        settings.remove(self._COLUMN_SETTINGS_KEY)
+        self._restore_column_visibility()
+        # Re-fit the widths from the current content, once.
+        self._columns_sized = False
+        self._size_columns_to_contents()
         self._save_column_visibility()
 
     def set_show_hidden(self, show: bool) -> None:
@@ -604,6 +706,8 @@ class FileTransferTable(QTableWidget):
             self.setSortingEnabled(True)
             self.setUpdatesEnabled(True)
 
+        # Fit the columns to their content once, before any user resizing.
+        self._size_columns_to_contents()
         self._apply_sticky_selection()
 
     def _populate_row_hierarchical(
@@ -741,10 +845,18 @@ class FileTransferTable(QTableWidget):
                 name_item.setToolTip(tooltip)
                 status_item.setToolTip(tooltip)
 
-        # Direction (optional column, hidden by default)
-        direction_text = transfer.direction if (transfer and not is_folder) else ""
+        # Direction (optional column; visible by default). Empty at rest: the
+        # dash placeholder is noise in a dense column, and the Status column
+        # already carries the state. Operative glyphs are bold, a second
+        # emphasis cue beside the status colour.
+        if transfer is None or is_folder or transfer.direction in ("", "—"):
+            direction_text = ""
+        else:
+            direction_text = transfer.direction
         direction_item = QTableWidgetItem(direction_text)
         direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        if direction_text:
+            direction_item.setFont(self._direction_font)
         self.setItem(row, COL_DIRECTION, direction_item)
 
         # Speed (optional column, hidden by default). A folder shows the sum of
