@@ -33,7 +33,7 @@ emitted subcommand always agree.
 | `ApiKeyDialog` | `settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
-| reset sync state | `settings/dialog.py::SettingsDialog._on_reset_state` → `settings/reset_state_dialog.py::ResetStateDialog` → `SettingsDialog.reset_state_folder` → `main_window/start.py::MainWindow._reset_sync_state` | **Settings → Sync → Advanced options → "Reset sync state…"**: a custom dialog rather than `QMessageBox` — the Qt-owned details toggle has no bundled translation and the standard buttons carry no app icon — with a translated details toggle and themed Reset/Cancel icons. It only confirms and closes (setting `reset_state_folder`); the window runs `engine/cli.py::reset_sync_state` and logs the outcome. Cancel is the destructive default, so a stray Enter never resets. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
+| reset sync state | `settings/dialog.py::SettingsDialog._on_reset_state` → `settings/reset_state_dialog.py::ResetStateDialog` → `SettingsDialog.reset_state_folder` → `main_window/start.py::StartMixin._reset_sync_state` | **Settings → Sync → Advanced options → "Reset sync state…"**: a custom dialog rather than `QMessageBox` — the Qt-owned details toggle has no bundled translation and the standard buttons carry no app icon — with a translated details toggle and themed Reset/Cancel icons. It only confirms and closes (setting `reset_state_folder`); the window runs `engine/cli.py::reset_sync_state` and logs the outcome. Cancel is the destructive default, so a stray Enter never resets. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
 the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
@@ -133,7 +133,7 @@ the reliable path there).
 or `compact`. `settings/cli_args.py::get_saved_font_scale` reads it;
 `fonts.py::resolve_system_fonts` scales the resolved UI and monospace bases once
 (compact = one point smaller, floor 8 pt), so every derived font follows;
-`MainWindow._apply_settings_changes` re-applies the app font and the explicit
+`main_window/start.py::StartMixin._apply_settings_changes` re-applies the app font and the explicit
 log/table fonts live (`FileTransferTable.refresh_fonts`).
 
 **Timing floors**: the Sync tab enforces the client contract. The periodic full
@@ -177,24 +177,24 @@ disabled; banner labels and capability-unsupported labels are skipped.
 **Prefer-master live gate**: `--prefer-master` is incompatible with a
 non-bidirectional direction (it only applies to bidirectional syncs, and is
 emitted solely in p2p mode). `SettingsDialog._prefer_master_conflict`
-(`settings/dialog.py::_prefer_master_conflict`) is True only when all three hold:
+(`settings/dialog.py::SettingsDialog._prefer_master_conflict`) is True only when all three hold:
 direction combo != `bidirectional`, `p2p_mode` on, `prefer_master` on.
-`SettingsDialog._maybe_warn_prefer_master` (`settings/dialog.py::_maybe_warn_prefer_master`)
+`SettingsDialog._maybe_warn_prefer_master` (`settings/dialog.py::SettingsDialog._maybe_warn_prefer_master`)
 shows a Yes/No prompt whose message depends on the trigger (`**fmt` fills the
 localized message placeholders, e.g. the active direction label) and returns
 True on "Yes". Three consumers:
 
-* Save gate `SettingsDialog._on_accept` (`settings/dialog.py::_on_accept`):
+* Save gate `SettingsDialog._on_accept` (`settings/dialog.py::SettingsDialog._on_accept`):
   `warn.prefer_master_msg`, "Yes" resets the direction to `bidirectional` and
   continues saving.
 * Live direction check `SettingsDialog._on_sync_direction_changed`
-  (`settings/dialog.py::_on_sync_direction_changed`, connected in
+  (`settings/dialog.py::SettingsDialog._on_sync_direction_changed`, connected in
   `_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
   `load()` runs, so restoring a saved conflicting state never warns):
   `warn.prefer_master_disable_msg` offers disabling prefer-master, "Yes"
   unchecks `prefer_master` and jumps to the p2p tab (`_P2P_TAB_INDEX`).
 * Live toggle check `SettingsDialog._on_prefer_master_toggled`
-  (`settings/dialog.py::_on_prefer_master_toggled`, fires only when prefer-master
+  (`settings/dialog.py::SettingsDialog._on_prefer_master_toggled`, fires only when prefer-master
   is switched **on**): `warn.prefer_master_sync_msg` names the active direction
   and offers returning to bidirectional, "Yes" resets the direction combo and
   jumps to the sync tab (`_SYNC_TAB_INDEX`).
@@ -249,8 +249,9 @@ equivalent needing no argument plumbing): `apply_settings_env` inserts
 and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` /
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
-`TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in `main_window/trust.py`
-(`_ensure_bootnode_trust`, which now uses the endpoint's real port). The GUI
+`TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
+`main_window/trust.py::TrustMixin._ensure_bootnode_trust` (which now uses the
+endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
 The trust combo and `btn_manage_trusted_keys` follow the panel's gating: both are
@@ -383,7 +384,7 @@ being silently re-applied; an invalid non-empty value also falls back to
 
 > Any new flag here must mirror an option the client actually exposes
 > (`hsync-client` [cli-config.md](../../../hsync-client/llm-wiki/modules/cli-config.md))
-> and, if it is an `HSYNC_*`/behavior change, the `packaging/wd-os5` web UI.
+> and, if it is an `HSYNC_*`/behavior change, the `hsync-client/packaging/wd-os5` web UI.
 
 ## crypto.py — secrets at rest
 
@@ -392,7 +393,7 @@ Secrets stored in `QSettings` are Fernet-encrypted with a machine-derived key:
 `_derive_key` (`crypto.py::_derive_key`) from `_get_machine_id` (`crypto.py::_get_machine_id`) + `_APP_SALT` (`crypto.py::_APP_SALT`);
 stored values carry the `_ENC_PREFIX` (`crypto.py::_ENC_PREFIX`) marker. **Both** the API key
 (`connection/api_key`) and the p2p key (`p2p/key`) go through encrypt/decrypt
-on save/load (`dialog.py`). `decrypt_value` still accepts a legacy plaintext
+on save/load (`settings/dialog.py`). `decrypt_value` still accepts a legacy plaintext
 value (no prefix) so an existing unencrypted p2p key is readable until the
 next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
@@ -405,7 +406,7 @@ next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 default, shown as **System default** in the General tab): it follows the system locale at
 every launch; a supported code pins that language; an absent/unsupported value also
 follows the system locale. Every user-facing
-string **must** exist in all `locales/*.py`.
+string **must** exist in all `hsync_desktop/locales/*.py`.
 
 ## Shared endpoint/probe helpers (Settings + wizard)
 

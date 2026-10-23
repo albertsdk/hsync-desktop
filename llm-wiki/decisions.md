@@ -24,7 +24,7 @@ disable unsupported controls) is realized in
   per-folder state DB is client-owned and guarded by the per-directory
   `InstanceLock`, so the Settings button
   (`settings/dialog.py::SettingsDialog._on_reset_state`) never touches it — it
-  confirms, sets `reset_state_folder` and closes; `MainWindow._reset_sync_state`
+  confirms, sets `reset_state_folder` and closes; `StartMixin._reset_sync_state`
   runs `hsync state reset --folder … --json`
   (`engine/cli.py::reset_sync_state`). Gated on
   `supports_subcommand(doc, "state")` and disabled while the sync runs. Rationale
@@ -63,7 +63,7 @@ disable unsupported controls) is realized in
   read as an unfinished state. The primary icon is theme-aware
   (`currentColor` + the system accent).
 - **i18n completeness**: every user string must exist in all locales
-  (`locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
+  (`hsync_desktop/locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over
   parsing `--help`/version strings to decide which controls to show (§8).
 - **Non-blocking startup probes**: the bundled binary's version is resolved
@@ -104,7 +104,7 @@ disable unsupported controls) is realized in
   (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_BOOTNODE_TRUST`
   (default `ask`). The pin lives in the client's known-hosts store, not a GUI
   env var: the GUI resolves policy `ask` in its start pre-flight
-  (`_ensure_bootnode_trust`) by writing `hsync trust bootnode add`, and both
+  (`main_window/trust.py::TrustMixin._ensure_bootnode_trust`) by writing `hsync trust bootnode add`, and both
   trust stores are editable through the "Manage trusted keys" dialog
   (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
   always sends an explicit policy; the client's SSH-style prompt is terminal-only

@@ -97,7 +97,7 @@ no peer was discovered.
 
 Both `auth_error` (invalid/missing key) and `auth_required` (a shared key is
 required but missing) drive the same credential re-prompt
-(`main_window/trust.py::_on_auth_error`): the engine is stopped, the p2p-password
+(`main_window/trust.py::TrustMixin._on_auth_error`): the engine is stopped, the p2p-password
 or API-key dialog opens (pre-filled with the current value) and a retry follows
 on accept; events arriving while the prompt is open are ignored.
 

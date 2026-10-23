@@ -16,14 +16,14 @@ window's attributes.
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `MainWindow` | `main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
-| `_load_ui` | `main_window/ui.py::MainWindow._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `main_window/ui.py::MainWindow._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
+| `_load_ui` | `main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
+| `_create_menu_bar` | `main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
-| `_apply_translations` | `main_window/ui.py::MainWindow._apply_translations` | re-translate on language change |
-| `_update_peers_label_title` | `main_window/ui.py::MainWindow._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
-| `_update_menu_state` | `main_window/ui.py::MainWindow._update_menu_state` | enable/disable actions by run state |
-| `_quit` | `main_window/lifecycle.py::MainWindow._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
-| `_shutdown` | `main_window/lifecycle.py::MainWindow._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
+| `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
+| `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
+| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state |
+| `_quit` | `main_window/lifecycle.py::LifecycleMixin._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
+| `_shutdown` | `main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
 Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
@@ -31,21 +31,21 @@ Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow.
 `file_progress`/`file_renamed`, `folder_size_changed→_on_folder_size`,
 `file_panel.share_size_changed→_on_share_size_changed`,
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
-`error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::MainWindow._on_engine_error`),
+`error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::UiBuildMixin._on_engine_error`),
 which stores the message, mirrors it into the log panel and raises an in-app
 error toast through `_notify_error` (an OS notification is sent too, only when a
 notifier exists and the window is out of focus).
 File-action menu slots: open/open-with/copy-to/rename/trash/
-properties (`main_window/ui.py::MainWindow._create_menu_bar`).
+properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
 
 The presence value (`peersLabel`, set by `_on_peers`) is `connected/total`. p2p
 counts **devices** (self + peers); Server Mode counts **share accounts** with a
 live WebSocket (admins excluded), so its title is "Connected users"
 (`label.users`) — two devices on the same account count once.
 
-Help menu (`main_window/ui.py::MainWindow._create_menu_bar`): external links
+Help menu (`main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local
-app-info dialogs — **License** (`main_window/actions.py::MainWindow._show_license`
+app-info dialogs — **License** (`main_window/actions.py::ActionsMixin._show_license`
 → `license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
 `LICENSE`) and **About** last, the conventional position. The two external
 targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
@@ -63,8 +63,8 @@ through `QPalette.Link`/`LinkVisited` in `themes.py`.
 
 ### Startup disclaimer
 
-`main_window/start.py::MainWindow._show_disclaimer` gates the first start of a
-sync. `main_window/start.py::MainWindow._build_disclaimer_dialog` offers two
+`main_window/start.py::StartMixin._show_disclaimer` gates the first start of a
+sync. `main_window/start.py::StartMixin._build_disclaimer_dialog` offers two
 explicit actions with the app icons: **I understand**
 (`disclaimer.acknowledge`, default) and **Not now** (`disclaimer.not_now`,
 escape button). Closing the window or pressing Esc defers and never
@@ -78,13 +78,13 @@ prompts again.
 ### Pre-flight gates
 
 Before a run starts, `_continue_start_after_disclaimer`
-(`main_window/start.py::MainWindow._continue_start_after_disclaimer`) chains the
+(`main_window/start.py::StartMixin._continue_start_after_disclaimer`) chains the
 gates in this order: `_check_deletion_risk`, `_check_keyless_p2p`,
 `_check_disk_space`, `_ensure_bootnode_trust`, `_ensure_server_trust`; the scoped
 Send/Receive path (`main_window/actions.py`) reuses the same checks. The
 deletion-risk confirmation (`notif.deletion_risk`, p2p without *Prefer primary
 role* or Receive-only) is a guard for a run that actually applies changes, so
-`_check_deletion_risk` (`main_window/start.py::MainWindow._check_deletion_risk`)
+`_check_deletion_risk` (`main_window/start.py::StartMixin._check_deletion_risk`)
 returns early when **Simulation Mode** (`sync/dry_run`) is on. That setting makes
 every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
 client shows the preview and exits instead of parking in the dry-run "wait for a
@@ -98,14 +98,14 @@ one-shot process finish.
 
 While `sync/dry_run` is on the window says so everywhere, because the mode is a
 setting the user would otherwise have to remember. `_refresh_simulation_state`
-(`main_window/ui.py`) is the single refresh point, called from `_apply_translations`
+(`main_window/ui.py::UiBuildMixin._refresh_simulation_state`) is the single refresh point, called from `_apply_translations`
 (so a language change re-reads it), from `MainWindow.__init__` and from
-`_apply_settings_changes` (`main_window/start.py`, the shared post-settings/wizard
+`_apply_settings_changes` (`main_window/start.py::StartMixin._apply_settings_changes`, the shared post-settings/wizard
 hook). It drives:
 * `QLabel#simulationBadge` in the bottom bar (`ui/main_window.ui`, `simulation.badge`,
   themed by `QLabel#simulationBadge` in `themes.py`), with the `simulation.tip` tooltip;
 * the window title suffix (`simulation.window_title_suffix`) via
-  `main_window/ui.py::MainWindow._update_window_title`, also used by
+  `main_window/ui.py::UiBuildMixin._update_window_title`, also used by
   `_on_bucket_detected`;
 * the tray tooltip note (`system_tray.py::SystemTray.set_simulation`) and the Start
   button hint (`tip.start_simulation`).
@@ -117,10 +117,10 @@ control ever promises an application that cannot happen.
 
 ### Engine start failure feedback
 
-`_start_engine` (`main_window/start.py::MainWindow._start_engine`) wraps
+`_start_engine` (`main_window/start.py::StartMixin._start_engine`) wraps
 `HsyncEngine.start`: on failure it records the reason emitted through
 `error_occurred` and calls `_report_engine_start_failure`
-(`main_window/start.py::MainWindow._report_engine_start_failure`), which raises a
+(`main_window/start.py::StartMixin._report_engine_start_failure`), which raises a
 critical `QMessageBox` (title `notif.error`, body `notif.engine_start_failed`,
 the engine reason as informative text). Both start sites use it —
 `_continue_start_after_disclaimer` and `_retry_after_auth_fix` — so a start that
@@ -129,31 +129,31 @@ silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
 ### Remote endpoint icon (`_update_path_display`)
 
-`main_window/start.py::MainWindow._update_path_display` picks the remote icon from
+`main_window/start.py::StartMixin._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the bootnode no longer changes the icon). The role
 indicator is p2p-only: `_apply_role_visibility`
-(`main_window/ui.py::MainWindow._apply_role_visibility`) shows it in p2p mode
+(`main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
 once the election has decided the role (`_role_known`) and hides it entirely in
 Server Mode and before the election — no placeholder glyph. `_retranslate_role`
 renders the primary icon with the theme accent
 (`themed_icon("role-master", <Highlight>)`; the SVG uses `currentColor`) and the
 secondary icon in the theme text colour; the **Nodo primario/secondario** text
 appears only when connected and the role is known
-(`main_window/events.py::MainWindow._on_master` + `_on_status`), and the state
+(`main_window/events.py::EventsMixin._on_master` + `_on_status`), and the state
 resets per engine process (`_prepare_engine_run`).
 
 ### Share name next to the folder icon
 
 The active share (bucket) is the user-facing identity, so it labels the local
 folder in the action bar — next to the folder icon — as a clickable link
-(`main_window/start.py::MainWindow._update_path_display`; the name comes from
-`main_window/start.py::MainWindow._share_display_name`: detected bucket →
+(`main_window/start.py::StartMixin._update_path_display`; the name comes from
+`main_window/start.py::StartMixin._share_display_name`: detected bucket →
 `sync/bucket` → folder name). Clicking it opens the local folder
-(`main_window/start.py::MainWindow._on_path_clicked`); the full local path is the
+(`main_window/start.py::StartMixin._on_path_clicked`); the full local path is the
 label's tooltip. That tooltip is **intentionally exempt** from the "Show tooltips"
 preference (`appearance/tooltips`), which only governs the settings fields. The
-window title stays the bare app name (`main_window/events.py::MainWindow._on_bucket_detected`).
+window title stays the bare app name (`main_window/events.py::EventsMixin._on_bucket_detected`).
 The share name is seeded from `sync/bucket` and updated on the client's `bucket`
 event (signal `engine/process.py::HsyncEngine.bucket_detected`).
 
@@ -162,19 +162,19 @@ event (signal `engine/process.py::HsyncEngine.bucket_detected`).
 `MainWindow` answers the client's trust refusals with dialogs instead of a
 terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
-- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window/trust.py::MainWindow._on_pairing_needed` / `main_window/trust.py::MainWindow._on_fingerprint_changed`)
+- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window/trust.py::TrustMixin._on_pairing_needed` / `main_window/trust.py::TrustMixin._on_fingerprint_changed`)
   route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `bootnode`/`server`
-  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::MainWindow._host_trust_actions`) (`add_bootnode_trust`/
+  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::TrustMixin._host_trust_actions`) (`add_bootnode_trust`/
   `remove_bootnode_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
   `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`main_window/window.py::MainWindow`) via
-  `_should_prompt_trust` (`main_window/trust.py::MainWindow._should_prompt_trust`), cleared on start/stop (`main_window/window.py::MainWindow`): a
+  `_should_prompt_trust` (`main_window/trust.py::TrustMixin._should_prompt_trust`), cleared on start/stop (`main_window/window.py::MainWindow`): a
   repeated refusal for the same fingerprint reuses no dialog, a changed one
   re-prompts. A dismissed or ignored dialog never touches the stored pin (the
   host branch acts only on the explicit Trust/Forget buttons).
-- `_maybe_offer_restart` (`main_window/trust.py::MainWindow._maybe_offer_restart`) offers to restart a stopped sync after a
+- `_maybe_offer_restart` (`main_window/trust.py::TrustMixin._maybe_offer_restart`) offers to restart a stopped sync after a
   bootnode/server pin change (those failures are fatal; mDNS refusals are not).
-- `_ensure_bootnode_trust` (`main_window/trust.py::MainWindow._ensure_bootnode_trust`) and `_ensure_server_trust` (`main_window/trust.py::MainWindow._ensure_server_trust`) are the
-  start pre-flights, both delegating to `_confirm_host_trust` (`main_window/trust.py::MainWindow._confirm_host_trust`): skip
+- `_ensure_bootnode_trust` (`main_window/trust.py::TrustMixin._ensure_bootnode_trust`) and `_ensure_server_trust` (`main_window/trust.py::TrustMixin._ensure_server_trust`) are the
+  start pre-flights, both delegating to `_confirm_host_trust` (`main_window/trust.py::TrustMixin._confirm_host_trust`): skip
   unless the mode/policy/URL apply; skip when the known-hosts store already holds
   `host:port`; else `fetch_*_fingerprint` → confirm → `add_*_trust`. They write
   the shared known-hosts stores (no GUI-only fingerprint settings).
@@ -258,11 +258,11 @@ default is off (hidden).
 Renaming a row (`file_panel/transfer_table.py::FileTransferTable.rename_file`)
 keeps its modification date: the new row inherits the previous row's mtime when
 the filesystem read returns nothing (the rename event may arrive before the local
-rename lands — `main_window/events.py::MainWindow._on_file_renamed` reads the
+rename lands — `main_window/events.py::EventsMixin._on_file_renamed` reads the
 destination, falling back to the source).
 
 `FileTransferTable.set_connected` (`file_panel/transfer_table.py::FileTransferTable.set_connected`,
-driven from `main_window/events.py::MainWindow._on_status`) greys **Local** rows
+driven from `main_window/events.py::EventsMixin._on_status`) greys **Local** rows
 (`TransferStatus.LOCAL` → `STATUS_COLORS`) only while a connection is active.
 When the link is disconnected/connecting/waiting the rows keep the default text
 colour, because "Local" is the resting state rather than a comparison result;
@@ -271,7 +271,7 @@ real transfer states keep their own colours.
 A folder row with no aggregated children (an empty directory) shows the folder's
 own status instead of defaulting to *Local*: a directory created by a remote peer
 is stored under a trailing-slash key and marked **Synced**
-(`main_window/events.py::MainWindow._on_directory_created` normalizes the key;
+(`main_window/events.py::EventsMixin._on_directory_created` normalizes the key;
 `file_panel/transfer_table.py` module maps `_STATUS_PRIORITY`/`_FOLDER_STATUS_KEYS`
 resolve an empty folder from its transfer status). A folder that does have
 children still takes the highest-priority child status.
@@ -284,7 +284,7 @@ forwards the folder and row captured before the reload to
 acted-on row selected instead of jumping to the root. The row is applied as a
 sticky selection (`_apply_sticky_selection`) across the asynchronous scan's
 refreshes and is cleared on user navigation, a new click, or a panel clear
-(`main_window/actions.py::MainWindow._selection_display_name` maps a nested
+(`main_window/actions.py::ActionsMixin._selection_display_name` maps a nested
 target to the first path segment below the current folder).
 
 The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
@@ -294,7 +294,7 @@ double-click) while a **file** opens with the system default app — followed by
 `FileTransferTable._ctx_open_containing`), then **Send now** / **Receive now** —
 one-shot upload-only / download-only of the selected subtree (`signals
 FileTransferTable.send_selection_requested` / `receive_selection_requested` →
-`main_window/actions.py::MainWindow._sync_selection`, scoped through
+`main_window/actions.py::ActionsMixin._sync_selection`, scoped through
 `settings/cli_args.py::build_selection_args`) — Open With / Copy To / Rename /
 Trash / Properties. Send/Receive first run a scoped dry-run preview whose summary
 dialog confirms the actions; on accept the real one-shot starts from
@@ -302,13 +302,13 @@ dialog confirms the actions; on accept the real one-shot starts from
 `MainWindow._pending_selection_sync`, consumed by `MainWindow._show_preview_summary`).
 The entries are disabled while a sync is running
 (`FileTransferTable.set_sync_active`); the File menu hosts the same two actions
-(`main_window/actions.py::MainWindow._menu_file_send` / `_menu_file_receive`),
+(`main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
 enabled only with a selection and a stopped engine.
 
 The table re-localizes its **column headers** on a live language change
 (`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
 `file_panel/panel.py::FilePanel.retranslate_columns` from
-`main_window/ui.py::MainWindow._apply_translations`).
+`main_window/ui.py::UiBuildMixin._apply_translations`).
 
 **Columns**: the table ships the standard columns plus two optional ones —
 **Speed** (`file.speed`, the live `speed_bps` rate, blank when not transferring),
@@ -400,12 +400,12 @@ lifecycle so its result is surfaced exactly once:
   `_pending_selection_sync` (`(subdir, direction)`) — `main_window/window.py::MainWindow`.
   `_begin_selection_sync` arms them and shows a persistent progress toast
   (`_show_info_banner(..., auto_hide_ms=0, kind="progress")`); `_finish_selection_sync`
-  (`main_window/actions.py::MainWindow._finish_selection_sync`) clears them and is
+  (`main_window/actions.py::ActionsMixin._finish_selection_sync`) clears them and is
   **idempotent**, so a later engine event never re-surfaces the same result.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
-  (server); `_on_peers` (`main_window/events.py::MainWindow._on_peers`) adds the
+  (server); `_on_peers` (`main_window/events.py::EventsMixin._on_peers`) adds the
   other-device count (`sync.sel_peers_fmt`) while the op is active.
-- Outcome: `_surface_selection_outcome` (`main_window/actions.py::MainWindow._surface_selection_outcome`)
+- Outcome: `_surface_selection_outcome` (`main_window/actions.py::ActionsMixin._surface_selection_outcome`)
   routes an *important* result (no devices, server unreachable, failed) through
   `_important_selection_outcome` — a modal dialog when the window is in the
   foreground, otherwise a warning notification (`_notify_warning`, which also
@@ -415,19 +415,19 @@ lifecycle so its result is surfaced exactly once:
   notification suppressed while the window is focused, so exactly one surface
   shows).
 - Wiring (in `_connect_signals`): `error_occurred → _on_engine_error`
-  (`main_window/ui.py::MainWindow._on_engine_error`, `reason="connection"` in
+  (`main_window/ui.py::UiBuildMixin._on_engine_error`, `reason="connection"` in
   server mode → *server unreachable*; a launch failure is skipped and reported by
   `_start_engine`), `no_peers_warning → _on_no_peers`,
   `sync_completed → _on_sync_completed` and `process_finished → _on_process_finished`
   finalize. `_on_file_transferred` counts real transfers during the `run` phase.
 - `_ever_connected` (`main_window/window.py::MainWindow`) is set on the first
   `connected` and reset per engine process, so a one-shot that never linked does
-  not claim a lost connection (`_on_status`, `main_window/events.py::MainWindow._on_status`).
+  not claim a lost connection (`_on_status`, `main_window/events.py::EventsMixin._on_status`).
 
 ### Transient feedback (overlay toast)
 
 `MainWindow._info_banner` is an **overlay child of `centralWidget()`**, never in
-`rootLayout` (`main_window/ui.py::MainWindow._create_info_banner`), so
+`rootLayout` (`main_window/ui.py::UiBuildMixin._create_info_banner`), so
 showing/hiding it cannot reflow the splitter. `_show_info_banner(message,
 auto_hide_ms, kind, title)` places it bottom-right above the bottom bar
 (`_position_info_banner`, kept anchored on `resizeEvent`) and maps `kind`
@@ -440,8 +440,8 @@ process finishing, `progress`/`info` auto-hide (`_clear_run_toast` with
 `_SURVIVES_FINISH`/`_PERSISTENT_ACROSS_RUNS`). Errors and warnings are surfaced
 in-app regardless of the notifications preference:
 
-- `_notify_error` (`main_window/ui.py::MainWindow._notify_error`) and
-  `_notify_warning` (`main_window/ui.py::MainWindow._notify_warning`) always show
+- `_notify_error` (`main_window/ui.py::UiBuildMixin._notify_error`) and
+  `_notify_warning` (`main_window/ui.py::UiBuildMixin._notify_warning`) always show
   the in-app toast and, when the window is out of focus, the OS notification.
 - Per-file transfer failures are consolidated into a single error toast at the end
   of a non-scoped run (`_on_transfer_failed` increments `_transfer_failure_count`,
@@ -455,21 +455,21 @@ never hidden by an older timeout.
 ### Desktop log lines
 
 Client log lines arrive verbatim (`<timestamp> - [pid] [client_id] LEVEL:`).
-Desktop-originated events use `MainWindow._append_desktop_log(level, message)`
-(`main_window/ui.py`), which renders the same shape with `[desktop]` in place of
+Desktop-originated events use `_append_desktop_log(level, message)`
+(`main_window/ui.py::UiBuildMixin._append_desktop_log`), which renders the same shape with `[desktop]` in place of
 the pid/CID (no client session exists), reusing
 `hsync_common.logger.format_timestamp`: `<timestamp> - [desktop] LEVEL: message`.
 Events surfaced to the user (Send/Receive busy, nothing to sync, connection
 results) additionally raise a toast, so their outcome is visible without the log
 panel. Master role changes (`_on_master_conflict`,
-`main_window/events.py::MainWindow._on_master_conflict`) are informational: a
+`main_window/events.py::EventsMixin._on_master_conflict`) are informational: a
 takeover by a peer that prefers the primary role is logged only (the role
 indicator updates), while a genuine two-prefer_master conflict raises a warning.
 
 ### Share size
 
 The status bar (right side, before Peers) shows a muted `QLabel`, rendered by
-`main_window/ui.py::MainWindow._render_share_size` from the single key
+`main_window/ui.py::UiBuildMixin._render_share_size` from the single key
 `label.share_size_fmt` ("Shared: X / Y"; `Condivisi: X / Y` in Italian). **X** is
 the local size and **Y** the whole-share size; when the total is unknown the
 label reads "X / —", and it is a bare `—` before the first value arrives.
@@ -477,7 +477,7 @@ label reads "X / —", and it is a bare `—` before the first value arrives.
 every file, so the total is an integer sum with no extra I/O
 (`workers.py::DirectoryScanWorker.size_progress` →
 `file_panel/panel.py::FilePanel.share_size_changed` →
-`main_window/ui.py::MainWindow._on_share_size_changed`). **Total** is the
+`main_window/ui.py::UiBuildMixin._on_share_size_changed`). **Total** is the
 `folder_size` event's sync-set union (see the client wiki): the remote/master
 listing sizes plus local-only pending uploads, so it is the whole share, not
 local + remote; scoped runs skip it. While stopped the total is `—` and the scan
@@ -490,8 +490,8 @@ so the value it leaves behind describes the folder as of the cycle start.
 therefore re-runs the walk in size-only mode
 (`workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
 pass, no `files_found`/`progress`) when a cycle completes
-(`main_window/events.py::MainWindow._on_sync_completed`) and when the process
-ends (`main_window/events.py::MainWindow._on_process_finished`), without
+(`main_window/events.py::EventsMixin._on_sync_completed`) and when the process
+ends (`main_window/events.py::EventsMixin._on_process_finished`), without
 reloading the file table. It is skipped while a full scan is already running.
 Sizes use `hsync_common.format.format_bytes`.
 
@@ -567,9 +567,9 @@ every derived font follows. The file table uses `table_font`
 Standard, one point smaller in Compact. `table_row_height`
 (`fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
 `file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
-`MainWindow._apply_settings_changes` calls when the preference changes.
+`main_window/start.py::StartMixin._apply_settings_changes` calls when the preference changes.
 The fonts are set programmatically
-(`main_window/ui.py::MainWindow._load_ui`, `license_dialog.py::LicenseDialog`);
+(`main_window/ui.py::UiBuildMixin._load_ui`, `license_dialog.py::LicenseDialog`);
 the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
@@ -588,10 +588,10 @@ bold, dim) and `log_style.py::styled_runs` turns them into `QTextCharFormat`s vi
 mappings, matched by `log_style.py::_LEVEL_RE` / `log_style.py::_LABEL_RE`
 (labels longest-first so `[REMOTE DOWNLOAD]` never collapses into `[DOWNLOAD]`).
 
-`ui.py::MainWindow._append_log` inserts the runs with a `QTextCursor` (never
+`main_window/ui.py::UiBuildMixin._append_log` inserts the runs with a `QTextCursor` (never
 `appendPlainText` for styled lines), so the escape sequences are stripped from
 `toPlainText()` (copy, tests, `maximumBlockCount` unchanged). Colors are baked
-into the formats, so `_rerender_log` (`ui.py`) re-renders the document when the
+into the formats, so `_rerender_log` (`main_window/ui.py::UiBuildMixin._rerender_log`) re-renders the document when the
 theme changes, called from `_apply_settings_changes` and
 `_on_system_color_scheme_changed`; the re-render works from the plain text and
 therefore re-applies the level/label fallback colors.
