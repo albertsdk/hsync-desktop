@@ -202,8 +202,6 @@ class SettingsDialog(QDialog):
         self._apply_translations()
         self._apply_tooltips()
 
-        finalize_size(self)
-
     # ── Sync tab grouping ─────────────────────────────────────────
 
     def _populate_bootnode_trust(self) -> None:
@@ -468,8 +466,9 @@ class SettingsDialog(QDialog):
         self._button_box.rejected.connect(self.reject)
 
     def _on_show_advanced_toggled(self, _checked: bool) -> None:
-        """Reflect the advanced toggle immediately."""
+        """Reflect the advanced toggle immediately, then re-fit the dialog."""
         self._apply_advanced_visibility()
+        finalize_size(self, allow_shrink=False)
 
     def _apply_advanced_visibility(self) -> None:
         """Show the Advanced tab and the advanced sections only when enabled."""
@@ -1245,6 +1244,10 @@ class SettingsDialog(QDialog):
         )
         # Apply p2p mode state to Server Mode tab
         self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+
+        # Size last: the advanced visibility and the p2p-mode gate above change
+        # which rows are shown, and the size must clamp to the screen.
+        finalize_size(self)
 
     # ── Connection-active state management ────────────────────────────────
 

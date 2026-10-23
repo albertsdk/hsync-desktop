@@ -13,11 +13,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -38,7 +41,7 @@ from hsync_desktop.widgets.text import escape_mnemonics
 if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
 
-# ``tab_builders.finalize_size`` pins the dialog to a 640 px minimum width; the
+# ``tab_builders.finalize_size`` keeps the dialog at least 640 px wide; the
 # description must wrap inside that page instead of asking for more.
 _TAB_DESCRIPTION_MAX_WIDTH = 600
 
@@ -47,6 +50,57 @@ def _group_box(title_key: str) -> QGroupBox:
     """A titled group box whose title shows its ``&`` literally."""
 
     return QGroupBox(escape_mnemonics(tr(title_key)))
+
+
+def _scroll_area(widget: QWidget) -> QScrollArea:
+    """A frame-less, resizable scroll area hosting ``widget`` (no horizontal scroll)."""
+
+    scroll = QScrollArea()
+    scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QFrame.Shape.NoFrame)
+    scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    scroll.setWidget(widget)
+    return scroll
+
+
+def _page_outer(tab: QWidget) -> QVBoxLayout:
+    """The zero-margin outer layout a scrollable page hosts its scroll area in."""
+
+    outer = QVBoxLayout(tab)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.setSpacing(0)
+    return outer
+
+
+def _scrollable_page(tab: QWidget) -> tuple[QVBoxLayout, QVBoxLayout]:
+    """Host a page's content in a scroll area and return ``(outer, inner)``.
+
+    ``outer`` is the page's top-level layout (the description line, then the
+    scroll area); ``inner`` is the scroll content where the groups go, so a tall
+    page scrolls instead of forcing the dialog to grow (see
+    ``tab_builders.finalize_size``).
+    """
+
+    outer = _page_outer(tab)
+    content = QWidget()
+    inner = QVBoxLayout(content)
+    inner.setContentsMargins(4, 4, 4, 4)
+    inner.setSpacing(8)
+    outer.addWidget(_scroll_area(content), 1)
+    return outer, inner
+
+
+def _scrollable_form_page(tab: QWidget, form: QFormLayout) -> None:
+    """Move an existing ``form`` off ``tab`` into a scroll area on that page.
+
+    Used by the General page, whose ``.ui`` form is reused as-is instead of being
+    rebuilt; the form becomes the scroll content so the page scrolls like the
+    others.
+    """
+
+    content = QWidget()
+    content.setLayout(form)
+    _page_outer(tab).addWidget(_scroll_area(content), 1)
 
 
 def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int) -> None:
@@ -62,10 +116,12 @@ def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int)
     label.setContentsMargins(8, 2, 8, 6)
     # A word-wrapped QLabel reports its *unwrapped* text width as sizeHint;
     # cap it below the 640 px page so a longer translation wraps instead of
-    # asking the fixed-size dialog to grow.
+    # forcing the page wider.
     label.setMaximumWidth(_TAB_DESCRIPTION_MAX_WIDTH)
     dlg._tab_descriptions[tab_index] = label
-    vbox.addWidget(label)
+    # ``vbox`` already holds the page's scroll area; the description stays the
+    # page's first item, above it.
+    vbox.insertWidget(0, label)
 
 
 def reorganize_sync_tab(dlg: SettingsDialog) -> None:
@@ -98,12 +154,10 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    # ── Build new grouped layout (no scroll) ──────────────
-    vbox = QVBoxLayout(sync_tab)
-    vbox.setContentsMargins(4, 4, 4, 4)
-    vbox.setSpacing(8)
+    # ── Build new grouped layout inside a scroll area ──────
+    outer, vbox = _scrollable_page(sync_tab)
 
-    _add_tab_description(dlg, vbox, _SYNC_TAB_INDEX)
+    _add_tab_description(dlg, outer, _SYNC_TAB_INDEX)
 
     # Group 1: Path & Bucket
     dlg._grp_path = _group_box("settings.group.path_bucket")
@@ -186,11 +240,9 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    vbox = QVBoxLayout(p2p_tab)
-    vbox.setContentsMargins(4, 4, 4, 4)
-    vbox.setSpacing(8)
+    outer, vbox = _scrollable_page(p2p_tab)
 
-    _add_tab_description(dlg, vbox, _P2P_TAB_INDEX)
+    _add_tab_description(dlg, outer, _P2P_TAB_INDEX)
 
     # Group 1: mode + group identity
     dlg._grp_p2p_mode = _group_box("settings.group.p2p_mode")
@@ -255,13 +307,11 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    vbox = QVBoxLayout(server_tab)
-    vbox.setContentsMargins(4, 4, 4, 4)
-    vbox.setSpacing(8)
+    outer, vbox = _scrollable_page(server_tab)
 
     # Orientation first (stable), then the p2p-mode warning that explains why
     # the whole tab is disabled.
-    _add_tab_description(dlg, vbox, _SERVER_TAB_INDEX)
+    _add_tab_description(dlg, outer, _SERVER_TAB_INDEX)
     vbox.addWidget(dlg._p2p_banner)
 
     # Group 1: server endpoint, credentials, identity and actions.
@@ -310,9 +360,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    vbox = QVBoxLayout(advanced_tab)
-    vbox.setContentsMargins(4, 4, 4, 4)
-    vbox.setSpacing(8)
+    _, vbox = _scrollable_page(advanced_tab)
 
     # Group 1: performance
     dlg._grp_advanced_perf = _group_box("settings.group.performance")

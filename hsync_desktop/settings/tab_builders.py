@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
@@ -42,6 +44,7 @@ from hsync_desktop.settings.tab_indices import (
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
+from hsync_desktop.settings.tab_layout import _scrollable_form_page
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
@@ -458,8 +461,11 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     hl_show_advanced.addStretch()
     general_tab = dlg._tabs.widget(_GENERAL_TAB_INDEX)
     general_layout = general_tab.layout() if general_tab else None
-    if isinstance(general_layout, QFormLayout):
+    if general_tab is not None and isinstance(general_layout, QFormLayout):
         general_layout.addRow("", cont_show_advanced)
+        # Host the .ui form inside a scroll area so the page scrolls like the
+        # others instead of forcing the dialog taller (see ``finalize_size``).
+        _scrollable_form_page(general_tab, general_layout)
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:
@@ -484,12 +490,46 @@ def setup_language_combo(dlg: SettingsDialog) -> None:
         dlg.lang_combo.addItem(name, code)
 
 
-def finalize_size(dlg: SettingsDialog) -> None:
-    """Auto-size the dialog to fit all content after translation."""
+_SCREEN_SIZE_FRACTION = 0.9
 
-    # Auto-size to fit all content (especially the grouped Sync tab)
-    dlg.setMinimumSize(0, 0)  # Override .ui minimumSize
+
+def _available_screen_size(dlg: SettingsDialog) -> QSize | None:
+    """The dialog screen's usable size, or ``None`` when the platform reports none."""
+
+    screen = dlg.screen() or QGuiApplication.primaryScreen()
+    if screen is None:
+        return None
+    geometry = screen.availableGeometry()
+    if geometry.width() <= 0 or geometry.height() <= 0:
+        return None
+    return geometry.size()
+
+
+def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
+    """Fit the dialog to its content, clamped to the screen so it stays usable.
+
+    Each tab page scrolls (see ``tab_layout``), so a tall page no longer forces a
+    tall, fixed window: the dialog is resizable and never larger than the screen.
+    Pass ``allow_shrink=False`` when re-fitting after a change (the advanced
+    toggle) so a size the user chose is never reduced or de-maximized.
+    """
+
     dlg.setMinimumWidth(640)  # Keep a reasonable minimum width
-    dlg.adjustSize()  # Resize to sizeHint
     hint = dlg.sizeHint()
-    dlg.setFixedSize(max(hint.width(), 640), hint.height())
+    available = _available_screen_size(dlg)
+    if available is None:
+        width = max(hint.width(), 640)
+        height = hint.height()
+    else:
+        width = max(640, min(hint.width(), int(available.width() * _SCREEN_SIZE_FRACTION)))
+        height = min(hint.height(), int(available.height() * _SCREEN_SIZE_FRACTION))
+    dlg.setMinimumHeight(min(480, height))
+    # Never disturb a maximized window; when re-fitting, never shrink a size the
+    # user chose (only grow a too-small dialog) and skip no-op resizes.
+    if dlg.isMaximized():
+        return
+    if not allow_shrink and dlg.width() >= width and dlg.height() >= height:
+        return
+    if dlg.width() == width and dlg.height() == height:
+        return
+    dlg.resize(width, height)

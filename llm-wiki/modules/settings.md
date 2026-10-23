@@ -68,11 +68,10 @@ one. Two constraints to keep:
   `SettingsDialog._tab_descriptions`, so the sentence stays readable while p2p mode
   grays the Server Mode tab or a running sync grays the others.
 * `_TAB_DESCRIPTION_MAX_WIDTH` caps the label: a wrapped `QLabel` reports its
-  unwrapped text width as `sizeHint`, and `finalize_size` pins the dialog to its
-  size hint, so a longer translation would widen the window instead of wrapping.
-  Keep every locale within `tests/test_locales.py::TestTabDescriptions` (≤ 24
-  words, no master/bootnode/relay jargon, discovery-server wording in the p2p
-  line).
+  unwrapped text width as `sizeHint`, so a longer translation would widen the page
+  instead of wrapping. Keep every locale within
+  `tests/test_locales.py::TestTabDescriptions` (≤ 24 words, no
+  master/bootnode/relay jargon, discovery-server wording in the p2p line).
 
 **Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2),
 General (3), Advanced (4), sourced from `ui/settings_dialog.ui` (the p2p page
@@ -95,6 +94,20 @@ tabs plus the Certificates and Advanced Options groups in the Server Mode tab.
 `set_current_tab` (`settings/dialog.py::SettingsDialog.set_current_tab`) falls
 back to the first visible tab so a hidden target never shows a blank page. The
 advanced values themselves are preserved; the toggle only changes visibility.
+
+**Dialog sizing & scrolling** (`settings/tab_layout.py::_scrollable_page`,
+`settings/tab_builders.py::finalize_size`): every tab page hosts its content in a
+frameless `QScrollArea` (`_scroll_area`), so a tall page — the Advanced tab, or the
+mode tabs with their Advanced Options groups shown — scrolls instead of forcing a
+tall, fixed window. `finalize_size` runs **after**
+`_apply_advanced_visibility`, and the `show_advanced` toggle re-fits the dialog
+through `SettingsDialog._on_show_advanced_toggled` with `allow_shrink=False` (it
+only grows a too-small window; a maximized or user-resized dialog is left
+untouched); the dialog is resizable (no `setFixedSize`) with a 640 px minimum
+width, and width/height are clamped to 90% of `_available_screen_size` (the dialog
+screen's `availableGeometry`; `None` on a headless platform → content-sized
+fallback). The General page reuses its `.ui` form through `_scrollable_form_page`
+instead of being rebuilt.
 
 **Theme**: `appearance/theme` stores `system`/`light`/`dark`.
 `get_theme_setting` (`settings/cli_args.py::get_theme_setting`) returns the raw
