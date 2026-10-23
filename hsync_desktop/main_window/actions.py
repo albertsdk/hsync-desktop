@@ -128,17 +128,16 @@ class ActionsMixin:
         """Return the currently selected transfer from the file panel, or None."""
         table = self._file_panel._table
         row = table._last_selected_row
-        if row < 0 or row >= table.rowCount():
+        if row < 0 or row >= table.model().rowCount():
             return None
         transfer = table._get_transfer_at_row(row)
         if not transfer:
             # Synthesized folder — create a virtual transfer
-            from hsync_desktop.file_panel import COL_NAME, FileTransfer, TransferStatus
+            from hsync_desktop.file_panel import FileTransfer, TransferStatus
 
-            name_item = table.item(row, COL_NAME)
-            if not name_item:
+            display_name = table.model().display_name(row)
+            if display_name is None:
                 return None
-            display_name = name_item.text()
             folder_path = (
                 f"{table._current_path}/{display_name}/"
                 if table._current_path

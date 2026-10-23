@@ -2040,9 +2040,14 @@ class _FakeViewport:
         return 500
 
 
-class _FakeTable:
+class _FakeModel:
     def rowCount(self):
         return 1
+
+
+class _FakeTable:
+    def model(self):
+        return _FakeModel()
 
     def viewport(self):
         return _FakeViewport()

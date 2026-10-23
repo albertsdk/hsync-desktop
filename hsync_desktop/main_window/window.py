@@ -205,7 +205,7 @@ class MainWindow(
         if self._table_width_fitted or self.isMaximized():
             return
         table = self._file_panel.table
-        if table.rowCount() == 0 or table.viewport().width() <= 0:
+        if table.model().rowCount() == 0 or table.viewport().width() <= 0:
             return
         self._table_width_fitted = True
         deficit = table.horizontalScrollBar().maximum()

@@ -272,6 +272,29 @@ def _classify_file(filepath: str) -> tuple[str, str]:
 
 # ── Formatting functions ────────────────────────────────────────────────
 
+# Locale and month-name caches. format_mtime runs once per Modified cell on
+# every rebuild; constructing a QLocale and resolving the month name per cell
+# dominated that column. Both caches are keyed by language so a live language
+# change is still reflected.
+_LOCALE_CACHE: dict[str, QLocale] = {}
+_MONTH_NAME_CACHE: dict[tuple[str, int], str] = {}
+
+
+def _locale_for(language: str) -> QLocale:
+    locale = _LOCALE_CACHE.get(language)
+    if locale is None:
+        locale = _LOCALE_CACHE[language] = QLocale(language)
+    return locale
+
+
+def _short_month_name(language: str, month: int) -> str:
+    key = (language, month)
+    name = _MONTH_NAME_CACHE.get(key)
+    if name is None:
+        name = _locale_for(language).monthName(month, QLocale.FormatType.ShortFormat).lower()
+        _MONTH_NAME_CACHE[key] = name
+    return name
+
 
 def format_mtime(epoch: float) -> str:
     """Format modification time as locale-aware human-readable string.
@@ -293,7 +316,7 @@ def format_mtime(epoch: float) -> str:
     if days_ago == 1:
         return f"{tr('date.yesterday')} {time_str}"
 
-    # Use QLocale for locale-aware abbreviated month name
-    locale = QLocale(get_language())
-    month = locale.monthName(dt.month, QLocale.FormatType.ShortFormat).lower()
+    # Locale-aware abbreviated month name, resolved through the per-language
+    # caches above instead of building a QLocale for every row.
+    month = _short_month_name(get_language(), dt.month)
     return f"{dt.day} {month} {dt.year} {time_str}"

@@ -485,13 +485,15 @@ class HsyncEngine(QObject):
         if not self._process:
             return
         data = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
+        from hsync_desktop import debug_events
+
+        debug_enabled = debug_events.enabled()
         for raw_line in data.splitlines():
             line = raw_line.rstrip()
             if line:
                 self.log_received.emit(line)
-                from hsync_desktop import debug_events
-
-                debug_events.log("client_log", line=line)
+                if debug_enabled:
+                    debug_events.log("client_log", line=line)
 
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
@@ -590,19 +592,22 @@ class HsyncEngine(QObject):
         name = event.get("event")
         from hsync_desktop import debug_events
 
-        debug_events.log(
-            "engine_event",
-            name=str(name),
-            file=event.get("file"),
-            op=event.get("op"),
-            transferred=event.get("transferred"),
-            total=event.get("total"),
-            size=event.get("size"),
-            state=event.get("state"),
-            status=event.get("status"),
-            is_master=event.get("is_master"),
-            connected=event.get("connected"),
-        )
+        # The kwargs dict is built by the call expression; skip it entirely when
+        # the diagnostic capture is disabled (the production default).
+        if debug_events.enabled():
+            debug_events.log(
+                "engine_event",
+                name=str(name),
+                file=event.get("file"),
+                op=event.get("op"),
+                transferred=event.get("transferred"),
+                total=event.get("total"),
+                size=event.get("size"),
+                state=event.get("state"),
+                status=event.get("status"),
+                is_master=event.get("is_master"),
+                connected=event.get("connected"),
+            )
         try:
             self._dispatch_event(name, event)
         except Exception:

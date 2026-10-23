@@ -217,13 +217,26 @@ The devices tab shows
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `FilePanel` | `file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
-| `FileTransferTable` | `file_panel/transfer_table.py::FileTransferTable` | per-file rows (status/progress/size) |
+| `FileTransferTable` | `file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
+| `FileTransferModel` | `file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
 | `FileDetailPanel` | `file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
 | `ProgressBarDelegate` / `CenteredIconDelegate` | `file_panel/delegates.py::ProgressBarDelegate` / `file_panel/delegates.py::CenteredIconDelegate` | cell rendering |
 | `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay during scans |
 | `_confirm_dialog` | `file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
+
+The table is a **model/view pair** (`file_panel/transfer_table.py::FileTransferModel`
++ `FileTransferTable`): the view computes one `(display_name, transfer,
+folder_data)` row per visible folder/file and hands the list to `FileTransferModel.set_rows`;
+cells are produced through `QAbstractTableModel.data` roles (Display, Decoration,
+Foreground, Font, ToolTip, UserRole for the progress bar), so no per-cell
+`QTableWidgetItem` is retained and the rows are virtualized. Column-header sorting
+is model-side (`FileTransferModel.sort`): it stays off until the user sorts, and a
+refresh re-applies the recorded sort, preserving the user's order across rebuilds.
+`FileTransferTable` keeps the navigation, context-menu, column-visibility/width
+and selection logic and exposes `_model` (and `model().display_name(row)`) to
+callers that need a row's transfer or display name.
 
 The panel lists exactly what the engine synchronises: the local scan, the
 consistency pass and the status-bar size share
@@ -338,6 +351,23 @@ samples (`file_panel/models.py::FileTransfer.note_progress`), not
 the sustained rate within a second and hides the per-chunk pacing of the
 limiter. `progress_total` keeps the wire total (compressed upload size, delta
 payload) separate from the on-disk `size`.
+
+Row changes that arrive in bursts are **coalesced**: the preview/status
+(`FileTransferTable.update_file_status`), live-progress and scan-batch paths
+schedule a single debounced rebuild (`FileTransferTable._schedule_refresh`,
+100 ms) instead of rebuilding the whole table per event, and the periodic
+consistency pass batches its additions and removals
+(`FileTransferTable.add_transfers_batch` / `FileTransferTable.remove_transfers`).
+Tests that assert rendered cells right after such a call must flush the debounce
+with `FileTransferTable.refresh_view()`.
+
+The consistency pass walks with an iterative `os.scandir` and derives each
+relative key by slicing the prefix `file_panel/panel.py::_scandir_child_prefix`
+builds, matching `os.scandir`'s own `base`/`name` join (a separator is appended
+only when the share path does not already end with one, alt separator included).
+It recurses only into real directories and, like `os.walk(onerror=None)`, skips a
+nested unreadable or vanished directory instead of aborting the whole pass; an
+unreadable share root aborts the pass rather than diffing an empty set.
 
 **Clickable links**: the share name, the ancestor breadcrumb segments and the
 detail-panel file path use the default text colour with

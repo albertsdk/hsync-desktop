@@ -9,20 +9,25 @@ import os
 import platform
 import shutil
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
+    QAbstractTableModel,
+    QModelIndex,
     QMutex,
     QMutexLocker,
+    QPersistentModelIndex,
     QSettings,
     Qt,
     QTimer,
     QUrl,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QKeyEvent, QPalette
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QFont, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QDialog,
     QDialogButtonBox,
@@ -32,8 +37,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QMessageBox,
-    QTableWidget,
-    QTableWidgetItem,
+    QTableView,
     QWidget,
 )
 
@@ -124,7 +128,280 @@ _MIN_COLUMN_WIDTH = 48
 _FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_ETA, COL_STATUS, COL_SPEED, COL_DIRECTION)
 
 
-class FileTransferTable(QTableWidget):
+class FileTransferModel(QAbstractTableModel):
+    """Row data for :class:`FileTransferTable`, rendered on demand.
+
+    The view computes one ``(display_name, transfer, folder_data)`` entry per
+    visible folder/file and hands the list over with :meth:`set_rows`; cells are
+    produced through ``data()`` roles instead of retained ``QTableWidgetItem``
+    objects. That removes the per-cell item duplicate, lets the view virtualize
+    its rows, and makes a single changed value repaint without a full rebuild.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._rows: list[tuple[str, FileTransfer | None, dict]] = []
+        self._connected = False
+        self._default_text_color = QColor()
+        self._status_palette: dict = STATUS_COLORS
+        self._direction_font: QFont | None = None
+        # ``None`` keeps the natural folders-first order produced by the view;
+        # a column/order is set only when the user sorts by a header.
+        self._sort_column: int | None = None
+        self._sort_order = Qt.SortOrder.AscendingOrder
+
+    # ── Population ────────────────────────────────────────────────────────
+
+    def set_rows(
+        self,
+        rows: list[tuple[str, FileTransfer | None, dict]],
+        *,
+        connected: bool,
+        default_text_color: QColor,
+        status_palette: dict,
+        direction_font: QFont | None,
+    ) -> None:
+        """Replace every row, re-applying the current user sort if any."""
+        self.beginResetModel()
+        self._connected = connected
+        self._default_text_color = default_text_color
+        self._status_palette = status_palette
+        self._direction_font = direction_font
+        self._rows = self._sorted(rows)
+        self.endResetModel()
+
+    def clear_sort(self) -> None:
+        """Drop the user sort so the view keeps the natural folders-first order."""
+        self._sort_column = None
+
+    def retranslate(self) -> None:
+        """Re-emit the header after a language change (even with no rows)."""
+        self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, self.columnCount() - 1)
+
+    def set_direction_font(self, font: QFont) -> None:
+        self._direction_font = font
+        if self._rows:
+            self.dataChanged.emit(
+                self.index(0, COL_DIRECTION),
+                self.index(len(self._rows) - 1, COL_DIRECTION),
+                [Qt.ItemDataRole.FontRole],
+            )
+
+    def rows(self) -> list[tuple[str, FileTransfer | None, dict]]:
+        return self._rows
+
+    def display_name(self, row: int) -> str | None:
+        if 0 <= row < len(self._rows):
+            return self._rows[row][0]
+        return None
+
+    # ── QAbstractTableModel ───────────────────────────────────────────────
+
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._rows)
+
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(_COLUMN_KEYS)
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            key = _COLUMN_KEYS[section]
+            return tr(key) if key else ""
+        return None
+
+    def data(self, index: QModelIndex | QPersistentModelIndex, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+        row, col = index.row(), index.column()
+        display_name, transfer, folder_data = self._rows[row]
+        is_folder = transfer is None or transfer.filepath.endswith("/")
+
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._display_value(display_name, transfer, folder_data, is_folder, col)
+        if role == Qt.ItemDataRole.DecorationRole:
+            return self._icon(transfer, is_folder) if col == COL_ICON else None
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return self._alignment(col)
+        if role == Qt.ItemDataRole.UserRole:
+            return (
+                self._row_progress(transfer, folder_data, is_folder)
+                if col == COL_PROGRESS
+                else None
+            )
+        if role == Qt.ItemDataRole.ForegroundRole:
+            return self._foreground(transfer, folder_data, is_folder)
+        if role == Qt.ItemDataRole.FontRole:
+            if col == COL_DIRECTION and self._direction_text(transfer, is_folder):
+                return self._direction_font
+            return None
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return self._tooltip(folder_data, is_folder, col)
+        return None
+
+    def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
+        self._sort_column = column
+        self._sort_order = order
+        self.beginResetModel()
+        self._rows = self._sorted(self._rows)
+        self.endResetModel()
+
+    # ── Rendering helpers ─────────────────────────────────────────────────
+
+    def _sorted(self, rows: list[tuple[str, FileTransfer | None, dict]]):
+        """Apply the recorded sort (DisplayRole text, like QTableWidgetItem)."""
+        if self._sort_column is None:
+            return rows
+        column = self._sort_column
+        reverse = self._sort_order == Qt.SortOrder.DescendingOrder
+
+        def key(item: tuple[str, FileTransfer | None, dict]) -> str:
+            name, transfer, folder_data = item
+            is_folder = transfer is None or transfer.filepath.endswith("/")
+            value = self._display_value(name, transfer, folder_data, is_folder, column)
+            return "" if value is None else str(value)
+
+        return sorted(rows, key=key, reverse=reverse)
+
+    def _display_value(
+        self,
+        display_name: str,
+        transfer: FileTransfer | None,
+        folder_data: dict | None,
+        is_folder: bool,
+        col: int,
+    ) -> str:
+        if col in (COL_ICON, COL_PROGRESS):
+            return ""
+        if col == COL_NAME:
+            return display_name
+        if col == COL_TYPE:
+            if is_folder:
+                return tr("ftype.folder")
+            return tr(_classify_file(transfer.filepath)[1]) if transfer else ""
+        if col == COL_SIZE:
+            if is_folder and folder_data:
+                return tr("folder.items").format(count=folder_data.get("count", 0))
+            if transfer and not is_folder:
+                return format_bytes(transfer.size)
+            return ""
+        if col == COL_MODIFIED:
+            mtime = (
+                folder_data.get("mtime", 0.0)
+                if folder_data
+                else (transfer.mtime if transfer else 0.0)
+            )
+            return format_mtime(mtime)
+        if col == COL_ETA:
+            return format_duration(transfer.eta_seconds if transfer else None, style="compact")
+        if col == COL_STATUS:
+            return self._row_status(transfer, folder_data, is_folder)[0]
+        if col == COL_SPEED:
+            if is_folder:
+                rate = folder_data.get("speed") if folder_data else None
+            else:
+                rate = transfer.speed_bps if transfer else None
+            return f"{format_bytes(rate)}/s" if rate else ""
+        if col == COL_DIRECTION:
+            return self._direction_text(transfer, is_folder)
+        return ""
+
+    @staticmethod
+    def _direction_text(transfer: FileTransfer | None, is_folder: bool) -> str:
+        # Empty at rest: the dash placeholder is noise in a dense column, and
+        # the Status column already carries the state.
+        if transfer is None or is_folder or transfer.direction in ("", "—"):
+            return ""
+        return transfer.direction
+
+    @staticmethod
+    def _icon(transfer: FileTransfer | None, is_folder: bool):
+        if is_folder or transfer is None:
+            return get_icon("folder")
+        return get_icon(_classify_file(transfer.filepath)[0])
+
+    @staticmethod
+    def _alignment(col: int) -> int | None:
+        center = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        right = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        if col == COL_ICON:
+            return center
+        if col == COL_DIRECTION:
+            return int(Qt.AlignmentFlag.AlignCenter)
+        if col in (COL_SIZE, COL_MODIFIED, COL_ETA, COL_SPEED):
+            return right
+        return None
+
+    def _foreground(
+        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> QColor:
+        # "Local" is the resting state, not a status: only grey it while a
+        # connection can compare the file.
+        _, status = self._row_status(transfer, folder_data, is_folder)
+        if status is TransferStatus.LOCAL and not self._connected:
+            return self._default_text_color
+        return self._status_palette.get(status, QColor(128, 128, 128))
+
+    @staticmethod
+    def _tooltip(folder_data: dict | None, is_folder: bool, col: int) -> str | None:
+        # A folder's neutral aggregate status hides the mix of planned
+        # operations, so spell out what will actually happen.
+        if col not in (COL_NAME, COL_STATUS) or not is_folder or not folder_data:
+            return None
+        ops = folder_data.get("ops") or {}
+        parts = []
+        for op_status, label_key in (
+            (TransferStatus.TO_UPLOAD, "detail.to_upload"),
+            (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
+            (TransferStatus.TO_DELETE, "detail.to_delete"),
+            (TransferStatus.TO_RENAME, "detail.to_rename"),
+        ):
+            count = ops.get(op_status, 0)
+            if count:
+                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+        return ", ".join(parts) if parts else None
+
+    @staticmethod
+    def _row_progress(
+        transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> int:
+        """Progress percentage for a row (-1 = no measurable progress)."""
+        if is_folder:
+            if not folder_data:
+                return -1
+            status_priority = folder_data.get("status_priority", 100)
+            return folder_data.get("progress", -1) if status_priority == 2 else -1
+        if not transfer or transfer.status in _NO_PROGRESS_STATUSES:
+            return -1
+        if transfer.total_bytes <= 0:
+            return -1
+        return max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
+
+    @staticmethod
+    def _row_status(
+        transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> tuple[str, TransferStatus]:
+        """Localized status text and its colour key for a row."""
+        if is_folder:
+            if folder_data:
+                status_priority = folder_data.get("status_priority", 6)
+                status_key = folder_data.get("status_key", "folder.status.local")
+            elif transfer is not None:
+                # Empty folder: use its own status. A folder created by a remote
+                # peer is marked SYNCED by _on_directory_created; without this it
+                # would default to "Local" because it has no children to aggregate.
+                status_priority = _STATUS_PRIORITY.get(transfer.status, 6)
+                status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
+            else:
+                status_priority = 6
+                status_key = "folder.status.local"
+            return tr(status_key), _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
+        if transfer:
+            status_key = _STATUS_TEXT_KEYS.get(transfer.status)
+            return (tr(status_key) if status_key is not None else "?", transfer.status)
+        return "", TransferStatus.LOCAL
+
+
+class FileTransferTable(QTableView):
     """Sortable table showing file transfers with hierarchical folder navigation."""
 
     row_selected = Signal(object)  # Emits FileTransfer or None
@@ -189,16 +466,15 @@ class FileTransferTable(QTableWidget):
         self._cached_items: list[tuple[str, FileTransfer | None, dict]] | None = None
         self._cached_path: str = ""
 
-        self._setup_table()
+        self._direction_font: QFont | None = None
+        self._model = FileTransferModel(self)
+        self.setModel(self._model)
 
-    @staticmethod
-    def _column_headers() -> list[str]:
-        """Localized column headers for the current language."""
-        return [tr(key) if key else "" for key in _COLUMN_KEYS]
+        self._setup_table()
 
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
-        self.setHorizontalHeaderLabels(self._column_headers())
+        self._model.retranslate()
 
     def set_sync_active(self, active: bool) -> None:
         """Enable/disable the Send/Receive context entries (sync running)."""
@@ -224,15 +500,12 @@ class FileTransferTable(QTableWidget):
         self._direction_font = table_font()
         self._direction_font.setBold(True)
         self.horizontalHeader().setFont(table_font())
+        self._model.set_direction_font(self._direction_font)
 
     def _setup_table(self) -> None:
-        headers = self._column_headers()
-        self.setColumnCount(len(headers))
-        self.setHorizontalHeaderLabels(headers)
-        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.setSortingEnabled(True)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
         self.refresh_fonts()
@@ -275,8 +548,19 @@ class FileTransferTable(QTableWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_file_context_menu)
 
-        self.cellClicked.connect(self._on_cell_clicked)
-        self.cellDoubleClicked.connect(self._on_cell_double_clicked)
+        # QTableView has no cell(row, col) convenience signals: adapt the
+        # QModelIndex-based ones to the row/column handlers.
+        self.clicked.connect(self._on_index_clicked)
+        self.doubleClicked.connect(self._on_index_double_clicked)
+
+        # Header-click sorting, but keep the natural folders-first order until
+        # the user actually sorts: ``setSortingEnabled`` immediately sorts by the
+        # current indicator, which is discarded right after.
+        self.setSortingEnabled(True)
+        self._model.clear_sort()
+        # Hide the indicator the enabling left on the first column: no order is
+        # applied yet, so the header must not imply one.
+        header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
         # Optional columns start hidden; restore the user's choice if saved.
         self._restore_column_visibility()
@@ -303,7 +587,7 @@ class FileTransferTable(QTableWidget):
         header = self.horizontalHeader()
         hidden = [
             _COLUMN_KEYS[col]
-            for col in range(self.columnCount())
+            for col in range(self._model.columnCount())
             if _COLUMN_KEYS[col] and header.isSectionHidden(col)
         ]
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(self._COLUMN_SETTINGS_KEY, ",".join(hidden))
@@ -336,7 +620,7 @@ class FileTransferTable(QTableWidget):
         header = self.horizontalHeader()
         parts = [
             f"{_COLUMN_KEYS[col]}:{header.sectionSize(col)}"
-            for col in range(self.columnCount())
+            for col in range(self._model.columnCount())
             if _COLUMN_KEYS[col]
         ]
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
@@ -352,7 +636,7 @@ class FileTransferTable(QTableWidget):
         are touched: Icon stays fixed, Name stretches and Progress keeps its
         default width.
         """
-        if self._columns_sized or self.rowCount() == 0:
+        if self._columns_sized or self._model.rowCount() == 0:
             return
         header = self.horizontalHeader()
         self._restoring_columns = True
@@ -420,6 +704,14 @@ class FileTransferTable(QTableWidget):
         self._cached_items = None
         self.refresh_view()
 
+    def _on_index_clicked(self, index: QModelIndex) -> None:
+        if index.isValid():
+            self._on_cell_clicked(index.row(), index.column())
+
+    def _on_index_double_clicked(self, index: QModelIndex) -> None:
+        if index.isValid():
+            self._on_cell_double_clicked(index.row(), index.column())
+
     def _on_cell_clicked(self, row: int, _col: int) -> None:
         """Defer single-click action to distinguish from double-click."""
         self._pending_click_row = row
@@ -447,10 +739,9 @@ class FileTransferTable(QTableWidget):
         self._click_timer.stop()
         self._clear_sticky_selection()
         self._last_selected_row = row
-        name_item = self.item(row, COL_NAME)
-        if not name_item:
+        display_name = self._model.display_name(row)
+        if display_name is None:
             return
-        display_name = name_item.text()
         # Check if it's a synthesized folder (exists in current level)
         full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
         # Check if any transfer has this as a prefix (folder)
@@ -473,7 +764,7 @@ class FileTransferTable(QTableWidget):
         it; the keyboard path always opens the folder under the cursor.
         """
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            row = self.currentRow()
+            row = self.currentIndex().row()
             if row >= 0:
                 self._on_cell_double_clicked(row, COL_NAME)
                 event.accept()
@@ -553,12 +844,12 @@ class FileTransferTable(QTableWidget):
         """Re-select the restored row once it is present at the current level."""
         if self._sticky_selection is None:
             return
-        # Resolve from the visible rows, not _row_index: that map is built before
-        # sorting is re-enabled, so after a column sort its indices are stale.
+        # Resolve from the visible rows (model order), not _row_index: the map is
+        # rebuilt with the rows, but the display name is the stable key the user
+        # restored.
         row = None
-        for candidate in range(self.rowCount()):
-            item = self.item(candidate, COL_NAME)
-            if item is not None and item.text() == self._sticky_selection:
+        for candidate in range(self._model.rowCount()):
+            if self._model.display_name(candidate) == self._sticky_selection:
                 row = candidate
                 break
         if row is None:
@@ -703,228 +994,34 @@ class FileTransferTable(QTableWidget):
         if items is None:
             return
 
-        self.setUpdatesEnabled(False)
-        self.setSortingEnabled(False)
-        try:
-            self.setRowCount(0)
-            self._row_index.clear()
-            self._last_selected_row = -1
-            # Constant for the whole refresh: avoid a palette copy per row.
-            default_text_color = self.palette().color(QPalette.ColorRole.Text)
+        # Constants for the whole refresh: the model renders every row from them.
+        default_text_color = self.palette().color(QPalette.ColorRole.Text)
+        dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
+        status_palette = STATUS_COLORS_DARK if dark else STATUS_COLORS
 
-            for display_name, transfer, folder_data in items:
-                row = self.rowCount()
-                self.insertRow(row)
-                self._row_index[display_name] = row
-                self._populate_row_hierarchical(
-                    row, display_name, transfer, folder_data, default_text_color
-                )
-        finally:
-            self.setSortingEnabled(True)
-            self.setUpdatesEnabled(True)
+        self._model.set_rows(
+            items,
+            connected=self._connected,
+            default_text_color=default_text_color,
+            status_palette=status_palette,
+            direction_font=self._direction_font,
+        )
+        # Rebuild the display-key index from the model's final (possibly sorted)
+        # row order so it never disagrees with what is on screen.
+        self._row_index = {
+            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
+        }
+        self._last_selected_row = -1
 
         # Fit the columns to their content once, before any user resizing.
         self._size_columns_to_contents()
         self._apply_sticky_selection()
 
-    def _populate_row_hierarchical(
-        self,
-        row: int,
-        display_name: str,
-        transfer: FileTransfer | None,
-        folder_data: dict | None,
-        default_text_color: QColor,
-    ) -> None:
-        """Populate a row for hierarchical view."""
-        is_folder = transfer is None or transfer.filepath.endswith("/")
-
-        name_item = self._populate_basic_cells(row, display_name, transfer, folder_data, is_folder)
-
-        # Progress
-        progress_item = QTableWidgetItem()
-        progress_item.setData(
-            Qt.ItemDataRole.UserRole, self._row_progress(transfer, folder_data, is_folder)
-        )
-        self.setItem(row, COL_PROGRESS, progress_item)
-
-        # ETA
-        eta = transfer.eta_seconds if transfer else None
-        eta_item = QTableWidgetItem(format_duration(eta, style="compact"))
-        eta_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_ETA, eta_item)
-
-        # Status
-        status_text, status_for_color = self._row_status(transfer, folder_data, is_folder)
-        status_item = QTableWidgetItem(status_text)
-        self.setItem(row, COL_STATUS, status_item)
-
-        # Folder tooltip: the neutral aggregate status hides the mix of planned
-        # operations, so spell out what will actually happen (e.g.
-        # "To upload: 3, To download: 1"). Files keep their precise status.
-        if is_folder and folder_data:
-            self._apply_folder_tooltip(name_item, status_item, folder_data)
-
-        # Direction (optional column; visible by default). Empty at rest: the
-        # dash placeholder is noise in a dense column, and the Status column
-        # already carries the state. Operative glyphs are bold, a second
-        # emphasis cue beside the status colour.
-        if transfer is None or is_folder or transfer.direction in ("", "—"):
-            direction_text = ""
-        else:
-            direction_text = transfer.direction
-        direction_item = QTableWidgetItem(direction_text)
-        direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        if direction_text:
-            direction_item.setFont(self._direction_font)
-        self.setItem(row, COL_DIRECTION, direction_item)
-
-        # Speed (optional column, hidden by default). A folder shows the sum of
-        # its in-flight children so the aggregate rate is visible too.
-        if is_folder:
-            rate = folder_data.get("speed") if folder_data else None
-        else:
-            rate = transfer.speed_bps if transfer else None
-        speed_text = f"{format_bytes(rate)}/s" if rate else ""
-        speed_item = QTableWidgetItem(speed_text)
-        speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_SPEED, speed_item)
-
-        self._apply_row_color(row, status_for_color, default_text_color)
-
-    def _populate_basic_cells(
-        self,
-        row: int,
-        display_name: str,
-        transfer: FileTransfer | None,
-        folder_data: dict | None,
-        is_folder: bool,
-    ) -> QTableWidgetItem:
-        """Fill the icon/name/type/size/modified cells and return the name item."""
-        # Icon
-        if transfer is None or transfer.filepath.endswith("/"):
-            icon_name, type_key = "folder", "ftype.folder"
-        else:
-            icon_name, type_key = _classify_file(transfer.filepath)
-        icon_item = QTableWidgetItem()
-        icon_item.setIcon(get_icon(icon_name))
-        icon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_ICON, icon_item)
-
-        # Name
-        name_item = QTableWidgetItem(display_name)
-        self.setItem(row, COL_NAME, name_item)
-
-        # Type
-        self.setItem(row, COL_TYPE, QTableWidgetItem(tr(type_key)))
-
-        # Size / Item count
-        if is_folder and folder_data:
-            count = folder_data.get("count", 0)
-            size_text = tr("folder.items").format(count=count)
-        elif transfer and not is_folder:
-            size_text = format_bytes(transfer.size)
-        else:
-            size_text = ""
-        size_item = QTableWidgetItem(size_text)
-        size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_SIZE, size_item)
-
-        # Modified
-        mtime = (
-            folder_data.get("mtime", 0.0) if folder_data else (transfer.mtime if transfer else 0.0)
-        )
-        mtime_item = QTableWidgetItem(format_mtime(mtime))
-        mtime_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_MODIFIED, mtime_item)
-        return name_item
-
-    def _row_progress(
-        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
-    ) -> int:
-        """Progress percentage for a row (-1 = no measurable progress)."""
-        if is_folder:
-            if not folder_data:
-                return -1
-            status_priority = folder_data.get("status_priority", 100)
-            return folder_data.get("progress", -1) if status_priority == 2 else -1
-        if not transfer or transfer.status in _NO_PROGRESS_STATUSES:
-            return -1
-        if transfer.total_bytes <= 0:
-            return -1
-        return max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
-
-    def _row_status(
-        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
-    ) -> tuple[str, TransferStatus]:
-        """Localized status text and its colour key for a row."""
-        if is_folder:
-            if folder_data:
-                status_priority = folder_data.get("status_priority", 6)
-                status_key = folder_data.get("status_key", "folder.status.local")
-            elif transfer is not None:
-                # Empty folder: use its own status. A folder created by a remote
-                # peer is marked SYNCED by _on_directory_created; without this it
-                # would default to "Local" because it has no children to aggregate.
-                status_priority = _STATUS_PRIORITY.get(transfer.status, 6)
-                status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
-            else:
-                status_priority = 6
-                status_key = "folder.status.local"
-            status_text = tr(status_key)
-            return status_text, _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
-        if transfer:
-            status_key = _STATUS_TEXT_KEYS.get(transfer.status)
-            return (
-                tr(status_key) if status_key is not None else "?",
-                transfer.status,
-            )
-        return "", TransferStatus.LOCAL
-
-    def _apply_folder_tooltip(
-        self, name_item: QTableWidgetItem, status_item: QTableWidgetItem, folder_data: dict
-    ) -> None:
-        """Spell out the mixed planned operations behind a folder's status."""
-        ops = folder_data.get("ops") or {}
-        parts = []
-        for op_status, label_key in (
-            (TransferStatus.TO_UPLOAD, "detail.to_upload"),
-            (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
-            (TransferStatus.TO_DELETE, "detail.to_delete"),
-            (TransferStatus.TO_RENAME, "detail.to_rename"),
-        ):
-            count = ops.get(op_status, 0)
-            if count:
-                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
-        if parts:
-            tooltip = ", ".join(parts)
-            name_item.setToolTip(tooltip)
-            status_item.setToolTip(tooltip)
-
-    def _apply_row_color(
-        self, row: int, status: TransferStatus, default_text_color: QColor
-    ) -> None:
-        """Apply the status colour to the whole row."""
-        # "Local" is the resting state, not a status: only grey it while a
-        # connection can compare the file.
-        if status is TransferStatus.LOCAL and not self._connected:
-            color = default_text_color
-        else:
-            # The light theme needs the darker palette; the dark theme the
-            # brighter one, so the status stays readable on either background.
-            dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
-            colors = STATUS_COLORS_DARK if dark else STATUS_COLORS
-            color = colors.get(status, QColor(128, 128, 128))
-        for col in range(self.columnCount()):
-            item = self.item(row, col)
-            if item:
-                item.setForeground(color)
-
     def _get_transfer_at_row(self, row: int) -> FileTransfer | None:
         """Return the FileTransfer for the given row."""
-        name_item = self.item(row, COL_NAME)
-        if not name_item:
+        display_name = self._model.display_name(row)
+        if display_name is None:
             return None
-        display_name = name_item.text()
         full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
         return self._transfers.get(full_path) or self._transfers.get(full_path + "/")
 
@@ -943,10 +1040,9 @@ class FileTransferTable(QTableWidget):
         transfer = self._get_transfer_at_row(row)
 
         if not transfer:
-            name_item = self.item(row, COL_NAME)
-            if not name_item:
+            display_name = self._model.display_name(row)
+            if display_name is None:
                 return
-            display_name = name_item.text()
             folder_path = (
                 f"{self._current_path}/{display_name}/"
                 if self._current_path
@@ -1241,7 +1337,13 @@ class FileTransferTable(QTableWidget):
         self._current_path = ""
         self._nav_history = [""]
         self._nav_index = 0
-        self.setRowCount(0)
+        self._model.set_rows(
+            [],
+            connected=self._connected,
+            default_text_color=self.palette().color(QPalette.ColorRole.Text),
+            status_palette=STATUS_COLORS,
+            direction_font=self._direction_font,
+        )
 
     def reset_all_to_local(self) -> None:
         """Reset resting rows to LOCAL, keeping active/transient states.
@@ -1258,16 +1360,19 @@ class FileTransferTable(QTableWidget):
             TransferStatus.UPLOADING,
             TransferStatus.DELETED,
         )
+        collect = debug_events.enabled()
         protected: list[tuple[str, str]] = []
         with QMutexLocker(self._transfers_mutex):
             for key, transfer in self._transfers.items():
                 if transfer.status in protected_states:
-                    protected.append((key, transfer.status.value))
+                    if collect:
+                        protected.append((key, transfer.status.value))
                     continue
                 transfer.status = TransferStatus.LOCAL
                 transfer.direction = "—"
                 transfer.bytes_transferred = 0
-        debug_events.log("reset_all_to_local", protected=protected)
+        if collect:
+            debug_events.log("reset_all_to_local", protected=protected)
         self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
@@ -1348,7 +1453,10 @@ class FileTransferTable(QTableWidget):
                 )
                 self._transfers[filepath] = t
         self._cached_items = None  # Invalidate cache
-        self.refresh_view()
+        # Preview/status events arrive one per file; together with the O(rows)
+        # rebuild this was quadratic (one full refresh per file). Coalesce them
+        # through the same debounce the batch/progress paths already use.
+        self._schedule_refresh()
 
     def mark_deleted(self, filepath: str) -> None:
         """Mark a file as deleted."""
@@ -1425,6 +1533,22 @@ class FileTransferTable(QTableWidget):
     def remove_transfer(self, filepath: str) -> None:
         """Remove a transfer immediately."""
         self._remove_file(filepath)
+
+    def remove_transfers(self, filepaths: Iterable[str]) -> None:
+        """Remove many rows under one lock with a single debounced rebuild.
+
+        The consistency pass detects local deletions in a loop; removing them
+        one by one would rebuild the whole table per row.
+        """
+        changed = False
+        with QMutexLocker(self._transfers_mutex):
+            for filepath in filepaths:
+                if filepath in self._transfers:
+                    del self._transfers[filepath]
+                    changed = True
+        if changed:
+            self._cached_items = None  # Invalidate cache
+            self._schedule_refresh()
 
     def update_transfer_progress(
         self, filepath: str, bytes_transferred: int, total_bytes: int, op: str = ""

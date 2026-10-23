@@ -3,12 +3,14 @@
 
 """Tests for hsync_desktop.file_panel module."""
 
+import os
 from time import time
 
 import pytest
 from hsync_common.format import format_bytes as _format_size
 from hsync_common.format import format_duration
 from hsync_common.ignore import IgnoreMatcher
+from PySide6.QtCore import Qt
 
 from hsync_desktop.file_panel import (
     _FILE_TYPE_MAP,
@@ -19,6 +21,22 @@ from hsync_desktop.file_panel import (
     TransferStatus,
     _classify_file,
 )
+
+
+def _cell(table, row, col, role=Qt.ItemDataRole.DisplayRole):
+    """Read a rendered cell value from the table's model (model/view table)."""
+    model = table.model()
+    return model.data(model.index(row, col), role)
+
+
+def _cell_text(table, row, col):
+    return _cell(table, row, col, Qt.ItemDataRole.DisplayRole)
+
+
+def _header_texts(table):
+    """Localized horizontal header texts, as the view renders them."""
+    model = table.model()
+    return [model.headerData(i, Qt.Orientation.Horizontal) for i in range(model.columnCount())]
 
 
 def _format_eta(seconds):
@@ -409,7 +427,7 @@ class TestColumnHeaderRetranslation:
         table.retranslate()
 
         expected = [f"IT:{key}" if key else "" for key in tt._COLUMN_KEYS]
-        actual = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
+        actual = _header_texts(table)
         assert actual == expected
 
 
@@ -482,7 +500,7 @@ class TestLocalRowColour:
 
         table = self._table_with_local(qtbot)
 
-        colour = table.item(0, 0).foreground().color()
+        colour = _cell(table, 0, 0, Qt.ItemDataRole.ForegroundRole)
 
         assert colour == table.palette().color(QPalette.ColorRole.Text)
 
@@ -491,7 +509,7 @@ class TestLocalRowColour:
 
         table.set_connected(True)
 
-        colour = table.item(0, 0).foreground().color()
+        colour = _cell(table, 0, 0, Qt.ItemDataRole.ForegroundRole)
         assert colour in (
             STATUS_COLORS[TransferStatus.LOCAL],
             STATUS_COLORS_DARK[TransferStatus.LOCAL],
@@ -505,7 +523,7 @@ class TestLocalRowColour:
 
         table.set_connected(False)
 
-        colour = table.item(0, 0).foreground().color()
+        colour = _cell(table, 0, 0, Qt.ItemDataRole.ForegroundRole)
         assert colour == table.palette().color(QPalette.ColorRole.Text)
 
 
@@ -597,7 +615,7 @@ class TestNavigationDuringSync:
         from PySide6.QtCore import Qt
 
         table = self._table(qtbot)
-        table.setCurrentCell(table._row_index["sub"], 0)
+        table.setCurrentIndex(table.model().index(table._row_index["sub"], 0))
 
         qtbot.keyClick(table, Qt.Key.Key_Return)
 
@@ -680,7 +698,7 @@ class TestOptionalColumns:
 
         table = self._table(qtbot)
 
-        headers = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
+        headers = _header_texts(table)
         assert len(headers) == len(tt._COLUMN_KEYS)
         assert "Speed" in headers
         assert "Direction" in headers
@@ -695,8 +713,8 @@ class TestOptionalColumns:
         transfer.note_progress(2048, now=101.0)
         table.add_transfer(transfer)
 
-        assert table.item(0, tt.COL_DIRECTION).text() == "↓"
-        assert table.item(0, tt.COL_SPEED).text().endswith("/s")
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+        assert _cell_text(table, 0, tt.COL_SPEED).endswith("/s")
 
     def test_a_completed_row_has_no_speed(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -706,7 +724,7 @@ class TestOptionalColumns:
             FileTransfer(filepath="a.bin", direction="↓", size=10, status=TransferStatus.COMPLETED)
         )
 
-        assert table.item(0, tt.COL_SPEED).text() == ""
+        assert _cell_text(table, 0, tt.COL_SPEED) == ""
 
     def test_folder_tooltip_lists_the_planned_operations(self, qtbot):
         """A folder aggregates mixed actions: its tooltip spells them out."""
@@ -731,7 +749,7 @@ class TestOptionalColumns:
         )
         table.refresh_view()
 
-        tooltip = table.item(0, tt.COL_NAME).toolTip()
+        tooltip = _cell(table, 0, tt.COL_NAME, Qt.ItemDataRole.ToolTipRole)
         assert f"{tr('detail.to_upload')}: 2" in tooltip
         assert f"{tr('detail.to_download')}: 1" in tooltip
 
@@ -751,7 +769,7 @@ class TestOptionalColumns:
         assert table._cached_items is not None
         folder = next(fd for name, _transfer, fd in table._cached_items if name == "dir")
         assert folder["speed"] == pytest.approx(3_000)
-        assert table.item(0, tt.COL_SPEED).text().endswith("/s")
+        assert _cell_text(table, 0, tt.COL_SPEED).endswith("/s")
 
     def test_visibility_is_persisted(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
@@ -799,12 +817,12 @@ class TestOptionalColumns:
         table.add_transfer(
             FileTransfer(filepath="m.txt", direction="—", size=99, status=TransferStatus.LOCAL)
         )
-        table.sortItems(tt.COL_SIZE, Qt.SortOrder.DescendingOrder)
+        table.sortByColumn(tt.COL_SIZE, Qt.SortOrder.DescendingOrder)
 
         table.restore_view("", "a.txt")
 
         assert table._last_selected_row >= 0
-        assert table.item(table._last_selected_row, tt.COL_NAME).text() == "a.txt"
+        assert _cell_text(table, table._last_selected_row, tt.COL_NAME) == "a.txt"
 
 
 class TestDirectionColumn:
@@ -827,7 +845,7 @@ class TestDirectionColumn:
             FileTransfer(filepath="idle.bin", direction="—", size=10, status=TransferStatus.LOCAL)
         )
 
-        assert table.item(0, tt.COL_DIRECTION).text() == ""
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == ""
 
     def test_a_planned_operation_is_shown_in_bold(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -837,9 +855,8 @@ class TestDirectionColumn:
             FileTransfer(filepath="up.bin", direction="↑", size=10, status=TransferStatus.TO_UPLOAD)
         )
 
-        item = table.item(0, tt.COL_DIRECTION)
-        assert item.text() == "↑"
-        assert item.font().bold()
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+        assert _cell(table, 0, tt.COL_DIRECTION, Qt.ItemDataRole.FontRole).bold()
 
     def test_a_folder_has_no_direction(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -851,7 +868,7 @@ class TestDirectionColumn:
             )
         )
 
-        assert table.item(0, tt.COL_DIRECTION).text() == ""
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == ""
 
 
 class TestColumnResizing:
@@ -976,9 +993,8 @@ class TestEmptyFolderStatus:
         )
         table.refresh_view()
 
-        item = table.item(0, tt.COL_STATUS)
-        assert item.text() == tr("folder.status.synced")
-        assert item.foreground().color() in (
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.synced")
+        assert _cell(table, 0, tt.COL_STATUS, Qt.ItemDataRole.ForegroundRole) in (
             STATUS_COLORS[TransferStatus.SYNCED],
             STATUS_COLORS_DARK[TransferStatus.SYNCED],
         )
@@ -993,7 +1009,7 @@ class TestEmptyFolderStatus:
         )
         table.refresh_view()
 
-        assert table.item(0, tt.COL_STATUS).text() == tr("folder.status.local")
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.local")
 
     def test_a_local_child_wins_over_the_folder_status(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -1008,7 +1024,7 @@ class TestEmptyFolderStatus:
         )
         table.refresh_view()
 
-        assert table.item(0, tt.COL_STATUS).text() == tr("folder.status.local")
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.local")
 
 
 class TestShareSize:
@@ -1375,6 +1391,84 @@ class TestConsistencyFiltering:
             panel._check_directory_consistency()
 
 
+class TestConsistencyPathPrefix:
+    """The relative-key prefix must match os.scandir's child-path join.
+
+    ``DirEntry.path`` is ``os.path.join(base, name)``, so the separator is
+    appended only when ``base`` does not already end with one — including the
+    Windows alt separator. A wrong prefix shifts every relative key by one
+    character and mis-marks every row as deleted.
+    """
+
+    def test_posix_prefix_appends_only_without_a_trailing_separator(self):
+        from hsync_desktop.file_panel.panel import _scandir_child_prefix
+
+        assert _scandir_child_prefix("/share", "/", None) == "/share/"
+        assert _scandir_child_prefix("/share/", "/", None) == "/share/"
+
+    def test_windows_alt_separator_is_not_doubled(self):
+        from hsync_desktop.file_panel.panel import _scandir_child_prefix
+
+        # os.scandir("C:/share/") yields "C:/share/name", so no extra "\".
+        assert _scandir_child_prefix("C:/share/", "\\", "/") == "C:/share/"
+        assert _scandir_child_prefix("C:\\share", "\\", "/") == "C:\\share\\"
+        assert _scandir_child_prefix("C:\\share\\", "\\", "/") == "C:\\share\\"
+
+    def test_a_trailing_separator_does_not_shift_the_relative_keys(self, qtbot, tmp_path):
+        from hsync_desktop.file_panel import FilePanel
+
+        (tmp_path / "a.txt").write_text("a", encoding="utf-8")
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "b.txt").write_text("b", encoding="utf-8")
+        base = str(tmp_path) + os.sep  # a share path typed with a trailing separator
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel._current_directory = base
+        panel._matcher = IgnoreMatcher(base)
+        panel._table.set_base_directory(base)
+
+        panel._check_directory_consistency()
+
+        assert set(panel._table._transfers) == {"a.txt", "sub/b.txt"}
+
+
+class TestConsistencyResilience:
+    """One unreadable subtree must not abort the whole reconciliation."""
+
+    def test_a_nested_scandir_error_does_not_freeze_the_pass(self, qtbot, tmp_path, monkeypatch):
+        from hsync_desktop.file_panel import FilePanel
+        from hsync_desktop.file_panel import panel as panel_module
+
+        (tmp_path / "ok").mkdir()
+        (tmp_path / "locked").mkdir()
+        # tracked but gone from disk: the pass must still detect this deletion
+        # even while the sibling "locked" subtree is unreadable.
+        real_scandir = os.scandir
+
+        def fake_scandir(path="."):
+            if str(path).endswith("locked"):
+                raise PermissionError(13, "Permission denied", str(path))
+            return real_scandir(path)
+
+        monkeypatch.setattr(panel_module.os, "scandir", fake_scandir)
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel._current_directory = str(tmp_path)
+        panel._matcher = IgnoreMatcher(str(tmp_path))
+        panel._table.set_base_directory(str(tmp_path))
+        panel._table.add_transfer(
+            FileTransfer(
+                filepath="ok/gone.txt", direction="—", size=10, status=TransferStatus.SYNCED
+            )
+        )
+
+        panel._check_directory_consistency()
+
+        assert panel._table._transfers["ok/gone.txt"].status is TransferStatus.DELETED
+
+
 class TestTransferRate:
     """The displayed rate comes from progress samples, not from the start time."""
 
@@ -1451,10 +1545,10 @@ class TestLiveTransferProgress:
         table.update_transfer_progress("incoming.bin", 512_000, 1_024_000, "download")
         table.refresh_view()  # flush the debounce
 
-        assert table.rowCount() == 1
-        assert table.item(0, tt.COL_DIRECTION).text() == "↓"
-        assert table.item(0, tt.COL_SIZE).text() == _format_size(1_024_000)
-        pct = table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole)
+        assert table.model().rowCount() == 1
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+        assert _cell_text(table, 0, tt.COL_SIZE) == _format_size(1_024_000)
+        pct = _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole)
         assert pct == 50
 
     def test_progress_keeps_the_on_disk_size_of_a_compressed_upload(self, qtbot):
@@ -1476,8 +1570,8 @@ class TestLiveTransferProgress:
 
         assert table._transfers["big.bin"].size == 1_000_000  # the file
         assert table._transfers["big.bin"].total_bytes == 400_000  # the wire
-        assert table.item(0, tt.COL_DIRECTION).text() == "↑"
-        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == 100
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == 100
 
     def test_a_completed_download_shows_the_final_size(self, qtbot):
         from PySide6.QtCore import Qt
@@ -1487,10 +1581,11 @@ class TestLiveTransferProgress:
         table = self._table(qtbot)
         table.update_transfer_progress("incoming.bin", 512, 1024, "download")
         table.update_file_status("incoming.bin", "synced", size=1024, mtime=1.0)
+        table.refresh_view()  # flush the debounce
 
-        assert table.item(0, tt.COL_SIZE).text() == _format_size(1024)
-        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == -1
-        assert table.item(0, tt.COL_SPEED).text() == ""
+        assert _cell_text(table, 0, tt.COL_SIZE) == _format_size(1024)
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+        assert _cell_text(table, 0, tt.COL_SPEED) == ""
 
     def test_a_failed_transfer_flags_the_row_as_error(self, qtbot):
         from PySide6.QtCore import Qt
@@ -1502,8 +1597,8 @@ class TestLiveTransferProgress:
         table.mark_failed("incoming.bin")
 
         assert table._transfers["incoming.bin"].status is TransferStatus.ERROR
-        assert table.item(0, tt.COL_PROGRESS).data(Qt.ItemDataRole.UserRole) == -1
-        assert table.item(0, tt.COL_SPEED).text() == ""
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+        assert _cell_text(table, 0, tt.COL_SPEED) == ""
 
     def test_stop_clears_in_flight_rows(self, qtbot, tmp_path):
         table = self._table(qtbot)

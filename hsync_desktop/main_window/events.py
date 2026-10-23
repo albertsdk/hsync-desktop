@@ -157,12 +157,13 @@ class EventsMixin:
                     self._hide_info_banner()
                 if self._engine.is_running:
                     self._on_connected_refresh()
-        debug_events.log(
-            "status_applied",
-            status=status,
-            connected=self._connected,
-            rows=len(self._file_panel.table._transfers),
-        )
+        if debug_events.enabled():
+            debug_events.log(
+                "status_applied",
+                status=status,
+                connected=self._connected,
+                rows=len(self._file_panel.table._transfers),
+            )
 
     def _on_connected_refresh(self) -> None:
         """Refresh the file list after a connect, with a one-off catch-up.
@@ -281,17 +282,18 @@ class EventsMixin:
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
-        row = self._file_panel.table._transfers.get(rel_path)
-        stats = self._engine.stats
-        debug_events.log(
-            "transfer_applied",
-            file=rel_path,
-            direction=direction,
-            size=size,
-            row_status=row.status.value if row else None,
-            bytes_received=stats.bytes_received,
-            bytes_sent=stats.bytes_sent,
-        )
+        if debug_events.enabled():
+            row = self._file_panel.table._transfers.get(rel_path)
+            stats = self._engine.stats
+            debug_events.log(
+                "transfer_applied",
+                file=rel_path,
+                direction=direction,
+                size=size,
+                row_status=row.status.value if row else None,
+                bytes_received=stats.bytes_received,
+                bytes_sent=stats.bytes_sent,
+            )
 
     @Slot(str, int, int, str)
     def _on_file_progress(
@@ -300,15 +302,16 @@ class EventsMixin:
         """Handle real-time file transfer progress updates."""
         rel = self._rel_path(filepath)
         self._file_panel.update_transfer_progress(rel, bytes_transferred, total_bytes, op)
-        row = self._file_panel.table._transfers.get(rel)
-        debug_events.log(
-            "progress_applied",
-            file=rel,
-            op=op,
-            transferred=bytes_transferred,
-            total=total_bytes,
-            row_status=row.status.value if row else None,
-        )
+        if debug_events.enabled():
+            row = self._file_panel.table._transfers.get(rel)
+            debug_events.log(
+                "progress_applied",
+                file=rel,
+                op=op,
+                transferred=bytes_transferred,
+                total=total_bytes,
+                row_status=row.status.value if row else None,
+            )
 
     @Slot(str, str)
     def _on_file_renamed(self, old_path: str, new_path: str) -> None:
@@ -342,13 +345,14 @@ class EventsMixin:
             client_cid=client_cid,
             client_ip=client_ip,
         )
-        row = self._file_panel.table._transfers.get(new_rel)
-        debug_events.log(
-            "file_renamed_applied",
-            old=old_rel,
-            new=new_rel,
-            row_status=row.status.value if row else None,
-        )
+        if debug_events.enabled():
+            row = self._file_panel.table._transfers.get(new_rel)
+            debug_events.log(
+                "file_renamed_applied",
+                old=old_rel,
+                new=new_rel,
+                row_status=row.status.value if row else None,
+            )
         # A rename can merge two tracked paths into one, changing the distinct
         # file count even though no bytes moved.
         self._refresh_transfer_labels()
@@ -559,14 +563,15 @@ class EventsMixin:
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(rel_path, status, size, preview=True)
-        row = self._file_panel.table._transfers.get(rel_path)
-        debug_events.log(
-            "preview_file_status",
-            file=rel_path,
-            status=status,
-            size=size,
-            row_status=row.status.value if row else None,
-        )
+        if debug_events.enabled():
+            row = self._file_panel.table._transfers.get(rel_path)
+            debug_events.log(
+                "preview_file_status",
+                file=rel_path,
+                status=status,
+                size=size,
+                row_status=row.status.value if row else None,
+            )
         # Accumulate preview statistics
         if status == "to_download":
             self._preview_stats.to_download += 1

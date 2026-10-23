@@ -92,9 +92,14 @@ SPEED_WINDOW_SECONDS = 1.0
 _SAMPLE_HISTORY = 64
 
 
-@dataclass
+@dataclass(slots=True)
 class FileTransfer:
-    """Represents a file transfer (download or upload)."""
+    """Represents a file transfer (download or upload).
+
+    ``slots=True`` drops the per-instance ``__dict__`` (the panel can hold one
+    row per scanned file), and ``_samples`` is allocated lazily so a resting or
+    never-transferred row does not carry a 64-slot deque.
+    """
 
     filepath: str
     direction: str  # "↓" or "↑"
@@ -110,9 +115,9 @@ class FileTransfer:
     # Size column. 0 means "same as size".
     progress_total: int = 0
     _speed_bps: float = field(default=0.0, repr=False, compare=False)
-    _samples: deque[tuple[float, int]] = field(
-        default_factory=lambda: deque(maxlen=_SAMPLE_HISTORY), repr=False, compare=False
-    )
+    # Rate-sampling history, created on the first ``note_progress`` of a real
+    # transfer only; ``None`` means "never transferred".
+    _samples: deque[tuple[float, int]] | None = field(default=None, repr=False, compare=False)
 
     @property
     def filename(self) -> str:
@@ -132,6 +137,13 @@ class FileTransfer:
     def remaining(self) -> int:
         return max(0, self.total_bytes - self.bytes_transferred)
 
+    def _ensure_samples(self) -> deque[tuple[float, int]]:
+        """Allocate (once) the rate-sampling deque for a transferring row."""
+        samples = self._samples
+        if samples is None:
+            samples = self._samples = deque(maxlen=_SAMPLE_HISTORY)
+        return samples
+
     def start_transfer(self, direction: str, now: float | None = None) -> None:
         """Mark a (re)started transfer and restart rate sampling."""
         ts = time() if now is None else now
@@ -141,7 +153,8 @@ class FileTransfer:
         self.progress_total = 0
         self.start_time = ts
         self._speed_bps = 0.0
-        self._samples.clear()
+        if self._samples is not None:
+            self._samples.clear()
 
     def stop_transfer(self) -> None:
         """Return an interrupted row to its resting state."""
@@ -150,7 +163,8 @@ class FileTransfer:
         self.bytes_transferred = 0
         self.progress_total = 0
         self._speed_bps = 0.0
-        self._samples.clear()
+        if self._samples is not None:
+            self._samples.clear()
 
     def note_progress(self, transferred: int, now: float | None = None) -> None:
         """Record a progress sample and refresh the transfer rate.
@@ -162,19 +176,20 @@ class FileTransfer:
         """
         ts = time() if now is None else now
         self.bytes_transferred = transferred
-        if self._samples and transferred < self._samples[-1][1]:
+        samples = self._ensure_samples()
+        if samples and transferred < samples[-1][1]:
             # Progress went backwards (restart/resume): drop the history.
-            self._samples.clear()
+            samples.clear()
             self._speed_bps = 0.0
-        self._samples.append((ts, transferred))
-        if len(self._samples) < 2:
+        samples.append((ts, transferred))
+        if len(samples) < 2:
             return
         # Keep one anchor sample at (or just before) the window edge, so the
         # measured interval is the window itself, not the whole transfer.
         edge = ts - SPEED_WINDOW_SECONDS
-        while len(self._samples) > 2 and self._samples[1][0] <= edge:
-            self._samples.popleft()
-        t0, b0 = self._samples[0]
+        while len(samples) > 2 and samples[1][0] <= edge:
+            samples.popleft()
+        t0, b0 = samples[0]
         dt = ts - t0
         if dt > 0:
             self._speed_bps = max(0.0, (transferred - b0) / dt)

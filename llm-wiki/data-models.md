@@ -20,6 +20,11 @@ must not assume fields beyond that schema.
 
 Dataclass for one row in the transfer table.
 
+It is a `slots=True` dataclass (the panel can hold one row per scanned file, so
+no per-instance `__dict__`), and its rate-sampling deque (backing `speed_bps` /
+`eta_seconds`) is allocated lazily on the first `note_progress` of a real
+transfer — a resting or never-transferred row carries none.
+
 | Field | Notes |
 | ----- | ----- |
 | `filepath` / `direction` | path + `"↓"`/`"↑"` |

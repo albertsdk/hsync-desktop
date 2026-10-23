@@ -54,6 +54,26 @@ def _breadcrumb_separator() -> str:
     return _BREADCRUMB_SEPARATORS.get(_platform(), _BREADCRUMB_SEPARATORS["default"])
 
 
+def _scandir_child_prefix(
+    base: str,
+    sep: str = os.sep,
+    altsep: str | None = os.altsep,
+) -> str:
+    """The prefix ``os.scandir(base)`` puts in front of every child name.
+
+    ``DirEntry.path`` equals ``os.path.join(base, name)``, which appends a
+    separator only when ``base`` does not already end with one — including the
+    Windows alt separator. On Windows a share path ending in ``/`` (or a drive
+    root ending in ``:``) therefore yields ``"C:/share/name"``, not
+    ``"C:/share\\name"``; slicing the raw ``entry.path`` after a prefix that
+    wrongly appended ``os.sep`` shifts every relative key by one character.
+    """
+    separators = (sep,) if altsep is None else (sep, altsep, ":")
+    if base.endswith(separators):
+        return base
+    return base + sep
+
+
 class FilePanel(QWidget):
     """Complete file transfer panel with table and collapsible detail panel."""
 
@@ -438,60 +458,81 @@ class FilePanel(QWidget):
         if not self._current_directory or not os.path.isdir(self._current_directory):
             self._consistency_timer.stop()
             return
-        current_files: set[str] = set()
-        base_path = Path(self._current_directory)
+        base = self._current_directory
+        prefix = _scandir_child_prefix(base)
         matcher = self._refresh_matcher()
-        try:
-            for root, dirs, files in os.walk(self._current_directory):
-                dirs[:] = [
-                    d for d in dirs if is_synced_entry(matcher, str(Path(root) / d), is_dir=True)
-                ]
-                visible_files = [
-                    f for f in files if is_synced_entry(matcher, str(Path(root) / f), is_dir=False)
-                ]
-                if not visible_files and not dirs and root != self._current_directory:
-                    try:
-                        rel_dir = str(Path(root).relative_to(base_path))
-                        current_files.add(rel_dir + "/")
-                    except ValueError:
-                        pass
-                for f in visible_files:
-                    full_path = Path(root) / f
-                    try:
-                        rel_path = str(full_path.relative_to(base_path))
-                        current_files.add(rel_path)
-                    except ValueError:
-                        pass
-        except OSError:
-            return
-        table_files = set(self._table._transfers.keys())
-        new_files = current_files - table_files
-        for rel_path in new_files:
-            full_path = base_path / rel_path
-            is_dir_entry = rel_path.endswith("/")
+        current_files: set[str] = set()
+        # Iterative scandir: no Path object per entry and no Path.relative_to
+        # per file. ``entry.path`` is already absolute and the relative key is a
+        # plain prefix slice, keeping the native separators the scan worker also
+        # produces.
+        stack = [base]
+        while stack:
+            root = stack.pop()
+            has_dir = False
+            visible: list[os.DirEntry[str]] = []
+            recurse: list[str] = []
             try:
-                stat = full_path.stat()
-                size = 0 if is_dir_entry else stat.st_size
-                mtime = stat.st_mtime
+                with os.scandir(root) as it:
+                    for entry in it:
+                        try:
+                            # Mirror os.walk's dir/file split (symlinks follow
+                            # for classification), but only real directories
+                            # are recursed, exactly like os.walk(followlinks=False).
+                            is_dir = entry.is_dir()
+                            is_dir_real = entry.is_dir(follow_symlinks=False)
+                        except OSError:
+                            continue
+                        if not is_synced_entry(matcher, entry.path, is_dir=is_dir):
+                            continue
+                        if is_dir:
+                            has_dir = True
+                            if is_dir_real:
+                                recurse.append(entry.path)
+                        else:
+                            visible.append(entry)
             except OSError:
-                size = 0
-                mtime = 0.0
-            transfer = FileTransfer(
-                filepath=rel_path,
-                direction="—",
-                size=size,
-                bytes_transferred=0,
-                status=TransferStatus.LOCAL,
-                mtime=mtime,
-            )
-            self._table.add_transfer(transfer)
+                if root == base:
+                    # The share root itself is unreadable: abort rather than
+                    # diff an empty set, which would drop every row.
+                    return
+                # A nested directory vanished or is unreadable: skip that
+                # subtree only, like os.walk(onerror=None).
+                continue
+            if not visible and not has_dir and root != base:
+                current_files.add(root[len(prefix) :] + "/")
+            for entry in visible:
+                current_files.add(entry.path[len(prefix) :])
+            stack.extend(recurse)
+        table_files = set(self._table._transfers)
+        new_files = current_files - table_files
         if new_files:
-            # A path appeared on disk that the event flow never reported (e.g. a
-            # rename destination whose live event was lost). Let the window
-            # refresh the statuses so it stops reading as a stale "Local".
-            self.scan_found_new_files.emit()
+            # Batch the additions: one rebuild instead of one per new path.
+            new_transfers: list[FileTransfer] = []
+            for rel_path in new_files:
+                full_path = Path(base) / rel_path
+                is_dir_entry = rel_path.endswith("/")
+                try:
+                    stat = full_path.stat()
+                    size = 0 if is_dir_entry else stat.st_size
+                    mtime = stat.st_mtime
+                except OSError:
+                    size = 0
+                    mtime = 0.0
+                new_transfers.append(
+                    FileTransfer(
+                        filepath=rel_path,
+                        direction="—",
+                        size=size,
+                        bytes_transferred=0,
+                        status=TransferStatus.LOCAL,
+                        mtime=mtime,
+                    )
+                )
+            self._table.add_transfers_batch(new_transfers)
         deleted_files = table_files - current_files
         removed: list[str] = []
+        remove_now: list[str] = []
         for rel_path in deleted_files:
             existing = self._table._transfers.get(rel_path)
             if existing is None:
@@ -511,11 +552,19 @@ class FilePanel(QWidget):
             removed.append(rel_path)
             if existing.status == TransferStatus.LOCAL:
                 # Never-synced scan entry: nothing to announce, remove at once.
-                self._table.remove_transfer(rel_path)
+                remove_now.append(rel_path)
             else:
                 # Mirror the remote-deletion UX (red "Deleted" for 3 s) even
                 # when the scan is the one detecting the local deletion.
                 self._table.mark_deleted(rel_path)
+        if remove_now:
+            # Batch the removals into a single rebuild too.
+            self._table.remove_transfers(remove_now)
+        if new_files:
+            # A path appeared on disk that the event flow never reported (e.g. a
+            # rename destination whose live event was lost). Let the window
+            # refresh the statuses so it stops reading as a stale "Local".
+            self.scan_found_new_files.emit()
         if new_files or removed:
             from hsync_desktop import debug_events
 
