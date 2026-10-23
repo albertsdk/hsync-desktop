@@ -2,17 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""
-Main window for HSYNC Desktop.
-
-Contains:
-- Action bar: Start/Stop, Sync, Preview, path selector, Settings
-- File panel: real-time file transfer table with detail panel
-- Log viewer: real-time scrolling log output
-- Bottom bar: status indicator, peers, transfer stats (right-aligned)
-
-UI is loaded from ui/main_window.ui (Qt Designer).
-"""
+"""UiBuildMixin: window construction, action bar, menus and role indicator."""
 
 from __future__ import annotations
 
@@ -922,22 +912,26 @@ class UiBuildMixin:
         self._file_panel.refresh_icons_for_theme()
 
     def _retranslate_role(self) -> None:
-        """Render the role icon/label from ``_is_master`` and the language.
+        """Render the role icon/label once the election has decided the role.
 
-        ``_is_master`` is None until the p2p election event: show a neutral icon
-        and no text rather than a misleading "Secondary".
+        Nothing is shown before the election: a neutral placeholder icon read as
+        an unfinished/unknown state. Icon and text appear together once known.
         """
+        from PySide6.QtGui import QPalette
+
         from hsync_desktop.icons import icon as get_icon
+        from hsync_desktop.icons import themed_icon
 
         if self._is_master is None:
             self._role_label.setText("")
-            self._role_label.setToolTip(tr("role.unknown_tip"))
-            self._role_icon.setPixmap(get_icon("role-unknown").pixmap(16, 16))
-            self._role_icon.setToolTip(tr("role.unknown_tip"))
+            self._role_label.setToolTip("")
+            self._role_icon.clear()
+            self._role_icon.setToolTip("")
         elif self._is_master:
             self._role_label.setText(tr("role.master"))
             self._role_label.setToolTip(tr("role.master_tip"))
-            self._role_icon.setPixmap(get_icon("role-master").pixmap(16, 16))
+            accent = self._role_icon.palette().color(QPalette.ColorRole.Highlight).name()
+            self._role_icon.setPixmap(themed_icon("role-master", accent).pixmap(16, 16))
             self._role_icon.setToolTip(tr("role.master_tip"))
         else:
             self._role_label.setText(tr("role.client"))
@@ -947,11 +941,11 @@ class UiBuildMixin:
         self._apply_role_visibility()
 
     def _apply_role_visibility(self) -> None:
-        """Show the role only in p2p; the text only when connected and known."""
+        """Show the role in p2p once known; the text also requires a connection."""
         p2p_enabled = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         )
-        self._role_icon.setVisible(p2p_enabled)
+        self._role_icon.setVisible(p2p_enabled and self._role_known)
         self._role_label.setVisible(p2p_enabled and self._role_known and self._connected)
 
     def _render_share_size(self) -> None:

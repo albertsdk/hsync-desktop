@@ -24,10 +24,11 @@ class TestScrollableTabs:
 
 
 class TestResizableDialog:
-    def test_minimum_width_is_kept_for_the_description_cap(self, dialog):
+    def test_minimum_width_covers_the_content_and_description_cap(self, dialog):
         # tests/test_settings_tab_descriptions.py requires
-        # label.maximumWidth() < dialog.minimumWidth(), so 640 stays mandated.
-        assert dialog.minimumWidth() == 640
+        # label.maximumWidth() < dialog.minimumWidth(); the content only raises
+        # the minimum above the historical 640 px floor.
+        assert dialog.minimumWidth() >= 640
 
     def test_dialog_is_not_fixed_size(self, dialog):
         # setFixedSize was removed: the dialog can grow/shrink and be maximized.
@@ -71,3 +72,55 @@ class TestScreenClamp:
         dialog.resize(1100, 900)
         dialog.show_advanced.setChecked(True)  # re-fit must not shrink the window
         assert (dialog.width(), dialog.height()) == (1100, 900)
+
+
+class TestFitCurrentTab:
+    """A tab whose content fits the screen grows the dialog instead of scrolling."""
+
+    def test_grows_to_remove_the_scrollbar_when_content_fits(self, qtbot, dialog, monkeypatch):
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        qtbot.wait(10)
+        dialog.resize(800, 320)
+
+        tab_builders.fit_current_tab(dialog)
+
+        scroll = dialog._tabs.currentWidget().findChild(QScrollArea)
+        assert scroll.verticalScrollBar().maximum() == 0
+        assert dialog.height() > 320
+
+    def test_never_exceeds_the_screen(self, qtbot, dialog, monkeypatch):
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(1024, 600))
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        qtbot.wait(10)
+        dialog.resize(800, 300)
+
+        tab_builders.fit_current_tab(dialog)
+
+        assert dialog.height() <= int(600 * 0.9)
+
+
+class TestContentWidth:
+    """The dialog is wide enough for every tab's content (no clipped controls)."""
+
+    def test_width_fits_the_p2p_test_button(self, qtbot, dialog, monkeypatch):
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        qtbot.wait(10)
+        index = next(
+            i
+            for i in range(dialog._tabs.count())
+            if dialog._tabs.widget(i).isAncestorOf(dialog.btn_test_connection)
+        )
+        dialog._tabs.setCurrentIndex(index)
+        dialog.setMinimumWidth(640)
+        dialog.resize(640, dialog.height())
+
+        tab_builders.fit_current_tab(dialog)
+
+        scroll = dialog._tabs.currentWidget().findChild(QScrollArea)
+        assert dialog.width() >= scroll.widget().sizeHint().width()
+        assert dialog.minimumWidth() >= scroll.widget().sizeHint().width()

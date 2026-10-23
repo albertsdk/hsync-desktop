@@ -18,7 +18,8 @@ from typing import cast
 from hsync_common.constants import HSYNCIGNORE_FILENAME
 from hsync_common.endpoint import parse_host_port
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -55,6 +56,7 @@ from hsync_desktop.config import (
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_DRY_RUN,
     DEFAULT_FILTER_PATH,
+    DEFAULT_FONT_SCALE,
     DEFAULT_GROUP,
     DEFAULT_HTTP_TIMEOUT,
     DEFAULT_IGNORE_DELETE,
@@ -93,6 +95,7 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
     DEFAULT_VERBOSE,
+    MIN_RESYNC_INTERVAL,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -105,7 +108,6 @@ from hsync_desktop.engine import (
     normalize_bootnode_endpoint,
     normalize_server_endpoint,
     probe_server_health,
-    unverified_ssl_context,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -138,6 +140,7 @@ from hsync_desktop.settings.tab_builders import (
     build_server_tab,
     build_sync_tab,
     finalize_size,
+    fit_current_tab,
     set_tab_icons,
     setup_language_combo,
 )
@@ -265,76 +268,72 @@ class SettingsDialog(QDialog):
         """Apply tooltips to widgets if enabled."""
         tips = self._tips_enabled()
 
-        # Sync tab
-        _maybe_tip(self.shared_path, "tip.shared_path", tips)
-        _maybe_tip(self.bucket, "tip.bucket", tips)
-        _maybe_tip(self.continuous, "tip.watch", tips)
-        _maybe_tip(self.ignore_delete, "tip.ignore_delete", tips)
-        _maybe_tip(self.sync_direction_combo, "tip.sync_direction", tips)
-        _maybe_tip(self.resync, "tip.resync", tips)
-        _maybe_tip(self.retry_delay, "tip.retry_delay", tips)
-        _maybe_tip(self.stability_delay, "tip.stability_delay", tips)
-        _maybe_tip(self.max_wait, "tip.max_wait", tips)
-        _maybe_tip(self.min_free_disk_space, "tip.min_free_disk_space", tips)
-        _maybe_tip(self.max_inbound_size, "tip.max_inbound_size", tips)
-        _maybe_tip(self.filter_path, "tip.filter_path", tips)
-        _maybe_tip(self.compression_enabled, "tip.compression_enabled", tips)
-        _maybe_tip(self.dry_run, "tip.dry_run", tips)
-        _maybe_tip(self.auto_sync, "tip.auto_sync", tips)
-        _maybe_tip(self.ignore_patterns, "tip.ignore_patterns", tips)
-        _maybe_tip(self.btn_edit_hsyncignore, "tip.edit_hsyncignore", tips)
-        _maybe_tip(self.btn_reset_state, "tip.reset_state", tips)
-
-        # Server Mode tab
-        _maybe_tip(self.server_url, "tip.server_url", tips)
-        _maybe_tip(self.api_key, "tip.api_key", tips)
-        _maybe_tip(self.insecure, "tip.insecure", tips)
-        _maybe_tip(self.ca_cert, "tip.ca_cert", tips)
-        _maybe_tip(self.server_trust, "tip.server_trust", tips)
-        _maybe_tip(self.http_timeout, "tip.http_timeout", tips)
-        _maybe_tip(self.btn_manage_trusted_keys_server, "tip.manage_trusted_keys", tips)
-
-        # p2p tab
-        _maybe_tip(self.p2p_mode, "tip.p2p_mode", tips)
-        _maybe_tip(self.p2p_group, "tip.p2p_group", tips)
-        _maybe_tip(self.p2p_bootnode, "tip.p2p_bootnode", tips)
-        _maybe_tip(self.p2p_bootnode_trust, "tip.p2p_bootnode_trust", tips)
-        _maybe_tip(self.btn_manage_trusted_keys, "tip.manage_trusted_keys", tips)
-        _maybe_tip(self.btn_test_bootnode, "tip.test_bootnode", tips)
-        _maybe_tip(self.p2p_upnp, "tip.p2p_upnp", tips)
-        _maybe_tip(self.p2p_key, "tip.p2p_key", tips)
-        _maybe_tip(self.p2p_port, "tip.p2p_port", tips)
-        _maybe_tip(self.discovery_timeout, "tip.discovery_timeout", tips)
-        _maybe_tip(self.ntp_hosts, "tip.ntp_hosts", tips)
-        _maybe_tip(self.prefer_master, "tip.prefer_master", tips)
-        _maybe_tip(self.never_master, "tip.never_master", tips)
-        _maybe_tip(self.require_pairing, "tip.require_pairing", tips)
-        _maybe_tip(self.peer_download, "tip.peer_download", tips)
-        _maybe_tip(self.peer_read_cap, "tip.peer_read_cap", tips)
-        _maybe_tip(self.peer_sources_max, "tip.peer_sources_max", tips)
-
-        # Advanced tab (engine tuning + logging)
-        _maybe_tip(self.autotune, "tip.autotune", tips)
-        _maybe_tip(self.max_concurrent_transfers, "tip.max_concurrent_transfers", tips)
-        _maybe_tip(self.delta_enabled, "tip.delta_enabled", tips)
-        _maybe_tip(self.delta_min_file_size, "tip.delta_min_file_size", tips)
-        _maybe_tip(self.delta_min_file_size_p2p, "tip.delta_min_file_size_p2p", tips)
-        _maybe_tip(self.mass_delete_guard, "tip.mass_delete_guard", tips)
-        _maybe_tip(self.mass_delete_threshold, "tip.mass_delete_threshold", tips)
-        _maybe_tip(self.mass_delete_percent, "tip.mass_delete_percent", tips)
-        _maybe_tip(self.bandwidth_upload, "tip.bandwidth_upload", tips)
-        _maybe_tip(self.bandwidth_download, "tip.bandwidth_download", tips)
-        _maybe_tip(self.verbose, "tip.verbose", tips)
-        _maybe_tip(self.quiet, "tip.quiet", tips)
-        _maybe_tip(self.logfile, "tip.logfile", tips)
-
-        # General tab (interface + startup)
-        _maybe_tip(self.lang_combo, "tip.language", tips)
-        _maybe_tip(self.theme_combo, "tip.theme", tips)
-        _maybe_tip(self.notifications_enabled, "tip.notifications", tips)
-        _maybe_tip(self.tooltips_enabled, "tip.tooltips", tips)
-        _maybe_tip(self.show_log_panel, "tip.show_log_panel", tips)
-        _maybe_tip(self.start_at_login, "tip.start_at_login", tips)
+        for widget, key in (
+            (self.shared_path, "tip.shared_path"),
+            (self.bucket, "tip.bucket"),
+            (self.continuous, "tip.watch"),
+            (self.ignore_delete, "tip.ignore_delete"),
+            (self.sync_direction_combo, "tip.sync_direction"),
+            (self.resync, "tip.resync"),
+            (self.retry_delay, "tip.retry_delay"),
+            (self.stability_delay, "tip.stability_delay"),
+            (self.max_wait, "tip.max_wait"),
+            (self.min_free_disk_space, "tip.min_free_disk_space"),
+            (self.max_inbound_size, "tip.max_inbound_size"),
+            (self.filter_path, "tip.filter_path"),
+            (self.compression_enabled, "tip.compression_enabled"),
+            (self.dry_run, "tip.dry_run"),
+            (self.auto_sync, "tip.auto_sync"),
+            (self.ignore_patterns, "tip.ignore_patterns"),
+            (self.btn_edit_hsyncignore, "tip.edit_hsyncignore"),
+            (self.btn_reset_state, "tip.reset_state"),
+            (self.server_url, "tip.server_url"),
+            (self.api_key, "tip.api_key"),
+            (self.insecure, "tip.insecure"),
+            (self.ca_cert, "tip.ca_cert"),
+            (self.server_trust, "tip.server_trust"),
+            (self.http_timeout, "tip.http_timeout"),
+            (self.btn_manage_trusted_keys_server, "tip.manage_trusted_keys"),
+            (self.p2p_mode, "tip.p2p_mode"),
+            (self.p2p_group, "tip.p2p_group"),
+            (self.p2p_bootnode, "tip.p2p_bootnode"),
+            (self.p2p_bootnode_trust, "tip.p2p_bootnode_trust"),
+            (self.btn_manage_trusted_keys, "tip.manage_trusted_keys"),
+            (self.btn_test_bootnode, "tip.test_bootnode"),
+            (self.p2p_upnp, "tip.p2p_upnp"),
+            (self.p2p_key, "tip.p2p_key"),
+            (self.p2p_port, "tip.p2p_port"),
+            (self.discovery_timeout, "tip.discovery_timeout"),
+            (self.ntp_hosts, "tip.ntp_hosts"),
+            (self.prefer_master, "tip.prefer_master"),
+            (self.never_master, "tip.never_master"),
+            (self.require_pairing, "tip.require_pairing"),
+            (self.peer_download, "tip.peer_download"),
+            (self.peer_read_cap, "tip.peer_read_cap"),
+            (self.peer_sources_max, "tip.peer_sources_max"),
+            (self.autotune, "tip.autotune"),
+            (self.max_concurrent_transfers, "tip.max_concurrent_transfers"),
+            (self.delta_enabled, "tip.delta_enabled"),
+            (self.delta_min_file_size, "tip.delta_min_file_size"),
+            (self.delta_min_file_size_p2p, "tip.delta_min_file_size_p2p"),
+            (self.mass_delete_guard, "tip.mass_delete_guard"),
+            (self.mass_delete_threshold, "tip.mass_delete_threshold"),
+            (self.mass_delete_percent, "tip.mass_delete_percent"),
+            (self.bandwidth_upload, "tip.bandwidth_upload"),
+            (self.bandwidth_download, "tip.bandwidth_download"),
+            (self.verbose, "tip.verbose"),
+            (self.quiet, "tip.quiet"),
+            (self.logfile, "tip.logfile"),
+            (self.lang_combo, "tip.language"),
+            (self.theme_combo, "tip.theme"),
+            (self.font_scale_combo, "tip.font_size"),
+            (self.notifications_enabled, "tip.notifications"),
+            (self.notification_group, "tip.notifications_categories"),
+            (self.tooltips_enabled, "tip.tooltips"),
+            (self.show_log_panel, "tip.show_log_panel"),
+            (self.start_at_login, "tip.start_at_login"),
+        ):
+            _maybe_tip(widget, key, tips)
         # A disabled toggle on a platform without an autostart mechanism still
         # explains itself, overriding the normal tooltip cleared above.
         if not autostart.is_supported():
@@ -462,8 +461,27 @@ class SettingsDialog(QDialog):
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self.btn_reset_state.clicked.connect(self._on_reset_state)
+        self.resync.valueChanged.connect(self._normalize_resync)
+        self._tabs.currentChanged.connect(self._fit_current_tab)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Fit the first visible tab after the initial layout settles."""
+        super().showEvent(event)
+        QTimer.singleShot(0, self._fit_current_tab)
+
+    def _fit_current_tab(self, _index: int | None = None) -> None:
+        """Grow the dialog when the current tab would otherwise scroll."""
+        fit_current_tab(self)
+
+    def _normalize_resync(self, _value: int = 0) -> None:
+        """Keep the periodic check disabled (0) or at least the client minimum."""
+        value = self.resync.value()
+        if 0 < value < MIN_RESYNC_INTERVAL:
+            self.resync.blockSignals(True)
+            self.resync.setValue(MIN_RESYNC_INTERVAL)
+            self.resync.blockSignals(False)
 
     def _on_show_advanced_toggled(self, _checked: bool) -> None:
         """Reflect the advanced toggle immediately, then re-fit the dialog."""
@@ -848,11 +866,6 @@ class SettingsDialog(QDialog):
             ca_cert=self.ca_cert.text().strip(),
         )
 
-    @staticmethod
-    def _unverified_ssl_context() -> ssl.SSLContext:
-        """An SSLContext that skips chain/hostname verification (fingerprint mode)."""
-        return unverified_ssl_context()
-
     def _tips_enabled(self) -> bool:
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         return bool(s.value("appearance/tooltips", True, bool))
@@ -1010,6 +1023,7 @@ class SettingsDialog(QDialog):
         s.setValue("connection/http_timeout", self.http_timeout.value())
         s.setValue("sync/bucket", self.bucket.text())
         s.setValue("sync/continuous", self.continuous.isChecked())
+        self._normalize_resync()
         s.setValue("sync/resync", self.resync.value())
         s.setValue("sync/retry_delay", self.retry_delay.value())
         s.setValue("sync/stability_delay", self.stability_delay.value())
@@ -1062,8 +1076,11 @@ class SettingsDialog(QDialog):
         if not isinstance(theme_value, str) or not theme_value:
             theme_value = THEME_DARK if self.theme_combo.currentIndex() == 1 else THEME_LIGHT
         s.setValue("appearance/theme", theme_value)
+        s.setValue("appearance/font_scale", self.font_scale_combo.currentData())
         s.setValue("ui/show_advanced", self.show_advanced.isChecked())
         s.setValue("appearance/notifications", self.notifications_enabled.isChecked())
+        for category, (toggle, _label) in self.notification_toggles.items():
+            s.setValue(f"appearance/notifications/{category}", toggle.isChecked())
         # New fields
         lang_code = self.lang_combo.currentData()
         if lang_code:
@@ -1210,11 +1227,17 @@ class SettingsDialog(QDialog):
             # Legacy values without item data: Light=0, Dark=1.
             theme_index = 1 if theme_setting == THEME_DARK else 0
         self.theme_combo.setCurrentIndex(theme_index)
+        saved_font_scale = str(s.value("appearance/font_scale", DEFAULT_FONT_SCALE, str))
+        font_index = self.font_scale_combo.findData(saved_font_scale)
+        self.font_scale_combo.setCurrentIndex(font_index if font_index >= 0 else 0)
         self.show_advanced.setChecked(bool(s.value("ui/show_advanced", False, bool)))
         self._apply_advanced_visibility()
         self.notifications_enabled.setChecked(
             bool(s.value("appearance/notifications", DEFAULT_NOTIFICATIONS, bool))
         )
+        for category, (toggle, _label) in self.notification_toggles.items():
+            toggle.setChecked(bool(s.value(f"appearance/notifications/{category}", True, bool)))
+        self.notification_group.setEnabled(self.notifications_enabled.isChecked())
         # Language
         saved_lang = str(s.value("appearance/language", AUTO_LANGUAGE, str))
         for i in range(self.lang_combo.count()):

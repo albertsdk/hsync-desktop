@@ -55,7 +55,13 @@ disable unsupported controls) is realized in
   Linux `QT_QPA_PLATFORMTHEME=generic` harden stays (the GTK3 theme aborts
   against the bundled GLib); the host `gsettings` probe drops `LD_LIBRARY_PATH`
   and the other bundled-library overrides (`fonts.py::_host_env`) so it loads
-  the host GLib.
+  the host GLib. The global **Font size** preference (`appearance/font_scale`,
+  `standard` default / `compact`) scales the resolved UI and monospace bases
+  once, so every derived font follows; the file table has no separate size knob.
+- **No placeholder role indicator**: the p2p role icon/text stay hidden until
+  the election has decided the role (`_role_known`); a dashed "unknown" glyph
+  read as an unfinished state. The primary icon is theme-aware
+  (`currentColor` + the system accent).
 - **i18n completeness**: every user string must exist in all locales
   (`locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over

@@ -15,7 +15,9 @@ from __future__ import annotations
 import json
 import os
 import signal
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import ClassVar, cast
 from urllib.parse import urlparse
 
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
@@ -34,6 +36,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
+    DEFAULT_RESYNC_INTERVAL,
     DEFAULT_SERVER_TRUST,
 )
 from hsync_desktop.crypto import decrypt_value
@@ -170,6 +173,11 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
             "HSYNC_BOOTNODE_TRUST",
             str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
         )
+    # Periodic full check: 0 disables it. The client has no CLI "off" for
+    # -i (absence means its 300 s default), so the off state travels through
+    # the environment and overrides an ambient HSYNC_RESYNC.
+    if cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int)) <= 0:
+        env.insert("HSYNC_RESYNC", "0")
     # p2p peer-download caps are env-only (no CLI flag); the on/off is the
     # --no-peer-download flag. Only meaningful in p2p mode.
     if bool(s.value("p2p/enabled", True, bool)):
@@ -596,145 +604,210 @@ class HsyncEngine(QObject):
             connected=event.get("connected"),
         )
         try:
-            # Branch order is deliberate: the high-frequency sync events
-            # (progress/transfer/file_status/rename_status...) are checked first
-            # so the common case does not walk a long if/elif chain. Branches are
-            # mutually exclusive on ``name``, so order never changes behaviour.
-            if name == UiEventName.status:
-                self._set_status(str(event.get("status", "")))
-            elif name == UiEventName.progress:
-                self.file_progress.emit(
-                    str(event.get("file", "")),
-                    int(event.get("transferred", 0)),
-                    int(event.get("total", 0)),
-                    str(event.get("op", "")),
-                )
-            elif name == UiEventName.transfer:
-                self._handle_transfer(event)
-            elif name == UiEventName.file_status:
-                self.file_status.emit(
-                    str(event.get("state", "")),
-                    str(event.get("file", "")),
-                    int(event.get("size", 0)),
-                )
-            elif name == UiEventName.rename_status:
-                self.file_rename_status.emit(
-                    str(event.get("src", "")),
-                    str(event.get("dst", "")),
-                    int(event.get("size", 0)),
-                )
-            elif name == UiEventName.rename:
-                src = str(event.get("src", ""))
-                dst = str(event.get("dst", ""))
-                self.stats.follow_rename(self._relative_key(src), self._relative_key(dst))
-                self.file_renamed.emit(src, dst)
-            elif name == UiEventName.dir_created:
-                path = str(event.get("path", ""))
-                if not path.endswith(_HSYNCKEEP):
-                    self.directory_created.emit(path)
-            elif name == UiEventName.sync_complete:
-                self.sync_completed.emit()
-            elif name == UiEventName.folder_size:
-                self.folder_size_changed.emit(
-                    max(int(event.get("local_bytes", 0)), 0),
-                    max(int(event.get("total_bytes", 0)), 0),
-                )
-            elif name == UiEventName.transfer_failed:
-                self.transfer_failed.emit(
-                    str(event.get("op", "")),
-                    str(event.get("file", "")),
-                    str(event.get("message", "")),
-                )
-            elif name == UiEventName.conflict_resolved:
-                self.conflict_resolved.emit(
-                    str(event.get("file", "")),
-                    str(event.get("conflict_copy", "")),
-                )
-            elif name == UiEventName.error:
-                self.error_occurred.emit(
-                    str(event.get("message", "")), str(event.get("reason", ""))
-                )
-            elif name == UiEventName.sync_paused:
-                self.sync_paused.emit(
-                    str(event.get("reason", "")),
-                    int(event.get("deletes", 0)),
-                    int(event.get("local", 0)),
-                )
-            elif name == UiEventName.security_rejected:
-                self.security_rejected.emit(
-                    str(event.get("op", "")),
-                    str(event.get("path", "")),
-                    str(event.get("message", "")),
-                )
-            elif name == UiEventName.peers:
-                connected = int(event.get("connected", 0))
-                total = int(event.get("total", 0))
-                if (connected, total) != (self._peers, self._peers_total):
-                    self._peers = connected
-                    self._peers_total = total
-                    self.peers_changed.emit(connected, total)
-            elif name == UiEventName.role:
-                is_master = bool(event.get("is_master", False))
-                if is_master != self._is_master:
-                    self._is_master = is_master
-                    self.master_changed.emit(is_master)
-            elif name == UiEventName.bucket:
-                self.bucket_detected.emit(str(event.get("bucket", "")))
-            elif name == UiEventName.group:
-                self.group_detected.emit(str(event.get("group", "")))
-            elif name == UiEventName.discovery:
-                self.discovery_changed.emit(
-                    str(event.get("plan", "")), str(event.get("bootnode", ""))
-                )
-            elif name == UiEventName.session:
-                self._cid = str(event.get("cid", ""))
-            elif name == UiEventName.server:
-                self._server_ip = urlparse(str(event.get("url", ""))).hostname or ""
-            elif name == UiEventName.auth_error:
-                self.auth_error_occurred.emit(str(event.get("message", "")))
-                self._set_status("error")
-            elif name == UiEventName.auth_required:
-                self.auth_required_occurred.emit(str(event.get("message", "")))
-                self._set_status("error")
-            elif name == UiEventName.path_not_found:
-                self.path_not_found.emit(str(event.get("path", "")))
-                self._set_status("error")
-            elif name == UiEventName.master_conflict:
-                self.master_conflict.emit(
-                    str(event.get("conflict_type", "")),
-                    str(event.get("peer_cid", "")),
-                    str(event.get("peer_address", "")),
-                )
-            elif name == UiEventName.no_master:
-                self.no_master_warning.emit(str(event.get("message", "")))
-            elif name == UiEventName.no_peers:
-                self.no_peers_warning.emit(str(event.get("message", "")))
-            elif name == UiEventName.duplicate_identity:
-                self.duplicate_identity.emit(
-                    str(event.get("peer_cid", "")),
-                    str(event.get("peer_address", "")),
-                )
-            elif name == UiEventName.pairing_needed:
-                self.pairing_needed.emit(
-                    str(event.get("scope", "")),
-                    str(event.get("peer_cid", "")),
-                    str(event.get("peer_address", "")),
-                    str(event.get("fingerprint", "")),
-                )
-            elif name == UiEventName.fingerprint_changed:
-                self.fingerprint_changed.emit(
-                    str(event.get("scope", "")),
-                    str(event.get("peer_cid", "")),
-                    str(event.get("peer_address", "")),
-                    str(event.get("fingerprint", "")),
-                )
-            elif name == UiEventName.preview_start:
-                self.preview_started.emit()
-            elif name == UiEventName.preview_end:
-                self.preview_ended.emit()
+            self._dispatch_event(name, event)
         except Exception:
             # A malformed payload must never take down the engine.
             self.log_received.emit(f"[EVENT ERROR] {str(event)[:100]}")
+
+    def _dispatch_event(self, name: str | None, event: UiEventDict) -> None:
+        handler = self._EVENT_HANDLERS.get(name) if name is not None else None
+        if handler is not None:
+            handler(self, event)
+
+    def _on_status_event(self, event: UiEventDict) -> None:
+        self._set_status(str(event.get("status", "")))
+
+    def _on_progress_event(self, event: UiEventDict) -> None:
+        self.file_progress.emit(
+            str(event.get("file", "")),
+            int(event.get("transferred", 0)),
+            int(event.get("total", 0)),
+            str(event.get("op", "")),
+        )
+
+    def _on_transfer_event(self, event: UiEventDict) -> None:
+        self._handle_transfer(event)
+
+    def _on_file_status_event(self, event: UiEventDict) -> None:
+        self.file_status.emit(
+            str(event.get("state", "")),
+            str(event.get("file", "")),
+            int(event.get("size", 0)),
+        )
+
+    def _on_rename_status_event(self, event: UiEventDict) -> None:
+        self.file_rename_status.emit(
+            str(event.get("src", "")),
+            str(event.get("dst", "")),
+            int(event.get("size", 0)),
+        )
+
+    def _on_rename_event(self, event: UiEventDict) -> None:
+        src = str(event.get("src", ""))
+        dst = str(event.get("dst", ""))
+        self.stats.follow_rename(self._relative_key(src), self._relative_key(dst))
+        self.file_renamed.emit(src, dst)
+
+    def _on_dir_created_event(self, event: UiEventDict) -> None:
+        path = str(event.get("path", ""))
+        if not path.endswith(_HSYNCKEEP):
+            self.directory_created.emit(path)
+
+    def _on_sync_complete_event(self, event: UiEventDict) -> None:
+        self.sync_completed.emit()
+
+    def _on_folder_size_event(self, event: UiEventDict) -> None:
+        self.folder_size_changed.emit(
+            max(int(event.get("local_bytes", 0)), 0),
+            max(int(event.get("total_bytes", 0)), 0),
+        )
+
+    def _on_transfer_failed_event(self, event: UiEventDict) -> None:
+        self.transfer_failed.emit(
+            str(event.get("op", "")),
+            str(event.get("file", "")),
+            str(event.get("message", "")),
+        )
+
+    def _on_conflict_resolved_event(self, event: UiEventDict) -> None:
+        self.conflict_resolved.emit(
+            str(event.get("file", "")),
+            str(event.get("conflict_copy", "")),
+        )
+
+    def _on_error_event(self, event: UiEventDict) -> None:
+        self.error_occurred.emit(str(event.get("message", "")), str(event.get("reason", "")))
+
+    def _on_sync_paused_event(self, event: UiEventDict) -> None:
+        self.sync_paused.emit(
+            str(event.get("reason", "")),
+            int(event.get("deletes", 0)),
+            int(event.get("local", 0)),
+        )
+
+    def _on_security_rejected_event(self, event: UiEventDict) -> None:
+        self.security_rejected.emit(
+            str(event.get("op", "")),
+            str(event.get("path", "")),
+            str(event.get("message", "")),
+        )
+
+    def _on_peers_event(self, event: UiEventDict) -> None:
+        connected = int(event.get("connected", 0))
+        total = int(event.get("total", 0))
+        if (connected, total) != (self._peers, self._peers_total):
+            self._peers = connected
+            self._peers_total = total
+            self.peers_changed.emit(connected, total)
+
+    def _on_role_event(self, event: UiEventDict) -> None:
+        is_master = bool(event.get("is_master", False))
+        if is_master != self._is_master:
+            self._is_master = is_master
+            self.master_changed.emit(is_master)
+
+    def _on_bucket_event(self, event: UiEventDict) -> None:
+        self.bucket_detected.emit(str(event.get("bucket", "")))
+
+    def _on_group_event(self, event: UiEventDict) -> None:
+        self.group_detected.emit(str(event.get("group", "")))
+
+    def _on_discovery_event(self, event: UiEventDict) -> None:
+        self.discovery_changed.emit(str(event.get("plan", "")), str(event.get("bootnode", "")))
+
+    def _on_session_event(self, event: UiEventDict) -> None:
+        self._cid = str(event.get("cid", ""))
+
+    def _on_server_event(self, event: UiEventDict) -> None:
+        self._server_ip = urlparse(str(event.get("url", ""))).hostname or ""
+
+    def _on_auth_error_event(self, event: UiEventDict) -> None:
+        self.auth_error_occurred.emit(str(event.get("message", "")))
+        self._set_status("error")
+
+    def _on_auth_required_event(self, event: UiEventDict) -> None:
+        self.auth_required_occurred.emit(str(event.get("message", "")))
+        self._set_status("error")
+
+    def _on_path_not_found_event(self, event: UiEventDict) -> None:
+        self.path_not_found.emit(str(event.get("path", "")))
+        self._set_status("error")
+
+    def _on_master_conflict_event(self, event: UiEventDict) -> None:
+        self.master_conflict.emit(
+            str(event.get("conflict_type", "")),
+            str(event.get("peer_cid", "")),
+            str(event.get("peer_address", "")),
+        )
+
+    def _on_no_master_event(self, event: UiEventDict) -> None:
+        self.no_master_warning.emit(str(event.get("message", "")))
+
+    def _on_no_peers_event(self, event: UiEventDict) -> None:
+        self.no_peers_warning.emit(str(event.get("message", "")))
+
+    def _on_duplicate_identity_event(self, event: UiEventDict) -> None:
+        self.duplicate_identity.emit(
+            str(event.get("peer_cid", "")),
+            str(event.get("peer_address", "")),
+        )
+
+    def _on_pairing_needed_event(self, event: UiEventDict) -> None:
+        self.pairing_needed.emit(
+            str(event.get("scope", "")),
+            str(event.get("peer_cid", "")),
+            str(event.get("peer_address", "")),
+            str(event.get("fingerprint", "")),
+        )
+
+    def _on_fingerprint_changed_event(self, event: UiEventDict) -> None:
+        self.fingerprint_changed.emit(
+            str(event.get("scope", "")),
+            str(event.get("peer_cid", "")),
+            str(event.get("peer_address", "")),
+            str(event.get("fingerprint", "")),
+        )
+
+    def _on_preview_start_event(self, event: UiEventDict) -> None:
+        self.preview_started.emit()
+
+    def _on_preview_end_event(self, event: UiEventDict) -> None:
+        self.preview_ended.emit()
+
+    _EVENT_HANDLERS: ClassVar[dict[str, Callable[[HsyncEngine, UiEventDict], None]]] = {
+        UiEventName.status: _on_status_event,
+        UiEventName.progress: _on_progress_event,
+        UiEventName.transfer: _on_transfer_event,
+        UiEventName.file_status: _on_file_status_event,
+        UiEventName.rename_status: _on_rename_status_event,
+        UiEventName.rename: _on_rename_event,
+        UiEventName.dir_created: _on_dir_created_event,
+        UiEventName.sync_complete: _on_sync_complete_event,
+        UiEventName.folder_size: _on_folder_size_event,
+        UiEventName.transfer_failed: _on_transfer_failed_event,
+        UiEventName.conflict_resolved: _on_conflict_resolved_event,
+        UiEventName.error: _on_error_event,
+        UiEventName.sync_paused: _on_sync_paused_event,
+        UiEventName.security_rejected: _on_security_rejected_event,
+        UiEventName.peers: _on_peers_event,
+        UiEventName.role: _on_role_event,
+        UiEventName.bucket: _on_bucket_event,
+        UiEventName.group: _on_group_event,
+        UiEventName.discovery: _on_discovery_event,
+        UiEventName.session: _on_session_event,
+        UiEventName.server: _on_server_event,
+        UiEventName.auth_error: _on_auth_error_event,
+        UiEventName.auth_required: _on_auth_required_event,
+        UiEventName.path_not_found: _on_path_not_found_event,
+        UiEventName.master_conflict: _on_master_conflict_event,
+        UiEventName.no_master: _on_no_master_event,
+        UiEventName.no_peers: _on_no_peers_event,
+        UiEventName.duplicate_identity: _on_duplicate_identity_event,
+        UiEventName.pairing_needed: _on_pairing_needed_event,
+        UiEventName.fingerprint_changed: _on_fingerprint_changed_event,
+        UiEventName.preview_start: _on_preview_start_event,
+        UiEventName.preview_end: _on_preview_end_event,
+    }
 
     def _relative_key(self, path: str) -> str:
         """Normalize an event path to a bucket-relative identity key.

@@ -19,17 +19,24 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-from hsync_desktop.config import BANDWIDTH_MAX_MBPS
+from hsync_desktop.config import (
+    BANDWIDTH_MAX_MBPS,
+    FONT_SCALE_COMPACT,
+    FONT_SCALE_STANDARD,
+    NOTIFICATION_CATEGORIES,
+)
 from hsync_desktop.i18n import AUTO_LANGUAGE, SUPPORTED_LANGUAGES, tr
 from hsync_desktop.icons import icon
 from hsync_desktop.settings.form_helpers import (
@@ -448,6 +455,30 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
     dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
+    dlg.notification_group = QGroupBox(dlg)
+    notification_lines = QVBoxLayout(dlg.notification_group)
+    notification_lines.setContentsMargins(8, 6, 8, 6)
+    notification_lines.setSpacing(6)
+    dlg.notification_toggles = {}
+    for category in NOTIFICATION_CATEGORIES:
+        toggle = ToggleSwitch(dlg.notification_group)
+        label = QLabel(dlg.notification_group)
+        line = QHBoxLayout()
+        line.setContentsMargins(0, 0, 0, 0)
+        line.addWidget(toggle)
+        line.addWidget(label)
+        line.addStretch(1)
+        notification_lines.addLayout(line)
+        dlg.notification_toggles[category] = (toggle, label)
+    dlg.notification_group.setEnabled(dlg.notifications_enabled.isChecked())
+    dlg.notifications_enabled.toggled.connect(dlg.notification_group.setEnabled)
+
+    dlg.font_scale_combo = QComboBox(dlg)
+    dlg.font_scale_combo.setObjectName("fontScaleCombo")
+    dlg.font_scale_combo.addItem("", FONT_SCALE_STANDARD)
+    dlg.font_scale_combo.addItem("", FONT_SCALE_COMPACT)
+    dlg._lbl_font_scale = QLabel(dlg)
+
     # "Show advanced options" toggle (no .ui counterpart): hides the Advanced tab
     # and the advanced sections in the Sync/p2p/Server tabs.
     dlg.show_advanced = ToggleSwitch(dlg)
@@ -462,6 +493,27 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     general_tab = dlg._tabs.widget(_GENERAL_TAB_INDEX)
     general_layout = general_tab.layout() if general_tab else None
     if general_tab is not None and isinstance(general_layout, QFormLayout):
+        # Keep the font-size selector immediately under Theme (the .ui form has
+        # Language at row 0 and Theme at row 1).
+        theme_row = -1
+        for row in range(general_layout.rowCount()):
+            item = general_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if item is not None and item.widget() is dlg.theme_combo:
+                theme_row = row
+                break
+        insert_at = theme_row + 1 if theme_row >= 0 else general_layout.rowCount()
+        general_layout.insertRow(insert_at, dlg._lbl_font_scale, dlg.font_scale_combo)
+        notification_row = -1
+        for row in range(general_layout.rowCount()):
+            item = general_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            field = item.widget() if item is not None else None
+            if field is not None and field.isAncestorOf(dlg.notifications_enabled):
+                notification_row = row
+                break
+        general_layout.insertRow(
+            notification_row + 1 if notification_row >= 0 else general_layout.rowCount(),
+            dlg.notification_group,
+        )
         general_layout.addRow("", cont_show_advanced)
         # Host the .ui form inside a scroll area so the page scrolls like the
         # others instead of forcing the dialog taller (see ``finalize_size``).
@@ -505,6 +557,29 @@ def _available_screen_size(dlg: SettingsDialog) -> QSize | None:
     return geometry.size()
 
 
+# Scroll frame + vertical bar + page/dialog margins: the content width must
+# leave room for them or the no-horizontal-scroll pages clip the last control.
+_CONTENT_WIDTH_MARGIN = 40
+
+
+def _content_width(dlg: SettingsDialog) -> int:
+    """Widest tab content plus the scroll chrome, or 0 when not measurable."""
+    widest = 0
+    for index in range(dlg._tabs.count()):
+        page = dlg._tabs.widget(index)
+        if page is None:
+            continue
+        layout = page.layout()
+        if layout is not None:
+            layout.activate()
+        scroll = page.findChild(QScrollArea)
+        content = scroll.widget() if scroll is not None else None
+        if content is None:
+            continue
+        widest = max(widest, content.sizeHint().width())
+    return widest + _CONTENT_WIDTH_MARGIN if widest else 0
+
+
 def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
     """Fit the dialog to its content, clamped to the screen so it stays usable.
 
@@ -514,15 +589,17 @@ def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
     toggle) so a size the user chose is never reduced or de-maximized.
     """
 
-    dlg.setMinimumWidth(640)  # Keep a reasonable minimum width
     hint = dlg.sizeHint()
+    content_width = _content_width(dlg)
     available = _available_screen_size(dlg)
     if available is None:
-        width = max(hint.width(), 640)
+        width = max(hint.width(), 640, content_width)
         height = hint.height()
     else:
-        width = max(640, min(hint.width(), int(available.width() * _SCREEN_SIZE_FRACTION)))
+        width = max(640, hint.width(), content_width)
+        width = min(width, int(available.width() * _SCREEN_SIZE_FRACTION))
         height = min(hint.height(), int(available.height() * _SCREEN_SIZE_FRACTION))
+    dlg.setMinimumWidth(width)
     dlg.setMinimumHeight(min(480, height))
     # Never disturb a maximized window; when re-fitting, never shrink a size the
     # user chose (only grow a too-small dialog) and skip no-op resizes.
@@ -533,3 +610,45 @@ def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
     if dlg.width() == width and dlg.height() == height:
         return
     dlg.resize(width, height)
+
+
+def fit_current_tab(dlg: SettingsDialog) -> None:
+    """Grow the dialog for the current tab when its content fits on screen.
+
+    The scroll area shows its vertical bar as soon as the client area is a few
+    pixels shorter than the page (wrapped description, frame). Re-measure after
+    the layout settles and grow once, bounded by the same screen fraction as
+    ``finalize_size``. Never shrink or disturb a maximized window.
+    """
+    if not dlg.isVisible() or dlg.isMaximized():
+        return
+    page = dlg._tabs.currentWidget()
+    scroll = page.findChild(QScrollArea) if page is not None else None
+    content = scroll.widget() if scroll is not None else None
+    if scroll is None or content is None:
+        return
+    layout = dlg.layout()
+    if layout is not None:
+        layout.activate()
+    available = _available_screen_size(dlg)
+    limit_w = int(available.width() * _SCREEN_SIZE_FRACTION) if available is not None else None
+    limit_h = int(available.height() * _SCREEN_SIZE_FRACTION) if available is not None else None
+
+    # Width first: a wider viewport can change the wrapped height.
+    needed_w = content.sizeHint().width() + _CONTENT_WIDTH_MARGIN
+    target_w = min(needed_w, limit_w) if limit_w is not None else needed_w
+    if target_w > dlg.width():
+        dlg.resize(target_w, dlg.height())
+    dlg.setMinimumWidth(max(dlg.minimumWidth(), target_w))
+    if layout is not None:
+        layout.activate()
+
+    overflow = scroll.verticalScrollBar().maximum()
+    if overflow <= 0:
+        return
+    frame = max(0, dlg.frameGeometry().height() - dlg.geometry().height())
+    target_h = dlg.height() + overflow + frame + 4
+    if limit_h is not None:
+        target_h = min(target_h, limit_h)
+    if target_h > dlg.height():
+        dlg.resize(dlg.width(), target_h)

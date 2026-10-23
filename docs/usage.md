@@ -156,9 +156,10 @@ listings or logs. Use the credential dialogs to replace a password at any time.
   French, Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and
   Japanese.
 - **Fonts** — the interface follows your desktop's UI and monospace fonts and the
-  system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
-  The file list is one point smaller than the UI font (never below 9 pt) with a
-  comfortable row height, so it fits more rows without shrinking the click target.
+  system text scaling (GNOME/Ubuntu and KDE). **Font size** on the General tab
+  selects **Standard** (desktop size, including the file list) or **Slightly
+  reduced** (one point smaller across the app, never below 8 pt); the file list
+  keeps a comfortable row height either way.
 
 The file list shows the standard columns plus **Direction** (↑/↓, ✕ on a deleted
 row, ⇄ on a rename), visible by default; the direction is blank when there is no

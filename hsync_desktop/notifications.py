@@ -19,10 +19,11 @@ Policy:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from PySide6.QtWidgets import QSystemTrayIcon
 
+from hsync_desktop.config import NOTIFICATION_CATEGORIES
 from hsync_desktop.i18n import tr
 
 
@@ -39,6 +40,7 @@ class NotificationManager:
         # already on screen, so their system notification is skipped.
         self._is_foreground = is_foreground or (lambda: False)
         self._enabled = True
+        self._categories: frozenset[str] = frozenset(NOTIFICATION_CATEGORIES)
         self.user_stopped = False  # set True when user clicks Stop
 
     # ── Public API ───────────────────────────────────────────────────────
@@ -51,12 +53,21 @@ class NotificationManager:
     def enabled(self, value: bool) -> None:
         self._enabled = value
 
+    @property
+    def categories(self) -> frozenset[str]:
+        return self._categories
+
+    @categories.setter
+    def categories(self, value: Iterable[str]) -> None:
+        self._categories = frozenset(value)
+
     def notify(
         self,
         title: str,
         message: str,
         icon: QSystemTrayIcon.MessageIcon = QSystemTrayIcon.MessageIcon.Information,
         duration_ms: int = 5000,
+        category: str = "sync",
     ) -> None:
         """Show a desktop notification if enabled.
 
@@ -66,19 +77,21 @@ class NotificationManager:
         """
         if not self._enabled or not self._tray.isVisible():
             return
+        if category not in self._categories:
+            return
         if self._is_foreground():
             return
         self._tray.showMessage(title, message, icon, duration_ms)
 
     # ── Convenience helpers ──────────────────────────────────────────────
 
-    def info(self, title: str, message: str) -> None:
-        self.notify(title, message, QSystemTrayIcon.MessageIcon.Information)
+    def info(self, title: str, message: str, category: str = "sync") -> None:
+        self.notify(title, message, QSystemTrayIcon.MessageIcon.Information, category=category)
 
-    def warning(self, title: str, message: str) -> None:
-        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning)
+    def warning(self, title: str, message: str, category: str = "connection") -> None:
+        self.notify(title, message, QSystemTrayIcon.MessageIcon.Warning, category=category)
 
-    def error(self, title: str, message: str) -> None:
+    def error(self, title: str, message: str, category: str = "errors") -> None:
         """Notify an error (unless the user just stopped the process)."""
         if self.user_stopped:
             return
@@ -87,6 +100,7 @@ class NotificationManager:
             message,
             QSystemTrayIcon.MessageIcon.Critical,
             8000,
+            category=category,
         )
 
     def download_complete(self, filename: str) -> None:
@@ -104,7 +118,7 @@ class NotificationManager:
             .replace("{connected}", str(connected))
             .replace("{total}", str(total))
         )
-        self.info(tr("notif.peer_update"), msg)
+        self.info(tr("notif.peer_update"), msg, category="peers")
 
     def became_master(self) -> None:
-        self.info(tr("notif.master_elected"), tr("notif.master_elected_msg"))
+        self.info(tr("notif.master_elected"), tr("notif.master_elected_msg"), category="peers")

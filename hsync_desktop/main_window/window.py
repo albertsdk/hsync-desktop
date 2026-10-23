@@ -30,6 +30,7 @@ from PySide6.QtGui import (
     QDesktopServices,
     QFontMetrics,
     QGuiApplication,
+    QShowEvent,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -71,6 +72,12 @@ from hsync_desktop.engine import (
 )
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.i18n import register_language_callback, tr
+from hsync_desktop.main_window.actions import ActionsMixin
+from hsync_desktop.main_window.events import EventsMixin
+from hsync_desktop.main_window.lifecycle import LifecycleMixin
+from hsync_desktop.main_window.start import StartMixin
+from hsync_desktop.main_window.trust import TrustMixin
+from hsync_desktop.main_window.ui import UiBuildMixin
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings import (
@@ -81,6 +88,7 @@ from hsync_desktop.settings import (
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
+    get_enabled_notification_categories,
     get_saved_theme,
     get_theme_setting,
     is_auto_sync_enabled,
@@ -97,36 +105,6 @@ from hsync_desktop.themes import (
 )
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.wizard import SetupWizard
-
-# ── Button styles ────────────────────────────────────────────────────────────
-_BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
-_BTN_START_ACTIVE = (
-    f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #278a39; }"
-    "QPushButton:pressed { background-color: #1f7a30; }"
-)
-_BTN_STOP_ACTIVE = (
-    f"QPushButton {{ background-color: #CF222E; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #b71d28; }"
-    "QPushButton:pressed { background-color: #a01822; }"
-)
-_BTN_REFRESH_ACTIVE = (
-    f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #0860CA; }"
-    "QPushButton:pressed { background-color: #0757BA; }"
-)
-_BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
-
-
-from hsync_desktop.main_window.actions import ActionsMixin
-from hsync_desktop.main_window.events import EventsMixin
-from hsync_desktop.main_window.lifecycle import LifecycleMixin
-from hsync_desktop.main_window.start import StartMixin
-from hsync_desktop.main_window.trust import TrustMixin
-from hsync_desktop.main_window.ui import UiBuildMixin
 
 
 class MainWindow(
@@ -145,6 +123,7 @@ class MainWindow(
         self._notifier = NotificationManager(tray) if tray else None  # type: ignore[arg-type]
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
+            self._notifier.categories = get_enabled_notification_categories()
         self._user_stopped = False  # track if stop was user-initiated
         # Per-(scope, identity) last-prompted fingerprint for the trust dialogs:
         # the client retries continuously, so a repeated refusal for the same
@@ -174,6 +153,7 @@ class MainWindow(
         self._p2p_enabled = False  # p2p mode for the current engine run
         self._initial_reconcile_done = False  # post-initial-sync catch-up ran
         self._last_scan_preview_at = 0.0  # cooldown for scan-triggered previews
+        self._table_width_fitted = False  # one-shot startup fit for saved columns
         # p2p role: unknown until the first role event; the text is shown only
         # once connected (see MainWindow._apply_role_visibility).
         self._role_known = False
@@ -192,16 +172,51 @@ class MainWindow(
 
         self._load_ui()
         self._connect_signals()
+        self._file_panel.table.model().rowsInserted.connect(self._schedule_table_fit)
 
         # Restore window geometry
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         geo = s.value("window/geometry")
         if geo:
             self.restoreGeometry(geo)
+        QTimer.singleShot(0, self._schedule_table_fit)
 
         # Schedule auto-sync check after event loop starts
         if is_auto_sync_enabled():
             QTimer.singleShot(0, self._check_auto_sync)
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Fit the table columns once the window geometry is live."""
+        super().showEvent(event)
+        QTimer.singleShot(0, self._schedule_table_fit)
+
+    def _schedule_table_fit(self, *_args) -> None:
+        """Schedule the one-shot table-width fit after rows are laid out."""
+        if not self._table_width_fitted:
+            QTimer.singleShot(0, self._fit_table_width)
+
+    def _fit_table_width(self) -> None:
+        """Grow the window once so the persisted file-table columns fit.
+
+        The table disables no column and persists user widths; a narrower saved
+        window (or the 800 px default) would otherwise force a horizontal
+        scrollbar on every launch until the user resizes the window by hand.
+        """
+        if self._table_width_fitted or self.isMaximized():
+            return
+        table = self._file_panel.table
+        if table.rowCount() == 0 or table.viewport().width() <= 0:
+            return
+        self._table_width_fitted = True
+        deficit = table.horizontalScrollBar().maximum()
+        if deficit <= 0:
+            return
+        screen = self.screen().availableGeometry() if self.screen() is not None else None
+        target = self.width() + deficit + 2
+        if screen is not None:
+            target = min(target, screen.width())
+        if target > self.width():
+            self.resize(target, self.height())
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 

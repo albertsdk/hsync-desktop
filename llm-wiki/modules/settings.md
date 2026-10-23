@@ -82,8 +82,8 @@ matching comparable tools). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` /
 prefer-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
 them instead of literals. Advanced holds the engine tuning (performance, delta
 transfer, deletion protection, bandwidth, logging); General holds the app
-preferences (language, theme, notifications, tooltips, log panel, launch at
-login).
+preferences (font size, language, theme, notifications, tooltips, log panel,
+launch at login).
 
 **Standard vs advanced**: the General tab's `show_advanced` toggle
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
@@ -107,7 +107,12 @@ untouched); the dialog is resizable (no `setFixedSize`) with a 640 px minimum
 width, and width/height are clamped to 90% of `_available_screen_size` (the dialog
 screen's `availableGeometry`; `None` on a headless platform → content-sized
 fallback). The General page reuses its `.ui` form through `_scrollable_form_page`
-instead of being rebuilt.
+instead of being rebuilt. After the first layout, `fit_current_tab`
+(`settings/tab_builders.py::fit_current_tab`) grows the dialog for the current
+tab when its content fits on screen, so a fitting page shows no vertical
+scrollbar; a tab switch re-checks, while a maximized or user-resized window is
+never shrunk. `SettingsDialog.showEvent` schedules the first fit so the wrapped
+content is measured at its final width.
 
 **Theme**: `appearance/theme` stores `system`/`light`/`dark`.
 `get_theme_setting` (`settings/cli_args.py::get_theme_setting`) returns the raw
@@ -123,6 +128,22 @@ combo carries stable item data (Light=0, Dark=1, System=2);
 icons live **only** while the preference is `system` (with the generic Linux
 platform theme that signal may not fire; launch/settings-apply re-detection is
 the reliable path there).
+
+**Font size**: `appearance/font_scale` (General tab) stores `standard` (default)
+or `compact`. `settings/cli_args.py::get_saved_font_scale` reads it;
+`fonts.py::resolve_system_fonts` scales the resolved UI and monospace bases once
+(compact = one point smaller, floor 8 pt), so every derived font follows;
+`MainWindow._apply_settings_changes` re-applies the app font and the explicit
+log/table fonts live (`FileTransferTable.refresh_fonts`).
+
+**Timing floors**: the Sync tab enforces the client contract. The periodic full
+check (formerly "Re-sync interval") is `0` (disabled) or `>= 20 s`;
+`SettingsDialog._normalize_resync` snaps 1..19 to 20, and
+`engine/process.py::apply_settings_env` inserts `HSYNC_RESYNC=0` when disabled
+(the client's CLI > env > default precedence makes that authoritative; an
+enabled value still travels as `-i`). The retry delay is `>= 5 s`, the maximum
+wait defaults to 600 s and is `>= 60 s`, and the HTTP/discovery timeouts are
+`>= 5 s`; `build_hsync_args` clamps stored values to the same ranges.
 
 **Server address**: `settings.server_url` accepts `host`, `host:port`, IPv6 and a
 full URL; `_normalize_server_endpoint`

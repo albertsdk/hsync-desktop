@@ -489,3 +489,97 @@ class TestLanguageAutoDefault:
         dlg.save()
 
         assert store.value("appearance/language", "sentinel", str) == i18n_mod.AUTO_LANGUAGE
+
+
+class TestFontScalePersistence:
+    """The global font-size preference round-trips and falls back safely."""
+
+    def test_round_trips(self, qtbot, monkeypatch, tmp_path):
+        from hsync_desktop.config import FONT_SCALE_COMPACT
+
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.font_scale_combo.setCurrentIndex(dlg.font_scale_combo.findData(FONT_SCALE_COMPACT))
+        dlg.save()
+        assert store.value("appearance/font_scale", "", str) == FONT_SCALE_COMPACT
+
+        dlg.font_scale_combo.setCurrentIndex(0)
+        dlg.load()
+        assert dlg.font_scale_combo.currentData() == FONT_SCALE_COMPACT
+
+    def test_unknown_saved_value_falls_back_to_standard(self, qtbot, monkeypatch, tmp_path):
+        from hsync_desktop.config import FONT_SCALE_STANDARD
+
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        store.setValue("appearance/font_scale", "huge")
+        store.sync()
+
+        dlg.load()
+
+        assert dlg.font_scale_combo.currentData() == FONT_SCALE_STANDARD
+
+
+class TestTimeSettingFloors:
+    """Too-small intervals are rejected at the widget/load boundary."""
+
+    def test_resync_snaps_between_zero_and_the_minimum(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+
+        dlg.resync.setValue(5)
+        assert dlg.resync.value() == 20
+        dlg.resync.setValue(0)
+        assert dlg.resync.value() == 0
+
+    def test_defaults_are_permissive_and_bounded(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert dlg.max_wait.value() == 600
+        assert dlg.max_wait.minimum() == 60
+        assert dlg.retry_delay.minimum() == 5
+        assert dlg.http_timeout.minimum() == 5
+        assert dlg.discovery_timeout.minimum() == 5
+        assert dlg.resync.maximum() == 3600
+
+
+class TestGeneralAppearanceOrder:
+    """The font-size selector sits immediately below Theme."""
+
+    def test_font_size_row_is_immediately_below_theme(self, dialog):
+        form = dialog.font_scale_combo.parentWidget().layout()
+        assert isinstance(form, QFormLayout)
+
+        def row_of(widget):
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                if item is not None and item.widget() is widget:
+                    return row
+            return -1
+
+        assert row_of(dialog.font_scale_combo) == row_of(dialog.theme_combo) + 1
+
+
+class TestNotificationCategoriesUi:
+    """The master switch gates the per-event category toggles."""
+
+    def test_master_toggle_disables_the_category_group(self, dialog):
+        dialog.notifications_enabled.setChecked(False)
+        assert not dialog.notification_group.isEnabled()
+
+        dialog.notifications_enabled.setChecked(True)
+        assert dialog.notification_group.isEnabled()
+
+    def test_categories_default_to_enabled(self, qtbot, monkeypatch, tmp_path):
+        dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+
+        assert all(toggle.isChecked() for toggle, _label in dlg.notification_toggles.values())
+
+    def test_categories_round_trip(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        dlg.notification_toggles["peers"][0].setChecked(False)
+        dlg.save()
+
+        assert store.value("appearance/notifications/peers", True, bool) is False
+
+        dlg.notification_toggles["peers"][0].setChecked(True)
+        dlg.load()
+
+        assert dlg.notification_toggles["peers"][0].isChecked() is False

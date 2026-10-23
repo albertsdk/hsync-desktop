@@ -251,7 +251,7 @@ class TestApplySystemFonts:
         monkeypatch.setattr(
             fonts,
             "resolve_system_fonts",
-            lambda: fonts.SystemFonts(probe, mono),
+            lambda _font_scale=fonts.FONT_SCALE_STANDARD: fonts.SystemFonts(probe, mono),
         )
         previous = QFont(qapp.font())
         try:
@@ -336,22 +336,14 @@ class TestLogMonospaceFont:
 
 
 class TestTableFont:
-    """The file table is one point below the UI font, never below 9 pt."""
+    """The file table follows the global UI font scale (no extra delta)."""
 
-    def test_one_point_smaller(self, qapp, monkeypatch):
+    def test_follows_the_ui_font(self, qapp, monkeypatch):
         base = QFont("Probe UI")
         base.setPointSizeF(12.0)
         monkeypatch.setattr(fonts, "_ui_font", base)
 
-        assert fonts.table_font().pointSizeF() == pytest.approx(11.0)
-
-    def test_floor_at_nine(self, qapp, monkeypatch):
-        for size in (10.0, 9.0, 8.0):
-            base = QFont("Probe UI")
-            base.setPointSizeF(size)
-            monkeypatch.setattr(fonts, "_ui_font", base)
-
-            assert fonts.table_font().pointSizeF() == pytest.approx(9.0)
+        assert fonts.table_font().pointSizeF() == pytest.approx(12.0)
 
     def test_pixel_sized_font_is_unchanged(self, qapp, monkeypatch):
         base = QFont("Probe UI")
@@ -366,3 +358,32 @@ class TestTableFont:
         monkeypatch.setattr(fonts, "_ui_font", base)
 
         assert fonts.table_row_height() >= fonts._MIN_TABLE_ROW_HEIGHT
+
+
+class TestCompactScale:
+    """Compact shifts the UI and monospace bases one point down (floor 8 pt)."""
+
+    def test_offset_reduces_and_floors(self, qapp):
+        base = QFont("Probe")
+        base.setPointSizeF(11.0)
+        assert fonts._offset_font(base, -1.0, 8.0).pointSizeF() == pytest.approx(10.0)
+
+        base.setPointSizeF(8.5)
+        assert fonts._offset_font(base, -1.0, 8.0).pointSizeF() == pytest.approx(8.0)
+
+    def test_resolve_compact_reduces_both_bases(self, qapp, monkeypatch):
+        def system_font(kind):
+            font = QFont("Probe")
+            font.setPointSizeF(12.0 if kind == QFontDatabase.SystemFont.FixedFont else 11.0)
+            return font
+
+        monkeypatch.setattr(fonts.QFontDatabase, "systemFont", lambda kind: system_font(kind))
+        monkeypatch.setattr(fonts, "_desktop", lambda: "")
+
+        standard = fonts.resolve_system_fonts()
+        compact = fonts.resolve_system_fonts(fonts.FONT_SCALE_COMPACT)
+
+        assert standard.ui.pointSizeF() == pytest.approx(11.0)
+        assert compact.ui.pointSizeF() == pytest.approx(10.0)
+        assert standard.mono.pointSizeF() == pytest.approx(12.0)
+        assert compact.mono.pointSizeF() == pytest.approx(11.0)

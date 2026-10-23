@@ -64,17 +64,20 @@ class DirectoryScanWorker(QObject):
             pass
         return count
 
-    def _count_dir(self, dir_path: Path, base_path: Path) -> int:
-        """Recursively count real files and empty leaf dirs (no symlinks)."""
-        if self._cancelled:
-            return 0
+    def _synced_entries(
+        self, dir_path: Path
+    ) -> tuple[list[os.DirEntry[str]], list[os.DirEntry[str]]] | None:
+        """Return the synced ``(dirs, files)`` of a directory, or ``None`` on I/O error.
+
+        Shared by the counting and the row-emitting scans so the symlink and
+        ignore-filter rules cannot drift between the two passes.
+        """
         try:
             entries = list(os.scandir(dir_path))
         except OSError:
-            return 0
-
+            return None
         dirs: list[os.DirEntry[str]] = []
-        file_count = 0
+        files: list[os.DirEntry[str]] = []
         for entry in entries:
             try:
                 is_dir = entry.is_dir(follow_symlinks=False)
@@ -85,16 +88,23 @@ class DirectoryScanWorker(QObject):
                 continue
             if not is_synced_entry(self._matcher, entry.path, is_dir=is_dir):
                 continue
-            if is_dir:
-                dirs.append(entry)
-            else:
-                file_count += 1
+            (dirs if is_dir else files).append(entry)
+        return dirs, files
+
+    def _count_dir(self, dir_path: Path, base_path: Path) -> int:
+        """Recursively count real files and empty leaf dirs (no symlinks)."""
+        if self._cancelled:
+            return 0
+        entries = self._synced_entries(dir_path)
+        if entries is None:
+            return 0
+        dirs, files = entries
 
         # Leaf empty directory (not root)
-        if not file_count and not dirs and str(dir_path) != str(base_path):
+        if not files and not dirs and str(dir_path) != str(base_path):
             return 1
 
-        count = file_count
+        count = len(files)
         for d in dirs:
             if self._cancelled:
                 return 0
@@ -108,35 +118,26 @@ class DirectoryScanWorker(QObject):
         total_bytes = 0
         last_progress_time = 0.0
 
+        def flush_batch() -> None:
+            nonlocal batch, last_progress_time
+            self.files_found.emit(batch)
+            current_time = time.monotonic()
+            if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
+                self.progress.emit(processed, total)
+                self.size_progress.emit(total_bytes)
+                last_progress_time = current_time
+            batch = []
+
         def scan_directory(dir_path: Path) -> None:
             nonlocal processed, last_progress_time, batch, total_bytes
 
             if self._cancelled:
                 return
 
-            try:
-                entries = list(os.scandir(dir_path))
-            except OSError:
+            entries = self._synced_entries(dir_path)
+            if entries is None:
                 return
-
-            # Separate files and directories
-            dirs = []
-            files = []
-
-            for entry in entries:
-                try:
-                    is_dir = entry.is_dir(follow_symlinks=False)
-                    is_file = not is_dir and entry.is_file(follow_symlinks=False)
-                except OSError:
-                    continue
-                if not (is_dir or is_file):
-                    continue
-                if not is_synced_entry(self._matcher, entry.path, is_dir=is_dir):
-                    continue
-                if is_dir:
-                    dirs.append(entry)
-                else:
-                    files.append(entry)
+            dirs, files = entries
 
             # Handle empty directories (leaf dirs)
             if self._emit_rows and not files and not dirs and str(dir_path) != str(base_path):
@@ -153,13 +154,7 @@ class DirectoryScanWorker(QObject):
                 processed += 1
 
                 if len(batch) >= FILE_BATCH_SIZE:
-                    self.files_found.emit(batch)
-                    current_time = time.monotonic()
-                    if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
-                        self.progress.emit(processed, total)
-                        self.size_progress.emit(total_bytes)
-                        last_progress_time = current_time
-                    batch = []
+                    flush_batch()
 
             # Process files
             for entry in files:
@@ -188,13 +183,7 @@ class DirectoryScanWorker(QObject):
                 processed += 1
 
                 if len(batch) >= FILE_BATCH_SIZE:
-                    self.files_found.emit(batch)
-                    current_time = time.monotonic()
-                    if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
-                        self.progress.emit(processed, total)
-                        self.size_progress.emit(total_bytes)
-                        last_progress_time = current_time
-                    batch = []
+                    flush_batch()
 
             # Recursively scan subdirectories
             for entry in dirs:

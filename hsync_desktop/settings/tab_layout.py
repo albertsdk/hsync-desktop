@@ -113,7 +113,7 @@ def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int)
 
     label = muted_label(tr(_TAB_DESCRIPTION_KEYS[tab_index]))
     # A little breathing room from the tab edge and the first group box below.
-    label.setContentsMargins(8, 2, 8, 6)
+    label.setContentsMargins(12, 6, 12, 10)
     # A word-wrapped QLabel reports its *unwrapped* text width as sizeHint;
     # cap it below the 640 px page so a longer translation wraps instead of
     # forcing the page wider.

@@ -2,17 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""
-Main window for HSYNC Desktop.
-
-Contains:
-- Action bar: Start/Stop, Sync, Preview, path selector, Settings
-- File panel: real-time file transfer table with detail panel
-- Log viewer: real-time scrolling log output
-- Bottom bar: status indicator, peers, transfer stats (right-aligned)
-
-UI is loaded from ui/main_window.ui (Qt Designer).
-"""
+"""StartMixin: engine lifecycle, sync orchestration and settings application."""
 
 from __future__ import annotations
 
@@ -71,6 +61,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.fonts import apply_system_fonts, log_monospace_font, ui_font
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.icons import icon
 from hsync_desktop.notifications import NotificationManager
@@ -83,6 +74,8 @@ from hsync_desktop.settings import (
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
+    get_enabled_notification_categories,
+    get_saved_font_scale,
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
@@ -115,29 +108,6 @@ def _accepted_disclaimer_version(settings: QSettings) -> int:
     if version == 0 and settings.value(_LEGACY_DISCLAIMER_KEY, False, bool):
         version = _LEGACY_DISCLAIMER_VERSION
     return version
-
-
-# ── Button styles ────────────────────────────────────────────────────────────
-_BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
-_BTN_START_ACTIVE = (
-    f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #278a39; }"
-    "QPushButton:pressed { background-color: #1f7a30; }"
-)
-_BTN_STOP_ACTIVE = (
-    f"QPushButton {{ background-color: #CF222E; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #b71d28; }"
-    "QPushButton:pressed { background-color: #a01822; }"
-)
-_BTN_REFRESH_ACTIVE = (
-    f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #0860CA; }"
-    "QPushButton:pressed { background-color: #0757BA; }"
-)
-_BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 
 class StartMixin:
@@ -648,6 +618,17 @@ class StartMixin:
         self._append_desktop_log("INFO", f"[STATE RESET] {message}")
         QMessageBox.information(self, tr("settings.reset_state.title"), message)
 
+    def _refresh_menu_fonts(self) -> None:
+        """Re-apply the resolved app font to the menu bar and its popups.
+
+        QMenu caches the font it was created with, so a live font-size change
+        otherwise leaves the menus at the previous scale until the next launch.
+        """
+        font = ui_font()
+        self.menuBar().setFont(font)
+        for menu in self.menuBar().findChildren(QMenu):
+            menu.setFont(font)
+
     def _apply_settings_changes(self) -> None:
         """Re-apply settings that changed on disk (Settings dialog or wizard).
 
@@ -659,13 +640,18 @@ class StartMixin:
         app = QApplication.instance()
         if app:
             apply_theme(app, theme)  # type: ignore[arg-type]
+            apply_system_fonts(app, get_saved_font_scale())
+            self._refresh_menu_fonts()
             self._refresh_icons_for_theme()
+            self._log_view.setFont(log_monospace_font())
+            self._file_panel.refresh_fonts()
         if theme != self._log_theme:
             # The log colors are baked into the text formats: recolor on change.
             self._log_theme = theme
             self._rerender_log()
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
+            self._notifier.categories = get_enabled_notification_categories()
         self._apply_log_visibility()
         # The Simulation Mode badge/title/tray follow the saved setting too.
         self._refresh_simulation_state()

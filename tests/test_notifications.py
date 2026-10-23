@@ -238,3 +238,40 @@ class TestForegroundSuppression:
         manager.error("Title", "Message")
 
         tray_icon.showMessage.assert_called_once()
+
+
+class TestNotificationCategories:
+    """Per-event categories gate notifications under the master switch."""
+
+    @staticmethod
+    def _manager():
+        from hsync_desktop.notifications import NotificationManager
+
+        tray_icon = MagicMock(spec=QSystemTrayIcon)
+        tray_icon.isVisible.return_value = True
+        return NotificationManager(tray_icon), tray_icon
+
+    def test_all_categories_enabled_by_default(self):
+        from hsync_desktop.config import NOTIFICATION_CATEGORIES
+
+        manager, _tray = self._manager()
+
+        assert manager.categories == frozenset(NOTIFICATION_CATEGORIES)
+
+    def test_disabled_category_suppresses_only_that_type(self):
+        manager, tray_icon = self._manager()
+        manager.categories = {"errors", "sync"}
+
+        manager.peer_joined(1, 2)
+        tray_icon.showMessage.assert_not_called()
+
+        manager.info("Title", "Message")
+        tray_icon.showMessage.assert_called_once()
+
+    def test_error_uses_the_errors_category(self):
+        manager, tray_icon = self._manager()
+        manager.categories = {"sync"}
+
+        manager.error("Title", "Message")
+
+        tray_icon.showMessage.assert_not_called()

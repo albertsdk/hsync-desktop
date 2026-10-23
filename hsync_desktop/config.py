@@ -36,9 +36,11 @@ DEFAULT_CONTINUOUS = True
 DEFAULT_IGNORE_DELETE = False
 DEFAULT_SYNC_DIRECTION = "bidirectional"
 DEFAULT_RESYNC_INTERVAL = 0
+# The client rejects a periodic check below this interval (0 = disabled).
+MIN_RESYNC_INTERVAL = 20
 DEFAULT_RETRY_DELAY = 5
 DEFAULT_STABILITY_DELAY = 5
-DEFAULT_MAX_WAIT = 120
+DEFAULT_MAX_WAIT = 600
 DEFAULT_FILTER_PATH = ""
 DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compression setting
 DEFAULT_COMPRESSION_ENABLED = True
@@ -107,7 +109,14 @@ DEFAULT_SHOW_LOG_PANEL = False
 
 # Appearance defaults
 DEFAULT_NOTIFICATIONS = True
+# Per-event notification categories (all enabled by default).
+NOTIFICATION_CATEGORIES = ("errors", "connection", "sync", "peers")
 DEFAULT_TOOLTIPS = True
+# Global font size: follow the desktop ("standard") or reduce every
+# application font by one point ("compact").
+FONT_SCALE_STANDARD = "standard"
+FONT_SCALE_COMPACT = "compact"
+DEFAULT_FONT_SCALE = FONT_SCALE_STANDARD
 # Start the GUI at OS login, minimized to the tray (desktop-only; writes an OS
 # autostart entry on save, no client CLI flag).
 DEFAULT_START_AT_LOGIN = False

@@ -2,17 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""
-Main window for HSYNC Desktop.
-
-Contains:
-- Action bar: Start/Stop, Sync, Preview, path selector, Settings
-- File panel: real-time file transfer table with detail panel
-- Log viewer: real-time scrolling log output
-- Bottom bar: status indicator, peers, transfer stats (right-aligned)
-
-UI is loaded from ui/main_window.ui (Qt Designer).
-"""
+"""LifecycleMixin: startup, shutdown, tray and single-instance handling."""
 
 from __future__ import annotations
 
@@ -94,28 +84,6 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
-
-# ── Button styles ────────────────────────────────────────────────────────────
-_BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
-_BTN_START_ACTIVE = (
-    f"QPushButton {{ background-color: #2EA043; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #278a39; }"
-    "QPushButton:pressed { background-color: #1f7a30; }"
-)
-_BTN_STOP_ACTIVE = (
-    f"QPushButton {{ background-color: #CF222E; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #b71d28; }"
-    "QPushButton:pressed { background-color: #a01822; }"
-)
-_BTN_REFRESH_ACTIVE = (
-    f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
-    f" border: none; {_BTN_PAD} }}"
-    "QPushButton:hover { background-color: #0860CA; }"
-    "QPushButton:pressed { background-color: #0757BA; }"
-)
-_BTN_IDLE = f"QPushButton {{ {_BTN_PAD} }}"
 
 
 class LifecycleMixin:

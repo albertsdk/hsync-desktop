@@ -133,12 +133,15 @@ silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the bootnode no longer changes the icon). The role
 indicator is p2p-only: `_apply_role_visibility`
-(`main_window/ui.py::MainWindow._apply_role_visibility`) shows the icon in p2p
-mode and hides the whole indicator in Server Mode. Until the election event the
-icon is the neutral `role-unknown` and the text is hidden; the
-**Nodo primario/secondario** text appears only when connected and the role is
-known (`main_window/events.py::MainWindow._on_master` + `_on_status`), and the
-state resets per engine process (`_prepare_engine_run`).
+(`main_window/ui.py::MainWindow._apply_role_visibility`) shows it in p2p mode
+once the election has decided the role (`_role_known`) and hides it entirely in
+Server Mode and before the election — no placeholder glyph. `_retranslate_role`
+renders the primary icon with the theme accent
+(`themed_icon("role-master", <Highlight>)`; the SVG uses `currentColor`) and the
+secondary icon in the theme text colour; the **Nodo primario/secondario** text
+appears only when connected and the role is known
+(`main_window/events.py::MainWindow._on_master` + `_on_status`), and the state
+resets per engine process (`_prepare_engine_run`).
 
 ### Share name next to the folder icon
 
@@ -526,10 +529,15 @@ dialog uses `small_monospace_font` (`fonts.py::small_monospace_font`, one point
 smaller, floor 8 pt) and the log viewer uses `log_monospace_font`
 (`fonts.py::log_monospace_font`, two points smaller, floor 7 pt) because its lines
 are long — at a 9 pt desktop monospace that is 13 visible lines and ~22% more
-characters per line than the 8 pt size. The file table uses `table_font`
-(`fonts.py::table_font`, one point below the cached UI font, floor 9 pt) with a
-minimum row height from `table_row_height` (`fonts.py::table_row_height`, WCAG 2.2
-target size), applied in `file_panel/transfer_table.py::FileTransferTable._setup_table`.
+characters per line than the 8 pt size. `appearance/font_scale` (`standard`
+default / `compact`) scales the resolved UI and monospace bases in
+`fonts.py::resolve_system_fonts` (`compact` = one point smaller, floor 8 pt), so
+every derived font follows. The file table uses `table_font`
+(`fonts.py::table_font`), the cached UI font with no extra delta: desktop size in
+Standard, one point smaller in Compact. `table_row_height`
+(`fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
+`file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
+`MainWindow._apply_settings_changes` calls when the preference changes.
 The fonts are set programmatically
 (`main_window/ui.py::MainWindow._load_ui`, `license_dialog.py::LicenseDialog`);
 the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but

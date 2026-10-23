@@ -95,6 +95,23 @@ _PRIORITY_TO_STATUS = {
     5: TransferStatus.SYNCED,
     6: TransferStatus.LOCAL,
 }
+# Per-file status label i18n keys, resolved with ``tr()`` per row so a live
+# language change is reflected without rebuilding the table.
+_STATUS_TEXT_KEYS = {
+    TransferStatus.LOCAL: "detail.local",
+    TransferStatus.SYNCED: "detail.synced",
+    TransferStatus.TO_DOWNLOAD: "detail.to_download",
+    TransferStatus.TO_UPLOAD: "detail.to_upload",
+    TransferStatus.TO_DELETE: "detail.to_delete",
+    TransferStatus.TO_RENAME: "detail.to_rename",
+    TransferStatus.DOWNLOADING: "detail.downloading",
+    TransferStatus.UPLOADING: "detail.uploading",
+    TransferStatus.DELETED: "detail.deleted",
+    TransferStatus.QUEUED: "detail.pending",
+    TransferStatus.TRANSFERRING: "detail.transferring",
+    TransferStatus.COMPLETED: "detail.completed",
+    TransferStatus.ERROR: "status.error",
+}
 
 # Global minimum section width (matches the fixed Icon column, which must stay
 # narrow); data columns get a larger floor when seeded/restored.
@@ -198,6 +215,16 @@ class FileTransferTable(QTableWidget):
         self._connected = connected
         self.refresh_view()
 
+    def refresh_fonts(self) -> None:
+        """Re-apply the table, header and direction-glyph fonts."""
+        from hsync_desktop.fonts import table_font, table_row_height
+
+        self.setFont(table_font())
+        self.verticalHeader().setDefaultSectionSize(table_row_height())
+        self._direction_font = table_font()
+        self._direction_font.setBold(True)
+        self.horizontalHeader().setFont(table_font())
+
     def _setup_table(self) -> None:
         headers = self._column_headers()
         self.setColumnCount(len(headers))
@@ -208,23 +235,13 @@ class FileTransferTable(QTableWidget):
         self.setSortingEnabled(True)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
-        # Dense list: one point below the UI font, with a comfortable row
-        # height so the smaller text does not shrink the click target.
-        from hsync_desktop.fonts import table_font, table_row_height
-
-        self.setFont(table_font())
-        self.verticalHeader().setDefaultSectionSize(table_row_height())
-        # Bold variant for the Direction glyphs (emphasis on the operation); a
-        # second channel beside the status colour.
-        self._direction_font = table_font()
-        self._direction_font.setBold(True)
+        self.refresh_fonts()
         from PySide6.QtCore import QSize
 
         self.setIconSize(QSize(16, 16))
 
         # Column sizing and behavior
         header = self.horizontalHeader()
-        header.setFont(table_font())  # keep the header aligned with the body size
         header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)
@@ -721,6 +738,68 @@ class FileTransferTable(QTableWidget):
         """Populate a row for hierarchical view."""
         is_folder = transfer is None or transfer.filepath.endswith("/")
 
+        name_item = self._populate_basic_cells(row, display_name, transfer, folder_data, is_folder)
+
+        # Progress
+        progress_item = QTableWidgetItem()
+        progress_item.setData(
+            Qt.ItemDataRole.UserRole, self._row_progress(transfer, folder_data, is_folder)
+        )
+        self.setItem(row, COL_PROGRESS, progress_item)
+
+        # ETA
+        eta = transfer.eta_seconds if transfer else None
+        eta_item = QTableWidgetItem(format_duration(eta, style="compact"))
+        eta_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.setItem(row, COL_ETA, eta_item)
+
+        # Status
+        status_text, status_for_color = self._row_status(transfer, folder_data, is_folder)
+        status_item = QTableWidgetItem(status_text)
+        self.setItem(row, COL_STATUS, status_item)
+
+        # Folder tooltip: the neutral aggregate status hides the mix of planned
+        # operations, so spell out what will actually happen (e.g.
+        # "To upload: 3, To download: 1"). Files keep their precise status.
+        if is_folder and folder_data:
+            self._apply_folder_tooltip(name_item, status_item, folder_data)
+
+        # Direction (optional column; visible by default). Empty at rest: the
+        # dash placeholder is noise in a dense column, and the Status column
+        # already carries the state. Operative glyphs are bold, a second
+        # emphasis cue beside the status colour.
+        if transfer is None or is_folder or transfer.direction in ("", "—"):
+            direction_text = ""
+        else:
+            direction_text = transfer.direction
+        direction_item = QTableWidgetItem(direction_text)
+        direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        if direction_text:
+            direction_item.setFont(self._direction_font)
+        self.setItem(row, COL_DIRECTION, direction_item)
+
+        # Speed (optional column, hidden by default). A folder shows the sum of
+        # its in-flight children so the aggregate rate is visible too.
+        if is_folder:
+            rate = folder_data.get("speed") if folder_data else None
+        else:
+            rate = transfer.speed_bps if transfer else None
+        speed_text = f"{format_bytes(rate)}/s" if rate else ""
+        speed_item = QTableWidgetItem(speed_text)
+        speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.setItem(row, COL_SPEED, speed_item)
+
+        self._apply_row_color(row, status_for_color, default_text_color)
+
+    def _populate_basic_cells(
+        self,
+        row: int,
+        display_name: str,
+        transfer: FileTransfer | None,
+        folder_data: dict | None,
+        is_folder: bool,
+    ) -> QTableWidgetItem:
+        """Fill the icon/name/type/size/modified cells and return the name item."""
         # Icon
         if transfer is None or transfer.filepath.endswith("/"):
             icon_name, type_key = "folder", "ftype.folder"
@@ -757,35 +836,27 @@ class FileTransferTable(QTableWidget):
         mtime_item = QTableWidgetItem(format_mtime(mtime))
         mtime_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.setItem(row, COL_MODIFIED, mtime_item)
+        return name_item
 
-        # Progress
-        progress_item = QTableWidgetItem()
+    def _row_progress(
+        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> int:
+        """Progress percentage for a row (-1 = no measurable progress)."""
         if is_folder:
-            if folder_data:
-                status_priority = folder_data.get("status_priority", 100)
-                progress = folder_data.get("progress", -1) if status_priority == 2 else -1
-            else:
-                progress = -1
-            progress_item.setData(Qt.ItemDataRole.UserRole, progress)
-        elif transfer:
-            if transfer.status in _NO_PROGRESS_STATUSES:
-                progress_item.setData(Qt.ItemDataRole.UserRole, -1)
-            elif transfer.total_bytes > 0:
-                pct = int(transfer.bytes_transferred / transfer.total_bytes * 100)
-                progress_item.setData(Qt.ItemDataRole.UserRole, max(0, min(100, pct)))
-            else:
-                progress_item.setData(Qt.ItemDataRole.UserRole, -1)
-        else:
-            progress_item.setData(Qt.ItemDataRole.UserRole, -1)
-        self.setItem(row, COL_PROGRESS, progress_item)
+            if not folder_data:
+                return -1
+            status_priority = folder_data.get("status_priority", 100)
+            return folder_data.get("progress", -1) if status_priority == 2 else -1
+        if not transfer or transfer.status in _NO_PROGRESS_STATUSES:
+            return -1
+        if transfer.total_bytes <= 0:
+            return -1
+        return max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
 
-        # ETA
-        eta = transfer.eta_seconds if transfer else None
-        eta_item = QTableWidgetItem(format_duration(eta, style="compact"))
-        eta_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_ETA, eta_item)
-
-        # Status
+    def _row_status(
+        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> tuple[str, TransferStatus]:
+        """Localized status text and its colour key for a row."""
         if is_folder:
             if folder_data:
                 status_priority = folder_data.get("status_priority", 6)
@@ -800,86 +871,49 @@ class FileTransferTable(QTableWidget):
                 status_priority = 6
                 status_key = "folder.status.local"
             status_text = tr(status_key)
-            status_for_color = _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
-        elif transfer:
-            status_map = {
-                TransferStatus.LOCAL: tr("detail.local"),
-                TransferStatus.SYNCED: tr("detail.synced"),
-                TransferStatus.TO_DOWNLOAD: tr("detail.to_download"),
-                TransferStatus.TO_UPLOAD: tr("detail.to_upload"),
-                TransferStatus.TO_DELETE: tr("detail.to_delete"),
-                TransferStatus.TO_RENAME: tr("detail.to_rename"),
-                TransferStatus.DOWNLOADING: tr("detail.downloading"),
-                TransferStatus.UPLOADING: tr("detail.uploading"),
-                TransferStatus.DELETED: tr("detail.deleted"),
-                TransferStatus.QUEUED: tr("detail.pending"),
-                TransferStatus.TRANSFERRING: tr("detail.transferring"),
-                TransferStatus.COMPLETED: tr("detail.completed"),
-                TransferStatus.ERROR: tr("status.error"),
-            }
-            status_text = status_map.get(transfer.status, "?")
-            status_for_color = transfer.status
-        else:
-            status_text = ""
-            status_for_color = TransferStatus.LOCAL
-        status_item = QTableWidgetItem(status_text)
-        self.setItem(row, COL_STATUS, status_item)
+            return status_text, _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
+        if transfer:
+            status_key = _STATUS_TEXT_KEYS.get(transfer.status)
+            return (
+                tr(status_key) if status_key is not None else "?",
+                transfer.status,
+            )
+        return "", TransferStatus.LOCAL
 
-        # Folder tooltip: the neutral aggregate status hides the mix of planned
-        # operations, so spell out what will actually happen (e.g.
-        # "To upload: 3, To download: 1"). Files keep their precise status.
-        if is_folder and folder_data:
-            ops = folder_data.get("ops") or {}
-            parts = []
-            for op_status, label_key in (
-                (TransferStatus.TO_UPLOAD, "detail.to_upload"),
-                (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
-                (TransferStatus.TO_DELETE, "detail.to_delete"),
-                (TransferStatus.TO_RENAME, "detail.to_rename"),
-            ):
-                count = ops.get(op_status, 0)
-                if count:
-                    parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
-            if parts:
-                tooltip = ", ".join(parts)
-                name_item.setToolTip(tooltip)
-                status_item.setToolTip(tooltip)
+    def _apply_folder_tooltip(
+        self, name_item: QTableWidgetItem, status_item: QTableWidgetItem, folder_data: dict
+    ) -> None:
+        """Spell out the mixed planned operations behind a folder's status."""
+        ops = folder_data.get("ops") or {}
+        parts = []
+        for op_status, label_key in (
+            (TransferStatus.TO_UPLOAD, "detail.to_upload"),
+            (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
+            (TransferStatus.TO_DELETE, "detail.to_delete"),
+            (TransferStatus.TO_RENAME, "detail.to_rename"),
+        ):
+            count = ops.get(op_status, 0)
+            if count:
+                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+        if parts:
+            tooltip = ", ".join(parts)
+            name_item.setToolTip(tooltip)
+            status_item.setToolTip(tooltip)
 
-        # Direction (optional column; visible by default). Empty at rest: the
-        # dash placeholder is noise in a dense column, and the Status column
-        # already carries the state. Operative glyphs are bold, a second
-        # emphasis cue beside the status colour.
-        if transfer is None or is_folder or transfer.direction in ("", "—"):
-            direction_text = ""
-        else:
-            direction_text = transfer.direction
-        direction_item = QTableWidgetItem(direction_text)
-        direction_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        if direction_text:
-            direction_item.setFont(self._direction_font)
-        self.setItem(row, COL_DIRECTION, direction_item)
-
-        # Speed (optional column, hidden by default). A folder shows the sum of
-        # its in-flight children so the aggregate rate is visible too.
-        if is_folder:
-            rate = folder_data.get("speed") if folder_data else None
-        else:
-            rate = transfer.speed_bps if transfer else None
-        speed_text = f"{format_bytes(rate)}/s" if rate else ""
-        speed_item = QTableWidgetItem(speed_text)
-        speed_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.setItem(row, COL_SPEED, speed_item)
-
-        # Apply status color. "Local" is the resting state, not a status: only
-        # grey it while a connection can compare the file.
-        if status_for_color is TransferStatus.LOCAL and not self._connected:
+    def _apply_row_color(
+        self, row: int, status: TransferStatus, default_text_color: QColor
+    ) -> None:
+        """Apply the status colour to the whole row."""
+        # "Local" is the resting state, not a status: only grey it while a
+        # connection can compare the file.
+        if status is TransferStatus.LOCAL and not self._connected:
             color = default_text_color
         else:
             # The light theme needs the darker palette; the dark theme the
             # brighter one, so the status stays readable on either background.
             dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
             colors = STATUS_COLORS_DARK if dark else STATUS_COLORS
-            color = colors.get(status_for_color, QColor(128, 128, 128))
+            color = colors.get(status, QColor(128, 128, 128))
         for col in range(self.columnCount()):
             item = self.item(row, col)
             if item:

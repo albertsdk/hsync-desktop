@@ -25,6 +25,8 @@ from pathlib import Path
 from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
 from PySide6.QtWidgets import QApplication
 
+from hsync_desktop.config import FONT_SCALE_COMPACT, FONT_SCALE_STANDARD
+
 # GNOME settings that hold the UI font, the monospace font and the text scale.
 _GSETTINGS_SCHEMA = "org.gnome.desktop.interface"
 _GNOME_UI_KEY = "font-name"
@@ -46,10 +48,9 @@ _MIN_SMALL_POINT_SIZE = 8.0
 _LOG_FONT_DELTA = -2.0
 _MIN_LOG_POINT_SIZE = 7.0
 
-# The file table is dense (many columns), so it goes one point below the UI
-# font, never below this floor (readability and click targets).
-_TABLE_FONT_DELTA = -1.0
-_MIN_TABLE_POINT_SIZE = 9.0
+# Compact appearance: one point smaller across the UI and monospace bases.
+_COMPACT_FONT_DELTA = -1.0
+_MIN_COMPACT_POINT_SIZE = 8.0
 # Minimum row height in device-independent pixels: WCAG 2.2 target size (24 px)
 # with a little breathing room.
 _MIN_TABLE_ROW_HEIGHT = 26
@@ -228,6 +229,15 @@ def _scaled(font: QFont, scale: float) -> QFont:
     return result
 
 
+def _offset_font(font: QFont, delta: float, floor: float) -> QFont:
+    """Return ``font`` shifted by ``delta`` points, never below ``floor``."""
+    result = QFont(font)
+    size = result.pointSizeF()
+    if size > 0:
+        result.setPointSizeF(max(size + delta, floor))
+    return result
+
+
 def _resolve_font(
     choice: tuple[str, float | None] | None,
     fallback: QFont,
@@ -250,36 +260,37 @@ def _resolve_font(
     return font
 
 
-def resolve_system_fonts() -> SystemFonts:
+def resolve_system_fonts(font_scale: str = FONT_SCALE_STANDARD) -> SystemFonts:
     """Resolve the desktop UI/monospace fonts, falling back to Qt's defaults."""
     base_ui = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
     base_mono = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
     if not sys.platform.startswith("linux"):
-        return SystemFonts(QFont(base_ui), QFont(base_mono))
+        ui, mono = QFont(base_ui), QFont(base_mono)
+    else:
+        desktop = _desktop()
+        scale = 1.0
+        ui_choice: tuple[str, float | None] | None = None
+        mono_choice: tuple[str, float | None] | None = None
+        if desktop == "gnome":
+            values = _gsettings_values((_GNOME_UI_KEY, _GNOME_MONO_KEY, _GNOME_SCALE_KEY))
+            ui_choice = parse_pango_font(values.get(_GNOME_UI_KEY, ""))
+            mono_choice = parse_pango_font(values.get(_GNOME_MONO_KEY, ""))
+            scale = _parse_scale(values.get(_GNOME_SCALE_KEY))
+        elif desktop == "kde":
+            ui_choice = parse_kde_font(_kde_font("font") or "")
+            mono_choice = parse_kde_font(_kde_font("fixed") or "")
+        ui = _resolve_font(ui_choice, base_ui, scale)
+        mono = _resolve_font(mono_choice, base_mono, scale)
+    if font_scale == FONT_SCALE_COMPACT:
+        ui = _offset_font(ui, _COMPACT_FONT_DELTA, _MIN_COMPACT_POINT_SIZE)
+        mono = _offset_font(mono, _COMPACT_FONT_DELTA, _MIN_COMPACT_POINT_SIZE)
+    return SystemFonts(ui, mono)
 
-    desktop = _desktop()
-    scale = 1.0
-    ui_choice: tuple[str, float | None] | None = None
-    mono_choice: tuple[str, float | None] | None = None
-    if desktop == "gnome":
-        values = _gsettings_values((_GNOME_UI_KEY, _GNOME_MONO_KEY, _GNOME_SCALE_KEY))
-        ui_choice = parse_pango_font(values.get(_GNOME_UI_KEY, ""))
-        mono_choice = parse_pango_font(values.get(_GNOME_MONO_KEY, ""))
-        scale = _parse_scale(values.get(_GNOME_SCALE_KEY))
-    elif desktop == "kde":
-        ui_choice = parse_kde_font(_kde_font("font") or "")
-        mono_choice = parse_kde_font(_kde_font("fixed") or "")
 
-    return SystemFonts(
-        _resolve_font(ui_choice, base_ui, scale),
-        _resolve_font(mono_choice, base_mono, scale),
-    )
-
-
-def apply_system_fonts(app: QApplication) -> None:
-    """Apply the desktop's fonts to ``app`` and cache the UI and monospace ones."""
+def apply_system_fonts(app: QApplication, font_scale: str = FONT_SCALE_STANDARD) -> None:
+    """Apply the desktop fonts (with the chosen scale) and cache them."""
     global _mono_font, _ui_font
-    fonts = resolve_system_fonts()
+    fonts = resolve_system_fonts(font_scale)
     app.setFont(fonts.ui)
     _ui_font = fonts.ui
     _mono_font = fonts.mono
@@ -310,25 +321,20 @@ def _point_smaller_monospace(delta: float, floor: float) -> QFont:
 
 
 def table_font() -> QFont:
-    """Return the file-table font: one point below the UI font (floor 9 pt).
+    """Return the file-table font, which follows the global font scale.
 
-    A relative size keeps the desktop's own font preference and HiDPI scaling
-    authoritative; the floor stops an aggressive host setting from making the
-    list unreadable. Consumers: the file-panel table.
+    Standard uses the desktop size; Compact already reduced the UI base by one
+    point. Keeping the table on the same base as the UI avoids a second size
+    knob. Consumers: the file-panel table.
     """
 
-    font = ui_font()
-    size = font.pointSizeF()
-    if size > 0:
-        font.setPointSizeF(max(size + _TABLE_FONT_DELTA, _MIN_TABLE_POINT_SIZE))
-    return font
+    return ui_font()
 
 
 def table_row_height() -> int:
     """Minimum file-table row height in device-independent pixels.
 
-    Keeps the click target comfortable (WCAG 2.2 target size) even though the
-    table font is one point smaller than the UI font.
+    Keeps the click target comfortable (WCAG 2.2 target size) for the table font.
     """
 
     metrics = QFontMetrics(table_font())

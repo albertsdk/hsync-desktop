@@ -10,8 +10,10 @@ import re
 
 import pytest
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
 
+from hsync_desktop.fonts import ui_font
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings import SettingsDialog
 from tests._helpers import _patch_all, _resolve_dialog, _settings
@@ -426,7 +428,7 @@ class TestShareNameInActionBar:
 class TestRoleVisibility:
     """The role exists only in p2p; its text appears once connected and known."""
 
-    def test_icon_only_before_the_election(self, window, monkeypatch, tmp_path):
+    def test_indicator_hidden_before_the_election(self, window, monkeypatch, tmp_path):
         s = _settings(tmp_path)
         s.setValue("p2p/enabled", True)
         _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
@@ -434,7 +436,7 @@ class TestRoleVisibility:
 
         window._update_path_display()
 
-        assert not window._role_icon.isHidden()
+        assert window._role_icon.isHidden()
         assert window._role_label.isHidden()
 
     def test_text_appears_once_connected_and_known(self, window, monkeypatch, tmp_path):
@@ -2007,3 +2009,61 @@ class TestColoredLog:
 
         assert light != dark
         assert window._log_view.toPlainText() == "2026-10-21T14:48:08Z - [desktop] ERROR: boom"
+
+
+class TestMenuFontRefresh:
+    """A live font-size change must reach the menu bar and its popups."""
+
+    def test_menu_and_popups_follow_the_resolved_font(self, window):
+        bogus = QFont(window.menuBar().font())
+        bogus.setPointSizeF(5.0)
+        window.menuBar().setFont(bogus)
+        popups = window.menuBar().findChildren(QMenu)
+        for menu in popups:
+            menu.setFont(bogus)
+
+        window._refresh_menu_fonts()
+
+        expected = ui_font().pointSizeF()
+        assert window.menuBar().font().pointSizeF() == pytest.approx(expected)
+        for menu in popups:
+            assert menu.font().pointSizeF() == pytest.approx(expected)
+
+
+class _FakeScrollBar:
+    def maximum(self):
+        return 300
+
+
+class _FakeViewport:
+    def width(self):
+        return 500
+
+
+class _FakeTable:
+    def rowCount(self):
+        return 1
+
+    def viewport(self):
+        return _FakeViewport()
+
+    def horizontalScrollBar(self):
+        return _FakeScrollBar()
+
+
+class TestTableWidthFit:
+    """A narrow restored window grows once to fit the persisted columns."""
+
+    def test_fit_grows_the_window_by_the_scrollbar_deficit(self, window, monkeypatch):
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(window, "_file_panel", SimpleNamespace(table=_FakeTable()))
+        monkeypatch.setattr(window, "screen", lambda: None)
+        window._table_width_fitted = False
+        window.resize(760, 600)
+        before = window.width()
+
+        window._fit_table_width()
+
+        assert window.width() >= before + 300
+        assert window._table_width_fitted is True

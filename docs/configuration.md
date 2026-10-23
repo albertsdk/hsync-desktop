@@ -28,10 +28,10 @@ Server Mode.
 | Real-time sync | Keep syncing automatically as files change |
 | Keep deleted files (Backup Mode) | Never propagate deletes |
 | Auto-sync on startup | Start syncing as soon as the app launches |
-| Re-sync interval | Run a full sync every N seconds |
-| Wait before retry | Delay before a failed transfer is retried |
+| Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
+| Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
 | Wait for file to settle | Ignore a file for this long while it is still being written |
-| Maximum wait | Upper bound for the settle and timing waits |
+| Maximum wait | Upper bound for the settle and timing waits (default 10 minutes, minimum 60 s) |
 | Min free disk space | Refuse transfers below this free space |
 | Max inbound file size | Refuse files larger than this |
 | Sync only a specific subfolder | Restrict sync to a subfolder of the local folder |
@@ -128,8 +128,11 @@ Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
 the system language.
 
 The interface uses the desktop's configured **UI and monospace fonts** and follows
-the system text scaling (GNOME/Ubuntu and KDE); there is no in-app font setting.
-Changing the desktop font or scale takes effect on the next launch.
+the system text scaling (GNOME/Ubuntu and KDE). **Font size** on the General tab
+chooses between **Standard** (the desktop size everywhere, including the file
+table) and **Slightly reduced** (one point smaller across every application font,
+never below 8 pt). The choice applies immediately; a desktop font/scale change is
+picked up on the next launch.
 
 **Launch at login.** When enabled, the app registers a per-user autostart entry
 for the platform — an XDG autostart file on Linux/BSD, a LaunchAgent on macOS, a

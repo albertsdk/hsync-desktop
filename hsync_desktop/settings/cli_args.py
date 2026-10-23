@@ -26,13 +26,20 @@ from hsync_desktop.config import (
     DEFAULT_DELTA_ENABLED,
     DEFAULT_DELTA_MIN_FILE_SIZE_KB,
     DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
+    DEFAULT_FONT_SCALE,
     DEFAULT_GROUP,
     DEFAULT_MASS_DELETE_GUARD,
     DEFAULT_MASS_DELETE_PERCENT,
     DEFAULT_MASS_DELETE_THRESHOLD,
     DEFAULT_MAX_INBOUND_SIZE,
+    DEFAULT_MAX_WAIT,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_PEER_DOWNLOAD,
+    DEFAULT_RESYNC_INTERVAL,
+    FONT_SCALE_COMPACT,
+    FONT_SCALE_STANDARD,
+    MIN_RESYNC_INTERVAL,
+    NOTIFICATION_CATEGORIES,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -84,7 +91,18 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
     args: list[str] = ["p2p" if p2p_enabled else "server"]
+    _append_target_args(args, s, local_path)
+    _append_connection_args(args, s, p2p_enabled)
+    _append_sync_args(args, s, force_dry_run)
+    _append_advanced_args(args, s)
+    _append_p2p_args(args, s, p2p_enabled)
+    _append_output_args(args, s)
 
+    return args
+
+
+def _append_target_args(args: list[str], s: QSettings, local_path: str) -> None:
+    """Append the bucket and the validated local path."""
     # Validate local_path - must be a valid directory
     if local_path:
         validated_path = _validate_path(local_path)
@@ -106,6 +124,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if local_path:
         args += ["-p", local_path]
 
+
+def _append_connection_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
+    """Append the server connection flags and the shared HTTP timeout."""
     # Connection (server subcommand only). The server endpoint travels on the
     # environment channel (engine.apply_settings_env exports HSYNC_SERVER from
     # the same setting): the client CLI takes the bare host + --port and has no
@@ -124,9 +145,12 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
 
     # Validate HTTP timeout is in reasonable range
     http_timeout = cast(int, s.value("connection/http_timeout", 30, int))
-    http_timeout = max(1, min(http_timeout, 300))  # Clamp to 1-300 seconds
+    http_timeout = max(5, min(http_timeout, 300))
     args += ["--http-timeout", str(http_timeout)]
 
+
+def _append_sync_args(args: list[str], s: QSettings, force_dry_run: bool) -> None:
+    """Append the sync/timing/compression flags."""
     # Sync. Continuous/daemon mode is the client default: only the one-shot
     # opt-out is emitted. A simulation is inherently one-shot: the client must
     # exit after its preview, otherwise the preview's confirm step (a SYNC
@@ -135,25 +159,33 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     simulation = bool(s.value("sync/dry_run", False, bool))
     if simulation or not s.value("sync/continuous", True, bool):
         args.append("--once")
-    resync = cast(int, s.value("sync/resync", 0, int))
-    resync = max(0, min(resync, 86400))  # Clamp to 0-24 hours
+    _append_timing_args(args, s)
+    _append_sync_mode_args(args, s, simulation, force_dry_run)
+
+
+def _append_timing_args(args: list[str], s: QSettings) -> None:
+    """Append the periodic/timing and size-limit flags."""
+    resync = cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int))
+    resync = max(0, min(resync, 3600))
+    if 0 < resync < MIN_RESYNC_INTERVAL:
+        resync = MIN_RESYNC_INTERVAL
     if resync > 0:
         args += ["-i", str(resync)]
 
     # Validate retry delay
     retry_delay = cast(int, s.value("sync/retry_delay", 5, int))
-    retry_delay = max(1, min(retry_delay, 60))  # Clamp to 1-60 seconds
+    retry_delay = max(5, min(retry_delay, 60))
     args += ["--retry-delay", str(retry_delay)]
 
     # Validate stability delay
     stability_delay = cast(int, s.value("sync/stability_delay", 0, int))
-    stability_delay = max(0, min(stability_delay, 3600))  # Clamp to 0-1 hour
+    stability_delay = max(0, min(stability_delay, 60))
     if stability_delay > 0:
         args += ["--stability-delay", str(stability_delay)]
 
     # Validate max wait
-    max_wait = cast(int, s.value("sync/max_wait", 120, int))
-    max_wait = max(10, min(max_wait, 3600))  # Clamp to 10-3600 seconds
+    max_wait = cast(int, s.value("sync/max_wait", DEFAULT_MAX_WAIT, int))
+    max_wait = max(60, min(max_wait, 3600))
     args += ["--max-wait-timeout", str(max_wait)]
 
     # Validate min free disk space
@@ -166,6 +198,11 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     max_dl = max(0, min(max_dl, 10_000_000))  # Clamp to 0-10000000 MB
     args += ["--max-inbound-size", str(max_dl)]
 
+
+def _append_sync_mode_args(
+    args: list[str], s: QSettings, simulation: bool, force_dry_run: bool
+) -> None:
+    """Append the sync-mode, filter, ignore and compression flags."""
     if s.value(
         "sync/ignore_delete", False, bool
     ):  # default False matches config.py DEFAULT_IGNORE_DELETE
@@ -179,6 +216,12 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if sync_dir != "bidirectional":
         args += ["--sync-direction", sync_dir]
 
+    _append_filter_args(args, s)
+    _append_compression_args(args, s, simulation, force_dry_run)
+
+
+def _append_filter_args(args: list[str], s: QSettings) -> None:
+    """Append the subdirectory filter and extra ignore patterns."""
     # Validate filter path
     filter_path_raw = str(s.value("sync/filter_path", "", str))
     if filter_path_raw:
@@ -196,6 +239,11 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
             if pattern:
                 args += ["--ignore-pattern", pattern]
 
+
+def _append_compression_args(
+    args: list[str], s: QSettings, simulation: bool, force_dry_run: bool
+) -> None:
+    """Append the compression and dry-run flags."""
     # Read new key; fall back to inverted legacy key for migration
     if s.contains("sync/compression_enabled"):
         compression_on = bool(s.value("sync/compression_enabled", True, bool))
@@ -206,6 +254,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     if force_dry_run or simulation:
         args.append("-n")
 
+
+def _append_advanced_args(args: list[str], s: QSettings) -> None:
+    """Append the engine tuning flags."""
     # Advanced tab (engine tuning). Values matching the client default are
     # omitted so the engine keeps its own default/auto behaviour.
     if not s.value("advanced/autotune", DEFAULT_AUTOTUNE, bool):
@@ -241,6 +292,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     guard_percent = max(0, min(guard_percent, 100))
     args += ["--mass-delete-percent", str(guard_percent)]
 
+
+def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
+    """Append the p2p flags; a no-op in server mode."""
     # p2p
     if p2p_enabled:
         port = cast(int, s.value("p2p/port", 0, int))
@@ -250,7 +304,7 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
 
         # Validate discovery timeout
         discovery_timeout = cast(int, s.value("p2p/discovery_timeout", 10, int))
-        discovery_timeout = max(1, min(discovery_timeout, 60))  # 1-60 seconds
+        discovery_timeout = max(5, min(discovery_timeout, 60))
         args += ["--discovery-timeout", str(discovery_timeout)]
 
         # p2p group: an optional partition key (the client's --group is optional;
@@ -271,6 +325,9 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         if not s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool):
             args.append("--no-peer-download")
 
+
+def _append_output_args(args: list[str], s: QSettings) -> None:
+    """Append bandwidth, deletion, output and log-file flags."""
     # Bandwidth limits
     upload_bps, download_bps = get_bandwidth_limits()
     if upload_bps is not None:
@@ -297,8 +354,6 @@ def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
         validated_logfile = _validate_path(logfile_raw, allow_absolute=True)
         if validated_logfile:
             args += ["--log-file", validated_logfile]
-
-    return args
 
 
 def _drop_option(args: list[str], flag: str, takes_value: bool = False) -> list[str]:
@@ -365,10 +420,27 @@ def get_saved_theme() -> str:
     return detect_system_theme()
 
 
+def get_saved_font_scale() -> str:
+    """Return the saved global font scale ("standard" or "compact")."""
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    value = str(s.value("appearance/font_scale", DEFAULT_FONT_SCALE, str))
+    return value if value in (FONT_SCALE_STANDARD, FONT_SCALE_COMPACT) else DEFAULT_FONT_SCALE
+
+
 def are_notifications_enabled() -> bool:
     """Return whether notifications are enabled."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("appearance/notifications", True, bool))
+
+
+def get_enabled_notification_categories() -> frozenset[str]:
+    """Return the notification categories the user enabled (default: all)."""
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return frozenset(
+        category
+        for category in NOTIFICATION_CATEGORIES
+        if bool(s.value(f"appearance/notifications/{category}", True, bool))
+    )
 
 
 def is_log_panel_visible() -> bool:

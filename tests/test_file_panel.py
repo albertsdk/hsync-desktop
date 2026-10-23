@@ -619,7 +619,7 @@ class TestNavigationDuringSync:
 
 
 class TestTableTypography:
-    """The dense file table uses the smaller, still-accessible table font."""
+    """The file table follows the global UI font scale."""
 
     @staticmethod
     def _table(qtbot):
@@ -629,7 +629,7 @@ class TestTableTypography:
         qtbot.addWidget(table)
         return table
 
-    def test_the_table_uses_the_table_font(self, qtbot, monkeypatch):
+    def test_the_table_follows_the_ui_font(self, qtbot, monkeypatch):
         from hsync_desktop import fonts
 
         probe = fonts.ui_font()
@@ -638,8 +638,8 @@ class TestTableTypography:
 
         table = self._table(qtbot)
 
-        assert table.font().pointSizeF() == pytest.approx(11.0)
-        assert table.horizontalHeader().font().pointSizeF() == pytest.approx(11.0)
+        assert table.font().pointSizeF() == pytest.approx(12.0)
+        assert table.horizontalHeader().font().pointSizeF() == pytest.approx(12.0)
 
     def test_rows_keep_a_comfortable_height(self, qtbot):
         from hsync_desktop.fonts import _MIN_TABLE_ROW_HEIGHT

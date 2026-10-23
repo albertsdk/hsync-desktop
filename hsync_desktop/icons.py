@@ -126,7 +126,6 @@ _FALLBACK_MAP: dict[str, str] = {
     # Role icons
     "role-master": "role-master.svg",
     "role-client": "role-client.svg",
-    "role-unknown": "role-unknown.svg",
     # Wizard mode icons
     "backup": "backup.svg",
     "people": "people.svg",

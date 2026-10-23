@@ -21,13 +21,13 @@ class _FakeNotifier:
     def __init__(self) -> None:
         self.calls: list[tuple] = []
 
-    def info(self, title: str, message: str) -> None:
+    def info(self, title: str, message: str, **kwargs) -> None:
         self.calls.append(("info", title, message))
 
-    def warning(self, title: str, message: str) -> None:
+    def warning(self, title: str, message: str, **kwargs) -> None:
         self.calls.append(("warning", title, message))
 
-    def error(self, title: str, message: str) -> None:
+    def error(self, title: str, message: str, **kwargs) -> None:
         self.calls.append(("error", title, message))
 
     def peer_joined(self, connected: int, total: int) -> None:

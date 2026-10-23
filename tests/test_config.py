@@ -55,7 +55,7 @@ class TestSyncDefaults:
         assert config.DEFAULT_STABILITY_DELAY == 5
 
     def test_default_max_wait(self):
-        assert config.DEFAULT_MAX_WAIT == 120
+        assert config.DEFAULT_MAX_WAIT == 600
 
     def test_default_filter_path(self):
         assert config.DEFAULT_FILTER_PATH == ""

@@ -133,7 +133,7 @@
        <item row="5" column="1">
         <widget class="QSpinBox" name="retryDelay">
          <property name="minimum">
-          <number>1</number>
+          <number>5</number>
          </property>
          <property name="maximum">
           <number>60</number>
@@ -182,13 +182,13 @@
        <item row="7" column="1">
         <widget class="QSpinBox" name="maxWait">
          <property name="minimum">
-          <number>10</number>
+          <number>60</number>
          </property>
          <property name="maximum">
           <number>3600</number>
          </property>
          <property name="value">
-          <number>120</number>
+          <number>600</number>
          </property>
          <property name="suffix">
           <string> s</string>
@@ -315,10 +315,10 @@
        <item row="4" column="1">
         <widget class="QSpinBox" name="discoveryTimeout">
          <property name="minimum">
-          <number>1</number>
+          <number>5</number>
          </property>
          <property name="maximum">
-          <number>120</number>
+          <number>60</number>
          </property>
          <property name="value">
           <number>10</number>
@@ -411,7 +411,7 @@
        <item row="4" column="1">
         <widget class="QSpinBox" name="httpTimeout">
          <property name="minimum">
-          <number>1</number>
+          <number>5</number>
          </property>
          <property name="maximum">
           <number>300</number>

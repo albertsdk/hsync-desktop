@@ -145,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     from hsync_desktop.notifications import NotificationManager
     from hsync_desktop.settings import (
         are_notifications_enabled,
+        get_enabled_notification_categories,
+        get_saved_font_scale,
         get_saved_theme,
         secure_config_file,
     )
@@ -157,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     _configure_app(app)
     # Follow the desktop's configured fonts (the generic platform theme we force
     # on Linux does not read them; see hsync_desktop/fonts.py).
-    apply_system_fonts(app)
+    apply_system_fonts(app, get_saved_font_scale())
     app.setQuitOnLastWindowClosed(False)  # keep running in tray
 
     # Launched by the OS autostart entry: show only the tray, not the window
@@ -215,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         is_foreground=lambda: window.isVisible() and window.isActiveWindow(),
     )
     window._notifier.enabled = are_notifications_enabled()
+    window._notifier.categories = get_enabled_notification_categories()
 
     # Ctrl+C must shut down cleanly rather than interrupt a random slot.
     _install_sigint_handler(window)
