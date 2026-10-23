@@ -6,7 +6,7 @@ settings UI, and renders the structured event stream the binary emits. This wiki
 is the agent map; start here, then drill into the linked files.
 
 > **Docs-first**: read this index and the relevant module file before touching
-> code; follow the `path/to/file.py::symbol` anchors instead of blind search.
+> code; follow the `path/to/file.ext::symbol` anchors instead of blind search.
 > End-user docs live in [`../docs/`](../docs/README.md) — keep them in sync with
 > any user-facing change (Dual-Docs rule).
 
