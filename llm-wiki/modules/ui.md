@@ -89,7 +89,7 @@ returns early when **Simulation Mode** (`sync/dry_run`) is on. That setting make
 every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
 client shows the preview and exits instead of parking in the dry-run "wait for a
 `SYNC` command" state, where `SYNC` would flip it to a real sync
-(`hsync-client` `preview.py::_run_stdin_wait`). For the same reason
+(`hsync-client` `preview.py`, function `_run_stdin_wait`). For the same reason
 `_show_preview_summary` (`main_window/actions.py`) never sends `SYNC` under
 simulation: it logs and toasts `preview.simulation_no_changes` and lets the
 one-shot process finish.
