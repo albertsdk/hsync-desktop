@@ -42,8 +42,14 @@ if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
 
 # ``tab_builders.finalize_size`` keeps the dialog at least 640 px wide; the
-# description must wrap inside that page instead of asking for more.
-_TAB_DESCRIPTION_MAX_WIDTH = 600
+# description must wrap inside that page instead of asking for more. The cap
+# includes the label's own insets, so it is the text measure plus
+# ``_DESCRIPTION_MARGINS`` left/right.
+_TAB_DESCRIPTION_MAX_WIDTH = 616
+# Breathing room around the purpose line, as (left, top, right, bottom): inset
+# from the tab edge, below the tab bar and above the first group box. Applied
+# with ``setContentsMargins`` so the QSS keeps owning only the muted colour.
+_DESCRIPTION_MARGINS = (20, 12, 20, 16)
 
 
 def _group_box(title_key: str) -> QGroupBox:
@@ -112,8 +118,7 @@ def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int)
     """
 
     label = muted_label(tr(_TAB_DESCRIPTION_KEYS[tab_index]))
-    # A little breathing room from the tab edge and the first group box below.
-    label.setContentsMargins(12, 6, 12, 10)
+    label.setContentsMargins(*_DESCRIPTION_MARGINS)
     # A word-wrapped QLabel reports its *unwrapped* text width as sizeHint;
     # cap it below the 640 px page so a longer translation wraps instead of
     # forcing the page wider.

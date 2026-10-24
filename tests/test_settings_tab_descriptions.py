@@ -67,9 +67,9 @@ class TestTabDescriptions:
         """The purpose line is inset from the tab edge and the first group."""
         for tab_index in _MODE_TABS:
             margins = dialog._tab_descriptions[tab_index].contentsMargins()
-            assert margins.left() > 0
-            assert margins.right() > 0
-            assert margins.bottom() > 0
+            assert margins.left() == margins.right() >= 16
+            assert margins.top() >= 10
+            assert margins.bottom() >= 12
 
     def test_descriptions_follow_a_language_change(self, dialog):
         previous = i18n.get_language()

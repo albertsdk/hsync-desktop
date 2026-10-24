@@ -68,9 +68,11 @@ open with one muted sentence stating what the tab is for, built from
 `_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
 `settings.p2p.description` / `settings.server_mode.description`). The label uses
 `widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
-helper text — so it does not introduce a second visual language. The label keeps
-8 px side insets and a 6 px bottom inset (`setContentsMargins`, not QSS), so it
-does not sit flush against the tab edge or the first group box. General and
+helper text — so it does not introduce a second visual language. Its insets come
+from `settings/tab_layout.py::_DESCRIPTION_MARGINS` (applied with
+`setContentsMargins`, not QSS, which keeps owning only the muted colour), so the
+sentence is inset from the tab edge, below the tab bar and above the first group
+box. General and
 Advanced are deliberately left undescribed (their group titles already read as an
 index), so `_TAB_DESCRIPTION_KEYS` is the single place that decides which tabs get
 one. Two constraints to keep:
