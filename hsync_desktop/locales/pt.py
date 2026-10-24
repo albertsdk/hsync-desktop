@@ -320,7 +320,7 @@ translations: dict[str, str] = {
     "tip.resync": "Executa uma verificação completa neste intervalo para recuperar alterações não detetadas pelo monitor em tempo real (mínimo 20 s).",
     "tip.retry_delay": "Tempo de espera antes de tentar novamente após uma falha de conexão",
     "tip.stability_delay": "Espera para arquivos em uso",
-    "tip.max_wait": "Tempo máximo de espera pela estabilização do arquivo",
+    "tip.max_wait": "Segundos máximos de espera até um ficheiro deixar de ser escrito; se for excedido, o envio é adiado e repetido",
     "tip.ignore_delete": "Não propagar as exclusões — os arquivos excluídos permanecem nos outros dispositivos",
     "tip.shared_path": "A pasta local a sincronizar",
     "tip.sync_direction": "Direção da sincronização: bidirecional, somente envio ou somente recebimento",

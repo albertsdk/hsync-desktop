@@ -42,6 +42,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_SERVER_TRUST,
+    DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
@@ -89,6 +90,7 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.dialogs import build_confirm_box, confirm
 from hsync_desktop.wizard import SetupWizard
 from hsync_desktop.wizard.model import mark_auto_shown, should_auto_open
 
@@ -194,7 +196,7 @@ class StartMixin:
 
             # ── Sync direction icon ───────────────────────────────────
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            direction = str(s.value("sync/direction", "bidirectional", str))
+            direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
             dir_icon_map = {
                 "bidirectional": "sync-bidirectional",
                 "upload-only": "sync-upload",
@@ -339,7 +341,7 @@ class StartMixin:
             return True
         p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         prefer_master = s.value("p2p/prefer_master", False, bool)
-        sync_dir = s.value("sync/direction", "bidirectional", str)
+        sync_dir = s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str)
 
         # upload-only never deletes local files
         if sync_dir == "upload-only":
@@ -358,21 +360,12 @@ class StartMixin:
             # bidirectional server mode – normal behaviour
             return True
 
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle(tr("notif.deletion_risk"))
-        msg.setText(tr("notif.deletion_risk_msg").replace("{reason}", reason))
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-            yes_btn.setIcon(icon("dialog-ok"))
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-            no_btn.setIcon(icon("dialog-cancel"))
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        return msg.exec() == QMessageBox.StandardButton.Yes
+        return confirm(
+            self,
+            title=tr("notif.deletion_risk"),
+            text=tr("notif.deletion_risk_msg").replace("{reason}", reason),
+            with_icons=True,
+        )
 
     def _check_keyless_p2p(self) -> bool:
         """Confirm keyless P2P operation before connecting.
@@ -388,21 +381,13 @@ class StartMixin:
         if p2p_key:
             return True
 
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle(tr("warn.keyless_p2p_title"))
-        msg.setText(tr("warn.keyless_p2p_msg"))
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-            yes_btn.setIcon(icon("dialog-ok"))
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-            no_btn.setIcon(icon("dialog-cancel"))
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        return msg.exec() == QMessageBox.StandardButton.Yes
+        return confirm(
+            self,
+            title=tr("warn.keyless_p2p_title"),
+            text=tr("warn.keyless_p2p_msg"),
+            icon_name=QMessageBox.Icon.Question,
+            with_icons=True,
+        )
 
     def _check_disk_space(self) -> bool:
         """Check if sufficient disk space is available. Returns False if insufficient."""
@@ -690,21 +675,13 @@ class StartMixin:
 
     def _build_stop_sync_dialog(self) -> QMessageBox:
         """Stop-to-reconfigure confirmation with translated labels and app icons."""
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Question)
-        msg.setWindowTitle(tr("wizard.title"))
-        msg.setText(tr("wizard.stop_prompt"))
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-            yes_btn.setIcon(icon("dialog-ok"))
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-            no_btn.setIcon(icon("dialog-cancel"))
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        return msg
+        return build_confirm_box(
+            self,
+            title=tr("wizard.title"),
+            text=tr("wizard.stop_prompt"),
+            icon_name=QMessageBox.Icon.Question,
+            with_icons=True,
+        )
 
     def _confirm_stop_sync(self) -> bool:
         return self._build_stop_sync_dialog().exec() == QMessageBox.StandardButton.Yes

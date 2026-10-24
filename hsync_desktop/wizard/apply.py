@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import parse_host_port
 from PySide6.QtCore import QSettings
 
@@ -34,10 +35,9 @@ from hsync_desktop.wizard.model import WizardDraft, profile_for
 __all__ = ["ApplyResult", "apply_draft"]
 
 # Trust port when the endpoint carries none: mirrors the client/GUI pre-flight
-# (``TrustMixin._ensure_server_trust`` uses 443 for https, 9753 otherwise; the
-# discovery-server pre-flight uses 443).
+# (``TrustMixin._ensure_server_trust`` uses 443 for https, the shared server
+# default otherwise; the discovery-server pre-flight uses 443).
 _HTTPS_PORT = 443
-_SERVER_DEFAULT_PORT = 9753
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +57,7 @@ def _server_host_port(url: str) -> tuple[str, int] | None:
     parts = urlsplit(url)
     if not parts.hostname:
         return None
-    port = parts.port or (_HTTPS_PORT if parts.scheme == "https" else _SERVER_DEFAULT_PORT)
+    port = parts.port or (_HTTPS_PORT if parts.scheme == "https" else SERVER_DEFAULT_PORT)
     return parts.hostname, port
 
 

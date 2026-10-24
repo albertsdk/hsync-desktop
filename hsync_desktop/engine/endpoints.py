@@ -14,6 +14,7 @@ from __future__ import annotations
 import ssl
 from pathlib import Path
 
+from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import (
     build_https_url,
     format_authority,
@@ -29,9 +30,8 @@ __all__ = [
     "unverified_ssl_context",
 ]
 
-# The client's server-mode default port (mirrors hsync_client.constants): the
-# server field carries only the address, so a bare host implies this port.
-SERVER_DEFAULT_PORT = 9753
+# The client's server-mode default port (hsync_common SSOT): the server field
+# carries only the address, so a bare host implies this port.
 
 # Trust policies that trust the fingerprint rather than the chain. A probe
 # cannot answer the client's terminal prompt, so it connects without chain

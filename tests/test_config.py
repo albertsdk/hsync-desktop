@@ -3,6 +3,8 @@
 
 """Tests for hsync_desktop.config module."""
 
+from hsync_common import defaults
+
 import hsync_desktop.config as config
 
 
@@ -55,7 +57,7 @@ class TestSyncDefaults:
         assert config.DEFAULT_STABILITY_DELAY == 5
 
     def test_default_max_wait(self):
-        assert config.DEFAULT_MAX_WAIT == 600
+        assert config.DEFAULT_MAX_WAIT == defaults.MAX_WAIT_TIMEOUT_DEFAULT
 
     def test_default_filter_path(self):
         assert config.DEFAULT_FILTER_PATH == ""

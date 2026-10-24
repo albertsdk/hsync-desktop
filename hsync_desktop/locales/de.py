@@ -369,7 +369,7 @@ translations: dict[str, str] = {
     "tip.resync": "Führt in diesem Intervall einen Vollabgleich aus, um vom Live-Watcher verpasste Änderungen zu erkennen (mindestens 20 s).",
     "tip.retry_delay": "Wartezeit vor einem erneuten Versuch nach einem Fehler",
     "tip.stability_delay": "Wartezeit nach letzter Änderung vor der Synchronisation (0 = auto)",
-    "tip.max_wait": "Maximale Wartezeit für den Abschluss einer Übertragung",
+    "tip.max_wait": "Maximale Sekunden, bis ein Dateischreibvorgang endet; danach wird der Upload zurückgestellt und erneut versucht",
     "tip.min_free_disk_space": "Mindestens erforderlicher freier Speicherplatz vor der Synchronisation (0 = deaktiviert)",
     "tip.max_inbound_size": "Größte einzelne eingehende Datei, die akzeptiert wird; größere Dateien werden übersprungen.",
     "tip.filter_path": "Nur Dateien synchronisieren, deren Pfad diese Zeichenfolge enthält",

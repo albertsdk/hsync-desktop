@@ -35,6 +35,10 @@ from hsync_desktop.config import (
     BANDWIDTH_MAX_MBPS,
     FONT_SCALE_COMPACT,
     FONT_SCALE_STANDARD,
+    MAX_INBOUND_SIZE_MB_MAX,
+    MAX_INBOUND_SIZE_MB_MIN,
+    MIN_FREE_DISK_SPACE_MB_MAX,
+    MIN_FREE_DISK_SPACE_MB_MIN,
     NOTIFICATION_CATEGORIES,
 )
 from hsync_desktop.i18n import AUTO_LANGUAGE, SUPPORTED_LANGUAGES, tr
@@ -124,12 +128,12 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.filter_path = dlg.findChild(QLineEdit, "filterPath")
     dlg.min_free_disk_space = QSpinBox()
     dlg.min_free_disk_space.setObjectName("minFreeDiskSpace")
-    dlg.min_free_disk_space.setRange(0, 100_000)
+    dlg.min_free_disk_space.setRange(MIN_FREE_DISK_SPACE_MB_MIN, MIN_FREE_DISK_SPACE_MB_MAX)
     dlg.min_free_disk_space.setSuffix(" MB")
     dlg.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
     dlg.max_inbound_size = QSpinBox()
     dlg.max_inbound_size.setObjectName("maxInboundSize")
-    dlg.max_inbound_size.setRange(0, 10_000_000)
+    dlg.max_inbound_size.setRange(MAX_INBOUND_SIZE_MB_MIN, MAX_INBOUND_SIZE_MB_MAX)
     dlg.max_inbound_size.setSuffix(" MB")
     dlg.max_inbound_size.setSpecialValueText(tr("settings.disabled"))
     dlg.compression_enabled, dlg._lbl_compression_enabled = _replace_checkbox_with_toggle(

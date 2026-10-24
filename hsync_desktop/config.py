@@ -10,6 +10,9 @@ to avoid hardcoding and ensure consistency.
 
 from __future__ import annotations
 
+from hsync_common import defaults
+from hsync_common.constants import DELTA_MIN_FILE_SIZE, DELTA_MIN_FILE_SIZE_P2P
+
 # QSettings organization and application name
 # These are used by QSettings to store application settings
 SETTINGS_ORG = "HSYNC"
@@ -29,40 +32,61 @@ DEFAULT_CA_CERT = ""
 # Server TLS trust policy (ADR-0036): chain (default) | ask | accept-new |
 # strict | none. Passed to hsync-client via --server-trust.
 DEFAULT_SERVER_TRUST = "chain"
-DEFAULT_HTTP_TIMEOUT = 30
+DEFAULT_HTTP_TIMEOUT = defaults.HTTP_TIMEOUT_DEFAULT
 
 # Sync defaults
 DEFAULT_CONTINUOUS = True
 DEFAULT_IGNORE_DELETE = False
-DEFAULT_SYNC_DIRECTION = "bidirectional"
+DEFAULT_SYNC_DIRECTION = defaults.SYNC_DIRECTION_DEFAULT
 DEFAULT_RESYNC_INTERVAL = 0
 # The client rejects a periodic check below this interval (0 = disabled).
 MIN_RESYNC_INTERVAL = 20
-DEFAULT_RETRY_DELAY = 5
-DEFAULT_STABILITY_DELAY = 5
-DEFAULT_MAX_WAIT = 600
+DEFAULT_RETRY_DELAY = defaults.RECONNECT_DELAY_DEFAULT
+DEFAULT_STABILITY_DELAY = defaults.STABILITY_DELAY_DEFAULT
+# Upper bound on one upload's stability wait; the same value the client uses
+# (``hsync_common.defaults``) so the GUI and the CLI behave identically.
+DEFAULT_MAX_WAIT = defaults.MAX_WAIT_TIMEOUT_DEFAULT
 DEFAULT_FILTER_PATH = ""
 DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compression setting
 DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
-DEFAULT_MIN_FREE_DISK_SPACE = 500  # MB
-# Absolute cap on a single inbound file (--max-inbound-size); mirrors the
-# client CLI default. 0 = disabled.
-DEFAULT_MAX_INBOUND_SIZE = 10240  # MB
+DEFAULT_MIN_FREE_DISK_SPACE = defaults.MIN_FREE_DISK_SPACE_MB_DEFAULT  # MB
+# Absolute cap on a single inbound file (--max-inbound-size); the same shared
+# default the client uses. 0 = disabled.
+DEFAULT_MAX_INBOUND_SIZE = defaults.MAX_INBOUND_SIZE_MB_DEFAULT  # MB
 DEFAULT_IGNORE_PATTERNS = ""
 
-# Advanced tab — engine tuning mirrors of the client CLI/env (hsync-client
-# constants.py). Values are omitted from the CLI when they match the client
-# default so the engine keeps its own default/auto behaviour.
-DEFAULT_MASS_DELETE_GUARD = True
-DEFAULT_MASS_DELETE_THRESHOLD = 50  # deletions per cycle that trip the guard (0 = off)
-DEFAULT_MASS_DELETE_PERCENT = 50  # percent of local files (0 = off)
+# Accepted ranges shared with the CLI (``hsync_common.defaults``): the spin boxes
+# and the emitted flags clamp to them, so the GUI never emits a value the CLI
+# rejects. GUI_MAX_WAIT_MIN and GUI_RETRY_DELAY_MIN are intentionally taller than
+# the CLI minimum: a stale or hand-edited settings file must not park a transfer
+# slot (max wait) or hammer a peer (retry delay) below a useful granularity.
+RETRY_DELAY_MIN = defaults.RECONNECT_DELAY_MIN
+RETRY_DELAY_MAX = defaults.RECONNECT_DELAY_MAX
+STABILITY_DELAY_MAX = defaults.STABILITY_DELAY_MAX
+MAX_WAIT_MIN = defaults.MAX_WAIT_TIMEOUT_MIN
+MAX_WAIT_MAX = defaults.MAX_WAIT_TIMEOUT_MAX
+RESYNC_MAX = defaults.RESYNC_MAX
+MIN_FREE_DISK_SPACE_MB_MIN = defaults.MIN_FREE_DISK_SPACE_MB_MIN
+MIN_FREE_DISK_SPACE_MB_MAX = defaults.MIN_FREE_DISK_SPACE_MB_MAX
+MAX_INBOUND_SIZE_MB_MIN = defaults.MAX_INBOUND_SIZE_MB_MIN
+MAX_INBOUND_SIZE_MB_MAX = defaults.MAX_INBOUND_SIZE_MB_MAX
+GUI_MAX_WAIT_MIN = 60
+GUI_RETRY_DELAY_MIN = 5
+
+# Advanced tab — engine tuning values from the shared defaults
+# (``hsync_common.defaults``). Values matching the client default are omitted
+# from the CLI so the engine keeps its own default/auto behaviour.
+DEFAULT_MASS_DELETE_GUARD = defaults.MASS_DELETE_GUARD_DEFAULT
+DEFAULT_MASS_DELETE_THRESHOLD = defaults.MASS_DELETE_THRESHOLD_DEFAULT  # deletions per cycle
+DEFAULT_MASS_DELETE_PERCENT = defaults.MASS_DELETE_PERCENT_DEFAULT  # percent of local files
 DEFAULT_AUTOTUNE = True
-DEFAULT_MAX_CONCURRENT_TRANSFERS = 0  # 0 = omit (client default 5, autotuned)
+DEFAULT_MAX_CONCURRENT_TRANSFERS = 0  # 0 = omit (client default, autotuned)
 DEFAULT_DELTA_ENABLED = True
-DEFAULT_DELTA_MIN_FILE_SIZE_KB = 256  # client default 256 KB (remote)
-DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB = 1024  # client default 1 MB (p2p)
+# The client's delta floors are byte constants; the dialog works in KB.
+DEFAULT_DELTA_MIN_FILE_SIZE_KB = DELTA_MIN_FILE_SIZE // 1024
+DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB = DELTA_MIN_FILE_SIZE_P2P // 1024
 
 # p2p defaults
 # p2p is the default mode on a fresh install (no stored p2p/enabled yet).
@@ -90,16 +114,16 @@ DEFAULT_NTP_HOSTS = ""
 # Download file blocks from other peers in p2p mode (--no-peer-download when
 # off); the read/source caps are env-only (HSYNC_P2P_PEER_READ_CAP,
 # HSYNC_P2P_PEER_SOURCES_MAX).
-DEFAULT_P2P_PEER_DOWNLOAD = True
-DEFAULT_P2P_PEER_READ_CAP = 2
-DEFAULT_P2P_PEER_SOURCES_MAX = 3
+DEFAULT_P2P_PEER_DOWNLOAD = defaults.P2P_PEER_DOWNLOAD_DEFAULT
+DEFAULT_P2P_PEER_READ_CAP = defaults.P2P_PEER_READ_CAP_DEFAULT
+DEFAULT_P2P_PEER_SOURCES_MAX = defaults.P2P_PEER_SOURCES_MAX_DEFAULT
 
-# Bandwidth limits: the client enforces [1 KB/s, 100 MB/s] on
-# --limit-upload/--limit-download (hsync-client constants.py::BANDWIDTH_MIN/MAX),
-# so the GUI caps its fields and clamps stored values to the same range.
-BANDWIDTH_MIN_BPS = 1024
-BANDWIDTH_MAX_MBPS = 100.0
-BANDWIDTH_MAX_BPS = int(BANDWIDTH_MAX_MBPS * 1024 * 1024)
+# Bandwidth limits: the client enforces the same [min, max] bounds on
+# --limit-upload/--limit-download (``hsync_common.defaults``), so the GUI caps
+# its fields and clamps stored values to the same range.
+BANDWIDTH_MIN_BPS = defaults.BANDWIDTH_MIN_BPS
+BANDWIDTH_MAX_BPS = defaults.BANDWIDTH_MAX_BPS
+BANDWIDTH_MAX_MBPS = BANDWIDTH_MAX_BPS / (1024 * 1024)
 
 # Output defaults
 DEFAULT_VERBOSE = False

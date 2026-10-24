@@ -84,6 +84,7 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.dialogs import confirm
 
 
 class LifecycleMixin:
@@ -122,21 +123,12 @@ class LifecycleMixin:
     def _quit(self) -> None:
         """Quit the application, confirming first while a sync is running."""
         if self._engine.is_running:
-            msg = QMessageBox(
-                QMessageBox.Icon.Question,
-                tr("menu.sync.confirm_quit_title"),
-                tr("menu.sync.confirm_quit"),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            if not confirm(
                 self,
-            )
-            msg.setDefaultButton(QMessageBox.StandardButton.No)
-            yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-            no_btn = msg.button(QMessageBox.StandardButton.No)
-            if yes_btn:
-                yes_btn.setText(tr("action.yes"))
-            if no_btn:
-                no_btn.setText(tr("action.no"))
-            if msg.exec() != QMessageBox.StandardButton.Yes:
+                title=tr("menu.sync.confirm_quit_title"),
+                text=tr("menu.sync.confirm_quit"),
+                icon_name=QMessageBox.Icon.Question,
+            ):
                 return
         self._shutdown()
 

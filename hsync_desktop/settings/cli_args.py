@@ -33,15 +33,29 @@ from hsync_desktop.config import (
     DEFAULT_MASS_DELETE_THRESHOLD,
     DEFAULT_MAX_INBOUND_SIZE,
     DEFAULT_MAX_WAIT,
+    DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_PEER_DOWNLOAD,
     DEFAULT_RESYNC_INTERVAL,
+    DEFAULT_RETRY_DELAY,
+    DEFAULT_STABILITY_DELAY,
+    DEFAULT_SYNC_DIRECTION,
     FONT_SCALE_COMPACT,
     FONT_SCALE_STANDARD,
+    GUI_MAX_WAIT_MIN,
+    GUI_RETRY_DELAY_MIN,
+    MAX_INBOUND_SIZE_MB_MAX,
+    MAX_INBOUND_SIZE_MB_MIN,
+    MAX_WAIT_MAX,
+    MIN_FREE_DISK_SPACE_MB_MAX,
+    MIN_FREE_DISK_SPACE_MB_MIN,
     MIN_RESYNC_INTERVAL,
     NOTIFICATION_CATEGORIES,
+    RESYNC_MAX,
+    RETRY_DELAY_MAX,
     SETTINGS_APP,
     SETTINGS_ORG,
+    STABILITY_DELAY_MAX,
 )
 
 
@@ -166,36 +180,31 @@ def _append_sync_args(args: list[str], s: QSettings, force_dry_run: bool) -> Non
 def _append_timing_args(args: list[str], s: QSettings) -> None:
     """Append the periodic/timing and size-limit flags."""
     resync = cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int))
-    resync = max(0, min(resync, 3600))
+    resync = max(0, min(resync, RESYNC_MAX))
     if 0 < resync < MIN_RESYNC_INTERVAL:
         resync = MIN_RESYNC_INTERVAL
     if resync > 0:
         args += ["-i", str(resync)]
 
-    # Validate retry delay
-    retry_delay = cast(int, s.value("sync/retry_delay", 5, int))
-    retry_delay = max(5, min(retry_delay, 60))
+    retry_delay = cast(int, s.value("sync/retry_delay", DEFAULT_RETRY_DELAY, int))
+    retry_delay = max(GUI_RETRY_DELAY_MIN, min(retry_delay, RETRY_DELAY_MAX))
     args += ["--retry-delay", str(retry_delay)]
 
-    # Validate stability delay
     stability_delay = cast(int, s.value("sync/stability_delay", 0, int))
-    stability_delay = max(0, min(stability_delay, 60))
+    stability_delay = max(0, min(stability_delay, STABILITY_DELAY_MAX))
     if stability_delay > 0:
         args += ["--stability-delay", str(stability_delay)]
 
-    # Validate max wait
     max_wait = cast(int, s.value("sync/max_wait", DEFAULT_MAX_WAIT, int))
-    max_wait = max(60, min(max_wait, 3600))
+    max_wait = max(GUI_MAX_WAIT_MIN, min(max_wait, MAX_WAIT_MAX))
     args += ["--max-wait-timeout", str(max_wait)]
 
-    # Validate min free disk space
-    min_free = cast(int, s.value("sync/min_free_disk_space", 500, int))
-    min_free = max(0, min(min_free, 100_000))  # Clamp to 0-100000 MB
+    min_free = cast(int, s.value("sync/min_free_disk_space", DEFAULT_MIN_FREE_DISK_SPACE, int))
+    min_free = max(MIN_FREE_DISK_SPACE_MB_MIN, min(min_free, MIN_FREE_DISK_SPACE_MB_MAX))
     args += ["--min-free-disk-space", str(min_free)]
 
-    # Validate max inbound file size (absolute anti-bomb cap)
     max_dl = cast(int, s.value("sync/max_inbound_size", DEFAULT_MAX_INBOUND_SIZE, int))
-    max_dl = max(0, min(max_dl, 10_000_000))  # Clamp to 0-10000000 MB
+    max_dl = max(MAX_INBOUND_SIZE_MB_MIN, min(max_dl, MAX_INBOUND_SIZE_MB_MAX))
     args += ["--max-inbound-size", str(max_dl)]
 
 
@@ -209,11 +218,11 @@ def _append_sync_mode_args(
         args.append("--ignore-delete")
 
     # Validate sync direction
-    sync_dir = str(s.value("sync/direction", "bidirectional", str))
+    sync_dir = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
     valid_directions = ("bidirectional", "upload-only", "download-only")
     if sync_dir not in valid_directions:
-        sync_dir = "bidirectional"
-    if sync_dir != "bidirectional":
+        sync_dir = DEFAULT_SYNC_DIRECTION
+    if sync_dir != DEFAULT_SYNC_DIRECTION:
         args += ["--sync-direction", sync_dir]
 
     _append_filter_args(args, s)

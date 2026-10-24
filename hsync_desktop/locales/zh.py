@@ -320,7 +320,7 @@ translations: dict[str, str] = {
     "tip.resync": "按此间隔执行完整检查，以恢复实时监视器遗漏的更改（最少 20 秒）。",
     "tip.retry_delay": "连接失败后重试前的等待时间",
     "tip.stability_delay": "等待正在使用的文件",
-    "tip.max_wait": "等待文件稳定的最长时间",
+    "tip.max_wait": "等待文件写入结束的最长秒数；超时后上传会推迟并重试",
     "tip.ignore_delete": "不传播文件删除 — 适用于备份场景",
     "tip.shared_path": "要同步的本地文件夹",
     "tip.sync_direction": "同步方向：双向、仅上传或仅下载",

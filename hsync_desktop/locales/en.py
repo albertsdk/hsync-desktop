@@ -320,7 +320,7 @@ translations: dict[str, str] = {
     "tip.resync": "Run a full check at this interval to recover changes missed by the live watcher (minimum 20 s).",
     "tip.retry_delay": "Time to wait before retrying after a connection failure",
     "tip.stability_delay": "Wait for files in use",
-    "tip.max_wait": "Maximum time to wait for file stabilization",
+    "tip.max_wait": "Maximum seconds to wait for a file to stop being written; the upload is deferred and retried if it is still changing",
     "tip.ignore_delete": "Do not propagate file deletions — useful for backup scenarios",
     "tip.shared_path": "The local folder to synchronize",
     "tip.sync_direction": "Sync direction: bidirectional, upload only, or download only",

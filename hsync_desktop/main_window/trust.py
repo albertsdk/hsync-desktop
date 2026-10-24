@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import cast
 from urllib.parse import urlsplit
 
+from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
 from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
@@ -359,7 +360,7 @@ class TrustMixin:
         if not host:
             return True
         port = (endpoint.port if endpoint else None) or (
-            443 if endpoint and endpoint.scheme == "https" else 9753
+            443 if endpoint and endpoint.scheme == "https" else SERVER_DEFAULT_PORT
         )
         return self._confirm_host_trust(
             host,

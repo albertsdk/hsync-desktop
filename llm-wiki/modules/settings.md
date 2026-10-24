@@ -9,6 +9,16 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 (`config.py::DEFAULT_CONTINUOUS`), p2p defaults
 (`config.py::DEFAULT_P2P_REQUIRE_PAIRING` and neighbours) and NTP servers
 (`config.py::DEFAULT_NTP_HOSTS`). These seed `QSettings` and the dialog.
+
+Values the GUI shares with the CLI engine are **aliases** of
+`hsync_common/defaults.py` (HTTP timeout, retry/stability delays, sync direction,
+bandwidth bounds, mass-delete guard, free-space/inbound limits, peer-download
+defaults); the delta floors are derived from the client's byte constants
+(`hsync_common/constants.py::DELTA_MIN_FILE_SIZE` and
+`hsync_common/constants.py::DELTA_MIN_FILE_SIZE_P2P`), since the dialog works in
+KB. `tests/test_defaults_parity.py` fails if any of them is written back as a
+literal.
+
 `DEFAULT_NO_COMPRESSION` (`config.py::DEFAULT_NO_COMPRESSION`) exists only to migrate the legacy key into
 `DEFAULT_COMPRESSION_ENABLED` (`config.py::DEFAULT_COMPRESSION_ENABLED`).
 
@@ -142,8 +152,12 @@ check (formerly "Re-sync interval") is `0` (disabled) or `>= 20 s`;
 `engine/process.py::apply_settings_env` inserts `HSYNC_RESYNC=0` when disabled
 (the client's CLI > env > default precedence makes that authoritative; an
 enabled value still travels as `-i`). The retry delay is `>= 5 s`, the maximum
-wait defaults to 600 s and is `>= 60 s`, and the HTTP/discovery timeouts are
-`>= 5 s`; `build_hsync_args` clamps stored values to the same ranges.
+wait uses the shared default
+(`hsync_common/defaults.py::MAX_WAIT_TIMEOUT_DEFAULT`) and its spin box spans
+`GUI_MAX_WAIT_MIN`..`MAX_WAIT_MAX` (`hsync_desktop/config.py`), and the
+HTTP/discovery timeouts are `>= 5 s`; `build_hsync_args` clamps stored values to
+the same shared bounds (`hsync_common/defaults.py`), so the GUI never emits a
+value the CLI rejects.
 
 **Server address**: `settings.server_url` accepts `host`, `host:port`, IPv6 and a
 full URL; `_normalize_server_endpoint`

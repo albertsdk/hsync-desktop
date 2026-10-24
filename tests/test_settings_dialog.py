@@ -13,6 +13,7 @@ Covers the API-key security constraint of the desktop settings:
 from __future__ import annotations
 
 import pytest
+from hsync_common import defaults
 from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
@@ -532,7 +533,7 @@ class TestTimeSettingFloors:
     def test_defaults_are_permissive_and_bounded(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
 
-        assert dlg.max_wait.value() == 600
+        assert dlg.max_wait.value() == defaults.MAX_WAIT_TIMEOUT_DEFAULT
         assert dlg.max_wait.minimum() == 60
         assert dlg.retry_delay.minimum() == 5
         assert dlg.http_timeout.minimum() == 5

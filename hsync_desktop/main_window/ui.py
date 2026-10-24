@@ -46,6 +46,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_SERVER_TRUST,
+    DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
@@ -454,7 +455,7 @@ class UiBuildMixin:
 
         # Load saved direction and check the right action
         saved_dir = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
-            "sync/direction", "bidirectional", str
+            "sync/direction", DEFAULT_SYNC_DIRECTION, str
         )
         for act in self._direction_group.actions():
             if act.data() == saved_dir:

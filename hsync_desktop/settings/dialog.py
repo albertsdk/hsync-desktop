@@ -161,6 +161,7 @@ from hsync_desktop.settings.tab_translations import apply_translations
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.dialogs import confirm
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 
@@ -551,21 +552,12 @@ class SettingsDialog(QDialog):
     def _on_ignore_delete_toggled(self, checked: bool) -> None:
         """Show a warning when the user disables ignore-delete."""
         if not checked:
-            msg = QMessageBox(
-                QMessageBox.Icon.Warning,
-                tr("warn.ignore_delete_title"),
-                tr("warn.ignore_delete_msg"),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            if not confirm(
                 self,
-            )
-            msg.setDefaultButton(QMessageBox.StandardButton.No)
-            yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-            no_btn = msg.button(QMessageBox.StandardButton.No)
-            if yes_btn:
-                yes_btn.setText(tr("action.yes"))
-            if no_btn:
-                no_btn.setText(tr("action.no"))
-            if msg.exec() != QMessageBox.StandardButton.Yes:
+                title=tr("warn.ignore_delete_title"),
+                text=tr("warn.ignore_delete_msg"),
+                icon_name=QMessageBox.Icon.Warning,
+            ):
                 self.ignore_delete.setChecked(True)
 
     def _on_browse_shared(self) -> None:
@@ -693,21 +685,13 @@ class SettingsDialog(QDialog):
             return
         if self.show_log_panel.isChecked() or self.logfile.text().strip():
             return
-        msg = QMessageBox(
-            QMessageBox.Icon.Question,
-            tr("warn.verbose_no_log_title"),
-            tr("warn.verbose_no_log_msg"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        if confirm(
             self,
-        )
-        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-        if msg.exec() == QMessageBox.StandardButton.Yes:
+            title=tr("warn.verbose_no_log_title"),
+            text=tr("warn.verbose_no_log_msg"),
+            icon_name=QMessageBox.Icon.Question,
+            default_yes=True,
+        ):
             self.show_log_panel.setChecked(True)
 
     def _on_sync_direction_changed(self, _index: int) -> None:
@@ -879,7 +863,7 @@ class SettingsDialog(QDialog):
         only while the p2p toggle is on (consumed by `_on_accept` and by the
         live direction check).
         """
-        direction = self.sync_direction_combo.currentData() or "bidirectional"
+        direction = self.sync_direction_combo.currentData() or DEFAULT_SYNC_DIRECTION
         return (
             self.p2p_mode.isChecked()
             and self.prefer_master.isChecked()
@@ -896,21 +880,12 @@ class SettingsDialog(QDialog):
         live checks.
         """
         text = tr(msg_key).format(**fmt) if fmt else tr(msg_key)
-        msg = QMessageBox(
-            QMessageBox.Icon.Warning,
-            tr("warn.prefer_master_title"),
-            text,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        return confirm(
             self,
+            title=tr("warn.prefer_master_title"),
+            text=text,
+            default_yes=True,
         )
-        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-        return msg.exec() == QMessageBox.StandardButton.Yes
 
     def _on_accept(self) -> None:
         """Validate and persist the dialog, then close it as Accepted."""
@@ -995,21 +970,11 @@ class SettingsDialog(QDialog):
         insecure_url = url.startswith("http://")
         if not (insecure_url or self.insecure.isChecked()):
             return True
-        msg = QMessageBox(
-            QMessageBox.Icon.Warning,
-            tr("warn.api_key_insecure_title"),
-            tr("warn.api_key_insecure_msg"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        return confirm(
             self,
+            title=tr("warn.api_key_insecure_title"),
+            text=tr("warn.api_key_insecure_msg"),
         )
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
-        no_btn = msg.button(QMessageBox.StandardButton.No)
-        if yes_btn:
-            yes_btn.setText(tr("action.yes"))
-        if no_btn:
-            no_btn.setText(tr("action.no"))
-        return msg.exec() == QMessageBox.StandardButton.Yes
 
     def save(self) -> None:
         """Persist all settings to QSettings."""

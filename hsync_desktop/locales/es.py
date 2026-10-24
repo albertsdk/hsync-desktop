@@ -369,7 +369,7 @@ translations: dict[str, str] = {
     "tip.resync": "Ejecuta una comprobación completa con este intervalo para recuperar cambios que el vigilante en tiempo real no detectó (mínimo 20 s).",
     "tip.retry_delay": "Tiempo de espera antes de reintentar después de un error",
     "tip.stability_delay": "Espera después del último cambio antes de sincronizar (0 = auto)",
-    "tip.max_wait": "Tiempo máximo de espera para completar una transferencia",
+    "tip.max_wait": "Segundos máximos de espera a que un archivo deje de escribirse; si se supera, la subida se aplaza y se reintenta",
     "tip.min_free_disk_space": "Espacio mínimo en disco requerido antes de iniciar la sincronización (0 = desactivado)",
     "tip.max_inbound_size": "Tamaño máximo de un único archivo entrante; los archivos más grandes se omiten.",
     "tip.filter_path": "Sincronizar solo archivos cuya ruta contenga esta cadena",

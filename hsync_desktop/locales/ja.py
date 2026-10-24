@@ -320,7 +320,7 @@ translations: dict[str, str] = {
     "tip.resync": "この間隔でフルチェックを実行し、リアルタイム監視で見逃した変更を回復します（最小 20 秒）。",
     "tip.retry_delay": "接続失敗後に再試行するまでの待機時間",
     "tip.stability_delay": "使用中のファイルを待つ",
-    "tip.max_wait": "ファイルの安定化を待つ最大時間",
+    "tip.max_wait": "ファイルの書き込みが終わるまでの最大待機時間（秒）。超えた場合はアップロードを延期して再試行します",
     "tip.ignore_delete": "ファイルの削除を伝播しない — バックアップ用途に便利",
     "tip.shared_path": "同期するローカルフォルダー",
     "tip.sync_direction": "同期方向：双方向、送信のみ、受信のみ",

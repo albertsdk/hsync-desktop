@@ -320,7 +320,7 @@ translations: dict[str, str] = {
     "tip.resync": "Voert met dit interval een volledige controle uit om wijzigingen te herstellen die de live-watcher heeft gemist (minimaal 20 s).",
     "tip.retry_delay": "Wachttijd voordat opnieuw wordt geprobeerd na een verbindingsfout",
     "tip.stability_delay": "Wachten op bestanden die in gebruik zijn",
-    "tip.max_wait": "Maximale tijd om te wachten op bestandsstabilisatie",
+    "tip.max_wait": "Maximale seconden om te wachten tot een bestand niet meer wordt geschreven; daarna wordt de upload uitgesteld en opnieuw geprobeerd",
     "tip.ignore_delete": "Bestandsverwijderingen niet doorgeven — handig voor back-upscenario's",
     "tip.shared_path": "De lokale map die moet worden gesynchroniseerd",
     "tip.sync_direction": "Synchronisatierichting: bidirectioneel, alleen uploaden of alleen downloaden",
