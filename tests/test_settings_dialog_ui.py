@@ -396,6 +396,15 @@ class TestServerSetupLink:
 
         open_url.assert_called_once()
 
+    def test_the_link_occupies_one_text_line(self, dialog, qtbot):
+        """A rich-text label must not reserve three lines for one line of text."""
+        dialog._tabs.setCurrentIndex(_SERVER_TAB_INDEX)
+        dialog.show()
+        qtbot.wait(1)
+        label = dialog._lbl_help_server
+
+        assert label.height() <= 2 * label.fontMetrics().height()
+
 
 class TestBootnodeSetupLink:
     """The p2p discovery group links to the hsync-bootnode guide."""
@@ -414,3 +423,12 @@ class TestBootnodeSetupLink:
             dialog._lbl_help_bootnode.linkActivated.emit(docs_links.BOOTNODE_SETUP)
 
         open_url.assert_called_once()
+
+    def test_the_link_occupies_one_text_line(self, dialog, qtbot):
+        """A rich-text label must not reserve three lines for one line of text."""
+        dialog._tabs.setCurrentIndex(_P2P_TAB_INDEX)
+        dialog.show()
+        qtbot.wait(1)
+        label = dialog._lbl_help_bootnode
+
+        assert label.height() <= 2 * label.fontMetrics().height()

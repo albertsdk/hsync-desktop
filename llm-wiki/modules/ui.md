@@ -60,7 +60,11 @@ dialog to the desktop connection-modes guide (`help.connection_modes`). They are
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in
 `settings/tab_translations.py::apply_translations`. Link colours are themed
-through `QPalette.Link`/`LinkVisited` in `themes.py`.
+through `QPalette.Link`/`LinkVisited` in `themes.py`. The labels are
+`widgets/links.py::_HelpLinkLabel`, whose `sizeHint` reports the wrapped height
+at the width the label really has: a word-wrapped rich-text `QLabel` otherwise
+claims the height of its document's ideal (very narrow) width — three lines for
+one line of text — and the form row keeps that dead space.
 
 ### Startup disclaimer
 

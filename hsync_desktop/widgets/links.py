@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QLabel
 
 from hsync_desktop.docs_links import open_docs_link
@@ -24,6 +24,22 @@ __all__ = ["help_link", "set_help_link_text"]
 
 _HELP_URL_PROPERTY = "docsUrl"
 _EXTERNAL_ARROW = "\u2197"
+
+
+class _HelpLinkLabel(QLabel):
+    """A link label sized to the height it actually needs.
+
+    A word-wrapped rich-text ``QLabel`` reports the height its *text document*
+    needs at the document's ideal (very narrow) width as ``sizeHint``: a
+    one-line link claims three lines, and the form row around it keeps that
+    dead space. Answer the hint with the wrapped height at the width the label
+    really has.
+    """
+
+    def sizeHint(self) -> QSize:  # noqa: N802 - Qt override
+        hint = super().sizeHint()
+        width = self.width() if self.width() > 0 else hint.width()
+        return QSize(hint.width(), self.heightForWidth(width))
 
 
 def _rich_text(text: str, url: str) -> str:
@@ -43,7 +59,7 @@ def set_help_link_text(label: QLabel, text_key: str) -> None:
 
 def help_link(text_key: str, url: str) -> QLabel:
     """A word-wrapped, keyboard-accessible link to a documentation page."""
-    label = QLabel()
+    label = _HelpLinkLabel()
     label.setObjectName("helpLink")
     label.setProperty(_HELP_URL_PROPERTY, url)
     label.setTextFormat(Qt.TextFormat.RichText)
