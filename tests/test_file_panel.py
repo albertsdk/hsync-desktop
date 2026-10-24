@@ -971,6 +971,93 @@ class TestColumnResizing:
         assert header.sectionSize(tt.COL_PROGRESS) == 130
 
 
+class TestRequiredViewportWidth:
+    """The startup window fit asks the table for the width its columns need.
+
+    The Name column is ``Stretch``: Qt answers a shortage by shrinking it to
+    the global minimum section size instead of extending the scroll range, so
+    the requirement must be built from the sections plus a Name floor — the
+    horizontal scrollbar cannot report it.
+    """
+
+    @staticmethod
+    def _table(qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    @staticmethod
+    def _other_sections(tt, header, columns):
+        return sum(
+            header.sectionSize(col)
+            for col in columns
+            if not header.isSectionHidden(col) and col != tt.COL_NAME
+        )
+
+    def test_it_reserves_a_readable_name_column(self, qtbot, tmp_path, monkeypatch):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot, tmp_path, monkeypatch)
+        header = table.horizontalHeader()
+        columns = range(table.model().columnCount())
+
+        expected = self._other_sections(tt, header, columns) + tt._MIN_NAME_WIDTH
+
+        assert table.required_viewport_width() == expected
+
+    def test_a_hidden_name_column_asks_for_no_name_width(self, qtbot, tmp_path, monkeypatch):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot, tmp_path, monkeypatch)
+        header = table.horizontalHeader()
+        header.setSectionHidden(tt.COL_NAME, True)
+        columns = range(table.model().columnCount())
+
+        expected = self._other_sections(tt, header, columns)
+
+        assert table.required_viewport_width() == expected
+
+    def test_a_crushed_name_column_still_reports_the_shortage(self, qtbot, tmp_path, monkeypatch):
+        """The regression this guards: an empty scroll range hides the need."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot, tmp_path, monkeypatch)
+        table.add_transfer(
+            FileTransfer(
+                filepath="a-rather-long-file-name-report-final.pdf",
+                direction="—",
+                size=10,
+                status=TransferStatus.LOCAL,
+            )
+        )
+        # The layout the app persists on a first run (Qt's default 100/130 px
+        # widths) restored into an 800 px table.
+        header = table.horizontalHeader()
+        for col, width in (
+            (tt.COL_SIZE, 100),
+            (tt.COL_TYPE, 100),
+            (tt.COL_MODIFIED, 100),
+            (tt.COL_PROGRESS, 130),
+            (tt.COL_ETA, 100),
+            (tt.COL_STATUS, 100),
+            (tt.COL_DIRECTION, 100),
+        ):
+            header.resizeSection(col, width)
+        table.resize(800, 300)
+        table.show()
+        qtbot.wait(5)
+
+        assert header.sectionSize(tt.COL_NAME) < tt._MIN_NAME_WIDTH
+        assert table.horizontalScrollBar().maximum() == 0
+        assert table.required_viewport_width() > table.viewport().width()
+
+
 class TestEmptyFolderStatus:
     """An empty folder shows its own status; a remote-created dir is SYNCED."""
 

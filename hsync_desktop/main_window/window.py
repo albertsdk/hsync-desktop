@@ -196,27 +196,37 @@ class MainWindow(
             QTimer.singleShot(0, self._fit_table_width)
 
     def _fit_table_width(self) -> None:
-        """Grow the window once so the persisted file-table columns fit.
+        """Grow the window once so the file table stays readable.
 
-        The table disables no column and persists user widths; a narrower saved
-        window (or the 800 px default) would otherwise force a horizontal
-        scrollbar on every launch until the user resizes the window by hand.
+        The table keeps the user's column widths, but the Name column is
+        ``Stretch``: a narrow saved window (or the default one from
+        ``ui/main_window.ui``) is absorbed by shrinking that column to the
+        global minimum section size instead of showing a horizontal scrollbar,
+        so the table looks truncated until the user widens the window by hand.
+        The window is therefore sized from the columns' own requirement
+        (``FileTransferTable.required_viewport_width``) and clamped to the
+        screen; the fit runs once and never fights a later manual resize.
         """
         if self._table_width_fitted or self.isMaximized():
             return
         table = self._file_panel.table
+        # Nothing to measure until the share is on screen with a live layout;
+        # stay retryable (the show and rowsInserted hooks re-schedule the fit).
         if table.model().rowCount() == 0 or table.viewport().width() <= 0:
             return
-        self._table_width_fitted = True
-        deficit = table.horizontalScrollBar().maximum()
+        if not self.isVisible():
+            return
+        deficit = table.required_viewport_width() - table.viewport().width()
         if deficit <= 0:
+            self._table_width_fitted = True
             return
         screen = self.screen().availableGeometry() if self.screen() is not None else None
-        target = self.width() + deficit + 2
+        target = self.width() + deficit
         if screen is not None:
             target = min(target, screen.width())
         if target > self.width():
             self.resize(target, self.height())
+        self._table_width_fitted = True
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 

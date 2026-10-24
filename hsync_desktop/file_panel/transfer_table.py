@@ -122,6 +122,11 @@ _STATUS_TEXT_KEYS = {
 _MIN_SECTION_WIDTH = 32
 # Minimum width a data column keeps when fitted or restored, in px.
 _MIN_COLUMN_WIDTH = 48
+# Readable floor for the stretch Name column, in px. A stretch column is
+# shrunk to the global minimum section size instead of extending the scroll
+# range, so a narrow window silently crushes file names and the horizontal
+# scrollbar reports no deficit: the window fit asks for this width instead.
+_MIN_NAME_WIDTH = 320
 
 # Data columns whose width is fitted to the content once (the Icon is fixed,
 # Name stretches and Progress keeps its explicit default width).
@@ -626,6 +631,27 @@ class FileTransferTable(QTableView):
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
             self._COLUMN_WIDTH_SETTINGS_KEY, ",".join(parts)
         )
+
+    def required_viewport_width(self) -> int:
+        """Viewport width the table needs to keep its columns readable.
+
+        Used by the window's one-shot startup fit
+        (``hsync_desktop.main_window.window::MainWindow._fit_table_width``).
+        Qt absorbs a shortage by shrinking the stretch column (Name) down to
+        the global minimum section size instead of widening the scroll range,
+        so ``horizontalScrollBar`` reports almost no deficit even when file
+        names are unusable. The requirement is therefore built from the
+        visible fixed-width sections plus the Name floor.
+        """
+        header = self.horizontalHeader()
+        total = 0
+        for col in range(self._model.columnCount()):
+            if header.isSectionHidden(col) or col == COL_NAME:
+                continue
+            total += header.sectionSize(col)
+        if not header.isSectionHidden(COL_NAME):
+            total += max(header.sectionSize(COL_NAME), _MIN_NAME_WIDTH)
+        return total
 
     def _size_columns_to_contents(self) -> None:
         """Seed sensible widths from the content, once, before user resizing.

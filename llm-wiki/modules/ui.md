@@ -22,6 +22,7 @@ window's attributes.
 | `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
 | `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state |
+| `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
 | `_quit` | `main_window/lifecycle.py::LifecycleMixin._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
 | `_shutdown` | `main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
@@ -330,7 +331,20 @@ populated refresh
 (`FileTransferTable._save_column_widths` / `_restore_column_widths`); **Name**
 stays `Stretch` (the flexible column) and **Icon** stays `Fixed`. The header menu
 also has **Reset columns** (`file.reset_columns`) that clears both keys and
-re-fits the widths. `FileTransfer.speed_bps`
+re-fits the widths. Because **Name** is the stretch column, Qt answers a
+shortage by shrinking it down to the minimum section size instead of extending
+the scroll range, so the persisted widths in a narrow window leave file names
+unusable while the horizontal scrollbar stays empty:
+`FileTransferTable.required_viewport_width` therefore reports the width the
+visible sections need with `_MIN_NAME_WIDTH` reserved for Name, and the one-shot
+startup fit (`main_window/window.py::MainWindow._fit_table_width`, re-scheduled
+from `MainWindow.showEvent` and the model's `rowsInserted` through
+`MainWindow._schedule_table_fit`) grows the window by that deficit, clamped to
+`QScreen.availableGeometry`. The default and minimum window size live in
+`ui/main_window.ui` (not in code), so the fit only ever grows the window beyond
+them. The fit is consumed only after a valid measurement
+(rows present, window visible) and never fights a later manual resize
+(`MainWindow._table_width_fitted`). `FileTransfer.speed_bps`
 (`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
 stay consistent. A folder keeps the neutral aggregate status (`folder.status.to_sync`)
 because it can mix operations; its tooltip spells out the planned actions

@@ -2030,45 +2030,100 @@ class TestMenuFontRefresh:
             assert menu.font().pointSizeF() == pytest.approx(expected)
 
 
-class _FakeScrollBar:
-    def maximum(self):
-        return 300
-
-
-class _FakeViewport:
-    def width(self):
-        return 500
-
-
-class _FakeModel:
-    def rowCount(self):
-        return 1
-
-
-class _FakeTable:
-    def model(self):
-        return _FakeModel()
-
-    def viewport(self):
-        return _FakeViewport()
-
-    def horizontalScrollBar(self):
-        return _FakeScrollBar()
-
-
 class TestTableWidthFit:
-    """A narrow restored window grows once to fit the persisted columns."""
+    """A narrow window grows once so the file-table columns stay readable."""
 
-    def test_fit_grows_the_window_by_the_scrollbar_deficit(self, window, monkeypatch):
-        from types import SimpleNamespace
+    @staticmethod
+    def _narrow_window_with_a_row(window, qtbot):
+        """Show the window with one row, with the automatic fit suppressed."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
 
-        monkeypatch.setattr(window, "_file_panel", SimpleNamespace(table=_FakeTable()))
-        monkeypatch.setattr(window, "screen", lambda: None)
+        window._table_width_fitted = True  # keep the startup fit out of the way
+        table = window._file_panel.table
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+        window.show()
+        qtbot.wait(1)
+        window.resize(window.minimumWidth(), window.minimumHeight())
         window._table_width_fitted = False
-        window.resize(760, 600)
+        return table
+
+    def test_fit_grows_the_window_by_the_column_deficit(self, window, qtbot, monkeypatch):
+        """The deficit comes from the columns, never from the scrollbar."""
+        table = self._narrow_window_with_a_row(window, qtbot)
+        monkeypatch.setattr(window, "screen", lambda: None)
+        monkeypatch.setattr(
+            table, "required_viewport_width", lambda: table.viewport().width() + 300
+        )
         before = window.width()
 
         window._fit_table_width()
 
-        assert window.width() >= before + 300
+        assert window.width() == before + 300
         assert window._table_width_fitted is True
+
+    def test_the_growth_is_clamped_to_the_screen(self, window, qtbot, monkeypatch):
+        from types import SimpleNamespace
+
+        table = self._narrow_window_with_a_row(window, qtbot)
+        monkeypatch.setattr(
+            table, "required_viewport_width", lambda: table.viewport().width() + 300
+        )
+        limit = window.width() + 100
+        screen = SimpleNamespace(availableGeometry=lambda: SimpleNamespace(width=lambda: limit))
+        monkeypatch.setattr(window, "screen", lambda: screen)
+
+        window._fit_table_width()
+
+        assert window.width() == limit
+        assert window._table_width_fitted is True
+
+    def test_no_deficit_marks_the_fit_done_without_resizing(self, window, qtbot, monkeypatch):
+        table = self._narrow_window_with_a_row(window, qtbot)
+        monkeypatch.setattr(window, "screen", lambda: None)
+        monkeypatch.setattr(table, "required_viewport_width", lambda: table.viewport().width())
+        before = window.size().toTuple()
+
+        window._fit_table_width()
+
+        assert window.size().toTuple() == before
+        assert window._table_width_fitted is True
+
+    def test_an_empty_table_keeps_the_fit_retryable(self, window, qtbot):
+        """Measuring before the share is loaded must not consume the fit."""
+        window._table_width_fitted = True
+        window.show()
+        qtbot.wait(1)
+        window._table_width_fitted = False
+        window._file_panel.table.clear_transfers()
+
+        window._fit_table_width()
+
+        assert window._table_width_fitted is False
+
+    def test_a_hidden_window_keeps_the_fit_retryable(self, window, monkeypatch):
+        """A fit measured before the window is shown cannot be trusted."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._table_width_fitted = True
+        window._file_panel.table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+        window._table_width_fitted = False
+        before = window.width()
+
+        window._fit_table_width()
+
+        assert window.width() == before
+        assert window._table_width_fitted is False
+
+    def test_a_maximized_window_is_left_alone(self, window, qtbot, monkeypatch):
+        self._narrow_window_with_a_row(window, qtbot)
+        monkeypatch.setattr(window, "isMaximized", lambda: True)
+        before = window.width()
+
+        window._fit_table_width()
+
+        assert window.width() == before
+        assert window._table_width_fitted is False
