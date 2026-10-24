@@ -201,7 +201,8 @@ def _append_timing_args(args: list[str], s: QSettings) -> None:
 
     min_free = cast(int, s.value("sync/min_free_disk_space", DEFAULT_MIN_FREE_DISK_SPACE, int))
     min_free = max(MIN_FREE_DISK_SPACE_MB_MIN, min(min_free, MIN_FREE_DISK_SPACE_MB_MAX))
-    args += ["--min-free-disk-space", str(min_free)]
+    # The CLI takes a size with an explicit unit (a bare number is rejected).
+    args += ["--min-free-disk-space", f"{min_free}MB"]
 
     max_dl = cast(int, s.value("sync/max_inbound_size", DEFAULT_MAX_INBOUND_SIZE, int))
     max_dl = max(MAX_INBOUND_SIZE_MB_MIN, min(max_dl, MAX_INBOUND_SIZE_MB_MAX))

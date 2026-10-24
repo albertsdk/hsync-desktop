@@ -167,21 +167,56 @@ class TrustMixin:
                 self, tr("dialogs.pairing_needed_title"), tr("dialogs.trust_failed")
             )
 
+    def _trust_prompt(
+        self,
+        title_key: str,
+        body_key: str,
+        peer: str,
+        fingerprint: str,
+        buttons: list[tuple[str, QMessageBox.ButtonRole]],
+    ) -> QMessageBox.ButtonRole | None:
+        """Show a modal trust prompt; return the role of the clicked button.
+
+        Both trust dialogs (first-seen pairing and fingerprint change) share this
+        construction: warning icon, translated title/body with the peer and the
+        fingerprint, and the reject button as the default, so dismissing the
+        dialog (Esc / window close, which yields ``None``) never pins or forgets
+        anything.
+        """
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr(title_key))
+        box.setText(tr(body_key).format(peer=peer, fingerprint=fingerprint))
+        added: list[tuple[QPushButton, QMessageBox.ButtonRole]] = []
+        for label_key, role in buttons:
+            added.append((box.addButton(tr(label_key), role), role))
+        for button, role in added:
+            if role == QMessageBox.ButtonRole.RejectRole:
+                box.setDefaultButton(button)
+        box.exec()
+        clicked = box.clickedButton()
+        for button, role in added:
+            if clicked is button:
+                return role
+        return None
+
     @Slot(str, str, str, str)
     def _on_pairing_needed(self, scope: str, cid: str, address: str, fingerprint: str) -> None:
         """Prompt for a first-seen fingerprint that strict pairing refuses."""
         if not self._should_prompt_trust(scope, cid, address, fingerprint):
             return
         peer = self._trust_identity(scope, cid, address)
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle(tr("dialogs.pairing_needed_title"))
-        box.setText(tr("dialogs.pairing_needed_body").format(peer=peer, fingerprint=fingerprint))
-        trust_btn = box.addButton(tr("dialogs.trust_accept"), QMessageBox.ButtonRole.AcceptRole)
-        ignore_btn = box.addButton(tr("dialogs.trust_ignore"), QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(ignore_btn)
-        box.exec()
-        if box.clickedButton() is not trust_btn:
+        choice = self._trust_prompt(
+            "dialogs.pairing_needed_title",
+            "dialogs.pairing_needed_body",
+            peer,
+            fingerprint,
+            [
+                ("dialogs.trust_accept", QMessageBox.ButtonRole.AcceptRole),
+                ("dialogs.trust_ignore", QMessageBox.ButtonRole.RejectRole),
+            ],
+        )
+        if choice is not QMessageBox.ButtonRole.AcceptRole:
             self._append_desktop_log("WARNING", "Peer not trusted.")
             return
         if scope == "master":
@@ -207,41 +242,39 @@ class TrustMixin:
         if not self._should_prompt_trust(scope, cid, address, fingerprint):
             return
         peer = self._trust_identity(scope, cid, address)
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle(tr("dialogs.peer_changed_title"))
-        box.setText(tr("dialogs.peer_changed_body").format(peer=peer, fingerprint=fingerprint))
-        trust_btn = box.addButton(tr("dialogs.trust_accept"), QMessageBox.ButtonRole.AcceptRole)
-        forget_btn = box.addButton(
-            tr("dialogs.trust_forget"), QMessageBox.ButtonRole.DestructiveRole
+        choice = self._trust_prompt(
+            "dialogs.peer_changed_title",
+            "dialogs.peer_changed_body",
+            peer,
+            fingerprint,
+            [
+                ("dialogs.trust_accept", QMessageBox.ButtonRole.AcceptRole),
+                ("dialogs.trust_forget", QMessageBox.ButtonRole.DestructiveRole),
+                ("dialogs.trust_ignore", QMessageBox.ButtonRole.RejectRole),
+            ],
         )
-        ignore_btn = box.addButton(tr("dialogs.trust_ignore"), QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(ignore_btn)
-        box.exec()
-        clicked = box.clickedButton()
+        if choice in (None, QMessageBox.ButtonRole.RejectRole):
+            # Ignored or dismissed (Esc / window closed): never touch the pin.
+            return
         binary = find_hsync_binary()
         if not binary:
             return
         if scope == "master":
-            if clicked is trust_btn or clicked is forget_btn:
-                bucket = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str))
-                if clicked is trust_btn:
-                    add_peer_pin(binary, cid, bucket, fingerprint)
-                else:
-                    remove_peer_pin(binary, cid, bucket)
+            bucket = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", "", str))
+            if choice is QMessageBox.ButtonRole.AcceptRole:
+                add_peer_pin(binary, cid, bucket, fingerprint)
+            else:
+                remove_peer_pin(binary, cid, bucket)
             return
         action = self._host_trust_actions(scope)
         if action is None:
             return
         add_fn, remove_fn, _label = action
         host, port = self._host_port_from_address(address)
-        if clicked is trust_btn:
+        if choice is QMessageBox.ButtonRole.AcceptRole:
             ok = add_fn(binary, host, fingerprint, port)
-        elif clicked is forget_btn:
-            ok = remove_fn(binary, host, port)
         else:
-            # Ignored or dismissed (window closed): never touch the stored pin.
-            return
+            ok = remove_fn(binary, host, port)
         if not ok:
             QMessageBox.warning(self, tr("dialogs.peer_changed_title"), tr("dialogs.trust_failed"))
             return

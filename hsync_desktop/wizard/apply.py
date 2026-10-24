@@ -11,6 +11,7 @@ UI can block Finish and offer the "skip pinning" escape.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -69,26 +70,48 @@ def _discovery_server_host_port(discovery_server: str) -> tuple[str, int] | None
     return endpoint.host, endpoint.port or _HTTPS_PORT
 
 
-def _pin_server(binary: str, url: str, fingerprint: str) -> str:
-    target = _server_host_port(url)
+def _pin_endpoint(
+    binary: str,
+    target: tuple[str, int] | None,
+    fingerprint: str,
+    *,
+    fetch: Callable[[str, str, int | None], str | None],
+    add: Callable[[str, str, str, int | None], bool],
+) -> str:
+    """Pin one endpoint, reading its fingerprint first when none was supplied.
+
+    Returns ``""`` on success and ``"failed"`` otherwise; the wizard maps that to
+    its per-endpoint status label. Single implementation for the server and
+    discovery-server pins, which differ only in how the endpoint is resolved and
+    which ``hsync trust`` subcommand is used.
+    """
     if target is None:
         return "failed"
     host, port = target
-    fingerprint = fingerprint or fetch_server_fingerprint(binary, host, port) or ""
+    fingerprint = fingerprint or fetch(binary, host, port) or ""
     if not fingerprint:
         return "failed"
-    return "" if add_server_trust(binary, host, fingerprint, port) else "failed"
+    return "" if add(binary, host, fingerprint, port) else "failed"
+
+
+def _pin_server(binary: str, url: str, fingerprint: str) -> str:
+    return _pin_endpoint(
+        binary,
+        _server_host_port(url),
+        fingerprint,
+        fetch=fetch_server_fingerprint,
+        add=add_server_trust,
+    )
 
 
 def _pin_discovery_server(binary: str, discovery_server: str, fingerprint: str) -> str:
-    target = _discovery_server_host_port(discovery_server)
-    if target is None:
-        return "failed"
-    host, port = target
-    fingerprint = fingerprint or fetch_bootnode_fingerprint(binary, host, port) or ""
-    if not fingerprint:
-        return "failed"
-    return "" if add_bootnode_trust(binary, host, fingerprint, port) else "failed"
+    return _pin_endpoint(
+        binary,
+        _discovery_server_host_port(discovery_server),
+        fingerprint,
+        fetch=fetch_bootnode_fingerprint,
+        add=add_bootnode_trust,
+    )
 
 
 def _pin_requested(draft: WizardDraft, *, server_mode: bool) -> list[tuple[str, str, str]]:

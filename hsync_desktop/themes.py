@@ -10,14 +10,14 @@ for a modern, consistent look across platforms.
 
 from __future__ import annotations
 
-import configparser
 import os
 import sys
-from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
+
+from hsync_desktop.kde import config_home, read_ini
 
 # Theme identifiers
 THEME_LIGHT = "light"
@@ -42,14 +42,8 @@ def _strip_gvariant(value: str | None) -> str:
 
 def _kde_color_scheme() -> str | None:
     """Read ``[General] ColorScheme`` from ``kdeglobals`` (KDE/Plasma)."""
-    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
-    path = Path(config_home) / "kdeglobals"
-    if not path.is_file():
-        return None
-    parser = configparser.ConfigParser(interpolation=None)
-    try:
-        parser.read(path, encoding="utf-8")
-    except (OSError, configparser.Error):
+    parser = read_ini(config_home() / "kdeglobals")
+    if parser is None:
         return None
     scheme = parser.get("General", "ColorScheme", fallback="").strip().lower()
     return scheme or None
@@ -57,15 +51,9 @@ def _kde_color_scheme() -> str | None:
 
 def _gtk_ini_prefers_dark() -> bool | None:
     """Read the GTK 3/4 ``settings.ini`` preference, if present."""
-    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
     for directory in ("gtk-4.0", "gtk-3.0"):
-        path = Path(config_home) / directory / "settings.ini"
-        if not path.is_file():
-            continue
-        parser = configparser.ConfigParser(interpolation=None)
-        try:
-            parser.read(path, encoding="utf-8")
-        except (OSError, configparser.Error):
+        parser = read_ini(config_home() / directory / "settings.ini")
+        if parser is None:
             continue
         prefer = parser.get("Settings", "gtk-application-prefer-dark-theme", fallback="")
         if prefer.strip().lower() in {"1", "true", "yes"}:

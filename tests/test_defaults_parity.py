@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from hsync_common import defaults
 from hsync_common.constants import DELTA_MIN_FILE_SIZE, DELTA_MIN_FILE_SIZE_P2P
+from hsync_common.disk import BYTES_PER_MB
 
 import hsync_desktop
 from hsync_desktop import config
@@ -31,7 +32,9 @@ class TestSharedDefaultsAreAliases:
         assert config.DEFAULT_MAX_WAIT is defaults.MAX_WAIT_TIMEOUT_DEFAULT
 
     def test_limits_and_guard_defaults(self):
-        assert config.DEFAULT_MIN_FREE_DISK_SPACE is defaults.MIN_FREE_DISK_SPACE_MB_DEFAULT
+        assert config.DEFAULT_MIN_FREE_DISK_SPACE == (
+            defaults.MIN_FREE_DISK_SPACE_DEFAULT // BYTES_PER_MB
+        )
         assert config.DEFAULT_MAX_INBOUND_SIZE is defaults.MAX_INBOUND_SIZE_MB_DEFAULT
         assert config.DEFAULT_MASS_DELETE_GUARD is defaults.MASS_DELETE_GUARD_DEFAULT
         assert config.DEFAULT_MASS_DELETE_THRESHOLD is defaults.MASS_DELETE_THRESHOLD_DEFAULT
@@ -60,8 +63,9 @@ class TestSharedDefaultsAreAliases:
         assert config.MAX_WAIT_MIN is defaults.MAX_WAIT_TIMEOUT_MIN
         assert config.MAX_WAIT_MAX is defaults.MAX_WAIT_TIMEOUT_MAX
         assert config.RESYNC_MAX is defaults.RESYNC_MAX
-        assert config.MIN_FREE_DISK_SPACE_MB_MIN is defaults.MIN_FREE_DISK_SPACE_MB_MIN
-        assert config.MIN_FREE_DISK_SPACE_MB_MAX is defaults.MIN_FREE_DISK_SPACE_MB_MAX
+        # The GUI bounds are the byte SSOT expressed in whole MB.
+        assert config.MIN_FREE_DISK_SPACE_MB_MIN == defaults.MIN_FREE_DISK_SPACE_MIN // BYTES_PER_MB
+        assert config.MIN_FREE_DISK_SPACE_MB_MAX == defaults.MIN_FREE_DISK_SPACE_MAX // BYTES_PER_MB
         assert config.MAX_INBOUND_SIZE_MB_MIN is defaults.MAX_INBOUND_SIZE_MB_MIN
         assert config.MAX_INBOUND_SIZE_MB_MAX is defaults.MAX_INBOUND_SIZE_MB_MAX
 

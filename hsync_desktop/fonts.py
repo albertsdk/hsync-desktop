@@ -13,19 +13,18 @@ with ``QApplication.setFont`` — no fonts are bundled.
 
 from __future__ import annotations
 
-import configparser
 import os
 import re
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
 from PySide6.QtWidgets import QApplication
 
 from hsync_desktop.config import FONT_SCALE_COMPACT, FONT_SCALE_STANDARD
+from hsync_desktop.kde import config_home, read_ini
 
 # GNOME settings that hold the UI font, the monospace font and the text scale.
 _GSETTINGS_SCHEMA = "org.gnome.desktop.interface"
@@ -194,14 +193,8 @@ def _parse_scale(raw: str | None) -> float:
 
 def _kde_font(key: str) -> str | None:
     """Read a ``[General]`` font value from ``kdeglobals``."""
-    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
-    path = Path(config_home) / "kdeglobals"
-    if not path.is_file():
-        return None
-    parser = configparser.ConfigParser(interpolation=None)
-    try:
-        parser.read(path, encoding="utf-8")
-    except (OSError, configparser.Error):
+    parser = read_ini(config_home() / "kdeglobals")
+    if parser is None:
         return None
     if parser.has_option("General", key):
         return parser.get("General", key)

@@ -391,7 +391,7 @@ class StartMixin:
 
     def _check_disk_space(self) -> bool:
         """Check if sufficient disk space is available. Returns False if insufficient."""
-        from shutil import disk_usage
+        from hsync_common.disk import BYTES_PER_MB, check_free_space
 
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         min_free_mb = cast(int, s.value("sync/min_free_disk_space", 500, int))
@@ -399,21 +399,22 @@ class StartMixin:
         if min_free_mb <= 0:
             return True
 
-        try:
-            usage = disk_usage(self._local_path)
-            free_mb = usage.free / (1024 * 1024)
-            if free_mb < min_free_mb:
-                QMessageBox.critical(
-                    self,
-                    tr("error.insufficient_disk_space"),
-                    tr("error.insufficient_disk_space_msg").format(
-                        required=min_free_mb,
-                        available=int(free_mb),
-                    ),
-                )
-                return False
-        except OSError as e:
-            self._append_desktop_log("WARNING", f"Could not check disk space: {e}")
+        # Same rule as the client/server (``check_free_space``); the setting is
+        # edited in whole MB, the shared guard is byte-based.
+        space = check_free_space(self._local_path, reserve_bytes=min_free_mb * BYTES_PER_MB)
+        if space.error is not None:
+            self._append_desktop_log("WARNING", f"Could not check disk space: {space.error}")
+            return True
+        if not space.ok:
+            QMessageBox.critical(
+                self,
+                tr("error.insufficient_disk_space"),
+                tr("error.insufficient_disk_space_msg").format(
+                    required=min_free_mb,
+                    available=space.free_mb,
+                ),
+            )
+            return False
         return True
 
     def _on_start(self) -> None:

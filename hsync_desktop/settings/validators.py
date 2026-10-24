@@ -15,6 +15,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from hsync_common.disk import BYTES_PER_MB, check_free_space
 from hsync_common.path_validation import is_valid_bucket_name, safe_resolve_path
 
 # POSIX system directories that must never be the sync root; a broad warning is
@@ -93,7 +94,10 @@ def validate_sync_folder(path: str, *, min_free_mb: int = 0) -> FolderCheck:
         return FolderCheck("warning", "home", free_mb, free_bytes)
     if str(resolved) in _SYSTEM_DIRS:
         return FolderCheck("warning", "system", free_mb, free_bytes)
-    if min_free_mb and free_mb is not None and free_mb < min_free_mb:
+    # Same free-space rule as the client/server (`hsync_common.disk`); the GUI
+    # setting is edited in whole MB.
+    space = check_free_space(str(resolved), reserve_bytes=min_free_mb * BYTES_PER_MB)
+    if not space.ok:
         return FolderCheck("warning", "low_space", free_mb, free_bytes)
     return FolderCheck("ok", "ok", free_mb, free_bytes)
 

@@ -362,7 +362,8 @@ and the dialog additionally applies the change live through
 panel); the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
 is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
-`--max-inbound-size`), the Advanced-tab engine knobs (`--no-autotune`,
+emitted as a size string such as `500MB`; `--max-inbound-size`), the
+Advanced-tab engine knobs (`--no-autotune`,
 `--max-concurrent-transfers`, `--no-delta`, `--delta-min-file-size[-p2p]`,
 `--no-mass-delete-guard`, `--mass-delete-threshold`, `--mass-delete-percent`),
 and the p2p block (the `p2p`/`server` subcommand is the
@@ -428,7 +429,9 @@ The server/discovery-server reachability logic is shared so the Settings dialog
 and the setup wizard agree:
 
 - `engine/endpoints.py::normalize_server_endpoint` / `normalize_bootnode_endpoint`
-  (the GUI default port `SERVER_DEFAULT_PORT` = 9753) and
+  (the GUI default port `SERVER_DEFAULT_PORT` = 9753; the bootnode variant is a
+  thin wrapper over the shared `hsync_common.endpoint.normalize_bare_endpoint`,
+  the same rule the client's `HSYNC_BOOTNODE` validator applies) and
   `build_probe_ssl_context`; `SettingsDialog._normalize_server_endpoint` /
   `_normalize_bootnode_endpoint` / `_test_connection_ssl_context` delegate to them.
   `_on_accept` still normalizes the fields before `save()`.

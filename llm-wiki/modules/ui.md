@@ -163,6 +163,9 @@ event (signal `engine/process.py::HsyncEngine.bucket_detected`).
 terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
 - `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window/trust.py::TrustMixin._on_pairing_needed` / `main_window/trust.py::TrustMixin._on_fingerprint_changed`)
+  build their box through `_trust_prompt` (`main_window/trust.py::TrustMixin._trust_prompt`),
+  the single warning-box construction (translated title/body, reject as default,
+  returns the clicked button *role*), then
   route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `bootnode`/`server`
   → the helpers returned by `_host_trust_actions` (`main_window/trust.py::TrustMixin._host_trust_actions`) (`add_bootnode_trust`/
   `remove_bootnode_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
@@ -531,7 +534,7 @@ deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
 
 | Concern | Code | Notes |
 | ------- | ---- | ----- |
-| Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`) |
+| Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`). KDE/GTK INI reads (`kdeglobals`, `settings.ini`) go through `kde.py` (`kde.py::read_ini`, `kde.py::config_home`) |
 | Confirmations | `widgets/dialogs.py` | `confirm` (`widgets/dialogs.py::confirm`) / `build_confirm_box` (`widgets/dialogs.py::build_confirm_box`) — one localized Yes/No box (safe `No` default, optional app icons) used by every hand-built confirmation in the main window and the Settings dialog |
 | Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `ui_font` (`fonts.py::ui_font`), `monospace_font` (`fonts.py::monospace_font`), `table_font` (`fonts.py::table_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
 | Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |

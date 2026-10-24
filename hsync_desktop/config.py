@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from hsync_common import defaults
 from hsync_common.constants import DELTA_MIN_FILE_SIZE, DELTA_MIN_FILE_SIZE_P2P
+from hsync_common.disk import BYTES_PER_MB
 
 # QSettings organization and application name
 # These are used by QSettings to store application settings
@@ -51,7 +52,7 @@ DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compr
 DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
-DEFAULT_MIN_FREE_DISK_SPACE = defaults.MIN_FREE_DISK_SPACE_MB_DEFAULT  # MB
+DEFAULT_MIN_FREE_DISK_SPACE = defaults.MIN_FREE_DISK_SPACE_DEFAULT // BYTES_PER_MB  # MB
 # Absolute cap on a single inbound file (--max-inbound-size); the same shared
 # default the client uses. 0 = disabled.
 DEFAULT_MAX_INBOUND_SIZE = defaults.MAX_INBOUND_SIZE_MB_DEFAULT  # MB
@@ -68,8 +69,10 @@ STABILITY_DELAY_MAX = defaults.STABILITY_DELAY_MAX
 MAX_WAIT_MIN = defaults.MAX_WAIT_TIMEOUT_MIN
 MAX_WAIT_MAX = defaults.MAX_WAIT_TIMEOUT_MAX
 RESYNC_MAX = defaults.RESYNC_MAX
-MIN_FREE_DISK_SPACE_MB_MIN = defaults.MIN_FREE_DISK_SPACE_MB_MIN
-MIN_FREE_DISK_SPACE_MB_MAX = defaults.MIN_FREE_DISK_SPACE_MB_MAX
+# Free-space reserve: the GUI edits whole MB (spin box) while the shared SSOT is
+# bytes and the emitted CLI flag is a size string ("500MB", see cli_args.py).
+MIN_FREE_DISK_SPACE_MB_MIN = defaults.MIN_FREE_DISK_SPACE_MIN // BYTES_PER_MB
+MIN_FREE_DISK_SPACE_MB_MAX = defaults.MIN_FREE_DISK_SPACE_MAX // BYTES_PER_MB
 MAX_INBOUND_SIZE_MB_MIN = defaults.MAX_INBOUND_SIZE_MB_MIN
 MAX_INBOUND_SIZE_MB_MAX = defaults.MAX_INBOUND_SIZE_MB_MAX
 GUI_MAX_WAIT_MIN = 60

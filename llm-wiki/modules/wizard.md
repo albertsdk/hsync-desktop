@@ -146,7 +146,10 @@ bump discards a stale draft. On finish the draft is cleared and
 - `wizard/apply.py::apply_draft` writes only the wizard's keys (see the plan's
   mapping) and pins a confirmed certificate through
   `engine/cli.py::add_bootnode_trust` / `add_server_trust`; a failed pin blocks
-  Finish unless the user skips it.
+  Finish unless the user skips it. Both pins run through
+  `_pin_endpoint` (`wizard/apply.py::_pin_endpoint`): resolve the endpoint, fetch
+  the fingerprint when the user left it empty, pin, and report `""`/`failed` —
+  the server and discovery-server paths differ only in those three callables.
 
 ## Trust
 

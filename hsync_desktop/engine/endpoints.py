@@ -17,7 +17,7 @@ from pathlib import Path
 from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import (
     build_https_url,
-    format_authority,
+    normalize_bare_endpoint,
     parse_host_port,
     parse_https_url,
 )
@@ -59,15 +59,11 @@ def normalize_bootnode_endpoint(raw: str) -> str | None:
     """Canonicalize the discovery-server field; raise ``ValueError`` on invalid input.
 
     Returns ``host`` (no port) or ``host:port``/``[IPv6]:port``; empty input
-    yields ``None``.
+    yields ``None``. Delegates to the shared rule
+    (``hsync_common.endpoint.normalize_bare_endpoint``) so the GUI field and the
+    client's ``HSYNC_BOOTNODE`` cannot normalize differently.
     """
-    value = (raw or "").strip()
-    if not value:
-        return None
-    endpoint = parse_host_port(value)
-    if endpoint.port is None:
-        return endpoint.host
-    return format_authority(endpoint.host, endpoint.port)
+    return normalize_bare_endpoint(raw)
 
 
 def unverified_ssl_context() -> ssl.SSLContext:
