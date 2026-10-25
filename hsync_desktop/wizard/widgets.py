@@ -190,6 +190,24 @@ class RadioCard(QFrame):
         self.radio.setAccessibleName(title)
         self.radio.setAccessibleDescription(description)
         self._description.setText(description)
+        self._sync_description_height()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        super().resizeEvent(event)
+        self._sync_description_height()
+
+    def _sync_description_height(self) -> None:
+        """Keep the wrapped caption at the height its text needs.
+
+        A word-wrapped ``QLabel`` reports one line as its minimum height, so a
+        short wizard page used to squeeze the cards until the description was
+        clipped top and bottom. Pinning the minimum to the wrapped height makes
+        the card refuse to shrink that far; the page then scrolls instead.
+        """
+        width = self._description.width()
+        if width <= 0:
+            return
+        self._description.setMinimumHeight(self._description.heightForWidth(width))
 
 
 class ToggleRow(QWidget):

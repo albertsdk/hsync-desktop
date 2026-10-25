@@ -94,7 +94,16 @@ and the returned mode so the two can never disagree.
   (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
   without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
   `network-p2p` (local peers), `network-cloud` (discovery server/anywhere), `people`
-  (team share).
+  (team share). The caption is word-wrapped, and a wrapped ``QLabel`` reports one
+  line as its minimum height: `RadioCard._sync_description_height` pins it to
+  ``heightForWidth(width)`` (on resize and re-translation) so a short window
+  cannot squeeze a card until its description is clipped top and bottom.
+- **Page host**: the page stack lives in a frame-less, widget-resizable
+  `QScrollArea` (`SetupWizard._stack_scroll`) instead of the dialog layout. A
+  page therefore never shrinks below its `minimumSizeHint` — the window scrolls
+  (`dialog.minimumSize` is the smallest size that triggers it) — which is what
+  keeps the mode cards, the connection forms and the review list readable at any
+  font scale.
 - **Connection**: `ConnectionPage` keeps the share name in a common area and puts
   the server-only and network-only fields in two dedicated forms inside a
   `QStackedWidget` (`_server_page`/`_network_page`), so each topology has a clean

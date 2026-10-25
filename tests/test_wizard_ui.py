@@ -596,3 +596,32 @@ class TestModeDocumentationLink:
         label = dlg.findChild(QLabel, "helpLink")
         assert label is not None
         assert label.property("docsUrl") == docs_links.CONNECTION_MODES
+
+
+class TestModePageFitsWithoutClipping:
+    """The mode cards keep their wrapped caption readable on a short window."""
+
+    def test_the_pages_are_hosted_in_a_scroll_area(self, wizard):
+        from PySide6.QtWidgets import QScrollArea
+
+        assert isinstance(wizard._stack_scroll, QScrollArea)
+        assert wizard._stack_scroll.widget() is wizard._stack
+
+    def test_no_card_description_is_clipped_at_the_minimum_size(self, wizard, qtbot):
+        wizard.resize(wizard.minimumWidth(), wizard.minimumHeight())
+        wizard.show()
+        qtbot.wait(20)
+
+        for mode, card in wizard.mode_page._cards.items():
+            description = card._description
+            needed = description.heightForWidth(description.width())
+            assert description.height() >= needed, (mode, description.height(), needed)
+
+    def test_a_short_window_scrolls_instead_of_squeezing(self, wizard, qtbot):
+        wizard.resize(wizard.minimumWidth(), wizard.minimumHeight())
+        wizard.show()
+        qtbot.wait(20)
+
+        page = wizard.mode_page
+        assert page.height() >= page.minimumSizeHint().height()
+        assert wizard._stack_scroll.verticalScrollBar().maximum() > 0

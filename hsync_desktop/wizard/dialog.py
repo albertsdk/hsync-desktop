@@ -11,10 +11,12 @@ from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -136,7 +138,15 @@ class SetupWizard(QDialog):
             page.changed.connect(self._schedule_save)
             self._stack.addWidget(page)
         self._stack.addWidget(self.success_page)
-        layout.addWidget(self._stack, 1)
+        # The pages must never be squeezed below their minimum: a short window
+        # used to clip the mode cards' descriptions. Hosting the stack in a
+        # frame-less scroll area lets the page scroll instead.
+        self._stack_scroll = QScrollArea()
+        self._stack_scroll.setWidgetResizable(True)
+        self._stack_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._stack_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._stack_scroll.setWidget(self._stack)
+        layout.addWidget(self._stack_scroll, 1)
 
         self._general_error = QLabel()
         self._general_error.setObjectName("inlineError")
