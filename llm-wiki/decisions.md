@@ -117,7 +117,10 @@ disable unsupported controls) is realized in
   unversioned `icuuc.dll` (the Windows SDK ICU), while PyInstaller 6.22's
   `PyInstaller/utils/hooks/qt/__init__.py` (`QtLibraryInfo.collect_extra_binaries`
   hook) only globs the versioned `icu??.dll` names — so nothing is bundled either way.
-  The artifact runs on Windows 10/11 only; Wine/CrossOver fails at load time
+  The artifact runs on Windows 10 (1809 or later) / 11 on x64 only, and the
+  installer enforces that floor and the absence of an Arm64 build
+  (`packaging/windows/hsync-desktop.iss`: `MinVersion`, `ArchitecturesAllowed`);
+  Wine/CrossOver fails at load time
   (`Library icuuc.dll … not found`) and is documented as unsupported. Bundling
   `icu*.dll` from `C:\Windows\System32` was rejected: no license to redistribute
   Microsoft binaries, and the ABI must stay the Windows SDK ICU Qt links against.

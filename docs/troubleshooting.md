@@ -73,8 +73,9 @@ The console shows `err:module:import_dll Library icuuc.dll … not found`, follo
 by `Qt6Core.dll … not found`. Nothing is missing from the download: the Qt
 runtime in the Windows build links against the ICU library that ships with
 Windows, and Wine/CrossOver does not provide it, so the process stops before the
-app starts. Use a Windows 10/11 host, or install the native package for your
-system — see [Getting Started](getting-started.md).
+app starts. Use a Windows 10 (version 1809 or later) or Windows 11 x64 host, or
+install the native package for your system — see
+[Getting Started](getting-started.md).
 
 ## Getting help
 

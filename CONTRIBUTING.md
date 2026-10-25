@@ -40,8 +40,9 @@ configured; run `./compile.sh --help` for the full option list. PySide6 publishe
 no armv7 Linux wheels, so 32-bit Raspberry Pi OS (armhf) is not supported for the
 GUI.
 
-The `windows` target (Windows x64 only) builds the per-user Inno Setup installer
-and a portable `.zip`; it needs Inno Setup 6 (`ISCC`) and ImageMagick on the host.
+The `windows` target builds the per-user Inno Setup installer and a portable
+`.zip` for **x64** Windows 10 (version 1809 or later) or Windows 11; it runs on an
+x64 Windows host and needs Inno Setup 6 (`ISCC`) and ImageMagick.
 
 The `deb` target builds `dist/deb/hsync-desktop_<ver>_<arch>.deb` for the host
 architecture (needs `dpkg-deb`); `deb-all` cross-builds amd64 + arm64 inside

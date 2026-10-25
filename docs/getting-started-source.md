@@ -82,9 +82,9 @@ build host; the GUI is available for **64-bit Raspberry Pi OS only** (PySide6
 has no 32-bit Linux wheels). See [Debian package](getting-started-deb.md) to
 produce `.deb` files.
 
-The `windows` target (Windows x64 only) produces the per-user Inno Setup
-installer and a portable `.zip`; it needs Inno Setup 6 (`ISCC`) and ImageMagick
-on the build host.
+The `windows` target produces the per-user Inno Setup installer and a portable
+`.zip` for **x64** Windows 10 (version 1809 or later) or Windows 11; it builds on
+an x64 Windows host and needs Inno Setup 6 (`ISCC`) and ImageMagick.
 
 ## hsync binary discovery
 

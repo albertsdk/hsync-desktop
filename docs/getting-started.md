@@ -27,7 +27,7 @@ methods are ordered from the simplest and most immediate to the most involved.
 ## Requirements
 
 - <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> Linux **x86_64** or **aarch64**, <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS (Intel or Apple silicon), or <img src="assets/os/windows.svg" alt="Windows" width="16" height="16"> Windows
-  **x86_64**
+  **10 (version 1809 or later) or 11, x64**
 - The `hsync` engine is bundled by every installation method on this page —
   installer script, standalone binary, AppImage, `.deb`, `.rpm`, macOS `.dmg` and
   Windows installer (no separate `hsync-client` install needed)
@@ -41,8 +41,9 @@ methods are ordered from the simplest and most immediate to the most involved.
 - The **AppImage** is **Linux x86_64 only**
 - The **macOS `.dmg`** is **unsigned**: macOS needs a one-time confirmation
   (right-click → Open, or `xattr -dr com.apple.quarantine`)
-- The **Windows** build runs on Windows 10/11 and is **not** supported under
-  Wine/CrossOver (the Qt runtime needs the ICU library that ships with Windows)
+- The **Windows** build is **x64 only** and requires Windows 10 (version 1809 or
+  later) or Windows 11; it is **not** supported under Wine/CrossOver (the Qt
+  runtime needs the ICU library that ships with Windows)
 
 ## Next steps
 

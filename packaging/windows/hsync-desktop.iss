@@ -40,7 +40,10 @@ OutputBaseFilename=hsync-desktop-{#AppVersion}-windows-amd64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64compatible
+; Qt 6.12 (PySide6) supports Windows 10 1809+ (build 17763) and Windows 11 only,
+; and the frozen bundle is x64: refuse older systems and Arm64.
+MinVersion=10.0.17763
+ArchitecturesAllowed=x64compatible and not arm64
 ArchitecturesInstallIn64BitMode=x64compatible
 #ifdef IconPath
 SetupIconFile={#IconPath}

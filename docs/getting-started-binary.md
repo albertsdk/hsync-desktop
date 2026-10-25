@@ -7,7 +7,7 @@ when you prefer not to run a `curl | bash` installer.
 ## Prerequisites
 
 - <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> Linux **x86_64**/**aarch64**, <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS (Intel or Apple silicon), or <img src="assets/os/windows.svg" alt="Windows" width="16" height="16"> Windows
-  **x86_64**
+  **x86_64** on Windows 10 (version 1809 or later) or Windows 11
 
 ## Install
 
