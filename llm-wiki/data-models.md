@@ -40,8 +40,8 @@ Derived: `filename` (`file_panel/models.py::FileTransfer.filename`), `path` (`fi
 ### TransferStatus (`file_panel/models.py::TransferStatus`)
 
 Enum of row states: `LOCAL`, `SYNCED`, `TO_DOWNLOAD`/`TO_UPLOAD`/`TO_DELETE`/
-`TO_RENAME`, `DOWNLOADING`/`UPLOADING`, `DELETED`, `COMPLETED`, `ERROR` (plus
-legacy `QUEUED`/`TRANSFERRING`). Render maps: `STATUS_COLORS` (`file_panel/models.py::STATUS_COLORS`),
+`TO_RENAME`, `DOWNLOADING`/`UPLOADING`, `DELETED`, `COMPLETED`, `ERROR`, plus
+`QUEUED`/`TRANSFERRING`. Render maps: `STATUS_COLORS` (`file_panel/models.py::STATUS_COLORS`),
 `_NO_PROGRESS_STATUSES` (`file_panel/models.py::_NO_PROGRESS_STATUSES`).
 
 ### TransferStats (`engine/process.py::TransferStats`)

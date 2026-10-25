@@ -137,14 +137,14 @@ control ever promises an application that cannot happen.
 critical `QMessageBox` (title `notif.error`, body `notif.engine_start_failed`,
 the engine reason as informative text). Both start sites use it —
 `_continue_start_after_disclaimer` and `_retry_after_auth_fix` — so a start that
-cannot launch (missing/incompatible binary, spawn failure) no longer looks like a
-silent no-op; the caller resets the UI via `_reset_ui_stopped`.
+cannot launch (missing/incompatible binary, spawn failure) surfaces the dialog
+instead of a silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
 ### Remote endpoint icon (`_update_path_display`)
 
 `main_window/start.py::StartMixin._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
-always `network-p2p` (the bootnode no longer changes the icon). The role
+always `network-p2p` (the bootnode does not change the icon). The role
 indicator is p2p-only: `_apply_role_visibility`
 (`main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
 once the election has decided the role (`_role_known`) and hides it entirely in
@@ -619,14 +619,14 @@ no overlay. `show_as_about`
 A click anywhere dismisses it: for the splash it emits `finished`
 (`main.py` connects it to the setup-wizard hook), for the About it just closes.
 The Help → About menu entry is the short `menu.help.about` label ("About" /
-"Informazioni"), no longer carrying the app name.
+"Informazioni"), without the app name.
 
 **Frame.** Being frameless, the window draws a 1 px border from the theme's
 `QWidget#SplashScreen` rule (`themes.py::_COMMON_QSS`, colours `window_bg` /
 `window_border`), so it follows light/dark like the rest of the app. A plain
 `QWidget` ignores its stylesheet background/border unless `WA_StyledBackground`
 is set, so `SplashScreen.__init__` opts into it; `ui/splash_screen.ui`
-deliberately carries no stylesheet (the old `palette(mid)` frame never painted).
+deliberately carries no stylesheet.
 `tests/test_splash_screen.py::TestSplashFrame` guards both halves.
 
 ## Presentation helpers
@@ -684,7 +684,7 @@ labels at the previous size (only the widgets that receive an explicit
 re-applied right after the reset.
 The fonts are set programmatically
 (`main_window/ui.py::UiBuildMixin._load_ui`, `license_dialog.py::LicenseDialog`);
-the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
+the QSS pins no `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
 guards it).
@@ -731,8 +731,9 @@ every locale).
 
 > **Ampersands.** `QGroupBox`, `QAbstractButton` and the tab bar read `&` as a
 > mnemonic marker and underline the character after it, so prose such as
-> "Share & Path" or "Save & Retry" used to render as "Share_Path" / "Save_Retry".
-> Those sinks must receive `widgets/text.py::escape_mnemonics` output; menus keep
+> "Share & Path" or "Save & Retry" renders as "Share_Path" / "Save_Retry"
+> unless the sink escapes it. Those sinks must receive
+> `widgets/text.py::escape_mnemonics` output; menus keep
 > the single `&`, which there *is* the Alt shortcut. A `QLabel` without a buddy,
 > the combo-box items, window titles and message boxes already show the
 > ampersand and take the raw string. `tests/test_mnemonic_escaping.py` scans

@@ -19,7 +19,8 @@ defaults); the delta floors are derived from the client's byte constants
 KB. `tests/test_defaults_parity.py` fails if any of them is written back as a
 literal.
 
-`DEFAULT_NO_COMPRESSION` (`config.py::DEFAULT_NO_COMPRESSION`) exists only to migrate the legacy key into
+`DEFAULT_NO_COMPRESSION` (`config.py::DEFAULT_NO_COMPRESSION`) is read only to
+migrate a stored `sync/no_compression` value into
 `DEFAULT_COMPRESSION_ENABLED` (`config.py::DEFAULT_COMPRESSION_ENABLED`).
 
 `DEFAULT_P2P_ENABLED` (`config.py::DEFAULT_P2P_ENABLED`) is **True**: a fresh
@@ -154,8 +155,8 @@ login, with the advanced disclosure as the last row). Each section is a
 column; a group whose rows are all switches starts them at the group edge (the
 label column is empty), which is the same shape the Sync/p2p groups already use.
 `build_general_tab` only creates the widgets and leaves the layout to the
-reorganizer, so the `.ui` form is no longer reused
-instead of being rebuilt. After the first layout, `fit_current_tab`
+reorganizer, so the `.ui` form is not reused and the layout is rebuilt. After
+the first layout, `fit_current_tab`
 (`settings/tab_builders.py::fit_current_tab`) grows the dialog for the current
 tab when its content fits on screen, so a fitting page shows no vertical
 scrollbar; a tab switch re-checks, while a maximized or user-resized window is
@@ -185,7 +186,7 @@ or `compact`. `settings/cli_args.py::get_saved_font_scale` reads it;
 log/table fonts live (`FileTransferTable.refresh_fonts`).
 
 **Timing floors**: the Sync tab enforces the client contract. The periodic full
-check (formerly "Re-sync interval") is `0` (disabled) or `>= 20 s`;
+check is `0` (disabled) or `>= 20 s`;
 `SettingsDialog._normalize_resync` snaps 1..19 to 20, and
 `engine/process.py::apply_settings_env` inserts `HSYNC_RESYNC=0` when disabled
 (the client's CLI > env > default precedence makes that authoritative; an
@@ -223,7 +224,7 @@ Advanced fields while a sync runs (the General tab stays live: theme, language
 and the log panel change without a restart). `_set_tab_labels_enabled`
 (`settings/dialog.py::SettingsDialog._set_tab_labels_enabled`) also grays each tab's
 field labels — the same visual the Server Mode tab uses when p2p mode is active
-(`_on_p2p_mode_toggled`, which now shares the helper) — so a disabled panel reads as
+(`_on_p2p_mode_toggled`, sharing the helper) — so a disabled panel reads as
 disabled; banner labels and capability-unsupported labels are skipped.
 
 **Prefer-master live gate**: `--prefer-master` is incompatible with a
@@ -302,7 +303,7 @@ and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` 
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
-`main_window/trust.py::TrustMixin._ensure_bootnode_trust` (which now uses the
+`main_window/trust.py::TrustMixin._ensure_bootnode_trust` (using the
 endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
@@ -327,11 +328,11 @@ stretch keeps them left-aligned. Both test buttons carry the
 inserted after the `http_timeout` row), saved/loaded under
 `connection/server_trust`; labels from `settings.server_trust` (+ the five
 `*_chain`/`*_ask`/`*_accept_new`/`*_strict`/`*_none` option labels), tip from
-`tip.server_trust` (all locales). The old `connection/server_cert_fingerprint`
-field was **removed** (ADR-0036): the pin lives in the client's server
-known-hosts store, not in a setting. Like the bootnode policy, the combo is
-env-driven: `apply_settings_env` always inserts `HSYNC_SERVER_TRUST` (`chain`
-default), and `build_hsync_args` emits no server-trust flag. The server pin is
+`tip.server_trust` (all locales). The server pin is not a setting (ADR-0036):
+it lives in the client's server known-hosts store. Like the bootnode policy,
+the combo is env-driven: `apply_settings_env` always inserts
+`HSYNC_SERVER_TRUST` (`chain` default), and `build_hsync_args` emits no
+server-trust flag. The server pin is
 edited through the `TrustedKeysDialog` Servers tab, the
 `_ensure_server_trust` pre-flight in `main_window/trust.py`, or the panel's
 `btn_manage_trusted_keys_server` (`QPushButton`, opens the dialog on the servers
@@ -413,8 +414,8 @@ The peer-download caps (`p2p/peer_read_cap`, `p2p/peer_sources_max`) are env-onl
 (no CLI flag) and exported by
 `engine/process.py::apply_settings_env` as `HSYNC_P2P_PEER_READ_CAP` /
 `HSYNC_P2P_PEER_SOURCES_MAX` in p2p mode.
-The UPnP toggle is gated on the client's `--upnp` flag (opt-in since 1.0.3;
-the old `--no-upnp` no longer exists). A capability-parity test
+The UPnP toggle is gated on the client's `--upnp` flag (opt-in, enabled by
+`--upnp` / `HSYNC_UPNP_ENABLED`; no `--no-upnp` flag exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every
 emitted long flag is advertised by the client help output.
 One-shot is
@@ -446,8 +447,8 @@ Secrets stored in `QSettings` are Fernet-encrypted with a machine-derived key:
 `_derive_key` (`crypto.py::_derive_key`) from `_get_machine_id` (`crypto.py::_get_machine_id`) + `_APP_SALT` (`crypto.py::_APP_SALT`);
 stored values carry the `_ENC_PREFIX` (`crypto.py::_ENC_PREFIX`) marker. **Both** the API key
 (`connection/api_key`) and the p2p key (`p2p/key`) go through encrypt/decrypt
-on save/load (`settings/dialog.py`). `decrypt_value` still accepts a legacy plaintext
-value (no prefix) so an existing unencrypted p2p key is readable until the
+on save/load (`settings/dialog.py`). `decrypt_value` accepts a plaintext
+value (no prefix), so an unencrypted stored p2p key stays readable until the
 next save. Plaintext secrets only ever leave via the engine's pipe FDs.
 
 ## i18n.py — localization
