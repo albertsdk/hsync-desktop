@@ -179,7 +179,9 @@ platform theme that signal may not fire; launch/settings-apply re-detection is
 the reliable path there).
 
 **Font size**: `appearance/font_scale` (General tab) stores `standard` (default)
-or `compact`. `settings/cli_args.py::get_saved_font_scale` reads it;
+or `compact` — labelled `Standard` / `Slightly reduced` in the UI
+(`locales/en.py` keys `settings.font_size_standard` / `settings.font_size_compact`).
+`settings/cli_args.py::get_saved_font_scale` reads it;
 `fonts.py::resolve_system_fonts` scales the resolved UI and monospace bases once
 (compact = one point smaller, floor 8 pt), so every derived font follows;
 `main_window/start.py::StartMixin._apply_settings_changes` re-applies the app font and the explicit

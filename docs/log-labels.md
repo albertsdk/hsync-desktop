@@ -17,6 +17,8 @@ The desktop log panel shows whatever the underlying `hsync-client` engine
 emits. See [the client label reference](https://github.com/albertsdk/hsync-client/blob/main/docs/log-labels.md)
 for the full list and meanings — sync operations, preview (dry-run), p2p
 client/master operations, and security/warning labels are all surfaced here.
+These are the client's own strings: what the app calls the **primary** role
+appears in them as `MASTER`, so `[NO MASTER]` means no primary device.
 
 **Colors.** The app launches the engine with `--color=always`, so the panel
 renders the client's own palette: level columns (WARNING amber, ERROR red,

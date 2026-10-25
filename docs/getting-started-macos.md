@@ -29,7 +29,8 @@ Then drag **HSYNC** into the **Applications** folder shown in the window.
 ### Build from the checkout (alternative)
 
 On a Mac, with the `hsync-client` engine already built as a sibling directory
-(install the build dependencies first — see [Contributing](../CONTRIBUTING.md)):
+(install the build dependencies first — see [Contributing](../CONTRIBUTING.md);
+the app embeds the engine, so the build fails without it):
 
 ```bash
 ./compile.sh --target dmg

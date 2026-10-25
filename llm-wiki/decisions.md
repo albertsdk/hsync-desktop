@@ -64,6 +64,22 @@ disable unsupported controls) is realized in
   (`currentColor` + the system accent).
 - **i18n completeness**: every user string must exist in all locales
   (`hsync_desktop/locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
+- **Help → Documentation opens the docs index**: `docs_links.DOCS_INDEX` is the
+  end-user documentation landing page (`docs/README.md`), while
+  `docs_links.CONNECTION_MODES` (`docs/usage.md`) is the runtime guide the
+  wizard's mode step and its "Not sure?" dialog link to. Keeping the two
+  constants distinct stops the Help entry from landing on a guide page; guarded
+  by `tests/test_docs_links.py::test_docs_index_is_the_documentation_landing_page`.
+- **User docs keep one role per page**: `docs/concepts.md` only defines the GUI
+  vocabulary and links to the client docs for depth; `docs/troubleshooting.md`
+  owns the symptoms (the run-time warnings stay in `docs/usage.md`); `docs/faq.md`
+  answers in two or three lines and links to the page owning the procedure.
+  Settings and procedures are never restated in a second page.
+- **Deletion protection is described as a skipped cycle**: the guard skips only
+  the unconfirmed deletions of that cycle and the sync keeps running, so
+  `notif.sync_paused_title`/`notif.sync_paused_msg` say "deletions skipped" (never
+  "paused" or "guard"); guarded by
+  `tests/test_locales.py::test_sync_paused_warning_describes_the_skipped_cycle`.
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over
   parsing `--help`/version strings to decide which controls to show (§8).
 - **Non-blocking startup probes**: the bundled binary's version is resolved

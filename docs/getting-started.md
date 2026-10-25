@@ -28,9 +28,14 @@ methods are ordered from the simplest and most immediate to the most involved.
 
 - <img src="assets/os/linux.svg" alt="Linux" width="16" height="16"> Linux **x86_64** or **aarch64**, <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS (Intel or Apple silicon), or <img src="assets/os/windows.svg" alt="Windows" width="16" height="16"> Windows
   **x86_64**
-- The `hsync` engine is bundled by the installer script, the standalone
-  binary, the **AppImage**, the `.deb` and the `.rpm` (no separate
-  `hsync-client` install needed)
+- The `hsync` engine is bundled by every installation method on this page —
+  installer script, standalone binary, AppImage, `.deb`, `.rpm`, macOS `.dmg` and
+  Windows installer (no separate `hsync-client` install needed)
+- **Server Mode** needs an HSYNC Server with an account token (the share itself is
+  created on the first upload); **p2p Mode** needs no server — see the
+  [server getting started](https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md)
+- One folder per installation: **Settings → Sync → Local folder** holds the folder
+  this device keeps in sync
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)
   Linux wheels
 - The **AppImage** is **Linux x86_64 only**

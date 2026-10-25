@@ -18,12 +18,19 @@ from hsync_desktop import docs_links
         docs_links.SERVER_SETUP,
         docs_links.BOOTNODE_SETUP,
         docs_links.CONNECTION_MODES,
+        docs_links.DOCS_INDEX,
         docs_links.GITHUB_REPO,
     ],
 )
 def test_targets_are_fixed_https_github_links(url):
     assert url.startswith("https://github.com/albertsdk/hsync-")
     assert docs_links.is_allowed_docs_url(url)
+
+
+def test_docs_index_is_the_documentation_landing_page():
+    """Help → Documentation must open the docs index, not a guide page."""
+    assert docs_links.DOCS_INDEX.endswith("/docs/README.md")
+    assert docs_links.DOCS_INDEX != docs_links.CONNECTION_MODES
 
 
 @pytest.mark.parametrize(

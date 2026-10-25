@@ -227,6 +227,15 @@ class TestTerminologyConsistency:
                     )
                 assert "ガード" not in low, f"{module.__name__}:{key}"
 
+    def test_sync_paused_warning_describes_the_skipped_cycle(self):
+        """Deletion protection skips deletions for a cycle; the sync keeps running."""
+        en_t = en.translations
+        title = en_t["notif.sync_paused_title"].lower()
+        msg = en_t["notif.sync_paused_msg"].lower()
+        assert "paused" not in title and "paused" not in msg
+        assert "skipped" in title and "skipped" in msg
+        assert "advanced" in msg
+
     def test_connection_and_direction_warnings_use_label_wording(self):
         """Warnings reuse the settings labels, not raw protocol terms."""
         en_t = en.translations

@@ -12,8 +12,10 @@ and **Advanced**. The **Advanced** tab is hidden until you enable **Show advance
 options** in General; the same toggle also reveals the **Advanced Options**
 sections in the other tabs, so the standard view stays uncluttered. Controls for
 features your installed sync engine does not
-support are automatically disabled, with a tooltip explaining why. On a fresh
-install (no saved settings yet) the app starts in **p2p Mode**.
+support are automatically disabled, with a tooltip explaining why. Settings are
+read when a sync starts: while one runs the connection-critical controls are
+disabled, and a change takes effect at the next start. On a fresh install (no
+saved settings yet) the app starts in **p2p Mode**.
 
 ## Sync
 
@@ -22,7 +24,7 @@ Server Mode.
 
 | Setting | Description |
 |---------|-------------|
-| Share name | Name of the share (the bucket on the server, or the p2p share name) |
+| Share name | Name of the share: the folder name on the HSYNC server, or the share name in p2p mode. Devices that sync the same folder must use the **same share name** (and, in p2p, the same group name) |
 | Local folder | Directory to keep in sync |
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` |
 | Real-time sync | Keep syncing automatically as files change |
@@ -31,7 +33,7 @@ Server Mode.
 | Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
 | Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
 | Wait for file to settle | Ignore a file for this long while it is still being written |
-| Maximum wait | Upper bound for the settle and timing waits (default 10 minutes, minimum 60 s) |
+| Maximum wait | Upper bound for the settle and timing waits (default 120 s, minimum 60 s) |
 | Min free disk space | Refuse transfers below this free space |
 | Max inbound file size | Refuse files larger than this |
 | Sync only a specific subfolder | Restrict sync to a subfolder of the local folder |
@@ -55,7 +57,7 @@ for the underlying behaviour.
 | Enable p2p mode | Enable device discovery |
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Shared password | Password shared by the devices in the p2p group; with a protected discovery server it is also the group key the client authenticates with |
-| Discovery server (optional) | Endpoint of an optional `boot/1` node for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
+| Discovery server (optional) | Endpoint of an optional discovery server (an HSYNC Bootnode) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
 | Discovery server identity check | How the app checks the discovery server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
 | Manage trusted servers & devices | List, add and remove the discovery server, server and device fingerprints the client actually uses |
 | Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
@@ -118,7 +120,7 @@ Application-wide preferences, grouped in three sections.
 |---------|-------------|
 | Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
 | Theme | **System default** (follows the desktop and updates live), Light or Dark |
-| Font size | Standard or Compact (every application font one point smaller) |
+| Font size | Standard or **Slightly reduced** (every application font one point smaller, never below 8 pt) |
 
 ### Notifications
 
@@ -175,10 +177,11 @@ General. Changes apply at the next sync start.
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 | Log file | Path to the log file |
 
-**Deletion protection.** When a sync would delete more than the configured
-threshold (absolute count or percentage of local files), the cycle is paused and
-the main window shows a warning, so a stray delete on one device cannot wipe the
-folder. Set either rule to 0 to disable it.
+**Deletion protection.** When a cycle would delete more than the configured
+threshold (absolute count or percentage of local files), those deletions are
+skipped and the main window shows a warning, so a stray delete on one device
+cannot wipe the folder. The sync itself keeps running and a later cycle retries
+the deletions. Set either rule to 0 to disable it.
 
 **Bandwidth limits** are also editable from the status bar: click the
 sent/received labels in the bottom-right of the main window. Both entry points
@@ -192,3 +195,14 @@ The action labels the log panel can show are listed in
 Settings are persisted by Qt `QSettings`; secrets (API and p2p keys) are stored
 encrypted with a machine-derived key and handed to the engine over a private
 channel, never on the command line. See [Secrets](usage.md#secrets).
+
+The settings live in the per-user Qt location:
+
+- Linux: `~/.config/HSYNC/HSYNCDesktop.conf`
+- macOS: `~/Library/Preferences/com.HSYNC.HSYNCDesktop.plist`
+- Windows: the `HSYNC\HSYNCDesktop` key under the current user in the registry
+
+To start from scratch, quit the app and remove that entry: the next launch opens
+the setup wizard again and asks for the keys. Your files, the `.hsyncignore`
+rules and the folder's sync state are not touched (see
+[FAQ — Where is the sync state stored](faq.md#where-is-the-sync-state-stored-and-can-i-delete-it-manually)).

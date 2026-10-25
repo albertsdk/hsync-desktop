@@ -11,9 +11,10 @@ prefer the [installer script](getting-started-script.md) or the
 - Poetry
 - The `hsync-common` repository checked out as a sibling of `hsync-desktop`
   (a path dependency of the project)
-- The `hsync` client engine: build it from the sibling `hsync-client` checkout,
-  or install it so it is on `PATH` (see
-  [hsync binary discovery](#hsync-binary-discovery))
+- The `hsync` client engine, either on `PATH` or built from the sibling
+  `hsync-client` checkout (see [hsync binary discovery](#hsync-binary-discovery)).
+  Building a self-contained bundle needs the sibling binary: `./compile.sh`
+  fails without it
 
 ## Install and run
 
@@ -42,33 +43,38 @@ The same steps, spelled out (the virtualenv is created by `run.sh`):
 
 ### Build the engine first (self-contained bundle)
 
-The native build bundles the `hsync` client when it finds it in the sibling
-checkout (build the engine first — see [Contributing](../CONTRIBUTING.md)),
-producing a standalone executable:
+Every compiled target embeds the `hsync` client, so build the engine first (see
+[Contributing](../CONTRIBUTING.md)) and produce the standalone executable:
 
 ```bash
 ./compile.sh
 # → dist/<os>-<arch>/hsync-desktop
 ```
 
-The desktop build looks for the client at
-`../hsync-client/dist/<os>-<arch>/hsync[.exe]`; when it is missing the build
-warns and the app falls back to `hsync` on `PATH` at runtime.
+The build reads the client from `../hsync-client/dist/<os>-<arch>/hsync[.exe]`
+and **fails** when it is missing. Only a source run (`./run.sh`, no bundle) can
+fall back to `hsync` on `PATH`.
 
 ### Build options
 
 ```bash
 ./compile.sh                    # Native host build (default)
 ./compile.sh --clean            # Clean artifacts and rebuild
-./compile.sh --target deb       # Debian/Ubuntu .deb for the host arch
-./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker + qemu)
-./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
+./compile.sh --target native    # Explicit native build
+./compile.sh --target deb       # .deb for the host arch
+./compile.sh --target deb-all   # .deb for amd64 + arm64 (Docker)
+./compile.sh --target rpm       # .rpm for the host arch (RHEL family)
+./compile.sh --target rpm-all   # .rpm for x86_64 + aarch64 (Docker)
+./compile.sh --target appimage  # Portable Linux x86_64 AppImage
+./compile.sh --target dmg       # macOS .app + .dmg (macOS host only)
+./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64, Docker)
 ./compile.sh --target windows   # Windows x64 installer + portable zip
 ./compile.sh --version 1.2.3    # Override the reported version
-./compile.sh --help             # Show help
+./compile.sh --help             # Show every target and option
 ```
 
-The version can also be set through the `HSYNC_VERSION` environment variable.
+`./compile.sh --help` is the authoritative list. The version can also be set
+through the `HSYNC_VERSION` environment variable.
 
 The `rpi` target cross-builds the arm64 onefile binary inside an emulated Debian
 Bookworm container, so it needs Docker with `qemu-user-static` (binfmt) on the

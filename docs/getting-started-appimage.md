@@ -29,7 +29,8 @@ The URL always points to the **latest stable** release; to pin a version, use
 ### Build from the checkout (alternative)
 
 With the `hsync-client` engine already built as a sibling directory (install the
-build dependencies first — see [Contributing](../CONTRIBUTING.md)):
+build dependencies first — see [Contributing](../CONTRIBUTING.md); the package
+embeds the engine, so the build fails without it):
 
 ```bash
 ./compile.sh --target appimage

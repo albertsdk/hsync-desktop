@@ -36,7 +36,8 @@ the main window appears. You can always reopen it later:
    shown, and a folder that does not exist, a file, or a system root is refused.
 
 3. **Connection** — the fields depend on the purpose:
-   - *Back up* / *Share*: server address, access key, share name. **Test
+   - *Back up* / *Share*: server address, access key (the **API key** field in
+     Settings), share name. **Test
      connection** sits next to these fields and becomes available once the
      address and key are entered; its result appears right below the button
      (grey while checking, green on success, red on error).

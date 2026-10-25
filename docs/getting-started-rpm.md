@@ -29,7 +29,8 @@ repositories.
 ### Build from the checkout (alternative)
 
 From the `hsync-desktop` checkout, with the client built as a sibling (the
-engine is read from `../hsync-client` and embedded in the package):
+engine is read from `../hsync-client` and embedded in the package, so the build
+fails without it):
 
 ```bash
 ./compile.sh --target rpm

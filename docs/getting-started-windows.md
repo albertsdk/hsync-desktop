@@ -19,6 +19,9 @@ The link always points to the **latest stable** release; to pin a version, use
 the [Releases page](https://github.com/albertsdk/hsync-desktop/releases). Then
 launch **HSYNC** from the Start Menu (the last wizard page can launch it too).
 
+> The installer is **unsigned**, so Windows SmartScreen warns on the first run:
+> choose **More info → Run anyway**. The portable `.zip` shows the same prompt.
+
 On first launch open **Settings** and configure a connection — see the
 [Configuration Reference](configuration.md).
 

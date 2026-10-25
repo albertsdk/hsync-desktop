@@ -21,7 +21,9 @@ _GITHUB_ORG_PATH = "/albertsdk/hsync-"
 SERVER_SETUP = "https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md"
 BOOTNODE_SETUP = "https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md"
 CONNECTION_MODES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/usage.md"
-DOCS_INDEX = CONNECTION_MODES
+# Help → Documentation opens the docs landing page, not the runtime guide the
+# wizard's mode step and its "Not sure?" dialog deep-link through CONNECTION_MODES.
+DOCS_INDEX = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md"
 GITHUB_REPO = "https://github.com/albertsdk/hsync-desktop"
 
 __all__ = [

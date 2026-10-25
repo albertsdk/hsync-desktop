@@ -14,13 +14,18 @@ Launch it the way you installed it:
 hsync-desktop
 ```
 
-- Installed with the installer script or a `.deb`: run `hsync-desktop`.
-- Standalone bundle: run the extracted `hsync-desktop` executable.
+- Installer script, `.deb` or `.rpm`: run `hsync-desktop`.
+- Standalone bundle or AppImage: run the extracted file.
+- macOS `.dmg`: open **HSYNC** from Launchpad or Applications.
+- Windows installer: open **HSYNC** from the Start Menu.
 - From source: `./run.sh`.
 
 The main window shows the file/transfer panel and a log area; an icon also
-appears in the system tray. Closing the window keeps the app running in the
-tray — use the tray menu to show the window again or quit.
+appears in the system tray. Closing the window hides it to the tray and a running
+sync keeps going — use the tray menu to show the window again. **Quit** stops the
+sync and asks for confirmation while one is running; without a system tray the
+window really closes (it asks the same confirmation) and the app exits. Launching
+the app again never opens a second window: it brings the existing one forward.
 
 Run `hsync-desktop --minimized` to start straight into the tray without showing
 the window (no tray available falls back to showing the window). Enable
@@ -29,8 +34,8 @@ The welcome splash appears only on the first launch and never delays the window.
 
 ## Configuring a connection
 
-The quickest path is the [Setup wizard](setup-wizard.md) (**Menu → Setup
-wizard…**), which covers the four common cases in four steps and pre-fills your
+The quickest path is the [Setup wizard](setup-wizard.md) (**Setup wizard** in the
+menu bar), which covers the four common cases in four steps and pre-fills your
 current configuration on re-run. For full control, open **Settings** and fill in
 the connection for your mode — **p2p Mode** (peer-to-peer, no server) or **Server
 Mode** (against a central HSYNC server).
@@ -45,7 +50,9 @@ The Server and p2p tabs include a **Learn more** link to the matching external
 guide — the [hsync-server setup guide](https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md)
 and the [hsync-bootnode guide](https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md)
 — and the Setup wizard's mode step links to this guide's connection-mode
-sections. **Help → Documentation** opens the same documentation index.
+sections. **Help → Documentation** (or `F1`) opens this documentation index, and
+the same menu holds **Project on GitHub** plus the in-app **About** and
+**License** dialogs.
 
 The primary/secondary role shown in the status bar exists only in p2p mode and its
 text appears once the device is connected and the role is known (before that the
@@ -124,6 +131,11 @@ opens on the **Server HSYNC** store).
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
 
+When two devices really change the same file at once, the merge keeps one version
+and preserves the other next to it as a conflict copy (`_conflicted_copy_`), so
+nothing is lost; the log names the file. The rules behind it are the client's
+[conflict resolution](https://github.com/albertsdk/hsync-client/blob/main/docs/conflict-resolution.md).
+
 The first time you start a sync, the app shows a liability disclaimer: choose
 **I understand** to continue, or **Not now** to close it without starting the
 sync. Check **Don't show this message again** to stop asking; the app prompts
@@ -166,6 +178,27 @@ if the server could not be reached. A one-shot only reports a lost connection if
 it had actually connected first. The file list stays in the folder you were
 browsing, with the entry you acted on still selected. Folders created on a remote
 peer appear in the list as **Synced** (green), like the files inside them.
+
+## Warnings before and during a sync
+
+Three checks can stop a start or a deletion phase. Each one explains itself in
+the dialog or toast; this is what they mean and what to do:
+
+- **File Deletion Risk** — the folder is not empty and the current settings can
+  delete local files. It appears in p2p Mode while **Prefer primary role** is off
+  (local files missing on the primary device may be removed here) and with the
+  **Receive only** sync type (deletions made elsewhere apply here). Check the
+  folder and confirm to continue; enabling **Prefer primary role** or the one-way
+  **Send only** type is what makes it stop asking. Simulation Mode skips it.
+- **Deletions skipped (deletion protection)** — a cycle wanted to delete more
+  local files than **Max deletions per cycle** or **Max deletions percent** allow.
+  Those deletions were skipped and the sync kept running; a later cycle retries
+  them. If the removal is expected, raise the limits in *Settings → Advanced*;
+  otherwise check the primary device or the source first.
+- **No shared password** — with an empty p2p password the app confirms before
+  starting, because reads are open to anyone who can reach this device. Set the
+  password in the p2p tab to stop the prompt (see
+  [Keyless runs](configuration.md#p2p-mode)).
 
 ## Secrets
 
@@ -228,8 +261,8 @@ log shows a database error, the folder's local sync history is inconsistent.
 **Settings → Sync → Advanced options → Reset sync state…** makes the next sync
 reconcile the folder from scratch.
 
-Before you confirm: stop the sync (the button is disabled while it runs), and
-know what to expect on the next cycle:
+Before you confirm, stop the sync (the reset control is disabled while a sync
+runs) and know what to expect on the next cycle:
 
 - every file is read and hashed again, so the first sync is slower;
 - files that are identical on both devices are **not** transferred;
@@ -246,26 +279,7 @@ client moves it aside and the folder starts from scratch.
 
 ## Troubleshooting
 
-- **Synchronization does not start** — when the engine cannot start (for
-  example the bundled `hsync` client is missing or incompatible), the app shows
-  an error dialog with the reason the engine reported and writes the same
-  message to the log panel, instead of failing silently.
-- **A control is greyed out** — your sync engine lacks that capability;
-  rebuild/update the client to enable it.
-- **Sync engine not found** — the GUI looks for it bundled in the build, on
-  `PATH`, or in `../hsync-client/dist/<os>-<arch>/`. Install the client or build
-  it from the sibling checkout.
-- **TLS errors in Server Mode** — verify the URL and certificate; enable
-  *No verification* only on a trusted network for self-signed certificates.
-- **Devices not found in p2p Mode** — ensure all devices are on the same subnet
-  with mDNS allowed through the firewall, and that they use the same **group
-  name** (a device with no group only sees other no-group devices). A shared
-  password is only needed to authorize writes; devices on different networks
-  need a **discovery server** set in the p2p tab.
-- **p2p authentication failed** — a device you are syncing with requires a shared
-  password that this device is missing or has differently. The app stops and
-  opens the password prompt so you can enter the correct one (it is saved and the
-  sync retries); the password must be identical on every device in the group.
-
-See the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md) for the
-underlying sync behaviour and modes.
+Start with the [Troubleshooting guide](troubleshooting.md): it covers a sync that
+does not start, greyed-out controls, p2p discovery and TLS problems, the deletion
+warnings, and where the logs are. For the underlying sync behaviour and modes,
+see the [client documentation](https://github.com/albertsdk/hsync-client/blob/main/docs/README.md).

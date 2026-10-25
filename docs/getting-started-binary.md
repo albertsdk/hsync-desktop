@@ -54,7 +54,8 @@ install hsync-desktop "$HOME/.local/bin/hsync-desktop"
 ### Windows
 
 Extract the `.zip` and run `hsync-desktop.exe`. The bundle is self-contained, so
-no Python or separate client install is required.
+no Python or separate client install is required. It is unsigned, so SmartScreen
+warns on the first run (choose **More info → Run anyway**).
 
 ## Verify
 

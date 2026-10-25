@@ -9,11 +9,17 @@
 
 ## Before asking for help
 
-1. Check the [documentation](docs/README.md) and [usage guide](docs/usage.md).
-2. Verify the `hsync` binary is correctly discovered (check Settings → Connection).
-3. Try running the CLI client directly to isolate GUI vs. engine issues:
+1. Check the [documentation](docs/README.md), the [usage guide](docs/usage.md)
+   and the [troubleshooting guide](docs/troubleshooting.md).
+2. Reproduce the problem with the CLI client, to tell a GUI issue from an engine
+   issue:
+
    ```bash
    hsync server server.example.com -b mybucket -p /path -v
+   ```
+
+3. Include the log excerpt, your operating system and the app version
+   (**Help → About**) in the report.
 
 ## 💚 Solo project
 

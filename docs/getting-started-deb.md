@@ -1,9 +1,8 @@
 # Getting Started — Method 3: Debian/Ubuntu package
 
 The `.deb` installs HSYNC Desktop system-wide (`/usr/bin/hsync-desktop` plus an
-application-menu entry and the app icon). Unlike the standalone bundle, it does
-**not** embed the engine: it declares `hsync-client` as a dependency, which
-provides `/usr/bin/hsync`.
+application-menu entry and the app icon). It is **self-contained**: the matching
+`hsync` engine is bundled, so no separate `hsync-client` package is required.
 
 ## Prerequisites
 
@@ -18,25 +17,21 @@ provides `/usr/bin/hsync`.
 
 ## Install
 
-The package depends on `hsync-client`, so install the client package first (or
-pass both to `apt` in one command). Both URLs always point to the **latest
-stable** release (use `arm64` instead of `amd64` on ARM):
-
 ```bash
-# 1. The engine (from the hsync-client releases)
-curl -fLO "https://github.com/albertsdk/hsync-client/releases/latest/download/hsync-client-amd64.deb"
-# 2. The desktop GUI (from the hsync-desktop releases)
 curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-amd64.deb"
-
-sudo apt install ./hsync-client-amd64.deb ./hsync-desktop-amd64.deb
+sudo apt install ./hsync-desktop-amd64.deb
 ```
 
-`apt` resolves both the `hsync-client` dependency and the Qt runtime libraries
-(`libgl1`, `libegl1`, `libxkbcommon*`, …) from the distribution repositories.
+Use `arm64` instead of `amd64` on ARM. The URL always points to the **latest
+stable** release. `apt` resolves the Qt/X runtime libraries (`libgl1`,
+`libegl1`, `libxkbcommon*`, `libxcb1`, `libwayland-*`) from the distribution
+repositories.
 
 ### Build from the checkout (alternative)
 
-From the `hsync-desktop` checkout, with the client already built as a sibling:
+From the `hsync-desktop` checkout, with the client built as a sibling (the
+engine is read from `../hsync-client` and embedded in the package, so the build
+fails without it):
 
 ```bash
 ./compile.sh --target deb
@@ -65,7 +60,8 @@ Install the newer `.deb` over the existing one; settings and secrets are kept.
 sudo apt remove hsync-desktop
 ```
 
-Uninstalling `hsync-desktop` leaves the `hsync-client` package in place.
+Removal deletes the application files only: the `hsync` engine belongs to this
+package, so there is no separate client package to clean up.
 
 ## Next
 

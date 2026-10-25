@@ -2,28 +2,17 @@
 
 ## How do I reset a folder's sync state?
 
-When a folder keeps re-syncing, reports conflicts on files nobody edited, or the
-log shows a database error, its local sync history is inconsistent. Reset it so
-the next sync reconciles the folder from scratch:
+A folder that keeps re-syncing, reports conflicts on files nobody edited, or
+logs a database error has an inconsistent local sync history; resetting it makes
+the next sync reconcile the folder from scratch. It clears only that folder's
+merge bases and deletion markers — never the files, `.hsyncignore`, the settings,
+the saved keys, the device identity or the trusted fingerprints.
 
-1. Stop the sync (the button is disabled while it runs).
-2. Enable **Show advanced options** in General.
-3. Open **Settings → Sync → Advanced options → Reset sync state…** and confirm.
-
-The reset clears only that folder's merge bases and deletion markers. It never
-touches the synced files, `.hsyncignore`, the settings, the saved keys, the
-device identity or the trusted fingerprints. On the next sync every file is
-scanned and hashed again (a slower first cycle); files that are identical on
-both sides are not transferred; differences are resolved normally with a
-conflict copy when both sides changed; and deletions made shortly before the
-reset can come back, because the deletion markers were forgotten.
-
-The full procedure and caveats are in
+The procedure and what to expect on the next cycle are in
 [Using HSYNC Desktop → Reset the sync state](usage.md#reset-the-sync-state).
 
 For a headless or service installation, the same operation is available from the
-client CLI: stop the sync, then run `hsync state reset --folder <dir>` (add
-`--quarantine` to move an unreadable database aside). See the
+client CLI — see the
 [client troubleshooting guide](https://github.com/albertsdk/hsync-client/blob/main/docs/troubleshooting.md#a-folder-keeps-re-syncing-or-reports-phantom-conflicts).
 
 ## Where is the sync state stored, and can I delete it manually?
@@ -39,3 +28,24 @@ delete can reset the wrong folder. Use the Desktop button, or `hsync state reset
 from the CLI: it deletes the folder's rows in one transaction and keeps the
 folder/index rows. If the database is unreadable, the Desktop reports the error;
 the CLI moves it aside with `hsync state reset --folder DIR --quarantine`.
+
+## Why do my two devices not see each other?
+
+In p2p Mode they must use the **same group name** and the **same share name**, and
+be on the same network (or reach the same discovery server). A device with no
+group only sees other no-group devices. The full checklist is in
+[Troubleshooting → Devices are not found in p2p Mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
+
+## Why does HSYNC warn that local files may be deleted?
+
+The folder is not empty and the current settings allow deletions — p2p Mode with
+**Prefer primary role** off, or a **Receive only** sync type. It is a warning
+before anything happens, not an action. See
+[Warnings before and during a sync](usage.md#warnings-before-and-during-a-sync).
+
+## How do I remove my settings and keys?
+
+Quit the app and delete its settings entry (the path per OS is in
+[Where settings are stored](configuration.md#where-settings-are-stored)): the next
+launch starts from the setup wizard and asks for the keys again. Synced files and
+the folder's sync state are left alone.

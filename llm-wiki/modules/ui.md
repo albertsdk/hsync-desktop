@@ -59,6 +59,9 @@ app-info dialogs — **License** (`main_window/actions.py::ActionsMixin._show_li
 `LICENSE`) and **About** last, the conventional position. The two external
 targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 `docs_links.open_docs_link`, which only allows the project HTTPS pages.
+`DOCS_INDEX` is the documentation landing page (`docs/README.md`), distinct from
+`CONNECTION_MODES` (`docs/usage.md`) that the wizard's mode step links to, so
+**Help → Documentation** always starts from the docs index.
 
 **Contextual documentation links**: the Server tab links to the hsync-server
 setup guide (`help.server_setup`), the p2p discovery group to the hsync-bootnode
@@ -668,8 +671,10 @@ characters per line than the 8 pt size. `appearance/font_scale` (`standard`
 default / `compact`) scales the resolved UI and monospace bases in
 `fonts.py::resolve_system_fonts` (`compact` = one point smaller, floor 8 pt), so
 every derived font follows. The file table uses `table_font`
-(`fonts.py::table_font`), the cached UI font with no extra delta: desktop size in
-Standard, one point smaller in Compact. `table_row_height`
+(`fonts.py::table_font`), the cached UI font with no extra delta: desktop size
+with `standard`, one point smaller with `compact` (UI labels `Standard` /
+`Slightly reduced`, `locales/en.py` keys `settings.font_size_standard` /
+`settings.font_size_compact`). `table_row_height`
 (`fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
 `file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
 `main_window/start.py::StartMixin._apply_settings_changes` calls when the preference changes.
