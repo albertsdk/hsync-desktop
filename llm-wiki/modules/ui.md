@@ -545,6 +545,14 @@ events, see the client wiki) settles the label through
 `preview_start`/`preview_end` pair is reserved for the previews this window
 requests, so a background pass cannot consume the confirmation one-shot below.
 
+A preview that ends while the node is a **serving device** (`_is_master`) is a
+classification of its own share, not the preview cycle this window asked for
+(the dry-run preview only runs once the node is a slave):
+`EventsMixin._on_preview_ended` refreshes the summary from it and returns before
+crediting `_pending_initial_reconcile` or opening the confirmation summary. That
+guard keeps the initial dry-run's `SYNC` alive even against a client that still
+answers `PREVIEW` with the `preview_start`/`preview_end` pair.
+
 The p2p **post-initial-sync catch-up** (`EventsMixin._on_connected_refresh`) is
 credited only when the preview answers: it arms
 `EventsMixin._pending_initial_reconcile` and

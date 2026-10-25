@@ -1176,6 +1176,7 @@ class TestInitialReconcile:
         return SimpleNamespace(
             _engine=MagicMock(is_running=True),
             _p2p_enabled=p2p,
+            _is_master=None,  # role unknown yet: not a serving device
             _initial_reconcile_done=False,
             _pending_initial_reconcile=False,
             _awaiting_preview_for_sync=False,
@@ -2363,3 +2364,32 @@ class TestFileMenuCopyPath:
 
         window._menu_file_copy_path_relative()
         assert QGuiApplication.clipboard().text() == os.path.normpath("report.bin")
+
+
+class TestMasterPreviewDoesNotConsumeTheConfirmation:
+    """A serving node answers PREVIEW itself; that is not the awaited cycle."""
+
+    def test_the_dry_run_confirmation_survives_a_master_classification(self, window, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(window, "_show_preview_summary", lambda: calls.append("summary"))
+        window._p2p_enabled = True
+        window._is_master = True
+        window._awaiting_preview_for_sync = True
+        window._pending_initial_reconcile = True
+
+        window._on_preview_started()
+        window._preview_stats.to_upload = 3
+        window._on_preview_ended()
+
+        assert calls == []
+        assert window._awaiting_preview_for_sync is True
+        assert window._pending_initial_reconcile is True
+        # The label still follows the burst.
+        assert window._sync_state[0] == "pending"
+
+        # Once the node is a slave the same event is the awaited answer.
+        window._is_master = False
+        window._on_preview_ended()
+
+        assert calls == ["summary"]
+        assert window._pending_initial_reconcile is False

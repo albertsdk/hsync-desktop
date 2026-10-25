@@ -629,11 +629,18 @@ class EventsMixin:
     def _on_preview_ended(self) -> None:
         """Handle preview scan ended."""
         self._append_log("--- File status updated ---")
+        self._set_sync_state(*self._sync_state_after_preview())
+        # A serving device answers this window's own PREVIEW with a
+        # classification, which is not the preview cycle it is waiting for: the
+        # dry-run preview only runs once the node is a slave. Consuming the
+        # confirmation here showed a summary with the wrong counters and left the
+        # dry run parked (no SYNC ever reached it).
+        if self._p2p_enabled and self._is_master:
+            return
         # The preview answered: it is now safe to credit the one-shot catch-up.
         if self._pending_initial_reconcile:
             self._pending_initial_reconcile = False
             self._initial_reconcile_done = True
-        self._set_sync_state(*self._sync_state_after_preview())
         # Show summary dialog if awaiting sync confirmation
         if self._awaiting_preview_for_sync:
             self._awaiting_preview_for_sync = False
