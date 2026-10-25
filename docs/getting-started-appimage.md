@@ -50,10 +50,6 @@ If FUSE is unavailable (some containers or minimal systems):
 ./hsync-desktop-x86_64.AppImage --appimage-extract-and-run
 ```
 
-The main window opens with a system-tray icon. On first launch open **Settings**
-and configure a connection — see the
-[Configuration Reference](configuration.md).
-
 ## Optional: desktop-menu integration
 
 The AppImage already contains the icon and the `.desktop` entry. To add it to

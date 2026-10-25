@@ -44,11 +44,9 @@ methods are ordered from the simplest and most immediate to the most involved.
 - The **Windows** build runs on Windows 10/11 and is **not** supported under
   Wine/CrossOver (the Qt runtime needs the ICU library that ships with Windows)
 
-## After installing
+## Next steps
 
-1. **Configure a connection** — run the [Setup wizard](setup-wizard.md) for the
-   common cases, or open **Settings** (Server Mode or p2p Mode) for full control.
-   Every setting is documented in the
-   [Configuration Reference](configuration.md).
-2. **Run and watch a sync** — [Using HSYNC Desktop](usage.md).
-3. **Read the log** — the action labels are in [Log Labels](log-labels.md).
+- [Setup wizard](setup-wizard.md) — configure a connection in four steps
+- [Configuration Reference](configuration.md) — every setting
+- [Using HSYNC Desktop](usage.md) — running and watching a sync
+- [Log Labels](log-labels.md) — the action labels in the log panel

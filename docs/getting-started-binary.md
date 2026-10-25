@@ -59,9 +59,9 @@ warns on the first run (choose **More info → Run anyway**).
 
 ## Verify
 
-Launch `hsync-desktop`: the main window opens with a system-tray icon. On first
-launch open **Settings** and configure a connection — see the
-[Configuration Reference](configuration.md).
+```bash
+./hsync-desktop --version
+```
 
 ## Update
 

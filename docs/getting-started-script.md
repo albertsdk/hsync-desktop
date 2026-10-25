@@ -5,8 +5,7 @@ Linux or macOS: it downloads the self-contained bundle for your platform and
 installs it under your home, exposing a `hsync-desktop` command. The bundle
 already embeds the `hsync` client engine.
 
-There is no Docker mode (this is a desktop GUI); the installer never uses
-`sudo` and never touches system directories.
+The installer never uses `sudo` and never touches system directories.
 
 ## Prerequisites
 
@@ -46,11 +45,10 @@ download the release `.zip` instead — see
 ## Verify
 
 ```bash
-hsync-desktop
+hsync-desktop --version
 ```
 
-The main window opens with a system-tray icon. On first launch open **Settings**
-and configure a connection — see the [Configuration Reference](configuration.md).
+If the command is not found, `~/.local/bin` is not on your `PATH`.
 
 ## Update and uninstall
 

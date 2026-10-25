@@ -27,9 +27,9 @@ or install it so it is on `PATH` — see [From source](getting-started-source.md
 
 ## The window closed but the sync kept running
 
-That is expected: closing the window hides it to the tray and a run continues.
-Use the tray menu to show the window again, or **Quit** to stop the sync (the app
-asks for confirmation first). Without a system tray the window really closes; see
+Closing the window hides it to the tray and a run continues. Use the tray menu to
+show the window again, or **Quit** to stop the sync (the app asks for confirmation
+first). Without a system tray the window really closes; see
 [Starting the app](usage.md#starting-the-app).
 
 ## Local files are about to be deleted

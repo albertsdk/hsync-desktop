@@ -42,14 +42,9 @@ packages inside Docker, building the matching-arch client there.
 
 ## Verify
 
-Launch it from the application menu, or:
-
 ```bash
-hsync-desktop
+hsync-desktop --version
 ```
-
-The main window opens with a system-tray icon. On first launch open **Settings**
-and configure a connection — see the [Configuration Reference](configuration.md).
 
 ## Update and uninstall
 

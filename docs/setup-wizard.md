@@ -48,18 +48,17 @@ the main window appears. You can always reopen it later:
 
    An optional block chooses whether sync runs in real time, starts with the app,
    and launches HSYNC at system login; **Skip and use recommended values** keeps
-   the defaults. Hover a field to see a short explanation of what it means.
+   the defaults.
 
 4. **Review** — check the summary (secrets are masked) and the verification
    result, use **Edit** to change any step, then **Finish setup**.
 
 ## After finishing
 
-The success screen can **Start syncing** immediately or take you back to the main
-window. For network (p2p) setups it shows the share name, group name and shared
-password to copy to your other devices — the invite uses the same field names as
-the Connection step; use the same values there. The invite can be selected
-directly or copied with one click.
+For network (p2p) setups the success screen shows the share name, group name and
+shared password to copy to your other devices — the invite uses the same field
+names as the Connection step; use the same values there. The invite can be
+selected directly or copied with one click.
 
 If a discovery server's certificate was not saved during setup, the app asks for
 confirmation the first time you connect (a one-time security check).
@@ -69,8 +68,3 @@ confirmation the first time you connect (a one-time security check).
 Reopen the wizard any time (it pre-fills your current configuration) or use
 **Settings** for every advanced option. If you close the wizard before finishing,
 it remembers where you left off and offers to resume next time.
-
-## Requirements
-
-Nothing beyond HSYNC Desktop itself. No new software is installed and the wizard
-never changes how the bundled sync engine works.

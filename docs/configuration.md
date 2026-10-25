@@ -19,13 +19,12 @@ saved settings yet) the app starts in **p2p Mode**.
 
 ## Sync
 
-The share to sync and the transfer behaviour. This tab is used in both p2p and
-Server Mode.
+This tab holds the share name, local folder and compression toggle, plus the
+transfer behaviour. It is used in both p2p and Server Mode.
 
 | Setting | Description |
 |---------|-------------|
 | Share name | Name of the share: the folder name on the HSYNC server, or the share name in p2p mode. Devices that sync the same folder must use the **same share name** (and, in p2p, the same group name) |
-| Local folder | Directory to keep in sync |
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` |
 | Real-time sync | Keep syncing automatically as files change |
 | Keep deleted files (Backup Mode) | Never propagate deletes |
@@ -37,7 +36,6 @@ Server Mode.
 | Min free disk space | Refuse transfers below this free space |
 | Max inbound file size | Refuse files larger than this |
 | Sync only a specific subfolder | Restrict sync to a subfolder of the local folder |
-| Enable compression | Compress transfers |
 | Simulation Mode | Preview changes without applying them: the run is a one-shot preview that stops after the summary, so nothing is transferred or deleted and the pre-start file-deletion confirmation is skipped. While it is on, the main window shows a **Simulation — no changes** badge and the title ends with **— Simulation** |
 | Extra ignore patterns | Additional gitignore-style exclusion patterns |
 | Ignore rules… | Edit the ignore patterns for the selected folder (stored as `.hsyncignore`) |
@@ -54,7 +52,6 @@ for the underlying behaviour.
 
 | Setting | Description |
 |---------|-------------|
-| Enable p2p mode | Enable device discovery |
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Shared password | Password shared by the devices in the p2p group; with a protected discovery server it is also the group key the client authenticates with |
 | Discovery server (optional) | Endpoint of an optional discovery server (an HSYNC Bootnode) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
@@ -65,11 +62,12 @@ for the underlying behaviour.
 | Never become primary | Remove this device from the primary election |
 | Ask before trusting new devices | Ask for confirmation the first time a new device connects, instead of trusting it automatically |
 | Download from other devices | In p2p mode, fetch file blocks from other devices, not only the primary |
-| Max simultaneous reads from other devices | Maximum files read simultaneously from other devices |
-| Max devices per file | Maximum number of devices a file is fetched from |
 | Port | Fixed p2p listening port |
 | Device search timeout | How long to wait for device discovery |
 | Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
+
+The tab also holds **Enable p2p mode**, **Max simultaneous reads from other
+devices** (1–32) and **Max devices per file** (1–8).
 
 **Prefer primary role and sync type.** *Prefer primary role* is a preference,
 and it only applies to the **Keep aligned (Send & Receive)** sync type, so the
@@ -108,7 +106,8 @@ manage/test actions), **Certificates** (skip certificate check and CA file) and
 | Server identity check | How the app checks the server identity: standard verification (default), ask on first use, accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_SERVER_TRUST` |
 | Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
 | Certificate authority file | Use a custom certificate file for a self-signed server |
-| Request timeout | Request timeout in seconds |
+
+The tab also holds **Request timeout** (seconds).
 
 ## General
 
@@ -133,35 +132,29 @@ Application-wide preferences, grouped in three sections.
 
 | Setting | Description |
 |---------|-------------|
-| Show tooltips | Show or hide option tooltips |
-| Show log panel | Toggle the in-app log viewer in the main window |
 | Launch at login | Start HSYNC minimized to the tray when you log in |
 | Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |
 
-The supported interface languages are English, Italian, German, Spanish, French,
+**Show tooltips** and **Show log panel** toggle the option tooltips and the in-app
+log viewer.
+
+Supported interface languages: English, Italian, German, Spanish, French,
 Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
-**System default** keeps following the system locale, so a first launch starts in
-the system language.
 
 The interface uses the desktop's configured **UI and monospace fonts** and follows
-the system text scaling (GNOME/Ubuntu and KDE). **Font size** on the General tab
-chooses between **Standard** (the desktop size everywhere, including the file
-table) and **Slightly reduced** (one point smaller across every application font,
-never below 8 pt). The choice applies immediately; a desktop font/scale change is
-picked up on the next launch.
+the system text scaling (GNOME/Ubuntu and KDE). The font-size choice applies
+immediately; a desktop font/scale change is picked up on the next launch.
 
 **Launch at login.** When enabled, the app registers a per-user autostart entry
-for the platform — an XDG autostart file on Linux/BSD, a LaunchAgent on macOS, a
-`Run` registry value on Windows — that launches `hsync-desktop --minimized`, so
-the window stays in the tray at login. Disabling the option removes the entry.
-This is a desktop preference only; it opens the app but does not start a sync
-(that is **Auto-sync on startup** on the Sync tab).
+that launches `hsync-desktop --minimized`, so the window stays in the tray at
+login; disabling the option removes it. This is a desktop preference only: it
+opens the app but does not start a sync (that is **Auto-sync on startup** on the
+Sync tab).
 
 ## Advanced
 
-Engine-level tuning and diagnostics. These are expert options; the defaults suit
-most setups. The tab is hidden until **Show advanced options** is enabled in
-General. Changes apply at the next sync start.
+Engine-level tuning and diagnostics. The tab is hidden until **Show advanced
+options** is enabled in General. Changes apply at the next sync start.
 
 | Setting | Description |
 |---------|-------------|
@@ -175,7 +168,8 @@ General. Changes apply at the next sync start.
 | Max deletions percent | Percentage of local files whose deletion trips the guard; 0 disables this rule |
 | Upload limit / Download limit | Bandwidth caps in MB/s (1 MB/s = 1 MiB/s), enforced from the first byte and shared by all transfers of that direction; 0 (**Unlimited**) uses all available bandwidth |
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
-| Log file | Path to the log file |
+
+**Log file** writes the same output to a file.
 
 **Deletion protection.** When a cycle would delete more than the configured
 threshold (absolute count or percentage of local files), those deletions are

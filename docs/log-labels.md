@@ -20,15 +20,9 @@ client/master operations, and security/warning labels are all surfaced here.
 These are the client's own strings: what the app calls the **primary** role
 appears in them as `MASTER`, so `[NO MASTER]` means no primary device.
 
-**Colors.** The app launches the engine with `--color=always`, so the panel
-renders the client's own palette: level columns (WARNING amber, ERROR red,
-CRITICAL bold red, DEBUG muted) and label categories (downloads cyan, uploads
-and creates green, modifies and renames blue, deletes and security red,
-transport magenta, in-sync grey). The same colors are re-mapped to a
-light/dark-friendly tone — they never vanish on either background, and they
-are re-rendered when you switch theme. Lines the desktop produces itself
-(`[desktop] …`) have no terminal colors, so they fall back to the same
-level/label categories.
+**Colors.** The panel renders the client's own palette, re-mapped to a light/dark-
+friendly tone so nothing vanishes on either background; it is re-rendered when you
+switch theme.
 
 The security/warning labels in particular drive an in-app warning toast and a
 desktop notification (the latter only while the window is in the background):
@@ -49,7 +43,6 @@ set):
 
 | Marker | Meaning |
 |--------|---------|
-| `[NO MASTER]` | Surfaced from the engine's `no_master` structured event (same meaning as the client label) |
 | `[EVENT ERROR]` | The desktop's own prefix for an error event from the engine/UI layer |
 
 ## Related
