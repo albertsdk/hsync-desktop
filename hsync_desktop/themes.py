@@ -366,6 +366,9 @@ QLabel#statusError {{
 QLabel#mutedHint {{
     color: {muted_text};
 }}
+QLabel#mutedHint:disabled {{
+    color: {disabled_text};
+}}
 QLineEdit[error="true"], QComboBox[error="true"], QSpinBox[error="true"] {{
     border: 1px solid {error_text};
 }}

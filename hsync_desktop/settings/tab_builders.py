@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -47,6 +46,7 @@ from hsync_desktop.settings.form_helpers import (
     _action_row,
     _insert_row_after,
     _replace_checkbox_with_toggle,
+    switch_row,
 )
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
@@ -55,8 +55,8 @@ from hsync_desktop.settings.tab_indices import (
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
-from hsync_desktop.settings.tab_layout import _scrollable_form_page
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
+from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 if TYPE_CHECKING:
@@ -459,20 +459,21 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
     dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
-    dlg.notification_group = QGroupBox(dlg)
+    # "Notifications for": one row per category, in the same shape as every
+    # other switch (``switch_row``) and hosted in a frame-less container placed
+    # in the field column — a QGroupBox was laid out as a spanning row, which
+    # left its toggles ~117 px left of the form's own switches.
+    dlg.notification_group = QWidget(dlg)
     notification_lines = QVBoxLayout(dlg.notification_group)
-    notification_lines.setContentsMargins(8, 6, 8, 6)
+    notification_lines.setContentsMargins(0, 0, 0, 0)
     notification_lines.setSpacing(6)
+    dlg._lbl_notifications_categories = muted_label(tr("settings.notifications_categories"))
+    notification_lines.addWidget(dlg._lbl_notifications_categories)
     dlg.notification_toggles = {}
     for category in NOTIFICATION_CATEGORIES:
         toggle = ToggleSwitch(dlg.notification_group)
         label = QLabel(dlg.notification_group)
-        line = QHBoxLayout()
-        line.setContentsMargins(0, 0, 0, 0)
-        line.addWidget(toggle)
-        line.addWidget(label)
-        line.addStretch(1)
-        notification_lines.addLayout(line)
+        notification_lines.addWidget(switch_row(toggle, label, dlg.notification_group))
         dlg.notification_toggles[category] = (toggle, label)
     dlg.notification_group.setEnabled(dlg.notifications_enabled.isChecked())
     dlg.notifications_enabled.toggled.connect(dlg.notification_group.setEnabled)
@@ -494,34 +495,10 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     hl_show_advanced.addWidget(dlg.show_advanced)
     hl_show_advanced.addWidget(dlg._lbl_show_advanced)
     hl_show_advanced.addStretch()
-    general_tab = dlg._tabs.widget(_GENERAL_TAB_INDEX)
-    general_layout = general_tab.layout() if general_tab else None
-    if general_tab is not None and isinstance(general_layout, QFormLayout):
-        # Keep the font-size selector immediately under Theme (the .ui form has
-        # Language at row 0 and Theme at row 1).
-        theme_row = -1
-        for row in range(general_layout.rowCount()):
-            item = general_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            if item is not None and item.widget() is dlg.theme_combo:
-                theme_row = row
-                break
-        insert_at = theme_row + 1 if theme_row >= 0 else general_layout.rowCount()
-        general_layout.insertRow(insert_at, dlg._lbl_font_scale, dlg.font_scale_combo)
-        notification_row = -1
-        for row in range(general_layout.rowCount()):
-            item = general_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            field = item.widget() if item is not None else None
-            if field is not None and field.isAncestorOf(dlg.notifications_enabled):
-                notification_row = row
-                break
-        general_layout.insertRow(
-            notification_row + 1 if notification_row >= 0 else general_layout.rowCount(),
-            dlg.notification_group,
-        )
-        general_layout.addRow("", cont_show_advanced)
-        # Host the .ui form inside a scroll area so the page scrolls like the
-        # others instead of forcing the dialog taller (see ``finalize_size``).
-        _scrollable_form_page(general_tab, general_layout)
+    # The page is rebuilt into grouped sections (``tab_layout.py::
+    # reorganize_general_tab``): this builder only creates the widgets.
+    dlg._cont_show_advanced = cont_show_advanced
+    dlg._reorganize_general_tab()
 
 
 def set_tab_icons(dlg: SettingsDialog) -> None:

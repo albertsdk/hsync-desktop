@@ -44,6 +44,14 @@ counts **devices** (self + peers); Server Mode counts **share accounts** with a
 live WebSocket (admins excluded), so its title is "Connected users"
 (`label.users`) — two devices on the same account count once.
 
+**Keyboard shortcuts** live only on the menu-bar actions (a context menu cannot
+be reached from the keyboard, so it never displays them): `Return`/`Ctrl+O` open,
+`F2` rename, `Delete` trash, `Alt+Return` properties, `Ctrl+Shift+C` copy path,
+`Ctrl+Alt+C` copy to, `F5` refresh, `Ctrl+Shift+S` start,
+`QKeySequence.StandardKey.Preferences` settings and `.Quit` quit (Cmd instead of
+Ctrl on macOS), `F1` documentation; the log menu shows `StandardKey.SelectAll` /
+`.Copy` and lets the view handle them.
+
 Help menu (`main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local
 app-info dialogs — **License** (`main_window/actions.py::ActionsMixin._show_license`
@@ -313,6 +321,20 @@ The entries are disabled while a sync is running
 (`main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
 enabled only with a selection and a stopped engine.
 
+The menu is built by `FileTransferTable._build_file_context_menu` (split from the
+`exec` so its order is asserted in tests) and groups the entries by kind: open ▸
+send/receive ▸ copy ▸ rename ▸ destructive ▸ properties (last, the conventional
+position). The **copy group** holds `Copy to…` (`_ctx_copy_to`, a file copy) and
+the two clipboard commands `Copy path` / `Copy relative path`
+(`FileTransferTable.copy_path`): the first puts the absolute path, the second the
+path inside the shared folder, both through `os.path.normpath` because the wire
+keys use `/` and a folder key ends with `/` (a host would otherwise get mixed
+separators and a trailing one). The same two commands are in the **File** menu
+(`main_window/actions.py::ActionsMixin._menu_file_copy_path` /
+`_menu_file_copy_path_relative`), which is the keyboard-reachable surface, with
+`Ctrl+Shift+C` on the absolute form (the conventional "copy as path" chord) and
+no shortcut on the relative one; `Copy to…` moved to `Ctrl+Alt+C` to free it.
+
 The table re-localizes its **column headers** on a live language change
 (`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
 `file_panel/panel.py::FilePanel.retranslate_columns` from
@@ -340,7 +362,11 @@ shortage by shrinking it down to the minimum section size instead of extending
 the scroll range, so the persisted widths in a narrow window leave file names
 unusable while the horizontal scrollbar stays empty:
 `FileTransferTable.required_viewport_width` therefore reports the width the
-visible sections need with `_MIN_NAME_WIDTH` reserved for Name, and the one-shot
+visible sections need with `FileTransferTable.name_floor()` reserved for Name —
+`_MIN_NAME_WIDTH` normally, or the roomier `_MIN_NAME_FIRST_RUN` while the
+profile has never saved a layout (`FileTransferTable.has_saved_column_widths`,
+captured at construction because the header persists its initial section sizes
+on the first layout pass) — and the one-shot
 startup fit (`main_window/window.py::MainWindow._fit_table_width`, re-scheduled
 from `MainWindow.showEvent` and the model's `rowsInserted` through
 `MainWindow._schedule_table_fit`) grows the window by that deficit, clamped to
@@ -486,6 +512,54 @@ panel. Master role changes (`_on_master_conflict`,
 `main_window/events.py::EventsMixin._on_master_conflict`) are informational: a
 takeover by a peer that prefers the primary role is logged only (the role
 indicator updates), while a genuine two-prefer_master conflict raises a warning.
+
+### Sync state (link status ≠ file-set state)
+
+The status dot answers "is a device reachable"; it never says whether the file
+sets match. A second muted label sits in the bottom bar (built in
+`main_window/ui.py::UiBuildMixin._load_ui`, right of the share size) and is
+rendered by `main_window/events.py::EventsMixin._render_sync_state` from the
+state remembered in `EventsMixin._set_sync_state`:
+
+| State | When | Key |
+| --- | --- | --- |
+| `idle` | no engine run, or the link is not up | `sync.state.idle` |
+| `checking` | on `connected` and on every `preview_start` | `sync.state.checking` |
+| `no_devices` | `no_peers` event, or p2p with `total <= 1` | `sync.state.no_devices` |
+| `in_sync` | `preview_end` with no pending action | `sync.state.in_sync` |
+| `pending` | `preview_end` with downloads/uploads | `sync.state.pending` (`{download}`/`{upload}`) |
+| `pending_other` | `preview_end` with only deletes/renames | `sync.state.pending_other` (`{count}`) |
+
+The counts come from `PreviewStats` (`preview_summary_dialog.py`), accumulated by
+`EventsMixin._on_file_status` during the preview; `_sync_state_after_preview`
+turns them into the state. The label is re-rendered on a language change from
+`_apply_translations`, and its tooltip is `tip.sync_state`. On a p2p serving
+device the events are produced by the client's own classification (see the
+client wiki `modules/p2p-mode.md`), so the same five states cover both roles.
+
+A classification burst that arrives **without** a preview cycle (a serving device
+re-classifies on every inventory change and answers with plain `file_status`
+events, see the client wiki) settles the label through
+`EventsMixin._sync_state_timer` (`_SYNC_STATE_SETTLE_MS`, restarted by every
+`EventsMixin._on_file_status`) → `EventsMixin._on_sync_state_settled`. The
+`preview_start`/`preview_end` pair is reserved for the previews this window
+requests, so a background pass cannot consume the confirmation one-shot below.
+
+The p2p **post-initial-sync catch-up** (`EventsMixin._on_connected_refresh`) is
+credited only when the preview answers: it arms
+`EventsMixin._pending_initial_reconcile` and
+`EventsMixin._on_preview_ended` sets `_initial_reconcile_done`. A command the
+client never consumed (or a failed preview) therefore cannot burn the one-shot.
+
+The **initial dry-run** launch (`main_window/start.py` → `_on_start` with
+`force_dry_run`) ends with a `SYNC` from
+`ActionsMixin._show_preview_summary`. That command is written to the client's
+stdin, which only the **slave** role reads, while a freshly started node serves
+as master first and runs its own dry-run preview before it yields: the phase is
+therefore re-armed (`_awaiting_preview_for_sync`) and the `SYNC` is retried on the
+next preview, until a live link clears `_is_dry_run_preview` in
+`EventsMixin._on_status`. `_dry_run_preview_reported` keeps the "nothing to sync"
+toast to a single message.
 
 ### Share size
 

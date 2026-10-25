@@ -198,8 +198,11 @@ def apply_translations(dlg: SettingsDialog) -> None:
     # The first language entry ("System default") is localized; the endonyms are not.
     if dlg.lang_combo.count():
         dlg.lang_combo.setItemText(0, tr("settings.language_system"))
+    dlg._grp_general_appearance.setTitle(escape_mnemonics(tr("settings.group.appearance")))
+    dlg._grp_general_notifications.setTitle(escape_mnemonics(tr("settings.group.notifications")))
+    dlg._grp_general_window.setTitle(escape_mnemonics(tr("settings.group.window")))
     dlg._lbl_notifications.setText(tr("settings.notifications"))
-    dlg.notification_group.setTitle(escape_mnemonics(tr("settings.notifications_categories")))
+    dlg._lbl_notifications_categories.setText(tr("settings.notifications_categories"))
     for category, (_toggle, label) in dlg.notification_toggles.items():
         label.setText(tr(f"settings.notifications_{category}"))
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))

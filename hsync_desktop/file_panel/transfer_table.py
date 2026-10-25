@@ -25,7 +25,15 @@ from PySide6.QtCore import (
     QUrl,
     Signal,
 )
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QFont, QKeyEvent, QPalette
+from PySide6.QtGui import (
+    QAction,
+    QColor,
+    QDesktopServices,
+    QFont,
+    QGuiApplication,
+    QKeyEvent,
+    QPalette,
+)
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -127,6 +135,11 @@ _MIN_COLUMN_WIDTH = 48
 # range, so a narrow window silently crushes file names and the horizontal
 # scrollbar reports no deficit: the window fit asks for this width instead.
 _MIN_NAME_WIDTH = 320
+# A profile that never saved column widths has no layout to honour, so the very
+# first launch reserves a roomier Name column (the window fit widens the window
+# to fit it). Once the widths are persisted the standard floor applies again:
+# from then on the saved layout is the user's choice.
+_MIN_NAME_FIRST_RUN = 460
 
 # Data columns whose width is fitted to the content once (the Icon is fixed,
 # Name stretches and Progress keeps its explicit default width).
@@ -472,6 +485,8 @@ class FileTransferTable(QTableView):
         self._cached_path: str = ""
 
         self._direction_font: QFont | None = None
+        # Read before the header lays out: see has_saved_column_widths.
+        self._saved_layout_on_start = self._has_persisted_widths()
         self._model = FileTransferModel(self)
         self.setModel(self._model)
 
@@ -632,6 +647,27 @@ class FileTransferTable(QTableView):
             self._COLUMN_WIDTH_SETTINGS_KEY, ",".join(parts)
         )
 
+    @staticmethod
+    def _has_persisted_widths() -> bool:
+        """Whether this profile already stored a column layout."""
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        return bool(
+            str(settings.value(FileTransferTable._COLUMN_WIDTH_SETTINGS_KEY, "", str)).strip()
+        )
+
+    def has_saved_column_widths(self) -> bool:
+        """True when this profile already had a persisted column layout.
+
+        Captured at construction: the header saves its initial layout (Qt's
+        default section sizes) on the first layout pass, so reading the key
+        later cannot tell a first run from a saved one.
+        """
+        return self._saved_layout_on_start
+
+    def name_floor(self) -> int:
+        """Minimum width the Name column keeps when the window is sized."""
+        return _MIN_NAME_WIDTH if self.has_saved_column_widths() else _MIN_NAME_FIRST_RUN
+
     def required_viewport_width(self) -> int:
         """Viewport width the table needs to keep its columns readable.
 
@@ -650,7 +686,7 @@ class FileTransferTable(QTableView):
                 continue
             total += header.sectionSize(col)
         if not header.isSectionHidden(COL_NAME):
-            total += max(header.sectionSize(COL_NAME), _MIN_NAME_WIDTH)
+            total += max(header.sectionSize(COL_NAME), self.name_floor())
         return total
 
     def _size_columns_to_contents(self) -> None:
@@ -1055,20 +1091,45 @@ class FileTransferTable(QTableView):
         """Build the absolute path of a transfer's file."""
         return os.path.join(self._base_directory, transfer.filepath)
 
+    def copy_path(self, transfer: FileTransfer, *, relative: bool = False) -> str:
+        """Copy the entry's path to the clipboard and return the copied text.
+
+        ``relative`` copies the path inside the shared folder (the table's base
+        directory); the default copies the absolute one. Both go through
+        ``os.path.normpath`` because the wire keys use ``/`` separators and a
+        folder key ends with ``/``: without it the host would get mixed
+        separators and a trailing one.
+
+        Used by the context menu and by the window's File menu
+        (``main_window/actions.py::ActionsMixin._menu_file_copy_path``).
+        """
+        text = os.path.normpath(transfer.filepath if relative else self._absolute_path(transfer))
+        QGuiApplication.clipboard().setText(text)
+        return text
+
     # ── File context menu ─────────────────────────────────────────────────
 
     def _show_file_context_menu(self, pos) -> None:
         """Show right-click context menu for a file row."""
+        menu = self._build_file_context_menu(pos)
+        if menu is not None:
+            menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _build_file_context_menu(self, pos) -> QMenu | None:
+        """Build the row context menu (``None`` when the click misses a row).
+
+        Split from the ``exec`` so the entry order can be asserted in tests.
+        """
         index = self.indexAt(pos)
         if not index.isValid():
-            return
+            return None
         row = index.row()
         transfer = self._get_transfer_at_row(row)
 
         if not transfer:
             display_name = self._model.display_name(row)
             if display_name is None:
-                return
+                return None
             folder_path = (
                 f"{self._current_path}/{display_name}/"
                 if self._current_path
@@ -1097,12 +1158,16 @@ class FileTransferTable(QTableView):
         receive_action.setEnabled(not self._sync_active)
         menu.addSeparator()
         menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
+        menu.addAction(tr("ctx.copy_path"), lambda: self.copy_path(transfer))
+        menu.addAction(
+            tr("ctx.copy_path_relative"), lambda: self.copy_path(transfer, relative=True)
+        )
         menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
         menu.addSeparator()
         menu.addAction(tr("ctx.trash"), lambda: self._ctx_trash(transfer))
         menu.addSeparator()
         menu.addAction(tr("ctx.properties"), lambda: self._ctx_properties(transfer))
-        menu.exec(self.viewport().mapToGlobal(pos))
+        return menu
 
     def _ctx_open(self, transfer: FileTransfer) -> None:
         """Open the entry: navigate into a folder, open a file with the default app."""

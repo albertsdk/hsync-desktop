@@ -153,6 +153,7 @@ from hsync_desktop.settings.tab_indices import (
 )
 from hsync_desktop.settings.tab_layout import (
     reorganize_advanced_tab,
+    reorganize_general_tab,
     reorganize_p2p_tab,
     reorganize_server_tab,
     reorganize_sync_tab,
@@ -244,6 +245,10 @@ class SettingsDialog(QDialog):
             self.server_trust.addItem(tr(key), value)
         index = self.server_trust.findData(current)
         self.server_trust.setCurrentIndex(index if index >= 0 else 0)
+
+    def _reorganize_general_tab(self) -> None:
+        """Regroup the General tab (implementation in ``tab_layout.py``)."""
+        reorganize_general_tab(self)
 
     def _reorganize_sync_tab(self) -> None:
         """Regroup the Sync tab (implementation in ``tab_layout.py``)."""

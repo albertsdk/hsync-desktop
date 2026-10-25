@@ -166,6 +166,24 @@ class ActionsMixin:
         if t:
             self._file_panel._table._ctx_copy_to(t)
 
+    def _menu_file_open_containing(self) -> None:
+        """Reveal the selected entry in the OS file manager."""
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table._ctx_open_containing(t)
+
+    def _menu_file_copy_path(self) -> None:
+        """Copy the selected entry's absolute path (host-native form)."""
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table.copy_path(t)
+
+    def _menu_file_copy_path_relative(self) -> None:
+        """Copy the selected entry's path inside the shared folder."""
+        t = self._get_selected_transfer()
+        if t:
+            self._file_panel._table.copy_path(t, relative=True)
+
     def _menu_file_rename(self) -> None:
         t = self._get_selected_transfer()
         if t:
@@ -255,6 +273,8 @@ class ActionsMixin:
             QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", False, bool)
         )
         self._initial_reconcile_done = False
+        self._pending_initial_reconcile = False
+        self._dry_run_preview_reported = False
         self._last_scan_preview_at = 0.0
         # A fresh process runs a fresh p2p election: back to the neutral role.
         self._role_known = False
@@ -468,14 +488,24 @@ class ActionsMixin:
                 # Scoped op with nothing to transfer: report it instead of silence.
                 self._finish_selection_sync("already_synced")
                 return
-            # Non-scoped: surface the result without needing the log panel.
-            self._info_selection_outcome(tr("preview.no_actions"), success=False)
             if self._is_dry_run_preview and not simulation:
-                # Send SYNC command to switch from dry-run to real sync
+                # Send SYNC to switch from dry-run to real sync. The dry-run
+                # phase stays armed: the client may be serving as master when
+                # the command is written (its stdin is only read by the slave
+                # role), so the next preview it runs in this phase must send it
+                # again. The phase ends when the link comes up (_on_status).
                 self._engine.sync()
                 self._btn_refresh.setEnabled(True)
                 self._apply_button_styles()
+                self._awaiting_preview_for_sync = True
+                if not self._dry_run_preview_reported:
+                    self._dry_run_preview_reported = True
+                    # Surface the result without needing the log panel.
+                    self._info_selection_outcome(tr("preview.no_actions"), success=False)
+                return
             self._is_dry_run_preview = False
+            # Non-scoped: surface the result without needing the log panel.
+            self._info_selection_outcome(tr("preview.no_actions"), success=False)
             return
 
         if selection:

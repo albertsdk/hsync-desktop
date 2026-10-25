@@ -97,6 +97,23 @@ def _action_row(*buttons: QWidget) -> QWidget:
     return container
 
 
+def switch_row(toggle: QWidget, label: QLabel, parent: QWidget) -> QWidget:
+    """Pack a switch and its caption into one left-aligned row.
+
+    Every switch in the settings dialog uses this shape (``[toggle] caption``
+    flush left, stretch after), so the toggle column and the caption column line
+    up across the form, the "Notifications for" block and the advanced options.
+    """
+    row = QHBoxLayout()
+    row.setContentsMargins(0, 0, 0, 0)
+    row.addWidget(toggle)
+    row.addWidget(label)
+    row.addStretch()
+    container = QWidget(parent)
+    container.setLayout(row)
+    return container
+
+
 def _replace_checkbox_with_toggle(
     parent: QWidget, checkbox_name: str
 ) -> tuple[ToggleSwitch, QLabel]:
@@ -136,18 +153,9 @@ def _replace_checkbox_with_toggle(
                 # Create toggle switch with label
                 toggle = ToggleSwitch(parent)
                 label = QLabel(text, parent)
-                # Create a horizontal layout with toggle + label (switch on left)
-                h_layout = QHBoxLayout()
-                h_layout.setContentsMargins(0, 0, 0, 0)
-                h_layout.addWidget(toggle)
-                h_layout.addWidget(label)
-                h_layout.addStretch()
-                # Create container widget
-                container = QWidget(parent)
-                container.setLayout(h_layout)
-                # Replace in form layout
+                # Replace in form layout with the shared switch row
                 layout.removeRow(row)
-                layout.insertRow(row, "", container)
+                layout.insertRow(row, "", switch_row(toggle, label, parent))
                 return toggle, label
 
     # Fallback: just delete and return new toggle

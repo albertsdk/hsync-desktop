@@ -1171,10 +1171,20 @@ class TestInitialReconcile:
         from types import SimpleNamespace
         from unittest.mock import MagicMock
 
+        from hsync_desktop.preview_summary_dialog import PreviewStats
+
         return SimpleNamespace(
             _engine=MagicMock(is_running=True),
             _p2p_enabled=p2p,
             _initial_reconcile_done=False,
+            _pending_initial_reconcile=False,
+            _awaiting_preview_for_sync=False,
+            _preview_stats=PreviewStats(),
+            _append_log=lambda *_a, **_k: None,
+            _sync_state=("idle", 0, 0, 0),
+            _sync_state_label=None,
+            _set_sync_state=lambda *_a, **_k: None,
+            _sync_state_after_preview=lambda: ("in_sync", 0, 0, 0),
         )
 
     def test_first_connect_runs_preview_then_sync(self):
@@ -1186,11 +1196,27 @@ class TestInitialReconcile:
         stub._engine.preview.assert_called_once()
         stub._engine.sync.assert_called_once()
 
-        # A later reconnect only refreshes the preview (the periodic resync
-        # covers the gap); the catch-up must not repeat.
+    def test_the_catch_up_is_credited_only_when_the_preview_answers(self):
+        """A command the client never consumed must not burn the one-shot."""
+        from hsync_desktop.main_window.events import EventsMixin
+
+        stub = self._stub(p2p=True)
         EventsMixin._on_connected_refresh(stub)
-        assert stub._engine.preview.call_count == 2
-        stub._engine.sync.assert_called_once()
+        assert stub._pending_initial_reconcile is True
+        assert stub._initial_reconcile_done is False
+
+        # A reconnect before the preview answers still asks for the catch-up.
+        EventsMixin._on_connected_refresh(stub)
+        assert stub._engine.sync.call_count == 2
+
+        EventsMixin._on_preview_ended(stub)
+        assert stub._initial_reconcile_done is True
+        assert stub._pending_initial_reconcile is False
+
+        # Once credited, a later reconnect only refreshes the preview.
+        EventsMixin._on_connected_refresh(stub)
+        assert stub._engine.preview.call_count == 3
+        assert stub._engine.sync.call_count == 2
 
     def test_no_catch_up_in_server_mode(self):
         from hsync_desktop.main_window.events import EventsMixin
@@ -2127,3 +2153,213 @@ class TestTableWidthFit:
 
         assert window.width() == before
         assert window._table_width_fitted is False
+
+
+class TestSyncState:
+    """The bottom bar answers "are my files in sync?" separately from the link."""
+
+    def test_a_new_link_asks_for_a_comparison(self, window):
+        window._on_status("connected")
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+
+    def test_a_running_preview_reads_checking(self, window):
+        window._on_preview_started()
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+
+    def test_an_all_synced_preview_reads_in_sync(self, window):
+        window._on_preview_started()
+        window._preview_stats.synced = 4
+
+        window._on_preview_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
+
+    def test_pending_transfers_are_counted(self, window):
+        window._on_preview_started()
+        window._preview_stats.to_download = 2
+        window._preview_stats.to_upload = 1
+
+        window._on_preview_ended()
+
+        expected = tr("sync.state.pending").replace("{download}", "2").replace("{upload}", "1")
+        assert window._sync_state_label.text() == expected
+
+    def test_only_deletes_and_renames_read_as_pending_changes(self, window):
+        window._on_preview_started()
+        window._preview_stats.to_delete = 1
+        window._preview_stats.to_rename = 2
+
+        window._on_preview_ended()
+
+        expected = tr("sync.state.pending_other").replace("{count}", "3")
+        assert window._sync_state_label.text() == expected
+
+    def test_a_lone_device_has_nothing_to_compare(self, window):
+        window._p2p_enabled = True
+
+        window._on_peers(1, 1)
+
+        assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+    def test_the_client_reporting_no_device_sets_the_label(self, window):
+        window._on_no_peers("no device")
+
+        assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+    def test_no_devices_survives_the_preview_it_closes(self, window):
+        """``no_peers`` is followed by `preview_end`: the reason must not be lost."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._file_panel.table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        window._on_preview_started()
+        window._on_no_peers("no device")
+
+        window._on_preview_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+    def test_a_joined_device_waits_for_its_inventory(self, window):
+        """A preview that classifies nothing is not "in sync"."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._p2p_enabled = True
+        window._file_panel.table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        window._on_peers(1, 1)
+        window._on_peers(2, 2)
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+
+        window._on_preview_started()
+        window._on_preview_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+
+    def test_a_lost_link_clears_the_state(self, window):
+        window._on_preview_started()
+
+        window._on_status("disconnected")
+
+        assert window._sync_state_label.text() == tr("sync.state.idle")
+
+    def test_a_language_change_rerenders_the_state(self, window):
+        import hsync_desktop.i18n as i18n
+        from hsync_desktop.locales import de
+
+        window._on_preview_started()
+        previous = i18n.get_language()
+        try:
+            i18n.set_language("de")
+            window._apply_translations()
+            assert window._sync_state_label.text() == de.translations["sync.state.checking"]
+        finally:
+            i18n.set_language(previous)
+
+    def test_a_marker_less_classification_settles_the_summary(self, window, qtbot):
+        """A serving device answers with file_status only; the label still follows."""
+        window._p2p_enabled = True
+        window._on_status("connected")
+
+        window._on_file_status("synced", "/share/a.bin", 4)
+
+        qtbot.waitUntil(
+            lambda: window._sync_state_label.text() == tr("sync.state.in_sync"),
+            timeout=2000,
+        )
+
+
+class TestDryRunSyncRetry:
+    """The SYNC that ends the initial dry-run is retried until the link is up."""
+
+    def test_nothing_to_sync_keeps_the_phase_armed(self, window, monkeypatch):
+        """A SYNC written while the client served as master is not lost."""
+        from unittest.mock import MagicMock
+
+        sync = MagicMock()
+        monkeypatch.setattr(window._engine, "sync", sync)
+        window._is_dry_run_preview = True
+        window._awaiting_preview_for_sync = True
+
+        window._show_preview_summary()
+
+        assert sync.call_count == 1
+        assert window._is_dry_run_preview is True
+        assert window._awaiting_preview_for_sync is True
+
+        # The next preview of the same phase sends it again.
+        window._show_preview_summary()
+        assert sync.call_count == 2
+
+        # A live link ends the phase: no further retry.
+        window._on_status("connected")
+        assert window._is_dry_run_preview is False
+        assert window._awaiting_preview_for_sync is False
+        window._show_preview_summary()
+        assert sync.call_count == 2
+
+
+class TestFileMenuCopyPath:
+    """The copy-path commands are in the File menu, with conventional keys."""
+
+    def test_the_copy_actions_are_grouped_in_the_file_menu(self, window):
+        texts = [a.text() for a in window._menu_file.actions() if not a.isSeparator()]
+
+        assert texts.index(tr("menu.file.copy_to")) + 1 == texts.index(tr("menu.file.copy_path"))
+        assert texts.index(tr("menu.file.copy_path")) + 1 == texts.index(
+            tr("menu.file.copy_path_relative")
+        )
+        assert texts.index(tr("menu.file.copy_path_relative")) + 1 == texts.index(
+            tr("menu.file.rename")
+        )
+        # "Open containing folder" follows Open; Properties stays last.
+        assert texts.index(tr("menu.file.open")) + 1 == texts.index(tr("menu.file.open_containing"))
+        assert texts[-1] == tr("menu.file.properties")
+
+    def test_the_shortcuts_follow_the_platform_conventions(self, window):
+        from PySide6.QtGui import QKeySequence
+
+        assert window._act_file_copy_path.shortcut().toString() == "Ctrl+Shift+C"
+        assert window._act_file_copy_path_relative.shortcut().isEmpty()
+        assert window._act_file_copy_to.shortcut().toString() == "Ctrl+Alt+C"
+        assert window._act_file_properties.shortcut().toString() == "Alt+Return"
+        assert window._act_help_docs.shortcut().toString() == "F1"
+
+        open_keys = {shortcut.toString() for shortcut in window._act_file_open.shortcuts()}
+        assert open_keys == {"Return", "Ctrl+O"}
+        assert window._act_file_open_with.shortcut().isEmpty()
+
+        # Platform-native chords: Qt maps them to Cmd on macOS and keeps the
+        # conventional Ctrl chord when the platform theme reports no binding.
+        assert {s.toString() for s in window._act_settings.shortcuts()} == {"Ctrl+,"}
+        assert {s.toString() for s in window._act_quit.shortcuts()} == {"Ctrl+Q"}
+
+    def test_copy_path_writes_the_selected_row(self, window):
+        import os
+
+        from PySide6.QtGui import QGuiApplication
+
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        # A root-level file: a nested path would add a folder row above it.
+        table.add_transfer(
+            FileTransfer(filepath="report.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table._last_selected_row = 0
+
+        window._set_file_menu_enabled(True)
+        assert window._act_file_copy_path.isEnabled()
+        assert window._act_file_copy_path_relative.isEnabled()
+        assert window._act_file_open_containing.isEnabled()
+
+        window._menu_file_copy_path()
+        assert QGuiApplication.clipboard().text() == os.path.normpath("/share/report.bin")
+
+        window._menu_file_copy_path_relative()
+        assert QGuiApplication.clipboard().text() == os.path.normpath("report.bin")

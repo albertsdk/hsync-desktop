@@ -136,6 +136,9 @@ class MainWindow(
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
+        # The "nothing to sync" result of that phase is reported once, even when
+        # the SYNC has to be retried (see _show_preview_summary).
+        self._dry_run_preview_reported = False
         # Simulation Mode: read from settings and reflected in badge/title/tray.
         self._simulation_mode = False
         # Theme the log panel's colors are rendered with (updated on a theme change).
@@ -152,6 +155,9 @@ class MainWindow(
         self._ever_connected = False  # engine reached "connected" this process
         self._p2p_enabled = False  # p2p mode for the current engine run
         self._initial_reconcile_done = False  # post-initial-sync catch-up ran
+        # A catch-up requested but not yet answered: the one-shot is credited
+        # only when its preview comes back (see EventsMixin._on_preview_ended).
+        self._pending_initial_reconcile = False
         self._last_scan_preview_at = 0.0  # cooldown for scan-triggered previews
         self._table_width_fitted = False  # one-shot startup fit for saved columns
         # p2p role: unknown until the first role event; the text is shown only

@@ -139,8 +139,10 @@ class EventsMixin:
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
-            # stale "N/M" does not outlive the link.
+            # stale "N/M" does not outlive the link, and the file-set state back
+            # to "unknown" (nothing can be compared without a link).
             self._peers_label.setText("–")
+            self._set_sync_state("idle")
             self._file_panel.reset_all_to_local()
             # "Connection lost" only makes sense after a real connection: a
             # one-shot that never linked must not claim a lost connection.
@@ -148,6 +150,13 @@ class EventsMixin:
                 self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
         elif status == "connected":
             self._ever_connected = True
+            # The dry-run preview phase is over: the client is linked and no
+            # further SYNC retry is needed (see _show_preview_summary).
+            self._is_dry_run_preview = False
+            self._awaiting_preview_for_sync = False
+            # A new link carries no file-set answer yet: the refresh below asks
+            # for one, so the label reads "checking" until the preview answers.
+            self._set_sync_state("checking")
             # Refresh path display (server_ip now available)
             self._update_path_display()
             # A scoped Send/Receive owns its banner; only the normal flow hides
@@ -173,13 +182,75 @@ class EventsMixin:
         first connect of a p2p run, mark them with a preview and run one real
         cycle now instead of waiting for the periodic resync. Later reconnects
         only refresh the preview.
+
+        The catch-up is credited only when the preview answers
+        (``_on_preview_ended``): a command the client never consumed (e.g. a
+        master whose role has no stdin reader) must not burn the one-shot.
         """
         if self._p2p_enabled and not self._initial_reconcile_done:
-            self._initial_reconcile_done = True
+            self._pending_initial_reconcile = True
             self._engine.preview()
             self._engine.sync()
         else:
             self._engine.preview()
+
+    # ── Sync state (link status ≠ file-set state) ────────────────────────
+
+    def _set_sync_state(
+        self, state: str, downloads: int = 0, uploads: int = 0, others: int = 0
+    ) -> None:
+        """Remember the file-set state and render it in the bottom bar.
+
+        States: ``idle`` (no run/no link), ``checking`` (a preview is running),
+        ``no_devices`` (nothing to compare against), ``in_sync``, ``pending``
+        (downloads/uploads) and ``pending_other`` (only deletes/renames).
+        """
+        self._sync_state = (state, downloads, uploads, others)
+        self._render_sync_state()
+
+    def _render_sync_state(self) -> None:
+        """Render the remembered sync state with the active language."""
+        label = getattr(self, "_sync_state_label", None)
+        if label is None:
+            return
+        state, downloads, uploads, others = self._sync_state
+        if state == "pending":
+            text = (
+                tr("sync.state.pending")
+                .replace("{download}", str(downloads))
+                .replace("{upload}", str(uploads))
+            )
+        elif state == "pending_other":
+            text = tr("sync.state.pending_other").replace("{count}", str(others))
+        else:
+            text = tr(f"sync.state.{state}")
+        label.setText(text)
+
+    def _on_sync_state_settled(self) -> None:
+        """Render the summary after a marker-less ``file_status`` burst."""
+        self._set_sync_state(*self._sync_state_after_preview())
+
+    def _sync_state_after_preview(self) -> tuple[str, int, int, int]:
+        """Derive the file-set state from the preview counters just collected.
+
+        A preview that classified nothing while the table has rows is not "in
+        sync": the other device has not published what it holds yet (the
+        serving device answers ``preview_start``/``preview_end`` only), so the
+        answer is still pending.
+        """
+        stats = self._preview_stats
+        downloads = stats.to_download
+        uploads = stats.to_upload
+        others = stats.to_delete + stats.to_rename
+        if downloads or uploads:
+            return "pending", downloads, uploads, others
+        if others:
+            return "pending_other", 0, 0, others
+        if stats.synced or self._file_panel.table.model().rowCount() == 0:
+            return "in_sync", 0, 0, 0
+        if self._sync_state[0] == "no_devices":
+            return "no_devices", 0, 0, 0
+        return "checking", 0, 0, 0
 
     # ── Info banner ──────────────────────────────────────────────────────
 
@@ -193,6 +264,13 @@ class EventsMixin:
     @Slot(int, int)
     def _on_peers(self, connected: int, total: int) -> None:
         self._peers_label.setText(f"{connected}/{total}")
+        if self._p2p_enabled:
+            if total <= 1:
+                # Alone in the group: there is no file set to compare against.
+                self._set_sync_state("no_devices")
+            elif self._sync_state[0] == "no_devices":
+                # A device joined: wait for its inventory before claiming one.
+                self._set_sync_state("checking")
         if self._notifier:
             self._notifier.peer_joined(connected, total)
         # Scoped op in progress: surface how many other devices are in reach.
@@ -469,6 +547,7 @@ class EventsMixin:
     @Slot(str)
     def _on_no_peers(self, _message: str) -> None:
         """A p2p one-shot aborted with no peer: the scoped op has no target."""
+        self._set_sync_state("no_devices")
         if self._selection_sync_active:
             self._finish_selection_sync("no_devices")
 
@@ -544,11 +623,17 @@ class EventsMixin:
         self._append_log("--- Updating file status... ---")
         # Reset preview statistics
         self._preview_stats.reset()
+        self._set_sync_state("checking")
 
     @Slot()
     def _on_preview_ended(self) -> None:
         """Handle preview scan ended."""
         self._append_log("--- File status updated ---")
+        # The preview answered: it is now safe to credit the one-shot catch-up.
+        if self._pending_initial_reconcile:
+            self._pending_initial_reconcile = False
+            self._initial_reconcile_done = True
+        self._set_sync_state(*self._sync_state_after_preview())
         # Show summary dialog if awaiting sync confirmation
         if self._awaiting_preview_for_sync:
             self._awaiting_preview_for_sync = False
@@ -563,6 +648,9 @@ class EventsMixin:
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(rel_path, status, size, preview=True)
+        # A serving device re-classifies without a preview cycle: settle the
+        # summary once its file_status burst goes quiet.
+        self._sync_state_timer.start()
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(rel_path)
             debug_events.log(

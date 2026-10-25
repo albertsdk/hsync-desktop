@@ -110,17 +110,31 @@ manage/test actions), **Certificates** (skip certificate check and CA file) and
 
 ## General
 
-Application-wide preferences.
+Application-wide preferences, grouped in three sections.
+
+### Appearance
 
 | Setting | Description |
 |---------|-------------|
 | Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
 | Theme | **System default** (follows the desktop and updates live), Light or Dark |
+| Font size | Standard or Compact (every application font one point smaller) |
+
+### Notifications
+
+| Setting | Description |
+|---------|-------------|
 | Enable system notifications | Show desktop/system notifications for sync events. Errors and warnings are always shown in the app window; this setting only controls the OS notifications |
+| Notifications for | Which events produce a system notification, one switch each: **Errors**, **Connection problems**, **Synchronisation events**, **Devices and role changes**. Greyed out and inert while system notifications are off |
+
+### Window & Startup
+
+| Setting | Description |
+|---------|-------------|
 | Show tooltips | Show or hide option tooltips |
 | Show log panel | Toggle the in-app log viewer in the main window |
-| Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |
 | Launch at login | Start HSYNC minimized to the tray when you log in |
+| Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |
 
 The supported interface languages are English, Italian, German, Spanish, French,
 Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.

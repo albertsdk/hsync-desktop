@@ -49,11 +49,44 @@ sections. **Help → Documentation** opens the same documentation index.
 
 The primary/secondary role shown in the status bar exists only in p2p mode and its
 text appears once the device is connected and the role is known (before that the
-bar shows a neutral icon only); Server Mode has no such role. In the trusted-key
+bar shows a neutral icon only); Server Mode has no such role.
+
+Next to the shared-folder size, the status bar also answers the question the
+connection indicator cannot: **are the files in sync?** It reads `Checking…` while
+a comparison runs, `No devices` when there is nothing to compare against (no other
+device connected yet), `All files in sync` when nothing is pending, and
+`2 to download · 1 to send` (or `3 change(s) pending` for deletes and renames)
+when work is left. A device that serves the share as **primary** reports the same
+states: it compares its folder with what the connected devices published, so its
+table shows the pending transfers instead of staying on `Local`. Hover the text
+for a reminder of what the current state means.
+
+In the trusted-key
 dialog (*Manage trusted servers & devices…*) the tabs follow the active mode: p2p
 shows the discovery-server and device stores, Server Mode shows the **Server HSYNC**
 store. Enabling **Detailed log output** while the log panel is hidden offers to
 show the panel.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+O`, `Enter` | Open the selected file or folder |
+| `F2` | Rename |
+| `Delete` | Move to trash |
+| `Alt+Enter` | Properties |
+| `Ctrl+Shift+C` | Copy path |
+| `Ctrl+Alt+C` | Copy to a folder |
+| `F5` | Refresh the file list |
+| `Ctrl+Shift+S` | Start |
+| `Ctrl+,` | Settings |
+| `F1` | Documentation |
+| `Ctrl+Q` | Quit |
+
+On macOS `Cmd` replaces `Ctrl` (`Cmd+,` for Settings, `Cmd+Q` to quit). The log
+panel uses the standard `Ctrl+C` / `Ctrl+A` for copying and selecting its text.
+The file-list actions work on the selected row, so the keys do nothing without a
+selection.
 
 ## Trust prompts while running
 
@@ -168,14 +201,23 @@ available from the header menu and hidden until you enable it. Files show the
 planned action ("To upload" / "To download" / …), while a folder shows a neutral
 aggregate ("To sync") whose tooltip breaks down the mixed operations. You can
 **drag the column edges** to resize any data column; the widths are remembered,
-and **Reset columns** in the header menu restores the default layout. The status
+and **Reset columns** in the header menu restores the default layout. On the very
+first launch the window opens wide enough to give the file names room, and the
+file list keeps that shape until you resize a column. **Reset columns** in the
+header menu drops the saved layout, so the following launch gets that roomy
+default again. The status
 bar's **Shared: X / Y** indicator shows the shared
 folder's size on this device (**X**) and the size of the whole share (**Y**, a
 dash while it is not yet known): the whole-share value is the sync set (remote
 files plus local files not yet uploaded) and is approximate when the two sides
 disagree on a file's size. Files and folders whose name starts with a dot are
 hidden from the list; enable **Show hidden files** from the table header menu to
-see them (this changes only the list, not what is synchronised).
+see them (this changes only the list, not what is synchronised). Right-click a
+row for the actions on that file or folder — open, open the containing folder,
+open with another app, send/receive now, copy to a folder, copy the path, rename,
+move to trash, properties. **Copy path** puts the absolute path (in your system's
+form, e.g. backslashes on Windows) on the clipboard, while **Copy relative path**
+copies the path inside the shared folder; both are also in the **File** menu.
 In Server Mode, the address field accepts a bare hostname or `host:port` —
 `https://` and the default port are implied.
 

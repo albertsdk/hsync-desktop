@@ -97,6 +97,14 @@ transfer, deletion protection, bandwidth, logging); General holds the app
 preferences (font size, language, theme, notifications, tooltips, log panel,
 launch at login).
 
+**Switch rows** (`settings/form_helpers.py::switch_row`): every toggle in the
+dialog is rendered as ``[toggle] caption`` packed into one left-aligned container
+with a trailing stretch, and the container is inserted in the form's **field**
+column (``insertRow(row, "", container)``). That is what keeps all switches in a
+single column and their captions aligned; the General tab's notification block
+reuses the same helper so its category rows line up with the form's own switches
+(a spanning row would start at the label column and shift them left).
+
 **Standard vs advanced**: the General tab's `show_advanced` toggle
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
 drives `SettingsDialog._apply_advanced_visibility`
@@ -106,6 +114,23 @@ tabs plus the Certificates and Advanced Options groups in the Server Mode tab.
 `set_current_tab` (`settings/dialog.py::SettingsDialog.set_current_tab`) falls
 back to the first visible tab so a hidden target never shows a blank page. The
 advanced values themselves are preserved; the toggle only changes visibility.
+
+**Notifications**: `settings/tab_builders.py::build_general_tab` builds the block
+under the master switch: a frame-less container (`SettingsDialog.notification_group`,
+field column) holding the `settings.notifications_categories` heading
+(`muted_label`, so the text is muted like the tab descriptions) and one
+`switch_row` per entry of `config.py::NOTIFICATION_CATEGORIES`
+(`SettingsDialog.notification_toggles[key] = (toggle, label)`), all inside
+`SettingsDialog._grp_general_notifications`. The master switch gates it with
+`setEnabled`, and the per-category choices persist as
+`appearance/notifications/<category>`. Because a switch is custom-painted, the
+disabled state must be drawn:
+`widgets/toggle_switch.py::ToggleSwitch.paintEvent` fades track and thumb
+(`_DISABLED_OPACITY`) and `themes.py` gives `QLabel#mutedHint:disabled` the
+disabled tone, so a gated block looks greyed instead of merely inert. Labels
+come from `settings.notifications_<category>`; the `peers` category reads
+**Devices and role changes** ("Dispositivi e cambi di ruolo") because the UI
+never says "peer".
 
 **Dialog sizing & scrolling** (`settings/tab_layout.py::_scrollable_page`,
 `settings/tab_builders.py::finalize_size`): every tab page hosts its content in a
@@ -118,7 +143,18 @@ only grows a too-small window; a maximized or user-resized dialog is left
 untouched); the dialog is resizable (no `setFixedSize`) with a 640 px minimum
 width, and width/height are clamped to 90% of `_available_screen_size` (the dialog
 screen's `availableGeometry`; `None` on a headless platform → content-sized
-fallback). The General page reuses its `.ui` form through `_scrollable_form_page`
+fallback). The General page is **rebuilt into three sections** like the other tabs
+(`settings/tab_layout.py::reorganize_general_tab`, wired as
+`SettingsDialog._reorganize_general_tab`): **Appearance**
+(`settings.group.appearance`: language, theme, font size), **Notifications**
+(`settings.group.notifications`: the master switch plus the per-event block) and
+**Window & Startup** (`settings.group.window`: tooltips, log panel, launch at
+login, with the advanced disclosure as the last row). Each section is a
+`QGroupBox` with its own form, so within a section every switch shares one
+column; a group whose rows are all switches starts them at the group edge (the
+label column is empty), which is the same shape the Sync/p2p groups already use.
+`build_general_tab` only creates the widgets and leaves the layout to the
+reorganizer, so the `.ui` form is no longer reused
 instead of being rebuilt. After the first layout, `fit_current_tab`
 (`settings/tab_builders.py::fit_current_tab`) grows the dialog for the current
 tab when its content fits on screen, so a fitting page shows no vertical

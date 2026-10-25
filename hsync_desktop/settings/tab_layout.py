@@ -29,6 +29,7 @@ from hsync_desktop.docs_links import BOOTNODE_SETUP, SERVER_SETUP
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _GENERAL_TAB_INDEX,
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
@@ -96,19 +97,6 @@ def _scrollable_page(tab: QWidget) -> tuple[QVBoxLayout, QVBoxLayout]:
     return outer, inner
 
 
-def _scrollable_form_page(tab: QWidget, form: QFormLayout) -> None:
-    """Move an existing ``form`` off ``tab`` into a scroll area on that page.
-
-    Used by the General page, whose ``.ui`` form is reused as-is instead of being
-    rebuilt; the form becomes the scroll content so the page scrolls like the
-    others.
-    """
-
-    content = QWidget()
-    content.setLayout(form)
-    _page_outer(tab).addWidget(_scroll_area(content), 1)
-
-
 def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int) -> None:
     """Insert the tab's one-line purpose label above its groups.
 
@@ -127,6 +115,65 @@ def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int)
     # ``vbox`` already holds the page's scroll area; the description stays the
     # page's first item, above it.
     vbox.insertWidget(0, label)
+
+
+def reorganize_general_tab(dlg: SettingsDialog) -> None:
+    """Reorganize the General tab into grouped sections using QGroupBox.
+
+    Three sections, the grouping every HIG recommends (2–4 groups, none with a
+    single row): appearance first (what a first run needs), then notifications,
+    then the window/startup behaviour with the advanced disclosure last.
+    """
+    general_tab = dlg._tabs.widget(_GENERAL_TAB_INDEX)
+    if not general_tab:
+        return
+
+    lbl_language: QLabel = dlg.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
+    lbl_theme: QLabel = dlg.findChild(QLabel, "lblTheme")  # type: ignore[assignment]
+
+    # Switch containers (toggle.parent() == the switch_row container)
+    cont_notifications: QWidget = dlg.notifications_enabled.parent()  # type: ignore[assignment]
+    cont_tooltips: QWidget = dlg.tooltips_enabled.parent()  # type: ignore[assignment]
+    cont_log: QWidget = dlg.show_log_panel.parent()  # type: ignore[assignment]
+    cont_login: QWidget = dlg.start_at_login.parent()  # type: ignore[assignment]
+    cont_advanced: QWidget = dlg.show_advanced.parent()  # type: ignore[assignment]
+
+    # Detach the original form layout.
+    old = general_tab.layout()
+    if old is not None:
+        while old.count():
+            old.takeAt(0)
+        _tmp = QWidget()
+        _tmp.setLayout(old)
+
+    outer, vbox = _scrollable_page(general_tab)
+
+    # Group 1: appearance and language (what a first launch needs).
+    dlg._grp_general_appearance = _group_box("settings.group.appearance")
+    f1 = QFormLayout(dlg._grp_general_appearance)
+    f1.addRow(lbl_language, dlg.lang_combo)
+    f1.addRow(lbl_theme, dlg.theme_combo)
+    f1.addRow(dlg._lbl_font_scale, dlg.font_scale_combo)
+    vbox.addWidget(dlg._grp_general_appearance)
+
+    # Group 2: the master switch and the per-event rows it gates.
+    dlg._grp_general_notifications = _group_box("settings.group.notifications")
+    f2 = QFormLayout(dlg._grp_general_notifications)
+    f2.addRow("", cont_notifications)
+    f2.addRow("", dlg.notification_group)
+    vbox.addWidget(dlg._grp_general_notifications)
+
+    # Group 3: window behaviour and startup. The advanced disclosure closes the
+    # page: it changes what the rest of the dialog shows.
+    dlg._grp_general_window = _group_box("settings.group.window")
+    f3 = QFormLayout(dlg._grp_general_window)
+    f3.addRow("", cont_tooltips)
+    f3.addRow("", cont_log)
+    f3.addRow("", cont_login)
+    f3.addRow("", cont_advanced)
+    vbox.addWidget(dlg._grp_general_window)
+
+    vbox.addStretch()
 
 
 def reorganize_sync_tab(dlg: SettingsDialog) -> None:

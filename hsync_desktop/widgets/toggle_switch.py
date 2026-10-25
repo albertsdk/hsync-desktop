@@ -23,6 +23,9 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QBrush, QColor, QPainter, QPalette
 from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QWidget
 
+# How far a disabled switch fades into its background (0..1).
+_DISABLED_OPACITY = 0.4
+
 
 class ToggleSwitch(QAbstractButton):
     """
@@ -98,6 +101,11 @@ class ToggleSwitch(QAbstractButton):
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        # A custom-painted control has to dim itself: Qt does not, so a disabled
+        # switch looked exactly like an enabled one (the settings master switch
+        # gates whole groups of them).
+        if not self.isEnabled():
+            painter.setOpacity(_DISABLED_OPACITY)
 
         # Get colors from palette
         track_color_off, track_color_on, thumb_color = self._get_palette_colors()

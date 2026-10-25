@@ -1000,15 +1000,39 @@ class TestRequiredViewportWidth:
             if not header.isSectionHidden(col) and col != tt.COL_NAME
         )
 
-    def test_it_reserves_a_readable_name_column(self, qtbot, tmp_path, monkeypatch):
+    def test_the_first_run_reserves_the_roomier_name_column(self, qtbot, tmp_path, monkeypatch):
+        """Without a saved layout the very first launch asks for more room."""
         from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot, tmp_path, monkeypatch)
         header = table.horizontalHeader()
         columns = range(table.model().columnCount())
 
-        expected = self._other_sections(tt, header, columns) + tt._MIN_NAME_WIDTH
+        expected = self._other_sections(tt, header, columns) + tt._MIN_NAME_FIRST_RUN
 
+        assert table.has_saved_column_widths() is False
+        assert table.name_floor() == tt._MIN_NAME_FIRST_RUN
+        assert tt._MIN_NAME_FIRST_RUN > tt._MIN_NAME_WIDTH
+        assert table.required_viewport_width() == expected
+
+    def test_a_saved_layout_keeps_the_standard_name_floor(self, qtbot, tmp_path, monkeypatch):
+        """From the first save on, the saved layout is the user's choice."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        store.setValue(tt.FileTransferTable._COLUMN_WIDTH_SETTINGS_KEY, "file.size:100")
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        header = table.horizontalHeader()
+
+        expected = self._other_sections(tt, header, range(table.model().columnCount()))
+        expected += tt._MIN_NAME_WIDTH
+
+        assert table.has_saved_column_widths() is True
+        assert table.name_floor() == tt._MIN_NAME_WIDTH
         assert table.required_viewport_width() == expected
 
     def test_a_hidden_name_column_asks_for_no_name_width(self, qtbot, tmp_path, monkeypatch):
@@ -1056,6 +1080,87 @@ class TestRequiredViewportWidth:
         assert header.sectionSize(tt.COL_NAME) < tt._MIN_NAME_WIDTH
         assert table.horizontalScrollBar().maximum() == 0
         assert table.required_viewport_width() > table.viewport().width()
+
+
+class TestCopyPath:
+    """The two clipboard entries copy host-native paths."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        return table
+
+    @staticmethod
+    def _clipboard_text() -> str:
+        from PySide6.QtGui import QGuiApplication
+
+        return QGuiApplication.clipboard().text()
+
+    def test_the_absolute_path_uses_the_host_separators(self, qtbot):
+        import os
+
+        table = self._table(qtbot)
+        transfer = FileTransfer(
+            filepath="sub/dir/report.bin", direction="—", size=1, status=TransferStatus.LOCAL
+        )
+
+        text = table.copy_path(transfer)
+
+        assert text == os.path.normpath(os.path.join("/share", "sub/dir/report.bin"))
+        assert self._clipboard_text() == text
+
+    def test_a_folder_loses_its_trailing_separator(self, qtbot):
+        import os
+
+        table = self._table(qtbot)
+        folder = FileTransfer(
+            filepath="sub/dir/", direction="—", size=0, status=TransferStatus.LOCAL
+        )
+
+        text = table.copy_path(folder)
+
+        assert text == os.path.normpath("/share/sub/dir")
+        assert not text.endswith(("/", os.sep))
+
+    def test_the_relative_path_is_bucket_relative(self, qtbot):
+        import os
+
+        table = self._table(qtbot)
+        transfer = FileTransfer(
+            filepath="sub/dir/report.bin", direction="—", size=1, status=TransferStatus.LOCAL
+        )
+
+        text = table.copy_path(transfer, relative=True)
+
+        assert text == os.path.normpath("sub/dir/report.bin")
+        assert "share" not in text
+        assert self._clipboard_text() == text
+
+    def test_the_context_menu_groups_the_copy_actions(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.resize(400, 200)
+        table.show()
+        qtbot.wait(1)
+
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(0, 0)).center())
+
+        assert menu is not None
+        texts = [action.text() for action in menu.actions() if not action.isSeparator()]
+        assert texts.index(tr("ctx.copy_to")) + 1 == texts.index(tr("ctx.copy_path"))
+        assert texts.index(tr("ctx.copy_path")) + 1 == texts.index(tr("ctx.copy_path_relative"))
+        assert texts.index(tr("ctx.copy_path_relative")) + 1 == texts.index(tr("ctx.rename"))
+        assert texts[-1] == tr("ctx.properties")
+        assert tt.COL_NAME == 1  # sanity: the table is the file panel one
 
 
 class TestEmptyFolderStatus:

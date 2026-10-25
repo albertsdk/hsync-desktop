@@ -22,6 +22,7 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QFontMetrics,
+    QKeySequence,
     QTextCursor,
 )
 from PySide6.QtWidgets import (
@@ -92,6 +93,22 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+
+
+def _standard_shortcuts(standard: QKeySequence.StandardKey, fallback: str) -> list[QKeySequence]:
+    """Platform bindings for *standard keys*, with the conventional chord as fallback.
+
+    A minimal platform theme (or the QPA offscreen plugin) reports no binding at
+    all; using the action's conventional chord then beats leaving it without a
+    shortcut. On macOS the binding is reported as ``Ctrl`` but triggers ``Cmd``.
+    """
+    bindings = list(QKeySequence.keyBindings(standard))
+    return bindings if bindings else [QKeySequence(fallback)]
+
+
+# A classification burst (marker-less ``file_status`` events) settles the
+# sync-state label after this quiet period.
+_SYNC_STATE_SETTLE_MS = 400
 
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
@@ -241,13 +258,30 @@ class UiBuildMixin:
         self._share_size_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
         self._share_local_bytes: int = -1
         self._share_total_bytes: int = -1
+        # Sync state: the link status on the left says whether a device is
+        # reachable, never whether the file sets match. This label answers that
+        # second question (set by the preview/file-status flow in events.py).
+        self._sync_state_label = QLabel(self.centralWidget())
+        self._sync_state = ("idle", 0, 0, 0)
+        self._sync_state_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
+        # A serving device re-classifies on every inventory change and answers
+        # with plain file_status events (no preview_start/preview_end pair, which
+        # belongs to the previews this window requests). Settle the label once
+        # the burst goes quiet instead of waiting for a preview cycle.
+        self._sync_state_timer = QTimer(self)
+        self._sync_state_timer.setSingleShot(True)
+        self._sync_state_timer.setInterval(_SYNC_STATE_SETTLE_MS)
+        self._sync_state_timer.timeout.connect(self._on_sync_state_settled)
         if bottom_layout:
             peers_idx = bottom_layout.indexOf(self._lbl_peers)
             if peers_idx >= 0:
                 bottom_layout.insertWidget(peers_idx, self._share_size_label)
                 bottom_layout.insertSpacing(peers_idx + 1, 14)
+                bottom_layout.insertWidget(peers_idx + 2, self._sync_state_label)
+                bottom_layout.insertSpacing(peers_idx + 3, 14)
             else:
                 bottom_layout.addWidget(self._share_size_label)
+                bottom_layout.addWidget(self._sync_state_label)
 
         # Make bandwidth labels clickable (both the label header and value)
         self._lbl_sent.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -326,6 +360,8 @@ class UiBuildMixin:
         self._update_peers_label_title()
         self._share_size_label.setToolTip(tr("tip.share_size"))
         self._render_share_size()
+        self._sync_state_label.setToolTip(tr("tip.sync_state"))
+        self._render_sync_state()
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))
         # The file table owns its column headers, so re-localize them here.
@@ -348,8 +384,11 @@ class UiBuildMixin:
             self._act_quit.setText(tr("menu.sync.quit"))
             self._menu_file.setTitle(tr("menu.file"))
             self._act_file_open.setText(tr("menu.file.open"))
+            self._act_file_open_containing.setText(tr("menu.file.open_containing"))
             self._act_file_open_with.setText(tr("menu.file.open_with"))
             self._act_file_copy_to.setText(tr("menu.file.copy_to"))
+            self._act_file_copy_path.setText(tr("menu.file.copy_path"))
+            self._act_file_copy_path_relative.setText(tr("menu.file.copy_path_relative"))
             self._act_file_rename.setText(tr("menu.file.rename"))
             self._act_file_send.setText(tr("action.send_now"))
             self._act_file_receive.setText(tr("action.receive_now"))
@@ -469,7 +508,7 @@ class UiBuildMixin:
         self._menu_sync.addSeparator()
 
         self._act_quit = QAction(tr("menu.sync.quit"), self)
-        self._act_quit.setShortcut("Ctrl+Q")
+        self._act_quit.setShortcuts(_standard_shortcuts(QKeySequence.StandardKey.Quit, "Ctrl+Q"))
         self._act_quit.triggered.connect(self._quit)
         self._menu_sync.addAction(self._act_quit)
 
@@ -477,21 +516,37 @@ class UiBuildMixin:
         self._menu_file = menubar.addMenu(tr("menu.file"))
 
         self._act_file_open = QAction(tr("menu.file.open"), self)
-        self._act_file_open.setShortcut("Return")  # Enter key
+        # Ctrl+O is the platform-standard "open"; Return stays as the list
+        # convenience. "Open with…" has no standard key of its own.
+        self._act_file_open.setShortcuts(["Return", QKeySequence("Ctrl+O")])
         self._act_file_open.triggered.connect(self._menu_file_open)
         self._menu_file.addAction(self._act_file_open)
 
+        self._act_file_open_containing = QAction(tr("menu.file.open_containing"), self)
+        self._act_file_open_containing.triggered.connect(self._menu_file_open_containing)
+        self._menu_file.addAction(self._act_file_open_containing)
+
         self._act_file_open_with = QAction(tr("menu.file.open_with"), self)
-        self._act_file_open_with.setShortcut("Ctrl+O")
         self._act_file_open_with.triggered.connect(self._menu_file_open_with)
         self._menu_file.addAction(self._act_file_open_with)
 
         self._menu_file.addSeparator()
 
         self._act_file_copy_to = QAction(tr("menu.file.copy_to"), self)
-        self._act_file_copy_to.setShortcut("Ctrl+Shift+C")
+        # Ctrl+Shift+C is the conventional "copy as path" below, so the file
+        # copy keeps the mnemonic on Ctrl+Alt+C.
+        self._act_file_copy_to.setShortcut("Ctrl+Alt+C")
         self._act_file_copy_to.triggered.connect(self._menu_file_copy_to)
         self._menu_file.addAction(self._act_file_copy_to)
+
+        self._act_file_copy_path = QAction(tr("menu.file.copy_path"), self)
+        self._act_file_copy_path.setShortcut("Ctrl+Shift+C")
+        self._act_file_copy_path.triggered.connect(self._menu_file_copy_path)
+        self._menu_file.addAction(self._act_file_copy_path)
+
+        self._act_file_copy_path_relative = QAction(tr("menu.file.copy_path_relative"), self)
+        self._act_file_copy_path_relative.triggered.connect(self._menu_file_copy_path_relative)
+        self._menu_file.addAction(self._act_file_copy_path_relative)
 
         self._act_file_rename = QAction(tr("menu.file.rename"), self)
         self._act_file_rename.setShortcut("F2")
@@ -518,6 +573,7 @@ class UiBuildMixin:
         self._menu_file.addSeparator()
 
         self._act_file_properties = QAction(tr("menu.file.properties"), self)
+        self._act_file_properties.setShortcut("Alt+Return")
         self._act_file_properties.triggered.connect(self._menu_file_properties)
         self._menu_file.addAction(self._act_file_properties)
 
@@ -526,6 +582,9 @@ class UiBuildMixin:
 
         # ── Settings (direct menu item) ───────────────────────────────
         self._act_settings = QAction(tr("menu.settings"), self)
+        self._act_settings.setShortcuts(
+            _standard_shortcuts(QKeySequence.StandardKey.Preferences, "Ctrl+,")
+        )
         self._act_settings.triggered.connect(self._open_settings)
         menubar.addAction(self._act_settings)
 
@@ -539,6 +598,7 @@ class UiBuildMixin:
         self._menu_help = menubar.addMenu(tr("menu.help"))
 
         self._act_help_docs = QAction(tr("menu.help.docs"), self)
+        self._act_help_docs.setShortcut("F1")
         self._act_help_docs.triggered.connect(self._open_documentation)
         self._menu_help.addAction(self._act_help_docs)
 
@@ -560,8 +620,11 @@ class UiBuildMixin:
         """Enable or disable all File menu actions."""
         for act in (
             self._act_file_open,
+            self._act_file_open_containing,
             self._act_file_open_with,
             self._act_file_copy_to,
+            self._act_file_copy_path,
+            self._act_file_copy_path_relative,
             self._act_file_rename,
             self._act_file_trash,
             self._act_file_properties,
@@ -687,7 +750,11 @@ class UiBuildMixin:
         """Show custom context menu for the log viewer."""
         menu = QMenu(self._log_view)
         act_select_all = menu.addAction(tr("log.select_all"))
+        act_select_all.setShortcuts(
+            _standard_shortcuts(QKeySequence.StandardKey.SelectAll, "Ctrl+A")
+        )
         act_copy = menu.addAction(tr("log.copy"))
+        act_copy.setShortcuts(_standard_shortcuts(QKeySequence.StandardKey.Copy, "Ctrl+C"))
         menu.addSeparator()
         act_clear = menu.addAction(tr("log.clear"))
         # Enable/disable based on state

@@ -91,3 +91,39 @@ class TestWidgetsPackage:
             Path(__file__).parent.parent / "hsync_desktop" / "widgets" / "toggle_switch.py"
         )
         assert toggle_file.stat().st_size > 0
+
+
+class TestToggleSwitchDisabledState:
+    """A disabled switch must look disabled and ignore clicks."""
+
+    @staticmethod
+    def _toggle(qtbot, enabled: bool):
+        from hsync_desktop.widgets.toggle_switch import ToggleSwitch
+
+        toggle = ToggleSwitch()
+        qtbot.addWidget(toggle)
+        toggle.resize(44, 24)
+        toggle.setChecked(True)
+        toggle.setEnabled(enabled)
+        toggle.show()
+        qtbot.wait(200)  # the thumb animation runs 150 ms
+        return toggle
+
+    def test_the_disabled_paint_differs_from_the_enabled_one(self, qtbot):
+        enabled = self._toggle(qtbot, enabled=True).grab().toImage()
+        disabled = self._toggle(qtbot, enabled=False).grab().toImage()
+
+        assert enabled.pixelColor(22, 12) != disabled.pixelColor(22, 12)
+
+    def test_a_disabled_switch_ignores_clicks_and_recovers(self, qtbot):
+        from PySide6.QtCore import QPoint, Qt
+        from PySide6.QtTest import QTest
+
+        toggle = self._toggle(qtbot, enabled=False)
+
+        QTest.mouseClick(toggle, Qt.MouseButton.LeftButton, pos=QPoint(22, 12))
+        assert toggle.isChecked() is True
+
+        toggle.setEnabled(True)
+        QTest.mouseClick(toggle, Qt.MouseButton.LeftButton, pos=QPoint(22, 12))
+        assert toggle.isChecked() is False
