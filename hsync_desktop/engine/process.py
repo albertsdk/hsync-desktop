@@ -499,10 +499,13 @@ class HsyncEngine(QObject):
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         self._running = False
         self._close_events_channel()
-        if exit_status == QProcess.ExitStatus.NormalExit:
-            desc = "normal"
-        elif self._stopping:
+        # An operator-initiated stop is "stopped" however the child exited: a
+        # graceful SIGTERM unwinds normally (exit 0), and only a child that
+        # ignores it and is killed reports an abnormal exit.
+        if self._stopping:
             desc = "stopped"
+        elif exit_status == QProcess.ExitStatus.NormalExit:
+            desc = "normal"
         else:
             desc = "crashed"
         self._stopping = False

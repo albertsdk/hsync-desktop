@@ -35,12 +35,12 @@ to gate controls at first paint.
 | ------ | -------- | ---- |
 | `HsyncEngine` | `engine/process.py::HsyncEngine` | `QObject` wrapper around the process |
 | `start` | `engine/process.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
-| `stop` | `engine/process.py::HsyncEngine.stop` | terminate the process |
+| `stop` | `engine/process.py::HsyncEngine.stop` | terminate the process: `SIGTERM`, then `SIGKILL` after 5 s. The client unwinds on `SIGTERM` like `Ctrl+C` (stops its servers, flushes and closes the log sinks), so a stop ends with a normal exit |
 | `sync` / `preview` | `engine/process.py::HsyncEngine.sync` / `engine/process.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
 | `set_sync_direction` / `set_bandwidth` | `engine/process.py::HsyncEngine.set_sync_direction` / `engine/process.py::HsyncEngine.set_bandwidth` | live runtime commands |
 | `_send_command` | `engine/process.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
 | `_on_stdout` | `engine/process.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) |
-| `_on_finished` / `_on_error` | `engine/process.py::HsyncEngine._on_finished` / `engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping |
+| `_on_finished` / `_on_error` | `engine/process.py::HsyncEngine._on_finished` / `engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping. The `desc` passed to `process_finished` follows **operator intent** first: a run ended by `stop` reports `stopped` even when it exits `0` normally, and only an exit nobody asked for reports `normal`/`crashed` |
 | `_set_status` | `engine/process.py::HsyncEngine._set_status` | debounced `status_changed` emit |
 
 State accessors: `is_running` (`engine/process.py::HsyncEngine.is_running`), `is_master` (`engine/process.py::HsyncEngine.is_master`),

@@ -7,7 +7,7 @@ import os
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
-from PySide6.QtCore import QProcessEnvironment
+from PySide6.QtCore import QProcess, QProcessEnvironment
 
 from hsync_desktop.engine import (
     _EXPECTED_VERSION,
@@ -136,6 +136,43 @@ class TestTransferStats:
         assert stats.received_paths == set()
         assert stats.files_sent == 0
         assert stats.files_received == 0
+
+
+class TestFinishedDescription:
+    """``_on_finished`` reports who ended the run, not how the child exited."""
+
+    def test_operator_stop_is_reported_as_stopped_on_a_normal_exit(self):
+        """A graceful SIGTERM unwind exits 0 and must still read "stopped".
+
+        Regression: SIGTERM used to kill the child, so a stop always arrived as
+        an abnormal exit and ``_stopping`` was never the deciding signal. The
+        client now closes its servers and log sinks first and ends normally, so
+        the description must follow the operator's intent.
+        """
+        engine = HsyncEngine()
+        engine._stopping = True
+        finished = _capture(engine.process_finished)
+
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert finished == [(0, "stopped")]
+        assert engine._stopping is False
+
+    def test_a_normal_exit_without_a_stop_is_reported_as_normal(self):
+        engine = HsyncEngine()
+        finished = _capture(engine.process_finished)
+
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert finished == [(0, "normal")]
+
+    def test_an_abnormal_exit_without_a_stop_is_reported_as_crashed(self):
+        engine = HsyncEngine()
+        finished = _capture(engine.process_finished)
+
+        engine._on_finished(143, QProcess.ExitStatus.CrashExit)
+
+        assert finished == [(143, "crashed")]
 
 
 class _EnvFakeSettings:
