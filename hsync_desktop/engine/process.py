@@ -22,6 +22,7 @@ from typing import ClassVar, cast
 from urllib.parse import urlparse
 
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
+from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 from PySide6.QtCore import (
     QObject,
@@ -131,11 +132,33 @@ class TransferStats:
         self.received_paths.clear()
 
 
+def p2p_secret_mode(secret: str, stored_mode: str) -> str:
+    """Return the input mode to use for *secret*: ``"passphrase"`` or ``"raw"``.
+
+    A raw group key must reach the client's floor
+    (``hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS``, enforced on
+    ``--p2p-key-fd``/``HSYNC_P2P_KEY``), so a secret shorter than that cannot be
+    one: it is a shared password and must travel as ``--p2p-passphrase-fd`` so
+    the client derives the group key from it. Legacy installs that stored a short
+    secret with ``key_mode=raw`` (written before passphrases existed) therefore
+    keep working instead of aborting at startup with the engine's
+    "group key must be at least 32 characters" error.
+
+    A secret that is neither long enough for a raw key nor an acceptable
+    passphrase (``MIN_GROUP_PASSPHRASE_CHARS``, plus the weak-value rules) is
+    still reported by the client, whose message is the actionable one.
+    """
+    if stored_mode == "passphrase":
+        return "passphrase"
+    return "raw" if len(secret) >= MIN_GROUP_KEY_CHARS else "passphrase"
+
+
 def p2p_secret_option(key_mode: str) -> str:
-    """Return the CLI fd flag matching the stored secret's input mode.
+    """Return the CLI fd flag matching the resolved secret input mode.
 
     ``passphrase`` sends the user password (the client derives the group key);
-    anything else (including a legacy install with no mode) sends a raw key.
+    ``raw`` sends the group key itself. Use
+    :func:`p2p_secret_mode` to resolve the mode from the stored value.
     """
     return "--p2p-passphrase-fd" if key_mode == "passphrase" else "--p2p-key-fd"
 
@@ -392,7 +415,7 @@ class HsyncEngine(QObject):
         if p2p_key and mode == "p2p":
             read_fd = write_secret_pipe(p2p_key)
             pipe_fds.append(read_fd)
-            secret_option = p2p_secret_option(p2p_key_mode)
+            secret_option = p2p_secret_option(p2p_secret_mode(p2p_key, p2p_key_mode))
             pipe_args.extend([secret_option, str(read_fd)])
         elif not p2p_key and mode == "p2p":
             # Keyless P2P: the desktop already confirmed via its own pre-flight

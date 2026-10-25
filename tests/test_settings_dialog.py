@@ -413,6 +413,53 @@ class TestP2PGroupPersistence:
         assert dlg.p2p_group.text() == ""
 
 
+class TestP2PSecretModeRepair:
+    """A stored secret below the raw-key floor is saved as a shared password.
+
+    The client rejects a raw group key shorter than 32 characters, so a legacy
+    ``p2p/key_mode=raw`` install with a short secret could never start (the
+    engine aborted at startup and the log panel showed only its first lines).
+    The dialog must repair the stored mode instead of leaving the engine to
+    fail.
+    """
+
+    def test_a_short_legacy_raw_secret_is_saved_as_a_passphrase(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        store.setValue("p2p/key", "shortkey15chars")
+        store.setValue("p2p/key_mode", "raw")
+        store.sync()
+        dlg.load()
+
+        dlg.save()
+
+        assert store.value("p2p/key_mode", "", str) == "passphrase"
+
+    def test_a_raw_key_at_the_floor_keeps_its_mode(self, qtbot, monkeypatch, tmp_path):
+        from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
+
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        store.setValue("p2p/key", "k" * MIN_GROUP_KEY_CHARS)
+        store.setValue("p2p/key_mode", "raw")
+        store.sync()
+        dlg.load()
+
+        dlg.save()
+
+        assert store.value("p2p/key_mode", "", str) == "raw"
+
+    def test_an_edited_field_is_a_passphrase(self, qtbot, monkeypatch, tmp_path):
+        dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
+        store.setValue("p2p/key", "k" * 64)
+        store.setValue("p2p/key_mode", "raw")
+        store.sync()
+        dlg.load()
+
+        dlg.p2p_key.setText("k" * 64 + "-changed")
+        dlg.save()
+
+        assert store.value("p2p/key_mode", "", str) == "passphrase"
+
+
 class TestPreferMasterDirectionGuard:
     """Prefer-primary and a directional sync are mutually exclusive: declining
     the proposed fix must restore the invariant, not leave it broken."""

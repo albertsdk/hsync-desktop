@@ -55,6 +55,15 @@ missing or has differently. The app stops and opens the password prompt so you
 can enter the correct one (it is saved and the sync retries); the password must
 be identical on every device in the group.
 
+## The p2p password is rejected
+
+The p2p tab field accepts a **shared password** (at least 12 characters; the
+client derives the group key from it) or a **raw group key** (at least 32
+characters). A shorter value is refused at startup with `group key must be at
+least 32 characters` or `shared password must be at least 12 characters`.
+Generate a password with `openssl rand -hex 16` and use the exact same string on
+every device in the group.
+
 ## TLS errors in Server Mode
 
 Verify the server address and its certificate. Enable **Skip certificate check**

@@ -352,6 +352,11 @@ is not disabled, because a configured log file still captures verbose output. Th
 signal is connected after `load()`, so a restored `output/verbose=true` never
 prompts.
 
+`verbose` maps to the client's `-v` (`settings/cli_args.py::_append_output_args`),
+i.e. DEBUG level. `output/logfile` adds `--log-file`: the client mirrors the log
+there and keeps its stdout sink, so the panel stays the live view while the file
+records the same lines.
+
 Validators for dialog fields: `settings/validators.py` — `_validate_path` (`settings/validators.py::_validate_path`),
 `_validate_bucket` (`settings/validators.py::_validate_bucket`), `_validate_group_name`
 (`settings/validators.py::_validate_group_name`).
@@ -452,6 +457,16 @@ stored values carry the `_ENC_PREFIX` (`crypto.py::_ENC_PREFIX`) marker. **Both*
 on save/load (`settings/dialog.py`). `decrypt_value` accepts a plaintext
 value (no prefix), so an unencrypted stored p2p key stays readable until the
 next save. Plaintext secrets only ever leave via the engine's pipe FDs.
+
+The stored p2p secret is either a shared password (the client derives the group
+key) or a raw group key, recorded in `p2p/key_mode`. The dialog persists the
+mode it resolves for the current field value (`settings/dialog.py::SettingsDialog._effective_p2p_key_mode`):
+an edited field is a password, an untouched one keeps its stored mode normalised
+by `engine/process.py::p2p_secret_mode` — a secret shorter than
+`hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw key, so
+it is stored as `passphrase`. That normalisation is the same one the engine
+applies at start, so a legacy short secret stored as `raw` is both repaired on
+the next save and accepted by the running engine.
 
 ## i18n.py — localization
 

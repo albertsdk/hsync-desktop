@@ -58,6 +58,13 @@ command line:
   `--p2p-key-fd`.
 - `--api-key-fd` / `--p2p-key-fd`: values from `decrypt_value` on
   `connection/api_key` and `p2p/key` (both Fernet at rest).
+- `p2p_secret_option` (`engine/process.py::p2p_secret_option`) turns the mode
+  resolved by `p2p_secret_mode` (`engine/process.py::p2p_secret_mode`) into
+  `--p2p-key-fd` or `--p2p-passphrase-fd`. A secret below
+  `hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw group
+  key (the client rejects it), so it always travels as a passphrase and the
+  client derives the key. That keeps a legacy `p2p/key_mode=raw` install with a
+  short secret working instead of aborting at startup.
 - `--events-json-fd`: child writes JSON-Lines; parent watches the read end.
   Same inheritable requirement as the secret read fds. On start failure all
   FDs are closed.

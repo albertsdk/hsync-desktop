@@ -111,6 +111,7 @@ from hsync_desktop.engine import (
     get_binary_capabilities_cached,
     normalize_bootnode_endpoint,
     normalize_server_endpoint,
+    p2p_secret_mode,
     probe_server_health,
 )
 from hsync_desktop.i18n import (
@@ -907,14 +908,21 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def _effective_p2p_key_mode(self) -> str:
-        """Persist mode: an edited field is a user password, otherwise keep it.
+        """Persist the input mode the current field value needs.
 
-        Legacy installs have no ``p2p/key_mode``; their untouched value stays a
-        raw key so existing groups keep working.
+        An edited field is a user password (the existing contract). An untouched
+        one keeps its stored mode, normalised by
+        `engine.process.p2p_secret_mode`: a secret below the client's raw-key
+        floor cannot be a group key, so it is a shared password. That also
+        repairs legacy installs whose short secret was stored as ``raw`` before
+        passphrases existed, instead of leaving them to the engine's startup
+        error.
         """
-        if self.p2p_key.text().strip() != self._p2p_key_loaded:
-            return "passphrase"
-        return self._p2p_key_mode_loaded
+        secret = self.p2p_key.text().strip()
+        if not secret:
+            return self._p2p_key_mode_loaded
+        stored = "passphrase" if secret != self._p2p_key_loaded else self._p2p_key_mode_loaded
+        return p2p_secret_mode(secret, stored)
 
     def _commit(self) -> bool:
         """Validate every field and persist; False when a check vetoes.

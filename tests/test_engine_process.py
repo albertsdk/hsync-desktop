@@ -27,6 +27,7 @@ from hsync_desktop.engine import (
     list_bootnode_trust,
     list_peer_pins,
     list_server_trust,
+    p2p_secret_mode,
     p2p_secret_option,
     remove_bootnode_trust,
     remove_peer_pin,
@@ -637,3 +638,31 @@ class TestP2pSecretOption:
     def test_raw_and_legacy_modes_use_the_key_fd(self):
         assert p2p_secret_option("raw") == "--p2p-key-fd"
         assert p2p_secret_option("") == "--p2p-key-fd"
+
+
+class TestP2pSecretMode:
+    """A secret below the client's raw-key floor can only be a shared password."""
+
+    def test_a_secret_at_the_floor_stays_a_raw_key(self):
+        from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
+
+        secret = "k" * MIN_GROUP_KEY_CHARS
+
+        assert p2p_secret_mode(secret, "raw") == "raw"
+
+    def test_a_short_raw_secret_is_used_as_a_passphrase(self):
+        """Legacy ``key_mode=raw`` with a short value must not abort the engine.
+
+        Regression: the client rejects a raw key shorter than
+        ``MIN_GROUP_KEY_CHARS``, so a stored 15-char secret started every sync
+        with "group key must be at least 32 characters (got 15)" and the log
+        panel never showed more than the startup lines.
+        """
+        assert p2p_secret_mode("shortkey15chars", "raw") == "passphrase"
+
+    def test_a_stored_passphrase_stays_a_passphrase(self):
+        assert p2p_secret_mode("k" * 64, "passphrase") == "passphrase"
+
+    def test_a_legacy_install_without_a_mode_is_normalised(self):
+        assert p2p_secret_mode("shortkey15chars", "") == "passphrase"
+        assert p2p_secret_mode("k" * 64, "") == "raw"

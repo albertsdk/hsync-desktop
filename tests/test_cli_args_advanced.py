@@ -191,3 +191,21 @@ class TestSelectionInheritance:
         assert "--no-autotune" in args
         assert "--no-mass-delete-guard" in args
         assert "--prefer-master" not in args
+
+
+class TestLoggingFlags:
+    """The Advanced-tab logging toggles map onto the client's output flags."""
+
+    def test_verbose_emits_the_short_flag(self):
+        """Detailed log output is the client's ``-v`` (DEBUG level)."""
+        assert "-v" in _build_args({"output/verbose": True})
+
+    def test_verbose_is_off_by_default(self):
+        assert "-v" not in _build_args({})
+
+    def test_log_file_and_verbose_travel_together(self):
+        """The file mirrors the log; the panel keeps reading stdout."""
+        args = _build_args({"output/verbose": True, "output/logfile": "/tmp/hsync.log"})
+
+        assert "-v" in args
+        assert _value_after(args, "--log-file") == "/tmp/hsync.log"

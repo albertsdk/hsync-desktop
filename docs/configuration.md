@@ -53,7 +53,7 @@ for the underlying behaviour.
 | Setting | Description |
 |---------|-------------|
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the p2p group; with a protected discovery server it is also the group key the client authenticates with |
+| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A legacy raw group key (32+ characters) already stored by an older version keeps being used as-is |
 | Discovery server (optional) | Endpoint of an optional discovery server (an HSYNC Bootnode) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. Passed as `HSYNC_BOOTNODE` (no scheme/path) |
 | Discovery server identity check | How the app checks the discovery server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify. Passed as `HSYNC_BOOTNODE_TRUST` |
 | Manage trusted servers & devices | List, add and remove the discovery server, server and device fingerprints the client actually uses |
@@ -169,7 +169,8 @@ options** is enabled in General. Changes apply at the next sync start.
 | Upload limit / Download limit | Bandwidth caps in MB/s (1 MB/s = 1 MiB/s), enforced from the first byte and shared by all transfers of that direction; 0 (**Unlimited**) uses all available bandwidth |
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 
-**Log file** writes the same output to a file.
+**Log file** mirrors the same output to a file: the log panel keeps showing the
+live log, and the file is a rotated copy of it.
 
 **Deletion protection.** When a cycle would delete more than the configured
 threshold (absolute count or percentage of local files), those deletions are
