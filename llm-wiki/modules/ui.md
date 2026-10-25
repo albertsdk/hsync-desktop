@@ -665,6 +665,15 @@ Standard, one point smaller in Compact. `table_row_height`
 (`fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
 `file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
 `main_window/start.py::StartMixin._apply_settings_changes` calls when the preference changes.
+A live scale change re-resolves the whole window:
+`main_window/start.py::StartMixin._apply_settings_changes` applies the new
+application font and then calls `fonts.py::reset_widget_fonts`, which clears the
+font of every widget in the tree. That step is mandatory because the stylesheet
+resolves each widget's font at polish time and Qt then treats it as explicitly
+set, so `QApplication.setFont` alone leaves the status bar and the share/mode
+labels at the previous size (only the widgets that receive an explicit
+`setFont` — file table, log view, menus — followed). Those explicit fonts are
+re-applied right after the reset.
 The fonts are set programmatically
 (`main_window/ui.py::UiBuildMixin._load_ui`, `license_dialog.py::LicenseDialog`);
 the QSS no longer pins a `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but

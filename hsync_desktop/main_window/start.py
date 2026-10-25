@@ -62,7 +62,12 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
-from hsync_desktop.fonts import apply_system_fonts, log_monospace_font, ui_font
+from hsync_desktop.fonts import (
+    apply_system_fonts,
+    log_monospace_font,
+    reset_widget_fonts,
+    ui_font,
+)
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.icons import icon
 from hsync_desktop.notifications import NotificationManager
@@ -627,6 +632,10 @@ class StartMixin:
         if app:
             apply_theme(app, theme)  # type: ignore[arg-type]
             apply_system_fonts(app, get_saved_font_scale())
+            # The stylesheet resolved every widget's font at polish time, so the
+            # new application font must be re-inherited explicitly; the widgets
+            # that use another font are re-applied right below.
+            reset_widget_fonts(self)
             self._refresh_menu_fonts()
             self._refresh_icons_for_theme()
             self._log_view.setFont(log_monospace_font())

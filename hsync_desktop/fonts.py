@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 
 from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from hsync_desktop.config import FONT_SCALE_COMPACT, FONT_SCALE_STANDARD
 from hsync_desktop.kde import config_home, read_ini
@@ -287,6 +287,21 @@ def apply_system_fonts(app: QApplication, font_scale: str = FONT_SCALE_STANDARD)
     app.setFont(fonts.ui)
     _ui_font = fonts.ui
     _mono_font = fonts.mono
+
+
+def reset_widget_fonts(root: QWidget) -> None:
+    """Make every widget under *root* inherit the current application font.
+
+    ``QApplication.setFont`` does not reach widgets that the stylesheet already
+    polished: the style resolves each widget's font at polish time and Qt then
+    treats it as explicitly set, so a live font-scale change left the status bar
+    and the header labels at the previous size (only the widgets that get an
+    explicit ``setFont`` — file table, log view, menus — followed). Clearing the
+    font makes the widget re-resolve from the application font; callers then
+    re-apply the few widgets that deliberately use another font.
+    """
+    for widget in root.findChildren(QWidget):
+        widget.setFont(QFont())
 
 
 def ui_font() -> QFont:
