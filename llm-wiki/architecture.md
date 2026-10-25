@@ -76,7 +76,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 | `appimage` | `dist/appimage/hsync-desktop-<ver>-x86_64.AppImage` | host onefile (client bundled) wrapped in an AppDir and packaged with `appimagetool`; Linux x86_64 only |
 | `dmg` | `dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg` | host onefile `--windowed` (client bundled) as `hsync-desktop.app`; `Info.plist` merged from `packaging/macos/Info.plist`, `.icns` via `sips`/`iconutil`, `.dmg` via `hdiutil`; darwin only |
 | `rpi` | `dist/rpi/arm64/hsync-desktop` | arm64 onefile built inside an emulated Debian Bookworm container from `packaging/rpi/Dockerfile.builder` |
-| `windows` | `dist/windows/hsync-desktop-<ver>-windows-amd64-setup.exe` + `dist/windows/hsync-desktop-<ver>-windows-amd64.zip` | host PyInstaller onefile (client bundled) + Inno Setup installer (`ISCC`) + portable zip; Windows x64 only |
+| `windows` | `dist/windows/hsync-desktop-<ver>-windows-amd64-setup.exe` + `dist/windows/hsync-desktop-<ver>-windows-amd64.zip` | host PyInstaller onefile (client bundled) + Inno Setup installer (`ISCC`) + portable zip; Windows x64 only; the Qt runtime needs the ICU library shipped with Windows (no Wine/CrossOver support) |
 
 - Options: `-c/--clean`, `-t/--target` (default `native`), `-v/--version` (also
   `HSYNC_VERSION`), `-h/--help`.

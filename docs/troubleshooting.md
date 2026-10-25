@@ -67,6 +67,15 @@ The **Log** panel in the main window is the live view. To keep a file, set
 *Settings → Advanced → Log file*; enable **Detailed log output** for verbose
 lines. The action labels are documented in [Log Labels](log-labels.md).
 
+## The Windows build does not start under Wine
+
+The console shows `err:module:import_dll Library icuuc.dll … not found`, followed
+by `Qt6Core.dll … not found`. Nothing is missing from the download: the Qt
+runtime in the Windows build links against the ICU library that ships with
+Windows, and Wine/CrossOver does not provide it, so the process stops before the
+app starts. Use a Windows 10/11 host, or install the native package for your
+system — see [Getting Started](getting-started.md).
+
 ## Getting help
 
 - [Support](../SUPPORT.md) — where to ask and what to include.

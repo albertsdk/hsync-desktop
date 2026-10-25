@@ -22,6 +22,12 @@ launch **HSYNC** from the Start Menu (the last wizard page can launch it too).
 > The installer is **unsigned**, so Windows SmartScreen warns on the first run:
 > choose **More info → Run anyway**. The portable `.zip` shows the same prompt.
 
+> **Wine/CrossOver is not supported.** The app runs on the Qt runtime bundled in
+> the PySide6 wheel, which links against the ICU library that ships with Windows
+> (`icuuc.dll`). Compatibility layers do not provide it, so the app stops at
+> startup with `Library icuuc.dll … not found`. On Linux use the native package
+> instead — see [Getting Started](getting-started.md).
+
 On first launch open **Settings** and configure a connection — see the
 [Configuration Reference](configuration.md).
 

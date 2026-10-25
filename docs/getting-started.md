@@ -41,6 +41,8 @@ methods are ordered from the simplest and most immediate to the most involved.
 - The **AppImage** is **Linux x86_64 only**
 - The **macOS `.dmg`** is **unsigned**: macOS needs a one-time confirmation
   (right-click → Open, or `xattr -dr com.apple.quarantine`)
+- The **Windows** build runs on Windows 10/11 and is **not** supported under
+  Wine/CrossOver (the Qt runtime needs the ICU library that ships with Windows)
 
 ## After installing
 
