@@ -317,7 +317,20 @@ class StartMixin:
             return
         local_path = self._local_path
         if local_path:
+            self._on_auto_start()
+
+    def _on_auto_start(self) -> None:
+        """Auto-start from a saved folder or the OS autostart entry.
+
+        Marks the run as automatic so a startup failure is reported through the
+        tray/banner instead of a modal dialog that would be invisible while the
+        app sits in the tray (``--minimized``).
+        """
+        self._start_is_automatic = True
+        try:
             self._on_start()
+        finally:
+            self._start_is_automatic = False
 
     def _check_deletion_risk(self) -> bool:
         """Check if sync settings could cause local file deletion.
@@ -490,6 +503,10 @@ class StartMixin:
         owns the post-success UI state and the failure reset.
         """
         self._last_engine_error = ""
+        # Fresh startup-failure state for this run (see ``_on_startup_failed``).
+        self._startup_failure_surfaced = False
+        self._startup_error_message = ""
+        self._startup_failure_tail = ""
         self._engine.local_root = self._local_path
         self._engine_starting = True
         try:
@@ -502,19 +519,44 @@ class StartMixin:
         # start-failure dialog below is its single, more specific report.
         if self._selection_sync_active:
             self._finish_selection_sync("cancelled")
-        self._report_engine_start_failure()
+        self._report_engine_start_failure(
+            detail=self._last_engine_error, automatic=self._start_is_automatic
+        )
         return False
 
-    def _report_engine_start_failure(self) -> None:
-        """Show why the engine could not start instead of failing silently."""
+    def _report_engine_start_failure(
+        self,
+        *,
+        code: int = 0,
+        detail: str = "",
+        automatic: bool = False,
+    ) -> None:
+        """Show why the engine could not start instead of failing silently.
+
+        A manual start gets a modal dialog; an automatic start gets the
+        persistent error banner plus the tray notification (a modal would be
+        invisible and blocking while the app runs minimized in the tray).
+        """
+        detail = (detail or self._last_engine_error).strip()
+        text = tr("notif.engine_start_failed")
+        if code:
+            text = f"{text}\n\n{tr('notif.engine_startup_failed').replace('{code}', str(code))}"
+        if automatic:
+            message = f"{text}\n{detail}".strip()
+            self._append_desktop_log("ERROR", message.replace("\n", " "))
+            self._notify_error(tr("notif.error"), message)
+            return
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Critical)
         msg.setWindowTitle(tr("notif.error"))
-        msg.setText(tr("notif.engine_start_failed"))
-        if self._last_engine_error:
-            msg.setInformativeText(self._last_engine_error)
+        msg.setText(text)
+        if detail:
+            msg.setInformativeText(detail)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        show_log = msg.addButton(tr("settings.show_log_panel"), QMessageBox.ButtonRole.ActionRole)
         msg.exec()
+        if msg.clickedButton() is show_log:
+            self._show_log_panel()
 
     def _on_stop(self) -> None:
         self._user_stopped = True

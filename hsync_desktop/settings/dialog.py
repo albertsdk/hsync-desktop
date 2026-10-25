@@ -17,6 +17,10 @@ from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME
 from hsync_common.endpoint import parse_host_port
+from hsync_common.protocol.boot_tokens import (
+    WeakGroupPassphrase,
+    validate_group_passphrase,
+)
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtGui import QShowEvent
@@ -180,6 +184,10 @@ class SettingsDialog(QDialog):
         self._tab_descriptions: dict[int, QLabel] = {}
         # Folder whose sync state the user asked to reset ("" = no request).
         self._reset_state_folder = ""
+        # Snapshot of the stored p2p secret + its input mode, so save() can tell
+        # an edited user password from an untouched legacy raw key.
+        self._p2p_key_loaded = ""
+        self._p2p_key_mode_loaded = "raw"
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
@@ -898,6 +906,16 @@ class SettingsDialog(QDialog):
             return  # Go back to dialog
         self.accept()
 
+    def _effective_p2p_key_mode(self) -> str:
+        """Persist mode: an edited field is a user password, otherwise keep it.
+
+        Legacy installs have no ``p2p/key_mode``; their untouched value stays a
+        raw key so existing groups keep working.
+        """
+        if self.p2p_key.text().strip() != self._p2p_key_loaded:
+            return "passphrase"
+        return self._p2p_key_mode_loaded
+
     def _commit(self) -> bool:
         """Validate every field and persist; False when a check vetoes.
 
@@ -934,6 +952,20 @@ class SettingsDialog(QDialog):
         # Validate: the OS login item must match the toggle before persisting.
         if not self._apply_start_at_login():
             return False  # Go back to dialog
+        # Validate a user-typed p2p password (the raw-key path is enforced by
+        # the engine's 32-char floor and stays untouched for legacy installs).
+        if self.p2p_mode.isChecked():
+            password = self.p2p_key.text().strip()
+            if password and self._effective_p2p_key_mode() == "passphrase":
+                try:
+                    validate_group_passphrase(password)
+                except WeakGroupPassphrase as exc:
+                    QMessageBox.warning(
+                        self,
+                        tr("settings.title"),
+                        tr(f"p2pauth.error.{exc.code}"),
+                    )
+                    return False
         self.save()
         return True
 
@@ -1028,7 +1060,8 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode_trust.currentData() or DEFAULT_P2P_BOOTNODE_TRUST,
         )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
-        s.setValue("p2p/key", encrypt_value(self.p2p_key.text()))
+        s.setValue("p2p/key", encrypt_value(self.p2p_key.text().strip()))
+        s.setValue("p2p/key_mode", self._effective_p2p_key_mode())
         s.setValue("p2p/port", self.p2p_port.value())
         s.setValue("p2p/discovery_timeout", self.discovery_timeout.value())
         s.setValue("p2p/ntp_hosts", self.ntp_hosts.text())
@@ -1167,6 +1200,8 @@ class SettingsDialog(QDialog):
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
+        self._p2p_key_loaded = self.p2p_key.text().strip()
+        self._p2p_key_mode_loaded = str(s.value("p2p/key_mode", "raw", str)) or "raw"
         self.p2p_port.setValue(cast(int, s.value("p2p/port", DEFAULT_P2P_PORT, int)))
         self.discovery_timeout.setValue(
             cast(int, s.value("p2p/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))

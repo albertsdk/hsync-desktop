@@ -88,6 +88,7 @@ class TestP2pModeMapping:
         assert store.value("p2p/enabled", False, bool) is True
         assert store.value("p2p/group") == "grp"
         assert store.value("p2p/key").startswith("enc::")
+        assert store.value("p2p/key_mode") == "passphrase"
         assert store.value("p2p/bootnode", "x", str) == ""
         assert store.value("p2p/bootnode_trust") == "ask"
 

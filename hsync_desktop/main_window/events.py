@@ -690,7 +690,39 @@ class EventsMixin:
         self._preview_stats.to_rename += 1
 
     @Slot(int, str)
+    def _on_startup_failed(self, code: int, tail: str) -> None:
+        """Present an engine that exited before it reported readiness.
+
+        The structured-reason path arrives as ``error(reason="startup")``; this
+        is the safety net for older clients, crashes, and failures that happened
+        before the client could emit the event.
+        """
+        self._startup_failure_tail = tail
+        self._present_startup_failure(code)
+
+    def _present_startup_failure(self, code: int) -> None:
+        """Report a startup failure once per run (manual modal / automatic tray)."""
+        if self._startup_failure_surfaced:
+            return
+        self._startup_failure_surfaced = True
+        detail = (self._startup_error_message or self._startup_failure_tail).strip()
+        # The structured path already mirrored its message into the log; the
+        # safety-net tail is only in the engine's transient buffer, so record it.
+        if detail and not self._startup_error_message:
+            self._append_desktop_log("ERROR", detail.replace("\n", " "))
+        self._report_engine_start_failure(
+            code=code,
+            detail=detail,
+            automatic=self._start_is_automatic,
+        )
+
+    @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
+        # A run that never reached readiness and reported a structured startup
+        # error is presented here, where the exit code is known. The exit-time
+        # safety net (``_on_startup_failed``) handles the no-event case first.
+        if self._startup_error_message and not self._startup_failure_surfaced:
+            self._present_startup_failure(code)
         # A scoped Send/Receive that ended without a typed outcome (crash, user
         # stop) is finalized here; while the confirmation dialog is open
         # (phase "confirm") the op is still in flight and must not be closed.
@@ -734,8 +766,9 @@ class EventsMixin:
         self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
 
         # Notify only for truly unexpected crashes (not user stop, auth error,
-        # force sync, app quit, etc.)
-        if desc == "crashed" and not self._user_stopped:
+        # force sync, app quit, etc.). A startup failure already has its own
+        # report, so it must not also raise the generic crash toast.
+        if desc == "crashed" and not self._user_stopped and not self._startup_failure_surfaced:
             self._notify_error(
                 tr("notif.error"),
                 tr("notif.process_crashed").replace("{code}", str(code)),

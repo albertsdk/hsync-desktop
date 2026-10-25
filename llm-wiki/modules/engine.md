@@ -78,6 +78,7 @@ command line:
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
+| `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |
 | `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
@@ -91,8 +92,22 @@ Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload sh
 `error_occurred` carries a second `reason` argument so the UI can name the cause:
 `""` (generic, from the client's `error` event), `"connection"` (a
 `NetworkError` that is not a `ServerError`, tagged by the client's preview/sync),
-`"process"` (a `QProcess` read/write/crash error) and `"start"` (the engine could
-not be launched). `no_peers_warning` is emitted when a p2p one-shot aborts because
+`"process"` (a `QProcess` read/write/crash error), `"start"` (the engine could
+not be launched) and `"startup"` (a fatal startup error the client reported just
+before exiting).
+
+**Startup failures** (`engine/process.py::HsyncEngine.startup_failed`): a config
+error exits *normally* with a non-zero code, which `process_finished` alone cannot
+tell apart from a clean stop. The engine therefore tracks a startup phase —
+`_ready` is set by the client's `ready` event (or by any `status` event, the
+fallback for older clients) and the merged stdout/stderr tail is buffered until
+then. If the process exits while still in that phase (and not because of an
+operator stop), it emits `startup_failed(exit_code, tail)`. A received
+`error(reason="startup")` suppresses that safety net so the failure is reported
+exactly once. The window presents a **manual** start with a modal dialog and an
+**automatic** start (`_on_auto_start`, OS autostart in the tray) with the
+persistent error banner + tray notification
+(`main_window/events.py::EventsMixin._present_startup_failure`). `no_peers_warning` is emitted when a p2p one-shot aborts because
 no peer was discovered.
 
 Both `auth_error` (invalid/missing key) and `auth_required` (a shared key is

@@ -27,6 +27,7 @@ from hsync_desktop.engine import (
     list_bootnode_trust,
     list_peer_pins,
     list_server_trust,
+    p2p_secret_option,
     remove_bootnode_trust,
     remove_peer_pin,
     remove_server_trust,
@@ -173,6 +174,66 @@ class TestFinishedDescription:
         engine._on_finished(143, QProcess.ExitStatus.CrashExit)
 
         assert finished == [(143, "crashed")]
+
+
+class TestStartupPhase:
+    """An engine that dies before readiness is a startup failure.
+
+    A config error exits *normally* with code 1, so ``process_finished`` alone
+    cannot distinguish it from a clean stop.
+    """
+
+    def test_exit_before_ready_emits_startup_failed_with_the_tail(self):
+        engine = HsyncEngine()
+        failures = _capture(engine.startup_failed)
+        engine._startup_tail.append("ERROR: No API key configured")
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert failures == [(1, "ERROR: No API key configured")]
+
+    def test_ready_event_marks_the_run_ready(self):
+        engine = HsyncEngine()
+        failures = _capture(engine.startup_failed)
+        engine._startup_tail.append("starting")
+
+        engine._handle_event(build_event(UiEventName.ready))
+
+        assert engine._ready is True
+        assert list(engine._startup_tail) == []
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+        assert failures == []
+
+    def test_a_status_event_is_the_fallback_readiness_marker(self):
+        """Clients that predate the explicit ``ready`` event emit ``status``."""
+        engine = HsyncEngine()
+        failures = _capture(engine.startup_failed)
+
+        engine._handle_event(build_event(UiEventName.status, status="connected"))
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert engine._ready is True
+        assert failures == []
+
+    def test_a_structured_startup_error_suppresses_the_safety_net(self):
+        engine = HsyncEngine()
+        failures = _capture(engine.startup_failed)
+        errors = _capture(engine.error_occurred)
+
+        engine._handle_event(build_event(UiEventName.error, message="bad config", reason="startup"))
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert errors == [("bad config", "startup")]
+        assert failures == []
+
+    def test_an_operator_stop_before_ready_is_not_a_startup_failure(self):
+        engine = HsyncEngine()
+        failures = _capture(engine.startup_failed)
+        engine._stopping = True
+
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert failures == []
 
 
 class _EnvFakeSettings:
@@ -565,3 +626,14 @@ class TestWriteSecretPipe:
             assert os.read(fd, 64) == b""
         finally:
             os.close(fd)
+
+
+class TestP2pSecretOption:
+    """The fd flag follows the stored secret's input mode."""
+
+    def test_passphrase_mode_uses_the_passphrase_fd(self):
+        assert p2p_secret_option("passphrase") == "--p2p-passphrase-fd"
+
+    def test_raw_and_legacy_modes_use_the_key_fd(self):
+        assert p2p_secret_option("raw") == "--p2p-key-fd"
+        assert p2p_secret_option("") == "--p2p-key-fd"

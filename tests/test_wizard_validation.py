@@ -119,13 +119,42 @@ class TestConnectionValidation:
             mode=WizardMode.REMOTE_SYNC,
             bucket="data",
             p2p_group="grp",
-            p2p_key="pw",
+            p2p_key="abcdwxyz12345678",
         )
         assert [i.code for i in validate_connection(draft)] == ["discovery_server_required"]
 
     def test_lan_needs_no_server(self):
-        draft = WizardDraft(mode=WizardMode.LAN_SYNC, bucket="data", p2p_group="grp", p2p_key="pw")
+        draft = WizardDraft(
+            mode=WizardMode.LAN_SYNC,
+            bucket="data",
+            p2p_group="grp",
+            p2p_key="abcdwxyz12345678",
+        )
         assert validate_connection(draft) == []
+
+    def test_lan_rejects_a_short_password(self):
+        draft = WizardDraft(mode=WizardMode.LAN_SYNC, bucket="data", p2p_group="grp", p2p_key="pw")
+        assert [i.code for i in validate_connection(draft)] == ["password_too_short"]
+
+    def test_lan_rejects_a_weak_password(self):
+        draft = WizardDraft(
+            mode=WizardMode.LAN_SYNC,
+            bucket="data",
+            p2p_group="grp",
+            p2p_key="password1234",
+        )
+        assert [i.code for i in validate_connection(draft)] == ["password_too_weak"]
+
+    def test_lan_warns_on_a_12_char_password(self):
+        draft = WizardDraft(
+            mode=WizardMode.LAN_SYNC,
+            bucket="data",
+            p2p_group="grp",
+            p2p_key="abcdwxyz1234",
+        )
+        issues = validate_connection(draft)
+        assert [i.code for i in issues] == ["password_short"]
+        assert issues[0].level == "warning"
 
     def test_team_needs_server(self):
         draft = WizardDraft(mode=WizardMode.TEAM_SHARE, bucket="data")

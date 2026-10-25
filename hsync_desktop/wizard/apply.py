@@ -156,6 +156,7 @@ def apply_draft(
         s.setValue("p2p/enabled", True)
         s.setValue("p2p/group", draft.p2p_group.strip())
         s.setValue("p2p/key", encrypt_value(draft.p2p_key) if draft.p2p_key else "")
+        s.setValue("p2p/key_mode", "passphrase")
         s.setValue("p2p/bootnode_trust", "ask")
         discovery_server = (
             normalize_bootnode_endpoint(draft.discovery_server)

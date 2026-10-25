@@ -170,6 +170,12 @@ class MainWindow(
         # True only while ``HsyncEngine.start`` runs, so a launch failure is
         # reported once (by ``_start_engine``) and not also by the error slot.
         self._engine_starting = False
+        # Startup-failure reporting: an automatic (saved-folder / OS autostart)
+        # start must not raise an invisible modal while the app sits in the tray.
+        self._start_is_automatic = False
+        self._startup_failure_surfaced = False
+        self._startup_error_message = ""
+        self._startup_failure_tail = ""
 
         # Open settings dialog, if any (tray/menu re-clicks raise it instead).
         self._settings_dialog: SettingsDialog | None = None
@@ -280,6 +286,9 @@ class MainWindow(
         e.pairing_needed.connect(self._on_pairing_needed)
         e.fingerprint_changed.connect(self._on_fingerprint_changed)
         e.process_finished.connect(self._on_process_finished)
+        # The engine died before readiness (exit-time safety net); the structured
+        # startup error path arrives through ``error_occurred``.
+        e.startup_failed.connect(self._on_startup_failed)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
         e.preview_ended.connect(self._on_preview_ended)

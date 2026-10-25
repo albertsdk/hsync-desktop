@@ -9,6 +9,7 @@ import os
 import re
 
 import pytest
+from hsync_common.protocol.events import UiEventName, build_event
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
@@ -271,6 +272,64 @@ class TestEngineStartFailure:
         # The window is left usable (start re-enabled), not stuck mid-start.
         assert window._btn_start.isEnabled()
         assert not window._btn_stop.isEnabled()
+
+    def test_startup_exit_before_ready_reports_once(self, window, monkeypatch):
+        """A config error exits normally with code 1: it must still be reported."""
+        shown = self._capture_dialogs(monkeypatch)
+        notified: list[tuple[str, str]] = []
+        monkeypatch.setattr(window, "_notify_error", lambda t, m: notified.append((t, m)))
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        # Started, then died before readiness (the exit-time safety net).
+        window._engine.startup_failed.emit(1, "ERROR: No API key configured")
+        window._on_process_finished(1, "normal")
+
+        assert len(shown) == 1
+        assert tr("notif.engine_startup_failed").replace("{code}", "1") in shown[0].text()
+        assert "No API key configured" in shown[0].informativeText()
+        assert "No API key configured" in window._log_view.toPlainText()
+        assert notified == []  # a manual start is modal, not a tray-only notice
+
+    def test_structured_startup_error_is_reported_with_the_exit_code(self, window, monkeypatch):
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        # Structured event first, then the process exit carries the code.
+        window._on_engine_error("No API key configured.", "startup")
+        window._on_process_finished(1, "normal")
+
+        assert len(shown) == 1
+        assert shown[0].informativeText() == "No API key configured."
+        assert tr("notif.engine_startup_failed").replace("{code}", "1") in shown[0].text()
+
+    def test_automatic_startup_failure_uses_the_banner_not_a_modal(self, window, monkeypatch):
+        """An autostart in the tray must not raise an invisible blocking modal."""
+        shown = self._capture_dialogs(monkeypatch)
+        notified: list[tuple[str, str]] = []
+        monkeypatch.setattr(window, "_notify_error", lambda t, m: notified.append((t, m)))
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        window._start_is_automatic = True
+        try:
+            assert window._start_engine(["p2p"]) is True
+            window._engine.startup_failed.emit(1, "ERROR: bad config")
+        finally:
+            window._start_is_automatic = False
+
+        assert shown == []
+        assert notified and "bad config" in notified[0][1]
+
+    def test_ready_then_exit_is_not_a_startup_failure(self, window, monkeypatch):
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        window._engine._handle_event(build_event(UiEventName.ready))
+        window._on_process_finished(0, "normal")
+
+        assert shown == []
 
 
 class TestAboutMenu:

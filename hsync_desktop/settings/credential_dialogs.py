@@ -5,6 +5,10 @@
 
 from __future__ import annotations
 
+from hsync_common.protocol.boot_tokens import (
+    WeakGroupPassphrase,
+    validate_group_passphrase,
+)
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QDialog,
@@ -136,13 +140,23 @@ class P2PKeyDialog(QDialog):
     def _on_save(self) -> None:
         """Save the p2p key and accept the dialog."""
         p2p_key = self._p2p_key_edit.text().strip()
-        if p2p_key:
-            s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-            s.setValue("p2p/key", encrypt_value(p2p_key))
-            self.accept()
-        else:
+        if not p2p_key:
             QMessageBox.warning(
                 self,
                 tr("p2pauth.title"),
                 tr("p2pauth.prompt"),
             )
+            return
+        try:
+            validate_group_passphrase(p2p_key)
+        except WeakGroupPassphrase as exc:
+            QMessageBox.warning(
+                self,
+                tr("p2pauth.title"),
+                tr(f"p2pauth.error.{exc.code}"),
+            )
+            return
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        s.setValue("p2p/key", encrypt_value(p2p_key))
+        s.setValue("p2p/key_mode", "passphrase")
+        self.accept()

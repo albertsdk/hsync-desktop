@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import ClassVar, cast
@@ -41,6 +42,11 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine.cli import find_hsync_binary
+
+# How many merged stdout/stderr lines are kept during the startup phase, so a
+# failure report can show the client's own diagnostic instead of a bare exit
+# code. The tail is discarded as soon as the engine reports readiness.
+_STARTUP_TAIL_LINES = 40
 
 
 def write_secret_pipe(secret: str) -> int:
@@ -123,6 +129,15 @@ class TransferStats:
         self.bytes_sent = self.bytes_received = 0
         self.sent_paths.clear()
         self.received_paths.clear()
+
+
+def p2p_secret_option(key_mode: str) -> str:
+    """Return the CLI fd flag matching the stored secret's input mode.
+
+    ``passphrase`` sends the user password (the client derives the group key);
+    anything else (including a legacy install with no mode) sends a raw key.
+    """
+    return "--p2p-passphrase-fd" if key_mode == "passphrase" else "--p2p-key-fd"
 
 
 def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
@@ -227,6 +242,10 @@ class HsyncEngine(QObject):
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
     path_not_found = Signal(str)  # shared path does not exist
     process_finished = Signal(int, str)  # exit code, exit status description
+    # The process exited before it reported readiness (exit code, captured
+    # stdout/stderr tail). A config error exits *normally* with a non-zero code,
+    # so ``process_finished`` alone cannot tell it apart from a clean stop.
+    startup_failed = Signal(int, str)
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     no_peers_warning = Signal(str)  # a p2p one-shot found no peer to sync with
@@ -268,6 +287,13 @@ class HsyncEngine(QObject):
         self._events_read_fd: int | None = None
         self._events_notifier: QSocketNotifier | None = None
         self._events_buf = ""
+        # Startup phase: False until the client reports readiness (``ready``, or
+        # any ``status`` for clients that predate the explicit marker). The tail
+        # is the merged output captured before readiness, used by
+        # ``startup_failed``.
+        self._ready = False
+        self._startup_error_event = False
+        self._startup_tail: deque[str] = deque(maxlen=_STARTUP_TAIL_LINES)
 
     # ── Properties ───────────────────────────────────────────────────────
 
@@ -317,6 +343,10 @@ class HsyncEngine(QObject):
         self._peers = 0
         self._peers_total = 0
         self._stopping = False
+        # Fresh startup phase for this run.
+        self._ready = False
+        self._startup_error_event = False
+        self._startup_tail.clear()
         self._set_status("connecting")
 
         proc = QProcess(self)
@@ -330,6 +360,10 @@ class HsyncEngine(QObject):
         env = QProcessEnvironment.systemEnvironment()
         s = QSettings("HSYNC", "HSYNCDesktop")
         apply_settings_env(env, s)
+        # The GUI value wins: never let an exported variable conflict with the
+        # selected mode (the client rejects both forms being set at once).
+        env.remove("HSYNC_P2P_KEY")
+        env.remove("HSYNC_P2P_PASSPHRASE")
         proc.setProcessEnvironment(env)
 
         # Pass secrets via pipe file descriptors so they never appear in
@@ -354,10 +388,12 @@ class HsyncEngine(QObject):
             pipe_args.extend(["--api-key-fd", str(read_fd)])
 
         p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
+        p2p_key_mode = str(s.value("p2p/key_mode", "raw", str)) or "raw"
         if p2p_key and mode == "p2p":
             read_fd = write_secret_pipe(p2p_key)
             pipe_fds.append(read_fd)
-            pipe_args.extend(["--p2p-key-fd", str(read_fd)])
+            secret_option = p2p_secret_option(p2p_key_mode)
+            pipe_args.extend([secret_option, str(read_fd)])
         elif not p2p_key and mode == "p2p":
             # Keyless P2P: the desktop already confirmed via its own pre-flight
             # dialog, so acknowledge the posture for the CLI subprocess.
@@ -492,6 +528,10 @@ class HsyncEngine(QObject):
             line = raw_line.rstrip()
             if line:
                 self.log_received.emit(line)
+                if not self._ready:
+                    # Keep the startup output so a failure can show the client's
+                    # own reason instead of only the exit code.
+                    self._startup_tail.append(line)
                 if debug_enabled:
                     debug_events.log("client_log", line=line)
 
@@ -508,8 +548,17 @@ class HsyncEngine(QObject):
             desc = "normal"
         else:
             desc = "crashed"
+        # A process that died before readiness without reporting a structured
+        # startup error is a startup failure: ``process_finished`` alone would
+        # look like a clean stop (a config error exits normally with code 1).
+        startup_failed = not self._ready and not self._stopping and not self._startup_error_event
+        tail = "\n".join(self._startup_tail)
         self._stopping = False
         self._set_status("disconnected")
+        if startup_failed:
+            # Emitted first so the window can mark the failure as surfaced
+            # before its generic ``process_finished`` handling runs.
+            self.startup_failed.emit(exit_code, tail)
         self.process_finished.emit(exit_code, desc)
 
     @Slot(QProcess.ProcessError)
@@ -535,6 +584,11 @@ class HsyncEngine(QObject):
         if status != self._status:
             self._status = status
             self.status_changed.emit(status)
+
+    def _mark_ready(self) -> None:
+        """Leave the startup phase: the engine reached its run loop."""
+        self._ready = True
+        self._startup_tail.clear()
 
     # ── Structured events channel ─────────────────────────────────────────
 
@@ -593,6 +647,15 @@ class HsyncEngine(QObject):
         never crashes the engine.
         """
         name = event.get("event")
+        # Readiness phase: the client emits ``ready`` once every fatal startup
+        # validation passed; a ``status`` event is the fallback for clients that
+        # predate the explicit marker.
+        if name in (UiEventName.ready, UiEventName.status):
+            self._mark_ready()
+        elif name == UiEventName.error and event.get("reason") == "startup":
+            # The window presents this structured reason; the exit-time safety
+            # net must not report the same failure again.
+            self._startup_error_event = True
         from hsync_desktop import debug_events
 
         # The kwargs dict is built by the call expression; skip it entirely when

@@ -115,8 +115,8 @@ disable unsupported controls) is realized in
 - **The Windows build needs the ICU library shipped with Windows**: the PySide6
   6.12 win_amd64 wheel ships no ICU DLL, and its `Qt6Core.dll` imports the
   unversioned `icuuc.dll` (the Windows SDK ICU), while PyInstaller 6.22's
-  `PyInstaller/utils/hooks/qt/__init__.py::QtLibraryInfo.collect_extra_binaries`
-  only globs the versioned `icu??.dll` names — so nothing is bundled either way.
+  `PyInstaller/utils/hooks/qt/__init__.py` (`QtLibraryInfo.collect_extra_binaries`
+  hook) only globs the versioned `icu??.dll` names — so nothing is bundled either way.
   The artifact runs on Windows 10/11 only; Wine/CrossOver fails at load time
   (`Library icuuc.dll … not found`) and is documented as unsupported. Bundling
   `icu*.dll` from `C:\Windows\System32` was rejected: no license to redistribute

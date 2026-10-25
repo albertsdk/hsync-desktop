@@ -725,6 +725,13 @@ class UiBuildMixin:
         if message:
             self._append_desktop_log("ERROR", message)
 
+        # A structured startup failure: the client is exiting, and
+        # ``process_finished`` presents it once with the exit code. Do not toast
+        # here and do not finalize a scoped op (the finish handler owns both).
+        if reason == "startup":
+            self._startup_error_message = message
+            return
+
         # An engine launch failure has its own dialog (see ``_start_engine``);
         # ignore it here so it is never surfaced or finalized twice.
         if self._engine_starting:
@@ -1052,5 +1059,12 @@ class UiBuildMixin:
             sizes = self._main_splitter.sizes()
             total = sum(sizes)
             self._main_splitter.setSizes([total, 0])
+
+    def _show_log_panel(self) -> None:
+        """Reveal the log panel (the startup-failure dialog's "Show log")."""
+        self._log_view.show()
+        sizes = self._main_splitter.sizes()
+        if sizes[1] == 0:
+            self._main_splitter.setSizes([400, 200])
 
     # ── Window management ────────────────────────────────────────────────

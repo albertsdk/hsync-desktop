@@ -50,6 +50,7 @@ from hsync_desktop.engine.process import (
     HsyncEngine,
     TransferStats,
     apply_settings_env,
+    p2p_secret_option,
     write_secret_pipe,
 )
 
@@ -78,6 +79,7 @@ __all__ = [
     "list_server_trust",
     "normalize_bootnode_endpoint",
     "normalize_server_endpoint",
+    "p2p_secret_option",
     "probe_server_bucket",
     "probe_server_health",
     "remove_bootnode_trust",

@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from hsync_common.protocol.boot_tokens import (
+    WeakGroupPassphrase,
+    passphrase_warning,
+    validate_group_passphrase,
+)
+
 from hsync_desktop.engine import normalize_bootnode_endpoint, normalize_server_endpoint
 from hsync_desktop.settings.validators import (
     _validate_bucket,
@@ -94,8 +100,17 @@ def _check_p2p(draft: WizardDraft, requires_discovery_server: bool) -> list[Issu
     issues: list[Issue] = []
     if _validate_group_name(draft.p2p_group.strip()) is None:
         issues.append(Issue("error", "group_invalid", "p2p_group"))
-    if not draft.p2p_key.strip():
+    password = draft.p2p_key.strip()
+    if not password:
         issues.append(Issue("error", "password_required", "p2p_key"))
+    else:
+        try:
+            validate_group_passphrase(password)
+        except WeakGroupPassphrase as exc:
+            issues.append(Issue("error", f"password_{exc.code}", "p2p_key"))
+        else:
+            if passphrase_warning(password) == "short":
+                issues.append(Issue("warning", "password_short", "p2p_key"))
     if requires_discovery_server:
         discovery_server = draft.discovery_server.strip()
         if not discovery_server:
