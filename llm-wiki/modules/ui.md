@@ -390,8 +390,12 @@ its row cannot come from the scan. `update_transfer_progress`
 creates the row on the first `progress` event (direction taken from the event's
 `op`, `size` from the event's total) and the completion handler writes the final
 size (`file_panel/models.py::FileTransfer`), so a receive shows its percentage
-and rate while it happens and its real size afterwards. A transfer that gives up
-is flagged `TransferStatus.ERROR`
+and rate while it happens and its real size afterwards. The same events arrive
+when this app is the device the others sync from (the p2p master): the client
+reports the files it serves (`op=upload`) and the pushes it receives
+(`op=download`), so the panel shows activity in both roles — the contract lives
+in the client wiki (`hsync-client/llm-wiki/modules/sync-core.md`). A transfer
+that gives up is flagged `TransferStatus.ERROR`
 (`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
 (`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).

@@ -98,10 +98,13 @@ opens on the **Server HSYNC** store).
    next to the folder icon; click it to open the shared folder in your file
    manager, and hover it to see the local path.
 2. A file you are receiving appears in the list while it is still being written,
-   with its percentage and rate, and shows its real size once complete. The
-   bottom-right sent/received numbers are the **distinct files** moved this
-   session (a file transferred or renamed more than once still counts once); the
-   size in parentheses is the total bytes moved, repeats included.
+   with its percentage and rate, and shows its real size once complete. The same
+   happens for the files this app **serves** when it is the device the others
+   sync from (because it started first): they show as sending, with their
+   percentage, and turn **Synced** once the peer has them. The bottom-right
+   sent/received numbers are the **distinct files** moved this session (a file
+   transferred or renamed more than once still counts once); the size in
+   parentheses is the total bytes moved, repeats included.
 3. The **Log** panel shows the engine's own messages; the labels are in
    [Log Labels](log-labels.md).
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
