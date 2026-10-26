@@ -514,7 +514,7 @@ class TestLayoutImprovements:
             "wizard.connection.group",
             "wizard.connection.password",
         ):
-            assert tr(key).rstrip(":：").strip() in text, key
+            assert tr(key) in text, key
         assert "::" not in text
 
     def test_invite_height_fits_all_lines(self, wizard):
@@ -569,7 +569,7 @@ class TestLayoutImprovements:
         assert wizard._subtitle.isHidden()
         assert wizard._stepper.isHidden()
 
-    def test_form_labels_end_with_a_colon(self, wizard):
+    def test_form_labels_have_no_trailing_colon(self, wizard):
         rows = wizard.connection_page._rows
         for name in (
             "bucket",
@@ -581,14 +581,14 @@ class TestLayoutImprovements:
             "discovery_server",
         ):
             text = rows[name][3].text()
-            assert text.endswith((":", "：")), text
+            assert not text.rstrip().endswith((":", "：")), text
 
     def test_switch_labels_have_no_colon(self, wizard):
         page = wizard.connection_page
         for name in ("cert", "receive_only"):
             assert not page._rows[name][3].text().endswith((":", "："))
-        for row in page._automation_rows:
-            assert not row.label.text().endswith((":", "："))
+        for label, _switch, _key in page._automation_rows:
+            assert not label.text().endswith((":", "："))
 
     def test_share_field_shares_the_label_column(self, wizard):
         rows = wizard.connection_page._rows
@@ -599,14 +599,14 @@ class TestLayoutImprovements:
         assert len(set(widths.values())) == 1
         assert next(iter(widths.values())) > 0
 
-    def test_review_strips_the_label_colon(self, wizard):
+    def test_review_uses_the_label_with_one_separator(self, wizard):
         wizard.review_page.load(
             WizardDraft(mode=WizardMode.BACKUP, bucket="data", server_url="h", api_key="k")
         )
         connection = wizard.review_page._sections["connection"][1].text()
         label = tr("wizard.connection.share")
-        assert label.endswith((":", "："))
-        assert connection.startswith(f"{label.rstrip(':：').strip()}: ")
+        assert not label.endswith((":", "："))
+        assert connection.startswith(f"{label}: ")
         assert "::" not in connection
 
 

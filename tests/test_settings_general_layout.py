@@ -22,10 +22,6 @@ def _x(widget, anchor) -> int:
     return widget.mapTo(anchor, widget.rect().topLeft()).x()
 
 
-def _right(widget, anchor) -> int:
-    return widget.mapTo(anchor, widget.rect().topRight()).x()
-
-
 class TestGeneralSections:
     """The page is grouped in the sections every HIG recommends."""
 
@@ -53,9 +49,11 @@ class TestGeneralSections:
         group = dialog._grp_general_notifications
 
         assert group.isAncestorOf(dialog.notifications_enabled)
-        assert group.isAncestorOf(dialog.notification_group)
         assert group.isAncestorOf(dialog._lbl_notifications_categories)
         assert set(dialog.notification_toggles) == set(NOTIFICATION_CATEGORIES)
+        for toggle, label in dialog.notification_toggles.values():
+            assert group.isAncestorOf(toggle)
+            assert group.isAncestorOf(label)
 
     def test_the_window_section_holds_the_switches_and_closes_with_advanced(self, dialog):
         group = dialog._grp_general_window
@@ -71,11 +69,11 @@ class TestGeneralSections:
         # The advanced disclosure is the page's last row.
         form = group.layout()
         item = form.itemAt(form.rowCount() - 1, form.ItemRole.FieldRole)
-        assert item is not None and item.widget() is dialog.show_advanced.parentWidget()
+        assert item is not None and item.widget() is dialog.show_advanced
 
 
 class TestGeneralSwitchAlignment:
-    """A switch row is ``caption … [toggle]``: toggles on one trailing column."""
+    """A switch row is ``caption [toggle]``: captions and controls in one column."""
 
     def test_the_switches_of_a_section_share_one_column(self, dialog, qtbot):
         _open_general_tab(dialog, qtbot)
@@ -90,11 +88,11 @@ class TestGeneralSwitchAlignment:
                 dialog.show_advanced,
             ),
         ):
-            columns = {_right(widget, dialog) for widget in switches}
+            columns = {_x(widget, dialog) for widget in switches}
             assert len(columns) == 1, (switches, columns)
 
     def test_each_caption_precedes_its_switch(self, dialog, qtbot):
-        """Label first, control trailing: the switch layout of the major HIGs."""
+        """Label first, control in the field column (the desktop form order)."""
         _open_general_tab(dialog, qtbot)
 
         pairs = [(dialog.notifications_enabled, dialog._lbl_notifications)]
@@ -122,10 +120,29 @@ class TestGeneralSwitchAlignment:
         _open_general_tab(dialog, qtbot)
 
         dialog.notifications_enabled.setChecked(False)
-        assert not dialog.notification_group.isEnabled()
+        assert not dialog._lbl_notifications_categories.isEnabled()
         assert all(
-            not toggle.isEnabled() for toggle, _label in dialog.notification_toggles.values()
+            not toggle.isEnabled() and not label.isEnabled()
+            for toggle, label in dialog.notification_toggles.values()
         )
 
         dialog.notifications_enabled.setChecked(True)
         assert all(toggle.isEnabled() for toggle, _label in dialog.notification_toggles.values())
+
+
+class TestSettingsCaptions:
+    """Form captions carry no trailing colon: the columns do the separating."""
+
+    def test_no_form_caption_ends_with_a_colon(self, dialog):
+        from PySide6.QtWidgets import QFormLayout, QLabel
+
+        captions: list[str] = []
+        for form in dialog.findChildren(QFormLayout):
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                label = item.widget() if item is not None else None
+                if isinstance(label, QLabel) and label.text().strip():
+                    captions.append(label.text())
+        assert captions, "no form captions found"
+        offenders = [text for text in captions if text.rstrip().endswith((":", "："))]
+        assert not offenders, offenders

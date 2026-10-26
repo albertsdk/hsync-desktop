@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -15,27 +14,18 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.i18n import tr
+from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 
 def _paired_label(widget: QWidget) -> QLabel | None:
-    """Return the label shown next to *widget*, to mirror its tooltip.
+    """Return the form label shown next to *widget*, to mirror its tooltip.
 
-    Handles toggle rows (the label is a sibling inside the toggle's container)
-    and form rows (the ``QFormLayout`` label of the field, where the field may
-    itself be a layout or a container holding the widget).
+    Handles form rows (the ``QFormLayout`` label of the field, where the field
+    may itself be a layout or a container holding the widget).
     """
     parent = widget.parentWidget()
     if parent is None:
-        return None
-    if isinstance(widget, ToggleSwitch):
-        layout = parent.layout()
-        if layout is not None:
-            for index in range(layout.count()):
-                item = layout.itemAt(index)
-                candidate = item.widget() if item is not None else None
-                if isinstance(candidate, QLabel):
-                    return candidate
         return None
     layout = parent.layout()
     if isinstance(layout, QFormLayout):
@@ -77,7 +67,10 @@ def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
     for row in range(layout.rowCount()):
         item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
         if item and item.widget() is anchor:
-            layout.insertRow(row + 1, label, field)
+            if isinstance(label, QLabel):
+                add_row(layout, label, field, row + 1)
+            else:
+                layout.insertRow(row + 1, label, field)
             return True
     return False
 
@@ -98,32 +91,15 @@ def _action_row(*buttons: QWidget) -> QWidget:
     return container
 
 
-def switch_row(toggle: QWidget, label: QLabel, parent: QWidget) -> QWidget:
-    """Pack a switch and its caption into one row: caption first, switch last.
-
-    Caption on the leading side and control on the trailing edge is the switch
-    layout of Material Design, the Apple/Windows HIGs and GNOME: the text names
-    the option, the control sits in one predictable column. Every switch in the
-    settings dialog (and the "Notifications for" block) uses this shape, so the
-    toggles line up on the right whatever the caption length.
-    """
-    row = QHBoxLayout()
-    row.setContentsMargins(0, 0, 0, 0)
-    label.setWordWrap(True)
-    row.addWidget(label, 1)
-    row.addWidget(toggle, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-    container = QWidget(parent)
-    container.setLayout(row)
-    return container
-
-
 def _replace_checkbox_with_toggle(
     parent: QWidget, checkbox_name: str
 ) -> tuple[ToggleSwitch, QLabel]:
-    """Replace a QCheckBox with a ToggleSwitch in a QFormLayout.
+    """Replace a ``QCheckBox`` field with a ``ToggleSwitch`` form row.
 
-    Finds the checkbox by name, creates a ToggleSwitch with the same text,
-    and replaces it in the parent layout.
+    The ``.ui`` forms carry the options as checkboxes whose text doubles as the
+    caption. The replacement moves that caption into the form's label column and
+    makes the switch the field of the same row, so every option shares the one
+    control column instead of floating in it.
 
     Args:
         parent: The parent widget containing the checkbox.
@@ -133,34 +109,27 @@ def _replace_checkbox_with_toggle(
         A tuple of (ToggleSwitch, QLabel) for the new widgets.
     """
     checkbox: QCheckBox | None = parent.findChild(QCheckBox, checkbox_name)  # type: ignore[assignment]
+    toggle = ToggleSwitch(parent)
+    label = QLabel(parent)
     if checkbox is None:
-        # Fallback: return a new toggle switch with empty label
-        return ToggleSwitch(parent), QLabel(parent)
+        return toggle, label
 
-    # Get the checkbox text for the label
     text = checkbox.text()
+    checked = checkbox.isChecked()
+    toggle.setChecked(checked)
+    toggle.setObjectName(checkbox.objectName())
+    label.setText(text)
 
-    # Find the parent layout
-    parent_layout = checkbox.parentWidget()
-    if parent_layout is None:
-        checkbox.deleteLater()
-        return ToggleSwitch(parent), QLabel(parent)
-
-    # Find the form layout containing this checkbox
-    layout = parent_layout.layout()
+    container = checkbox.parentWidget()
+    layout = container.layout() if container is not None else None
     if isinstance(layout, QFormLayout):
-        # Find the row containing the checkbox
         for row in range(layout.rowCount()):
             item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
             if item and item.widget() == checkbox:
-                # Create toggle switch with label
-                toggle = ToggleSwitch(parent)
-                label = QLabel(text, parent)
-                # Replace in form layout with the shared switch row
+                # removeRow deletes the checkbox, so its state was read above.
                 layout.removeRow(row)
-                layout.insertRow(row, "", switch_row(toggle, label, parent))
+                add_row(layout, label, toggle, row)
                 return toggle, label
 
-    # Fallback: just delete and return new toggle
     checkbox.deleteLater()
-    return ToggleSwitch(parent), QLabel(parent)
+    return toggle, label

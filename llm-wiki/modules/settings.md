@@ -98,16 +98,24 @@ transfer, deletion protection, bandwidth, logging); General holds the app
 preferences (font size, language, theme, notifications, tooltips, log panel,
 launch at login).
 
-**Switch rows** (`settings/form_helpers.py::switch_row`): every toggle in the
-dialog is rendered as ``caption … [toggle]`` — caption on the leading side, the
-switch on the trailing edge, the layout Material Design, the Apple/Windows HIGs
-and GNOME use (and the one the setup wizard's automation block already had) —
-inside one container inserted in the form's **field** column
-(``insertRow(row, "", container)``). Right-aligning the control keeps every
-switch on one trailing column whatever the caption length; the General tab's
-notification block reuses the same helper so its category rows line up with the
-form's own switches (a spanning row would start at the label column and shift
-them left).
+**Form rows** (`widgets/forms.py::add_row`): every option is a `QFormLayout`
+row — caption in the label column, control (switch, combo box, spin box, line
+edit) in the field column — added through one helper that gives each caption its
+`setBuddy` target (mnemonic/focus) and keeps it on a single line. Captions carry
+no trailing colon: the two columns separate them (the detail panel and the
+status bar keep one because there it introduces a value). Label alignment, field
+growth and row wrapping are left to the Qt style hints, so the dialog follows the
+host OS (right-aligned captions on macOS, left on Windows/Linux) instead of
+hard-coding one desktop's convention. Switches are plain form fields: they share
+the one control column with the other controls instead of being pushed to the
+window edge, which kept short captions hundreds of pixels away from their switch.
+
+**Content column** (`settings/tab_layout.py::_CenteredColumn`): every tab hosts
+its groups in one column capped at `_CONTENT_MAX_WIDTH` and centred in the page
+(`_scrollable_page`); the tab description uses the same wrapper
+(`_add_tab_description`). A wider window grows the empty margins, not the form,
+so controls keep a readable width and the caption-to-control distance stays
+bounded at any window size.
 
 **Standard vs advanced**: the General tab's `show_advanced` toggle
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
@@ -119,15 +127,16 @@ tabs plus the Certificates and Advanced Options groups in the Server Mode tab.
 back to the first visible tab so a hidden target never shows a blank page. The
 advanced values themselves are preserved; the toggle only changes visibility.
 
-**Notifications**: `settings/tab_builders.py::build_general_tab` builds the block
-under the master switch: a frame-less container (`SettingsDialog.notification_group`,
-field column) holding the `settings.notifications_categories` heading
-(`muted_label`, so the text is muted like the tab descriptions) and one
-`switch_row` per entry of `config.py::NOTIFICATION_CATEGORIES`
-(`SettingsDialog.notification_toggles[key] = (toggle, label)`), all inside
-`SettingsDialog._grp_general_notifications`. The master switch gates it with
-`setEnabled`, and the per-category choices persist as
-`appearance/notifications/<category>`. Because a switch is custom-painted, the
+**Notifications**: `settings/tab_builders.py::build_general_tab` creates the
+master switch plus one `(toggle, label)` pair per entry of
+`config.py::NOTIFICATION_CATEGORIES`, and
+`settings/tab_layout.py::reorganize_general_tab` adds the heading
+(`settings.notifications_categories`, a spanning row) and every category as a
+form row of `SettingsDialog._grp_general_notifications`, so the whole block
+shares the page's two columns. The master switch gates the rows through
+`SettingsDialog._set_notification_categories_enabled` (it enables each caption
+and toggle; there is no container widget any more), and the per-category choices
+persist as `appearance/notifications/<category>`. Because a switch is custom-painted, the
 disabled state must be drawn:
 `widgets/toggle_switch.py::ToggleSwitch.paintEvent` fades track and thumb
 (`_DISABLED_OPACITY`) and `themes.py` gives `QLabel#mutedHint:disabled` the
@@ -155,9 +164,9 @@ fallback). The General page is **rebuilt into three sections** like the other ta
 **Window & Startup** (`settings.group.window`: tooltips, log panel, launch at
 login, with the advanced disclosure as the last row). Each section is a
 `QGroupBox` with its own form, so within a section every switch shares one
-trailing column; a group whose rows are all switches starts them at the group
-edge (the label column is empty), which is the same shape the Sync/p2p groups
-already use.
+control column with the other fields; a group whose rows are all switches starts
+them at the field column's left edge (the label column is empty), which is the
+same shape the Sync/p2p groups already use.
 `build_general_tab` only creates the widgets and leaves the layout to the
 reorganizer, so the `.ui` form is not reused and the layout is rebuilt. After
 the first layout, `fit_current_tab`

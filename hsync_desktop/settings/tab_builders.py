@@ -46,7 +46,6 @@ from hsync_desktop.settings.form_helpers import (
     _action_row,
     _insert_row_after,
     _replace_checkbox_with_toggle,
-    switch_row,
 )
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
@@ -56,6 +55,7 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
+from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
@@ -117,8 +117,8 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
             # Find the ignore_delete row and insert before it
             for row in range(form.rowCount()):
                 item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                if item and item.widget() and item.widget() is dlg.ignore_delete.parent():
-                    form.insertRow(row, dlg._lbl_sync_direction, dlg.sync_direction_combo)
+                if item and item.widget() is dlg.ignore_delete:
+                    add_row(form, dlg._lbl_sync_direction, dlg.sync_direction_combo, row)
                     break
             break
     dlg.resync = dlg.findChild(QSpinBox, "resync")
@@ -282,8 +282,7 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.p2p_upnp = ToggleSwitch(dlg)
     dlg.p2p_upnp.setObjectName("p2pUpnp")
     dlg._lbl_p2p_upnp = QLabel(dlg)
-    upnp_container = switch_row(dlg.p2p_upnp, dlg._lbl_p2p_upnp, dlg)
-    _insert_row_after(manage_container, QLabel(""), upnp_container)
+    _insert_row_after(manage_container, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
 
     # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
     # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
@@ -309,7 +308,6 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.never_master = ToggleSwitch(dlg)
     dlg.never_master.setObjectName("neverMaster")
     dlg._lbl_never_master = QLabel(dlg)
-    cont_never_master = switch_row(dlg.never_master, dlg._lbl_never_master, dlg)
     fm_container = dlg.prefer_master.parent()
     if isinstance(fm_container, QWidget):
         fm_parent = fm_container.parent()
@@ -317,8 +315,8 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
         if isinstance(fm_layout, QFormLayout):
             for row in range(fm_layout.rowCount()):
                 item = fm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                if item and item.widget() is fm_container:
-                    fm_layout.insertRow(row + 1, "", cont_never_master)
+                if item and item.widget() is dlg.prefer_master:
+                    add_row(fm_layout, dlg._lbl_never_master, dlg.never_master, row + 1)
                     break
 
     # Require Pairing toggle (dynamic, no .ui counterpart) – strict TOFU:
@@ -327,15 +325,14 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.require_pairing = ToggleSwitch(dlg)
     dlg.require_pairing.setObjectName("requirePairing")
     dlg._lbl_require_pairing = QLabel(dlg)
-    cont_require_pairing = switch_row(dlg.require_pairing, dlg._lbl_require_pairing, dlg)
-    nm_container = cont_never_master.parent()
+    nm_container = dlg.never_master.parent()
     if isinstance(nm_container, QWidget):
         nm_layout = nm_container.layout()
         if isinstance(nm_layout, QFormLayout):
             for row in range(nm_layout.rowCount()):
                 item = nm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                if item and item.widget() is cont_never_master:
-                    nm_layout.insertRow(row + 1, "", cont_require_pairing)
+                if item and item.widget() is dlg.never_master:
+                    add_row(nm_layout, dlg._lbl_require_pairing, dlg.require_pairing, row + 1)
                     break
 
     # Peer download (p2p only): download file blocks from other devices, not
@@ -344,7 +341,6 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.peer_download = ToggleSwitch(dlg)
     dlg.peer_download.setObjectName("peerDownload")
     dlg._lbl_peer_download = QLabel(dlg)
-    cont_peer = switch_row(dlg.peer_download, dlg._lbl_peer_download, dlg)
     dlg.peer_read_cap = QSpinBox(dlg)
     dlg.peer_read_cap.setObjectName("peerReadCap")
     dlg.peer_read_cap.setRange(1, 32)
@@ -373,10 +369,6 @@ def build_advanced_tab(dlg: SettingsDialog) -> None:
     dlg.quiet, dlg._lbl_quiet = _replace_checkbox_with_toggle(dlg, "quiet")
     dlg.quiet.hide()
     dlg._lbl_quiet.hide()
-    # Hide the parent container if it exists
-    parent = dlg.quiet.parent()
-    if isinstance(parent, QWidget):
-        parent.hide()
     dlg.logfile = dlg.findChild(QLineEdit, "logfile")
 
     dlg.max_concurrent_transfers = QSpinBox()
@@ -439,24 +431,18 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     dlg.show_log_panel, dlg._lbl_show_log_panel = _replace_checkbox_with_toggle(dlg, "showLogPanel")
     dlg.start_at_login, dlg._lbl_start_at_login = _replace_checkbox_with_toggle(dlg, "startAtLogin")
 
-    # "Notifications for": one row per category, in the same shape as every
-    # other switch (``switch_row``) and hosted in a frame-less container placed
-    # in the field column — a QGroupBox was laid out as a spanning row, which
-    # left its toggles ~117 px left of the form's own switches.
-    dlg.notification_group = QWidget(dlg)
-    notification_lines = QVBoxLayout(dlg.notification_group)
-    notification_lines.setContentsMargins(0, 0, 0, 0)
-    notification_lines.setSpacing(6)
+    # "Notifications for": the heading and one row per category are flattened
+    # into the group's own form by ``reorganize_general_tab``, so every caption
+    # and every switch shares the page's two columns like the rest of the form.
     dlg._lbl_notifications_categories = muted_label(tr("settings.notifications_categories"))
-    notification_lines.addWidget(dlg._lbl_notifications_categories)
     dlg.notification_toggles = {}
     for category in NOTIFICATION_CATEGORIES:
-        toggle = ToggleSwitch(dlg.notification_group)
-        label = QLabel(dlg.notification_group)
-        notification_lines.addWidget(switch_row(toggle, label, dlg.notification_group))
+        toggle = ToggleSwitch(dlg)
+        toggle.setObjectName(f"notification{category.replace('_', ' ').title().replace(' ', '')}")
+        label = QLabel(dlg)
         dlg.notification_toggles[category] = (toggle, label)
-    dlg.notification_group.setEnabled(dlg.notifications_enabled.isChecked())
-    dlg.notifications_enabled.toggled.connect(dlg.notification_group.setEnabled)
+    dlg._set_notification_categories_enabled(dlg.notifications_enabled.isChecked())
+    dlg.notifications_enabled.toggled.connect(dlg._set_notification_categories_enabled)
 
     dlg.font_scale_combo = QComboBox(dlg)
     dlg.font_scale_combo.setObjectName("fontScaleCombo")
@@ -469,10 +455,8 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     dlg.show_advanced = ToggleSwitch(dlg)
     dlg.show_advanced.setObjectName("showAdvanced")
     dlg._lbl_show_advanced = QLabel(dlg)
-    cont_show_advanced = switch_row(dlg.show_advanced, dlg._lbl_show_advanced, dlg)
     # The page is rebuilt into grouped sections (``tab_layout.py::
     # reorganize_general_tab``): this builder only creates the widgets.
-    dlg._cont_show_advanced = cont_show_advanced
     dlg._reorganize_general_tab()
 
 

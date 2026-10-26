@@ -174,3 +174,17 @@ disable unsupported controls) is realized in
   x86_64 on `rockylinux:9` (glibc 2.34, hence `el9`) and aarch64 on
   `almalinux:10` (glibc 2.39, hence `el10`). The aarch64 packages therefore
   require glibc ≥ 2.39 while the amd64 ones keep their older-distro reach.
+- **Settings options are plain form rows; the page keeps one bounded column**:
+  every option is a `QFormLayout` row (`widgets/forms.py::add_row`): caption in
+  the label column, control in the field column, label alignment and field growth
+  left to the Qt style hints, so the dialog follows the host OS instead of
+  copying one desktop's chrome. The previous right-aligned `switch_row`
+  container could leave a short caption hundreds of pixels from its switch, and
+  the GNOME-style card ("switch on the row's trailing edge") was rejected as
+  DE-specific for a Linux/Windows/macOS app. `settings/tab_layout.py::_CenteredColumn`
+  caps and centres the content, so a wider window grows the margins, not the
+  form. Captions carry no trailing colon (the label column separates them; only
+  key/value rows such as the detail panel or the status bar keep one), matching
+  the WD OS5 web UI and the modern desktop convention. Switches are kept although
+  a checkbox matches a Save/Cancel dialog better (NN/g: a toggle switch should
+  take immediate effect); revisit if the dialog ever applies settings instantly.

@@ -343,7 +343,7 @@ class SettingsDialog(QDialog):
             (self.theme_combo, "tip.theme"),
             (self.font_scale_combo, "tip.font_size"),
             (self.notifications_enabled, "tip.notifications"),
-            (self.notification_group, "tip.notifications_categories"),
+            (self._lbl_notifications_categories, "tip.notifications_categories"),
             (self.tooltips_enabled, "tip.tooltips"),
             (self.show_log_panel, "tip.show_log_panel"),
             (self.start_at_login, "tip.start_at_login"),
@@ -687,6 +687,17 @@ class SettingsDialog(QDialog):
         """Prefer-master and never-master are mutually exclusive."""
         if checked and self.prefer_master.isChecked():
             self.prefer_master.setChecked(False)
+
+    def _set_notification_categories_enabled(self, enabled: bool) -> None:
+        """Gate the per-event notification rows on the master switch.
+
+        The category rows are plain form rows, so the master switch enables each
+        caption and control instead of a container widget.
+        """
+        self._lbl_notifications_categories.setEnabled(enabled)
+        for toggle, label in self.notification_toggles.values():
+            label.setEnabled(enabled)
+            toggle.setEnabled(enabled)
 
     def _on_verbose_toggled(self, checked: bool) -> None:
         """Offer to show the log panel when detailed logging would be invisible.
@@ -1250,7 +1261,7 @@ class SettingsDialog(QDialog):
         )
         for category, (toggle, _label) in self.notification_toggles.items():
             toggle.setChecked(bool(s.value(f"appearance/notifications/{category}", True, bool)))
-        self.notification_group.setEnabled(self.notifications_enabled.isChecked())
+        self._set_notification_categories_enabled(self.notifications_enabled.isChecked())
         # Language
         saved_lang = str(s.value("appearance/language", AUTO_LANGUAGE, str))
         for i in range(self.lang_combo.count()):

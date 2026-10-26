@@ -32,6 +32,7 @@ from hsync_desktop.engine import (
     probe_server_health,
 )
 from hsync_desktop.i18n import tr
+from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
@@ -42,7 +43,6 @@ from hsync_desktop.wizard.probes import AsyncProbe, ProbeOutcome
 from hsync_desktop.wizard.widgets import (
     InlineError,
     SecretField,
-    ToggleRow,
     char_class_validator,
     set_field_error,
 )
@@ -205,10 +205,11 @@ class ConnectionPage(WizardPage):
         self._stack.addWidget(self._server_page)
         self._stack.addWidget(self._network_page)
 
-        # Optional automation block (all modes).
+        # Optional automation block (all modes). Plain form rows: captions in the
+        # label column, switches in the field column, like the fields above.
         self._automation = QGroupBox()
-        automation_layout = QVBoxLayout(self._automation)
-        self._automation_rows: list[ToggleRow] = []
+        automation_form = QFormLayout(self._automation)
+        self._automation_rows: list[tuple[QLabel, ToggleSwitch, str]] = []
         self.continuous: ToggleSwitch
         self.auto_sync: ToggleSwitch
         self.start_at_login: ToggleSwitch
@@ -217,12 +218,12 @@ class ConnectionPage(WizardPage):
             ("auto_sync", "wizard.automation.auto_sync"),
             ("start_at_login", "wizard.automation.start_at_login"),
         ):
-            row = ToggleRow(key)
-            switch = row.switch
+            switch = ToggleSwitch()
             switch.toggled.connect(self._on_edit)
+            label = QLabel()
+            add_row(automation_form, label, switch)
             setattr(self, attr, switch)
-            self._automation_rows.append(row)
-            automation_layout.addWidget(row)
+            self._automation_rows.append((label, switch, key))
         if not autostart.is_supported():
             self.start_at_login.setEnabled(False)
         layout.addWidget(self._automation)
@@ -236,6 +237,9 @@ class ConnectionPage(WizardPage):
     def _row(self, name: str, label_key: str, field: QWidget) -> tuple[QLabel, QWidget]:
         label = QLabel(tr(label_key))
         label.setProperty("wizardLabelKey", label_key)
+        # The buddy gives the caption's mnemonic/focus target to the actual input
+        # (a secret container wraps its own line edit).
+        label.setBuddy(field.edit if isinstance(field, SecretField) else field)
         container = QWidget()
         box = QVBoxLayout(container)
         box.setContentsMargins(0, 0, 0, 0)
@@ -515,8 +519,10 @@ class ConnectionPage(WizardPage):
         self.direction.setItemText(1, tr("settings.sync_direction.upload_only"))
         self.direction.setItemText(2, tr("settings.sync_direction.download_only"))
         self._automation.setTitle(escape_mnemonics(tr("wizard.automation.title")))
-        for row in self._automation_rows:
-            row.apply_translations()
+        for label, switch, key in self._automation_rows:
+            text = tr(key)
+            label.setText(text)
+            switch.setAccessibleName(text)
         self.password.apply_translations()
         self.hints.setText(self._hint())
         self._align_labels()

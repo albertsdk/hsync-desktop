@@ -209,11 +209,8 @@ class TestBootnodeTrustPolicy:
         assert combo.currentData() == "ask"
 
     def test_label_sits_in_form_label_column(self, dialog):
-        """The trust label aligns under Bootnode, not inside the field row."""
+        """The trust label is the caption of the trust combo's own form row."""
 
-        layout = dialog.p2p_bootnode_trust.parent().layout()
-        assert layout is not None
-        assert dialog.p2p_bootnode_trust.parent() is not dialog._lbl_p2p_bootnode_trust.parent()
         form = dialog.p2p_bootnode.parentWidget().layout()
         assert isinstance(form, QFormLayout)
         for row in range(form.rowCount()):
@@ -608,12 +605,20 @@ class TestGeneralAppearanceOrder:
 class TestNotificationCategoriesUi:
     """The master switch gates the per-event category toggles."""
 
-    def test_master_toggle_disables_the_category_group(self, dialog):
+    def test_master_toggle_disables_the_category_rows(self, dialog):
         dialog.notifications_enabled.setChecked(False)
-        assert not dialog.notification_group.isEnabled()
+        assert not dialog._lbl_notifications_categories.isEnabled()
+        assert all(
+            not toggle.isEnabled() and not label.isEnabled()
+            for toggle, label in dialog.notification_toggles.values()
+        )
 
         dialog.notifications_enabled.setChecked(True)
-        assert dialog.notification_group.isEnabled()
+        assert dialog._lbl_notifications_categories.isEnabled()
+        assert all(
+            toggle.isEnabled() and label.isEnabled()
+            for toggle, label in dialog.notification_toggles.values()
+        )
 
     def test_categories_default_to_enabled(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)

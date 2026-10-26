@@ -81,10 +81,12 @@ and the returned mode so the two can never disagree.
   the text fields show language-neutral example placeholders. The discovery-server
   field is labelled "Discovery server address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
-  (via `wizard/widgets.py::ToggleRow`); secrets show/hide through an icon toggle
-  (`view-visible`/`view-hidden` + tooltip). Helper paragraphs use the shared
-  `widgets/labels.py::muted_label` (`QLabel#mutedHint`), the same widget the
-  Settings tab descriptions use.
+  as plain `QFormLayout` fields (`widgets/forms.py::add_row`), so the automation
+  block shares the same two columns and caption/control distance as the fields
+  above it (switches in the field column, one line per option); secrets
+  show/hide through an icon toggle (`view-visible`/`view-hidden` + tooltip).
+  Helper paragraphs use the shared `widgets/labels.py::muted_label`
+  (`QLabel#mutedHint`), the same widget the Settings tab descriptions use.
 - **Input restriction**: `wizard/widgets.py::char_class_validator` blocks
   disallowed characters on the share name and group; structural rules stay in the
   on-Continue validation.
@@ -115,10 +117,10 @@ and the returned mode so the two can never disagree.
 - **Connection**: `ConnectionPage` keeps the share name in a common area and puts
   the server-only and network-only fields in two dedicated forms inside a
   `QStackedWidget` (`_server_page`/`_network_page`), so each topology has a clean
-  order instead of interleaved show/hide rows. Field labels end with a colon, as
-  in Settings (`wizard.connection.*` keys; switch captions stay colon-free), and
-  share one fixed label-column width (`ConnectionPage._align_labels`), so the
-  share-name field aligns with the mode-specific fields; long translations wrap.
+  order instead of interleaved show/hide rows. Field labels carry no trailing
+  colon — the label column separates them, as in Settings — and share one fixed
+  label-column width (`ConnectionPage._align_labels`), so the share-name field
+  aligns with the mode-specific fields; long translations wrap.
   The p2p "receive only" switch resolves
   `ConnectionPage._current_direction` → `draft.direction = "download-only"`, the
   value Settings shows as **Sync Type → Receive only (from other devices)**.
@@ -127,17 +129,16 @@ and the returned mode so the two can never disagree.
   as a localised time or the discovery server fingerprint); editing a section's
   fields clears it. `_set_step` reloads the page on entry, because the summaries
   are rendered from the draft (a stale review used to keep the previous
-  direction). Labels go through `wizard/widgets.py::label_text`, which strips the
-  colon the reused Connection keys carry: the page writes `label: value` itself.
+  direction). The page writes its own ``label: value`` separator over the
+  colon-free captions, so each line shows exactly one colon.
 - **Success**: `dialog-ok` icon, a centred confirmation line, the p2p invite
   (labelled from `wizard.success.invite`) as a read-only selectable field
   (`SuccessPage._invite_text`) that can also be copied with one click, and the
-  action bar is anchored at the bottom of the screen. The invite labels are
-  injected through `wizard/widgets.py::label_text` from
+  action bar is anchored at the bottom of the screen. The invite labels come from
   `wizard.connection.share/group/password`, so it names each value exactly like
-  the Connection step without a double colon. The success screen is a
-  destination, not a step: the subtitle and the step index are hidden
-  (`SetupWizard._set_step`).
+  the Connection step, and `wizard.success.invite_text` supplies the single
+  separator. The success screen is a destination, not a step: the subtitle and
+  the step index are hidden (`SetupWizard._set_step`).
 
 ## Modes, defaults and inference
 

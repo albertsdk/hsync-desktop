@@ -42,7 +42,9 @@ class TestTabDescriptions:
         for tab_index in _MODE_TABS:
             label = dialog._tab_descriptions[tab_index]
             layout = dialog._tabs.widget(tab_index).layout()
-            assert layout.itemAt(0).widget() is label
+            first = layout.itemAt(0).widget()
+            # The line lives in the page's centred content column.
+            assert first is not None and first.isAncestorOf(label)
             assert isinstance(label, QLabel)
             assert label.objectName() == "mutedHint"
             assert label.wordWrap()
@@ -62,6 +64,24 @@ class TestTabDescriptions:
         # a long translation from widening the fixed-size dialog.
         for label in dialog._tab_descriptions.values():
             assert label.maximumWidth() < dialog.minimumWidth()
+
+    def test_the_description_shares_the_bounded_content_column(self, dialog, qtbot):
+        """The line keeps the same bounded, centred column as the groups."""
+
+        from PySide6.QtWidgets import QWidget
+
+        from hsync_desktop.settings.tab_layout import _CONTENT_MAX_WIDTH
+
+        dialog.resize(1100, 700)
+        dialog.show()
+        qtbot.wait(1)
+        for tab_index in _MODE_TABS:
+            holder = dialog._tabs.widget(tab_index).layout().itemAt(0).widget()
+            assert holder is not None
+            column = holder.findChild(QWidget)
+            assert column is not None
+            assert column.width() == _CONTENT_MAX_WIDTH
+            assert abs(column.x() - (holder.width() - column.width()) // 2) <= 1
 
     def test_description_has_breathing_room(self, dialog):
         """The purpose line is inset from the tab edge and the first group."""

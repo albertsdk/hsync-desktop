@@ -195,6 +195,38 @@ class TestTerminologyConsistency:
                 "password",
             }, module.__name__
 
+    # Row labels that keep a colon because they sit next to a value
+    # ("Size: 12 MB", "Devices: 2/3"). Every other string is a form caption or a
+    # sentence and carries no trailing colon (see the settings/wizard layout).
+    KEY_VALUE_KEYS = {
+        "detail.client_cid",
+        "detail.client_ip",
+        "detail.filename",
+        "detail.filepath",
+        "detail.modified",
+        "detail.size",
+        "detail.status",
+        "label.bucket",
+        "label.group",
+        "label.peers",
+        "label.received",
+        "label.sent",
+        "label.users",
+    }
+
+    def test_only_key_value_labels_end_with_a_colon(self):
+        """Form captions take no colon; only ``label: value`` rows keep one."""
+        for module in self.ALL:
+            with_colon = {
+                key
+                for key, value in module.translations.items()
+                if value.rstrip().endswith((":", "："))
+            }
+            assert with_colon == self.KEY_VALUE_KEYS, (
+                module.__name__,
+                with_colon ^ self.KEY_VALUE_KEYS,
+            )
+
     def test_p2p_warning_names_the_credential_like_its_label(self):
         """The keyless-run prompt says "shared password", not "shared key"."""
         en_t = en.translations

@@ -36,9 +36,7 @@ __all__ = [
     "PrimaryButton",
     "RadioCard",
     "SecretField",
-    "ToggleRow",
     "char_class_validator",
-    "label_text",
     "section_title",
     "set_field_error",
 ]
@@ -211,29 +209,6 @@ class RadioCard(QFrame):
         self._description.setMinimumHeight(self._description.heightForWidth(width))
 
 
-class ToggleRow(QWidget):
-    """A label + ``ToggleSwitch`` row (label left, switch right)."""
-
-    def __init__(self, label_key: str) -> None:
-        super().__init__()
-        self._label_key = label_key
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.label = QLabel(tr(label_key))
-        self.label.setWordWrap(True)
-        layout.addWidget(self.label, 1)
-        self.switch = ToggleSwitch()
-        layout.addWidget(
-            self.switch, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.apply_translations()
-
-    def apply_translations(self) -> None:
-        text = tr(self._label_key)
-        self.label.setText(text)
-        self.switch.setAccessibleName(text)
-
-
 class SecretField(QWidget):
     """A masked secret line edit with a show/hide icon toggle (+ optional regenerate)."""
 
@@ -287,13 +262,3 @@ def section_title(text: str) -> QLabel:
     font.setBold(True)
     label.setFont(font)
     return label
-
-
-def label_text(key: str) -> str:
-    """A field label without the trailing colon its translation may carry.
-
-    The Connection step ends field labels with a colon (as the Settings dialog
-    does), while Review and Success render ``label: value`` themselves; stripping
-    it here keeps one wording and one separator instead of a double colon.
-    """
-    return tr(key).rstrip(":：").strip()

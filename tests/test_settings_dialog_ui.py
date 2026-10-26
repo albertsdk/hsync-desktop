@@ -165,9 +165,9 @@ class TestP2pPanelSections:
         assert dialog.p2p_group.parent() is mode
         assert dialog.p2p_key.parent() is mode
         assert dialog.p2p_bootnode.parent() is discovery
-        assert dialog.p2p_bootnode_trust.parent().parent() is discovery
-        assert dialog.prefer_master.parent().parent() is role
-        assert dialog.require_pairing.parent().parent() is role
+        assert dialog.p2p_bootnode_trust.parent() is discovery
+        assert dialog.prefer_master.parent() is role
+        assert dialog.require_pairing.parent() is role
         assert dialog.p2p_port.parent() is advanced
         assert dialog.discovery_timeout.parent() is advanced
         assert dialog.ntp_hosts.parent() is advanced
