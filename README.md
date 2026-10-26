@@ -9,9 +9,7 @@ gives you a visual interface to control the HSYNC Client: start or stop sync,
 monitor transfer progress, adjust settings, and get system notifications — all
 without touching the command line.
 
-> New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using HSYNC Desktop.
-
-The desktop drives the `hsync` client as a subprocess over an explicit, versioned contract. See the [Architecture Decision Records](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/README.md) — in particular the [desktop ↔ client subprocess contract](https://github.com/albertsdk/hsync-common/blob/main/docs/internal/adr/0004-desktop-subprocess-contract.md).
+New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using HSYNC Desktop.
 
 > 👉 **Operational Advisory:** As with any automated filesystem mutation utility, administrators are strongly advised to maintain validated, independent backups prior to initial deployment in production environments.
 
