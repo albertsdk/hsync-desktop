@@ -314,11 +314,15 @@ class ActionsMixin:
             return
         if not self._check_disk_space():
             return
-        if not self._ensure_bootnode_trust():
-            return
-        if not self._ensure_server_trust():
-            return
+        # Same trust pre-flight as a normal start; the fingerprint probe runs off
+        # the UI thread, so the scoped run begins from its callback.
+        self._ensure_trust(lambda: self._begin_selection_run(filepath, direction))
 
+    def _begin_selection_run(self, filepath: str, direction: str) -> None:
+        """Arm and preview the confirmed scoped Send/Receive."""
+        local_path = self._local_path
+        if not local_path:
+            return
         subdir = self._selection_subdir(filepath)
         label = tr("action.send_now") if direction == "upload-only" else tr("action.receive_now")
         self._append_log(f"--- {label}: {subdir or '.'} ---")

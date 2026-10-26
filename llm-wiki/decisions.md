@@ -86,6 +86,12 @@ disable unsupported controls) is realized in
   asynchronously (`BinaryVersionProbe`, `engine/cli.py::BinaryVersionProbe`) and both probes are
   cached in `QSettings` keyed by the binary `(path, size, mtime_ns)`; a probe
   must never block the GUI startup path.
+- **Every blocking probe runs off the UI thread**: the client fingerprint
+  subprocesses and the server `/health` calls are slow by nature (seconds to the
+  configured timeout), so they run on `engine/async_probe.py::AsyncProbe` and the
+  UI shows a busy state (`common.checking`). Run on the UI thread they freeze the
+  window until the timeout, and the desktop environment reports the app as
+  unresponsive.
 - **Raspberry Pi GUI is arm64-only**: the `rpi` build target ships the
   arm64 (64-bit) binary only. PySide6 publishes no armv7 Linux wheels, so the Qt
   desktop cannot be built for 32-bit armhf; the target documents this instead of
@@ -132,7 +138,7 @@ disable unsupported controls) is realized in
   (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_BOOTNODE_TRUST`
   (default `ask`). The pin lives in the client's known-hosts store, not a GUI
   env var: the GUI resolves policy `ask` in its start pre-flight
-  (`main_window/trust.py::TrustMixin._ensure_bootnode_trust`) by writing `hsync trust bootnode add`, and both
+  (`main_window/trust.py::TrustMixin._ensure_trust`) by writing `hsync trust bootnode add`, and both
   trust stores are editable through the "Manage trusted keys" dialog
   (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
   always sends an explicit policy; the client's SSH-style prompt is terminal-only

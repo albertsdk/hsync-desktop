@@ -272,6 +272,60 @@ class TestAddDialogButtons:
         self._assert_buttons(dlg)
 
 
+class TestHostAddReadFromNode:
+    """'Read from server' probes off the UI thread and fills the fingerprint."""
+
+    @staticmethod
+    def _dialog(qtbot, fetch):
+        from hsync_desktop.trusted_keys import _HostAddDialog
+
+        dlg = _HostAddDialog(
+            fetch_fingerprint=fetch,
+            add_trust=lambda *a, **k: True,
+            placeholder="boot.example.net:443",
+        )
+        dlg._binary = "/fake/hsync"
+        qtbot.addWidget(dlg)
+        return dlg
+
+    def test_fills_the_field_with_the_fingerprint(self, qtbot):
+        fingerprint = "sha256:" + "b" * 64
+        dlg = self._dialog(qtbot, lambda *a, **k: fingerprint)
+        dlg.host_edit.setText("boot.example.net:443")
+        dlg._read_from_node()
+        # Off the UI thread: the button reports the wait instead of freezing.
+        assert not dlg.fetch_btn.isEnabled()
+        assert dlg.fetch_btn.text() == tr("common.checking")
+        qtbot.waitUntil(lambda: dlg.fingerprint_edit.text() != "", timeout=5000)
+        assert dlg.fingerprint_edit.text() == fingerprint
+        assert dlg.fetch_btn.isEnabled()
+        assert dlg.fetch_btn.text() == tr("trusted_keys.read_from_node")
+
+    def test_unreachable_host_warns(self, qtbot, monkeypatch):
+        warned: list[str] = []
+        monkeypatch.setattr(
+            QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
+        )
+        dlg = self._dialog(qtbot, lambda *a, **k: None)
+        dlg.host_edit.setText("boot.example.net:443")
+        dlg._read_from_node()
+        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
+        assert warned == [tr("trusted_keys.failed")]
+        assert dlg.fetch_btn.isEnabled()
+
+    def test_empty_host_warns_without_probing(self, qtbot, monkeypatch):
+        probed: list[tuple] = []
+        warned: list[str] = []
+        monkeypatch.setattr(
+            QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
+        )
+        dlg = self._dialog(qtbot, lambda *a, **k: probed.append(a))
+        dlg.host_edit.setText("")
+        dlg._read_from_node()
+        assert warned == [tr("trusted_keys.failed")]
+        assert probed == []
+
+
 class TestSourceLabel:
     """The known-hosts ``source`` column is humanized for users."""
 

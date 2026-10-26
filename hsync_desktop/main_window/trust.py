@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import cast
 from urllib.parse import urlsplit
 
@@ -46,7 +47,9 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
+    AsyncProbe,
     HsyncEngine,
+    ProbeOutcome,
     add_bootnode_trust,
     add_peer_pin,
     add_server_trust,
@@ -84,6 +87,22 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+
+
+@dataclass(frozen=True, slots=True)
+class _TrustCheck:
+    """One unknown ``host:port`` the pre-flight must authenticate before a run.
+
+    ``fetch_fn`` is the blocking fingerprint probe (a client CLI call): it only
+    ever runs on the ``AsyncProbe`` thread; ``add_fn`` writes the confirmed pin.
+    """
+
+    host: str
+    port: int
+    add_fn: Callable[..., bool]
+    fetch_fn: Callable[..., str | None]
+    label: str
+    binary: str
 
 
 class TrustMixin:
@@ -349,26 +368,60 @@ class TrustMixin:
         self._hide_info_banner()
         self._reset_ui_stopped()
 
-    def _ensure_bootnode_trust(self) -> bool:
-        """Resolve bootnode trust before starting p2p (ADR-0035).
+    # ── Trust pre-flight (ADR-0035 / ADR-0036) ────────────────────────────
 
-        Returns ``False`` to abort the start.
+    def _init_trust_preflight(self) -> None:
+        """Create the async probe that authenticates unknown hosts before a run."""
+        self._trust_probe = AsyncProbe(self)
+        self._trust_probe.done.connect(self._on_trust_probe_done)
+        self._trust_checks: list[_TrustCheck] = []
+        self._trust_check_active: _TrustCheck | None = None
+        self._trust_on_ready: Callable[[], None] | None = None
+
+    def _ensure_trust(self, on_ready: Callable[[], None]) -> None:
+        """Authenticate the configured hosts before a run starts.
+
+        The store lookups are local and run inline; an unknown host needs a
+        network round-trip, so the fingerprint probe runs on ``AsyncProbe`` and
+        ``on_ready`` is called only once every host is trusted. A host the
+        operator refuses (or that never answers) abandons the run: ``on_ready``
+        is never called, mirroring a ``False`` pre-flight result.
         """
+        if self._trust_on_ready is not None:
+            return  # a pre-flight is already running
+        self._trust_on_ready = on_ready
+        self._trust_checks = self._pending_trust_checks()
+        self._run_next_trust_check()
+
+    def _pending_trust_checks(self) -> list[_TrustCheck]:
+        """The hosts that still need an operator decision, bootnode first."""
+        binary = find_hsync_binary()
+        if not binary:
+            return []  # the engine reports the missing binary
+        checks: list[_TrustCheck] = []
+        for check in (self._bootnode_trust_check(binary), self._server_trust_check(binary)):
+            if check is not None:
+                checks.append(check)
+        return checks
+
+    def _bootnode_trust_check(self, binary: str) -> _TrustCheck | None:
+        """Bootnode pre-flight (ADR-0035), or ``None`` when nothing to ask."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if not bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
-            return True
+            return None
         host = str(s.value("p2p/bootnode", "", str)).strip()
         if not host:
-            return True
+            return None
         if str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
-            return True
+            return None
         # The bootnode setting may carry a port ("[IPv6]:port"): normalize it to
         # its unbracketed host and use the real port for the trust store/fetch.
         try:
             endpoint = parse_host_port(host)
         except ValueError:
-            return True
-        return self._confirm_host_trust(
+            return None
+        return self._trust_check(
+            binary,
             endpoint.host,
             endpoint.port or 443,
             list_fn=list_bootnode_trust,
@@ -377,25 +430,23 @@ class TrustMixin:
             label="Bootnode",
         )
 
-    def _ensure_server_trust(self) -> bool:
-        """Resolve sync-server trust before starting (ADR-0036).
-
-        Mirrors the bootnode pre-flight for server mode. Returns ``False`` to abort.
-        """
+    def _server_trust_check(self, binary: str) -> _TrustCheck | None:
+        """Sync-server pre-flight (ADR-0036), or ``None`` in p2p mode."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
-            return True  # server trust applies to server mode only
+            return None  # server trust applies to server mode only
         if str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)) != "ask":
-            return True
+            return None
         url = str(s.value("connection/server_url", "", str)).strip()
         endpoint = urlsplit(url) if url else None
         host = (endpoint.hostname or "") if endpoint else ""
         if not host:
-            return True
+            return None
         port = (endpoint.port if endpoint else None) or (
             443 if endpoint and endpoint.scheme == "https" else SERVER_DEFAULT_PORT
         )
-        return self._confirm_host_trust(
+        return self._trust_check(
+            binary,
             host,
             port,
             list_fn=list_server_trust,
@@ -404,8 +455,9 @@ class TrustMixin:
             label="Server",
         )
 
-    def _confirm_host_trust(
-        self,
+    @staticmethod
+    def _trust_check(
+        binary: str,
         host: str,
         port: int,
         *,
@@ -413,45 +465,78 @@ class TrustMixin:
         fetch_fn: Callable[..., str | None],
         add_fn: Callable[..., bool],
         label: str,
-    ) -> bool:
-        """Pin an unknown ``host:port`` after operator confirmation, or skip.
+    ) -> _TrustCheck | None:
+        """Build the check for an unpinned ``host:port`` (``None`` when pinned).
 
-        Shared by the bootnode and server pre-flights: a store hit returns
-        immediately (no network call); otherwise the client's fingerprint probe
-        runs, the operator confirms, and the pin is written. The client cannot
-        prompt without a terminal, so the GUI answers policy ``ask`` itself.
+        A store hit needs no network call, so the run proceeds without a prompt.
         """
-        binary = find_hsync_binary()
-        if not binary:
-            return True  # the engine reports the missing binary
         entries = list_fn(binary)
         if entries is not None and any(
             entry.get("host") == host and entry.get("port") == port for entry in entries
         ):
-            return True
-        fingerprint = fetch_fn(binary, host, port)
+            return None
+        return _TrustCheck(host, port, add_fn, fetch_fn, label, binary)
+
+    def _run_next_trust_check(self) -> None:
+        """Probe the next unknown host, or hand control back to the caller."""
+        if not self._trust_checks:
+            on_ready = self._finish_trust_preflight()
+            if on_ready is not None:
+                on_ready()
+            return
+        check = self._trust_checks.pop(0)
+        self._trust_check_active = check
+        self._show_info_banner(tr("common.checking"), auto_hide_ms=0, kind="progress")
+        self._trust_probe.start(
+            lambda: ProbeOutcome(
+                bool(fingerprint := check.fetch_fn(check.binary, check.host, check.port)),
+                fingerprint=fingerprint or "",
+            )
+        )
+
+    def _finish_trust_preflight(self) -> Callable[[], None] | None:
+        """Clear the pre-flight state and return the continuation (once)."""
+        on_ready = self._trust_on_ready
+        self._trust_on_ready = None
+        self._trust_checks = []
+        self._trust_check_active = None
+        self._hide_info_banner()
+        return on_ready
+
+    @Slot(object)
+    def _on_trust_probe_done(self, outcome: object) -> None:
+        """Confirm an unknown host's fingerprint, then continue or abandon."""
+        check = self._trust_check_active
+        if check is None or self._trust_on_ready is None:
+            return  # cancelled: the run was abandoned or the window closed
+        self._trust_check_active = None
+        self._hide_info_banner()
+        fingerprint = outcome.fingerprint if isinstance(outcome, ProbeOutcome) else ""
         if not fingerprint:
+            self._finish_trust_preflight()
             QMessageBox.warning(
                 self,
                 tr("dialogs.bootnode_trust_title"),
-                tr("dialogs.bootnode_unreachable").format(host=host),
+                tr("dialogs.bootnode_unreachable").format(host=check.host),
             )
-            return False
+            return
         answer = QMessageBox.question(
             self,
             tr("dialogs.bootnode_trust_title"),
-            tr("dialogs.bootnode_trust_body").format(host=host, fingerprint=fingerprint),
+            tr("dialogs.bootnode_trust_body").format(host=check.host, fingerprint=fingerprint),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
             self._append_desktop_log(
-                "WARNING", f"{label} certificate not accepted; start cancelled."
+                "WARNING", f"{check.label} certificate not accepted; start cancelled."
             )
-            return False
-        if not add_fn(binary, host, fingerprint, port):
+            self._finish_trust_preflight()
+            return
+        if not check.add_fn(check.binary, check.host, fingerprint, check.port):
+            self._finish_trust_preflight()
             QMessageBox.warning(
                 self, tr("dialogs.bootnode_trust_title"), tr("dialogs.trust_failed")
             )
-            return False
-        return True
+            return
+        self._run_next_trust_check()

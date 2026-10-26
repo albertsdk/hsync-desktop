@@ -7,6 +7,7 @@ Re-exports the public surface previously provided by ``engine.py`` so existing
 ``from hsync_desktop.engine import ...`` imports keep working.
 """
 
+from hsync_desktop.engine.async_probe import AsyncProbe, ProbeOutcome
 from hsync_desktop.engine.cli import (
     _CAPABILITIES_CACHE_KEY,
     _EXPECTED_VERSION,
@@ -56,8 +57,10 @@ from hsync_desktop.engine.process import (
 )
 
 __all__ = [
+    "AsyncProbe",
     "BinaryVersionProbe",
     "HsyncEngine",
+    "ProbeOutcome",
     "ResetStateResult",
     "ServerProbeResult",
     "SERVER_DEFAULT_PORT",

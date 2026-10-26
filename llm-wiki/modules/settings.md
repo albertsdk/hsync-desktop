@@ -296,7 +296,8 @@ découverte`, … — `settings.p2p_bootnode`):
 group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
 by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
 opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
-(`QPushButton`, probes the bootnode via `fetch_bootnode_fingerprint`) +
+(`QPushButton`, probes the bootnode via `fetch_bootnode_fingerprint` on
+`engine/async_probe.py::AsyncProbe`) +
 `p2p_upnp` (`ToggleSwitch`), saved/loaded under
 `p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
@@ -318,7 +319,7 @@ and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` 
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
-`main_window/trust.py::TrustMixin._ensure_bootnode_trust` (using the
+`main_window/trust.py::TrustMixin._ensure_trust` (using the
 endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
 so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
@@ -339,6 +340,17 @@ as a group and uses less vertical space than two stacked form rows; the trailing
 stretch keeps them left-aligned. Both test buttons carry the
 `settings.test_connection` label (set in `_apply_translations`).
 
+**Test Connection probes** (`settings/dialog.py::SettingsDialog._on_test_connection`
+and `SettingsDialog._on_test_bootnode`): the input validation and its warnings are
+synchronous, then `_start_probe` disables the button, labels it
+`common.checking` and runs the probe on `engine/async_probe.py::AsyncProbe`.
+`_on_probe_done` restores both buttons and reports the outcome, and `_end_probe`
+drops a pending result when the dialog closes (`SettingsDialog.done`). The
+enable state is recomputed from the p2p-mode/capability/connection gates
+(`_restore_test_buttons`), never blindly re-enabled. The probe never touches the
+UI thread: the bootnode fingerprint is a client subprocess (up to 15 s) and the
+`/health` call waits up to the configured HTTP timeout.
+
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
 inserted after the `http_timeout` row), saved/loaded under
 `connection/server_trust`; labels from `settings.server_trust` (+ the five
@@ -349,7 +361,7 @@ the combo is env-driven: `apply_settings_env` always inserts
 `HSYNC_SERVER_TRUST` (`chain` default), and `build_hsync_args` emits no
 server-trust flag. The server pin is
 edited through the `TrustedKeysDialog` Servers tab, the
-`_ensure_server_trust` pre-flight in `main_window/trust.py`, or the panel's
+`_ensure_trust` pre-flight in `main_window/trust.py`, or the panel's
 `btn_manage_trusted_keys_server` (`QPushButton`, opens the dialog on the servers
 tab). Like the other Server fields, the combo and the button are disabled when
 p2p mode is active and while a sync is running.
@@ -507,6 +519,9 @@ and the setup wizard agree:
 - `engine/probes.py::probe_server_health` / `probe_server_bucket` /
   `ServerProbeResult`; the Settings "Test connection" action and the wizard both
   use them (`GET /health`, `GET /api/v1/buckets/{bucket}`).
+- `engine/async_probe.py::AsyncProbe` runs every one of those probes (plus the
+  `fetch_*_fingerprint` subprocesses) off the UI thread; see
+  [engine.md](engine.md).
 - `settings/validators.py::validate_sync_folder` / `FolderCheck` back the wizard's
   folder check (existence/type/permission/root error, home/system/low-space
   warning); `FolderCheck.free_bytes` feeds the human-readable free-space display

@@ -9,6 +9,7 @@ translations: dict[str, str] = {
     "app.tagline": "Keep your devices in sync",
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
+    "common.checking": "Checking…",
     "app.loading": "Loading…",
     # Status
     "status.connected": "Connected",

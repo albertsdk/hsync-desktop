@@ -91,6 +91,12 @@ devices are not authenticated and reads are open to anyone who can reach this
 device. Set a shared password in the p2p tab to avoid the prompt; the
 confirmation is requested on every start and is not a stored setting.
 
+**Test Connection.** *Test Connection* contacts the configured discovery server
+and shows the certificate fingerprint it presents, which proves the address is
+reachable; no pin is written. The button reads **Checking…** while the request
+runs and the window stays responsive, so the result arrives in a dialog when the
+server answers or the request times out.
+
 ## Server Mode
 
 For syncing against a central HSYNC server.
@@ -107,7 +113,10 @@ manage/test actions), **Certificates** (skip certificate check and CA file) and
 | Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
 | Certificate authority file | Use a custom certificate file for a self-signed server |
 
-The tab also holds **Request timeout** (seconds).
+The tab also holds **Request timeout** (seconds). *Test Connection* contacts the
+server health endpoint and reports whether it answers; the button reads
+**Checking…** while the request runs, so the window stays responsive until the
+result appears.
 
 ## General
 

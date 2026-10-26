@@ -18,7 +18,7 @@ from typing import Any
 
 from hsync_common.endpoint import format_authority, parse_host_port
 from hsync_common.protocol.pairing import parse_fingerprint
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings, Qt, Slot
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
@@ -38,6 +38,8 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.config import DEFAULT_P2P_ENABLED, SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.engine import (
+    AsyncProbe,
+    ProbeOutcome,
     add_bootnode_trust,
     add_peer_pin,
     add_server_trust,
@@ -126,6 +128,11 @@ class _HostAddDialog(QDialog):
         self.fetch_btn = QPushButton(tr("trusted_keys.read_from_node"), self)
         self.fetch_btn.clicked.connect(self._read_from_node)
 
+        # The fingerprint probe is a blocking CLI call: run it off the UI thread
+        # so the dialog stays responsive and shows that it is working.
+        self._probe = AsyncProbe(self)
+        self._probe.done.connect(self._on_fingerprint_read)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
@@ -142,12 +149,34 @@ class _HostAddDialog(QDialog):
         host = self.host_edit.text().strip()
         endpoint = parse_host_port(host) if host else None
         if endpoint is None or not self._binary:
+            QMessageBox.warning(self, tr("trusted_keys.add"), tr("trusted_keys.failed"))
             return
-        fingerprint = self._fetch_fingerprint(self._binary, endpoint.host, endpoint.port)
+        binary = self._binary
+        fetch = self._fetch_fingerprint
+        self.fetch_btn.setEnabled(False)
+        self.fetch_btn.setText(tr("common.checking"))
+        self._probe.start(
+            lambda: ProbeOutcome(
+                bool(fingerprint := fetch(binary, endpoint.host, endpoint.port)),
+                fingerprint=fingerprint or "",
+            )
+        )
+
+    @Slot(object)
+    def _on_fingerprint_read(self, outcome: object) -> None:
+        """Fill the field with the fingerprint read from the host, or warn."""
+        self.fetch_btn.setEnabled(True)
+        self.fetch_btn.setText(tr("trusted_keys.read_from_node"))
+        fingerprint = outcome.fingerprint if isinstance(outcome, ProbeOutcome) else ""
         if fingerprint:
             self.fingerprint_edit.setText(fingerprint)
-        else:
-            QMessageBox.warning(self, tr("trusted_keys.add"), tr("trusted_keys.failed"))
+            return
+        QMessageBox.warning(self, tr("trusted_keys.add"), tr("trusted_keys.failed"))
+
+    def done(self, result: int) -> None:
+        """Drop a pending fingerprint read when the dialog closes."""
+        self._probe.cancel()
+        super().done(result)
 
     def _on_accept(self) -> None:
         host = self.host_edit.text().strip()

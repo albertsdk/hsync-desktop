@@ -69,7 +69,13 @@ def apply_translations(dlg: SettingsDialog) -> None:
         lbl.setText(tr("settings.http_timeout"))
     dlg._lbl_server_trust.setText(tr("settings.server_trust"))
     dlg._populate_server_trust()
-    dlg.btn_test_connection.setText(escape_mnemonics(tr("settings.test_connection")))
+    dlg.btn_test_connection.setText(
+        escape_mnemonics(
+            tr("common.checking")
+            if getattr(dlg, "_probe_target", None) == "server"
+            else tr("settings.test_connection")
+        )
+    )
 
     # Sync tab labels
     lbl = dlg.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
@@ -147,7 +153,13 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._populate_bootnode_trust()
     dlg.btn_manage_trusted_keys.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
     dlg.btn_manage_trusted_keys_server.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
-    dlg.btn_test_bootnode.setText(escape_mnemonics(tr("settings.test_connection")))
+    dlg.btn_test_bootnode.setText(
+        escape_mnemonics(
+            tr("common.checking")
+            if getattr(dlg, "_probe_target", None) == "bootnode"
+            else tr("settings.test_connection")
+        )
+    )
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
     lbl = dlg.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
     if lbl:

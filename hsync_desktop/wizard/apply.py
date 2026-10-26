@@ -36,7 +36,7 @@ from hsync_desktop.wizard.model import WizardDraft, profile_for
 __all__ = ["ApplyResult", "apply_draft"]
 
 # Trust port when the endpoint carries none: mirrors the client/GUI pre-flight
-# (``TrustMixin._ensure_server_trust`` uses 443 for https, the shared server
+# (``TrustMixin._ensure_trust`` uses 443 for https, the shared server
 # default otherwise; the discovery-server pre-flight uses 443).
 _HTTPS_PORT = 443
 

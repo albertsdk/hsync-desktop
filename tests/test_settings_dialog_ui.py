@@ -12,6 +12,7 @@ Covers the API-key security constraint of the desktop settings:
 
 from __future__ import annotations
 
+import time
 from unittest.mock import patch
 
 import pytest
@@ -103,7 +104,7 @@ class TestBootnodeTestButton:
         dialog._on_test_bootnode()
         assert warned == [tr("settings.invalid_bootnode_endpoint")]
 
-    def test_unreachable_warns(self, dialog, monkeypatch):
+    def test_unreachable_warns(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
 
         warned = self._capture(monkeypatch, "warning")
@@ -111,9 +112,16 @@ class TestBootnodeTestButton:
         monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", lambda *a, **k: None)
         dialog.p2p_bootnode.setText("boot.example.net")
         dialog._on_test_bootnode()
+        # The probe is off the UI thread: the button shows the busy state and the
+        # window keeps running instead of freezing for the CLI timeout.
+        assert not dialog.btn_test_bootnode.isEnabled()
+        assert dialog.btn_test_bootnode.text() == tr("common.checking")
+        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
         assert warned == [tr("settings.test_bootnode_failure")]
+        assert dialog.btn_test_bootnode.isEnabled()
+        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
 
-    def test_reachable_reports_the_fingerprint(self, dialog, monkeypatch):
+    def test_reachable_reports_the_fingerprint(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
 
         infos = self._capture(monkeypatch, "information")
@@ -128,6 +136,7 @@ class TestBootnodeTestButton:
         monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", fake_probe)
         dialog.p2p_bootnode.setText("boot.example.net:443")
         dialog._on_test_bootnode()
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
         assert captured == {"binary": "/fake/hsync", "host": "boot.example.net", "port": 443}
         assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", fingerprint)]
 
@@ -136,6 +145,115 @@ class TestBootnodeTestButton:
         assert not dialog.btn_test_bootnode.isEnabled()
         dialog.p2p_mode.setChecked(True)
         assert dialog.btn_test_bootnode.isEnabled()
+
+
+class TestServerTestConnection:
+    """'Test Connection' in the Server Mode panel probes /health off-thread."""
+
+    def _capture(self, monkeypatch, name):
+        seen: list[str] = []
+        monkeypatch.setattr(QMessageBox, name, staticmethod(lambda *a, **k: seen.append(a[2])))
+        return seen
+
+    def test_no_url_warns_without_probing(self, dialog, monkeypatch):
+        warned = self._capture(monkeypatch, "warning")
+        dialog.server_url.setText("")
+        dialog._on_test_connection()
+        assert warned == [tr("settings.test_connection_no_url")]
+
+    def test_success(self, dialog, qtbot, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import ServerProbeResult
+
+        infos = self._capture(monkeypatch, "information")
+        monkeypatch.setattr(
+            dialog_mod,
+            "probe_server_health",
+            lambda *a, **k: ServerProbeResult(True, 200, 3, False),
+        )
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("https://server.example.com:9753")
+        dialog._on_test_connection()
+        # Non-blocking: the busy state is visible before the probe returns.
+        assert not dialog.btn_test_connection.isEnabled()
+        assert dialog.btn_test_connection.text() == tr("common.checking")
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+        assert infos == [tr("settings.test_connection_success")]
+        assert dialog.btn_test_connection.isEnabled()
+
+    def test_failure(self, dialog, qtbot, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import REASON_UNREACHABLE, ServerProbeResult
+
+        warned = self._capture(monkeypatch, "warning")
+        monkeypatch.setattr(
+            dialog_mod,
+            "probe_server_health",
+            lambda *a, **k: ServerProbeResult(False, None, 3, False, REASON_UNREACHABLE),
+        )
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("https://server.example.com:9753")
+        dialog._on_test_connection()
+        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
+        assert warned == [tr("settings.test_connection_failure")]
+
+    def test_the_bootnode_button_label_is_untouched(self, dialog, qtbot, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import ServerProbeResult
+
+        monkeypatch.setattr(
+            dialog_mod,
+            "probe_server_health",
+            lambda *a, **k: ServerProbeResult(True, 200, 3, False),
+        )
+        infos = self._capture(monkeypatch, "information")
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("https://server.example.com:9753")
+        dialog._on_test_connection()
+        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+
+    def test_closing_the_dialog_drops_a_pending_probe(self, dialog, qtbot, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import ServerProbeResult
+
+        shown = self._capture(monkeypatch, "information") + self._capture(monkeypatch, "warning")
+
+        def slow_probe(*_a, **_k):
+            time.sleep(0.2)
+            return ServerProbeResult(True, 200, 3, False)
+
+        monkeypatch.setattr(dialog_mod, "probe_server_health", slow_probe)
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("https://server.example.com:9753")
+        dialog._on_test_connection()
+        dialog.done(0)
+        assert dialog.btn_test_connection.text() == tr("settings.test_connection")
+        assert dialog.btn_test_connection.isEnabled()
+        qtbot.wait(500)
+        assert shown == []
+
+    def test_an_active_sync_keeps_the_button_disabled(self, dialog, qtbot, monkeypatch):
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import ServerProbeResult
+
+        infos = self._capture(monkeypatch, "information")
+
+        def slow_probe(*_a, **_k):
+            time.sleep(0.2)
+            return ServerProbeResult(True, 200, 3, False)
+
+        monkeypatch.setattr(dialog_mod, "probe_server_health", slow_probe)
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("https://server.example.com:9753")
+        dialog._on_test_connection()
+        # A sync starting while the probe runs must keep the button locked: the
+        # result never re-enables a control the connection gate disables.
+        dialog.set_connection_active(True)
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+        assert not dialog.btn_test_connection.isEnabled()
+        dialog.set_connection_active(False)
+        assert dialog.btn_test_connection.isEnabled()
 
 
 class TestP2pPanelSections:

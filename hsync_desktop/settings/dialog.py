@@ -12,6 +12,7 @@ The API-key / p2p-key prompts live in credential_dialogs.py and the
 from __future__ import annotations
 
 import ssl
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
@@ -22,7 +23,7 @@ from hsync_common.protocol.boot_tokens import (
     validate_group_passphrase,
 )
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
-from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtCore import QSettings, QTimer, Slot
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -105,6 +106,8 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.engine import (
+    AsyncProbe,
+    ProbeOutcome,
     build_probe_ssl_context,
     fetch_bootnode_fingerprint,
     find_hsync_binary,
@@ -189,6 +192,15 @@ class SettingsDialog(QDialog):
         # an edited user password from an untouched legacy raw key.
         self._p2p_key_loaded = ""
         self._p2p_key_mode_loaded = "raw"
+        # Connection state owned by ``set_connection_active``; a finished probe
+        # must not re-enable a button an active sync has locked.
+        self._connection_active = False
+        # One probe at a time for the two "Test Connection" actions. The probe
+        # runs off the UI thread: the fingerprint subprocess and the HTTPS call
+        # block up to their timeout, which froze the window.
+        self._probe = AsyncProbe(self)
+        self._probe.done.connect(self._on_probe_done)
+        self._probe_target: str | None = None
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
@@ -744,7 +756,7 @@ class SettingsDialog(QDialog):
 
         Accepts the same forms as ``HSYNC_SERVER`` (bare ``host``/``host:port``/
         ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
-        canonical HTTPS URL so ``_ensure_server_trust``/``urlsplit`` keep working.
+        canonical HTTPS URL so ``_ensure_trust``/``urlsplit`` keep working.
         """
         return normalize_server_endpoint(self.server_url.text())
 
@@ -754,6 +766,8 @@ class SettingsDialog(QDialog):
 
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
+        if self._probe_target is not None:
+            return  # a probe is already running
         url = self.server_url.text().strip()
         if not url:
             QMessageBox.warning(
@@ -776,39 +790,17 @@ class SettingsDialog(QDialog):
                 tr("settings.invalid_server_endpoint"),
             )
             return
-        self.btn_test_connection.setEnabled(False)
-        self.btn_test_connection.setText("…")
-
-        def _restore() -> None:
-            self.btn_test_connection.setEnabled(True)
-
-        self.btn_test_connection.setText(tr("settings.test_connection"))
-        self.btn_test_bootnode.setText(tr("settings.test_connection"))
-
-        result = probe_server_health(
-            base,
-            ssl_context=self._test_connection_ssl_context(),
-            timeout=max(5, self.http_timeout.value()),
+        ssl_context = self._test_connection_ssl_context()
+        timeout = float(max(5, self.http_timeout.value()))
+        self._start_probe(
+            "server",
+            lambda: self._server_probe_outcome(base, ssl_context, timeout),
         )
-        success = result.ok
-
-        _restore()
-
-        if success:
-            QMessageBox.information(
-                self,
-                tr("settings.test_connection_title"),
-                tr("settings.test_connection_success"),
-            )
-        else:
-            QMessageBox.warning(
-                self,
-                tr("settings.test_connection_title"),
-                tr("settings.test_connection_failure"),
-            )
 
     def _on_test_bootnode(self) -> None:
         """Verify the configured bootnode is reachable (probes its certificate)."""
+        if self._probe_target is not None:
+            return  # a probe is already running
         raw = self.p2p_bootnode.text().strip()
         if not raw:
             QMessageBox.warning(
@@ -836,30 +828,115 @@ class SettingsDialog(QDialog):
             )
             return
 
-        self.btn_test_bootnode.setEnabled(False)
-        self.btn_test_bootnode.setText("…")
-
-        def _restore() -> None:
-            self.btn_test_bootnode.setEnabled(True)
-            self.btn_test_bootnode.setText(tr("settings.test_connection"))
-
         # Contacting the bootnode reads its certificate fingerprint (no pin is
         # written); a value means the node answered, None means unreachable.
-        fingerprint = fetch_bootnode_fingerprint(binary, endpoint.host, endpoint.port)
-        _restore()
+        self._start_probe(
+            "bootnode",
+            lambda: self._bootnode_probe_outcome(binary, endpoint.host, endpoint.port),
+        )
 
-        if fingerprint:
+    # ── Connection probes (off the UI thread) ─────────────────────────────
+
+    @staticmethod
+    def _server_probe_outcome(
+        base_url: str, ssl_context: ssl.SSLContext, timeout: float
+    ) -> ProbeOutcome:
+        """Probe the server health endpoint, from the probe thread."""
+        result = probe_server_health(base_url, ssl_context=ssl_context, timeout=timeout)
+        return ProbeOutcome(result.ok, result.status, reason=result.reason)
+
+    @staticmethod
+    def _bootnode_probe_outcome(binary: str, host: str, port: int | None) -> ProbeOutcome:
+        """Read the discovery server fingerprint, from the probe thread."""
+        fingerprint = fetch_bootnode_fingerprint(binary, host, port)
+        return ProbeOutcome(
+            bool(fingerprint),
+            fingerprint=fingerprint or "",
+            reason="" if fingerprint else "unreachable",
+        )
+
+    def _test_button(self, target: str) -> QPushButton:
+        """The Test Connection button of the given panel."""
+        return self.btn_test_connection if target == "server" else self.btn_test_bootnode
+
+    def _start_probe(self, target: str, job: Callable[[], ProbeOutcome]) -> None:
+        """Run *job* off the UI thread, showing which panel is being tested."""
+        self._probe_target = target
+        button = self._test_button(target)
+        button.setEnabled(False)
+        button.setText(tr("common.checking"))
+        self._probe.start(job)
+
+    @Slot(object)
+    def _on_probe_done(self, outcome: object) -> None:
+        """Render the probe result; the event loop stayed live meanwhile."""
+        target = self._end_probe()
+        if target is None or not isinstance(outcome, ProbeOutcome):
+            return
+        if target == "bootnode":
+            if outcome.fingerprint:
+                QMessageBox.information(
+                    self,
+                    tr("settings.test_connection_title"),
+                    tr("settings.test_bootnode_success").replace(
+                        "{fingerprint}", outcome.fingerprint
+                    ),
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    tr("settings.test_connection_title"),
+                    tr("settings.test_bootnode_failure"),
+                )
+            return
+        if outcome.ok:
             QMessageBox.information(
                 self,
                 tr("settings.test_connection_title"),
-                tr("settings.test_bootnode_success").replace("{fingerprint}", fingerprint),
+                tr("settings.test_connection_success"),
             )
         else:
             QMessageBox.warning(
                 self,
                 tr("settings.test_connection_title"),
-                tr("settings.test_bootnode_failure"),
+                tr("settings.test_connection_failure"),
             )
+
+    def _end_probe(self) -> str | None:
+        """Leave the busy state; return the target whose result is still wanted."""
+        target = self._probe_target
+        if target is None:
+            return None
+        self._probe_target = None
+        self._probe.cancel()
+        self._restore_test_buttons()
+        return target
+
+    def _restore_test_buttons(self) -> None:
+        """Restore both Test Connection labels and re-derive their enable state.
+
+        The state belongs to the p2p-mode, capability and connection gates, so it
+        is recomputed instead of blindly re-enabling a widget that an active sync
+        or a missing capability must keep disabled.
+        """
+        p2p_enabled = self.p2p_mode.isChecked()
+        self.btn_test_connection.setText(tr("settings.test_connection"))
+        self.btn_test_bootnode.setText(tr("settings.test_connection"))
+        self.btn_test_connection.setEnabled(
+            not p2p_enabled
+            and not self._connection_active
+            and self.btn_test_connection not in self._unsupported_widgets
+        )
+        self.btn_test_bootnode.setEnabled(
+            p2p_enabled
+            and not self._connection_active
+            and self.btn_test_bootnode not in self._unsupported_widgets
+        )
+
+    def done(self, result: int) -> None:
+        """Drop a pending probe result when the dialog closes."""
+        self._end_probe()
+        super().done(result)
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -1321,6 +1398,7 @@ class SettingsDialog(QDialog):
 
         # Show/hide the info banner
         self._connection_banner.setVisible(active)
+        self._connection_active = active
         if active:
             self._banner_text.setText(tr("settings.connection_active_warning"))
 

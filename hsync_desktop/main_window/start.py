@@ -474,14 +474,13 @@ class StartMixin:
         if not self._check_disk_space():
             return
 
-        # Resolve bootnode trust before the client starts (the client cannot
-        # prompt without a terminal). Then the sync-server trust for server mode.
-        if not self._ensure_bootnode_trust():
-            return
-        if not self._ensure_server_trust():
-            return
+        # Resolve bootnode/server trust before the client starts (the client
+        # cannot prompt without a terminal). The fingerprint probe runs off the
+        # UI thread, so the start continues from its callback.
+        self._ensure_trust(lambda: self._start_preview_run(local_path))
 
-        # Start in dry-run mode first to show preview
+    def _start_preview_run(self, local_path: str) -> None:
+        """Start the dry-run preview that precedes a full sync."""
         args = build_hsync_args(local_path, force_dry_run=True)
 
         self._prepare_engine_run(local_path)

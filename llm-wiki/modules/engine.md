@@ -6,6 +6,21 @@ capabilities probe + cache, trust-store subcommands) and `engine/process.py`
 owns the `QProcess`, the secret/event pipes and the event→signal translation.
 `engine/__init__.py` re-exports the former `engine.py` surface.
 
+## Async probe runner (`engine/async_probe.py`)
+
+| Symbol | Location | Role |
+| ------ | -------- | ---- |
+| `AsyncProbe` | `engine/async_probe.py::AsyncProbe` | run one blocking probe on a `QThread`; a new `start` supersedes, `cancel` drops the result |
+| `ProbeOutcome` | `engine/async_probe.py::ProbeOutcome` | probe result (`ok`, `status`, `fingerprint`, `reason`) |
+| `_PENDING` | `engine/async_probe.py::_PENDING` | registry keeping a cancelled probe's thread and worker alive until the blocking call returns |
+
+Every blocking probe — the `engine/probes.py` HTTP calls and the
+`engine/cli.py` fingerprint subprocesses — runs through `AsyncProbe`: on the UI
+thread it freezes the window for the whole timeout (the desktop environment then
+reports the app as unresponsive). Consumers: `settings/dialog.py` (both Test
+Connection actions), `trusted_keys.py` (Read from server), `main_window/trust.py`
+(start pre-flight) and the wizard connection page.
+
 ## Binary discovery & compatibility
 
 | Symbol | Location | Role |

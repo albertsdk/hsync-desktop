@@ -341,7 +341,7 @@ class TestFreeSpaceFormat:
 
 class TestProbeStatus:
     def test_server_success_lands_on_server_status(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.BACKUP)
@@ -352,7 +352,7 @@ class TestProbeStatus:
         assert page.discovery_server_status.isHidden()
 
     def test_server_error_lands_on_server_status(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.BACKUP)
@@ -362,7 +362,7 @@ class TestProbeStatus:
         assert page.discovery_server_status.isHidden()
 
     def test_discovery_server_success_lands_on_discovery_server_status(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
@@ -375,7 +375,7 @@ class TestProbeStatus:
         assert page.server_status.isHidden()
 
     def test_discovery_server_error_uses_discovery_server_message(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
@@ -386,7 +386,7 @@ class TestProbeStatus:
         )
 
     def test_result_ignored_when_section_hidden(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.LAN_SYNC)  # server section hidden
@@ -453,7 +453,7 @@ class TestReviewChecks:
         assert self._checks(wizard) == tr("wizard.connection.lan_no_test")
 
     def test_probe_success_sets_verification_and_edit_clears_it(self, wizard):
-        from hsync_desktop.wizard.probes import ProbeOutcome
+        from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.BACKUP)

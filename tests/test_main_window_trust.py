@@ -15,6 +15,10 @@ from tests._helpers import _patch_all, _resolve_dialog
 
 
 class TestEnsureBootnodeTrust:
+    @staticmethod
+    def _run(window, started: list[int]) -> None:
+        window._ensure_trust(lambda: started.append(1))
+
     def test_skips_when_the_host_is_already_trusted(self, window, monkeypatch):
 
         _patch_all(
@@ -26,10 +30,13 @@ class TestEnsureBootnodeTrust:
         _patch_all(
             monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "f" * 64
         )
-        assert window._ensure_bootnode_trust() is True
+        started: list[int] = []
+        self._run(window, started)
+        # A pinned host needs no network probe: the run continues immediately.
+        assert started == [1]
         assert fetched == []
 
-    def test_prompts_and_pins_when_unknown(self, window, monkeypatch):
+    def test_prompts_and_pins_when_unknown(self, window, qtbot, monkeypatch):
 
         _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
         fetched: list[tuple] = []
@@ -43,18 +50,55 @@ class TestEnsureBootnodeTrust:
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
-        assert window._ensure_bootnode_trust() is True
+        started: list[int] = []
+        self._run(window, started)
+        qtbot.waitUntil(lambda: bool(started), timeout=5000)
         # The client dials 443 (bare HSYNC_BOOTNODE): the p2p listen port must
         # never be passed to the bootnode trust commands.
         assert fetched[0][1:] == ("boot.example.net", 443)
         assert added == [("boot.example.net", 443)]
 
-    def test_aborts_when_the_user_declines(self, window, monkeypatch):
+    def test_aborts_when_the_user_declines(self, window, qtbot, monkeypatch):
 
         _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
         _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
-        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
-        assert window._ensure_bootnode_trust() is False
+        asked: list = []
+        monkeypatch.setattr(
+            QMessageBox,
+            "question",
+            lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.No,
+        )
+        started: list[int] = []
+        self._run(window, started)
+        qtbot.waitUntil(lambda: bool(asked), timeout=5000)
+        assert started == []
+
+    def test_unreachable_host_warns_and_aborts(self, window, qtbot, monkeypatch):
+
+        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: None)
+        warned: list[str] = []
+        monkeypatch.setattr(
+            QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
+        )
+        started: list[int] = []
+        self._run(window, started)
+        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
+        assert warned == [tr("dialogs.bootnode_unreachable").format(host="boot.example.net")]
+        assert started == []
+
+    def test_a_second_request_while_probing_is_ignored(self, window, qtbot, monkeypatch):
+
+        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
+        _patch_all(monkeypatch, "add_bootnode_trust", lambda *a, **k: True)
+        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+        started: list[int] = []
+        window._ensure_trust(lambda: started.append(1))
+        second: list[int] = []
+        self._run(window, second)
+        assert second == []
+        qtbot.waitUntil(lambda: bool(started), timeout=5000)
 
 
 class TestTrustDialogs:
@@ -129,11 +173,20 @@ class TestTrustDialogs:
 class TestEnsureServerTrust:
     """Server-mode pre-flight (ADR-0036)."""
 
-    def test_skips_in_p2p_mode(self, window):
-        # The fixture enables p2p: server trust is not consulted.
-        assert window._ensure_server_trust() is True
+    def test_skips_in_p2p_mode(self, window, monkeypatch):
+        # The fixture enables p2p: server trust is not consulted. The bootnode is
+        # already pinned, so the pre-flight has nothing to probe.
+        _patch_all(
+            monkeypatch,
+            "list_bootnode_trust",
+            lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
+        )
+        _patch_all(monkeypatch, "list_server_trust", lambda binary: pytest.fail("must not probe"))
+        started: list[int] = []
+        window._ensure_trust(lambda: started.append(1))
+        assert started == [1]
 
-    def test_prompts_and_pins_when_unknown(self, window, settings, monkeypatch):
+    def test_prompts_and_pins_when_unknown(self, window, qtbot, settings, monkeypatch):
 
         s = settings
         s.setValue("p2p/enabled", False)
@@ -151,7 +204,9 @@ class TestEnsureServerTrust:
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
-        assert window._ensure_server_trust() is True
+        started: list[int] = []
+        window._ensure_trust(lambda: started.append(1))
+        qtbot.waitUntil(lambda: bool(started), timeout=5000)
         assert fetched[0][1:] == ("server.example.com", 9753)
         assert added == [("server.example.com", 9753)]
 
@@ -162,7 +217,9 @@ class TestEnsureServerTrust:
         s.setValue("connection/server_url", "")
         s.setValue("connection/server_trust", "ask")
         _patch_all(monkeypatch, "list_server_trust", lambda binary: pytest.fail("must not probe"))
-        assert window._ensure_server_trust() is True
+        started: list[int] = []
+        window._ensure_trust(lambda: started.append(1))
+        assert started == [1]
 
     def test_server_changed_trust_calls_add(self, window, monkeypatch):
 

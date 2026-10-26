@@ -9,6 +9,7 @@ translations: dict[str, str] = {
     "app.tagline": "デバイスを常に同期",
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
+    "common.checking": "確認中…",
     "app.loading": "読み込み中…",
     # Status
     "status.connected": "接続済み",

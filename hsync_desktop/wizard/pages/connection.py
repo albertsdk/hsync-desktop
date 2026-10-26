@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
 from hsync_desktop import autostart
 from hsync_desktop.config import DEFAULT_HTTP_TIMEOUT
 from hsync_desktop.engine import (
+    AsyncProbe,
+    ProbeOutcome,
     build_probe_ssl_context,
     fetch_bootnode_fingerprint,
     find_hsync_binary,
@@ -39,7 +41,6 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 from hsync_desktop.wizard.defaults import generate_group_name, generate_password
 from hsync_desktop.wizard.model import WizardDraft, WizardMode, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.probes import AsyncProbe, ProbeOutcome
 from hsync_desktop.wizard.widgets import (
     InlineError,
     SecretField,

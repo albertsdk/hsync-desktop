@@ -163,8 +163,10 @@ bump discards a stale draft. On finish the draft is cleared and
 
 - `wizard/validation.py` returns `Issue(level, code, field)`; the dialog maps
   codes through `wizard/messages.py::issue_message` to `wizard.error|warn.<code>`.
-- `wizard/probes.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
-  `file_panel/workers.py::DirectoryScanWorker`) with a generation counter.
+- `engine/async_probe.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
+  `file_panel/workers.py::DirectoryScanWorker`) with a generation counter; the
+  wizard, the Settings probes, the trusted-keys read and the MainWindow trust
+  pre-flight share it.
 - `engine/endpoints.py` normalizes the server/discovery-server fields; `engine/probes.py`
   performs `GET /health` and `GET /api/v1/buckets/{bucket}` (the latter is
   mode-aware: a 404 is benign for a fresh backup share — auto-created on first

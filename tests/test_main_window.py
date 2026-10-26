@@ -253,8 +253,7 @@ class TestEngineStartFailure:
         monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
         monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
-        monkeypatch.setattr(window, "_ensure_bootnode_trust", lambda: True)
-        monkeypatch.setattr(window, "_ensure_server_trust", lambda: True)
+        monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
         _patch_all(monkeypatch, "build_hsync_args", lambda *a, **k: ["p2p"])
         window._local_path = str(tmp_path)
         window._pending_sync_path = str(tmp_path)
@@ -358,8 +357,7 @@ class TestStatusLifecycle:
         monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
         monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
-        monkeypatch.setattr(window, "_ensure_bootnode_trust", lambda: True)
-        monkeypatch.setattr(window, "_ensure_server_trust", lambda: True)
+        monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
         _patch_all(monkeypatch, "build_hsync_args", lambda *a, **k: ["p2p"])
         window._local_path = str(tmp_path)
         window._pending_sync_path = str(tmp_path)
@@ -588,10 +586,9 @@ class TestSelectionSync:
         for name in (
             "_check_keyless_p2p",
             "_check_disk_space",
-            "_ensure_bootnode_trust",
-            "_ensure_server_trust",
         ):
             monkeypatch.setattr(window, name, lambda: True)
+        monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
 
     def test_subdir_mapping_folders_and_files(self, window):
         assert window._selection_subdir("media/") == "media"

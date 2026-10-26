@@ -130,6 +130,9 @@ class MainWindow(
         # fingerprint must not reopen a dialog the user already dismissed. Reset
         # on start/stop so a new session prompts again.
         self._trust_prompted: dict[tuple[str, str], str] = {}
+        # Bootnode/server fingerprint pre-flight (ADR-0035/0036): unknown hosts
+        # are probed off the UI thread before the client starts.
+        self._init_trust_preflight()
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()

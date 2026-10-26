@@ -70,8 +70,9 @@ config→CLI-args mapping.
 | `WizardProfile` | `wizard/model.py::WizardProfile` | derived defaults per mode |
 | `WizardDraft` | `wizard/model.py::WizardDraft` | editable wizard state (secrets in clear in memory, encrypted at rest) |
 | `Issue` | `wizard/validation.py::Issue` | `(level, code, field)` validation issue |
-| `ProbeOutcome` | `wizard/probes.py::ProbeOutcome` | async probe result |
+| `ProbeOutcome` | `engine/async_probe.py::ProbeOutcome` | async probe result (wizard, Settings probes, trust pre-flight) |
 | `ServerProbeResult` | `engine/probes.py::ServerProbeResult` | HTTP probe result (status/latency/auth) |
+| `_TrustCheck` | `main_window/trust.py::_TrustCheck` | one unpinned `host:port` the trust pre-flight must authenticate |
 | `FolderCheck` | `settings/validators.py::FolderCheck` | sync-folder validation outcome |
 | `ApplyResult` | `wizard/apply.py::ApplyResult` | trust-pin result (`""`/`no_binary`/`failed`) |
 

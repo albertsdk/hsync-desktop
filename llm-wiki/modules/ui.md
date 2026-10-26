@@ -96,7 +96,8 @@ prompts again.
 Before a run starts, `_continue_start_after_disclaimer`
 (`main_window/start.py::StartMixin._continue_start_after_disclaimer`) chains the
 gates in this order: `_check_deletion_risk`, `_check_keyless_p2p`,
-`_check_disk_space`, `_ensure_bootnode_trust`, `_ensure_server_trust`; the scoped
+`_check_disk_space`, then `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`);
+the scoped
 Send/Receive path (`main_window/actions.py`) reuses the same checks. The
 deletion-risk confirmation (`notif.deletion_risk`, p2p without *Prefer primary
 role* or Receive-only) is a guard for a run that actually applies changes, so
@@ -192,11 +193,17 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
   host branch acts only on the explicit Trust/Forget buttons).
 - `_maybe_offer_restart` (`main_window/trust.py::TrustMixin._maybe_offer_restart`) offers to restart a stopped sync after a
   bootnode/server pin change (those failures are fatal; mDNS refusals are not).
-- `_ensure_bootnode_trust` (`main_window/trust.py::TrustMixin._ensure_bootnode_trust`) and `_ensure_server_trust` (`main_window/trust.py::TrustMixin._ensure_server_trust`) are the
-  start pre-flights, both delegating to `_confirm_host_trust` (`main_window/trust.py::TrustMixin._confirm_host_trust`): skip
-  unless the mode/policy/URL apply; skip when the known-hosts store already holds
-  `host:port`; else `fetch_*_fingerprint` → confirm → `add_*_trust`. They write
-  the shared known-hosts stores (no GUI-only fingerprint settings).
+- `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`) is the start
+  pre-flight for both hosts: `_pending_trust_checks` collects the
+  `_TrustCheck` (`main_window/trust.py::_TrustCheck`) entries that still need an
+  operator decision (mode/policy/URL apply and the known-hosts store does not yet
+  hold `host:port`), then `_run_next_trust_check` probes them one at a time on
+  `engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
+  (`main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
+  The run starts only from the `on_ready` continuation, so a refused or
+  unreachable host abandons it. The probe never runs on the UI thread, and a
+  progress toast (`common.checking`) covers the wait. Pins are written to the
+  shared known-hosts stores (no GUI-only fingerprint settings).
 
 ## trusted_keys.py — TrustedKeysDialog
 
@@ -212,7 +219,10 @@ store; Server Mode shows only **Server HSYNC** and hides the p2p stores. When
 `initial_tab` is hidden, the dialog falls back to the first visible page. The
 server tab is labelled **Server HSYNC** (`trusted_keys.tabs_servers`). The
 bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
-stores); *Add* supports "read from server" or manual entry. Device *Add* pre-fills
+stores); *Add* supports "read from server" or manual entry. *Read from server*
+(`trusted_keys.py::_HostAddDialog._read_from_node`) runs the fingerprint probe on
+`engine/async_probe.py::AsyncProbe` and labels the button `common.checking`
+meanwhile. Device *Add* pre-fills
 the bucket from `sync/bucket`. The tab/column labels are localized in every
 locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 `trusted_keys.fingerprint` = the locale's term for the certificate fingerprint).
