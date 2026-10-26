@@ -2300,6 +2300,34 @@ class TestSyncState:
 
         assert window._sync_state_label.text() == tr("sync.state.checking")
 
+    def test_a_connected_device_without_inventory_reads_waiting_inventory(self, window):
+        """A device that has not published its inventory is "waiting", not "no device"."""
+        window._on_sync_pending("awaiting_inventory")
+
+        assert window._sync_state[0] == "waiting_inventory"
+        assert window._sync_state_label.text() == tr("sync.state.waiting_inventory")
+
+    def test_no_device_pending_reads_no_devices(self, window):
+        window._on_sync_pending("no_device")
+
+        assert window._sync_state[0] == "no_devices"
+        assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+    def test_a_dropped_link_keeps_the_last_known_file_status(self, window):
+        """Losing the link makes the comparison stale; it does not reset rows to Local."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._on_status("connected")
+        window._file_panel.table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=4, status=TransferStatus.SYNCED)
+        )
+
+        window._on_status("disconnected")
+
+        assert window._file_panel.table._transfers["a.bin"].status is TransferStatus.SYNCED
+        assert window._sync_state[0] == "offline"
+        assert window._sync_state_label.text() == tr("sync.state.offline")
+
     def test_a_lost_link_clears_the_state(self, window):
         window._on_preview_started()
 

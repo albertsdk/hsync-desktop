@@ -472,6 +472,7 @@ lifecycle so its result is surfaced exactly once:
   (`main_window/ui.py::UiBuildMixin._on_engine_error`, `reason="connection"` in
   server mode → *server unreachable*; a launch failure is skipped and reported by
   `_start_engine`), `no_peers_warning → _on_no_peers`,
+  `sync_pending → _on_sync_pending`,
   `sync_completed → _on_sync_completed` and `process_finished → _on_process_finished`
   finalize. `_on_file_transferred` counts real transfers during the `run` phase.
 - `_ever_connected` (`main_window/window.py::MainWindow`) is set on the first
@@ -530,9 +531,11 @@ state remembered in `EventsMixin._set_sync_state`:
 
 | State | When | Key |
 | --- | --- | --- |
-| `idle` | no engine run, or the link is not up | `sync.state.idle` |
+| `idle` | no engine run, or the link was never up | `sync.state.idle` |
+| `offline` | the link dropped after a real connection; per-file statuses keep their last known value | `sync.state.offline` |
 | `checking` | on `connected` and on every `preview_start` | `sync.state.checking` |
-| `no_devices` | `no_peers` event, or p2p with `total <= 1` | `sync.state.no_devices` |
+| `waiting_inventory` | `sync_pending` with `reason="awaiting_inventory"` (a device is connected but has not published its inventory) | `sync.state.waiting_inventory` |
+| `no_devices` | `no_peers` (one-shot abort) or p2p with `total <= 1` | `sync.state.no_devices` |
 | `in_sync` | `preview_end` with no pending action | `sync.state.in_sync` |
 | `pending` | `preview_end` with downloads/uploads | `sync.state.pending` (`{download}`/`{upload}`) |
 | `pending_other` | `preview_end` with only deletes/renames | `sync.state.pending_other` (`{count}`) |
@@ -542,7 +545,12 @@ The counts come from `PreviewStats` (`preview_summary_dialog.py`), accumulated b
 turns them into the state. The label is re-rendered on a language change from
 `_apply_translations`, and its tooltip is `tip.sync_state`. On a p2p serving
 device the events are produced by the client's own classification (see the
-client wiki `modules/p2p-mode.md`), so the same five states cover both roles.
+client wiki `modules/p2p-mode.md`), so the same states cover both roles.
+
+Per-file statuses are a **last known value**, not a live-only signal: dropping
+the link sets the summary to `offline` but never rewrites rows to "Local". Only a
+new preview/classification (or a fresh scan after an engine restart) changes
+them, so a synced file does not look unsynced just because the peer went away.
 
 A classification burst that arrives **without** a preview cycle (a serving device
 re-classifies on every inventory change and answers with plain `file_status`

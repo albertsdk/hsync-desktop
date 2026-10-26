@@ -281,6 +281,7 @@ class MainWindow(
         e.master_conflict.connect(self._on_master_conflict)
         e.no_master_warning.connect(self._on_no_master_warning)
         e.no_peers_warning.connect(self._on_no_peers)
+        e.sync_pending.connect(self._on_sync_pending)
         e.duplicate_identity.connect(self._on_duplicate_identity)
         e.conflict_resolved.connect(self._on_conflict_resolved)
         e.pairing_needed.connect(self._on_pairing_needed)

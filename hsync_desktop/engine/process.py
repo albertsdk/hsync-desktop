@@ -272,6 +272,7 @@ class HsyncEngine(QObject):
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     no_peers_warning = Signal(str)  # a p2p one-shot found no peer to sync with
+    sync_pending = Signal(str)  # classification not possible yet: reason
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
     duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
     # Trust refusal events (SSH-style): the GUI must answer instead of the
@@ -840,6 +841,9 @@ class HsyncEngine(QObject):
     def _on_no_peers_event(self, event: UiEventDict) -> None:
         self.no_peers_warning.emit(str(event.get("message", "")))
 
+    def _on_sync_pending_event(self, event: UiEventDict) -> None:
+        self.sync_pending.emit(str(event.get("reason", "")))
+
     def _on_duplicate_identity_event(self, event: UiEventDict) -> None:
         self.duplicate_identity.emit(
             str(event.get("peer_cid", "")),
@@ -896,6 +900,7 @@ class HsyncEngine(QObject):
         UiEventName.master_conflict: _on_master_conflict_event,
         UiEventName.no_master: _on_no_master_event,
         UiEventName.no_peers: _on_no_peers_event,
+        UiEventName.sync_pending: _on_sync_pending_event,
         UiEventName.duplicate_identity: _on_duplicate_identity_event,
         UiEventName.pairing_needed: _on_pairing_needed_event,
         UiEventName.fingerprint_changed: _on_fingerprint_changed_event,

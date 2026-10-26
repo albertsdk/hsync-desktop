@@ -558,6 +558,8 @@ translations: dict[str, str] = {
     "sync.state.idle": "—",
     "sync.state.checking": "確認中…",
     "sync.state.no_devices": "デバイスなし",
+    "sync.state.waiting_inventory": "インベントリを待機中",
+    "sync.state.offline": "オフライン — 最後に確認した状態",
     "sync.state.in_sync": "すべてのファイルが同期済み",
     "sync.state.pending": "{download} ダウンロード待ち · {upload} 送信待ち",
     "sync.state.pending_other": "{count} 件の変更が保留中",

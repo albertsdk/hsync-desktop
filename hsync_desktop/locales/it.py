@@ -535,6 +535,8 @@ translations: dict[str, str] = {
     "sync.state.idle": "—",
     "sync.state.checking": "In attesa…",
     "sync.state.no_devices": "Nessun dispositivo",
+    "sync.state.waiting_inventory": "In attesa dell'inventario",
+    "sync.state.offline": "Offline — ultimo stato noto",
     "sync.state.in_sync": "Tutto sincronizzato",
     "sync.state.pending": "{download} da scaricare · {upload} da inviare",
     "sync.state.pending_other": "{count} modifiche in sospeso",

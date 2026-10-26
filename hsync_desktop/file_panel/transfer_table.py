@@ -1436,37 +1436,6 @@ class FileTransferTable(QTableView):
             direction_font=self._direction_font,
         )
 
-    def reset_all_to_local(self) -> None:
-        """Reset resting rows to LOCAL, keeping active/transient states.
-
-        A link flap (disconnected/waiting) must not erase the progress of a
-        transfer in flight nor a "Deleted" marker the user has not acknowledged
-        yet: only resting rows fall back to LOCAL, so the 5s consistency pass
-        cannot then drop a row whose file is not on disk yet.
-        """
-        from hsync_desktop import debug_events
-
-        protected_states = (
-            TransferStatus.DOWNLOADING,
-            TransferStatus.UPLOADING,
-            TransferStatus.DELETED,
-        )
-        collect = debug_events.enabled()
-        protected: list[tuple[str, str]] = []
-        with QMutexLocker(self._transfers_mutex):
-            for key, transfer in self._transfers.items():
-                if transfer.status in protected_states:
-                    if collect:
-                        protected.append((key, transfer.status.value))
-                    continue
-                transfer.status = TransferStatus.LOCAL
-                transfer.direction = "—"
-                transfer.bytes_transferred = 0
-        if collect:
-            debug_events.log("reset_all_to_local", protected=protected)
-        self._cached_items = None  # Invalidate cache
-        self.refresh_view()
-
     def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
         """Add multiple transfers efficiently."""
         if not transfers:

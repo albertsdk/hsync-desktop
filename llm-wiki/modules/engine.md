@@ -87,6 +87,7 @@ command line:
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
 | `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |
 | `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
+| `sync_pending` | `sync_pending(reason)` — `no_device` or `awaiting_inventory` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
 | `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals |

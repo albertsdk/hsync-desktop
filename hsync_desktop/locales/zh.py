@@ -558,6 +558,8 @@ translations: dict[str, str] = {
     "sync.state.idle": "—",
     "sync.state.checking": "正在检查…",
     "sync.state.no_devices": "无设备",
+    "sync.state.waiting_inventory": "等待清单",
+    "sync.state.offline": "离线 — 上次已知状态",
     "sync.state.in_sync": "所有文件已同步",
     "sync.state.pending": "{download} 待下载 · {upload} 待发送",
     "sync.state.pending_other": "{count} 项更改待处理",

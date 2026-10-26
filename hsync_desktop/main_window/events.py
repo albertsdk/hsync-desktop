@@ -139,11 +139,11 @@ class EventsMixin:
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
-            # stale "N/M" does not outlive the link, and the file-set state back
-            # to "unknown" (nothing can be compared without a link).
+            # stale "N/M" does not outlive the link. Per-file statuses keep their
+            # last known value: losing the link makes the comparison stale, it
+            # does not make a synced file local.
             self._peers_label.setText("–")
-            self._set_sync_state("idle")
-            self._file_panel.reset_all_to_local()
+            self._set_sync_state("offline" if self._ever_connected else "idle")
             # "Connection lost" only makes sense after a real connection: a
             # one-shot that never linked must not claim a lost connection.
             if status == "disconnected" and self._ever_connected and not self._user_stopped:
@@ -248,8 +248,10 @@ class EventsMixin:
             return "pending_other", 0, 0, others
         if stats.synced or self._file_panel.table.model().rowCount() == 0:
             return "in_sync", 0, 0, 0
-        if self._sync_state[0] == "no_devices":
-            return "no_devices", 0, 0, 0
+        if self._sync_state[0] in ("no_devices", "waiting_inventory", "offline"):
+            # Keep the honest waiting/stale state: a burst that classified
+            # nothing is not evidence of being in sync.
+            return self._sync_state
         return "checking", 0, 0, 0
 
     # ── Info banner ──────────────────────────────────────────────────────
@@ -545,6 +547,22 @@ class EventsMixin:
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str)
+    @Slot(str)
+    def _on_sync_pending(self, reason: str) -> None:
+        """The master cannot classify the share yet: show a waiting state.
+
+        ``reason`` is ``awaiting_inventory`` (a device is connected but has not
+        published what it holds) or ``no_device`` (nothing to compare against).
+        Neither is a verdict on the files: never "all synced", and never "no
+        device found" while a device is connected.
+        """
+        if reason == "awaiting_inventory":
+            self._set_sync_state("waiting_inventory")
+            return
+        self._set_sync_state("no_devices")
+        if self._selection_sync_active:
+            self._finish_selection_sync("no_devices")
+
     def _on_no_peers(self, _message: str) -> None:
         """A p2p one-shot aborted with no peer: the scoped op has no target."""
         self._set_sync_state("no_devices")
@@ -663,6 +681,8 @@ class EventsMixin:
             debug_events.log(
                 "preview_file_status",
                 file=rel_path,
+                raw=filepath,
+                base=base_path,
                 status=status,
                 size=size,
                 row_status=row.status.value if row else None,

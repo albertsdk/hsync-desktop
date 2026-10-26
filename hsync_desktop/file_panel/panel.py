@@ -278,10 +278,6 @@ class FilePanel(QWidget):
         self._table.clear_transfers()
         self._detail.clear()
 
-    def reset_all_to_local(self) -> None:
-        self._table.reset_all_to_local()
-        self._detail.clear()
-
     def set_connected(self, connected: bool) -> None:
         """Forward the connection state so "Local" rows use the default colour."""
         self._table.set_connected(connected)

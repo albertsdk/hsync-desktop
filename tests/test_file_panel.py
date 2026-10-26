@@ -1803,23 +1803,6 @@ class TestLiveTransferProgress:
         assert "gone.bin" not in table._transfers
         assert table._transfers["kept.bin"].status is TransferStatus.LOCAL
 
-    def test_reset_keeps_in_flight_and_deleted_rows(self, qtbot):
-        """A link flap must not erase live progress nor an unacknowledged delete."""
-        table = self._table(qtbot)
-        table.update_transfer_progress("up.bin", 1, 10, "upload")
-        table.add_transfer(
-            FileTransfer(filepath="gone.bin", direction="✕", size=0, status=TransferStatus.DELETED)
-        )
-        table.add_transfer(
-            FileTransfer(filepath="idle.bin", direction="—", size=5, status=TransferStatus.SYNCED)
-        )
-
-        table.reset_all_to_local()
-
-        assert table._transfers["up.bin"].status is TransferStatus.UPLOADING
-        assert table._transfers["gone.bin"].status is TransferStatus.DELETED
-        assert table._transfers["idle.bin"].status is TransferStatus.LOCAL
-
     def test_preview_status_does_not_downgrade_an_in_flight_row(self, qtbot):
         """A preview must not hide the progress of an active transfer, while a
         real completion still applies."""
