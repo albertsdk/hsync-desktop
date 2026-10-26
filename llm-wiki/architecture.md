@@ -120,6 +120,15 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   a `lipo`-merged client. Artifacts are **unsigned** (Gatekeeper workaround in
   `docs/getting-started-macos.md`); signing/notarization hooks are absent by
   design.
+- **Snap** (`snap/snapcraft.yaml`): wraps the prebuilt Linux onefile (client
+  bundled) on `base: core24` with `confinement: classic`, `amd64` + `arm64`.
+  The release workflow pins the Linux builds to Ubuntu 24.04 and asserts no
+  required GLIBC symbol exceeds 2.39 (the onefile carries no glibc; the base
+  supplies it). `snap/gui/` carries the launcher/icon and `snap/payload/` is the
+  CI staging point. Publishing goes to the Snap Store `edge` (manual promotion,
+  gated by the one-time classic review) and the `.snap` files are attached to the
+  GitHub release. `autostart.py::_snap_launch_command` writes
+  `snap run hsync-desktop` so the login entry survives snap refreshes.
 - `clean_artifacts` (`compile.sh::clean_artifacts`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.
 - The `windows` target (Windows x64 only) builds the same onefile bundle as

@@ -131,6 +131,17 @@ disable unsupported controls) is realized in
   `icu*.dll` from `C:\Windows\System32` was rejected: no license to redistribute
   Microsoft binaries, and the ABI must stay the Windows SDK ICU Qt links against.
 
+- **Snap packaging** (`snap/snapcraft.yaml`): classic confinement on `core24`,
+  amd64 + arm64, wrapping the prebuilt PyInstaller onefile (the client is bundled
+  by the existing build). Classic is required because the app syncs user-chosen
+  paths, writes hidden config/autostart entries, reads desktop theming config and
+  spawns an engine that binds ports; strict would need `personal-files` and would
+  still be limited. The release workflow pins Linux builds to Ubuntu 24.04 and
+  asserts the GLIBC floor is ≤ 2.39 (core24's glibc); the onefile must never be
+  built on a newer runner. Snaps are published to the store `edge` only after the
+  one-time classic review and attached to the GitHub release; `autostart.py`
+  uses `snap run` inside a snap.
+
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.
 
 - **Bootnode trust is selected as a policy (ADR-0035)**: the "Trust bootnode on
