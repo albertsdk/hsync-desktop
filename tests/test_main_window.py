@@ -1248,6 +1248,7 @@ class TestInitialReconcile:
 
         return SimpleNamespace(
             _engine=MagicMock(is_running=True),
+            _file_panel=MagicMock(),
             _p2p_enabled=p2p,
             _is_master=None,  # role unknown yet: not a serving device
             _initial_reconcile_done=False,

@@ -620,6 +620,10 @@ class FilePanel(QWidget):
         """Re-apply the table fonts after a global font-size change."""
         self._table.refresh_fonts()
 
+    def mark_verified(self) -> None:
+        """Record that the rows were compared with the remote just now."""
+        self._table.mark_verified()
+
     def refresh_icons_for_theme(self) -> None:
         self._btn_back.setIcon(get_icon("go-previous"))
         self._btn_forward.setIcon(get_icon("go-next"))

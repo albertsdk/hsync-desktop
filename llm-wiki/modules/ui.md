@@ -331,6 +331,16 @@ is stored under a trailing-slash key and marked **Synced**
 resolve an empty folder from its transfer status). A folder that does have
 children still takes the highest-priority child status.
 
+A **"Synced" row is a claim about the remote copy**, so it is asserted only while a
+link exists: `file_panel/transfer_table.py::FileTransferModel._row_status` swaps
+the label for `detail.synced_stale` (and `_foreground` uses the same muted grey as
+*Local*) whenever `FileTransferTable.set_connected(False)` has cleared the link.
+The timestamp of the last full comparison (`FileTransferTable.mark_verified`,
+stamped from `_on_preview_ended` and `_on_sync_completed`) feeds the tooltip, so
+an offline row reads "last checked at HH:MM". It is deliberately *not* turned into
+*Local*: that label means the remote side was never compared (a different, and
+misleading, statement).
+
 A scoped **Send now** / **Receive now** reloads the local tree before starting
 its one-shot (the preview and the confirmed run both call
 `_prepare_engine_run`). `FilePanel.load_local_files(..., restore_view=...)`

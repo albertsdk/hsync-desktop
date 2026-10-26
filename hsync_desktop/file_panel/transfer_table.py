@@ -11,6 +11,7 @@ import shutil
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
+from time import localtime, strftime, time
 
 from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
@@ -170,6 +171,9 @@ class FileTransferModel(QAbstractTableModel):
         # a column/order is set only when the user sorts by a header.
         self._sort_column: int | None = None
         self._sort_order = Qt.SortOrder.AscendingOrder
+        # When the rows were last compared with the remote (epoch seconds).
+        # ``None`` means this session never completed a comparison.
+        self._verified_at: float | None = None
 
     # ── Population ────────────────────────────────────────────────────────
 
@@ -181,6 +185,7 @@ class FileTransferModel(QAbstractTableModel):
         default_text_color: QColor,
         status_palette: dict,
         direction_font: QFont | None,
+        verified_at: float | None = None,
     ) -> None:
         """Replace every row, re-applying the current user sort if any."""
         self.beginResetModel()
@@ -188,6 +193,7 @@ class FileTransferModel(QAbstractTableModel):
         self._default_text_color = default_text_color
         self._status_palette = status_palette
         self._direction_font = direction_font
+        self._verified_at = verified_at if verified_at is not None else self._verified_at
         self._rows = self._sorted(rows)
         self.endResetModel()
 
@@ -256,7 +262,7 @@ class FileTransferModel(QAbstractTableModel):
                 return self._direction_font
             return None
         if role == Qt.ItemDataRole.ToolTipRole:
-            return self._tooltip(folder_data, is_folder, col)
+            return self._tooltip(transfer, folder_data, is_folder, col)
         return None
 
     def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
@@ -357,10 +363,21 @@ class FileTransferModel(QAbstractTableModel):
         _, status = self._row_status(transfer, folder_data, is_folder)
         if status is TransferStatus.LOCAL and not self._connected:
             return self._default_text_color
+        if self._synced_is_stale(status):
+            return self._status_palette.get(TransferStatus.LOCAL, QColor(128, 128, 128))
         return self._status_palette.get(status, QColor(128, 128, 128))
 
-    @staticmethod
-    def _tooltip(folder_data: dict | None, is_folder: bool, col: int) -> str | None:
+    def _tooltip(
+        self,
+        transfer: FileTransfer | None,
+        folder_data: dict | None,
+        is_folder: bool,
+        col: int,
+    ) -> str | None:
+        if col == COL_STATUS and self._synced_is_stale(
+            self._row_status(transfer, folder_data, is_folder)[1]
+        ):
+            return self._stale_synced_tooltip()
         # A folder's neutral aggregate status hides the mix of planned
         # operations, so spell out what will actually happen.
         if col not in (COL_NAME, COL_STATUS) or not is_folder or not folder_data:
@@ -394,11 +411,16 @@ class FileTransferModel(QAbstractTableModel):
             return -1
         return max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
 
-    @staticmethod
     def _row_status(
-        transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+        self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
     ) -> tuple[str, TransferStatus]:
-        """Localized status text and its colour key for a row."""
+        """Localized status text and its colour key for a row.
+
+        ``SYNCED`` is a claim about the remote copy, so it is only asserted while
+        a link exists. Offline the row keeps the last known state but says it is
+        unverified: flipping it to ``LOCAL`` would be a different (and wrong)
+        statement, since "Local" means the remote side was never compared.
+        """
         if is_folder:
             if folder_data:
                 status_priority = folder_data.get("status_priority", 6)
@@ -412,11 +434,28 @@ class FileTransferModel(QAbstractTableModel):
             else:
                 status_priority = 6
                 status_key = "folder.status.local"
-            return tr(status_key), _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
-        if transfer:
-            status_key = _STATUS_TEXT_KEYS.get(transfer.status)
-            return (tr(status_key) if status_key is not None else "?", transfer.status)
-        return "", TransferStatus.LOCAL
+            status = _PRIORITY_TO_STATUS.get(status_priority, TransferStatus.LOCAL)
+            text = tr(status_key)
+        elif transfer:
+            status = transfer.status
+            status_key = _STATUS_TEXT_KEYS.get(status)
+            text = tr(status_key) if status_key is not None else "?"
+        else:
+            return "", TransferStatus.LOCAL
+        if status is TransferStatus.SYNCED and not self._connected:
+            text = tr("detail.synced_stale")
+        return text, status
+
+    def _synced_is_stale(self, status: TransferStatus) -> bool:
+        """True when a ``SYNCED`` row currently has no link to back the claim."""
+        return status is TransferStatus.SYNCED and not self._connected
+
+    def _stale_synced_tooltip(self) -> str:
+        """Explain that the "synced" label is the last known, unverified state."""
+        if self._verified_at is None:
+            return tr("tip.synced_stale_unverified")
+        stamp = strftime("%H:%M", localtime(self._verified_at))
+        return tr("tip.synced_stale_verified").format(time=stamp)
 
 
 class FileTransferTable(QTableView):
@@ -453,6 +492,9 @@ class FileTransferTable(QTableView):
         self._base_directory: str = ""
         self._sync_active: bool = False  # A sync is running: Send/Receive disabled
         self._connected: bool = False  # A connection is active: "Local" rows are grey
+        # Last completed comparison with the remote (epoch seconds): the
+        # unverified tooltip reports it. Kept across a disconnect on purpose.
+        self._last_verified_at: float | None = None
         self._show_hidden: bool = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value(self._SHOW_HIDDEN_SETTINGS_KEY, False, bool)
         )
@@ -514,11 +556,22 @@ class FileTransferTable(QTableView):
 
         Without a connection every row is local, so the grey would read as a
         disabled list rather than as a status; use the default text colour.
+        Disconnecting also re-renders the "Synced" rows as unverified (the
+        timestamp is kept, so the tooltip can still say when they were checked).
         """
         if connected == self._connected:
             return
         self._connected = connected
         self.refresh_view()
+
+    def mark_verified(self) -> None:
+        """Record that the rows were just compared with the remote.
+
+        Called when a preview or a sync cycle completes. Only the timestamp is
+        stored: the rendered text follows the link state (``set_connected``) and
+        every status change already refreshes the view.
+        """
+        self._last_verified_at = time()
 
     def refresh_fonts(self) -> None:
         """Re-apply the table, header and direction-glyph fonts."""
@@ -1135,6 +1188,7 @@ class FileTransferTable(QTableView):
             default_text_color=default_text_color,
             status_palette=status_palette,
             direction_font=self._direction_font,
+            verified_at=self._last_verified_at,
         )
         # Rebuild the display-key index from the model's final (possibly sorted)
         # row order so it never disagrees with what is on screen.

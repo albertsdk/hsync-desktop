@@ -580,6 +580,7 @@ class EventsMixin:
         # the value the client reported before its transfers.
         self._file_panel.refresh_share_size()
         if not was_scoped and self._engine.is_running:
+            self._file_panel.mark_verified()
             # The cycle may have reconciled a path whose live rename/add event
             # was missed while the link was down (the scan then shows a stale
             # "Local"). Refresh the statuses so a file now present on both sides
@@ -655,6 +656,8 @@ class EventsMixin:
         # dry run parked (no SYNC ever reached it).
         if self._p2p_enabled and self._is_master:
             return
+        # The full comparison completed: every rendered "Synced" is verified now.
+        self._file_panel.mark_verified()
         # The preview answered: it is now safe to credit the one-shot catch-up.
         if self._pending_initial_reconcile:
             self._pending_initial_reconcile = False

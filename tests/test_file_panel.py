@@ -1486,6 +1486,8 @@ class TestEmptyFolderStatus:
         from hsync_desktop.i18n import tr
 
         table = self._table(qtbot)
+        # A "synced" label needs a link to back it (see TestUnverifiedSyncedStatus).
+        table.set_connected(True)
         table.add_transfer(
             FileTransfer(filepath="newdir/", direction="—", size=0, status=TransferStatus.SYNCED)
         )
@@ -1523,6 +1525,86 @@ class TestEmptyFolderStatus:
         table.refresh_view()
 
         assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.local")
+
+
+class TestUnverifiedSyncedStatus:
+    """A "Synced" row is only asserted while a link backs the claim.
+
+    The rows keep the last known state (so the information is not lost) but say
+    it is unverified and turn as muted as "Local"; flipping them to "Local"
+    would be a different, wrong statement about the remote copy.
+    """
+
+    @staticmethod
+    def _synced_table(qtbot, *, connected: bool):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        table.set_connected(connected)
+        table.add_transfer(
+            FileTransfer(filepath="x.jpg", direction="—", size=10, status=TransferStatus.SYNCED)
+        )
+        table.refresh_view()
+        return table
+
+    def test_connected_rows_say_synced(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._synced_table(qtbot, connected=True)
+
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("detail.synced")
+
+    def test_disconnected_rows_say_unverified(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._synced_table(qtbot, connected=False)
+
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("detail.synced_stale")
+        assert _cell(table, 0, tt.COL_STATUS, Qt.ItemDataRole.ToolTipRole) == tr(
+            "tip.synced_stale_unverified"
+        )
+        # Same muted grey as "Local": the green would read as a fresh claim.
+        assert _cell(table, 0, tt.COL_STATUS, Qt.ItemDataRole.ForegroundRole) in (
+            STATUS_COLORS[TransferStatus.LOCAL],
+            STATUS_COLORS_DARK[TransferStatus.LOCAL],
+        )
+
+    def test_the_tooltip_reports_the_last_verification_time(self, qtbot):
+        from time import localtime, strftime
+
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._synced_table(qtbot, connected=True)
+        table.mark_verified()
+        table.set_connected(False)
+        table.refresh_view()
+
+        stamp = strftime("%H:%M", localtime(table._last_verified_at))
+        assert _cell(table, 0, tt.COL_STATUS, Qt.ItemDataRole.ToolTipRole) == tr(
+            "tip.synced_stale_verified"
+        ).format(time=stamp)
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("detail.synced_stale")
+
+    def test_a_local_row_stays_local_when_disconnected(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        table.add_transfer(
+            FileTransfer(
+                filepath="only-local.txt", direction="—", size=1, status=TransferStatus.LOCAL
+            )
+        )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("detail.local")
 
 
 class TestShareSize:
