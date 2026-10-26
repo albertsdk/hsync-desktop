@@ -24,6 +24,7 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
+from hsync_desktop.settings.tab_layout import equalize_tab_descriptions
 from hsync_desktop.widgets.links import set_help_link_text
 from hsync_desktop.widgets.text import escape_mnemonics
 

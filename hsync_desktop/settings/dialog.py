@@ -160,6 +160,7 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.settings.tab_layout import (
+    equalize_tab_descriptions,
     reorganize_advanced_tab,
     reorganize_general_tab,
     reorganize_p2p_tab,
@@ -243,6 +244,12 @@ class SettingsDialog(QDialog):
             self.p2p_bootnode_trust.addItem(tr(key), value)
         index = self.p2p_bootnode_trust.findData(current)
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        """Re-align the tab purpose lines: their wrap depends on the width."""
+
+        super().resizeEvent(event)
+        equalize_tab_descriptions(self)
 
     def _populate_p2p_trust(self) -> None:
         """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""

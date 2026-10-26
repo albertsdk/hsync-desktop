@@ -69,7 +69,11 @@ open with one muted sentence stating what the tab is for, built from
 `_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
 `settings.p2p.description` / `settings.server_mode.description`). The label uses
 `widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
-helper text — so it does not introduce a second visual language. Its insets come
+helper text — so it does not introduce a second visual language.
+`settings/tab_layout.py::equalize_tab_descriptions` reserves the tallest of the
+three hints on all of them (recomputed from `SettingsDialog.resizeEvent` and on
+re-translation), so the wrap differences between languages do not move the first
+group box by a few pixels when switching tabs. Its insets come
 from `settings/tab_layout.py::_DESCRIPTION_MARGINS` (applied with
 `setContentsMargins`, not QSS, which keeps owning only the muted colour), so the
 sentence is inset from the tab edge, below the tab bar and above the first group

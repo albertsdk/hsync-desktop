@@ -503,6 +503,7 @@ class FileTransferTable(QTableView):
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
         self._model.retranslate()
+        self._ensure_readable_headers()
 
     def set_sync_active(self, active: bool) -> None:
         """Enable/disable the Send/Receive context entries (sync running)."""
@@ -528,6 +529,7 @@ class FileTransferTable(QTableView):
         self._direction_font = table_font()
         self._direction_font.setBold(True)
         self.horizontalHeader().setFont(table_font())
+        self._ensure_readable_headers()
         self._model.set_direction_font(self._direction_font)
 
     def _setup_table(self) -> None:
@@ -590,6 +592,9 @@ class FileTransferTable(QTableView):
         # on the first populated refresh, unless the user already saved a layout.
         self._restore_header_state()
         self._restore_sort_indicator()
+        # A saved layout can predate a translation or a font change: never show a
+        # header clipped on both sides.
+        self._ensure_readable_headers()
         # From here on, user-driven layout changes are persisted.
         self._restoring_columns = False
 
@@ -712,6 +717,22 @@ class FileTransferTable(QTableView):
         if not header.isSectionHidden(COL_NAME):
             total += max(header.sectionSize(COL_NAME), self.name_floor())
         return total
+
+    def _ensure_readable_headers(self) -> None:
+        """Widen any section that cannot show its own header label.
+
+        Header labels are centred, so a section narrower than its text clips the
+        label on both sides. Interactive columns start at the style default and
+        a persisted layout may predate a translation, so every visible section
+        is clamped to its header hint; the user can still narrow it afterwards.
+        """
+        header = self.horizontalHeader()
+        for col in range(self._model.columnCount()):
+            if col == COL_NAME or header.isSectionHidden(col):
+                continue
+            needed = header.sectionSizeHint(col) + 8
+            if header.sectionSize(col) < needed:
+                header.resizeSection(col, needed)
 
     def _size_columns_to_contents(self) -> None:
         """Seed sensible widths from the content, once, before user resizing.

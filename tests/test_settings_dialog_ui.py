@@ -16,6 +16,7 @@ import time
 from unittest.mock import patch
 
 import pytest
+from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import (
     QBoxLayout,
     QFormLayout,
@@ -31,9 +32,49 @@ from hsync_desktop.settings.dialog import (
     _GENERAL_TAB_INDEX,
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
+    _SYNC_TAB_INDEX,
     SettingsDialog,
 )
 from hsync_desktop.widgets.text import escape_mnemonics
+
+
+class TestTabDescriptionAlignment:
+    """The mode purpose lines reserve one height, so the tab forms align.
+
+    The description wraps to a different number of lines per locale, and the
+    shorter one used to let its first group box sit higher: the tabs must not
+    shift when switching between them.
+    """
+
+    _DESCRIBED_TABS = (_SYNC_TAB_INDEX, _P2P_TAB_INDEX, _SERVER_TAB_INDEX)
+
+    def test_descriptions_reserve_one_height(self, dialog, qtbot):
+        dialog.resize(900, 700)
+        dialog.show()
+        qtbot.waitExposed(dialog)
+
+        heights = {
+            index: dialog._tab_descriptions[index].minimumHeight() for index in self._DESCRIBED_TABS
+        }
+
+        assert len(set(heights.values())) == 1
+        assert next(iter(heights.values())) > 0
+
+    def test_first_group_starts_at_the_same_offset(self, dialog, qtbot):
+        dialog.resize(900, 700)
+        dialog.show()
+        qtbot.waitExposed(dialog)
+
+        offsets = {}
+        for index in (_SYNC_TAB_INDEX, _P2P_TAB_INDEX):
+            dialog._tabs.setCurrentIndex(index)
+            qtbot.wait(10)
+            tab = dialog._tabs.widget(index)
+            group = tab.findChild(QGroupBox)
+            assert group is not None
+            offsets[index] = group.mapTo(tab, QPoint(0, 0)).y()
+
+        assert offsets[_SYNC_TAB_INDEX] == offsets[_P2P_TAB_INDEX]
 
 
 class TestAdvancedLoggingPanel:

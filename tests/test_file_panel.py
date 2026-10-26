@@ -431,6 +431,70 @@ class TestColumnHeaderRetranslation:
         assert actual == expected
 
 
+class TestHeaderWidthsFitTheirLabels:
+    """A centred header clips on both sides unless its section fits the label.
+
+    Interactive columns start at the style default, and a persisted layout or a
+    translation can leave a section narrower than its own header text.
+    """
+
+    @staticmethod
+    def _assert_readable(table):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        header = table.horizontalHeader()
+        for col in range(table.model().columnCount()):
+            if col == tt.COL_NAME or header.isSectionHidden(col):
+                continue
+            assert header.sectionSize(col) >= header.sectionSizeHint(col), (
+                f"column {col} is narrower than its own header label"
+            )
+
+    def test_a_new_table_fits_every_header(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.show()
+        qtbot.waitExposed(table)
+
+        self._assert_readable(table)
+
+    def test_a_saved_narrow_layout_is_widened(self, qtbot, monkeypatch, tmp_path):
+        """A layout persisted before the label grew must not clip the header."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        first = tt.FileTransferTable()
+        qtbot.addWidget(first)
+        first.horizontalHeader().resizeSection(tt.COL_ETA, 60)
+        first._save_header_state()
+
+        second = tt.FileTransferTable()
+        qtbot.addWidget(second)
+        second.show()
+        qtbot.waitExposed(second)
+
+        self._assert_readable(second)
+
+    def test_a_language_change_keeps_the_headers_readable(self, qtbot, monkeypatch):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.show()
+        qtbot.waitExposed(table)
+        # A longer label than any shipped translation: the sections must grow.
+        monkeypatch.setattr(tt, "tr", lambda key: f"Testo molto più lungo per {key}")
+
+        table.retranslate()
+
+        self._assert_readable(table)
+
+
 class TestRenameKeepsTheMtime:
     """Renaming a row must not drop its modification date."""
 

@@ -82,7 +82,11 @@ class _CenteredColumn(QWidget):
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt override)
         hint = self._child.sizeHint()
-        return QSize(min(hint.width(), self._max_width), hint.height())
+        # A child's preferred height can be smaller than what it requires (a
+        # label with a reserved minimum height): never advertise less than the
+        # child's minimum, or the wrapper clips it.
+        height = max(hint.height(), self._child.minimumSizeHint().height())
+        return QSize(min(hint.width(), self._max_width), height)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt override)
         return QSize(0, self._child.minimumSizeHint().height())
@@ -155,6 +159,47 @@ def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int)
     column_layout.setContentsMargins(0, 0, 0, 0)
     column_layout.addWidget(label)
     vbox.insertWidget(0, _CenteredColumn(column, _CONTENT_MAX_WIDTH))
+
+
+def equalize_tab_descriptions(dlg: SettingsDialog) -> None:
+    """Reserve one shared height for the mode purpose lines.
+
+    Each description wraps to a different number of lines depending on the
+    language and the window width, so the shorter one would let its first group
+    box sit higher than the other tabs. Reserving the tallest hint on all three
+    keeps the forms aligned whatever the locale; the labels' hints do not depend
+    on the minimum height, so this never feeds back into the layout.
+    """
+
+    labels = [label for label in dlg._tab_descriptions.values() if label is not None]
+    if not labels:
+        return
+    tallest = max(label.sizeHint().height() for label in labels)
+    changed = False
+    for label in labels:
+        if label.minimumHeight() != tallest:
+            label.setMinimumHeight(tallest)
+            changed = True
+    if not changed:
+        return
+    # The wrapper re-sizes its child by hand, so Qt never sees the child's
+    # geometry request: the page layout keeps the item size hint it cached
+    # before the minimum was raised. Ask the wrapper to re-measure, then
+    # invalidate the page layout, or the reserved height is not allocated and
+    # the groups below stay where they were.
+    for label in labels:
+        column = label.parentWidget()
+        if column is None:
+            continue
+        column.updateGeometry()
+        centered = column.parentWidget()
+        if centered is None:
+            continue
+        centered.updateGeometry()
+        page = centered.parentWidget()
+        layout = page.layout() if page is not None else None
+        if layout is not None:
+            layout.invalidate()
 
 
 def reorganize_general_tab(dlg: SettingsDialog) -> None:
