@@ -38,7 +38,6 @@ def _arm(window, direction: str = "upload-only", phase: str = "preview") -> None
     """Put the window into an active scoped-op state."""
     window._selection_sync_active = True
     window._selection_sync_phase = phase
-    window._selection_result_count = 0
     window._pending_selection_sync = ("media", direction)
 
 
@@ -169,12 +168,11 @@ class TestImportantOutcomes:
 
 
 class TestSuccessOutcomes:
-    def test_completed_run_reports_the_transfer_count(self, window, monkeypatch):
+    def test_completed_run_reports_the_applied_count(self, window, monkeypatch):
         recorded = _capture_info(monkeypatch, window)
         _arm(window, direction="upload-only", phase="run")
-        window._selection_result_count = 3
 
-        window._on_sync_completed()
+        window._on_sync_completed({"uploaded": 3})
 
         assert recorded == [tr("sync.sel_sent_fmt").replace("{count}", "3")]
         assert window._selection_sync_active is False
@@ -182,9 +180,8 @@ class TestSuccessOutcomes:
     def test_a_receive_run_uses_the_received_text(self, window, monkeypatch):
         recorded = _capture_info(monkeypatch, window)
         _arm(window, direction="download-only", phase="run")
-        window._selection_result_count = 1
 
-        window._on_sync_completed()
+        window._on_sync_completed({"downloaded": 1})
 
         assert recorded == [tr("sync.sel_received_fmt").replace("{count}", "1")]
 
@@ -192,27 +189,25 @@ class TestSuccessOutcomes:
         recorded = _capture_info(monkeypatch, window)
         _arm(window, phase="run")
 
-        window._on_sync_completed()
+        window._on_sync_completed({})
 
         assert recorded == [tr("sync.sel_already_synced")]
 
-    def test_transfers_are_counted_only_while_running(self, window):
-        _arm(window, phase="preview")
-        window._on_file_transferred("↓", "a.txt", 0)
-        assert window._selection_result_count == 0
+    def test_a_rename_only_run_is_not_reported_as_already_synced(self, window, monkeypatch):
+        """A rename moves no bytes: only the engine counter can report it."""
+        recorded = _capture_info(monkeypatch, window)
+        _arm(window, direction="upload-only", phase="run")
 
-        window._selection_sync_phase = "run"
-        window._on_file_transferred("↓", "a.txt", 0)
-        window._on_file_transferred("↑", "b.txt", 0)
-        assert window._selection_result_count == 2
+        window._on_sync_completed({"renamed": 1})
+
+        assert recorded == [tr("sync.sel_sent_fmt").replace("{count}", "1")]
 
     def test_finishing_twice_surfaces_the_result_once(self, window, monkeypatch):
         recorded = _capture_info(monkeypatch, window)
         _arm(window, phase="run")
-        window._selection_result_count = 1
 
-        assert window._finish_selection_sync("done") is True
-        assert window._finish_selection_sync("done") is False
+        assert window._finish_selection_sync("done", applied=1) is True
+        assert window._finish_selection_sync("done", applied=1) is False
         assert recorded == [tr("sync.sel_sent_fmt").replace("{count}", "1")]
 
 

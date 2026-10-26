@@ -97,7 +97,7 @@ command line:
 | `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup |
 | `transfer` / `rename` / `dir_created` | `file_transferred(direction, file, size)` / `file_renamed(old, new)` / `directory_created(path)` |
 | `progress` | `file_progress(file, transferred, total, op)` — `op` gives the direction of a file that has no local row yet |
-| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed` / `transfer_failed` / `sync_paused` |
+| `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed(dict)` (the cycle counters) / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
 | `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |

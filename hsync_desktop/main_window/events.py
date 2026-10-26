@@ -92,6 +92,20 @@ from hsync_desktop.ui.loader import load_ui_widget
 _SCAN_PREVIEW_COOLDOWN_S = 15.0
 
 
+# Counters the engine reports for actions it actually applied. A rename or a
+# delete moves no bytes, so counting `file_transferred` events reported a run
+# that renamed a file as "already synced".
+_APPLIED_COUNTERS = ("downloaded", "uploaded", "deleted", "renamed")
+
+
+def _scoped_outcome(counters: dict) -> tuple[str, int]:
+    """Outcome and applied-action count for a scoped run, from the engine payload."""
+    applied = sum(max(int(counters.get(key, 0) or 0), 0) for key in _APPLIED_COUNTERS)
+    if int(counters.get("failed", 0) or 0) > 0:
+        return "failed", applied
+    return ("done" if applied else "already_synced"), applied
+
+
 class EventsMixin:
     # p2p role state (unknown until the election event). Declared here so the
     # mixin typing agrees with MainWindow.__init__/ActionsMixin.
@@ -316,13 +330,6 @@ class EventsMixin:
 
     @Slot(str, str, int)
     def _on_file_transferred(self, direction: str, filename: str, size: int) -> None:
-        # Count real transfers of a scoped one-shot for its result summary.
-        if (
-            self._selection_sync_active
-            and self._selection_sync_phase == "run"
-            and direction in ("↓", "↑")
-        ):
-            self._selection_result_count += 1
         self._refresh_transfer_labels()
         rel_path = self._rel_path(filename)
         # Read the current mtime (and the size, when the event omits it) from disk.
@@ -569,13 +576,17 @@ class EventsMixin:
         if self._selection_sync_active:
             self._finish_selection_sync("no_devices")
 
-    @Slot()
-    def _on_sync_completed(self) -> None:
-        """Finish a scoped Send/Receive once the one-shot cycle completes."""
+    @Slot(dict)
+    def _on_sync_completed(self, counters: dict | None = None) -> None:
+        """Finish a scoped Send/Receive with the counters the engine reported.
+
+        The engine is the single source of truth for what the cycle did: use its
+        per-action counters instead of inferring the result from the event stream.
+        """
         was_scoped = self._selection_sync_active
         if was_scoped and self._selection_sync_phase == "run":
-            outcome = "done" if self._selection_result_count > 0 else "already_synced"
-            self._finish_selection_sync(outcome)
+            outcome, applied = _scoped_outcome(counters or {})
+            self._finish_selection_sync(outcome, applied=applied)
         # The cycle just moved files: recompute the local size instead of keeping
         # the value the client reported before its transfers.
         self._file_panel.refresh_share_size()
@@ -754,8 +765,9 @@ class EventsMixin:
             if self._user_stopped:
                 self._finish_selection_sync("cancelled")
             else:
-                outcome = "done" if self._selection_result_count > 0 else "failed"
-                self._finish_selection_sync(outcome)
+                # No sync_complete arrived: the run ended without reporting a
+                # cycle, so there is nothing to claim as done.
+                self._finish_selection_sync("failed")
         self._ever_connected = False
         # Reset the p2p role too: the next process runs a fresh election.
         self._role_known = False

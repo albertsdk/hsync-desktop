@@ -526,12 +526,17 @@ A user-invoked *Send now* / *Receive now* is tracked as a one-shot with its own
 lifecycle so its result is surfaced exactly once:
 
 - State: `MainWindow._selection_sync_active`, `_selection_sync_phase`
-  (`"preview"` | `"confirm"` | `"run"`), `_selection_result_count` and
-  `_pending_selection_sync` (`(subdir, direction)`) — `main_window/window.py::MainWindow`.
+  (`"preview"` | `"confirm"` | `"run"`) and `_pending_selection_sync`
+  (`(subdir, direction)`) — `main_window/window.py::MainWindow`.
   `_begin_selection_sync` arms them and shows a persistent progress toast
   (`_show_info_banner(..., auto_hide_ms=0, kind="progress")`); `_finish_selection_sync`
   (`main_window/actions.py::ActionsMixin._finish_selection_sync`) clears them and is
   **idempotent**, so a later engine event never re-surfaces the same result.
+- Outcome: `main_window/events.py::_scoped_outcome` derives it from the counters
+  on `sync_complete` (the engine's `SyncCycleResult`): `done` when any of
+  `downloaded`/`uploaded`/`deleted`/`renamed` is non-zero, `already_synced` when
+  the cycle applied nothing, `failed` on failures. Counting `file_transferred`
+  events was wrong for renames and deletes, which move no bytes.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
   (server); `_on_peers` (`main_window/events.py::EventsMixin._on_peers`) adds the
   other-device count (`sync.sel_peers_fmt`) while the op is active.

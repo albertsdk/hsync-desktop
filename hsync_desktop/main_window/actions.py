@@ -362,26 +362,27 @@ class ActionsMixin:
         """Arm the scoped-op state and show a persistent progress banner."""
         self._selection_sync_active = True
         self._selection_sync_phase = "preview"
-        self._selection_result_count = 0
         self._pending_selection_sync = (subdir, direction)
         self._show_info_banner(self._selection_phase_text(), auto_hide_ms=0, kind="progress")
 
-    def _finish_selection_sync(self, outcome: str) -> bool:
+    def _finish_selection_sync(self, outcome: str, *, applied: int = 0) -> bool:
         """Finalize a scoped Send/Receive and surface its outcome (idempotent).
 
-        Returns True when it actually finalized, so a later engine event (e.g.
-        ``process_finished``) does not re-surface the same result.
+        ``applied`` is the action count the engine reported for the run (transfers,
+        renames and deletes), never a count of UI events: a rename moves no bytes
+        and would otherwise read as "nothing to do". Returns True when it actually
+        finalized, so a later engine event (``process_finished``) does not
+        re-surface the same result.
         """
         if not self._selection_sync_active:
             return False
         args = self._pending_selection_sync
         direction = args[1] if args else ""
-        count = self._selection_result_count
+        count = applied
         self._selection_sync_active = False
         self._selection_sync_phase = ""
         self._pending_selection_sync = None
         self._selection_sync_view = None
-        self._selection_result_count = 0
         self._reset_ui_stopped()  # hides the banner, resets buttons/menus
         self._surface_selection_outcome(outcome, direction=direction, count=count)
         return True
@@ -439,7 +440,6 @@ class ActionsMixin:
             self._finish_selection_sync("failed")
             return
         self._selection_sync_phase = "run"
-        self._selection_result_count = 0
         self._prepare_engine_run(local_path, restore_view=self._selection_sync_view)
         args = build_selection_args(local_path, subdir, direction)
         if not self._start_engine(args):

@@ -1331,7 +1331,7 @@ class TestPostSyncStatusRefresh:
             _file_panel=MagicMock(),
         )
 
-        EventsMixin._on_sync_completed(stub)
+        EventsMixin._on_sync_completed(stub, {})
 
         stub._file_panel.refresh_share_size.assert_called_once()
         stub._engine.preview.assert_called_once()
@@ -1581,7 +1581,7 @@ class TestShareSizeLabel:
             window._file_panel, "refresh_share_size", lambda: refreshes.append("refresh")
         )
 
-        window._on_sync_completed()
+        window._on_sync_completed({})
 
         assert refreshes == ["refresh"]
 

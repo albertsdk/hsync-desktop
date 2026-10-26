@@ -253,7 +253,7 @@ class HsyncEngine(QObject):
     # filepath, transferred, total, op ("download"|"upload") — a download has
     # no local row yet, so the panel needs the direction to create one.
     file_progress = Signal(str, int, int, str)
-    sync_completed = Signal()  # a full sync cycle finished
+    sync_completed = Signal(dict)  # a full sync cycle finished, with its counters
     folder_size_changed = Signal(int, int)  # (local_bytes, total_bytes)
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
     sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
@@ -749,7 +749,20 @@ class HsyncEngine(QObject):
             self.directory_created.emit(path)
 
     def _on_sync_complete_event(self, event: UiEventDict) -> None:
-        self.sync_completed.emit()
+        self.sync_completed.emit(
+            {
+                key: max(int(event.get(key, 0) or 0), 0)
+                for key in (
+                    "downloaded",
+                    "uploaded",
+                    "deleted",
+                    "renamed",
+                    "skipped",
+                    "failed",
+                    "conflicts",
+                )
+            }
+        )
 
     def _on_folder_size_event(self, event: UiEventDict) -> None:
         self.folder_size_changed.emit(

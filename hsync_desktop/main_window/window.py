@@ -153,7 +153,6 @@ class MainWindow(
         # Scoped Send/Receive state: a user-invoked one-shot is in flight.
         self._selection_sync_active = False  # True while a scoped op runs
         self._selection_sync_phase = ""  # "preview" | "confirm" | "run"
-        self._selection_result_count = 0  # successful transfers in the run phase
         self._transfer_failure_count = 0  # failed per-file transfers this run
         self._ever_connected = False  # engine reached "connected" this process
         self._p2p_enabled = False  # p2p mode for the current engine run
@@ -271,7 +270,7 @@ class MainWindow(
         e.directory_created.connect(self._on_directory_created)
         if self._notifier:
             notifier = self._notifier
-            e.sync_completed.connect(notifier.sync_complete)
+            e.sync_completed.connect(lambda _counters: notifier.sync_complete())
         # A completed cycle finishes a scoped Send/Receive with its counts.
         e.sync_completed.connect(self._on_sync_completed)
         e.folder_size_changed.connect(self._on_folder_size)

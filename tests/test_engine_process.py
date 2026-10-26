@@ -489,9 +489,33 @@ class TestHandleEvent:
         assert out == [("f.txt", 10, 100, "")]
 
     def test_sync_complete_event(self, engine):
+        """The cycle counters reach the window, so it reports what the engine did."""
         out = _capture(engine.sync_completed)
-        engine._handle_event(build_event(UiEventName.sync_complete))
-        assert out == [()]
+        engine._handle_event(
+            build_event(
+                UiEventName.sync_complete,
+                downloaded=2,
+                uploaded=1,
+                deleted=1,
+                renamed=1,
+                skipped=3,
+                failed=0,
+                conflicts=1,
+            )
+        )
+        assert out == [
+            (
+                {
+                    "downloaded": 2,
+                    "uploaded": 1,
+                    "deleted": 1,
+                    "renamed": 1,
+                    "skipped": 3,
+                    "failed": 0,
+                    "conflicts": 1,
+                },
+            )
+        ]
 
     def test_folder_size_event(self, engine):
         out = _capture(engine.folder_size_changed)
