@@ -15,6 +15,7 @@ from pathlib import Path
 from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QAbstractTableModel,
+    QByteArray,
     QModelIndex,
     QMutex,
     QMutexLocker,
@@ -31,6 +32,7 @@ from PySide6.QtGui import (
     QDesktopServices,
     QFont,
     QGuiApplication,
+    QHideEvent,
     QKeyEvent,
     QPalette,
 )
@@ -126,9 +128,9 @@ _STATUS_TEXT_KEYS = {
 }
 
 # Global minimum section width (matches the fixed Icon column, which must stay
-# narrow); data columns get a larger floor when seeded/restored.
+# narrow); data columns get the larger _MIN_COLUMN_WIDTH floor.
 _MIN_SECTION_WIDTH = 32
-# Minimum width a data column keeps when fitted or restored, in px.
+# Minimum width a data column keeps when fitted, restored or dragged, in px.
 _MIN_COLUMN_WIDTH = 48
 # Readable floor for the stretch Name column, in px. A stretch column is
 # shrunk to the global minimum section size instead of extending the scroll
@@ -140,6 +142,9 @@ _MIN_NAME_WIDTH = 320
 # to fit it). Once the widths are persisted the standard floor applies again:
 # from then on the saved layout is the user's choice.
 _MIN_NAME_FIRST_RUN = 460
+
+# Idle time after the last column adjustment before the layout is persisted.
+_STATE_SAVE_DELAY_MS = 300
 
 # Data columns whose width is fitted to the content once (the Icon is fixed,
 # Name stretches and Progress keeps its explicit default width).
@@ -429,10 +434,11 @@ class FileTransferTable(QTableView):
     send_selection_requested = Signal(str)  # Send the selected subtree (filepath)
     receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
 
-    # Persisted column visibility (comma-separated translation keys).
-    _COLUMN_SETTINGS_KEY = "ui/file_columns_hidden"
-    # Persisted column widths ("<translation_key>:<px>,…"), data columns only.
-    _COLUMN_WIDTH_SETTINGS_KEY = "ui/file_columns_width"
+    # Persisted header layout: one QHeaderView state blob carrying the section
+    # widths, the visual order and the hidden sections. Bump the ``_v1`` suffix
+    # whenever the column set changes: restoreState does not validate the section
+    # count and would apply a stale blob to the wrong sections.
+    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v1"
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden; the current columns stay visible.
@@ -454,12 +460,18 @@ class FileTransferTable(QTableView):
         self._show_hidden: bool = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value(self._SHOW_HIDDEN_SETTINGS_KEY, False, bool)
         )
-        # Column-width state: the first populated refresh seeds sensible widths
-        # from the content when no width has been saved; `_restoring_columns`
-        # suppresses the save handler while applying/repairing widths (it starts
-        # on so the setup-time resizeSection calls are not persisted).
+        # Column-layout state: the first populated refresh seeds sensible widths
+        # from the content until the user saves a layout; `_restoring_columns`
+        # suppresses the save handler while the layout is applied (it starts on
+        # so the setup-time resizeSection calls are not persisted).
         self._columns_sized: bool = False
         self._restoring_columns: bool = True
+
+        # Debounced layout save: a drag resizes (and emits) on every pixel.
+        self._state_save_timer = QTimer(self)
+        self._state_save_timer.setSingleShot(True)
+        self._state_save_timer.setInterval(_STATE_SAVE_DELAY_MS)
+        self._state_save_timer.timeout.connect(self._save_header_state)
 
         # Hierarchical navigation state
         self._current_path: str = ""  # Current folder (relative to base, "" = root)
@@ -485,8 +497,8 @@ class FileTransferTable(QTableView):
         self._cached_path: str = ""
 
         self._direction_font: QFont | None = None
-        # Read before the header lays out: see has_saved_column_widths.
-        self._saved_layout_on_start = self._has_persisted_widths()
+        # Read before the header lays out: see has_saved_layout.
+        self._saved_layout_on_start = self._has_persisted_state()
         self._model = FileTransferModel(self)
         self.setModel(self._model)
 
@@ -537,6 +549,8 @@ class FileTransferTable(QTableView):
         header = self.horizontalHeader()
         header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
+        # The icon column has no header text: pin it so the rows keep their lead.
+        header.setFirstSectionMovable(False)
         header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
@@ -561,8 +575,11 @@ class FileTransferTable(QTableView):
         # Enable context menu on header for column visibility
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(self._show_header_context_menu)
-        # Persist user column widths as they are dragged.
-        header.sectionResized.connect(self._save_column_widths)
+        # Persist the user's layout: a drag resizes, a header drag reorders, a
+        # handle double-click fits one column.
+        header.sectionResized.connect(self._on_section_resized)
+        header.sectionMoved.connect(self._schedule_header_state_save)
+        header.sectionHandleDoubleClicked.connect(self._fit_column_to_contents)
 
         # Enable context menu on table rows
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -577,96 +594,114 @@ class FileTransferTable(QTableView):
         # the user actually sorts: ``setSortingEnabled`` immediately sorts by the
         # current indicator, which is discarded right after.
         self.setSortingEnabled(True)
-        self._model.clear_sort()
-        # Hide the indicator the enabling left on the first column: no order is
-        # applied yet, so the header must not imply one.
-        header.setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
 
-        # Optional columns start hidden; restore the user's choice if saved.
-        self._restore_column_visibility()
-        self._restore_column_widths()
-        # From here on, user-driven resizes are persisted.
+        # Optional columns start hidden and the widths are seeded from the content
+        # on the first populated refresh, unless the user already saved a layout.
+        self._restore_header_state()
+        self._restore_sort_indicator()
+        # From here on, user-driven layout changes are persisted.
         self._restoring_columns = False
 
-    def _restore_column_visibility(self) -> None:
-        """Apply the persisted (or default) hidden-column set."""
+    def _apply_default_columns(self) -> None:
+        """Default column set of a profile that never saved a layout."""
         header = self.horizontalHeader()
-        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        if settings.contains(self._COLUMN_SETTINGS_KEY):
-            # An explicitly saved empty value means "nothing hidden".
-            saved = str(settings.value(self._COLUMN_SETTINGS_KEY, "", str))
-            hidden = {key.strip() for key in saved.split(",") if key.strip()}
-        else:
-            hidden = {_COLUMN_KEYS[col] for col in self._DEFAULT_HIDDEN}
+        hidden = {_COLUMN_KEYS[col] for col in self._DEFAULT_HIDDEN}
         for col, key in enumerate(_COLUMN_KEYS):
             if key:
                 header.setSectionHidden(col, key in hidden)
 
-    def _save_column_visibility(self) -> None:
-        """Persist the hidden-column set using stable translation keys."""
-        header = self.horizontalHeader()
-        hidden = [
-            _COLUMN_KEYS[col]
-            for col in range(self._model.columnCount())
-            if _COLUMN_KEYS[col] and header.isSectionHidden(col)
-        ]
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(self._COLUMN_SETTINGS_KEY, ",".join(hidden))
+    def _restore_header_state(self) -> None:
+        """Apply the saved header layout: widths, order, hidden sections.
 
-    def _restore_column_widths(self) -> None:
-        """Apply the persisted data-column widths, if any.
-
-        When nothing is saved the widths stay auto-fit and are seeded from the
-        content on the first populated refresh (``_size_columns_to_contents``).
+        Falls back to the defaults when nothing is stored or the blob cannot be
+        restored. Name is always shown: it carries the row identity and hiding it
+        would leave no stretch section.
         """
-        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        saved = str(settings.value(self._COLUMN_WIDTH_SETTINGS_KEY, "", str))
-        widths: dict[str, int] = {}
-        for entry in saved.split(","):
-            key, sep, value = entry.partition(":")
-            if sep and key.strip() and value.strip().isdigit():
-                widths[key.strip()] = int(value)
-        if not widths:
-            return
-        header = self.horizontalHeader()
-        for col, key in enumerate(_COLUMN_KEYS):
-            if key and key in widths:
-                header.resizeSection(col, max(widths[key], _MIN_COLUMN_WIDTH))
-        self._columns_sized = True
+        raw = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
+            self._HEADER_STATE_SETTINGS_KEY, QByteArray()
+        )
+        if isinstance(raw, QByteArray):
+            state = raw
+        elif isinstance(raw, (bytes, bytearray)):
+            state = QByteArray(bytes(raw))
+        else:
+            state = QByteArray()
+        restored = False
+        if not state.isEmpty():
+            restored = self.horizontalHeader().restoreState(state)
+        if not restored:
+            self._apply_default_columns()
+        self.horizontalHeader().showSection(COL_NAME)
 
-    def _save_column_widths(self) -> None:
-        """Persist the current data-column widths (stable keys)."""
+    def _restore_sort_indicator(self) -> None:
+        """Start unsorted even when the restored blob carries a sort indicator.
+
+        ``restoreState`` re-applies the indicator without sorting the model, so it
+        has to be cleared: no order is applied until the user clicks a header.
+        """
+        self.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
+        # The view reacts to the -1 indicator by sorting on section -1: clear the
+        # recorded sort again so the model really keeps the natural order.
+        self._model.clear_sort()
+
+    def _save_header_state(self) -> None:
+        """Persist the whole header layout in one blob."""
         if self._restoring_columns:
             return
-        header = self.horizontalHeader()
-        parts = [
-            f"{_COLUMN_KEYS[col]}:{header.sectionSize(col)}"
-            for col in range(self._model.columnCount())
-            if _COLUMN_KEYS[col]
-        ]
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
-            self._COLUMN_WIDTH_SETTINGS_KEY, ",".join(parts)
+            self._HEADER_STATE_SETTINGS_KEY, self.horizontalHeader().saveState()
         )
+
+    def _schedule_header_state_save(self, *_args) -> None:
+        """Coalesce the writes of a drag, which resizes on every pixel."""
+        if not self._restoring_columns:
+            self._state_save_timer.start()
+
+    def _on_section_resized(self, logical: int, old: int, new: int) -> None:
+        """Clamp a user drag to the data floor and persist the new layout.
+
+        Icon is ``Fixed`` and Name is ``Stretch``: the latter also resizes when
+        the window grows, which is not a layout the user chose. Skipping it (on
+        top of the debounce) keeps a plain window resize from creating a saved
+        layout, so the first-run Name floor survives the whole session.
+        """
+        if self._restoring_columns or logical in (COL_ICON, COL_NAME):
+            return
+        if new < _MIN_COLUMN_WIDTH:
+            self.horizontalHeader().resizeSection(logical, _MIN_COLUMN_WIDTH)
+            return
+        self._schedule_header_state_save()
+
+    def _fit_column_to_contents(self, logical: int) -> None:
+        """Fit one data column to its content (header handle double-click)."""
+        if logical in (COL_ICON, COL_NAME):
+            return
+        header = self.horizontalHeader()
+        width = max(self.sizeHintForColumn(logical), header.sectionSizeHint(logical)) + 8
+        header.resizeSection(logical, max(width, _MIN_COLUMN_WIDTH))
 
     @staticmethod
-    def _has_persisted_widths() -> bool:
-        """Whether this profile already stored a column layout."""
-        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        return bool(
-            str(settings.value(FileTransferTable._COLUMN_WIDTH_SETTINGS_KEY, "", str)).strip()
+    def _has_persisted_state() -> bool:
+        """Whether this profile already stored a header layout."""
+        raw = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
+            FileTransferTable._HEADER_STATE_SETTINGS_KEY, QByteArray()
         )
+        if isinstance(raw, QByteArray):
+            return not raw.isEmpty()
+        return isinstance(raw, (bytes, bytearray)) and bool(raw)
 
-    def has_saved_column_widths(self) -> bool:
-        """True when this profile already had a persisted column layout.
+    def has_saved_layout(self) -> bool:
+        """True when this profile already had a persisted header layout.
 
-        Captured at construction: the header saves its initial layout (Qt's
-        default section sizes) on the first layout pass, so reading the key
-        later cannot tell a first run from a saved one.
+        Captured at construction: the first layout pass resizes sections (and can
+        therefore save) before any user interaction, so reading the key later
+        cannot tell a first run from a saved one.
         """
         return self._saved_layout_on_start
 
     def name_floor(self) -> int:
         """Minimum width the Name column keeps when the window is sized."""
-        return _MIN_NAME_WIDTH if self.has_saved_column_widths() else _MIN_NAME_FIRST_RUN
+        return _MIN_NAME_WIDTH if self.has_saved_layout() else _MIN_NAME_FIRST_RUN
 
     def required_viewport_width(self) -> int:
         """Viewport width the table needs to keep its columns readable.
@@ -701,6 +736,7 @@ class FileTransferTable(QTableView):
         if self._columns_sized or self._model.rowCount() == 0:
             return
         header = self.horizontalHeader()
+        was_restoring = self._restoring_columns
         self._restoring_columns = True
         try:
             for col in _FITTED_COLUMNS:
@@ -708,7 +744,7 @@ class FileTransferTable(QTableView):
                 header.resizeSection(col, max(width, _MIN_COLUMN_WIDTH))
             self._columns_sized = True
         finally:
-            self._restoring_columns = False
+            self._restoring_columns = was_restoring
 
     def _show_header_context_menu(self, pos) -> None:
         """Show context menu to toggle column visibility."""
@@ -716,8 +752,10 @@ class FileTransferTable(QTableView):
         header = self.horizontalHeader()
 
         for col, key in enumerate(_COLUMN_KEYS):
-            if not key:
-                continue  # Skip icon column (no header text, always visible)
+            if not key or col == COL_NAME:
+                # The icon column has no header text and Name is the row identity:
+                # both stay visible.
+                continue
             action = QAction(tr(key), menu)
             action.setCheckable(True)
             action.setChecked(not header.isSectionHidden(col))
@@ -742,20 +780,30 @@ class FileTransferTable(QTableView):
         menu.exec(header.mapToGlobal(pos))
 
     def _toggle_column(self, col: int, visible: bool) -> None:
-        """Toggle visibility of a column."""
-        self.horizontalHeader().setSectionHidden(col, not visible)
-        self._save_column_visibility()
+        """Toggle visibility of a column, fitting it when it has no width."""
+        header = self.horizontalHeader()
+        header.setSectionHidden(col, not visible)
+        if visible and header.sectionSize(col) < _MIN_COLUMN_WIDTH:
+            self._fit_column_to_contents(col)
+        self._save_header_state()
 
     def _reset_columns(self) -> None:
-        """Restore the default column layout: visibility and fitted widths."""
-        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        settings.remove(self._COLUMN_WIDTH_SETTINGS_KEY)
-        settings.remove(self._COLUMN_SETTINGS_KEY)
-        self._restore_column_visibility()
-        # Re-fit the widths from the current content, once.
+        """Restore the default column layout: order, visibility and widths."""
+        QSettings(SETTINGS_ORG, SETTINGS_APP).remove(self._HEADER_STATE_SETTINGS_KEY)
+        header = self.horizontalHeader()
+        was_restoring = self._restoring_columns
+        self._restoring_columns = True
+        try:
+            self._apply_default_columns()
+            for col in range(self._model.columnCount()):
+                header.moveSection(header.visualIndex(col), col)
+        finally:
+            self._restoring_columns = was_restoring
+        # Re-fit the widths from the current content, once. Nothing is re-saved:
+        # the next launch must start again from the defaults plus this fit, exactly
+        # what a reset asks for (and the roomier first-run Name floor returns).
         self._columns_sized = False
         self._size_columns_to_contents()
-        self._save_column_visibility()
 
     def set_show_hidden(self, show: bool) -> None:
         """Show or hide dot-prefixed entries (view only, never sync state)."""
@@ -818,6 +866,13 @@ class FileTransferTable(QTableView):
             transfer = self._get_transfer_at_row(row)
             if transfer:
                 self._ctx_open(transfer)
+
+    def hideEvent(self, event: QHideEvent) -> None:
+        """Flush a layout save still waiting out its debounce."""
+        if self._state_save_timer.isActive():
+            self._state_save_timer.stop()
+            self._save_header_state()
+        super().hideEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Enter/Return opens the selected row (reliable folder navigation).

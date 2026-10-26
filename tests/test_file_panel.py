@@ -904,6 +904,8 @@ class TestColumnResizing:
         assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Stretch
         assert header.sectionResizeMode(tt.COL_ICON) is QHeaderView.ResizeMode.Fixed
         assert header.minimumSectionSize() == tt._MIN_SECTION_WIDTH
+        # The unlabeled icon column is pinned: reordering must not lead with it.
+        assert header.isFirstSectionMovable() is False
 
     def test_a_user_width_is_persisted_and_restored(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
@@ -914,12 +916,174 @@ class TestColumnResizing:
         monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
 
         table = self._table(qtbot)
-        table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)  # triggers save
+        table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)  # schedules the save
+        table._state_save_timer.stop()
+        table._save_header_state()
 
         fresh = self._table(qtbot)
         assert fresh.horizontalHeader().sectionSize(tt.COL_SIZE) == 222
 
-    def test_reset_columns_clears_the_saved_widths(self, qtbot, tmp_path, monkeypatch):
+    def test_a_drag_is_persisted_after_the_debounce(self, qtbot, tmp_path, monkeypatch):
+        """The layout write is coalesced, but it must land once the drag settles."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+
+        table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)
+
+        assert not store.value(tt.FileTransferTable._HEADER_STATE_SETTINGS_KEY)
+        qtbot.waitUntil(
+            lambda: bool(store.value(tt.FileTransferTable._HEADER_STATE_SETTINGS_KEY)),
+            timeout=tt._STATE_SAVE_DELAY_MS * 5,
+        )
+
+    def test_a_drag_below_the_data_floor_is_clamped(self, qtbot, tmp_path, monkeypatch):
+        """A dragged column never goes under the readable data floor."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+
+        header.resizeSection(tt.COL_STATUS, 5)
+
+        assert header.sectionSize(tt.COL_STATUS) == tt._MIN_COLUMN_WIDTH
+
+    def test_a_window_resize_does_not_persist_a_layout(self, qtbot, tmp_path, monkeypatch):
+        """The stretch column follows the window: that is not the user's layout."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        table.resize(600, 300)
+        table.show()
+        qtbot.wait(5)
+
+        table.resize(1400, 300)
+        qtbot.wait(tt._STATE_SAVE_DELAY_MS * 2)
+
+        assert not store.value(tt.FileTransferTable._HEADER_STATE_SETTINGS_KEY)
+        fresh = self._table(qtbot)
+        assert fresh.has_saved_layout() is False
+        assert fresh.name_floor() == tt._MIN_NAME_FIRST_RUN
+
+    def test_column_order_is_persisted(self, qtbot, tmp_path, monkeypatch):
+        """A header drag reorders the columns for good."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+        header.moveSection(header.visualIndex(tt.COL_SIZE), 1)
+        table._state_save_timer.stop()
+        table._save_header_state()
+
+        fresh = self._table(qtbot)
+        fresh_header = fresh.horizontalHeader()
+        order = [fresh_header.logicalIndex(i) for i in range(fresh_header.count())]
+
+        assert order[0] == tt.COL_ICON
+        assert order[1] == tt.COL_SIZE
+
+    def test_the_primary_name_column_cannot_be_hidden(self, qtbot, tmp_path, monkeypatch):
+        """A saved layout that hid Name is repaired: it carries the row identity."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        table.horizontalHeader().setSectionHidden(tt.COL_NAME, True)
+        table._save_header_state()
+
+        fresh = self._table(qtbot)
+
+        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_NAME)
+
+    def test_showing_a_hidden_column_gives_it_a_readable_width(self, qtbot, tmp_path, monkeypatch):
+        """A column hidden when the layout was saved comes back usable."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        table._save_header_state()  # Speed is hidden, so the blob stores no width
+
+        fresh = self._table(qtbot)
+        fresh._toggle_column(tt.COL_SPEED, True)
+
+        assert fresh.horizontalHeader().sectionSize(tt.COL_SPEED) >= tt._MIN_COLUMN_WIDTH
+
+    def test_restoring_a_layout_does_not_reapply_the_sort(self, qtbot, tmp_path, monkeypatch):
+        """The blob carries a sort indicator, but startup applies no order."""
+        from PySide6.QtCore import QSettings, Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        table.sortByColumn(tt.COL_SIZE, Qt.SortOrder.DescendingOrder)
+        table._save_header_state()
+
+        fresh = self._table(qtbot)
+
+        assert fresh.horizontalHeader().sortIndicatorSection() == -1
+        assert fresh._model._sort_column is None
+
+    def test_a_section_handle_double_click_fits_the_column(self, qtbot, tmp_path, monkeypatch):
+        """A handle double-click fits one column instead of a manual drag."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = self._table(qtbot)
+        table.resize(1200, 300)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+        header = table.horizontalHeader()
+        header.resizeSection(tt.COL_SIZE, 300)
+
+        header.sectionHandleDoubleClicked.emit(tt.COL_SIZE)
+
+        assert header.sectionSize(tt.COL_SIZE) >= tt._MIN_COLUMN_WIDTH
+        assert header.sectionSize(tt.COL_SIZE) < 300
+
+    def test_a_corrupt_layout_blob_falls_back_to_the_defaults(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QByteArray, QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        store.setValue(tt.FileTransferTable._HEADER_STATE_SETTINGS_KEY, QByteArray(b"garbage"))
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+
+        assert header.isSectionHidden(tt.COL_SPEED)
+        assert not header.isSectionHidden(tt.COL_NAME)
+
+    def test_reset_columns_clears_the_saved_layout(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
 
         from hsync_desktop.file_panel import transfer_table as tt
@@ -929,11 +1093,13 @@ class TestColumnResizing:
 
         table = self._table(qtbot)
         table.horizontalHeader().resizeSection(tt.COL_SIZE, 222)
-        assert store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+        table._state_save_timer.stop()
+        table._save_header_state()
+        assert store.value(table._HEADER_STATE_SETTINGS_KEY)
 
         table._reset_columns()
 
-        assert not store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+        assert not store.value(table._HEADER_STATE_SETTINGS_KEY)
 
     def test_setup_does_not_persist_widths(self, qtbot, tmp_path, monkeypatch):
         """Constructing the table must not save unfitted widths."""
@@ -946,7 +1112,7 @@ class TestColumnResizing:
 
         table = self._table(qtbot)
 
-        assert not store.value(table._COLUMN_WIDTH_SETTINGS_KEY)
+        assert not store.value(table._HEADER_STATE_SETTINGS_KEY)
         assert not table._columns_sized
 
     def test_columns_are_fitted_once_from_the_content(self, qtbot, tmp_path, monkeypatch):
@@ -1010,7 +1176,7 @@ class TestRequiredViewportWidth:
 
         expected = self._other_sections(tt, header, columns) + tt._MIN_NAME_FIRST_RUN
 
-        assert table.has_saved_column_widths() is False
+        assert table.has_saved_layout() is False
         assert table.name_floor() == tt._MIN_NAME_FIRST_RUN
         assert tt._MIN_NAME_FIRST_RUN > tt._MIN_NAME_WIDTH
         assert table.required_viewport_width() == expected
@@ -1022,8 +1188,12 @@ class TestRequiredViewportWidth:
         from hsync_desktop.file_panel import transfer_table as tt
 
         store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
-        store.setValue(tt.FileTransferTable._COLUMN_WIDTH_SETTINGS_KEY, "file.size:100")
         monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        # A layout the user would have produced: any real adjustment persists it.
+        seed = tt.FileTransferTable()
+        qtbot.addWidget(seed)
+        seed._save_header_state()
+
         table = tt.FileTransferTable()
         qtbot.addWidget(table)
         header = table.horizontalHeader()
@@ -1031,7 +1201,7 @@ class TestRequiredViewportWidth:
         expected = self._other_sections(tt, header, range(table.model().columnCount()))
         expected += tt._MIN_NAME_WIDTH
 
-        assert table.has_saved_column_widths() is True
+        assert table.has_saved_layout() is True
         assert table.name_floor() == tt._MIN_NAME_WIDTH
         assert table.required_viewport_width() == expected
 

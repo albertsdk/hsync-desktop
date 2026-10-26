@@ -185,7 +185,10 @@ listings or logs. Use the credential dialogs to replace a password at any time.
 The file list shows the standard columns plus **Direction** (↑/↓, ✕ on a deleted
 row, ⇄ on a rename), visible by default; the direction is blank when there is no
 operation and its glyphs are bold for emphasis. **Speed** (live transfer rate) is
-available from the header menu and hidden until you enable it. Files show the
+available from the header menu and hidden until you enable it. Drag a divider to
+resize a column and drag a header to reorder the columns: widths, order and
+visible columns are remembered across runs; double-click a divider to fit a
+column to its content. The **Name** column is always shown. Files show the
 planned action ("To upload" / "To download" / …), while a folder shows a neutral
 aggregate ("To sync") whose tooltip breaks down the mixed operations.
 **Reset columns** in the header menu restores the default layout. The status

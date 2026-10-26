@@ -385,25 +385,43 @@ hidden by default, and **Direction** (`file.direction`, the ↑/↓ arrow — �
 deleted row, ⇄ on a rename), visible by default. Direction is **empty at rest**
 (the dash placeholder is noise in a dense column) and its operative glyphs are
 **bold**, a second cue beside the status colour. Visibility is toggled from the
-header menu and persisted as stable keys in `ui/file_columns_hidden`
-(`FileTransferTable._save_column_visibility` /
-`FileTransferTable._restore_column_visibility`). The **data columns are
+header menu (`FileTransferTable._show_header_context_menu`), which omits **Name**
+(the primary column carries the row identity); the **Icon** section is pinned
+first (`QHeaderView.setFirstSectionMovable`), so a reorder cannot move the
+unlabeled column away from the leading edge. The **data columns are
 user-resizable** (`Interactive`, global floor `_MIN_SECTION_WIDTH`, data floor
-`_MIN_COLUMN_WIDTH`): widths are seeded once from the content on the first
-populated refresh
-(`FileTransferTable._size_columns_to_contents`) and then persisted in
-`ui/file_columns_width` as `"<translation_key>:<px>,…"`
-(`FileTransferTable._save_column_widths` / `_restore_column_widths`); **Name**
-stays `Stretch` (the flexible column) and **Icon** stays `Fixed`. The header menu
-also has **Reset columns** (`file.reset_columns`) that clears both keys and
-re-fits the widths. Because **Name** is the stretch column, Qt answers a
-shortage by shrinking it down to the minimum section size instead of extending
-the scroll range, so the persisted widths in a narrow window leave file names
+`_MIN_COLUMN_WIDTH` enforced on every drag by
+`FileTransferTable._on_section_resized`), **Name** stays `Stretch` (the flexible
+column, still sized by the window) and **Icon** stays `Fixed`; a double-click on
+a section handle fits that column to its content
+(`FileTransferTable._fit_column_to_contents`).
+
+The whole layout — widths, visual order and hidden sections — is one
+`QHeaderView` state blob persisted in `ui/file_table_header_state_v1`
+(`FileTransferTable._save_header_state` / `_restore_header_state`), written after
+the drag settles (`_STATE_SAVE_DELAY_MS` debounce, flushed by
+`FileTransferTable.hideEvent`). **Bump the `_v1` suffix whenever the column set
+changes**: `restoreState` does not validate the section count and would apply a
+stale blob to the wrong sections. Widths are seeded once from the content on the
+first populated refresh (`FileTransferTable._size_columns_to_contents`) when
+nothing is stored. Stretch-driven resizes are **not** persisted: Name also
+resizes when the window grows, which is not a layout the user chose, so a plain
+window resize never marks the profile as having a saved layout. The blob stores
+the sort indicator too, which `FileTransferTable._restore_sort_indicator` clears
+after the restore (the table starts in the natural folders-first order until the
+user clicks a header). **Reset columns** (`file.reset_columns`,
+`FileTransferTable._reset_columns`) removes the blob, restores the default
+order/visibility and re-fits the widths without persisting, so the next launch is
+again a first run.
+
+Because **Name** is the stretch column, Qt answers a shortage by shrinking it
+down to the minimum section size instead of extending the scroll range, so the
+persisted widths in a narrow window leave file names
 unusable while the horizontal scrollbar stays empty:
 `FileTransferTable.required_viewport_width` therefore reports the width the
 visible sections need with `FileTransferTable.name_floor()` reserved for Name —
 `_MIN_NAME_WIDTH` normally, or the roomier `_MIN_NAME_FIRST_RUN` while the
-profile has never saved a layout (`FileTransferTable.has_saved_column_widths`,
+profile has never saved a layout (`FileTransferTable.has_saved_layout`,
 captured at construction because the header persists its initial section sizes
 on the first layout pass) — and the one-shot
 startup fit (`main_window/window.py::MainWindow._fit_table_width`, re-scheduled
