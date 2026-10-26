@@ -20,7 +20,7 @@ from hsync_desktop.icons import icon
 from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.model import WizardDraft, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import PrimaryButton
+from hsync_desktop.wizard.widgets import PrimaryButton, label_text
 
 __all__ = ["SuccessPage"]
 
@@ -47,7 +47,10 @@ class SuccessPage(WizardPage):
         layout.addWidget(self._title)
 
         self._desc = muted_label()
+        self._desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self._desc)
+        # Breathing room between the confirmation line and the invite block.
+        layout.addSpacing(16)
 
         self._invite_title = QLabel()
         layout.addWidget(self._invite_title)
@@ -98,9 +101,9 @@ class SuccessPage(WizardPage):
             # exactly as the wizard asked for it.
             self._invite_text.setPlainText(
                 tr("wizard.success.invite_text").format(
-                    share_label=tr("wizard.connection.share"),
-                    group_label=tr("wizard.connection.group"),
-                    password_label=tr("wizard.connection.password"),
+                    share_label=label_text("wizard.connection.share"),
+                    group_label=label_text("wizard.connection.group"),
+                    password_label=label_text("wizard.connection.password"),
                     bucket=draft.bucket,
                     group=draft.p2p_group,
                     password=draft.p2p_key,

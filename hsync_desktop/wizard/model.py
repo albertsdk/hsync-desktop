@@ -34,6 +34,7 @@ __all__ = [
     "WizardProfile",
     "clear_draft",
     "infer_mode_from_settings",
+    "is_configured",
     "load_draft",
     "mark_auto_shown",
     "mark_completed",
@@ -203,12 +204,23 @@ def infer_mode_from_settings(settings: QSettings | None = None) -> WizardMode | 
     return WizardMode.TEAM_SHARE
 
 
+def is_configured(settings: QSettings | None = None) -> bool:
+    """True when the app already has a sync folder (i.e. it is configured).
+
+    Consumers: the wizard footer hides "Do this later" once the app is
+    configured, and :func:`should_auto_open` gates the first-run prompt on the
+    same predicate so the two can never disagree.
+    """
+    s = settings or _settings()
+    return bool(str(s.value("path/local", "", str)).strip())
+
+
 def should_auto_open(settings: QSettings | None = None) -> bool:
     """True on the first run only: never auto-shown and no folder configured."""
     s = settings or _settings()
     if bool(s.value("wizard/auto_shown", False, bool)):
         return False
-    return not str(s.value("path/local", "", str)).strip()
+    return not is_configured(s)
 
 
 def _save_secret(s: QSettings, key: str, value: str) -> None:

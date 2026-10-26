@@ -46,9 +46,14 @@ the main window appears. You can always reopen it later:
      **Test connection** becomes available once the address is entered and
      shows its fingerprint below the button.
 
+   For the two device-to-device setups, **This device should only receive files**
+   turns this device into a receiver. It is the same setting as **Sync Type →
+   Receive only (from other devices)** in Settings; the next step shows the
+   resulting type.
+
    An optional block chooses whether sync runs in real time, starts with the app,
-   and launches HSYNC at system login; **Skip and use recommended values** keeps
-   the defaults.
+   and launches HSYNC at system login; **Skip** keeps the defaults (its tooltip
+   spells that out).
 
 4. **Review** — check the summary (secrets are masked) and the verification
    result, use **Edit** to change any step, then **Finish setup**.
@@ -56,9 +61,10 @@ the main window appears. You can always reopen it later:
 ## After finishing
 
 For network (p2p) setups the success screen shows the share name, group name and
-shared password to copy to your other devices — the invite uses the same field
-names as the Connection step; use the same values there. The invite can be
-selected directly or copied with one click.
+shared password under *Use these details on another device to connect it to this
+one*. Copy them to your other devices — the invite uses the same field names as
+the Connection step; use the same values there. The invite can be selected
+directly or copied with one click.
 
 If a discovery server's certificate was not saved during setup, the app asks for
 confirmation the first time you connect (a one-time security check).
@@ -67,4 +73,5 @@ confirmation the first time you connect (a one-time security check).
 
 Reopen the wizard any time (it pre-fills your current configuration) or use
 **Settings** for every advanced option. If you close the wizard before finishing,
-it remembers where you left off and offers to resume next time.
+it reopens at the step you had reached. **Do this later** is offered only while
+no folder is configured yet, i.e. when the setup is still pending.

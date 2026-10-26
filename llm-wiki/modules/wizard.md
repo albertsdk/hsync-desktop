@@ -28,6 +28,12 @@ is a themed confirmation whose Yes/No labels are translated and carry the app
 `field_error_targets`); the dialog owns validation, the draft and the result
 (`applied`, `start_requested`).
 
+The footer (`SetupWizard._update_footer`) shows **Do this later** only while the
+app is unconfigured (`wizard/model.py::is_configured` — the same `path/local`
+predicate as the first-run prompt), **Skip** only on the Connection step (its
+tooltip names what it keeps: `wizard.action.skip_defaults_tip`), Back above the
+first step, and Continue/Finish elsewhere.
+
 | Step | Page | Content |
 | ---- | ---- | ------- |
 | 1 Purpose | `wizard/pages/mode.py::ModePage` | four radio cards (one `QButtonGroup`, single choice) + "Help me choose" |
@@ -56,7 +62,9 @@ and the returned mode so the two can never disagree.
   (Documents/Pictures/Music/Videos/Home); each suggestion carries its own icon
   (`x-office-document`, `image-x-generic`, `audio-x-generic`,
   `video-x-generic`, `folder-open`). A suggestion whose path is unset or missing
-  is disabled, and the "create an HSYNC folder" entry creates it on click.
+  is disabled, and the "create an HSYNC folder" entry creates it on click. The
+  path placeholder is that suggestion's path (the label above the field already
+  names it, so repeating the label inside the field read as a second caption).
 - **Free space** is rendered with `hsync_common.format.format_bytes`
   (`FolderCheck.free_bytes`).
 - **Test buttons** sit above their own result line and stay disabled until the
@@ -107,21 +115,29 @@ and the returned mode so the two can never disagree.
 - **Connection**: `ConnectionPage` keeps the share name in a common area and puts
   the server-only and network-only fields in two dedicated forms inside a
   `QStackedWidget` (`_server_page`/`_network_page`), so each topology has a clean
-  order instead of interleaved show/hide rows. All form labels are colon-free
-  (`wizard.connection.*` keys) and share one fixed label-column width
-  (`ConnectionPage._align_labels`), so the share-name field aligns with the
-  mode-specific fields; long translations wrap.
+  order instead of interleaved show/hide rows. Field labels end with a colon, as
+  in Settings (`wizard.connection.*` keys; switch captions stay colon-free), and
+  share one fixed label-column width (`ConnectionPage._align_labels`), so the
+  share-name field aligns with the mode-specific fields; long translations wrap.
+  The p2p "receive only" switch resolves
+  `ConnectionPage._current_direction` → `draft.direction = "download-only"`, the
+  value Settings shows as **Sync Type → Receive only (from other devices)**.
 - **Review**: sections are separated by rules and the "Checks" section reflects
   the last real probe (`server_verified`/`discovery_server_verified` in the draft, rendered
   as a localised time or the discovery server fingerprint); editing a section's
-  fields clears it.
-- **Success**: `dialog-ok` icon, the p2p invite is a read-only selectable field
+  fields clears it. `_set_step` reloads the page on entry, because the summaries
+  are rendered from the draft (a stale review used to keep the previous
+  direction). Labels go through `wizard/widgets.py::label_text`, which strips the
+  colon the reused Connection keys carry: the page writes `label: value` itself.
+- **Success**: `dialog-ok` icon, a centred confirmation line, the p2p invite
+  (labelled from `wizard.success.invite`) as a read-only selectable field
   (`SuccessPage._invite_text`) that can also be copied with one click, and the
   action bar is anchored at the bottom of the screen. The invite labels are
-  injected from `wizard.connection.share/group/password`, so it names each value
-  exactly like the Connection step and the Review page. The success screen is a
-  destination, not a step: the subtitle, the step index and the resume banner
-  are hidden (`SetupWizard._set_step`).
+  injected through `wizard/widgets.py::label_text` from
+  `wizard.connection.share/group/password`, so it names each value exactly like
+  the Connection step without a double colon. The success screen is a
+  destination, not a step: the subtitle and the step index are hidden
+  (`SetupWizard._set_step`).
 
 ## Modes, defaults and inference
 

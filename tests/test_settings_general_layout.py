@@ -22,6 +22,10 @@ def _x(widget, anchor) -> int:
     return widget.mapTo(anchor, widget.rect().topLeft()).x()
 
 
+def _right(widget, anchor) -> int:
+    return widget.mapTo(anchor, widget.rect().topRight()).x()
+
+
 class TestGeneralSections:
     """The page is grouped in the sections every HIG recommends."""
 
@@ -71,7 +75,7 @@ class TestGeneralSections:
 
 
 class TestGeneralSwitchAlignment:
-    """A switch row is ``[toggle] caption``, aligned inside its own section."""
+    """A switch row is ``caption … [toggle]``: toggles on one trailing column."""
 
     def test_the_switches_of_a_section_share_one_column(self, dialog, qtbot):
         _open_general_tab(dialog, qtbot)
@@ -86,8 +90,17 @@ class TestGeneralSwitchAlignment:
                 dialog.show_advanced,
             ),
         ):
-            columns = {_x(widget, dialog) for widget in switches}
+            columns = {_right(widget, dialog) for widget in switches}
             assert len(columns) == 1, (switches, columns)
+
+    def test_each_caption_precedes_its_switch(self, dialog, qtbot):
+        """Label first, control trailing: the switch layout of the major HIGs."""
+        _open_general_tab(dialog, qtbot)
+
+        pairs = [(dialog.notifications_enabled, dialog._lbl_notifications)]
+        pairs += list(dialog.notification_toggles.values())
+        for toggle, label in pairs:
+            assert _x(label, dialog) < _x(toggle, dialog)
 
     def test_category_captions_line_up_with_the_master_caption(self, dialog, qtbot):
         _open_general_tab(dialog, qtbot)
@@ -102,8 +115,8 @@ class TestGeneralSwitchAlignment:
 
         assert heading.text() == tr("settings.notifications_categories")
         assert heading.objectName() == "mutedHint"
-        # The heading introduces the block, so it starts where the switches do.
-        assert _x(heading, dialog) == _x(dialog.notifications_enabled, dialog)
+        # The heading introduces the block, so it starts where the captions do.
+        assert _x(heading, dialog) == _x(dialog._lbl_notifications, dialog)
 
     def test_the_master_switch_gates_every_category(self, dialog, qtbot):
         _open_general_tab(dialog, qtbot)

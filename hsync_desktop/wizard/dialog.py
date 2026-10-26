@@ -46,6 +46,7 @@ from hsync_desktop.wizard.model import (
     WizardDraft,
     WizardMode,
     infer_mode_from_settings,
+    is_configured,
     load_draft,
     mark_completed,
     profile_for,
@@ -115,10 +116,6 @@ class SetupWizard(QDialog):
         layout.addWidget(self._subtitle)
         self._stepper = StepIndicator(4)
         layout.addWidget(self._stepper)
-        self._resume = QLabel()
-        self._resume.setObjectName("mutedHint")
-        self._resume.setVisible(False)
-        layout.addWidget(self._resume)
 
         self._page_title = QLabel()
         title_font = self._page_title.font()
@@ -204,8 +201,6 @@ class SetupWizard(QDialog):
             draft, step = resumed
             self._draft = draft
             self._step = min(step, STEP_REVIEW)
-            self._resume.setText(tr("wizard.resume.banner").format(step=self._step + 1))
-            self._resume.setVisible(True)
         else:
             self._draft.mode = infer_mode_from_settings(self._settings)
             if self._draft.mode is not None:
@@ -253,10 +248,14 @@ class SetupWizard(QDialog):
         self._stepper.set_current(self._step)
         success = self._step == _SUCCESS_INDEX
         # The final screen is a destination, not another step: drop the
-        # progress header (subtitle, step index, resume banner).
+        # progress header (subtitle, step index).
         self._subtitle.setVisible(not success)
         self._stepper.setVisible(not success)
-        self._resume.setVisible(not success and bool(self._resume.text()))
+        # The review summaries are rendered from the draft, so they must be
+        # refreshed on entry: editing an earlier step otherwise left this page
+        # (and its "Sync Type" line) showing the values from the last load.
+        if self._step == STEP_REVIEW:
+            self.review_page.load(self._draft)
         if self._step < len(_PAGE_TITLE_KEYS):
             self._page_title.setText(tr(_PAGE_TITLE_KEYS[self._step]))
             self._page_title.setVisible(True)
@@ -268,7 +267,9 @@ class SetupWizard(QDialog):
 
     def _update_footer(self) -> None:
         success = self._step == _SUCCESS_INDEX
-        self._later.setVisible(self._step == 0)
+        # "Do this later" only postpones a setup that has not happened yet; on a
+        # configured app it would just close a wizard the user opened on purpose.
+        self._later.setVisible(self._step == 0 and not is_configured(self._settings))
         self._skip_defaults.setVisible(self._step == STEP_CONNECTION)
         self._back.setVisible(0 < self._step < _SUCCESS_INDEX)
         self._primary.setVisible(not success)
@@ -379,6 +380,7 @@ class SetupWizard(QDialog):
         self._subtitle.setText(tr("wizard.subtitle"))
         self._later.setText(tr("wizard.action.later"))
         self._skip_defaults.setText(tr("wizard.action.skip_defaults"))
+        self._skip_defaults.setToolTip(tr("wizard.action.skip_defaults_tip"))
         self._back.setText(tr("wizard.action.back"))
         self._stepper.apply_translations()
         for page in (*self._pages, self.success_page):

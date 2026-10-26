@@ -133,8 +133,27 @@ class TestResume:
         dlg = SetupWizard(settings=settings)
         qtbot.addWidget(dlg)
         assert dlg._step == 2
-        assert not dlg._resume.isHidden()
         dlg.close()
+
+
+class TestFooter:
+    def test_later_only_before_the_app_is_configured(self, qtbot, settings):
+        first_run = SetupWizard(settings=settings)
+        qtbot.addWidget(first_run)
+        assert not first_run._later.isHidden()
+        first_run.close()
+
+        settings.setValue("path/local", "/data")
+        configured = SetupWizard(settings=settings)
+        qtbot.addWidget(configured)
+        assert configured._later.isHidden()
+        configured.close()
+
+    def test_skip_button_is_short_and_explains_itself(self, wizard):
+        wizard._set_step(2)
+        assert not wizard._skip_defaults.isHidden()
+        assert wizard._skip_defaults.text() == tr("wizard.action.skip_defaults")
+        assert wizard._skip_defaults.toolTip() == tr("wizard.action.skip_defaults_tip")
 
 
 class TestHelpDialog:
@@ -495,7 +514,8 @@ class TestLayoutImprovements:
             "wizard.connection.group",
             "wizard.connection.password",
         ):
-            assert tr(key) in text, key
+            assert tr(key).rstrip(":：").strip() in text, key
+        assert "::" not in text
 
     def test_invite_height_fits_all_lines(self, wizard):
         """Three lines (share, group, password) must fit without clipping."""
@@ -542,20 +562,33 @@ class TestLayoutImprovements:
         assert page.group.placeholderText() == "my-devices"
 
     def test_success_hides_the_progress_header(self, wizard):
-        wizard._resume.setText("resume")
         wizard._set_step(1)
         assert not wizard._subtitle.isHidden()
         assert not wizard._stepper.isHidden()
-        assert not wizard._resume.isHidden()
         wizard._set_step(4)  # success screen
         assert wizard._subtitle.isHidden()
         assert wizard._stepper.isHidden()
-        assert wizard._resume.isHidden()
 
-    def test_form_labels_have_no_trailing_colon(self, wizard):
-        for _container, _field, _error, label in wizard.connection_page._rows.values():
-            text = label.text()
-            assert not text.endswith((":", "：")), text
+    def test_form_labels_end_with_a_colon(self, wizard):
+        rows = wizard.connection_page._rows
+        for name in (
+            "bucket",
+            "server_url",
+            "api_key",
+            "direction",
+            "p2p_group",
+            "p2p_key",
+            "discovery_server",
+        ):
+            text = rows[name][3].text()
+            assert text.endswith((":", "：")), text
+
+    def test_switch_labels_have_no_colon(self, wizard):
+        page = wizard.connection_page
+        for name in ("cert", "receive_only"):
+            assert not page._rows[name][3].text().endswith((":", "："))
+        for row in page._automation_rows:
+            assert not row.label.text().endswith((":", "："))
 
     def test_share_field_shares_the_label_column(self, wizard):
         rows = wizard.connection_page._rows
@@ -566,13 +599,53 @@ class TestLayoutImprovements:
         assert len(set(widths.values())) == 1
         assert next(iter(widths.values())) > 0
 
-    def test_review_uses_the_same_colon_free_labels(self, wizard):
+    def test_review_strips_the_label_colon(self, wizard):
         wizard.review_page.load(
             WizardDraft(mode=WizardMode.BACKUP, bucket="data", server_url="h", api_key="k")
         )
         connection = wizard.review_page._sections["connection"][1].text()
-        assert connection.startswith(f"{tr('wizard.connection.share')}: ")
-        assert ":" not in tr("wizard.connection.share")
+        label = tr("wizard.connection.share")
+        assert label.endswith((":", "："))
+        assert connection.startswith(f"{label.rstrip(':：').strip()}: ")
+        assert "::" not in connection
+
+
+class TestFolderPlaceholder:
+    def test_shows_an_example_path_instead_of_the_label(self, wizard):
+        from hsync_desktop.wizard.defaults import suggested_folders
+
+        expected = next(
+            path for key, path in suggested_folders() if key == "wizard.folder.suggest_home"
+        )
+        page = wizard.folder_page
+        assert page.path.placeholderText() == expected
+        assert page.path.placeholderText() != tr("settings.shared_path")
+
+
+class TestReviewRefresh:
+    def test_direction_change_reaches_the_review(self, wizard, tmp_path):
+        """Entering the review reloads it: it used to show the initial draft."""
+        wizard.mode_page._cards[WizardMode.LAN_SYNC].set_selected(True)
+        wizard._on_primary()  # -> folder
+        wizard.folder_page.path.setText(str(tmp_path))
+        wizard._on_primary()  # -> connection
+        wizard.connection_page.receive_only.setChecked(True)
+        wizard._on_primary()  # -> review
+        behaviour = wizard.review_page._sections["behaviour"][1].text()
+        assert tr("settings.sync_direction.download_only") in behaviour
+        assert wizard._draft.direction == "download-only"
+
+
+class TestSuccessLayout:
+    def test_the_confirmation_is_centered(self, wizard):
+        from PySide6.QtCore import Qt
+
+        desc = wizard.success_page._desc
+        assert desc.alignment() & Qt.AlignmentFlag.AlignHCenter
+
+    def test_the_invite_explains_how_to_use_the_details(self, wizard):
+        wizard.success_page.load(WizardDraft(mode=WizardMode.LAN_SYNC))
+        assert wizard.success_page._invite_title.text() == tr("wizard.success.invite")
 
 
 class TestModeDocumentationLink:

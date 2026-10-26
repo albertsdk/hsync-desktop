@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -98,17 +99,19 @@ def _action_row(*buttons: QWidget) -> QWidget:
 
 
 def switch_row(toggle: QWidget, label: QLabel, parent: QWidget) -> QWidget:
-    """Pack a switch and its caption into one left-aligned row.
+    """Pack a switch and its caption into one row: caption first, switch last.
 
-    Every switch in the settings dialog uses this shape (``[toggle] caption``
-    flush left, stretch after), so the toggle column and the caption column line
-    up across the form, the "Notifications for" block and the advanced options.
+    Caption on the leading side and control on the trailing edge is the switch
+    layout of Material Design, the Apple/Windows HIGs and GNOME: the text names
+    the option, the control sits in one predictable column. Every switch in the
+    settings dialog (and the "Notifications for" block) uses this shape, so the
+    toggles line up on the right whatever the caption length.
     """
     row = QHBoxLayout()
     row.setContentsMargins(0, 0, 0, 0)
-    row.addWidget(toggle)
-    row.addWidget(label)
-    row.addStretch()
+    label.setWordWrap(True)
+    row.addWidget(label, 1)
+    row.addWidget(toggle, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
     container = QWidget(parent)
     container.setLayout(row)
     return container

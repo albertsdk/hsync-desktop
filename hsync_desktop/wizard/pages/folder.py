@@ -69,6 +69,12 @@ class FolderPage(WizardPage):
         self._suggestions = QGridLayout()
         self._suggestion_buttons: list[QPushButton] = []
         entries = suggested_folders()
+        # The field already has its own label above it: repeating it as the
+        # placeholder looked like a second, misaligned caption. Show the path the
+        # "create an HSYNC folder" suggestion would use instead.
+        self._placeholder_path = next(
+            (path or "" for key, path in entries if key == _CREATE_KEY), ""
+        )
         standard = [(key, path) for key, path in entries if key != _CREATE_KEY]
         create = [(key, path) for key, path in entries if key == _CREATE_KEY]
         for index, (key, path) in enumerate(standard):
@@ -136,7 +142,7 @@ class FolderPage(WizardPage):
     def apply_translations(self) -> None:
         self._why.setText(tr("wizard.folder.why"))
         self._label.setText(tr("settings.shared_path"))
-        self.path.setPlaceholderText(tr("settings.shared_path"))
+        self.path.setPlaceholderText(self._placeholder_path)
         self.browse.setText(tr("settings.shared_path_browse"))
         for button in self._suggestion_buttons:
             button.setText(tr(str(button.property("wizardKey"))))

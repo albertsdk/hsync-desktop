@@ -20,7 +20,7 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.wizard.model import WizardDraft, WizardMode, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
-from hsync_desktop.wizard.widgets import section_title
+from hsync_desktop.wizard.widgets import label_text, section_title
 
 __all__ = ["ReviewPage"]
 
@@ -50,11 +50,6 @@ def _mask(secret: str) -> str:
     if len(secret) <= 4:
         return "•" * len(secret)
     return "•" * 6 + secret[-4:]
-
-
-def _label_text(key: str) -> str:
-    """A summary label without the trailing colon some reused Settings keys carry."""
-    return tr(key).rstrip(":：").strip()
 
 
 def _format_verified_at(iso: str) -> str:
@@ -153,16 +148,17 @@ class ReviewPage(WizardPage):
         )
         self._set("folder", draft.local_path or "—")
 
-        lines = [f"{tr('wizard.connection.share')}: {draft.bucket or '—'}"]
+        lines = [f"{label_text('wizard.connection.share')}: {draft.bucket or '—'}"]
         if profile is not None and not profile.p2p_enabled:
-            lines.append(f"{tr('wizard.connection.server_url')}: {draft.server_url or '—'}")
-            lines.append(f"{tr('wizard.connection.api_key')}: {_mask(draft.api_key)}")
+            lines.append(f"{label_text('wizard.connection.server_url')}: {draft.server_url or '—'}")
+            lines.append(f"{label_text('wizard.connection.api_key')}: {_mask(draft.api_key)}")
         else:
-            lines.append(f"{tr('wizard.connection.group')}: {draft.p2p_group or '—'}")
-            lines.append(f"{tr('wizard.connection.password')}: {_mask(draft.p2p_key)}")
+            lines.append(f"{label_text('wizard.connection.group')}: {draft.p2p_group or '—'}")
+            lines.append(f"{label_text('wizard.connection.password')}: {_mask(draft.p2p_key)}")
             if profile is not None and profile.requires_discovery_server:
                 lines.append(
-                    f"{tr('wizard.connection.discovery_server')}: {draft.discovery_server or '—'}"
+                    f"{label_text('wizard.connection.discovery_server')}: "
+                    f"{draft.discovery_server or '—'}"
                 )
         self._set("connection", "\n".join(lines))
 
@@ -172,7 +168,7 @@ class ReviewPage(WizardPage):
             "download-only": tr("settings.sync_direction.download_only"),
         }.get(draft.direction, draft.direction)
         behaviour = [
-            f"{_label_text('settings.sync_direction')}: {direction_label}",
+            f"{label_text('settings.sync_direction')}: {direction_label}",
             f"{tr('wizard.review.keep_deleted')}: {_on_off(draft.ignore_delete)}",
             f"{tr('wizard.automation.continuous')}: {_on_off(draft.continuous)}",
             f"{tr('wizard.automation.auto_sync')}: {_on_off(draft.auto_sync)}",

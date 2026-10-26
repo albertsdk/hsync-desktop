@@ -38,6 +38,7 @@ __all__ = [
     "SecretField",
     "ToggleRow",
     "char_class_validator",
+    "label_text",
     "section_title",
     "set_field_error",
 ]
@@ -286,3 +287,13 @@ def section_title(text: str) -> QLabel:
     font.setBold(True)
     label.setFont(font)
     return label
+
+
+def label_text(key: str) -> str:
+    """A field label without the trailing colon its translation may carry.
+
+    The Connection step ends field labels with a colon (as the Settings dialog
+    does), while Review and Success render ``label: value`` themselves; stripping
+    it here keeps one wording and one separator instead of a double colon.
+    """
+    return tr(key).rstrip(":：").strip()

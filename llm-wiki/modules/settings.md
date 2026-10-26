@@ -99,12 +99,15 @@ preferences (font size, language, theme, notifications, tooltips, log panel,
 launch at login).
 
 **Switch rows** (`settings/form_helpers.py::switch_row`): every toggle in the
-dialog is rendered as ``[toggle] caption`` packed into one left-aligned container
-with a trailing stretch, and the container is inserted in the form's **field**
-column (``insertRow(row, "", container)``). That is what keeps all switches in a
-single column and their captions aligned; the General tab's notification block
-reuses the same helper so its category rows line up with the form's own switches
-(a spanning row would start at the label column and shift them left).
+dialog is rendered as ``caption … [toggle]`` — caption on the leading side, the
+switch on the trailing edge, the layout Material Design, the Apple/Windows HIGs
+and GNOME use (and the one the setup wizard's automation block already had) —
+inside one container inserted in the form's **field** column
+(``insertRow(row, "", container)``). Right-aligning the control keeps every
+switch on one trailing column whatever the caption length; the General tab's
+notification block reuses the same helper so its category rows line up with the
+form's own switches (a spanning row would start at the label column and shift
+them left).
 
 **Standard vs advanced**: the General tab's `show_advanced` toggle
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
@@ -152,8 +155,9 @@ fallback). The General page is **rebuilt into three sections** like the other ta
 **Window & Startup** (`settings.group.window`: tooltips, log panel, launch at
 login, with the advanced disclosure as the last row). Each section is a
 `QGroupBox` with its own form, so within a section every switch shares one
-column; a group whose rows are all switches starts them at the group edge (the
-label column is empty), which is the same shape the Sync/p2p groups already use.
+trailing column; a group whose rows are all switches starts them at the group
+edge (the label column is empty), which is the same shape the Sync/p2p groups
+already use.
 `build_general_tab` only creates the widgets and leaves the layout to the
 reorganizer, so the `.ui` form is not reused and the layout is rebuilt. After
 the first layout, `fit_current_tab`
