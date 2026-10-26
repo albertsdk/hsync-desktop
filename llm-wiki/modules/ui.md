@@ -275,7 +275,7 @@ The devices tab shows
 | `FileTransferTable` | `file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
 | `FileTransferModel` | `file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
 | `FileDetailPanel` | `file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
-| `ProgressBarDelegate` / `CenteredIconDelegate` | `file_panel/delegates.py::ProgressBarDelegate` / `file_panel/delegates.py::CenteredIconDelegate` | cell rendering |
+| `ProgressBarDelegate` | `file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
 | `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay during scans |
 | `_confirm_dialog` | `file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
@@ -379,29 +379,35 @@ The table re-localizes its **column headers** on a live language change
 `file_panel/panel.py::FilePanel.retranslate_columns` from
 `main_window/ui.py::UiBuildMixin._apply_translations`).
 
-**Columns**: the table ships the standard columns plus two optional ones —
-**Speed** (`file.speed`, the live `speed_bps` rate, blank when not transferring),
-hidden by default, and **Direction** (`file.direction`, the ↑/↓ arrow — ✕ on a
-deleted row, ⇄ on a rename), visible by default. Direction is **empty at rest**
-(the dash placeholder is noise in a dense column) and its operative glyphs are
-**bold**, a second cue beside the status colour. Visibility is toggled from the
-header menu (`FileTransferTable._show_header_context_menu`), which omits **Name**
-(the primary column carries the row identity); the **Icon** section is pinned
-first (`QHeaderView.setFirstSectionMovable`), so a reorder cannot move the
-unlabeled column away from the leading edge. The **data columns are
-user-resizable** (`Interactive`, global floor `_MIN_SECTION_WIDTH`, data floor
-`_MIN_COLUMN_WIDTH` enforced on every drag by
-`FileTransferTable._on_section_resized`), **Name** stays `Stretch` (the flexible
-column, still sized by the window) and **Icon** stays `Fixed`; a double-click on
-a section handle fits that column to its content
+**Columns**: the default order is `file_panel/utils.py::_COLUMN_KEYS` — Name,
+Direction, Size, Type, Modified, Progress, Status, Estimated Time, Speed. The row
+icon is a **decoration of the Name cell** (`FileTableModel.data` `DecorationRole`,
+no icon column), so identity leads; Direction follows the name because it is the
+one column that says what will happen to the row (the transfer-queue convention)
+and it stays on screen in a narrow window instead of being the first section
+scrolled out. **Type** and **Speed** are optional and start hidden
+(`FileTransferTable._DEFAULT_HIDDEN`): the icon already conveys the type and the
+live rate (`file.speed`, `speed_bps`) matters only while a transfer runs.
+Direction (`file.direction`, the ↑/↓ arrow — ✕ on a deleted row, ⇄ on a rename) is
+**empty at rest** (the dash placeholder is noise in a dense column) and its
+operative glyphs are **bold**, a second cue beside the status colour. Visibility
+is toggled from the header menu (`FileTransferTable._show_header_context_menu`),
+which omits **Name** (the primary column carries the row identity); Name is also
+pinned as the first section (`QHeaderView.setFirstSectionMovable`), so a reorder
+cannot push the identity column inward. The **data columns are user-resizable**
+(`Interactive`, floor `_MIN_COLUMN_WIDTH`, which is also the header's
+`setMinimumSectionSize`, so Qt enforces it on a drag), **Name** stays `Stretch`
+(the flexible column, still sized by the window); a double-click on a section
+handle fits that column to its content
 (`FileTransferTable._fit_column_to_contents`).
 
 The whole layout — widths, visual order and hidden sections — is one
-`QHeaderView` state blob persisted in `ui/file_table_header_state_v1`
+`QHeaderView` state blob persisted in `ui/file_table_header_state_v2`
 (`FileTransferTable._save_header_state` / `_restore_header_state`), written after
 the drag settles (`_STATE_SAVE_DELAY_MS` debounce, flushed by
-`FileTransferTable.hideEvent`). **Bump the `_v1` suffix whenever the column set
-changes**: `restoreState` does not validate the section count and would apply a
+`FileTransferTable.hideEvent`). **Bump the `_vN` suffix whenever the column set
+changes** (as `_v2` did when the icon column became a cell decoration):
+`restoreState` does not validate the section count and would apply a
 stale blob to the wrong sections. Widths are seeded once from the content on the
 first populated refresh (`FileTransferTable._size_columns_to_contents`) when
 nothing is stored. Stretch-driven resizes are **not** persisted: Name also

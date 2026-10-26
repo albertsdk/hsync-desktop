@@ -52,7 +52,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
-from hsync_desktop.file_panel.delegates import CenteredIconDelegate, ProgressBarDelegate
+from hsync_desktop.file_panel.delegates import ProgressBarDelegate
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import has_dot_segment
 from hsync_desktop.file_panel.models import (
@@ -66,7 +66,6 @@ from hsync_desktop.file_panel.utils import (
     _COLUMN_KEYS,
     COL_DIRECTION,
     COL_ETA,
-    COL_ICON,
     COL_MODIFIED,
     COL_NAME,
     COL_PROGRESS,
@@ -127,10 +126,9 @@ _STATUS_TEXT_KEYS = {
     TransferStatus.ERROR: "status.error",
 }
 
-# Global minimum section width (matches the fixed Icon column, which must stay
-# narrow); data columns get the larger _MIN_COLUMN_WIDTH floor.
-_MIN_SECTION_WIDTH = 32
-# Minimum width a data column keeps when fitted, restored or dragged, in px.
+# Minimum width a data column keeps when fitted, restored or dragged, in px. It
+# is also the header's global minimum section size, so Qt enforces the floor on
+# an interactive drag.
 _MIN_COLUMN_WIDTH = 48
 # Readable floor for the stretch Name column, in px. A stretch column is
 # shrunk to the global minimum section size instead of extending the scroll
@@ -146,9 +144,9 @@ _MIN_NAME_FIRST_RUN = 460
 # Idle time after the last column adjustment before the layout is persisted.
 _STATE_SAVE_DELAY_MS = 300
 
-# Data columns whose width is fitted to the content once (the Icon is fixed,
-# Name stretches and Progress keeps its explicit default width).
-_FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_ETA, COL_STATUS, COL_SPEED, COL_DIRECTION)
+# Data columns whose width is fitted to the content once (Name stretches and
+# Progress keeps its explicit default width).
+_FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
 
 
 class FileTransferModel(QAbstractTableModel):
@@ -242,7 +240,7 @@ class FileTransferModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self._display_value(display_name, transfer, folder_data, is_folder, col)
         if role == Qt.ItemDataRole.DecorationRole:
-            return self._icon(transfer, is_folder) if col == COL_ICON else None
+            return self._icon(transfer, is_folder) if col == COL_NAME else None
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return self._alignment(col)
         if role == Qt.ItemDataRole.UserRole:
@@ -293,7 +291,7 @@ class FileTransferModel(QAbstractTableModel):
         is_folder: bool,
         col: int,
     ) -> str:
-        if col in (COL_ICON, COL_PROGRESS):
+        if col == COL_PROGRESS:
             return ""
         if col == COL_NAME:
             return display_name
@@ -344,10 +342,7 @@ class FileTransferModel(QAbstractTableModel):
 
     @staticmethod
     def _alignment(col: int) -> int | None:
-        center = int(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         right = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        if col == COL_ICON:
-            return center
         if col == COL_DIRECTION:
             return int(Qt.AlignmentFlag.AlignCenter)
         if col in (COL_SIZE, COL_MODIFIED, COL_ETA, COL_SPEED):
@@ -435,14 +430,15 @@ class FileTransferTable(QTableView):
     receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
 
     # Persisted header layout: one QHeaderView state blob carrying the section
-    # widths, the visual order and the hidden sections. Bump the ``_v1`` suffix
+    # widths, the visual order and the hidden sections. Bump the version suffix
     # whenever the column set changes: restoreState does not validate the section
     # count and would apply a stale blob to the wrong sections.
-    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v1"
+    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v2"
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
-    # Optional columns that start hidden; the current columns stay visible.
-    _DEFAULT_HIDDEN = (COL_SPEED,)
+    # Optional columns that start hidden: the row icon already conveys the type,
+    # and the live rate matters only while a transfer runs.
+    _DEFAULT_HIDDEN = (COL_TYPE, COL_SPEED)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -549,24 +545,19 @@ class FileTransferTable(QTableView):
         header = self.horizontalHeader()
         header.setHighlightSections(False)  # Prevent bold header on row selection
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
-        # The icon column has no header text: pin it so the rows keep their lead.
+        # Name is the row identity: keep it leading whatever the user drags.
         header.setFirstSectionMovable(False)
-        header.setSectionResizeMode(COL_ICON, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_SPEED, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.Interactive)
         # Keep every column wide enough to stay readable when dragged narrow.
-        header.setMinimumSectionSize(_MIN_SECTION_WIDTH)
-
-        # Icon column: centered icon with fixed width
-        self.setItemDelegateForColumn(COL_ICON, CenteredIconDelegate(self))
-        header.resizeSection(COL_ICON, 32)
+        header.setMinimumSectionSize(_MIN_COLUMN_WIDTH)
 
         # Progress bar delegate and default column width
         self.setItemDelegateForColumn(COL_PROGRESS, ProgressBarDelegate(self))
@@ -658,23 +649,21 @@ class FileTransferTable(QTableView):
             self._state_save_timer.start()
 
     def _on_section_resized(self, logical: int, old: int, new: int) -> None:
-        """Clamp a user drag to the data floor and persist the new layout.
+        """Persist the new layout after a user drag.
 
-        Icon is ``Fixed`` and Name is ``Stretch``: the latter also resizes when
-        the window grows, which is not a layout the user chose. Skipping it (on
-        top of the debounce) keeps a plain window resize from creating a saved
-        layout, so the first-run Name floor survives the whole session.
+        Name is ``Stretch``: it also resizes when the window grows, which is not a
+        layout the user chose. Skipping it (on top of the debounce) keeps a plain
+        window resize from creating a saved layout, so the first-run Name floor
+        survives the whole session. The data floor needs no clamp here: it is the
+        header's minimum section size.
         """
-        if self._restoring_columns or logical in (COL_ICON, COL_NAME):
-            return
-        if new < _MIN_COLUMN_WIDTH:
-            self.horizontalHeader().resizeSection(logical, _MIN_COLUMN_WIDTH)
+        if self._restoring_columns or logical == COL_NAME:
             return
         self._schedule_header_state_save()
 
     def _fit_column_to_contents(self, logical: int) -> None:
         """Fit one data column to its content (header handle double-click)."""
-        if logical in (COL_ICON, COL_NAME):
+        if logical == COL_NAME:
             return
         header = self.horizontalHeader()
         width = max(self.sizeHintForColumn(logical), header.sectionSizeHint(logical)) + 8
@@ -752,9 +741,8 @@ class FileTransferTable(QTableView):
         header = self.horizontalHeader()
 
         for col, key in enumerate(_COLUMN_KEYS):
-            if not key or col == COL_NAME:
-                # The icon column has no header text and Name is the row identity:
-                # both stay visible.
+            if col == COL_NAME:
+                # Name is the row identity: it never hides.
                 continue
             action = QAction(tr(key), menu)
             action.setCheckable(True)

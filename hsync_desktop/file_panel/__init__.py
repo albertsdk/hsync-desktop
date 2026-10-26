@@ -10,7 +10,7 @@ This module provides the file transfer panel functionality, split into:
 - transfer_table: FileTransferTable (hierarchical transfer view)
 - detail_panel: FileDetailPanel
 - overlay: LoadingOverlay
-- delegates: ProgressBarDelegate / CenteredIconDelegate
+- delegates: ProgressBarDelegate
 - dialogs: shared confirmation dialog
 - filter: engine-aligned scan predicate and hidden-name view helper
 - workers: Background workers (DirectoryScanWorker)
@@ -29,7 +29,6 @@ from hsync_desktop.file_panel.transfer_table import FileTransferTable
 from hsync_desktop.file_panel.utils import (
     _FILE_TYPE_MAP,
     COL_ETA,
-    COL_ICON,
     COL_MODIFIED,
     COL_NAME,
     COL_PROGRESS,
@@ -45,7 +44,6 @@ from hsync_desktop.file_panel.workers import DirectoryScanWorker
 
 __all__ = [
     "COL_ETA",
-    "COL_ICON",
     "COL_MODIFIED",
     "COL_NAME",
     "COL_PROGRESS",

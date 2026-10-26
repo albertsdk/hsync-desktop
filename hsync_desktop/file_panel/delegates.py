@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Item delegates that draw the transfer table's progress bar and centered icons."""
+"""Item delegate that draws the transfer table's progress bar."""
 
 from __future__ import annotations
 
@@ -33,21 +33,3 @@ class ProgressBarDelegate(QStyledItemDelegate):
         style = QApplication.style()
         if style:
             style.drawControl(QStyle.ControlElement.CE_ProgressBar, opt, painter)
-
-
-class CenteredIconDelegate(QStyledItemDelegate):
-    """Custom delegate that centers the icon in the cell."""
-
-    def paint(self, painter, option, index):
-        # Draw selection background if selected
-        if option.state & QStyle.StateFlag.State_Selected:
-            painter.fillRect(option.rect, option.palette.highlight())
-
-        # Get the icon from the item
-        icon = index.data(Qt.ItemDataRole.DecorationRole)
-        if icon and not icon.isNull():
-            # Calculate centered position
-            icon_size = option.decorationSize
-            x = option.rect.x() + (option.rect.width() - icon_size.width()) // 2
-            y = option.rect.y() + (option.rect.height() - icon_size.height()) // 2
-            icon.paint(painter, x, y, icon_size.width(), icon_size.height())

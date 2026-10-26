@@ -16,31 +16,30 @@ from PySide6.QtCore import QLocale
 
 from hsync_desktop.i18n import get_language, tr
 
-# Column indices and translation keys
-COL_ICON = 0
-COL_NAME = 1
+# Column indices, in the default visual order. The row icon is drawn inside the
+# Name cell, so the identifying column leads; Direction follows it because it
+# explains what will happen to the row (the transfer-queue convention).
+COL_NAME = 0
+COL_DIRECTION = 1
 COL_SIZE = 2
 COL_TYPE = 3
 COL_MODIFIED = 4
 COL_PROGRESS = 5
-COL_ETA = 6
-COL_STATUS = 7
-# Optional columns, hidden by default (see FileTransferTable._DEFAULT_HIDDEN).
+COL_STATUS = 6
+COL_ETA = 7
 COL_SPEED = 8
-COL_DIRECTION = 9
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
-    "",  # icon column — no header text
     "file.name",
+    "file.direction",
     "file.size",
     "file.type",
     "file.modified",
     "file.progress",
-    "file.eta",
     "file.status",
+    "file.eta",
     "file.speed",
-    "file.direction",
 ]
 
 

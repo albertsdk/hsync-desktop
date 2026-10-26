@@ -678,7 +678,7 @@ class TestOptionalColumns:
         qtbot.addWidget(table)
         return table
 
-    def test_speed_starts_hidden_and_direction_is_visible(self, qtbot, tmp_path, monkeypatch):
+    def test_optional_columns_start_hidden(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
 
         from hsync_desktop.file_panel import transfer_table as tt
@@ -688,10 +688,55 @@ class TestOptionalColumns:
         table = self._table(qtbot)
         header = table.horizontalHeader()
 
+        # The icon conveys the type and the rate only matters while transferring.
+        assert header.isSectionHidden(tt.COL_TYPE)
         assert header.isSectionHidden(tt.COL_SPEED)
         assert not header.isSectionHidden(tt.COL_DIRECTION)
         for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_STATUS):
             assert not header.isSectionHidden(col)
+
+    def test_the_default_order_puts_direction_next_to_the_name(self, qtbot):
+        """Identity first, then what will happen to the row, then the metrics."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        header = table.horizontalHeader()
+
+        order = [header.logicalIndex(i) for i in range(header.count())]
+
+        assert order == [
+            tt.COL_NAME,
+            tt.COL_DIRECTION,
+            tt.COL_SIZE,
+            tt.COL_TYPE,
+            tt.COL_MODIFIED,
+            tt.COL_PROGRESS,
+            tt.COL_STATUS,
+            tt.COL_ETA,
+            tt.COL_SPEED,
+        ]
+
+    def test_the_name_cell_carries_the_row_icon(self, qtbot):
+        """The icon is a decoration of the name cell, not a column of its own."""
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+        model = table.model()
+
+        name_icon = model.data(model.index(0, tt.COL_NAME), Qt.ItemDataRole.DecorationRole)
+        direction_icon = model.data(
+            model.index(0, tt.COL_DIRECTION), Qt.ItemDataRole.DecorationRole
+        )
+
+        assert name_icon is not None and not name_icon.isNull()
+        assert direction_icon is None
+        # No unlabeled section is left: the icon column is gone.
+        assert all(tt._COLUMN_KEYS)
 
     def test_headers_include_the_optional_columns(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -902,9 +947,8 @@ class TestColumnResizing:
         ):
             assert header.sectionResizeMode(col) is QHeaderView.ResizeMode.Interactive
         assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Stretch
-        assert header.sectionResizeMode(tt.COL_ICON) is QHeaderView.ResizeMode.Fixed
-        assert header.minimumSectionSize() == tt._MIN_SECTION_WIDTH
-        # The unlabeled icon column is pinned: reordering must not lead with it.
+        assert header.minimumSectionSize() == tt._MIN_COLUMN_WIDTH
+        # Name leads the rows: it stays the first section whatever is dragged.
         assert header.isFirstSectionMovable() is False
 
     def test_a_user_width_is_persisted_and_restored(self, qtbot, tmp_path, monkeypatch):
@@ -995,7 +1039,7 @@ class TestColumnResizing:
         fresh_header = fresh.horizontalHeader()
         order = [fresh_header.logicalIndex(i) for i in range(fresh_header.count())]
 
-        assert order[0] == tt.COL_ICON
+        assert order[0] == tt.COL_NAME
         assert order[1] == tt.COL_SIZE
 
     def test_the_primary_name_column_cannot_be_hidden(self, qtbot, tmp_path, monkeypatch):
@@ -1132,8 +1176,7 @@ class TestColumnResizing:
         assert table._columns_sized
         header = table.horizontalHeader()
         assert header.sectionSize(tt.COL_SIZE) >= tt._MIN_COLUMN_WIDTH
-        # The fitted pass touches only data columns.
-        assert header.sectionSize(tt.COL_ICON) == 32
+        # The fitted pass leaves the progress bar at its explicit width.
         assert header.sectionSize(tt.COL_PROGRESS) == 130
 
 
@@ -1330,7 +1373,8 @@ class TestCopyPath:
         assert texts.index(tr("ctx.copy_path")) + 1 == texts.index(tr("ctx.copy_path_relative"))
         assert texts.index(tr("ctx.copy_path_relative")) + 1 == texts.index(tr("ctx.rename"))
         assert texts[-1] == tr("ctx.properties")
-        assert tt.COL_NAME == 1  # sanity: the table is the file panel one
+        # Sanity: the table is the file panel one, with the name in the first cell.
+        assert table.model().headerData(0, Qt.Orientation.Horizontal) == tr("file.name")
 
 
 class TestEmptyFolderStatus:
