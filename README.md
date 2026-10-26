@@ -22,6 +22,13 @@ The desktop drives the `hsync` client as a subprocess over an explicit, versione
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg)](https://www.qt.io/)
 
+[![Debian/Ubuntu .deb](https://img.shields.io/badge/DEB-Debian%2FUbuntu-A81D33?logo=debian&logoColor=white)](docs/getting-started-deb.md)
+[![RPM](https://img.shields.io/badge/RPM-RHEL%2FFedora-EE0000?logo=redhat&logoColor=white)](docs/getting-started-rpm.md)
+[![AppImage](https://img.shields.io/badge/AppImage-Linux_x86__64-6DA741?logo=linux&logoColor=white)](docs/getting-started-appimage.md)
+[![Snap](https://img.shields.io/badge/Snap-classic-82BEA0?logo=snapcraft&logoColor=white)](docs/getting-started-snap.md)
+[![macOS](https://img.shields.io/badge/macOS-Apple_silicon_%7C_Intel-000000?logo=apple&logoColor=white)](docs/getting-started-macos.md)
+[![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white)](docs/getting-started-windows.md)
+
 <p align="center">
   <img src="docs/assets/hsync-desktop-gui.png" alt="HSYNC Desktop main window: file transfer panel with per-file progress, status bar and live log" width="720">
 </p>
