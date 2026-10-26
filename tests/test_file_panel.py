@@ -480,6 +480,34 @@ class TestHeaderWidthsFitTheirLabels:
 
         self._assert_readable(second)
 
+    def test_showing_a_hidden_column_keeps_its_header_readable(self, qtbot, monkeypatch, tmp_path):
+        """A hidden section keeps its old width; showing it must not clip the label."""
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        first = tt.FileTransferTable()
+        qtbot.addWidget(first)
+        first._toggle_column(tt.COL_SPEED, True)
+        first.horizontalHeader().resizeSection(tt.COL_SPEED, 60)
+        first._toggle_column(tt.COL_SPEED, False)
+        first._save_header_state()
+
+        second = tt.FileTransferTable()
+        qtbot.addWidget(second)
+        second.show()
+        qtbot.waitExposed(second)
+        second._toggle_column(tt.COL_SPEED, True)
+        qtbot.wait(10)
+
+        header = second.horizontalHeader()
+        assert (
+            header.sectionSize(tt.COL_SPEED) >= header.sectionSizeFromContents(tt.COL_SPEED).width()
+        )
+        self._assert_readable(second)
+
     def test_a_language_change_keeps_the_headers_readable(self, qtbot, monkeypatch):
         from hsync_desktop.file_panel import transfer_table as tt
 

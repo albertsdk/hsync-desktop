@@ -378,7 +378,8 @@ The table re-localizes its **column headers** on a live language change
 (`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
 `file_panel/panel.py::FilePanel.retranslate_columns` from
 `main_window/ui.py::UiBuildMixin._apply_translations`). The same path (and
-`refresh_fonts`, and the restored layout) runs
+`refresh_fonts`, the restored layout and `_toggle_column` when a hidden column is
+shown again) runs
 `file_panel/transfer_table.py::FileTransferTable._ensure_readable_headers`: a
 section narrower than its own header hint is widened, because the header is
 centred and would otherwise clip the label on both sides (the `Estimated time`

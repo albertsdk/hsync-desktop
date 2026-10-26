@@ -789,11 +789,15 @@ class FileTransferTable(QTableView):
         menu.exec(header.mapToGlobal(pos))
 
     def _toggle_column(self, col: int, visible: bool) -> None:
-        """Toggle visibility of a column, fitting it when it has no width."""
+        """Toggle visibility of a column, keeping its header readable when shown."""
         header = self.horizontalHeader()
         header.setSectionHidden(col, not visible)
-        if visible and header.sectionSize(col) < _MIN_COLUMN_WIDTH:
-            self._fit_column_to_contents(col)
+        if visible:
+            if header.sectionSize(col) < _MIN_COLUMN_WIDTH:
+                self._fit_column_to_contents(col)
+            # A hidden section keeps whatever width it had when it was hidden, so
+            # a stale narrow one would clip its (centred) label on both sides.
+            self._ensure_readable_headers()
         self._save_header_state()
 
     def _reset_columns(self) -> None:
