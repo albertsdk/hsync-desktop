@@ -141,6 +141,37 @@ class TestMacosEntry:
 
 
 class TestLaunchCommand:
+    @pytest.fixture(autouse=True)
+    def _clean_launcher_env(self, monkeypatch):
+        """Isolate the launcher from a host SNAP/APPIMAGE environment."""
+        monkeypatch.delenv("SNAP", raising=False)
+        monkeypatch.delenv("APPIMAGE", raising=False)
+
+    def test_snap_uses_snap_run(self, monkeypatch):
+        """In a snap the entry must not point at a revision-specific binary."""
+        monkeypatch.setenv("SNAP", "/snap/hsync-desktop/current")
+        monkeypatch.setattr(
+            autostart.shutil,
+            "which",
+            lambda name: "/usr/bin/snap" if name == "snap" else None,
+        )
+        assert autostart._launch_command() == [
+            "/usr/bin/snap",
+            "run",
+            "hsync-desktop",
+            "--minimized",
+        ]
+
+    def test_a_missing_snap_binary_falls_through(self, monkeypatch):
+        monkeypatch.setenv("SNAP", "/snap/hsync-desktop/current")
+        monkeypatch.setattr(autostart.shutil, "which", lambda name: None)
+        assert autostart._launch_command() == [
+            sys.executable,
+            "-m",
+            "hsync_desktop",
+            "--minimized",
+        ]
+
     def test_appimage_wins(self, monkeypatch):
         monkeypatch.setenv("APPIMAGE", "/apps/HSYNC.AppImage")
         assert autostart._launch_command() == ["/apps/HSYNC.AppImage", "--minimized"]

@@ -79,5 +79,8 @@ packaging/appimage/.cache/
 # Windows installer — the .ico is generated at build time from the app PNG.
 packaging/windows/icon.ico
 
+# Snap — CI stages the PyInstaller onefile here before snapcraft runs.
+snap/payload/bin/
+
 # HSYNC
 .hsynckeep

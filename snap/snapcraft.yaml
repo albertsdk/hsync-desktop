@@ -1,0 +1,96 @@
+name: hsync-desktop
+title: HSYNC Desktop
+base: core24
+version: "0.0.0"
+summary: Sync your folders across devices
+description: |
+  HSYNC Desktop is the graphical front-end for HSYNC, a self-hosted file
+  synchronization network. Start and stop sync, watch per-file transfers,
+  configure server or peer-to-peer mode, and manage trust prompts from a native
+  window with a system tray. The matching hsync engine is bundled, so no
+  separate client install is required.
+
+  Classic confinement is required: the app syncs user-chosen folders anywhere on
+  the filesystem, keeps settings and secrets under the user's config directory,
+  manages a login autostart entry, reads desktop theming configuration, and
+  spawns its bundled engine which binds local TCP ports.
+grade: stable
+confinement: classic
+license: BSD-3-Clause
+contact: https://github.com/albertsdk/hsync-desktop/issues
+issues: https://github.com/albertsdk/hsync-desktop/issues
+source-code: https://github.com/albertsdk/hsync-desktop
+website: https://github.com/albertsdk/hsync-desktop
+icon: snap/gui/hsync-desktop.png
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  hsync-desktop:
+    command: bin/hsync-desktop
+    desktop: snap/gui/hsync-desktop.desktop
+    environment:
+      # PyInstaller does not bundle glibc: the onefile runs against the base's
+      # glibc and extracts into an executable, revision-safe directory.
+      # SNAP_USER_COMMON exists on every run. Forcing the generic platform theme
+      # keeps the bundled GLib off the host GSettings schemas (the app applies
+      # its own light/dark styling).
+      QT_QPA_PLATFORMTHEME: generic
+      TMPDIR: $SNAP_USER_COMMON
+    plugs:
+      - desktop
+      - x11
+      - wayland
+      - unity7
+      - gsettings
+      - network
+      - network-bind
+      - home
+      - removable-media
+      - hardware-observe
+
+parts:
+  hsync-desktop:
+    plugin: dump
+    # The CI stages the per-arch PyInstaller onefile (client bundled) at
+    # snap/payload/bin/hsync-desktop; the committed tree only carries a
+    # placeholder so the directory exists.
+    source: snap/payload
+    stage-packages:
+      # Host tools the frozen payload invokes.
+      - libglib2.0-bin   # gio trash
+      - xdg-utils        # xdg-open / open containing folder
+      # Runtime libraries Qt6/PySide6 links against but does not bundle.
+      - libgl1
+      - libegl1
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libxcb1
+      - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
+      - libxcb-present0
+      - libxcb-randr0
+      - libxcb-render-util0
+      - libxcb-shape0
+      - libxcb-shm0
+      - libxcb-sync1
+      - libxcb-util1
+      - libxcb-xfixes0
+      - libxcb-xinerama0
+      - libxcb-xinput0
+      - libxcb-xkb1
+      - libx11-xcb1
+      - libxrender1
+      - libxi6
+      - libxtst6
+      - libdrm2
+      - libwayland-client0
+      - libfontconfig1
+      - libfreetype6
+      - libdbus-1-3
+      - libglib2.0-0t64
+      - libcups2t64

@@ -82,13 +82,32 @@ def set_enabled(enabled: bool) -> None:
         _windows_write() if enabled else _windows_remove()
 
 
+def _snap_launch_command() -> list[str] | None:
+    """The login command inside a snap: a revision-independent ``snap run``.
+
+    In a snap ``sys.executable`` points at a revision-specific path
+    (``/snap/hsync-desktop/<rev>/…``) that stops existing after a refresh, so the
+    autostart entry must go through ``snap run <snap>`` instead.
+    """
+    if not os.environ.get("SNAP"):
+        return None
+    snap = shutil.which("snap")
+    if not snap:
+        return None
+    return [snap, "run", _APP_NAME, MINIMIZED_FLAG]
+
+
 def _launch_command() -> list[str]:
     """The command that starts the GUI minimized, for the autostart entry.
 
-    Resolves the running app: an AppImage via ``$APPIMAGE``, a frozen bundle
-    via ``sys.executable``, the installed ``hsync-desktop`` launcher on ``PATH``,
-    and finally the module form for a source run.
+    Resolves the running app: a snap via ``snap run``, an AppImage via
+    ``$APPIMAGE``, a frozen bundle via ``sys.executable``, the installed
+    ``hsync-desktop`` launcher on ``PATH``, and finally the module form for a
+    source run.
     """
+    snap_command = _snap_launch_command()
+    if snap_command is not None:
+        return snap_command
     appimage = os.environ.get("APPIMAGE")
     if appimage:
         return [appimage, MINIMIZED_FLAG]

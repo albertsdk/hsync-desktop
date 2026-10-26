@@ -74,7 +74,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,    target: linux-amd64,   ext: "",     archive: tar }
+          - { os: ubuntu-24.04,    target: linux-amd64,   ext: "",     archive: tar }
           - { os: ubuntu-24.04-arm,  target: linux-arm64,   ext: "",     archive: tar }
           - { os: macos-latest,     target: darwin-arm64,  ext: "",     archive: tar }
           - { os: macos-15-intel,   target: darwin-amd64,  ext: "",     archive: tar }
@@ -126,6 +126,19 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --with build --no-interaction
           ./compile.sh
+      - name: Assert the client glibc floor (Linux)
+        # Snap core24 provides glibc 2.39; a newer symbol would abort at load time.
+        if: runner.os == 'Linux'
+        working-directory: hsync-client
+        run: |
+          bin="dist/${{ matrix.target }}/hsync"
+          max=$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1 || true)
+          newer=$(printf '%s\n' "${max:-GLIBC_2.0}" GLIBC_2.39 | sort -V | tail -1)
+          if [ "$newer" != "GLIBC_2.39" ]; then
+            echo "::error::$bin requires ${max} (Snap core24 provides GLIBC_2.39)"
+            exit 1
+          fi
+          echo "$bin requires at most ${max:-none}"
       - name: Install dependencies
         working-directory: hsync-desktop
         run: |
@@ -136,6 +149,19 @@ jobs:
         if: matrix.target != 'windows-amd64'
         working-directory: hsync-desktop
         run: ./compile.sh
+      - name: Assert the desktop glibc floor (Linux)
+        # Snap core24 provides glibc 2.39; a newer symbol would abort at load time.
+        if: runner.os == 'Linux'
+        working-directory: hsync-desktop
+        run: |
+          bin="dist/${{ matrix.target }}/hsync-desktop"
+          max=$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1 || true)
+          newer=$(printf '%s\n' "${max:-GLIBC_2.0}" GLIBC_2.39 | sort -V | tail -1)
+          if [ "$newer" != "GLIBC_2.39" ]; then
+            echo "::error::$bin requires ${max} (Snap core24 provides GLIBC_2.39)"
+            exit 1
+          fi
+          echo "$bin requires at most ${max:-none}"
       - name: Free disk space before packaging
         # The .dmg staging and hdiutil's temp image need room on the same volume;
         # the macOS runners are tight on space and otherwise hit ENOSPC here.
@@ -298,8 +324,94 @@ jobs:
           name: appimage
           path: hsync-desktop/dist/appimage/*.AppImage
 
+  build-snap:
+    needs: [gate, build-binaries]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,     arch: amd64 }
+          - { os: ubuntu-24.04-arm, arch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { path: hsync-desktop }
+      - uses: actions/download-artifact@v8
+        with:
+          name: bin-linux-${{ matrix.arch }}
+          path: snap-input
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            BASE=$(grep -E '^version\s*=' hsync-desktop/pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            SUFFIX="${{ inputs.version_suffix }}"
+            if [ -n "$SUFFIX" ]; then echo "version=${BASE}-${SUFFIX}" >> "$GITHUB_OUTPUT"; else echo "version=${BASE}" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - name: Stage the desktop onefile into the snap payload
+        working-directory: hsync-desktop
+        run: |
+          mkdir -p snap/payload/bin
+          tmp="$(mktemp -d)"
+          tar -xzf ../snap-input/*.tar.gz -C "$tmp"
+          bin="$(find "$tmp" -type f -name hsync-desktop | head -1)"
+          test -n "$bin"
+          cp "$bin" snap/payload/bin/hsync-desktop
+          chmod +x snap/payload/bin/hsync-desktop
+          rm -rf "$tmp"
+      - name: Assert the snap payload glibc floor
+        # Snap core24 provides glibc 2.39; a newer symbol would abort at load time.
+        working-directory: hsync-desktop
+        run: |
+          bin=snap/payload/bin/hsync-desktop
+          max=$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1 || true)
+          newer=$(printf '%s\n' "${max:-GLIBC_2.0}" GLIBC_2.39 | sort -V | tail -1)
+          if [ "$newer" != "GLIBC_2.39" ]; then
+            echo "::error::$bin requires ${max} (Snap core24 provides GLIBC_2.39)"
+            exit 1
+          fi
+          echo "$bin requires at most ${max:-none}"
+      - name: Set the snap version
+        working-directory: hsync-desktop
+        run: |
+          sed -i "s/^version:.*$/version: \"${{ steps.version.outputs.version }}\"/" snap/snapcraft.yaml
+          grep -n '^version:' snap/snapcraft.yaml
+      - name: Build the snap
+        uses: snapcore/action-build@v1
+        with:
+          path: hsync-desktop
+      - name: Lint the snap
+        run: |
+          sudo snap install snapcraft --classic --channel=8.x/stable
+          snapcraft lint $(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: snap-${{ matrix.arch }}
+          path: hsync-desktop/*.snap
+
+  publish-snap:
+    needs: build-snap
+    # Classic confinement is reviewed manually: keep tag-driven publishing
+    # disabled until the store approves the first revision (repository variable).
+    if: github.event_name == 'push' && vars.SNAP_CLASSIC_APPROVED == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: snap-*
+          path: snaps
+          merge-multiple: true
+      - name: Publish to the Snap Store (edge)
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          sudo snap install snapcraft --classic --channel=8.x/stable
+          snapcraft upload snaps/*.snap --release edge
+
   release:
-    needs: [build-binaries, build-packages, build-appimage]
+    needs: [build-binaries, build-packages, build-appimage, build-snap]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -344,6 +456,8 @@ jobs:
             "hsync-desktop-*-windows-amd64.zip|hsync-desktop-windows-amd64.zip" \
             "hsync-desktop_*_amd64.deb|hsync-desktop-amd64.deb" \
             "hsync-desktop_*_arm64.deb|hsync-desktop-arm64.deb" \
+            "hsync-desktop_*_amd64.snap|hsync-desktop-amd64.snap" \
+            "hsync-desktop_*_arm64.snap|hsync-desktop-arm64.snap" \
             "hsync-desktop-*-1.el9.x86_64.rpm|hsync-desktop-x86_64.rpm" \
             "hsync-desktop-*-1.el10.aarch64.rpm|hsync-desktop-aarch64.rpm" \
             "hsync-desktop-*-x86_64.AppImage|hsync-desktop-x86_64.AppImage" \
