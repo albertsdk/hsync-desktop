@@ -22,7 +22,8 @@ links the matching guide.
 
 **New here?** Use the [Setup wizard](setup-wizard.md): four steps that cover the
 common cases (back up, sync on the same network, sync from anywhere, share with a
-team).
+team). If you are still choosing between server mode and p2p mode, read
+[Choosing a connection mode](connection-modes.md) first.
 
 For full control, open **Settings** (p2p Mode or Server Mode). Every setting is
 documented in the [Configuration Reference](configuration.md). The words the app

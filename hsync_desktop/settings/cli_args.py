@@ -36,6 +36,7 @@ from hsync_desktop.config import (
     DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_PEER_DOWNLOAD,
+    DEFAULT_P2P_TRUST,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
     DEFAULT_STABILITY_DELAY,
@@ -303,6 +304,11 @@ def _append_advanced_args(args: list[str], s: QSettings) -> None:
     args += ["--mass-delete-percent", str(guard_percent)]
 
 
+# P2P master trust policies the client accepts (ADR-0040). A stored value
+# outside this set comes from a hand-edited settings file and is dropped.
+_P2P_TRUST_POLICIES = frozenset({"ask", "accept-new", "strict"})
+
+
 def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
     """Append the p2p flags; a no-op in server mode."""
     # p2p
@@ -330,8 +336,8 @@ def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
             args.append("--prefer-master")
         if s.value("p2p/never_master", False, bool):
             args.append("--never-master")
-        if s.value("p2p/require_pairing", False, bool):
-            args.append("--require-pairing")
+        trust = str(s.value("p2p/trust", DEFAULT_P2P_TRUST, str))
+        args += ["--p2p-trust", trust if trust in _P2P_TRUST_POLICIES else DEFAULT_P2P_TRUST]
         if not s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool):
             args.append("--no-peer-download")
 

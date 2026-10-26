@@ -87,7 +87,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
     DEFAULT_P2P_PORT,
-    DEFAULT_P2P_REQUIRE_PAIRING,
+    DEFAULT_P2P_TRUST,
     DEFAULT_P2P_UPNP_ENABLED,
     DEFAULT_PREFER_MASTER,
     DEFAULT_QUIET,
@@ -244,6 +244,19 @@ class SettingsDialog(QDialog):
         index = self.p2p_bootnode_trust.findData(current)
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
 
+    def _populate_p2p_trust(self) -> None:
+        """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""
+        current = self.p2p_trust.currentData()
+        self.p2p_trust.clear()
+        for value, key in (
+            ("ask", "settings.p2p_trust_ask"),
+            ("accept-new", "settings.p2p_trust_accept_new"),
+            ("strict", "settings.p2p_trust_strict"),
+        ):
+            self.p2p_trust.addItem(tr(key), value)
+        index = self.p2p_trust.findData(current)
+        self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
+
     def _open_trusted_keys(self) -> None:
         """Open the trust dialog on the bootnode tab (p2p panel button)."""
         TrustedKeysDialog(self, initial_tab="bootnodes").exec()
@@ -334,7 +347,7 @@ class SettingsDialog(QDialog):
             (self.ntp_hosts, "tip.ntp_hosts"),
             (self.prefer_master, "tip.prefer_master"),
             (self.never_master, "tip.never_master"),
-            (self.require_pairing, "tip.require_pairing"),
+            (self.p2p_trust, "tip.p2p_trust"),
             (self.peer_download, "tip.peer_download"),
             (self.peer_read_cap, "tip.peer_read_cap"),
             (self.peer_sources_max, "tip.peer_sources_max"),
@@ -385,10 +398,10 @@ class SettingsDialog(QDialog):
         if doc is None:
             return
         p2p_supported = supports_subcommand(doc, "p2p")
-        gated: list[tuple[str, ToggleSwitch, QLabel]] = [
+        gated: list[tuple[str, QWidget, QLabel]] = [
             ("--prefer-master", self.prefer_master, self._lbl_prefer_master),
             ("--never-master", self.never_master, self._lbl_never_master),
-            ("--require-pairing", self.require_pairing, self._lbl_require_pairing),
+            ("--p2p-trust", self.p2p_trust, self._lbl_p2p_trust),
             ("--upnp", self.p2p_upnp, self._lbl_p2p_upnp),
         ]
         for flag, widget, label in gated:
@@ -396,7 +409,7 @@ class SettingsDialog(QDialog):
                 continue
             self._unsupported_widgets.add(widget)
             self._unsupported_labels.add(label)
-            if widget.isChecked():
+            if isinstance(widget, ToggleSwitch) and widget.isChecked():
                 widget.setChecked(False)
             widget.setEnabled(False)
             label.setEnabled(False)
@@ -640,7 +653,7 @@ class SettingsDialog(QDialog):
             self.ntp_hosts,
             self.prefer_master,
             self.never_master,
-            self.require_pairing,
+            self.p2p_trust,
             self.peer_download,
             self.peer_read_cap,
             self.peer_sources_max,
@@ -1163,7 +1176,7 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/ntp_hosts", self.ntp_hosts.text())
         s.setValue("p2p/prefer_master", self.prefer_master.isChecked())
         s.setValue("p2p/never_master", self.never_master.isChecked())
-        s.setValue("p2p/require_pairing", self.require_pairing.isChecked())
+        s.setValue("p2p/trust", self.p2p_trust.currentData() or DEFAULT_P2P_TRUST)
         s.setValue("p2p/peer_download", self.peer_download.isChecked())
         s.setValue("p2p/peer_read_cap", self.peer_read_cap.value())
         s.setValue("p2p/peer_sources_max", self.peer_sources_max.value())
@@ -1307,9 +1320,8 @@ class SettingsDialog(QDialog):
             bool(s.value("p2p/prefer_master", DEFAULT_PREFER_MASTER, bool))
         )
         self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
-        self.require_pairing.setChecked(
-            bool(s.value("p2p/require_pairing", DEFAULT_P2P_REQUIRE_PAIRING, bool))
-        )
+        index = self.p2p_trust.findData(str(s.value("p2p/trust", DEFAULT_P2P_TRUST, str)))
+        self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
         self.peer_download.setChecked(
             bool(s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool))
         )
@@ -1454,7 +1466,7 @@ class SettingsDialog(QDialog):
             self.ntp_hosts,
             self.prefer_master,
             self.never_master,
-            self.require_pairing,
+            self.p2p_trust,
             self.peer_download,
             self.peer_read_cap,
             self.peer_sources_max,

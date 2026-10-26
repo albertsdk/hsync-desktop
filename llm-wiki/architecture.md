@@ -37,7 +37,7 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
 2. **Probe capabilities**: `get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
 3. **Build args**: `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) maps every persisted
-   setting to the `p2p`/`server` subcommand plus its flags (`--require-pairing`,
+   setting to the `p2p`/`server` subcommand plus its flags (`--p2p-trust`,
    `--allow-deletions`, …).
 4. **Spawn**: `HsyncEngine.start` (`engine/process.py::HsyncEngine.start`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.

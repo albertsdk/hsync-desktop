@@ -60,7 +60,7 @@ for the underlying behaviour.
 | Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
-| Ask before trusting new devices | Ask for confirmation the first time a new device connects, instead of trusting it automatically |
+| New primary device | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). Passed as `--p2p-trust`. A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
 | Download from other devices | In p2p mode, fetch file blocks from other devices, not only the primary |
 | Port | Fixed p2p listening port |
 | Device search timeout | How long to wait for device discovery |

@@ -99,7 +99,10 @@ DEFAULT_P2P_PORT = 0  # 0 = auto-assign
 DEFAULT_DISCOVERY_TIMEOUT = 10
 DEFAULT_PREFER_MASTER = False
 DEFAULT_NEVER_MASTER = False
-DEFAULT_P2P_REQUIRE_PAIRING = False
+# P2P master trust policy (ADR-0040): ask (default) | accept-new | strict.
+# Passed to hsync-client via --p2p-trust; chain/none never pin, so they are not
+# selectable here.
+DEFAULT_P2P_TRUST = "ask"
 # Optional bootnode host for cross-network discovery (bare hostname; empty =
 # mDNS-only). Passed to hsync-client via HSYNC_BOOTNODE.
 DEFAULT_P2P_BOOTNODE = ""

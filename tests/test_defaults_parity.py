@@ -18,6 +18,7 @@ import pytest
 from hsync_common import defaults
 from hsync_common.constants import DELTA_MIN_FILE_SIZE, DELTA_MIN_FILE_SIZE_P2P
 from hsync_common.disk import BYTES_PER_MB
+from hsync_common.protocol.tls_trust import DEFAULT_SELF_SIGNED_POLICY
 
 import hsync_desktop
 from hsync_desktop import config
@@ -49,6 +50,10 @@ class TestSharedDefaultsAreAliases:
         assert config.DEFAULT_P2P_PEER_DOWNLOAD is defaults.P2P_PEER_DOWNLOAD_DEFAULT
         assert config.DEFAULT_P2P_PEER_READ_CAP is defaults.P2P_PEER_READ_CAP_DEFAULT
         assert config.DEFAULT_P2P_PEER_SOURCES_MAX is defaults.P2P_PEER_SOURCES_MAX_DEFAULT
+
+    def test_p2p_master_trust_default_is_the_shared_self_signed_policy(self):
+        """The GUI must not pin its own default for a security decision (ADR-0040)."""
+        assert DEFAULT_SELF_SIGNED_POLICY.value == config.DEFAULT_P2P_TRUST
 
     def test_delta_floors_are_derived_from_the_client_byte_constants(self):
         """The dialog works in KB; the engine's constants are bytes."""

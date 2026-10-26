@@ -346,7 +346,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g3 = QFormLayout(dlg._grp_p2p_role)
     add_row(g3, dlg._lbl_prefer_master, dlg.prefer_master)
     add_row(g3, dlg._lbl_never_master, dlg.never_master)
-    add_row(g3, dlg._lbl_require_pairing, dlg.require_pairing)
+    add_row(g3, dlg._lbl_p2p_trust, dlg.p2p_trust)
     vbox.addWidget(dlg._grp_p2p_role)
 
     # Group 4: advanced tuning

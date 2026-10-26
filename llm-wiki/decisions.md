@@ -66,7 +66,7 @@ disable unsupported controls) is realized in
   (`hsync_desktop/locales/{en,it,de,es,fr,pt,zh,ru,nl,pl,ja}.py`); look up via `i18n.tr`.
 - **Help → Documentation opens the docs index**: `docs_links.DOCS_INDEX` is the
   end-user documentation landing page (`docs/README.md`), while
-  `docs_links.CONNECTION_MODES` (`docs/usage.md`) is the runtime guide the
+  `docs_links.CONNECTION_MODES` (`docs/connection-modes.md`) is the mode chooser the
   wizard's mode step and its "Not sure?" dialog link to. Keeping the two
   constants distinct stops the Help entry from landing on a guide page; guarded
   by `tests/test_docs_links.py::test_docs_index_is_the_documentation_landing_page`.

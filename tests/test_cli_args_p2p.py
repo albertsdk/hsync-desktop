@@ -202,33 +202,35 @@ class TestNeverMasterFlag:
         assert "--never-master" not in args
 
 
-class TestRequirePairingFlag:
-    """Coverage for the --require-pairing (strict pairing) user-facing setting."""
+class TestP2PTrustFlag:
+    """Coverage for the --p2p-trust (new-primary trust policy) setting."""
 
-    def test_require_pairing_default_omits_flag(self):
-        """With p2p enabled and require_pairing left at default, no flag is emitted."""
+    def test_default_emits_ask(self):
+        """With p2p enabled and no stored policy the client default (ask) is sent."""
         args = _build_args({"p2p/enabled": True})
 
-        assert "--require-pairing" not in args
+        assert args[args.index("--p2p-trust") + 1] == "ask"
 
-    def test_require_pairing_false_omits_flag(self):
-        """Explicit require_pairing=False must not emit --require-pairing."""
-        args = _build_args({"p2p/enabled": True, "p2p/require_pairing": False})
+    def test_explicit_policies_are_emitted(self):
+        """Each supported policy is forwarded exactly once, unchanged."""
+        for policy in ("ask", "accept-new", "strict"):
+            args = _build_args({"p2p/enabled": True, "p2p/trust": policy})
 
-        assert "--require-pairing" not in args
+            assert args.count("--p2p-trust") == 1
+            assert args[args.index("--p2p-trust") + 1] == policy
 
-    def test_require_pairing_true_emits_flag(self):
-        """Explicit require_pairing=True must emit --require-pairing exactly once."""
-        args = _build_args({"p2p/enabled": True, "p2p/require_pairing": True})
+    def test_unknown_stored_policy_falls_back_to_default(self):
+        """A hand-edited value outside the contract is never forwarded."""
+        args = _build_args({"p2p/enabled": True, "p2p/trust": "chain"})
 
-        assert args.count("--require-pairing") == 1
+        assert args[args.index("--p2p-trust") + 1] == "ask"
 
-    def test_require_pairing_flag_not_emitted_when_p2p_disabled(self):
-        """p2p disabled: require-pairing flag must be skipped with the rest of the block."""
-        args = _build_args({"p2p/enabled": False, "p2p/require_pairing": True})
+    def test_flag_not_emitted_when_p2p_disabled(self):
+        """p2p disabled: the trust policy is skipped with the rest of the block."""
+        args = _build_args({"p2p/enabled": False, "p2p/trust": "strict"})
 
         assert args[0] == "server"
-        assert "--require-pairing" not in args
+        assert "--p2p-trust" not in args
 
 
 class TestIgnorePatterns:
@@ -348,6 +350,7 @@ class TestClientCapabilitiesParity:
             "--max-wait-timeout",
             "--min-free-disk-space",
             "--never-master",
+            "--p2p-trust",
             "--no-autotune",
             "--color",
             "--no-compression",
@@ -358,7 +361,6 @@ class TestClientCapabilitiesParity:
             "--path",
             "--port",
             "--quiet",
-            "--require-pairing",
             "--retry-delay",
             "--stability-delay",
             "--subdir",

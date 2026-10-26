@@ -105,7 +105,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
         dlg.p2p_mode.setChecked(True)
         assert not dlg.never_master.isEnabled()
-        assert not dlg.require_pairing.isEnabled()
+        assert not dlg.p2p_trust.isEnabled()
         assert not dlg._lbl_never_master.isEnabled()
         assert dlg.never_master.toolTip() == tr("tip.capability_unsupported")
 
@@ -116,7 +116,7 @@ class TestCapabilityGating:
             p2p_flags=[
                 "--prefer-master",
                 "--never-master",
-                "--require-pairing",
+                "--p2p-trust",
                 "--port",
                 "--upnp",
                 "--no-autotune",
@@ -135,7 +135,7 @@ class TestCapabilityGating:
         dlg.p2p_mode.setChecked(True)
         assert dlg.prefer_master.isEnabled()
         assert dlg.never_master.isEnabled()
-        assert dlg.require_pairing.isEnabled()
+        assert dlg.p2p_trust.isEnabled()
         assert dlg.p2p_bootnode.isEnabled()
         assert dlg.p2p_upnp.isEnabled()
         assert not dlg._unsupported_widgets
@@ -165,7 +165,7 @@ class TestCapabilityGating:
         qtbot.addWidget(dlg)
         dlg.p2p_mode.setChecked(True)
         assert dlg.never_master.isEnabled()
-        assert dlg.require_pairing.isEnabled()
+        assert dlg.p2p_trust.isEnabled()
         assert not dlg._unsupported_widgets
 
     def test_unsupported_widget_is_unchecked(self, qtbot, monkeypatch):
@@ -192,7 +192,7 @@ class TestCapabilityGating:
             p2p_flags=["--prefer-master", "--never-master"],
         )
         dlg.p2p_mode.setChecked(True)
-        assert not dlg.require_pairing.isEnabled()
+        assert not dlg.p2p_trust.isEnabled()
 
 
 class TestBootnodeTrustPolicy:

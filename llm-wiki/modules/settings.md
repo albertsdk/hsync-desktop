@@ -7,7 +7,7 @@ How the GUI persists user config and turns it into the binary's command line.
 Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 (`config.py::SETTINGS_ORG`), server defaults (`config.py::DEFAULT_SERVER_TRUST`), sync defaults
 (`config.py::DEFAULT_CONTINUOUS`), p2p defaults
-(`config.py::DEFAULT_P2P_REQUIRE_PAIRING` and neighbours) and NTP servers
+(`config.py::DEFAULT_P2P_TRUST` and neighbours) and NTP servers
 (`config.py::DEFAULT_NTP_HOSTS`). These seed `QSettings` and the dialog.
 
 Values the GUI shares with the CLI engine are **aliases** of
@@ -220,7 +220,7 @@ full URL; `_normalize_server_endpoint`
 "Server address", not "URL". There is no separate port field.
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
-`never_master`, `require_pairing`, `peer_download` and its caps) are disabled +
+`never_master`, `p2p_trust`, `peer_download` and its caps) are disabled +
 unchecked when the probed `CapabilitiesDoc` (from `engine.get_binary_capabilities`)
 lacks the matching CLI option; the unsupported widgets carry the
 `tip.capability_unsupported` tooltip. The Advanced engine knobs
@@ -451,7 +451,7 @@ Advanced-tab engine knobs (`--no-autotune`,
 `--max-concurrent-transfers`, `--no-delta`, `--delta-min-file-size[-p2p]`,
 `--no-mass-delete-guard`, `--mass-delete-threshold`, `--mass-delete-percent`),
 and the p2p block (the `p2p`/`server` subcommand is the
-first token, then `--prefer-master`, `--never-master`, `--require-pairing`,
+first token, then `--prefer-master`, `--never-master`, `--p2p-trust`,
 `--no-peer-download`). Values matching the client default are omitted so the
 engine keeps its own default/auto behaviour; the deletion thresholds are always
 clamped and emitted.

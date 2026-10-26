@@ -29,7 +29,8 @@ The welcome splash appears only on the first launch.
 
 The quickest path is the [Setup wizard](setup-wizard.md) (**Setup wizard** in the
 menu bar), which covers the four common cases in four steps and pre-fills your
-current configuration on re-run. For full control, open **Settings** and fill in
+current configuration on re-run. Still choosing between server mode and p2p
+mode? [Choosing a connection mode](connection-modes.md) compares them. For full control, open **Settings** and fill in
 the connection for **p2p Mode** (no server) or **Server Mode** (a central HSYNC
 server); every setting is documented in the
 [Configuration Reference](configuration.md).

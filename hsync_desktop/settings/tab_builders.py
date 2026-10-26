@@ -319,12 +319,11 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
                     add_row(fm_layout, dlg._lbl_never_master, dlg.never_master, row + 1)
                     break
 
-    # Require Pairing toggle (dynamic, no .ui counterpart) – strict TOFU:
-    # refuse a first-seen master certificate until confirmed out of band.
-    # Inserted right after the never_master row.
-    dlg.require_pairing = ToggleSwitch(dlg)
-    dlg.require_pairing.setObjectName("requirePairing")
-    dlg._lbl_require_pairing = QLabel(dlg)
+    # New-primary trust policy (dynamic, no .ui counterpart): how a first-seen
+    # master certificate becomes trusted (ADR-0040). Inserted after never_master.
+    dlg.p2p_trust = QComboBox(dlg)
+    dlg.p2p_trust.setObjectName("p2pTrust")
+    dlg._lbl_p2p_trust = QLabel(dlg)
     nm_container = dlg.never_master.parent()
     if isinstance(nm_container, QWidget):
         nm_layout = nm_container.layout()
@@ -332,7 +331,7 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
             for row in range(nm_layout.rowCount()):
                 item = nm_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                 if item and item.widget() is dlg.never_master:
-                    add_row(nm_layout, dlg._lbl_require_pairing, dlg.require_pairing, row + 1)
+                    add_row(nm_layout, dlg._lbl_p2p_trust, dlg.p2p_trust, row + 1)
                     break
 
     # Peer download (p2p only): download file blocks from other devices, not
