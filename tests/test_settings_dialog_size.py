@@ -9,10 +9,13 @@ and ``finalize_size`` clamps the resizable dialog to the screen.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QScrollArea
+from PySide6.QtCore import QSettings, QSize, Qt
+from PySide6.QtWidgets import QBoxLayout, QPushButton, QScrollArea
 
+import hsync_desktop.i18n as i18n_module
 import hsync_desktop.settings.tab_builders as tab_builders
+from hsync_desktop.i18n import get_language, set_language
+from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX
 
 
 class TestScrollableTabs:
@@ -124,3 +127,64 @@ class TestContentWidth:
         scroll = dialog._tabs.currentWidget().findChild(QScrollArea)
         assert dialog.width() >= scroll.widget().sizeHint().width()
         assert dialog.minimumWidth() >= scroll.widget().sizeHint().width()
+
+    def test_the_trust_action_rows_are_not_clipped(self, qtbot, dialog, monkeypatch, tmp_path):
+        """Both mode tabs fit their button pair in every locale.
+
+        The pair is added as a spanning form row: the field column is only as
+        wide as the caption column leaves it, which used to clip the labels.
+        """
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        store = QSettings(str(tmp_path / "lang.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(i18n_module, "QSettings", lambda *a, **k: store)
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        qtbot.wait(10)
+        pairs = (
+            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_bootnode)),
+            (
+                _SERVER_TAB_INDEX,
+                (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection),
+            ),
+        )
+        previous = get_language()
+        try:
+            for lang in ("en", "it", "de", "es", "ru"):
+                set_language(lang)
+                dialog._apply_translations()
+                for index, buttons in pairs:
+                    dialog._tabs.setCurrentIndex(index)
+                    qtbot.wait(5)
+                    for button in buttons:
+                        assert button.width() >= button.sizeHint().width(), (
+                            lang,
+                            button.text(),
+                        )
+        finally:
+            set_language(previous)
+            dialog._apply_translations()
+
+
+class TestActionRow:
+    """The button pair stacks instead of clipping when one row is too narrow."""
+
+    def test_the_row_stacks_and_unstacks_with_the_available_width(self, qtbot, monkeypatch):
+        """The direction follows the width the form gives the row.
+
+        The width is supplied instead of resized: a visible top-level widget is
+        sized by its own layout, which would defeat the harness.
+        """
+        from hsync_desktop.settings.form_helpers import _action_row
+
+        first, second = QPushButton("Manage trusted servers"), QPushButton("Test Connection")
+        row = _action_row(first, second)
+        qtbot.addWidget(row)
+        pair_need = first.sizeHint().width() + second.sizeHint().width() + row.layout().spacing()
+
+        monkeypatch.setattr(type(row), "width", lambda self: pair_need - 40)
+        row._apply_direction()
+        assert row.layout().direction() == QBoxLayout.Direction.TopToBottom
+
+        monkeypatch.setattr(type(row), "width", lambda self: pair_need + 200)
+        row._apply_direction()
+        assert row.layout().direction() == QBoxLayout.Direction.LeftToRight

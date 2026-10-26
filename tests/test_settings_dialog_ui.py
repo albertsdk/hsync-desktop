@@ -17,9 +17,9 @@ from unittest.mock import patch
 
 import pytest
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QFormLayout,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -410,12 +410,12 @@ class TestActionButtonRows:
     def test_p2p_actions_are_in_one_horizontal_row(self, dialog):
         parent = dialog.btn_manage_trusted_keys.parent()
         assert parent is dialog.btn_test_bootnode.parent()
-        assert isinstance(parent.layout(), QHBoxLayout)
+        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
 
     def test_server_actions_are_in_one_horizontal_row(self, dialog):
         parent = dialog.btn_manage_trusted_keys_server.parent()
         assert parent is dialog.btn_test_connection.parent()
-        assert isinstance(parent.layout(), QHBoxLayout)
+        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
 
 
 class TestDisabledDuringSyncVisual:

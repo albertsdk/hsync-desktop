@@ -333,7 +333,9 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g2 = QFormLayout(dlg._grp_p2p_discovery)
     add_row(g2, dlg._lbl_p2p_bootnode, dlg.p2p_bootnode)
     add_row(g2, dlg._lbl_p2p_bootnode_trust, dlg.p2p_bootnode_trust)
-    g2.addRow("", manage_container)
+    # Spanning row: the button pair cannot fit the field column once the captions
+    # and the labels are localized (see ``_action_row``).
+    g2.addRow(manage_container)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
     dlg._lbl_help_bootnode = help_link("help.bootnode_setup", BOOTNODE_SETUP)
     g2.addRow("", dlg._lbl_help_bootnode)
@@ -395,7 +397,8 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     add_row(g1, lbl_server_url, dlg.server_url)
     add_row(g1, lbl_api_key, dlg.api_key)
     add_row(g1, dlg._lbl_server_trust, dlg.server_trust)
-    g1.addRow("", action_row)
+    # Spanning row, same reason as the p2p twin above.
+    g1.addRow(action_row)
     dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
     g1.addRow("", dlg._lbl_help_server)
     vbox.addWidget(dlg._grp_server)

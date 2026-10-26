@@ -67,6 +67,24 @@ def _reset_i18n_callbacks() -> Generator[None]:
     i18n._language_change_callbacks.clear()
 
 
+@pytest.fixture(autouse=True)
+def _restore_app_font() -> Generator[None]:
+    """Restore the application font after a test that scales it.
+
+    The UI-font tests call ``QApplication.setFont``; a leaked larger font changes
+    every widget's size hint and breaks later layout assertions that assume the
+    default metrics.
+    """
+    from PySide6.QtGui import QFont
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    saved = QFont(app.font()) if app is not None else None
+    yield
+    if app is not None and saved is not None:
+        app.setFont(saved)
+
+
 class _FakeAutostart:
     """Stand-in for ``hsync_desktop.autostart`` used by the dialog tests.
 

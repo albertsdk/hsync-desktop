@@ -340,6 +340,19 @@ as a group and uses less vertical space than two stacked form rows; the trailing
 stretch keeps them left-aligned. Both test buttons carry the
 `settings.test_connection` label (set in `_apply_translations`).
 
+The row is added with the **single-widget** `QFormLayout` overload
+(`settings/tab_layout.py::reorganize_p2p_tab` → `g2.addRow(manage_container)`,
+`reorganize_server_tab` → `g1.addRow(action_row)`), so it spans both columns and
+gets the full form width. `addRow("", container)` would confine the pair to the
+field column, which is only as wide as the caption column leaves it (~330 px at
+the 640 px dialog minimum): the localized labels need up to 500 px and
+`QPushButton` clips its text instead of eliding it.
+`settings/form_helpers.py::_ActionRow` re-evaluates on every resize and layout
+request and stacks the pair vertically when even the spanned width cannot hold
+both labels (a large system font); `TestActionRow` pins that switch and
+`tests/test_settings_dialog_size.py::TestContentWidth::test_the_trust_action_rows_are_not_clipped`
+guards the invariant for the widest locales.
+
 **Test Connection probes** (`settings/dialog.py::SettingsDialog._on_test_connection`
 and `SettingsDialog._on_test_bootnode`): the input validation and its warnings are
 synchronous, then `_start_probe` disables the button, labels it

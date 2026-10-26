@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QFormLayout,
-    QHBoxLayout,
     QLabel,
     QWidget,
 )
@@ -75,20 +76,66 @@ def _insert_row_after(anchor: QWidget, label: QWidget, field: QWidget) -> bool:
     return False
 
 
+class _ActionRow(QWidget):
+    """A row of action buttons that stacks when one row cannot show the labels.
+
+    ``QPushButton`` clips its text instead of eliding it, so a pair of long
+    localized labels would lose characters in a narrow column. The row starts
+    side by side and switches to a vertical stack once the available width drops
+    below the buttons' own size hints (a large system font does that).
+    """
+
+    def __init__(self, *buttons: QWidget) -> None:
+        super().__init__()
+        self._buttons = buttons
+        self._box = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
+        self._box.setContentsMargins(0, 0, 0, 0)
+        for button in buttons:
+            self._box.addWidget(button)
+        self._box.addStretch()
+
+    def _needs_stack(self) -> bool:
+        if self.width() <= 0:
+            return False
+        widths = [button.sizeHint().width() for button in self._buttons if not button.isHidden()]
+        return self.width() < sum(widths) + self._box.spacing() * max(0, len(widths) - 1)
+
+    def _apply_direction(self) -> None:
+        direction = (
+            QBoxLayout.Direction.TopToBottom
+            if self._needs_stack()
+            else QBoxLayout.Direction.LeftToRight
+        )
+        if self._box.direction() != direction:
+            self._box.setDirection(direction)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._apply_direction()
+
+    def event(self, event) -> bool:
+        # A retranslation or a font change moves the labels without resizing the
+        # row, so re-evaluate on the resulting layout request.
+        if event.type() in (QEvent.Type.LayoutRequest, QEvent.Type.Show):
+            self._apply_direction()
+        return super().event(event)
+
+
 def _action_row(*buttons: QWidget) -> QWidget:
     """Pack related action buttons into one left-aligned row.
 
     Two narrow secondary actions (open the trust stores / probe the endpoint)
     read as a pair and take less vertical space than two stacked form rows; the
-    trailing stretch keeps them left-aligned under the field column.
+    trailing stretch keeps them left-aligned.
+
+    The row must be added with the *single-widget* ``QFormLayout`` overload
+    (``addRow(container)``): that spans both columns. ``addRow("", container)``
+    would put the pair back in the field column, which is only as wide as the
+    caption column leaves it, and the localized labels get clipped there. When
+    even the spanned width cannot hold both labels (a large system font), the
+    row stacks them instead of clipping.
     """
-    container = QWidget()
-    row = QHBoxLayout(container)
-    row.setContentsMargins(0, 0, 0, 0)
-    for button in buttons:
-        row.addWidget(button)
-    row.addStretch()
-    return container
+    return _ActionRow(*buttons)
 
 
 def _replace_checkbox_with_toggle(
