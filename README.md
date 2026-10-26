@@ -65,13 +65,13 @@ For building:
 
 For running:
 - The compiled `hsync` binary from [hsync-client](https://github.com/albertsdk/hsync-client),
-  bundled in every package (standalone binary, AppImage, `.deb`, `.rpm`)
+  bundled in every package (standalone binary, AppImage, `.deb`, `.rpm`, Snap)
 
 ## Getting started
 
 HSYNC Desktop installs with one command, as a standalone download, as a `.deb`,
-or from source. It is a **desktop application only** — there is no Docker or
-server mode. Pick one method in the [Getting Started](docs/getting-started.md)
+as a Snap, or from source. It is a **desktop application only** — there is no
+Docker or server mode. Pick one method in the [Getting Started](docs/getting-started.md)
 chooser:
 
 - [Installer script](docs/getting-started-script.md) — one `curl` command (Linux/macOS);
@@ -79,6 +79,7 @@ chooser:
 - [Debian package](docs/getting-started-deb.md) — system package for Debian/Ubuntu;
 - [RPM package](docs/getting-started-rpm.md) — system package for RHEL/Rocky/Alma/Fedora;
 - [AppImage](docs/getting-started-appimage.md) — portable Linux x86_64 file, no install;
+- [Snap package](docs/getting-started-snap.md) — Linux with `snapd`, automatic updates;
 - [macOS .dmg](docs/getting-started-macos.md) — Apple silicon or Intel;
 - [Windows installer](docs/getting-started-windows.md) — per-user `.exe` setup;
 - [From source](docs/getting-started-source.md) — clone and run.

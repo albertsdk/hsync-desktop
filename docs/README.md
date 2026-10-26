@@ -14,9 +14,9 @@ you are.
 ### 1. Install
 
 Pick a method in the [Getting Started](getting-started.md) chooser: it compares
-the eight ways to install HSYNC Desktop (installer script, standalone binary,
-`.deb`, `.rpm`, AppImage, macOS `.dmg`, Windows installer, from source) and links
-the matching guide.
+the nine ways to install HSYNC Desktop (installer script, standalone binary,
+`.deb`, `.rpm`, AppImage, Snap, macOS `.dmg`, Windows installer, from source) and
+links the matching guide.
 
 ### 2. Configure a connection
 
