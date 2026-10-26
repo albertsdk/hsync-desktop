@@ -28,7 +28,7 @@ transfer behaviour. It is used in both p2p and Server Mode.
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` |
 | Real-time sync | Keep syncing automatically as files change |
 | Keep deleted files (Backup Mode) | Never propagate deletes |
-| Auto-sync on startup | Start syncing as soon as the app launches |
+| Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files, or the one-time disclaimer has not been accepted yet, the startup run stops and warns you instead of asking — press **Start** to confirm and run it |
 | Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
 | Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
 | Wait for file to settle | Ignore a file for this long while it is still being written |

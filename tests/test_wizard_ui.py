@@ -315,6 +315,26 @@ class TestSwitches:
         assert draft.accept_server_cert is True
         assert draft.direction == "download-only"
 
+    def test_auto_sync_stays_off_by_default(self, wizard):
+        """A startup run begins on its own, so the wizard must not opt in."""
+        from hsync_desktop.config import DEFAULT_AUTO_SYNC
+
+        assert DEFAULT_AUTO_SYNC is False
+        assert WizardDraft().auto_sync is False
+        assert wizard.connection_page.auto_sync.isChecked() is False
+
+    def test_skip_defaults_does_not_enable_auto_sync(self, wizard):
+        """'Skip' applies the recommended sync behaviour, not a startup run."""
+        _select_backup(wizard)
+        wizard._apply_mode_defaults(WizardMode.BACKUP)
+        wizard.connection_page.load(wizard._draft)
+        wizard._set_step(3)
+
+        wizard._on_skip_defaults()
+
+        assert wizard._draft.auto_sync is False
+        assert wizard.connection_page.auto_sync.isChecked() is False
+
 
 class TestCharValidators:
     def test_bucket_and_group_reject_disallowed_chars(self, wizard):

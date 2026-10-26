@@ -90,6 +90,11 @@ and the returned mode so the two can never disagree.
 - **Input restriction**: `wizard/widgets.py::char_class_validator` blocks
   disallowed characters on the share name and group; structural rules stay in the
   on-Continue validation.
+- **Automation defaults**: the wizard only *recommends* the continuous behaviour.
+  `WizardDraft.auto_sync` starts from `config.py::DEFAULT_AUTO_SYNC` and neither
+  `SetupWizard._apply_mode_defaults` nor `SetupWizard._on_skip_defaults` turns it
+  on: a startup run begins with no user action, so it stays an explicit choice
+  (see the *Startup run* note in [ui.md](ui.md)).
 
 ## Layout
 

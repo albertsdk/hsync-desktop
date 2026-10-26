@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "The shared folder is not empty and the current sync settings could DELETE local files.\n\nReason: {reason}\n\nDo you want to continue?",
     "notif.deletion_risk_p2p": 'p2p mode with "Prefer primary role" off: local files not present on the primary device may be deleted',
     "notif.deletion_risk_download": "Receive-only mode: remote deletions will be applied locally and local-only files may be removed",
+    "notif.deletion_risk_manual": "Automatic sync was not started: the current settings could delete local files. Review them, then press Start to confirm.",
+    "notif.disclaimer_manual": "The startup sync was not started: the disclaimer has not been accepted yet. Press Start to read it and continue.",
     "notif.master_conflict_title": "Primary role conflict",
     "notif.master_conflict_lost": "Another primary (device {cid} at {ip}) has priority (started earlier). This device will stay secondary.",
     "notif.master_conflict_won": "Device {cid} at {ip} also requested the primary role. This device takes it (started earlier).",

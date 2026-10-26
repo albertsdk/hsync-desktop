@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "De gedeelde map is niet leeg en de huidige synchronisatie-instellingen kunnen lokale bestanden VERWIJDEREN.\n\nReden: {reason}\n\nWilt u doorgaan?",
     "notif.deletion_risk_p2p": 'p2p-modus zonder "Primaire rol verkiezen": lokale bestanden die niet op het primaire apparaat staan, kunnen worden verwijderd',
     "notif.deletion_risk_download": "Alleen ontvangen-modus: externe verwijderingen worden lokaal toegepast en alleen-lokale bestanden kunnen worden verwijderd",
+    "notif.deletion_risk_manual": "Automatisch synchroniseren is niet gestart: de huidige instellingen kunnen lokale bestanden verwijderen. Controleer ze en druk op Starten om te bevestigen.",
+    "notif.disclaimer_manual": "Automatisch synchroniseren is niet gestart: de disclaimer is nog niet geaccepteerd. Druk op Starten om die te lezen en door te gaan.",
     "notif.master_conflict_title": "Conflict over primaire rol",
     "notif.master_conflict_lost": "Een ander primair apparaat ({cid} op {ip}) heeft voorrang (eerder gestart). Dit apparaat blijft secundair.",
     "notif.master_conflict_won": "Apparaat {cid} op {ip} heeft ook de primaire rol aangevraagd. Dit apparaat neemt deze over (eerder gestart).",

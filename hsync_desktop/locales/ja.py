@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "共有フォルダーが空ではなく、現在の同期設定によってローカルファイルが削除される可能性があります。\n\n理由：{reason}\n\n続行しますか？",
     "notif.deletion_risk_p2p": "「プライマリ役割を優先」をオフにした p2p モード：プライマリデバイスに存在しないローカルファイルが削除される可能性があります",
     "notif.deletion_risk_download": "受信のみモード：リモートの削除がローカルに適用され、ローカルのみのファイルが削除される可能性があります",
+    "notif.deletion_risk_manual": "自動同期は開始されませんでした。現在の設定ではローカルファイルが削除される可能性があります。設定を確認し、［開始］を押して承認してください。",
+    "notif.disclaimer_manual": "自動同期は開始されませんでした。免責事項がまだ承認されていません。［開始］を押して内容を確認し、続行してください。",
     "notif.master_conflict_title": "プライマリ役割の競合",
     "notif.master_conflict_lost": "別のプライマリ（デバイス {cid}、{ip}）が優先されます（先に起動）。このデバイスはセカンダリのままになります。",
     "notif.master_conflict_won": "{ip} のデバイス {cid} もプライマリ役割を要求しました。このデバイスが取得します（先に起動）。",

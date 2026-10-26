@@ -215,7 +215,6 @@ class SetupWizard(QDialog):
         d.ignore_delete = profile.ignore_delete
         d.start_at_login = profile.start_at_login
         d.continuous = True
-        d.auto_sync = True
         if profile.p2p_enabled:
             if not d.p2p_group:
                 d.p2p_group = generate_group_name(d.local_path)
@@ -290,7 +289,6 @@ class SetupWizard(QDialog):
         profile = profile_for(self._draft.mode) if self._draft.mode else None
         if profile is not None:
             self._draft.continuous = True
-            self._draft.auto_sync = True
             self.connection_page.load(self._draft)
         if self._validate_current():
             self._set_step(self._step + 1)

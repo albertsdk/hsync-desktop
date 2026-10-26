@@ -342,6 +342,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "Le dossier partagé n'est pas vide et les paramètres de synchronisation actuels pourraient SUPPRIMER des fichiers locaux.\n\nRaison : {reason}\n\nVoulez-vous continuer ?",
     "notif.deletion_risk_p2p": "Mode p2p sans « Préférer le rôle primaire » : les fichiers locaux absents de l'appareil principal peuvent être supprimés",
     "notif.deletion_risk_download": "Mode réception uniquement : les suppressions distantes seront appliquées localement et les fichiers présents uniquement en local pourront être supprimés",
+    "notif.deletion_risk_manual": "La synchronisation automatique n'a pas démarré : les réglages actuels pourraient supprimer des fichiers locaux. Vérifiez-les, puis cliquez sur Démarrer pour confirmer.",
+    "notif.disclaimer_manual": "La synchronisation automatique n'a pas démarré : l'avis de non-responsabilité n'a pas encore été accepté. Cliquez sur Démarrer pour le lire et continuer.",
     "notif.master_conflict_title": "Conflit de rôle principal",
     "notif.master_conflict_lost": "Un autre appareil principal ({cid} à {ip}) a la priorité (démarré plus tôt). Cet appareil restera secondaire.",
     "notif.master_conflict_won": "L'appareil {cid} à {ip} a aussi demandé le rôle principal. Cet appareil l'obtient (démarré plus tôt).",

@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "Folder udostępniony nie jest pusty, a bieżące ustawienia synchronizacji mogą USUNĄĆ pliki lokalne.\n\nPowód: {reason}\n\nCzy kontynuować?",
     "notif.deletion_risk_p2p": "Tryb p2p bez „Preferuj rolę główną”: pliki lokalne nieobecne na urządzeniu głównym mogą zostać usunięte",
     "notif.deletion_risk_download": "Tryb tylko odbierania: zdalne usunięcia zostaną zastosowane lokalnie, a pliki istniejące tylko lokalnie mogą zostać usunięte",
+    "notif.deletion_risk_manual": "Automatyczna synchronizacja nie została uruchomiona: bieżące ustawienia mogą usunąć pliki lokalne. Sprawdź je i naciśnij Uruchom, aby potwierdzić.",
+    "notif.disclaimer_manual": "Automatyczna synchronizacja nie została uruchomiona: wyłączenie odpowiedzialności nie zostało jeszcze zaakceptowane. Naciśnij Uruchom, aby je przeczytać i kontynuować.",
     "notif.master_conflict_title": "Konflikt roli głównej",
     "notif.master_conflict_lost": "Inne urządzenie główne ({cid} pod {ip}) ma priorytet (uruchomione wcześniej). To urządzenie pozostanie podrzędne.",
     "notif.master_conflict_won": "Urządzenie {cid} pod {ip} również zażądało roli głównej. To urządzenie ją przejmuje (uruchomione wcześniej).",

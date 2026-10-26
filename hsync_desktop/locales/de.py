@@ -342,6 +342,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "Der freigegebene Ordner ist nicht leer und die aktuellen Sync-Einstellungen könnten lokale Dateien LÖSCHEN.\n\nGrund: {reason}\n\nMöchten Sie fortfahren?",
     "notif.deletion_risk_p2p": 'p2p-Modus ohne "Primärrolle bevorzugen": lokale Dateien, die auf dem primären Gerät fehlen, können gelöscht werden',
     "notif.deletion_risk_download": "Nur-Empfangen-Modus: Remote-Löschungen werden lokal angewendet und nur lokal vorhandene Dateien können entfernt werden",
+    "notif.deletion_risk_manual": "Automatische Synchronisierung nicht gestartet: die aktuellen Einstellungen könnten lokale Dateien löschen. Prüfe sie und bestätige dann mit Start.",
+    "notif.disclaimer_manual": "Automatische Synchronisierung nicht gestartet: der Haftungshinweis wurde noch nicht bestätigt. Bestätige ihn mit Start, um fortzufahren.",
     "notif.master_conflict_title": "Konflikt bei der Primärrolle",
     "notif.master_conflict_lost": "Ein anderes primäres Gerät ({cid} unter {ip}) hat Vorrang (früher gestartet). Dieses Gerät bleibt sekundär.",
     "notif.master_conflict_won": "Das Gerät {cid} unter {ip} hat ebenfalls die Primärrolle angefordert. Dieses Gerät übernimmt sie (früher gestartet).",

@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "共享文件夹不为空，当前同步设置可能会删除本地文件。\n\n原因：{reason}\n\n是否继续？",
     "notif.deletion_risk_p2p": "p2p 模式且未启用“优先使用主设备角色”：主设备上不存在的本地文件可能会被删除",
     "notif.deletion_risk_download": "仅接收模式：远程删除将在本地应用，仅存在于本地的文件可能会被移除",
+    "notif.deletion_risk_manual": "未自动开始同步：当前设置可能会删除本地文件。请检查设置，然后点击“启动”确认。",
+    "notif.disclaimer_manual": "未自动开始同步：免责声明尚未确认。请点击“启动”阅读并继续。",
     "notif.master_conflict_title": "主设备角色冲突",
     "notif.master_conflict_lost": "另一个主设备（{cid}，位于 {ip}）具有优先权（更早启动）。此设备将保持为从设备。",
     "notif.master_conflict_won": "位于 {ip} 的设备 {cid} 也请求了主设备角色。此设备获得该角色（更早启动）。",

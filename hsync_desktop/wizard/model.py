@@ -17,6 +17,7 @@ from typing import cast
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import (
+    DEFAULT_AUTO_SYNC,
     DEFAULT_P2P_BOOTNODE,
     DEFAULT_P2P_ENABLED,
     DEFAULT_SYNC_DIRECTION,
@@ -170,7 +171,9 @@ class WizardDraft:
     direction: str = "bidirectional"
     ignore_delete: bool = False
     continuous: bool = True
-    auto_sync: bool = True
+    # Opt-in: a startup run begins without any user action, so it must be chosen
+    # explicitly (the product default, ``config.DEFAULT_AUTO_SYNC``).
+    auto_sync: bool = DEFAULT_AUTO_SYNC
     start_at_login: bool = False
     # Trust choices; fingerprints are captured by the probe and pinned on apply.
     accept_server_cert: bool = False

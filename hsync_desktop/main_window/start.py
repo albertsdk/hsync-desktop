@@ -294,11 +294,18 @@ class StartMixin:
         msg.setCheckBox(dont_show)
         return msg, acknowledge, not_now, dont_show
 
-    def _show_disclaimer(self) -> bool:
-        """Show the disclaimer; True only when the user acknowledges it."""
+    def _show_disclaimer(self, *, interactive: bool = True) -> bool:
+        """Show the disclaimer; True only when the user acknowledges it.
+
+        ``interactive=False`` is for a run the user did not trigger: a one-time
+        notice must not appear on a window nobody opened (a tray-only
+        ``--minimized`` start), so the run is dropped and the caller surfaces it.
+        """
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if _accepted_disclaimer_version(s) >= DISCLAIMER_VERSION:
             return True
+        if not interactive:
+            return False
 
         msg, acknowledge, _not_now, dont_show = self._build_disclaimer_dialog()
         msg.exec()
@@ -324,20 +331,23 @@ class StartMixin:
 
         Marks the run as automatic so a startup failure is reported through the
         tray/banner instead of a modal dialog that would be invisible while the
-        app sits in the tray (``--minimized``).
+        app sits in the tray (``--minimized``), and so the deletion-risk gate
+        never turns into a prompt nobody asked for. ``_on_start`` defers the run,
+        so the origin is handed over as pending state instead of a scope exit.
         """
-        self._start_is_automatic = True
-        try:
-            self._on_start()
-        finally:
-            self._start_is_automatic = False
+        self._pending_start_automatic = True
+        self._on_start()
 
-    def _check_deletion_risk(self) -> bool:
+    def _check_deletion_risk(self, *, interactive: bool = True) -> bool:
         """Check if sync settings could cause local file deletion.
 
         Returns True if safe to proceed (no risk or user confirmed). Simulation
         Mode always proceeds: the client only previews in ``--dry-run``, so a
         run with it enabled can neither delete nor transfer anything.
+
+        ``interactive=False`` is for a run the user did not trigger (auto-sync on
+        startup): a confirmation answered by nobody must never start a
+        destructive run, so the check reports the risk instead of asking.
         """
         local_path = self._local_path
         if not local_path or not os.path.exists(local_path):
@@ -378,12 +388,31 @@ class StartMixin:
             # bidirectional server mode – normal behaviour
             return True
 
+        if not interactive:
+            return False
+
         return confirm(
             self,
             title=tr("notif.deletion_risk"),
             text=tr("notif.deletion_risk_msg").replace("{reason}", reason),
             with_icons=True,
         )
+
+    def _report_deletion_risk_needed(self) -> None:
+        """Surface a startup run stopped by the deletion-risk gate.
+
+        The run is dropped rather than queued: the user reviews the settings and
+        presses Start, which prompts through the normal interactive path.
+        """
+        message = tr("notif.deletion_risk_manual")
+        self._append_desktop_log("WARNING", message)
+        self._notify_warning(tr("notif.deletion_risk"), message)
+
+    def _report_disclaimer_needed(self) -> None:
+        """Surface a startup run stopped by the unacknowledged disclaimer."""
+        message = tr("notif.disclaimer_manual")
+        self._append_desktop_log("WARNING", message)
+        self._notify_warning(tr("disclaimer.title"), message)
 
     def _check_keyless_p2p(self) -> bool:
         """Confirm keyless P2P operation before connecting.
@@ -436,11 +465,19 @@ class StartMixin:
         return True
 
     def _on_start(self) -> None:
+        # Consume the queued origin first: a manual Start clears it, an automatic
+        # one keeps it for the whole run (delayed continue + startup failures).
+        self._start_is_automatic = self._pending_start_automatic
+        self._pending_start_automatic = False
         # A new session may legitimately re-prompt for fingerprints dismissed in
         # the previous one.
         self._trust_prompted.clear()
-        # Show disclaimer first
-        if not self._show_disclaimer():
+        automatic = self._start_is_automatic
+        # Show the disclaimer first. An automatic start never raises it: the
+        # notice is surfaced and the run waits for a manual Start.
+        if not self._show_disclaimer(interactive=not automatic):
+            if automatic:
+                self._report_disclaimer_needed()
             return
 
         local_path = self._local_path
@@ -462,8 +499,13 @@ class StartMixin:
         # A normal start supersedes any pending Send/Receive preview.
         self._pending_selection_sync = None
 
-        # Check for file deletion risk
-        if not self._check_deletion_risk():
+        # Check for file deletion risk. A run started automatically (auto-sync on
+        # startup) stops here when the settings could delete files: the warning is
+        # surfaced and the user must press Start, which prompts interactively.
+        automatic = self._start_is_automatic
+        if not self._check_deletion_risk(interactive=not automatic):
+            if automatic:
+                self._report_deletion_risk_needed()
             return
 
         # Confirm keyless P2P posture before any connection is made

@@ -20,6 +20,23 @@ from hsync_desktop.settings import SettingsDialog
 from tests._helpers import _patch_all, _resolve_dialog, _settings
 
 
+def _stop_the_deferred_timer(monkeypatch) -> None:
+    """Neutralise ``QTimer.singleShot`` in the start mixin.
+
+    ``_on_start`` defers the run by half a second; tests drive the deferred slot
+    explicitly so they stay deterministic.
+    """
+
+    class _NoTimer:
+        @staticmethod
+        def singleShot(*_args, **_kwargs) -> None:
+            return None
+
+    import hsync_desktop.main_window.start as start_module
+
+    monkeypatch.setattr(start_module, "QTimer", _NoTimer)
+
+
 class TestOpenSettings:
     def test_second_open_raises_existing_dialog(self, window, monkeypatch, qtbot):
         """A tray re-click raises the open dialog instead of stacking a new one."""
@@ -250,7 +267,7 @@ class TestEngineStartFailure:
 
         shown = self._capture_dialogs(monkeypatch)
         # Skip the pre-flight prompts so the start attempt is reached directly.
-        monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda **_: True)
         monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
         monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
@@ -354,7 +371,7 @@ class TestStatusLifecycle:
 
     @staticmethod
     def _bypass_start_prompts(monkeypatch, window, tmp_path):
-        monkeypatch.setattr(window, "_check_deletion_risk", lambda: True)
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda **_: True)
         monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
         monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
@@ -659,7 +676,7 @@ class TestSelectionSync:
 
     def test_receive_keeps_the_deletion_risk_gate(self, window, monkeypatch, tmp_path):
         self._stub_preflight(window, monkeypatch)
-        monkeypatch.setattr(window, "_check_deletion_risk", lambda: False)
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda **_: False)
         started: list[list[str]] = []
         monkeypatch.setattr(window, "_start_engine", lambda args: started.append(args) or True)
         window._local_path = str(tmp_path)
@@ -1934,6 +1951,138 @@ class TestDeletionRiskGate:
         no = shown[0].button(QMessageBox.StandardButton.No)
         assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
         assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+    def test_an_automatic_start_reports_the_risk_instead_of_prompting(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """A startup run must never start from a dialog nobody was asked to answer."""
+        self._risky_folder(window, settings, tmp_path)
+        settings.setValue("sync/dry_run", False)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        _stop_the_deferred_timer(monkeypatch)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        warned: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda title, message: warned.append((title, message))
+        )
+        started: list[str] = []
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: started.append(path))
+
+        window._on_auto_start()  # the startup path, flag included
+        window._continue_start_after_disclaimer()  # the deferred continuation
+
+        assert shown == []  # no blocking modal on a run the user did not trigger
+        assert started == []  # and no destructive run either
+        assert warned == [(tr("notif.deletion_risk"), tr("notif.deletion_risk_manual"))]
+        assert tr("notif.deletion_risk_manual") in window._log_view.toPlainText()
+
+    def test_an_automatic_start_proceeds_when_nothing_is_at_risk(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """Without a deletion risk the startup run follows the normal path."""
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        (folder / "file.txt").write_text("x", encoding="utf-8")
+        settings.setValue("p2p/enabled", True)
+        settings.setValue("p2p/prefer_master", True)  # this device is authoritative
+        window._local_path = str(folder)
+        window._pending_sync_path = str(folder)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
+        monkeypatch.setattr(window, "_check_disk_space", lambda: True)
+        monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
+        started: list[str] = []
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: started.append(path))
+        window._start_is_automatic = True
+
+        window._continue_start_after_disclaimer()
+
+        assert shown == []
+        assert started == [str(folder)]
+
+
+class TestStartupAutoSync:
+    """Auto-sync on startup is opt-in: the wizard must not enable it silently."""
+
+    @staticmethod
+    def _build(qtbot, monkeypatch, settings, scheduled: list[int]):
+        from hsync_desktop.engine import HsyncEngine
+        from hsync_desktop.main_window import MainWindow
+
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+        import hsync_desktop.settings.cli_args as cli_args_module
+
+        monkeypatch.setattr(cli_args_module, "QSettings", lambda *a, **k: settings)
+        _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
+        monkeypatch.setattr(MainWindow, "_check_auto_sync", lambda self: scheduled.append(1))
+        win = MainWindow(HsyncEngine(binary_path="/fake/hsync"))
+        qtbot.addWidget(win)
+        return win
+
+    def test_a_disabled_setting_schedules_no_startup_run(self, qtbot, monkeypatch, settings):
+        settings.setValue("sync/auto_sync", False)
+        scheduled: list[int] = []
+
+        self._build(qtbot, monkeypatch, settings, scheduled)
+        qtbot.wait(50)
+
+        assert scheduled == []
+
+    def test_an_enabled_setting_schedules_the_startup_run(self, qtbot, monkeypatch, settings):
+        settings.setValue("sync/auto_sync", True)
+        scheduled: list[int] = []
+
+        self._build(qtbot, monkeypatch, settings, scheduled)
+        qtbot.waitUntil(lambda: bool(scheduled), timeout=1000)
+
+        assert scheduled == [1]
+
+    def test_the_automatic_origin_survives_the_deferred_start(self, window, monkeypatch, tmp_path):
+        """``_on_start`` defers the run: the origin must survive that delay."""
+        _stop_the_deferred_timer(monkeypatch)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        window._local_path = str(tmp_path)
+
+        window._on_auto_start()
+
+        assert window._start_is_automatic is True
+        assert window._pending_start_automatic is False
+
+    def test_a_manual_start_clears_a_stale_automatic_origin(self, window, monkeypatch, tmp_path):
+        _stop_the_deferred_timer(monkeypatch)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        window._local_path = str(tmp_path)
+        window._start_is_automatic = True  # left over from an automatic run
+
+        window._on_start()
+
+        assert window._start_is_automatic is False
+
+    def test_an_automatic_start_does_not_raise_the_disclaimer(self, window, monkeypatch, tmp_path):
+        """A one-time notice must not appear on a window nobody opened."""
+        _stop_the_deferred_timer(monkeypatch)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        warned: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda title, message: warned.append((title, message))
+        )
+        started: list[str] = []
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: started.append(path))
+        window._local_path = str(tmp_path)
+
+        window._on_auto_start()
+
+        assert shown == []
+        assert started == []
+        assert window._pending_sync_path == ""
+        assert warned == [(tr("disclaimer.title"), tr("notif.disclaimer_manual"))]
+        assert tr("notif.disclaimer_manual") in window._log_view.toPlainText()
 
 
 class TestKeylessP2pPrompt:

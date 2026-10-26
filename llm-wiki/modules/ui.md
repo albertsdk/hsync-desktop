@@ -23,6 +23,8 @@ window's attributes.
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
 | `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state |
 | `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
+| `_check_auto_sync` | `main_window/start.py::StartMixin._check_auto_sync` | queued at startup only when `settings/cli_args.py::is_auto_sync_enabled` (`sync/auto_sync`) is on |
+| `_on_auto_start` | `main_window/start.py::StartMixin._on_auto_start` | runs `_on_start` with `_start_is_automatic` set, so failures and prompts avoid modals on a tray-only window |
 | `_quit` | `main_window/lifecycle.py::LifecycleMixin._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
 | `_shutdown` | `main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
@@ -38,6 +40,30 @@ error toast through `_notify_error` (an OS notification is sent too, only when a
 notifier exists and the window is out of focus).
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
+
+**Startup run** (`sync/auto_sync`, the Sync-tab *Auto-sync on startup* switch) is
+opt-in: the wizard draft starts from `config.py::DEFAULT_AUTO_SYNC`
+(`wizard/model.py::WizardDraft.auto_sync`) and Settings writes the same key, so
+`MainWindow.__init__` queues `_check_auto_sync` only when
+`settings/cli_args.py::is_auto_sync_enabled` is true. The automatic run follows
+the manual path (disclaimer → pre-flight gates), except for the file-deletion
+confirmation: `main_window/start.py::StartMixin._check_deletion_risk` is called
+with `interactive=False`, which reports the risk instead of prompting, and
+`main_window/start.py::StartMixin._report_deletion_risk_needed` surfaces
+`notif.deletion_risk_manual` through `_notify_warning` (in-app toast + OS
+notification when out of focus) and drops the run. A confirmation nobody was
+asked to answer therefore never starts a destructive sync — and a tray-only
+`--minimized` launch never raises a modal on a hidden window. The same rule
+applies to the one-time disclaimer: `main_window/start.py::StartMixin._show_disclaimer`
+takes `interactive=False`, returns without a dialog and
+`StartMixin._report_disclaimer_needed` surfaces `notif.disclaimer_manual`. The
+user reviews the settings and presses Start, which prompts interactively as
+before.
+`_on_auto_start` hands the origin over as `MainWindow._pending_start_automatic`
+instead of setting `_start_is_automatic` for the duration of the call, because
+`_on_start` defers the run by half a second: the flag has to be live when the
+deferred continuation and a startup failure are handled, and a manual Start
+clears it again.
 
 The presence value (`peersLabel`, set by `_on_peers`) is `connected/total`. p2p
 counts **devices** (self + peers); Server Mode counts **share accounts** with a

@@ -176,6 +176,9 @@ class MainWindow(
         # Startup-failure reporting: an automatic (saved-folder / OS autostart)
         # start must not raise an invisible modal while the app sits in the tray.
         self._start_is_automatic = False
+        # Set by ``_on_auto_start`` for the queued start: ``_on_start`` defers the
+        # run by half a second, so the origin has to survive that delay.
+        self._pending_start_automatic = False
         self._startup_failure_surfaced = False
         self._startup_error_message = ""
         self._startup_failure_tail = ""

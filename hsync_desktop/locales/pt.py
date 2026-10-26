@@ -420,6 +420,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_msg": "A pasta compartilhada não está vazia e as configurações atuais de sincronização podem EXCLUIR arquivos locais.\n\nMotivo: {reason}\n\nDeseja continuar?",
     "notif.deletion_risk_p2p": 'Modo p2p sem "Preferir função primária": os arquivos locais não presentes no dispositivo primário podem ser excluídos',
     "notif.deletion_risk_download": "Modo somente receber: as exclusões remotas serão aplicadas localmente e os arquivos somente locais podem ser removidos",
+    "notif.deletion_risk_manual": "A sincronização automática não foi iniciada: as configurações atuais podem excluir arquivos locais. Revise-as e clique em Iniciar para confirmar.",
+    "notif.disclaimer_manual": "A sincronização automática não foi iniciada: o aviso de isenção ainda não foi aceito. Clique em Iniciar para lê-lo e continuar.",
     "notif.master_conflict_title": "Conflito de papel primário",
     "notif.master_conflict_lost": "Outro primário (dispositivo {cid} em {ip}) tem prioridade (iniciado antes). Este dispositivo permanecerá secundário.",
     "notif.master_conflict_won": "O dispositivo {cid} em {ip} também solicitou o papel primário. Este dispositivo o assume (iniciado antes).",
