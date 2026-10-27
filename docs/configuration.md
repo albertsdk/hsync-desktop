@@ -27,7 +27,7 @@ transfer behaviour. It is used in both p2p and Server Mode.
 | Share name | Name of the share: the folder name on the HSYNC server, or the share name in p2p mode. Devices that sync the same folder must use the **same share name** (and, in p2p, the same group name) |
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` |
 | Real-time sync | Keep syncing automatically as files change |
-| Deletions | `Apply deletions (propagate)` keeps this device aligned: a file deleted on one device is deleted on the others. `Keep deleted files (backup)` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows. Switching back to `Apply deletions` asks for confirmation first |
+| Deletions | `Apply deletions (propagate)` keeps this device aligned: a file deleted on one device is deleted on the others. `Keep deleted files (backup)` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. Switching back to `Apply deletions` asks for confirmation first |
 | Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files, or the one-time disclaimer has not been accepted yet, the startup run stops and warns you instead of asking — press **Start** to confirm and run it |
 | Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
 | Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
