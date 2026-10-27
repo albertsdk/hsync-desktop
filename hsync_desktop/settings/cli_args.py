@@ -216,11 +216,7 @@ def _append_sync_mode_args(
     args: list[str], s: QSettings, simulation: bool, force_dry_run: bool
 ) -> None:
     """Append the sync-mode, filter, ignore and compression flags."""
-    policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
-    args += [
-        "--deletion-policy",
-        policy if policy in DELETION_POLICIES else DEFAULT_DELETION_POLICY,
-    ]
+    args += ["--deletion-policy", get_deletion_policy()]
 
     # Validate sync direction
     sync_dir = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
@@ -483,6 +479,18 @@ def is_simulation_mode() -> bool:
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("sync/dry_run", False, bool))
+
+
+def get_deletion_policy() -> str:
+    """Return the saved deletion policy (``propagate`` or ``keep``).
+
+    One read site for the main-window badge and for the engine arguments, so the
+    indicator can never disagree with the flag the engine actually receives.
+    An unreadable value falls back to the product default.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
+    return policy if policy in DELETION_POLICIES else DEFAULT_DELETION_POLICY
 
 
 def get_bandwidth_limits() -> tuple[int | None, int | None]:

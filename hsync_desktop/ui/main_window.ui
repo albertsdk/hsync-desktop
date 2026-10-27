@@ -191,6 +191,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QLabel" name="deletionBadge">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Backup — deletions kept</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="statusSpacer1">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>

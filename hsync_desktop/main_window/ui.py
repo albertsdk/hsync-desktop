@@ -79,6 +79,7 @@ from hsync_desktop.settings import (
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
+    get_deletion_policy,
     get_saved_theme,
     is_auto_sync_enabled,
     is_log_panel_visible,
@@ -235,6 +236,7 @@ class UiBuildMixin:
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
         self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
         self._simulation_badge: QLabel = self.findChild(QLabel, "simulationBadge")  # type: ignore[assignment]
+        self._deletion_badge: QLabel = self.findChild(QLabel, "deletionBadge")  # type: ignore[assignment]
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
         # Add role icon before roleLabel in the bottom bar layout
         self._role_icon = QLabel()
@@ -402,8 +404,22 @@ class UiBuildMixin:
             self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
 
-        # Simulation Mode badge/title/hints follow the language too.
+        # Simulation Mode and backup-policy badges follow the language too.
         self._refresh_simulation_state()
+        self._refresh_deletion_badge()
+
+    def _refresh_deletion_badge(self) -> None:
+        """Show the backup-policy badge while this device keeps deletions.
+
+        Called at build time, on every language change and after the settings
+        are applied. Without a permanent indicator, a user who inherited a
+        backup setup (or enabled `keep` once) would only notice the policy from
+        the deletions that never happen.
+        """
+        keep = get_deletion_policy() == "keep"
+        self._deletion_badge.setText(tr("deletion.badge"))
+        self._deletion_badge.setToolTip(tr("deletion.tip") if keep else "")
+        self._deletion_badge.setVisible(keep)
 
     def _update_window_title(self) -> None:
         """App name, with the Simulation Mode suffix while it is active."""

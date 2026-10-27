@@ -305,6 +305,42 @@ class TestServerUrlViaEnvOnly:
         assert args[idx + 1] == "0"
 
 
+class TestDeletionPolicyEmission:
+    """The policy always reaches the engine, with a safe fallback."""
+
+    def test_default_policy_is_emitted_explicitly(self):
+        args = _build_args({})
+
+        idx = args.index("--deletion-policy")
+        assert args[idx + 1] == "propagate"
+
+    def test_keep_policy_is_emitted(self):
+        args = _build_args({"sync/deletion_policy": "keep"})
+
+        idx = args.index("--deletion-policy")
+        assert args[idx + 1] == "keep"
+
+    def test_unknown_stored_value_falls_back_to_the_default(self):
+        args = _build_args({"sync/deletion_policy": "nope"})
+
+        idx = args.index("--deletion-policy")
+        assert args[idx + 1] == "propagate"
+
+    def test_get_deletion_policy_reads_the_setting(self):
+        from hsync_desktop.settings import cli_args
+
+        with patch.object(
+            cli_args, "QSettings", lambda *a, **kw: _FakeQSettings({"sync/deletion_policy": "keep"})
+        ):
+            assert cli_args.get_deletion_policy() == "keep"
+
+    def test_get_deletion_policy_defaults_when_unset(self):
+        from hsync_desktop.settings import cli_args
+
+        with patch.object(cli_args, "QSettings", lambda *a, **kw: _FakeQSettings({})):
+            assert cli_args.get_deletion_policy() == "propagate"
+
+
 class TestClientCapabilitiesParity:
     """Every long flag the desktop emits must be advertised by hsync-client.
 

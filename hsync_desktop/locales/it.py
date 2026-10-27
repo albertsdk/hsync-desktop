@@ -19,6 +19,8 @@ translations: dict[str, str] = {
     "status.unknown": "Sconosciuto",
     "simulation.badge": "Esecuzione simulata — nessuna modifica",
     "simulation.tip": "L'esecuzione simulata è attiva: ogni avvio mostra solo l'anteprima, nulla viene trasferito o eliminato. Disattivala in Impostazioni → Sincronizzazione.",
+    "deletion.badge": "Backup — eliminazioni conservate",
+    "deletion.tip": "Questo dispositivo non elimina mai file (politica di eliminazione: conserva): nulla viene rimosso qui e le eliminazioni degli altri dispositivi non vengono applicate. Disattivalo in Impostazioni → Sincronizzazione.",
     "simulation.window_title_suffix": " — Simulazione",
     "simulation.log_start": "--- Simulazione: nessuna modifica verrà applicata ---",
     "tip.start_simulation": "Esecuzione simulata: questa run mostra solo l'anteprima, nulla viene applicato.",

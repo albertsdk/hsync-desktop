@@ -21,6 +21,8 @@ translations: dict[str, str] = {
     "status.unknown": "Onbekend",
     "simulation.badge": "Simulatie — geen wijzigingen",
     "simulation.tip": "De simulatiemodus staat aan: elke run toont alleen het voorbeeld, er wordt niets overgedragen of verwijderd. Schakel hem uit in Instellingen → Synchronisatie.",
+    "deletion.badge": "Back-up — verwijderingen bewaard",
+    "deletion.tip": "Dit apparaat verwijdert nooit bestanden (verwijderingsbeleid: bewaren): hier wordt niets verwijderd en verwijderingen van andere apparaten worden niet toegepast. Zet het uit in Instellingen → Synchronisatie.",
     "simulation.window_title_suffix": " — Simulatie",
     "simulation.log_start": "--- Simulatie: er worden geen wijzigingen toegepast ---",
     "tip.start_simulation": "Simulatiemodus: deze run toont alleen een voorbeeld, er wordt niets toegepast.",

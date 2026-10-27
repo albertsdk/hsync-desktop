@@ -2110,6 +2110,60 @@ class TestKeylessP2pPrompt:
         assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
 
+class TestDeletionPolicyBadge:
+    """The keep policy is visible from the main window, not only in Settings."""
+
+    @staticmethod
+    def _set_policy(monkeypatch, policy: str) -> None:
+        import hsync_desktop.main_window.ui as ui_module
+
+        monkeypatch.setattr(ui_module, "get_deletion_policy", lambda: policy)
+
+    def test_badge_is_hidden_with_the_default_policy(self, window, monkeypatch):
+        self._set_policy(monkeypatch, "propagate")
+        window._refresh_deletion_badge()
+
+        assert window._deletion_badge.isHidden()
+        assert window._deletion_badge.toolTip() == ""
+
+    def test_badge_appears_while_deletions_are_kept(self, window, monkeypatch):
+        self._set_policy(monkeypatch, "keep")
+        window._refresh_deletion_badge()
+
+        assert not window._deletion_badge.isHidden()
+        assert window._deletion_badge.text() == tr("deletion.badge")
+        assert window._deletion_badge.toolTip() == tr("deletion.tip")
+
+    def test_turning_the_policy_off_clears_the_badge(self, window, monkeypatch):
+        self._set_policy(monkeypatch, "keep")
+        window._refresh_deletion_badge()
+        self._set_policy(monkeypatch, "propagate")
+        window._refresh_deletion_badge()
+
+        assert window._deletion_badge.isHidden()
+        assert window._deletion_badge.toolTip() == ""
+
+    def test_settings_save_refreshes_the_badge(self, window, monkeypatch):
+        self._set_policy(monkeypatch, "propagate")
+        window._refresh_deletion_badge()
+        self._set_policy(monkeypatch, "keep")
+
+        window._apply_settings_changes()
+
+        assert not window._deletion_badge.isHidden()
+
+    def test_the_two_badges_are_independent(self, window, monkeypatch):
+        import hsync_desktop.main_window.ui as ui_module
+
+        self._set_policy(monkeypatch, "keep")
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: True)
+        window._refresh_simulation_state()
+        window._refresh_deletion_badge()
+
+        assert not window._simulation_badge.isHidden()
+        assert not window._deletion_badge.isHidden()
+
+
 class TestSimulationIndicator:
     """Simulation Mode is visible from the main window, not only in Settings."""
 

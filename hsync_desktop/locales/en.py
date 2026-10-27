@@ -21,6 +21,8 @@ translations: dict[str, str] = {
     "status.unknown": "Unknown",
     "simulation.badge": "Simulation — no changes",
     "simulation.tip": "Simulation Mode is on: every run only shows the preview, nothing is transferred or deleted. Turn it off in Settings → Sync.",
+    "deletion.badge": "Backup — deletions kept",
+    "deletion.tip": "This device never deletes files (deletion policy: keep): nothing is removed here and deletions from other devices are not applied. Turn it off in Settings → Sync.",
     "simulation.window_title_suffix": " — Simulation",
     "simulation.log_start": "--- Simulation: no changes will be applied ---",
     "tip.start_simulation": "Simulation Mode: this run only previews, nothing is applied.",

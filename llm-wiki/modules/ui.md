@@ -837,3 +837,20 @@ every locale).
 > the combo-box items, window titles and message boxes already show the
 > ampersand and take the raw string. `tests/test_mnemonic_escaping.py` scans
 > every locale for a leftover single `&` in the Settings and credential dialogs.
+
+## Safety badges in the bottom bar
+
+Two independent indicators sit next to the status label of
+`ui/main_window.ui` (both hidden by default, both refreshed by
+`main_window/ui.py::UiBuildMixin` on build, on language change and after the
+settings are applied):
+
+- `simulationBadge` — `ui.py::UiBuildMixin._refresh_simulation_state`, driven by
+  `settings/cli_args.py::is_simulation_mode` (window title suffix and tray
+  tooltip change with it).
+- `deletionBadge` — `ui.py::UiBuildMixin._refresh_deletion_badge`, driven by
+  `settings/cli_args.py::get_deletion_policy`: visible only while the deletion
+  policy is `keep`, so a device that silently never deletes always says so.
+  `get_deletion_policy` is the single read of `sync/deletion_policy`, also used
+  by `settings/cli_args.py::build_hsync_args`, so the badge cannot disagree
+  with the flag the engine receives.

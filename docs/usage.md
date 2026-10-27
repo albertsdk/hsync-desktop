@@ -136,6 +136,12 @@ tooltip says the run only previews, and every run starts with a
 `--- Simulation: no changes will be applied ---` line in the log. The summary
 dialog's only action is **Close**.
 
+With **Keep deleted files** selected (Settings → Sync → Deletions) the status
+bar shows a **Backup — deletions kept** badge for as long as the policy is
+active, so a device that never removes files says so instead of leaving you to
+notice it. Click the badge (or open Settings) to switch to **Apply deletions**;
+the change is confirmed first.
+
 Transient messages (searching for devices, connection results, "nothing to
 sync", a Send/Receive while a sync is running) appear as a toast, so nothing
 shifts and you do not need the log panel open to see the outcome. An icon and a

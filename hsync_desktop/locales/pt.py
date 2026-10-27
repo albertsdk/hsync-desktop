@@ -21,6 +21,8 @@ translations: dict[str, str] = {
     "status.unknown": "Desconhecido",
     "simulation.badge": "Simulação — nenhuma alteração",
     "simulation.tip": "O modo de simulação está ativo: cada execução mostra apenas a pré-visualização, nada é transferido ou excluído. Desative-o em Configurações → Sincronização.",
+    "deletion.badge": "Backup — exclusões mantidas",
+    "deletion.tip": "Este dispositivo nunca exclui ficheiros (política de exclusão: manter): nada é removido aqui e as exclusões dos outros dispositivos não são aplicadas. Desative em Definições → Sincronização.",
     "simulation.window_title_suffix": " — Simulação",
     "simulation.log_start": "--- Simulação: nenhuma alteração será aplicada ---",
     "tip.start_simulation": "Modo de simulação: esta execução mostra apenas a pré-visualização, nada é aplicado.",

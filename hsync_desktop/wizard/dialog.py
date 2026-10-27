@@ -29,6 +29,7 @@ from hsync_desktop.config import (
     DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
+    DELETION_POLICIES,
     SETTINGS_APP,
     SETTINGS_ORG,
 )
@@ -190,7 +191,11 @@ class SetupWizard(QDialog):
         d.p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
         d.discovery_server = str(s.value("p2p/bootnode", "", str))
         d.direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
-        d.deletion_policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
+        stored_policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
+        # An unreadable stored value must not leak into the review labels.
+        d.deletion_policy = (
+            stored_policy if stored_policy in DELETION_POLICIES else DEFAULT_DELETION_POLICY
+        )
         d.auto_sync = bool(s.value("sync/auto_sync", False, bool))
         d.start_at_login = bool(s.value("appearance/start_at_login", DEFAULT_START_AT_LOGIN, bool))
 

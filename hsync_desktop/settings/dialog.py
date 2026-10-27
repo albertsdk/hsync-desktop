@@ -256,16 +256,26 @@ class SettingsDialog(QDialog):
         equalize_tab_descriptions(self)
 
     def _populate_deletion_policy(self) -> None:
-        """Fill the deletion-policy combo, preserving the selection."""
+        """Fill the deletion-policy combo, preserving the selection.
+
+        Signals are blocked while the items are rebuilt: this runs again on
+        every language change, and the intermediate (empty, then first-item)
+        selections would otherwise re-enter `_on_deletion_policy_changed` and
+        pop the confirmation dialog for a user who already chose `keep`.
+        """
         current = self.deletion_policy.currentData()
-        self.deletion_policy.clear()
-        for value, key in (
-            ("propagate", "settings.deletion_policy_propagate"),
-            ("keep", "settings.deletion_policy_keep"),
-        ):
-            self.deletion_policy.addItem(tr(key), value)
-        index = self.deletion_policy.findData(current)
-        self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
+        blocked = self.deletion_policy.blockSignals(True)
+        try:
+            self.deletion_policy.clear()
+            for value, key in (
+                ("propagate", "settings.deletion_policy_propagate"),
+                ("keep", "settings.deletion_policy_keep"),
+            ):
+                self.deletion_policy.addItem(tr(key), value)
+            index = self.deletion_policy.findData(current)
+            self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
+        finally:
+            self.deletion_policy.blockSignals(blocked)
 
     def _populate_p2p_trust(self) -> None:
         """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""
