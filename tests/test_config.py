@@ -41,8 +41,9 @@ class TestSyncDefaults:
     def test_default_continuous(self):
         assert config.DEFAULT_CONTINUOUS is True
 
-    def test_default_ignore_delete(self):
-        assert config.DEFAULT_IGNORE_DELETE is False
+    def test_default_deletion_policy(self):
+        assert config.DEFAULT_DELETION_POLICY == "propagate"
+        assert set(config.DELETION_POLICIES) == {"propagate", "keep"}
 
     def test_default_sync_direction(self):
         assert config.DEFAULT_SYNC_DIRECTION == "bidirectional"

@@ -55,6 +55,7 @@ from hsync_desktop.config import (
     DEFAULT_CA_CERT,
     DEFAULT_COMPRESSION_ENABLED,
     DEFAULT_CONTINUOUS,
+    DEFAULT_DELETION_POLICY,
     DEFAULT_DELTA_ENABLED,
     DEFAULT_DELTA_MIN_FILE_SIZE_KB,
     DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
@@ -64,7 +65,6 @@ from hsync_desktop.config import (
     DEFAULT_FONT_SCALE,
     DEFAULT_GROUP,
     DEFAULT_HTTP_TIMEOUT,
-    DEFAULT_IGNORE_DELETE,
     DEFAULT_IGNORE_PATTERNS,
     DEFAULT_INSECURE,
     DEFAULT_LOGFILE,
@@ -100,6 +100,7 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
     DEFAULT_VERBOSE,
+    DELETION_POLICIES,
     MIN_RESYNC_INTERVAL,
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -193,6 +194,9 @@ class SettingsDialog(QDialog):
         # an edited user password from an untouched legacy raw key.
         self._p2p_key_loaded = ""
         self._p2p_key_mode_loaded = "raw"
+        # Policy the dialog opened with: leaving ``keep`` is what needs a
+        # confirmation, so the handler compares against this.
+        self._deletion_policy_loaded = DEFAULT_DELETION_POLICY
         # Connection state owned by ``set_connection_active``; a finished probe
         # must not re-enable a button an active sync has locked.
         self._connection_active = False
@@ -250,6 +254,18 @@ class SettingsDialog(QDialog):
 
         super().resizeEvent(event)
         equalize_tab_descriptions(self)
+
+    def _populate_deletion_policy(self) -> None:
+        """Fill the deletion-policy combo, preserving the selection."""
+        current = self.deletion_policy.currentData()
+        self.deletion_policy.clear()
+        for value, key in (
+            ("propagate", "settings.deletion_policy_propagate"),
+            ("keep", "settings.deletion_policy_keep"),
+        ):
+            self.deletion_policy.addItem(tr(key), value)
+        index = self.deletion_policy.findData(current)
+        self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
 
     def _populate_p2p_trust(self) -> None:
         """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""
@@ -319,7 +335,7 @@ class SettingsDialog(QDialog):
             (self.shared_path, "tip.shared_path"),
             (self.bucket, "tip.bucket"),
             (self.continuous, "tip.watch"),
-            (self.ignore_delete, "tip.ignore_delete"),
+            (self.deletion_policy, "tip.deletion_policy"),
             (self.sync_direction_combo, "tip.sync_direction"),
             (self.resync, "tip.resync"),
             (self.retry_delay, "tip.retry_delay"),
@@ -497,7 +513,7 @@ class SettingsDialog(QDialog):
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
-        self.ignore_delete.toggled.connect(self._on_ignore_delete_toggled)
+        self.deletion_policy.currentIndexChanged.connect(self._on_deletion_policy_changed)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
         self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
         self.prefer_master.toggled.connect(self._on_prefer_master_toggled)
@@ -595,16 +611,26 @@ class SettingsDialog(QDialog):
         """Folder whose sync state the user asked to reset (empty = none)."""
         return self._reset_state_folder
 
-    def _on_ignore_delete_toggled(self, checked: bool) -> None:
-        """Show a warning when the user disables ignore-delete."""
-        if not checked:
+    def _on_deletion_policy_changed(self) -> None:
+        """Ask before deletions start being applied on this device again.
+
+        Leaving ``keep`` is the only transition that can destroy data, so it is
+        the only one confirmed; cancelling puts the previous policy back.
+        """
+        policy = self.deletion_policy.currentData()
+        if policy not in DELETION_POLICIES:
+            return
+        if policy == "propagate" and self._deletion_policy_loaded == "keep":
             if not confirm(
                 self,
-                title=tr("warn.ignore_delete_title"),
-                text=tr("warn.ignore_delete_msg"),
+                title=tr("warn.deletion_policy_title"),
+                text=tr("warn.deletion_policy_msg"),
                 icon_name=QMessageBox.Icon.Warning,
             ):
-                self.ignore_delete.setChecked(True)
+                index = self.deletion_policy.findData("keep")
+                self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
+                return
+        self._deletion_policy_loaded = str(policy)
 
     def _on_browse_shared(self) -> None:
         """Open a folder browser to select the shared path."""
@@ -1146,7 +1172,10 @@ class SettingsDialog(QDialog):
         s.setValue("sync/retry_delay", self.retry_delay.value())
         s.setValue("sync/stability_delay", self.stability_delay.value())
         s.setValue("sync/max_wait", self.max_wait.value())
-        s.setValue("sync/ignore_delete", self.ignore_delete.isChecked())
+        s.setValue(
+            "sync/deletion_policy",
+            self.deletion_policy.currentData() or DEFAULT_DELETION_POLICY,
+        )
         s.setValue("sync/direction", self.sync_direction_combo.currentData() or "bidirectional")
         s.setValue("sync/min_free_disk_space", self.min_free_disk_space.value())
         s.setValue("sync/max_inbound_size", self.max_inbound_size.value())
@@ -1236,9 +1265,11 @@ class SettingsDialog(QDialog):
             cast(int, s.value("sync/stability_delay", DEFAULT_STABILITY_DELAY, int))
         )
         self.max_wait.setValue(cast(int, s.value("sync/max_wait", DEFAULT_MAX_WAIT, int)))
-        self.ignore_delete.setChecked(
-            bool(s.value("sync/ignore_delete", DEFAULT_IGNORE_DELETE, bool))
+        self._deletion_policy_loaded = str(
+            s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str)
         )
+        index = self.deletion_policy.findData(self._deletion_policy_loaded)
+        self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
         saved_dir = s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str)
         for i in range(self.sync_direction_combo.count()):
             if self.sync_direction_combo.itemData(i) == saved_dir:
@@ -1442,7 +1473,7 @@ class SettingsDialog(QDialog):
             self.btn_browse_shared,
             self.bucket,
             self.continuous,
-            self.ignore_delete,
+            self.deletion_policy,
             self.sync_direction_combo,
             self.resync,
             self.retry_delay,

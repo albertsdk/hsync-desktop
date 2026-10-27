@@ -45,6 +45,7 @@ from hsync_desktop.icons import icon
 from hsync_desktop.settings.form_helpers import (
     _action_row,
     _insert_row_after,
+    _replace_checkbox_with_combo,
     _replace_checkbox_with_toggle,
 )
 from hsync_desktop.settings.tab_indices import (
@@ -101,23 +102,25 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.btn_browse_shared = dlg.findChild(QToolButton, "btnBrowseShared")
     dlg.bucket = dlg.findChild(QLineEdit, "bucket")
     dlg.continuous, dlg._lbl_continuous = _replace_checkbox_with_toggle(dlg, "continuous")
-    dlg.ignore_delete, dlg._lbl_ignore_delete = _replace_checkbox_with_toggle(dlg, "ignoreDelete")
+    dlg.deletion_policy, dlg._lbl_deletion_policy = _replace_checkbox_with_combo(
+        dlg, "ignoreDelete"
+    )
 
-    # Sync direction combo – inject BEFORE ignore_delete row (so direction comes first)
+    # Sync direction combo – inject BEFORE deletion-policy row (so direction comes first)
     dlg.sync_direction_combo = QComboBox(dlg)
     dlg.sync_direction_combo.addItem("", "bidirectional")
     dlg.sync_direction_combo.addItem("", "upload-only")
     dlg.sync_direction_combo.addItem("", "download-only")
     dlg._lbl_sync_direction = QLabel(dlg)
-    # Find the Sync tab form layout and inject before ignore_delete row
+    # Find the Sync tab form layout and inject before deletion-policy row
     sync_tab = dlg._tabs.widget(_SYNC_TAB_INDEX)
     if sync_tab:
         for child in sync_tab.findChildren(QFormLayout):
             form: QFormLayout = child
-            # Find the ignore_delete row and insert before it
+            # Find the deletion-policy row and insert before it
             for row in range(form.rowCount()):
                 item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                if item and item.widget() is dlg.ignore_delete:
+                if item and item.widget() is dlg.deletion_policy:
                     add_row(form, dlg._lbl_sync_direction, dlg.sync_direction_combo, row)
                     break
             break

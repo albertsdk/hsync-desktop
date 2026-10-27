@@ -276,13 +276,13 @@ prompt again.
 
 All the programmatic `setChecked` fixes above (and the mutual exclusion in
 `_on_prefer_master_toggled` / `_on_never_master_toggled`, and the
-ignore-delete restore) deliberately leave the toggle's signals connected:
+deletion-policy restore) deliberately leave the toggle's signals connected:
 `ToggleSwitch` paints from a thumb animation driven by `toggled`, so
 swallowing the signal with `blockSignals` freezes the switch painted ON
 while `checked` is False — the user's click then re-enables it and
 re-triggers the prompt in a loop. Covered by
 `tests/test_settings_dialog_warnings.py::TestPreferMasterLiveWarning` and
-`tests/test_settings_dialog_warnings.py::TestIgnoreDeleteWarning`.
+`tests/test_settings_dialog_warnings.py::TestDeletionPolicyWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
 after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
@@ -445,11 +445,21 @@ Both use the same strategy — a `0` field means unlimited (no enable checkbox) 
 and the dialog additionally applies the change live through
 `engine/process.py::HsyncEngine.set_bandwidth` while a sync runs.
 
+The deletion policy (`sync/deletion_policy`) is a two-value combo built by
+`settings/tab_builders.py::build_sync_tab` through
+`form_helpers.py::_replace_checkbox_with_combo`, populated and translated by
+`settings/dialog.py::SettingsDialog._populate_deletion_policy`. Its vocabulary
+is the client contract (`hsync_common/defaults.py::DELETION_POLICIES`, aliased
+as `config.DELETION_POLICIES`): `propagate` applies deletions both ways,
+`keep` never deletes on this device. Unlike a toggle, only the `keep` →
+`propagate` transition can destroy data, so that is the only change
+`_on_deletion_policy_changed` confirms (and restores on "No").
+
 `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) always appends `--allow-deletions` (non-interactive) and
 `--color=always` (the client's own palette over the pipe, rendered by the log
 panel); the engine appends `--allow-unauthenticated-p2p` for a
 keyless p2p run after its own confirmation dialog; emits `--once` when continuous
-is off, `--insecure`, `--ignore-delete`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
+is off, `--insecure`, `--deletion-policy <value>`, compression flags, the advanced numeric caps (`--min-free-disk-space`,
 emitted as a size string such as `500MB`; `--max-inbound-size`), the
 Advanced-tab engine knobs (`--no-autotune`,
 `--max-concurrent-transfers`, `--no-delta`, `--delta-min-file-size[-p2p]`,

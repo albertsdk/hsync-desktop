@@ -83,7 +83,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     if lbl:
         lbl.setText(tr("settings.bucket"))
     dlg._lbl_continuous.setText(tr("settings.watch"))
-    dlg._lbl_ignore_delete.setText(tr("settings.ignore_delete"))
+    dlg._lbl_deletion_policy.setText(tr("settings.deletion_policy"))
+    dlg._populate_deletion_policy()
     dlg._lbl_sync_direction.setText(tr("settings.sync_direction"))
     dlg.sync_direction_combo.setItemText(0, tr("settings.sync_direction.bidirectional"))
     dlg.sync_direction_combo.setItemText(1, tr("settings.sync_direction.upload_only"))

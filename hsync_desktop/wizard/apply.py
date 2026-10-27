@@ -139,7 +139,7 @@ def apply_draft(
     s.setValue("path/local", draft.local_path.strip())
     s.setValue("sync/bucket", draft.bucket.strip())
     s.setValue("sync/direction", draft.direction)
-    s.setValue("sync/ignore_delete", draft.ignore_delete)
+    s.setValue("sync/deletion_policy", draft.deletion_policy)
     s.setValue("sync/continuous", draft.continuous)
     s.setValue("sync/auto_sync", draft.auto_sync)
 

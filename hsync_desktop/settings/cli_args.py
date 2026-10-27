@@ -23,6 +23,7 @@ from hsync_desktop.config import (
     BANDWIDTH_MIN_BPS,
     DEFAULT_AUTOTUNE,
     DEFAULT_BUCKET,
+    DEFAULT_DELETION_POLICY,
     DEFAULT_DELTA_ENABLED,
     DEFAULT_DELTA_MIN_FILE_SIZE_KB,
     DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
@@ -41,6 +42,7 @@ from hsync_desktop.config import (
     DEFAULT_RETRY_DELAY,
     DEFAULT_STABILITY_DELAY,
     DEFAULT_SYNC_DIRECTION,
+    DELETION_POLICIES,
     FONT_SCALE_COMPACT,
     FONT_SCALE_STANDARD,
     GUI_MAX_WAIT_MIN,
@@ -214,10 +216,11 @@ def _append_sync_mode_args(
     args: list[str], s: QSettings, simulation: bool, force_dry_run: bool
 ) -> None:
     """Append the sync-mode, filter, ignore and compression flags."""
-    if s.value(
-        "sync/ignore_delete", False, bool
-    ):  # default False matches config.py DEFAULT_IGNORE_DELETE
-        args.append("--ignore-delete")
+    policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
+    args += [
+        "--deletion-policy",
+        policy if policy in DELETION_POLICIES else DEFAULT_DELETION_POLICY,
+    ]
 
     # Validate sync direction
     sync_dir = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))

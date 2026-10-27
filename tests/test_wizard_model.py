@@ -36,7 +36,7 @@ class TestProfiles:
         p = profile_for(WizardMode.BACKUP)
         assert p.p2p_enabled is False
         assert p.direction == "upload-only"
-        assert p.ignore_delete is True
+        assert p.deletion_policy == "keep"
         assert p.start_at_login is True
         assert p.requires_discovery_server is False
 

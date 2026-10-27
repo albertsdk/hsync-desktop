@@ -320,26 +320,42 @@ class TestPreferMasterLiveWarning:
         assert saved == []
 
 
-class TestIgnoreDeleteWarning:
-    """Declining the ignore-delete warning restores the toggle; the restore
-    must fire `toggled` too, otherwise the switch keeps painting as OFF
-    while checked is True (same stale-paint cause as the prefer-master
-    prompt loop).
+class TestDeletionPolicyWarning:
+    """Leaving ``keep`` is confirmed; declining restores ``keep``.
+
+    Only the transition that can destroy data asks, so a fresh dialog (default
+    ``propagate``) switching between the other values stays silent.
     """
 
-    def test_decline_emits_toggle_signal_and_keeps_checked(self, dialog, monkeypatch):
+    def test_declining_restores_keep(self, dialog, monkeypatch):
         def fake_exec(self):
             return QMessageBox.StandardButton.No
 
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
-        dialog.ignore_delete.setChecked(True)  # known starting state
-        emitted: list[bool] = []
-        dialog.ignore_delete.toggled.connect(emitted.append)
-        dialog.ignore_delete.setChecked(False)  # user unchecks → warning → "No"
-        # The nested restore signal is delivered before the outer uncheck
-        # finishes, so assert both emissions rather than their order.
-        assert sorted(emitted) == [False, True]
-        assert dialog.ignore_delete.isChecked() is True
+        keep = dialog.deletion_policy.findData("keep")
+        propagate = dialog.deletion_policy.findData("propagate")
+        dialog.deletion_policy.setCurrentIndex(keep)
+        assert dialog._deletion_policy_loaded == "keep"
+
+        emitted: list[int] = []
+        dialog.deletion_policy.currentIndexChanged.connect(emitted.append)
+        dialog.deletion_policy.setCurrentIndex(propagate)  # user leaves keep → "No"
+
+        assert dialog.deletion_policy.currentData() == "keep"
+        # The restore is a nested index change: assert both were emitted, not
+        # the order Qt delivers them in.
+        assert set(emitted) == {propagate, keep}
+        assert dialog._deletion_policy_loaded == "keep"
+
+    def test_switching_to_propagate_after_confirm_is_kept(self, dialog, monkeypatch):
+        def fake_exec(self):
+            return QMessageBox.StandardButton.Yes
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        dialog.deletion_policy.setCurrentIndex(dialog.deletion_policy.findData("keep"))
+        dialog.deletion_policy.setCurrentIndex(dialog.deletion_policy.findData("propagate"))
+        assert dialog.deletion_policy.currentData() == "propagate"
+        assert dialog._deletion_policy_loaded == "propagate"
 
 
 class TestVerboseLogPanelPrompt:

@@ -9,6 +9,7 @@ from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
+    QComboBox,
     QFormLayout,
     QLabel,
     QWidget,
@@ -136,6 +137,36 @@ def _action_row(*buttons: QWidget) -> QWidget:
     row stacks them instead of clipping.
     """
     return _ActionRow(*buttons)
+
+
+def _replace_checkbox_with_combo(parent: QWidget, checkbox_name: str) -> tuple[QComboBox, QLabel]:
+    """Replace a ``QCheckBox`` field with an empty ``QComboBox`` form row.
+
+    Same row surgery as :func:`_replace_checkbox_with_toggle`: the caption moves
+    to the label column and the combo becomes the field, so a policy selector
+    shares the one control column. The caller fills the items.
+    """
+    checkbox: QCheckBox | None = parent.findChild(QCheckBox, checkbox_name)  # type: ignore[assignment]
+    combo = QComboBox(parent)
+    label = QLabel(parent)
+    if checkbox is None:
+        return combo, label
+
+    label.setText(checkbox.text())
+    combo.setObjectName(checkbox.objectName())
+
+    container = checkbox.parentWidget()
+    layout = container.layout() if container is not None else None
+    if isinstance(layout, QFormLayout):
+        for row in range(layout.rowCount()):
+            item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if item and item.widget() == checkbox:
+                layout.removeRow(row)
+                add_row(layout, label, combo, row)
+                return combo, label
+
+    checkbox.deleteLater()
+    return combo, label
 
 
 def _replace_checkbox_with_toggle(

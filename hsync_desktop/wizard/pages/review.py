@@ -168,7 +168,7 @@ class ReviewPage(WizardPage):
         }.get(draft.direction, draft.direction)
         behaviour = [
             f"{tr('settings.sync_direction')}: {direction_label}",
-            f"{tr('wizard.review.keep_deleted')}: {_on_off(draft.ignore_delete)}",
+            f"{tr('wizard.review.deletion_policy')}: {tr('settings.deletion_policy_' + draft.deletion_policy)}",
             f"{tr('wizard.automation.continuous')}: {_on_off(draft.continuous)}",
             f"{tr('wizard.automation.auto_sync')}: {_on_off(draft.auto_sync)}",
             f"{tr('wizard.automation.start_at_login')}: {_on_off(draft.start_at_login)}",

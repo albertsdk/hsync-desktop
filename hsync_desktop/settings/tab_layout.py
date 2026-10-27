@@ -302,7 +302,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     dlg._grp_sync = _group_box("settings.group.sync_mode")
     f2 = QFormLayout(dlg._grp_sync)
     add_row(f2, dlg._lbl_sync_direction, dlg.sync_direction_combo)
-    add_row(f2, dlg._lbl_ignore_delete, dlg.ignore_delete)
+    add_row(f2, dlg._lbl_deletion_policy, dlg.deletion_policy)
     add_row(f2, dlg._lbl_continuous, dlg.continuous)
     add_row(f2, dlg._lbl_auto_sync, dlg.auto_sync)
     vbox.addWidget(dlg._grp_sync)

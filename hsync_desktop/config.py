@@ -37,7 +37,11 @@ DEFAULT_HTTP_TIMEOUT = defaults.HTTP_TIMEOUT_DEFAULT
 
 # Sync defaults
 DEFAULT_CONTINUOUS = True
-DEFAULT_IGNORE_DELETE = False
+# Deletion policy (shared vocabulary with the client): ``propagate`` applies
+# deletions in both directions, ``keep`` never deletes on this device (an
+# additive backup target).
+DELETION_POLICIES = defaults.DELETION_POLICIES
+DEFAULT_DELETION_POLICY = defaults.DELETION_POLICY_DEFAULT
 DEFAULT_SYNC_DIRECTION = defaults.SYNC_DIRECTION_DEFAULT
 DEFAULT_RESYNC_INTERVAL = 0
 # The client rejects a periodic check below this interval (0 = disabled).

@@ -45,7 +45,7 @@ class TestServerModeMapping:
             server_url="host.example.com",
             api_key="api-secret",
             direction="upload-only",
-            ignore_delete=True,
+            deletion_policy="keep",
             start_at_login=True,
         )
         apply_draft(store, draft)
@@ -53,7 +53,7 @@ class TestServerModeMapping:
         assert store.value("connection/server_url") == "https://host.example.com:9753"
         assert store.value("connection/api_key").startswith("enc::")
         assert store.value("sync/direction") == "upload-only"
-        assert store.value("sync/ignore_delete", False, bool) is True
+        assert store.value("sync/deletion_policy") == "keep"
         assert store.value("appearance/start_at_login", False, bool) is True
         # advanced keys are untouched
         assert store.value("advanced/autotune", True, bool) is False

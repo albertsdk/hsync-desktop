@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.config import (
     DEFAULT_BUCKET,
+    DEFAULT_DELETION_POLICY,
     DEFAULT_GROUP,
-    DEFAULT_IGNORE_DELETE,
     DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
@@ -190,7 +190,7 @@ class SetupWizard(QDialog):
         d.p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
         d.discovery_server = str(s.value("p2p/bootnode", "", str))
         d.direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
-        d.ignore_delete = bool(s.value("sync/ignore_delete", DEFAULT_IGNORE_DELETE, bool))
+        d.deletion_policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
         d.auto_sync = bool(s.value("sync/auto_sync", False, bool))
         d.start_at_login = bool(s.value("appearance/start_at_login", DEFAULT_START_AT_LOGIN, bool))
 
@@ -212,7 +212,7 @@ class SetupWizard(QDialog):
         profile = profile_for(mode)
         d = self._draft
         d.direction = profile.direction
-        d.ignore_delete = profile.ignore_delete
+        d.deletion_policy = profile.deletion_policy
         d.start_at_login = profile.start_at_login
         d.continuous = True
         if profile.p2p_enabled:

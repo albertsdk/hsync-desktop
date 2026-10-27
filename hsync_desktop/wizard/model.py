@@ -68,7 +68,7 @@ class WizardProfile:
     mode: WizardMode
     p2p_enabled: bool
     direction: str  # "bidirectional" | "upload-only" | "download-only"
-    ignore_delete: bool
+    deletion_policy: str  # "propagate" | "keep"
     start_at_login: bool
     requires_discovery_server: bool
     server_trust: str | None  # None = mode has no server field
@@ -79,7 +79,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         WizardMode.BACKUP,
         p2p_enabled=False,
         direction="upload-only",
-        ignore_delete=True,
+        deletion_policy="keep",
         start_at_login=True,
         requires_discovery_server=False,
         server_trust="chain",
@@ -88,7 +88,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         WizardMode.LAN_SYNC,
         p2p_enabled=True,
         direction="bidirectional",
-        ignore_delete=False,
+        deletion_policy="propagate",
         start_at_login=False,
         requires_discovery_server=False,
         server_trust=None,
@@ -97,7 +97,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         WizardMode.REMOTE_SYNC,
         p2p_enabled=True,
         direction="bidirectional",
-        ignore_delete=False,
+        deletion_policy="propagate",
         start_at_login=False,
         requires_discovery_server=True,
         server_trust=None,
@@ -106,7 +106,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         WizardMode.TEAM_SHARE,
         p2p_enabled=False,
         direction="bidirectional",
-        ignore_delete=False,
+        deletion_policy="propagate",
         start_at_login=False,
         requires_discovery_server=False,
         server_trust="chain",
@@ -169,7 +169,7 @@ class WizardDraft:
     p2p_key: str = ""
     discovery_server: str = ""
     direction: str = "bidirectional"
-    ignore_delete: bool = False
+    deletion_policy: str = "propagate"
     continuous: bool = True
     # Opt-in: a startup run begins without any user action, so it must be chosen
     # explicitly (the product default, ``config.DEFAULT_AUTO_SYNC``).
