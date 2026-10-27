@@ -19,7 +19,7 @@ translations: dict[str, str] = {
     "status.unknown": "Desconocido",
     "simulation.badge": "Simulación — sin cambios",
     "simulation.tip": "El modo simulación está activo: cada ejecución solo muestra la vista previa, no se transfiere ni se elimina nada. Desactívalo en Ajustes → Sincronización.",
-    "deletion.badge": "Copia de seguridad — eliminaciones conservadas",
+    "deletion.badge": "Eliminaciones conservadas",
     "deletion.tip": "Este dispositivo nunca elimina archivos (política de eliminación: conservar): aquí no se elimina nada y las eliminaciones de otros dispositivos no se aplican. Desactívalo en Ajustes → Sincronización.",
     "simulation.window_title_suffix": " — Simulación",
     "simulation.log_start": "--- Simulación: no se aplicará ningún cambio ---",

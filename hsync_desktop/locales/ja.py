@@ -21,7 +21,7 @@ translations: dict[str, str] = {
     "status.unknown": "不明",
     "simulation.badge": "シミュレーション — 変更なし",
     "simulation.tip": "シミュレーションモードが有効です：実行はプレビューのみで、転送も削除も行われません。「設定 → 同期」でオフにしてください。",
-    "deletion.badge": "バックアップ — 削除を保持",
+    "deletion.badge": "削除を保持",
     "deletion.tip": "このデバイスはファイルを削除しません（削除ポリシー：保持）。ここでは何も削除されず、他のデバイスの削除も適用されません。設定 → 同期 でオフにできます。",
     "simulation.window_title_suffix": " — シミュレーション",
     "simulation.log_start": "--- シミュレーション：変更は適用されません ---",

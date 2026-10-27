@@ -19,7 +19,7 @@ translations: dict[str, str] = {
     "status.unknown": "Unbekannt",
     "simulation.badge": "Testlauf — keine Änderungen",
     "simulation.tip": "Der Testlauf ist aktiv: jeder Start zeigt nur die Vorschau, es wird nichts übertragen oder gelöscht. Deaktivieren Sie ihn unter Einstellungen → Synchronisation.",
-    "deletion.badge": "Backup — Löschungen bleiben",
+    "deletion.badge": "Löschungen bleiben",
     "deletion.tip": "Dieses Gerät löscht nie Dateien (Löschungsrichtlinie: behalten): hier wird nichts entfernt und Löschungen anderer Geräte werden nicht angewendet. Änderbar unter Einstellungen → Synchronisierung.",
     "simulation.window_title_suffix": " — Testlauf",
     "simulation.log_start": "--- Testlauf: Es werden keine Änderungen angewendet ---",

@@ -65,6 +65,29 @@ class TestImportantTranslations:
                 assert key in module.translations, f"Missing key '{key}' in {module.__name__}"
 
 
+class TestStatusBarBadges:
+    """A status-bar badge stays short: it shares one row with the status."""
+
+    def test_badges_stay_a_badge_in_every_language(self):
+        """A badge shares the status row with the status text and the other badge.
+
+        The bound is the longest approved label (`simulation.badge` in Italian,
+        38 chars); it exists to stop a translation from turning a badge into a
+        sentence, not to police the approved wording.
+        """
+        for module in ALL_MODULES:
+            for key in ("simulation.badge", "deletion.badge"):
+                value = module.translations[key]
+                assert len(value) <= 38, (
+                    f"{module.__name__}: {key} is {len(value)} chars: {value!r}"
+                )
+
+    def test_deletion_badge_exists_in_every_language(self):
+        for module in ALL_MODULES:
+            assert module.translations["deletion.badge"].strip(), module.__name__
+            assert module.translations["deletion.tip"].strip(), module.__name__
+
+
 class TestTerminologyConsistency:
     """Keep the visible wording coherent for non-technical users, in every locale.
 

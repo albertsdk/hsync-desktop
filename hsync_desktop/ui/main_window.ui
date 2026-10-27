@@ -196,7 +196,7 @@
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Backup — deletions kept</string>
+         <string>Deletions kept</string>
         </property>
        </widget>
       </item>

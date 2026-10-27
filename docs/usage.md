@@ -137,7 +137,7 @@ tooltip says the run only previews, and every run starts with a
 dialog's only action is **Close**.
 
 With **Keep deleted files** selected (Settings → Sync → Deletions) the status
-bar shows a **Backup — deletions kept** badge for as long as the policy is
+bar shows a **Deletions kept** badge for as long as the policy is
 active, so a device that never removes files says so instead of leaving you to
 notice it. Click the badge (or open Settings) to switch to **Apply deletions**;
 the change is confirmed first.

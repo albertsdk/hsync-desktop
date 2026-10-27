@@ -21,7 +21,7 @@ translations: dict[str, str] = {
     "status.unknown": "Nieznany",
     "simulation.badge": "Symulacja — bez zmian",
     "simulation.tip": "Tryb symulacji jest włączony: każde uruchomienie pokazuje tylko podgląd, nic nie jest przesyłane ani usuwane. Wyłącz go w Ustawienia → Synchronizacja.",
-    "deletion.badge": "Kopia zapasowa — usunięcia zachowane",
+    "deletion.badge": "Usunięcia zachowane",
     "deletion.tip": "To urządzenie nigdy nie usuwa plików (polityka usuwania: zachowaj): nic nie jest tutaj usuwane, a usunięcia z innych urządzeń nie są stosowane. Wyłącz to w Ustawienia → Synchronizacja.",
     "simulation.window_title_suffix": " — Symulacja",
     "simulation.log_start": "--- Symulacja: żadne zmiany nie zostaną zastosowane ---",
