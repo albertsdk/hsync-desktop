@@ -128,7 +128,10 @@ Send/Receive path (`main_window/actions.py`) reuses the same checks. The
 deletion-risk confirmation (`notif.deletion_risk`, p2p without *Prefer primary
 role* or Receive-only) is a guard for a run that actually applies changes, so
 `_check_deletion_risk` (`main_window/start.py::StartMixin._check_deletion_risk`)
-returns early when **Simulation Mode** (`sync/dry_run`) is on. That setting makes
+returns early when **Simulation Mode** (`sync/dry_run`) is on or when the
+deletion policy is `keep` (`settings/cli_args.py::get_deletion_policy`): neither
+can remove a local file, and an automatic startup run must not be dropped for a
+risk that cannot materialise. That setting makes
 every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
 client shows the preview and exits instead of parking in the dry-run "wait for a
 `SYNC` command" state, where `SYNC` would flip it to a real sync

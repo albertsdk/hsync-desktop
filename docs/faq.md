@@ -40,7 +40,10 @@ group only sees other no-group devices. The full checklist is in
 
 The folder is not empty and the current settings allow deletions — p2p Mode with
 **Prefer primary role** off, or a **Receive only** sync type. It is a warning
-before anything happens, not an action. See
+before anything happens, not an action. Choose **Keep deleted files**
+(Settings → Sync → Deletions) and the warning disappears, because the app can
+no longer delete anything; the status bar then shows a **Backup — deletions
+kept** badge. See
 [Warnings before and during a sync](usage.md#warnings-before-and-during-a-sync).
 
 ## How do I remove my settings and keys?

@@ -1929,6 +1929,21 @@ class TestDeletionRiskGate:
         assert window._check_deletion_risk() is True
         assert shown == []
 
+    def test_keep_policy_skips_the_prompt(self, window, settings, monkeypatch, tmp_path):
+        """Keep deleted files never removes anything: no confirmation."""
+        self._risky_folder(window, settings, tmp_path)
+        settings.setValue("sync/dry_run", False)
+        settings.setValue("sync/deletion_policy", "keep")
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        shown: list[QMessageBox] = []
+        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+
+        assert window._check_deletion_risk() is True
+        assert window._check_deletion_risk(interactive=False) is True
+        assert shown == []
+
     def test_risky_configuration_still_prompts(self, window, settings, monkeypatch, tmp_path):
         self._risky_folder(window, settings, tmp_path)
         settings.setValue("sync/dry_run", False)

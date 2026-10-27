@@ -80,6 +80,7 @@ from hsync_desktop.settings import (
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
+    get_deletion_policy,
     get_enabled_notification_categories,
     get_saved_font_scale,
     get_saved_theme,
@@ -366,6 +367,11 @@ class StartMixin:
         # one-shot), so nothing can be deleted and the confirmation would be a
         # false alarm.
         if is_simulation_mode():
+            return True
+        # Keep deleted files: this device never removes a file, so there is no
+        # risk to confirm (and an automatic startup run must not be dropped for
+        # a deletion that cannot happen).
+        if get_deletion_policy() == "keep":
             return True
         p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         prefer_master = s.value("p2p/prefer_master", False, bool)

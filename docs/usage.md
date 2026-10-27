@@ -169,7 +169,8 @@ what to do:
   (local files missing on the primary device may be removed here) and with the
   **Receive only** sync type (deletions made elsewhere apply here). Check the
   folder and confirm to continue; enabling **Prefer primary role** or the one-way
-  **Send only** type is what makes it stop asking. Simulation Mode skips it.
+  **Send only** type is what makes it stop asking. Simulation Mode and the
+  **Keep deleted files** policy skip it: neither can remove a local file.
 - **Deletions skipped (deletion protection)** — a cycle wanted to delete more
   local files than **Max deletions per cycle** or **Max deletions percent** allow.
   Those deletions were skipped and the sync kept running; a later cycle retries
