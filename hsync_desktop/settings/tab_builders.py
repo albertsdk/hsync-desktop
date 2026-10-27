@@ -103,7 +103,7 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.bucket = dlg.findChild(QLineEdit, "bucket")
     dlg.continuous, dlg._lbl_continuous = _replace_checkbox_with_toggle(dlg, "continuous")
     dlg.deletion_policy, dlg._lbl_deletion_policy = _replace_checkbox_with_combo(
-        dlg, "ignoreDelete"
+        dlg, "deletionPolicy"
     )
 
     # Sync direction combo – inject BEFORE deletion-policy row (so direction comes first)
