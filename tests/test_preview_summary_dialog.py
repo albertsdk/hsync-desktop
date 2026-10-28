@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from hsync_common.format import format_bytes
-from PySide6.QtWidgets import QPushButton, QTreeWidgetItem
+from PySide6.QtWidgets import QDialogButtonBox, QPushButton, QTreeWidgetItem
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.preview_summary_dialog import (
@@ -130,6 +130,41 @@ class TestButtons:
         buttons = dialog._button_box.buttons()
         defaults = [button for button in buttons if button.isDefault()]
         assert [button.text() for button in defaults] == [tr("preview_summary.cancel")]
+
+    def test_the_preview_intent_closes_by_default(self, qtbot):
+        """A preview run asked to see the plan: Close ends it, nothing applied."""
+        dialog = PreviewSummaryDialog(_stats(to_upload=2), intent="preview")
+        qtbot.addWidget(dialog)
+
+        assert _button_texts(dialog) == [
+            tr("preview_summary.close"),
+            tr("preview_summary.sync_now"),
+        ]
+        box = dialog._button_box
+        defaults = [button.text() for button in box.buttons() if button.isDefault()]
+        assert defaults == [tr("preview_summary.close")]
+        # Roles are what map the click to reject/accept: Close applies nothing,
+        # Sync now is the same apply path a confirmed Start uses.
+        by_text = {button.text(): button for button in box.buttons()}
+        assert box.buttonRole(by_text[tr("preview_summary.close")]) == (
+            QDialogButtonBox.ButtonRole.RejectRole
+        )
+        assert box.buttonRole(by_text[tr("preview_summary.sync_now")]) == (
+            QDialogButtonBox.ButtonRole.AcceptRole
+        )
+
+    def test_the_preview_intent_cannot_override_a_simulation(self, qtbot):
+        for intent in ("start", "preview"):
+            dialog = PreviewSummaryDialog(_stats(to_upload=2), simulation=True, intent=intent)
+            qtbot.addWidget(dialog)
+
+            assert _button_texts(dialog) == [tr("preview_summary.close")]
+
+    def test_the_preview_intent_keeps_ok_for_an_empty_plan(self, qtbot):
+        dialog = PreviewSummaryDialog(PreviewStats(), intent="preview")
+        qtbot.addWidget(dialog)
+
+        assert _button_texts(dialog) == [tr("preview_summary.ok")]
 
     def test_nothing_to_do_keeps_ok_in_both_modes(self, qtbot):
         for simulation in (False, True):

@@ -148,7 +148,12 @@ class PreviewStats:
 
 
 class PreviewSummaryDialog(QDialog):
-    """Confirmation of a sync plan: summary, warnings, grouped details."""
+    """Confirmation of a sync plan: summary, warnings, grouped details.
+
+    ``intent`` is the action that asked for the plan: ``"start"`` (the run is a
+    sync that confirms before applying) or ``"preview"`` (the run exists to show
+    the plan, so applying is an explicit "Sync now" instead of the default).
+    """
 
     def __init__(
         self,
@@ -161,10 +166,12 @@ class PreviewSummaryDialog(QDialog):
         direction: str = "bidirectional",
         deletions_kept: bool = False,
         scope: str = "",
+        intent: str = "start",
     ) -> None:
         super().__init__(parent)
         self._stats = stats
         self._simulation = simulation
+        self._intent = intent
         self._download_bps = download_bps if download_bps and download_bps > 0 else None
         self._upload_bps = upload_bps if upload_bps and upload_bps > 0 else None
         self._direction = direction
@@ -327,7 +334,7 @@ class PreviewSummaryDialog(QDialog):
         self._lbl_footnote.setVisible(True)
 
     def _populate_buttons(self) -> None:
-        """Applying the plan is never the default: Escape and Enter cancel."""
+        """Applying the plan is never the default: Escape and Enter decline."""
         self._button_box.clear()
         if not self._stats.has_work():
             ok_btn = QPushButton(tr("preview_summary.ok"))
@@ -340,6 +347,17 @@ class PreviewSummaryDialog(QDialog):
             close_btn.setDefault(True)
             self._button_box.addButton(close_btn, QDialogButtonBox.ButtonRole.AcceptRole)
             close_btn.clicked.connect(self.accept)
+            return
+        if self._intent == "preview":
+            # The user asked to see the plan, not to sync: closing ends the run
+            # without applying, and applying is the explicit second click.
+            close_btn = QPushButton(tr("preview_summary.close"))
+            close_btn.setDefault(True)
+            sync_btn = QPushButton(tr("preview_summary.sync_now"))
+            self._button_box.addButton(close_btn, QDialogButtonBox.ButtonRole.RejectRole)
+            self._button_box.addButton(sync_btn, QDialogButtonBox.ButtonRole.AcceptRole)
+            close_btn.clicked.connect(self.reject)
+            sync_btn.clicked.connect(self.accept)
             return
         cancel_btn = QPushButton(tr("preview_summary.cancel"))
         cancel_btn.setDefault(True)

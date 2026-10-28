@@ -340,7 +340,7 @@ class UiBuildMixin:
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
-        self._btn_start.setToolTip(tr("btn.start"))
+        self._btn_start.setToolTip(tr("tip.start"))
         self._btn_stop.setToolTip(tr("btn.stop"))
         self._update_check_changes_tooltip()
         self._update_path_display()
@@ -368,6 +368,7 @@ class UiBuildMixin:
         if hasattr(self, "_menu_sync"):
             self._menu_sync.setTitle(tr("menu.sync"))
             self._act_start.setText(tr("menu.sync.start"))
+            self._act_preview_changes.setText(tr("menu.sync.preview"))
             self._act_stop.setText(tr("menu.sync.stop"))
             self._act_check_changes.setText(tr("menu.sync.check_changes"))
             self._menu_direction.setTitle(tr("menu.sync.direction"))
@@ -431,7 +432,7 @@ class UiBuildMixin:
         self._simulation_badge.setText(tr("simulation.badge"))
         self._simulation_badge.setToolTip(tr("simulation.tip") if self._simulation_mode else "")
         self._btn_start.setToolTip(
-            tr("tip.start_simulation") if self._simulation_mode else tr("btn.start")
+            tr("tip.start_simulation") if self._simulation_mode else tr("tip.start")
         )
         self._update_window_title()
         tray = getattr(self, "_tray", None)
@@ -467,6 +468,10 @@ class UiBuildMixin:
         self._act_start.setShortcut("Ctrl+Shift+S")
         self._act_start.triggered.connect(self._on_start)
         self._menu_sync.addAction(self._act_start)
+
+        self._act_preview_changes = QAction(tr("menu.sync.preview"), self)
+        self._act_preview_changes.triggered.connect(self._on_preview_changes)
+        self._menu_sync.addAction(self._act_preview_changes)
 
         self._act_stop = QAction(tr("menu.sync.stop"), self)
         self._act_stop.setEnabled(False)
@@ -663,6 +668,7 @@ class UiBuildMixin:
 
         can_start = not is_running and has_path and not is_stopping
         self._act_start.setEnabled(can_start)
+        self._act_preview_changes.setEnabled(can_start)
         self._btn_start.setEnabled(can_start)
         if self._tray:
             self._tray.set_start_enabled(can_start)
@@ -778,8 +784,10 @@ class UiBuildMixin:
             self._append_desktop_log("ERROR", message)
         if message and self._comparison_in_flight:
             # The preview/classification failed. Its end marker still arrives, so
-            # record it here: a failed comparison is never a "last check".
+            # record it here: a failed comparison is never a "last check". The
+            # plan will never arrive either, so its preparing toast ends here.
             self._comparison_errored = True
+            self._exit_preparing_plan_ui()
 
         # A structured startup failure: the client is exiting, and
         # ``process_finished`` presents it once with the exit code. Do not toast

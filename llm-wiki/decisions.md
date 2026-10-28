@@ -239,3 +239,26 @@ disable unsupported controls) is realized in
   actionable case on a page without commands) and a new label per target (locale
   churn for no extra clarity). Guarded by `tests/test_docs_links.py` and
   `tests/test_main_window.py`.
+- **Preview and sync are one mechanism with two intents**: *Preview changes* is
+  not an offline comparison — the client cannot plan against an inventory
+  without a session — so the action runs the same `--dry-run` as Start and a
+  confirmation applies with the same `SYNC` on the already-running process
+  (`main_window/start.py::StartMixin._begin_start`,
+  `main_window/actions.py::ActionsMixin._show_preview_summary`). Only
+  `_preview_intent` differs: a `start` run keeps *Cancel*/*Synchronize* and the
+  empty-plan `SYNC`, a `preview` run offers *Close*/*Sync now* (Close default),
+  never applies an empty plan and never sends `SYNC` from that branch. The wait
+  is a visible state (`StartMixin._enter_preparing_plan_ui`: progress toast +
+  `notif.preparing_plan` marker) instead of a silent one. Restarting the engine
+  on accept was rejected: it would re-handshake and could produce a plan
+  different from the one the user confirmed. An unattended start never opens the
+  dialog (`ActionsMixin._apply_automatic_plan`): it applies a plan that deletes
+  nothing and otherwise stops with `notif.plan_needs_confirmation`. Whether a
+  dry-run is unattended is `_dry_run_unattended`, recorded per dry-run, not the
+  run's `_start_is_automatic`: `_retry_after_auth_fix` clears it after the
+  credential prompt, so a retried plan is confirmed like a manual one. The apply
+  is reported through `_report_result` (toast + OS notification once the window
+  is out of focus) and the waiting-plan warning uses the `sync` notification
+  category. The action lives in the Sync menu and the tray only — no action-bar
+  button, no new icon. Guarded by `tests/test_preview_summary_dialog.py`,
+  `tests/test_main_window.py` and `tests/test_system_tray.py`.

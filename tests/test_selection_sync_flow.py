@@ -55,7 +55,7 @@ def _capture_info(monkeypatch, window) -> list[str]:
     recorded: list[str] = []
     monkeypatch.setattr(
         window,
-        "_info_selection_outcome",
+        "_report_result",
         lambda message, **kwargs: recorded.append(message),
     )
     return recorded

@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "本设备永不删除文件（删除策略：保留）：此处不会删除任何内容，其他设备的删除也不会应用。可在 设置 → 同步 中关闭。",
     "simulation.window_title_suffix": " — 模拟",
     "simulation.log_start": "--- 模拟：不会应用任何更改 ---",
+    "tip.start": "开始同步 — 先显示计划供确认",
     "tip.start_simulation": "模拟模式：本次运行仅显示预览，不会应用任何内容。",
     # Roles
     "role.master": "主节点",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "隐藏",
     "tray.minimize": "最小化到托盘",
     "tray.start": "启动",
+    "tray.preview_changes": "预览更改",
     "tray.stop": "停止",
     "tray.check_changes": "检查更改",
     "tray.settings": "设置…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "仅接收模式：远程删除将在本地应用，仅存在于本地的文件可能会被移除",
     "notif.deletion_risk_manual": "未自动开始同步：当前设置可能会删除本地文件。请检查设置，然后点击“启动”确认。",
     "notif.disclaimer_manual": "未自动开始同步：免责声明尚未确认。请点击“启动”阅读并继续。",
+    "notif.preparing_plan": "正在准备计划…",
+    "notif.plan_needs_confirmation": "同步计划已生成，其中包含删除操作。请打开 HSYNC Desktop 查看并确认。",
     "notif.master_conflict_title": "主设备角色冲突",
     "notif.master_conflict_lost": "另一个主设备（{cid}，位于 {ip}）具有优先权（更早启动）。此设备将保持为从设备。",
     "notif.master_conflict_won": "位于 {ip} 的设备 {cid} 也请求了主设备角色。此设备获得该角色（更早启动）。",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "取消",
     "preview_summary.close": "关闭",
     "preview_summary.sync": "同步",
+    "preview_summary.sync_now": "立即同步",
     "preview_summary.ok": "确定",
     # Settings appearance - log panel
     "settings.show_log": "显示日志面板",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&同步",
     "menu.sync.start": "启动",
+    "menu.sync.preview": "预览更改",
     "menu.sync.stop": "停止",
     "menu.sync.check_changes": "检查更改",
     "menu.sync.direction": "同步类型",

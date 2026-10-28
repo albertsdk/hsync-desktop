@@ -288,6 +288,10 @@ class ActionsMixin:
         # A fresh process starts with no comparison behind it and no presence yet.
         self._comparison_in_flight = False
         self._comparison_errored = False
+        # No plan is being prepared: only _start_preview_run enters that state.
+        self._preparing_plan = False
+        # A new dry-run decides again whether anyone is watching it.
+        self._dry_run_unattended = False
         self._last_check_at = None
         self._peers_total = 0
         # A fresh process runs a fresh p2p election: back to the neutral role.
@@ -416,10 +420,10 @@ class ActionsMixin:
                 tr("sync.sel_failed_title"), tr("sync.sel_failed_msg")
             )
         elif outcome == "already_synced":
-            self._info_selection_outcome(tr("sync.sel_already_synced"), success=False)
+            self._report_result(tr("sync.sel_already_synced"), success=False)
         elif outcome == "done":
             key = "sync.sel_sent_fmt" if direction == "upload-only" else "sync.sel_received_fmt"
-            self._info_selection_outcome(tr(key).replace("{count}", str(count)))
+            self._report_result(tr(key).replace("{count}", str(count)))
         # "cancelled" / "stopped": nothing to show.
 
     def _important_selection_outcome(self, title: str, message: str) -> None:
@@ -436,10 +440,10 @@ class ActionsMixin:
         else:
             self._show_info_banner(message, kind="error", title=title)
 
-    def _info_selection_outcome(self, message: str, *, success: bool = True) -> None:
-        """Non-critical scoped result: a toast now, plus an OS notification when
-        the window is out of focus (the manager suppresses it in the foreground,
-        so exactly one surface shows)."""
+    def _report_result(self, message: str, *, success: bool = True) -> None:
+        """Non-critical run result: a toast now, plus an OS notification when the
+        window is out of focus (the manager suppresses it in the foreground, so
+        exactly one surface shows)."""
         if success:
             self._show_info_banner(message, kind="success", title=tr("notif.success"))
         else:
@@ -489,12 +493,25 @@ class ActionsMixin:
     # ── Signal wiring ────────────────────────────────────────────────────
 
     def _show_preview_summary(self) -> None:
-        """Show the preview summary dialog and start sync if confirmed."""
+        """Show the plan and apply it when confirmed.
+
+        Two intents reach this dialog. A ``start`` run keeps the confirm-before-
+        apply path; a ``preview`` run exists to show the plan, so it applies only
+        on "Sync now" and ends on Close. An unattended run never opens the
+        dialog: it applies a plan that deletes nothing and otherwise stops and
+        asks for confirmation, so it can never block on a modal.
+        """
+        # The wait is over: the plan arrived or the comparison ended.
+        self._exit_preparing_plan_ui()
         s = self._preview_stats
         selection = self._selection_sync_active
         # Simulation Mode never applies the preview: the client exits after its
         # one-shot dry-run, so no SYNC command is ever sent.
         simulation = is_simulation_mode()
+        # The intent only decides a dry-run: a stdin preview of a running session
+        # keeps the sync semantics of the run that started it.
+        preview_intent = self._is_dry_run_preview and self._preview_intent == "preview"
+        automatic = self._dry_run_unattended and self._is_dry_run_preview
 
         if not s.has_work():
             # Skip the dialog entirely. "Nothing to do" is only true when a peer
@@ -510,6 +527,12 @@ class ActionsMixin:
                 # Scoped op with nothing to transfer: report it instead of silence.
                 self._finish_selection_sync("already_synced")
                 return
+            if preview_intent and not simulation:
+                # The preview has answered: end the run instead of sending the
+                # SYNC that only a Start intent asks for.
+                self._stop_preview_run()
+                self._report_result(message, success=False)
+                return
             if self._is_dry_run_preview and not simulation:
                 # Send SYNC to switch from dry-run to real sync. The dry-run
                 # phase stays armed: the client may be serving as master when
@@ -521,11 +544,15 @@ class ActionsMixin:
                 if not self._dry_run_preview_reported:
                     self._dry_run_preview_reported = True
                     # Surface the result without needing the log panel.
-                    self._info_selection_outcome(message, success=False)
+                    self._report_result(message, success=False)
                 return
             self._is_dry_run_preview = False
             # Non-scoped: surface the result without needing the log panel.
-            self._info_selection_outcome(message, success=False)
+            self._report_result(message, success=False)
+            return
+
+        if automatic and not selection and not simulation:
+            self._apply_automatic_plan(s)
             return
 
         if selection:
@@ -547,6 +574,7 @@ class ActionsMixin:
             direction=get_sync_direction(),
             deletions_kept=get_deletion_policy() != "propagate",
             scope=scope,
+            intent="preview" if preview_intent else "start",
         )
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
             if selection:
@@ -559,7 +587,7 @@ class ActionsMixin:
             elif simulation:
                 # Preview-only run: report it and let the one-shot process exit.
                 self._append_desktop_log("INFO", tr("preview.simulation_no_changes"))
-                self._info_selection_outcome(tr("preview.simulation_no_changes"), success=False)
+                self._report_result(tr("preview.simulation_no_changes"), success=False)
             else:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.
@@ -569,17 +597,37 @@ class ActionsMixin:
             if selection:
                 self._finish_selection_sync("cancelled")
             elif self._is_dry_run_preview:
-                # User cancelled - stop the dry-run process
-                self._engine.stop_and_wait()
-                # Reset UI state
-                self._btn_start.setEnabled(bool(self._local_path))
-                self._btn_stop.setEnabled(False)
-                if self._tray:
-                    self._tray.set_running(False)
-                self._apply_button_styles()
-                self._update_menu_state()
+                # Close/Cancel: the plan is not applied and the run ends.
+                self._stop_preview_run()
             # If stdin preview, just close dialog - process keeps running
             self._is_dry_run_preview = False
+
+    def _stop_preview_run(self) -> None:
+        """End a dry-run whose plan was not applied: nothing is changed."""
+        self._engine.stop_and_wait()
+        self._is_dry_run_preview = False
+        self._reset_ui_stopped()
+
+    def _apply_automatic_plan(self, stats: PreviewStats) -> None:
+        """Apply the plan of a run nobody is watching, without a modal.
+
+        Deletions are the one thing an unattended run must not decide alone: the
+        settings-level gate already refused the destructive configurations, so a
+        plan that still deletes files was introduced by this very plan and waits
+        for the user to review it.
+        """
+        if stats.to_delete:
+            self._stop_preview_run()
+            self._report_plan_needs_confirmation()
+            return
+        message = tr("preview_summary.summary_changes").format(count=stats.action_count)
+        self._append_desktop_log("INFO", message)
+        # Reported through the toast *and* the OS while the window is in the
+        # background: an unattended apply must never be silent.
+        self._report_result(message, success=False)
+        # Same session, same SYNC as a confirmed plan: no restart, no recount.
+        self._engine.sync()
+        self._is_dry_run_preview = False
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""

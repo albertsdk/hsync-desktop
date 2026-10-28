@@ -1236,7 +1236,7 @@ class TestInfoToast:
         assert window._info_banner_link.isHidden()
 
     def test_success_toast_is_green_and_auto_hides(self, window):
-        window._info_selection_outcome("sent")
+        window._report_result("sent")
 
         assert window._info_banner_kind == "success"
         assert window._info_banner.property("severity") == "success"
@@ -1405,6 +1405,8 @@ class TestInitialReconcile:
             _pending_inventory=None,
             _comparison_in_flight=False,
             _comparison_errored=False,
+            _preparing_plan=False,
+            _exit_preparing_plan_ui=lambda: None,
             _last_check_at=None,
             _peers_total=0,
             _update_menu_state=lambda: None,
@@ -2054,6 +2056,287 @@ class TestSimulationModePreview:
         assert window._info_banner_label.text() == tr("preview.no_actions")
 
 
+class TestPreviewChanges:
+    """Explicit "Preview changes": show the plan, apply only when asked."""
+
+    @staticmethod
+    def _answer(monkeypatch, *, accepted: bool) -> list[str]:
+        """Answer the dialog and record the intent it was built with."""
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        seen: list[str] = []
+        code = (
+            PreviewSummaryDialog.DialogCode.Accepted
+            if accepted
+            else PreviewSummaryDialog.DialogCode.Rejected
+        )
+
+        def _exec(dialog):
+            seen.append(dialog._intent)
+            return int(code)
+
+        monkeypatch.setattr(PreviewSummaryDialog, "exec", _exec)
+        return seen
+
+    @staticmethod
+    def _spy_engine(window, monkeypatch) -> tuple[list, list]:
+        sent: list = []
+        stops: list = []
+        monkeypatch.setattr(type(window._engine), "sync", lambda self: sent.append("sync"))
+        monkeypatch.setattr(
+            type(window._engine), "stop_and_wait", lambda self: stops.append("stop")
+        )
+        return sent, stops
+
+    def test_the_action_follows_start_when_stopped_with_a_folder(self, window, tmp_path):
+        window._local_path = ""
+        window._update_menu_state()
+        assert not window._act_preview_changes.isEnabled()
+
+        window._local_path = str(tmp_path)
+        window._update_menu_state()
+        assert window._act_preview_changes.isEnabled()
+
+        # A running or stopping engine disables it exactly like Start.
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._update_menu_state()
+            assert not window._act_preview_changes.isEnabled()
+        finally:
+            engine_cls.is_running = original
+
+        window._stop_requested = True
+        window._update_menu_state()
+        assert not window._act_preview_changes.isEnabled()
+        window._stop_requested = False
+
+    def test_the_action_sits_next_to_start_in_the_sync_menu(self, window):
+        texts = [act.text() for act in window._menu_sync.actions() if not act.isSeparator()]
+
+        assert texts.index(tr("menu.sync.preview")) == texts.index(tr("menu.sync.start")) + 1
+
+    def test_it_starts_the_dry_run_with_the_preview_intent(self, window, monkeypatch, tmp_path):
+        _stop_the_deferred_timer(monkeypatch)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        monkeypatch.setattr(window, "_check_deletion_risk", lambda **_: True)
+        for name in ("_check_keyless_p2p", "_check_disk_space"):
+            monkeypatch.setattr(window, name, lambda: True)
+        monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())
+        started: list[str] = []
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: started.append(path))
+        window._local_path = str(tmp_path)
+
+        window._on_preview_changes()
+        window._continue_start_after_disclaimer()
+
+        assert started == [str(tmp_path)]
+        assert window._preview_intent == "preview"
+
+    def test_start_keeps_the_start_intent(self, window, monkeypatch, tmp_path):
+        _stop_the_deferred_timer(monkeypatch)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: None)
+        window._local_path = str(tmp_path)
+
+        window._on_start()
+
+        assert window._preview_intent == "start"
+
+    def test_the_dialog_offers_sync_now_for_a_preview_run(self, window, monkeypatch):
+        seen = self._answer(monkeypatch, accepted=False)
+        self._spy_engine(window, monkeypatch)
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 1
+        window._is_dry_run_preview = True
+        window._preview_intent = "preview"
+
+        window._show_preview_summary()
+
+        assert seen == ["preview"]
+
+    def test_the_preparing_state_is_visible_and_ends_with_the_plan(self, window, monkeypatch):
+        window._enter_preparing_plan_ui()
+
+        assert window._preparing_plan is True
+        assert window._info_banner_kind == "progress"
+        assert tr("notif.preparing_plan") in window._info_banner_label.text()
+        assert tr("notif.preparing_plan") in window._log_view.toPlainText()
+
+        self._answer(monkeypatch, accepted=True)
+        self._spy_engine(window, monkeypatch)
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 1
+        window._is_dry_run_preview = True
+
+        window._show_preview_summary()
+
+        assert window._preparing_plan is False
+        # The toast must not survive into the real sync.
+        assert window._info_banner_kind is None
+
+    def test_a_connect_keeps_the_preparing_toast(self, window):
+        window._enter_preparing_plan_ui()
+
+        window._on_status("connected")
+
+        assert window._preparing_plan is True
+        assert window._info_banner_kind == "progress"
+
+    def test_a_preview_without_the_plan_still_ends_the_toast(self, window):
+        """The dry-run phase can end without a summary: the toast must go too."""
+        window._enter_preparing_plan_ui()
+        window._awaiting_preview_for_sync = False
+
+        window._on_preview_ended()
+
+        assert window._preparing_plan is False
+        assert window._info_banner_kind is None
+
+    def test_an_empty_preview_plan_ends_the_run_without_syncing(self, window, monkeypatch):
+        sent, stops = self._spy_engine(window, monkeypatch)
+        window._preview_stats.reset()
+        window._is_dry_run_preview = True
+        window._preview_intent = "preview"
+
+        window._show_preview_summary()
+
+        assert sent == []
+        assert stops == ["stop"]
+        assert window._is_dry_run_preview is False
+        assert tr("preview.no_actions") in window._info_banner_label.text()
+
+    def test_an_accepted_preview_applies_in_the_same_session(self, window, monkeypatch):
+        import hsync_desktop.main_window.actions as actions_module
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        self._answer(monkeypatch, accepted=True)
+        sent, _stops = self._spy_engine(window, monkeypatch)
+        started: list[list[str]] = []
+        monkeypatch.setattr(window, "_start_engine", lambda args: started.append(args) or True)
+        window._preview_stats.reset()
+        window._preview_stats.to_download = 1
+        window._is_dry_run_preview = True
+        window._preview_intent = "preview"
+
+        window._show_preview_summary()
+
+        assert sent == ["sync"]
+        # Applying must reuse the running session: a restart would re-handshake
+        # and could produce a plan different from the confirmed one.
+        assert started == []
+
+
+class TestAutomaticPlan:
+    """An unattended run applies a plan only when it deletes nothing."""
+
+    @staticmethod
+    def _stub(window, monkeypatch, *, to_delete: int) -> tuple[list, list, list]:
+        import hsync_desktop.main_window.actions as actions_module
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        opened: list = []
+        monkeypatch.setattr(PreviewSummaryDialog, "exec", lambda self: opened.append(self) or 0)
+        sent: list = []
+        stops: list = []
+        monkeypatch.setattr(type(window._engine), "sync", lambda self: sent.append("sync"))
+        monkeypatch.setattr(
+            type(window._engine), "stop_and_wait", lambda self: stops.append("stop")
+        )
+        window._preview_stats.reset()
+        window._preview_stats.to_delete = to_delete
+        window._preview_stats.to_upload = 1
+        window._is_dry_run_preview = True
+        window._start_is_automatic = True
+        # The gate reads the per-dry-run origin, not the run's.
+        window._dry_run_unattended = True
+        return opened, sent, stops
+
+    def test_a_plan_with_deletions_stops_and_asks_for_confirmation(self, window, monkeypatch):
+        opened, sent, stops = self._stub(window, monkeypatch, to_delete=1)
+        warned: list[tuple[str, str, str]] = []
+        monkeypatch.setattr(
+            window,
+            "_notify_warning",
+            lambda title, message, category="connection", **kw: warned.append(
+                (title, message, category)
+            ),
+        )
+
+        window._show_preview_summary()
+
+        assert opened == []  # never a modal on an unattended run
+        assert sent == []  # and nothing applied
+        assert stops == ["stop"]
+        # The synchronisation category, not the connection one: a user who muted
+        # connection problems still needs to learn the run stopped.
+        assert warned == [(tr("notif.warning"), tr("notif.plan_needs_confirmation"), "sync")]
+        assert tr("notif.plan_needs_confirmation") in window._log_view.toPlainText()
+
+    def test_a_plan_without_deletions_is_applied(self, window, monkeypatch):
+        opened, sent, _stops = self._stub(window, monkeypatch, to_delete=0)
+        notified: list[tuple[str, str, str]] = []
+
+        class _Notifier:
+            def info(self, title, message, category="sync"):
+                notified.append((title, message, category))
+
+        window._notifier = _Notifier()  # type: ignore[assignment]
+        expected = tr("preview_summary.summary_changes").format(count=1)
+
+        window._show_preview_summary()
+
+        assert opened == []
+        assert sent == ["sync"]
+        assert window._info_banner_label.text() == expected
+        # An unattended apply must reach the user while the window is in the tray.
+        assert notified == [(tr("app.name"), expected, "sync")]
+
+
+class TestAuthRetryPlan:
+    """A dry-run restarted after a credential prompt is watched again."""
+
+    def test_the_retried_plan_is_confirmed_not_applied(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window.actions as actions_module
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
+        monkeypatch.setattr(window, "_start_engine", lambda args: True)
+        shown: list[int] = []
+        monkeypatch.setattr(
+            PreviewSummaryDialog,
+            "exec",
+            lambda self: shown.append(1) or int(PreviewSummaryDialog.DialogCode.Rejected),
+        )
+        sent: list[str] = []
+        monkeypatch.setattr(type(window._engine), "sync", lambda self: sent.append("sync"))
+        stops: list[str] = []
+        monkeypatch.setattr(
+            type(window._engine), "stop_and_wait", lambda self: stops.append("stop")
+        )
+        # The run began unattended (auto-sync on startup) and hit an auth error.
+        window._start_is_automatic = True
+        window._dry_run_unattended = True
+        window._local_path = str(tmp_path)
+
+        window._retry_after_auth_fix()
+
+        # The user just answered the credential prompt: this plan is theirs.
+        assert window._dry_run_unattended is False
+        assert window._preparing_plan is True
+
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 1
+        window._show_preview_summary()
+
+        assert shown == [1]  # the confirmation is offered, not skipped
+        assert sent == []  # Close applies nothing
+        assert stops == ["stop"]
+
+
 class TestDeletionRiskGate:
     """The "File Deletion Risk" prompt only guards a run that can delete."""
 
@@ -2348,7 +2631,7 @@ class TestSimulationIndicator:
 
         assert window._simulation_badge.isHidden()
         assert window.windowTitle() == tr("app.name")
-        assert window._btn_start.toolTip() == tr("btn.start")
+        assert window._btn_start.toolTip() == tr("tip.start")
 
     def test_badge_title_and_hints_appear_with_the_mode(self, window, monkeypatch):
         self._set_simulation(monkeypatch, True)
@@ -2369,7 +2652,7 @@ class TestSimulationIndicator:
         assert window._simulation_badge.isHidden()
         assert window._simulation_badge.toolTip() == ""
         assert window.windowTitle() == tr("app.name")
-        assert window._btn_start.toolTip() == tr("btn.start")
+        assert window._btn_start.toolTip() == tr("tip.start")
 
     def test_settings_save_refreshes_the_indicator(self, window, monkeypatch):
         import hsync_desktop.main_window.ui as ui_module

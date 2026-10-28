@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Это устройство никогда не удаляет файлы (политика удаления: сохранять): здесь ничего не удаляется, а удаления с других устройств не применяются. Отключить можно в Настройки → Синхронизация.",
     "simulation.window_title_suffix": " — Симуляция",
     "simulation.log_start": "--- Симуляция: изменения не будут применены ---",
+    "tip.start": "Начать синхронизацию — сначала показывается план для подтверждения",
     "tip.start_simulation": "Режим симуляции: этот запуск только показывает предпросмотр, ничего не применяется.",
     # Roles
     "role.master": "Основной узел",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "Скрыть",
     "tray.minimize": "Свернуть в трей",
     "tray.start": "Запустить",
+    "tray.preview_changes": "Предпросмотр изменений",
     "tray.stop": "Остановить",
     "tray.check_changes": "Проверить изменения",
     "tray.settings": "Настройки…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "Режим только получения: удалённые удаления будут применены локально, а файлы, существующие только локально, могут быть удалены",
     "notif.deletion_risk_manual": "Автоматическая синхронизация не запущена: текущие настройки могут удалить локальные файлы. Проверьте их и нажмите «Запустить», чтобы подтвердить.",
     "notif.disclaimer_manual": "Автоматическая синхронизация не запущена: отказ от ответственности ещё не принят. Нажмите «Запустить», чтобы прочитать его и продолжить.",
+    "notif.preparing_plan": "Подготовка плана…",
+    "notif.plan_needs_confirmation": "План синхронизации готов и содержит удаления. Откройте HSYNC Desktop, чтобы проверить и подтвердить его.",
     "notif.master_conflict_title": "Конфликт роли основного",
     "notif.master_conflict_lost": "Другое основное устройство ({cid} по адресу {ip}) имеет приоритет (запущено раньше). Это устройство останется вторичным.",
     "notif.master_conflict_won": "Устройство {cid} по адресу {ip} также запросило роль основного. Это устройство получает её (запущено раньше).",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "Отмена",
     "preview_summary.close": "Закрыть",
     "preview_summary.sync": "Синхронизировать",
+    "preview_summary.sync_now": "Синхронизировать сейчас",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "Показывать панель журнала",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Синхронизация",
     "menu.sync.start": "Запустить",
+    "menu.sync.preview": "Предпросмотр изменений",
     "menu.sync.stop": "Остановить",
     "menu.sync.check_changes": "Проверить изменения",
     "menu.sync.direction": "Тип синхронизации",

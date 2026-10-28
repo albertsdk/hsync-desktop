@@ -56,6 +56,33 @@ shows a **Deletions kept** badge for as long as the policy is active. Click the
 badge (or open Settings) to switch to **Apply deletions**; the change is confirmed
 first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 
+## Preview changes without starting a sync
+
+To see what a sync would do without committing to one, choose **Menu bar →
+Sync → Preview changes** (or the same entry in the tray menu) while no sync is
+running:
+
+1. The window shows **Preparing the plan…** with a progress toast and a matching
+   line in the log, so the wait is never silent.
+2. The same plan confirmation a Start would show opens, with **Close** as the
+   default button and **Sync now** next to it.
+3. **Close** (or `Esc`) applies nothing and ends the run. **Sync now** applies the
+   plan in the session that computed it — no second connection and no new
+   comparison, so what you saw is exactly what runs.
+
+Preview changes goes through the same checks as Start (disclaimer, deletion
+risk, keyless p2p warning, free disk space, server/device trust): those protect
+the connection, not the decision to apply. **Start** itself is unchanged — it
+still shows the plan and asks for **Synchronize** first; its tooltip says so.
+
+An **automatic** start (auto-sync on startup or launch at login) never opens a
+dialog: it applies the plan when the plan deletes nothing — reported in the log
+and, while the window sits in the tray, by a desktop notification — and stops
+with a warning when the plan includes deletions, so you can review it with
+Preview changes or Start. If the app has to ask you for a password again after
+an authentication failure, the next plan is shown for confirmation instead of
+being applied. In Simulation Mode the plan is only ever shown.
+
 ## Watch progress
 
 - The action bar shows the **share name** next to the folder icon; click it to open

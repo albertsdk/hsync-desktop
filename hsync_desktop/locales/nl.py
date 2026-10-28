@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Dit apparaat verwijdert nooit bestanden (verwijderingsbeleid: bewaren): hier wordt niets verwijderd en verwijderingen van andere apparaten worden niet toegepast. Zet het uit in Instellingen → Synchronisatie.",
     "simulation.window_title_suffix": " — Simulatie",
     "simulation.log_start": "--- Simulatie: er worden geen wijzigingen toegepast ---",
+    "tip.start": "Synchroniseren starten — eerst verschijnt het plan ter bevestiging",
     "tip.start_simulation": "Simulatiemodus: deze run toont alleen een voorbeeld, er wordt niets toegepast.",
     # Roles
     "role.master": "Primair knooppunt",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "Verbergen",
     "tray.minimize": "Minimaliseren naar systeemvak",
     "tray.start": "Starten",
+    "tray.preview_changes": "Wijzigingen bekijken",
     "tray.stop": "Stoppen",
     "tray.check_changes": "Wijzigingen controleren",
     "tray.settings": "Instellingen…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "Alleen ontvangen-modus: externe verwijderingen worden lokaal toegepast en alleen-lokale bestanden kunnen worden verwijderd",
     "notif.deletion_risk_manual": "Automatisch synchroniseren is niet gestart: de huidige instellingen kunnen lokale bestanden verwijderen. Controleer ze en druk op Starten om te bevestigen.",
     "notif.disclaimer_manual": "Automatisch synchroniseren is niet gestart: de disclaimer is nog niet geaccepteerd. Druk op Starten om die te lezen en door te gaan.",
+    "notif.preparing_plan": "Het plan wordt voorbereid…",
+    "notif.plan_needs_confirmation": "Er staat een synchronisatieplan klaar met verwijderingen. Open HSYNC Desktop om het te bekijken en te bevestigen.",
     "notif.master_conflict_title": "Conflict over primaire rol",
     "notif.master_conflict_lost": "Een ander primair apparaat ({cid} op {ip}) heeft voorrang (eerder gestart). Dit apparaat blijft secundair.",
     "notif.master_conflict_won": "Apparaat {cid} op {ip} heeft ook de primaire rol aangevraagd. Dit apparaat neemt deze over (eerder gestart).",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "Annuleren",
     "preview_summary.close": "Sluiten",
     "preview_summary.sync": "Synchroniseren",
+    "preview_summary.sync_now": "Nu synchroniseren",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "Logboekpaneel tonen",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Synchronisatie",
     "menu.sync.start": "Starten",
+    "menu.sync.preview": "Wijzigingen bekijken",
     "menu.sync.stop": "Stoppen",
     "menu.sync.check_changes": "Wijzigingen controleren",
     "menu.sync.direction": "Synchronisatietype",

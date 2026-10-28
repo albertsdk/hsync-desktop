@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "このデバイスはファイルを削除しません（削除ポリシー：保持）。ここでは何も削除されず、他のデバイスの削除も適用されません。設定 → 同期 でオフにできます。",
     "simulation.window_title_suffix": " — シミュレーション",
     "simulation.log_start": "--- シミュレーション：変更は適用されません ---",
+    "tip.start": "同期を開始 — 先に確認用のプランを表示します",
     "tip.start_simulation": "シミュレーションモード：この実行はプレビューのみで、何も適用されません。",
     # Roles
     "role.master": "プライマリノード",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "非表示",
     "tray.minimize": "トレイに最小化",
     "tray.start": "開始",
+    "tray.preview_changes": "変更をプレビュー",
     "tray.stop": "停止",
     "tray.check_changes": "変更を確認",
     "tray.settings": "設定…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "受信のみモード：リモートの削除がローカルに適用され、ローカルのみのファイルが削除される可能性があります",
     "notif.deletion_risk_manual": "自動同期は開始されませんでした。現在の設定ではローカルファイルが削除される可能性があります。設定を確認し、［開始］を押して承認してください。",
     "notif.disclaimer_manual": "自動同期は開始されませんでした。免責事項がまだ承認されていません。［開始］を押して内容を確認し、続行してください。",
+    "notif.preparing_plan": "プランを準備しています…",
+    "notif.plan_needs_confirmation": "削除を含む同期プランができました。HSYNC Desktop を開いて確認してください。",
     "notif.master_conflict_title": "プライマリ役割の競合",
     "notif.master_conflict_lost": "別のプライマリ（デバイス {cid}、{ip}）が優先されます（先に起動）。このデバイスはセカンダリのままになります。",
     "notif.master_conflict_won": "{ip} のデバイス {cid} もプライマリ役割を要求しました。このデバイスが取得します（先に起動）。",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "キャンセル",
     "preview_summary.close": "閉じる",
     "preview_summary.sync": "同期",
+    "preview_summary.sync_now": "今すぐ同期",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "ログパネルを表示",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&同期",
     "menu.sync.start": "開始",
+    "menu.sync.preview": "変更をプレビュー",
     "menu.sync.stop": "停止",
     "menu.sync.check_changes": "変更を確認",
     "menu.sync.direction": "同期の種類",

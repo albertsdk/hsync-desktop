@@ -53,6 +53,7 @@ class SystemTray(QSystemTrayIcon):
     # Signals for menu actions
     toggle_window = Signal()
     start_requested = Signal()
+    preview_changes_requested = Signal()
     stop_requested = Signal()
     check_changes_requested = Signal()
     settings_requested = Signal()
@@ -82,6 +83,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_start = QAction(tr("tray.start"), menu)
         self._act_start.triggered.connect(self.start_requested.emit)
         menu.addAction(self._act_start)
+
+        self._act_preview_changes = QAction(tr("tray.preview_changes"), menu)
+        self._act_preview_changes.triggered.connect(self.preview_changes_requested.emit)
+        menu.addAction(self._act_preview_changes)
 
         self._act_stop = QAction(tr("tray.stop"), menu)
         self._act_stop.triggered.connect(self.stop_requested.emit)
@@ -155,6 +160,7 @@ class SystemTray(QSystemTrayIcon):
         in flight disables it), so this method must not re-enable it on its own.
         """
         self._act_start.setEnabled(not running)
+        self._act_preview_changes.setEnabled(not running)
         self._act_stop.setEnabled(running)
 
     def set_check_changes_enabled(self, enabled: bool) -> None:
@@ -168,6 +174,7 @@ class SystemTray(QSystemTrayIcon):
         stay disabled too. ``set_running(False)`` restores the menu afterwards.
         """
         self._act_start.setEnabled(False)
+        self._act_preview_changes.setEnabled(False)
         self._act_stop.setEnabled(False)
         self._act_check_changes.setEnabled(False)
 
@@ -177,13 +184,19 @@ class SystemTray(QSystemTrayIcon):
         self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
 
     def set_start_enabled(self, enabled: bool) -> None:
-        """Enable or disable the Start action in the tray menu."""
+        """Enable or disable the start-or-preview entries in the tray menu.
+
+        Preview changes shares Start's rule (both need a stopped engine and a
+        configured folder), so one call keeps them from drifting apart.
+        """
         self._act_start.setEnabled(enabled)
+        self._act_preview_changes.setEnabled(enabled)
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to menu items."""
         self._act_show.setText(tr("tray.minimize") if self._window_visible else tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
+        self._act_preview_changes.setText(tr("tray.preview_changes"))
         self._act_stop.setText(tr("tray.stop"))
         self._act_check_changes.setText(tr("tray.check_changes"))
         self._act_settings.setText(tr("tray.settings"))

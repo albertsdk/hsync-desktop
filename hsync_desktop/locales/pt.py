@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Este dispositivo nunca exclui ficheiros (política de exclusão: manter): nada é removido aqui e as exclusões dos outros dispositivos não são aplicadas. Desative em Definições → Sincronização.",
     "simulation.window_title_suffix": " — Simulação",
     "simulation.log_start": "--- Simulação: nenhuma alteração será aplicada ---",
+    "tip.start": "Iniciar a sincronização — o plano aparece primeiro para confirmação",
     "tip.start_simulation": "Modo de simulação: esta execução mostra apenas a pré-visualização, nada é aplicado.",
     # Roles
     "role.master": "Nó primário",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "Ocultar",
     "tray.minimize": "Minimizar para a bandeja",
     "tray.start": "Iniciar",
+    "tray.preview_changes": "Pré-visualizar alterações",
     "tray.stop": "Parar",
     "tray.check_changes": "Verificar alterações",
     "tray.settings": "Configurações…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "Modo somente receber: as exclusões remotas serão aplicadas localmente e os arquivos somente locais podem ser removidos",
     "notif.deletion_risk_manual": "A sincronização automática não foi iniciada: as configurações atuais podem excluir arquivos locais. Revise-as e clique em Iniciar para confirmar.",
     "notif.disclaimer_manual": "A sincronização automática não foi iniciada: o aviso de isenção ainda não foi aceito. Clique em Iniciar para lê-lo e continuar.",
+    "notif.preparing_plan": "Preparando o plano…",
+    "notif.plan_needs_confirmation": "Um plano de sincronização está pronto e inclui eliminações. Abra o HSYNC Desktop para revisá-lo e confirmá-lo.",
     "notif.master_conflict_title": "Conflito de papel primário",
     "notif.master_conflict_lost": "Outro primário (dispositivo {cid} em {ip}) tem prioridade (iniciado antes). Este dispositivo permanecerá secundário.",
     "notif.master_conflict_won": "O dispositivo {cid} em {ip} também solicitou o papel primário. Este dispositivo o assume (iniciado antes).",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "Cancelar",
     "preview_summary.close": "Fechar",
     "preview_summary.sync": "Sincronizar",
+    "preview_summary.sync_now": "Sincronizar agora",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "Mostrar painel de log",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Sincronização",
     "menu.sync.start": "Iniciar",
+    "menu.sync.preview": "Pré-visualizar alterações",
     "menu.sync.stop": "Parar",
     "menu.sync.check_changes": "Verificar alterações",
     "menu.sync.direction": "Tipo de sincronização",

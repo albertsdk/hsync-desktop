@@ -146,6 +146,18 @@ class MainWindow(
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
+        # Which action started that dry-run: "start" (confirm, then apply) or
+        # "preview" (show the plan, apply only on "Sync now"). See
+        # StartMixin._begin_start and ActionsMixin._show_preview_summary.
+        self._preview_intent = "start"
+        # Whether nobody is watching the dry-run in flight. A per-dry-run value,
+        # not the run's origin: an auth retry after a credential prompt is
+        # watched again, so its plan must be confirmed (see
+        # MainWindow._retry_after_auth_fix).
+        self._dry_run_unattended = False
+        # True between a dry-run start and its plan: the progress toast and the
+        # log marker make that wait visible (StartMixin._enter_preparing_plan_ui).
+        self._preparing_plan = False
         # The "nothing to sync" result of that phase is reported once, even when
         # the SYNC has to be retried (see _show_preview_summary).
         self._dry_run_preview_reported = False

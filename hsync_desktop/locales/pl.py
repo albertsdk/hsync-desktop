@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "To urządzenie nigdy nie usuwa plików (polityka usuwania: zachowaj): nic nie jest tutaj usuwane, a usunięcia z innych urządzeń nie są stosowane. Wyłącz to w Ustawienia → Synchronizacja.",
     "simulation.window_title_suffix": " — Symulacja",
     "simulation.log_start": "--- Symulacja: żadne zmiany nie zostaną zastosowane ---",
+    "tip.start": "Rozpocznij synchronizację — najpierw pojawia się plan do potwierdzenia",
     "tip.start_simulation": "Tryb symulacji: to uruchomienie tylko pokazuje podgląd, nic nie jest stosowane.",
     # Roles
     "role.master": "Węzeł główny",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "Ukryj",
     "tray.minimize": "Zminimalizuj do zasobnika",
     "tray.start": "Uruchom",
+    "tray.preview_changes": "Podgląd zmian",
     "tray.stop": "Zatrzymaj",
     "tray.check_changes": "Sprawdź zmiany",
     "tray.settings": "Ustawienia…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "Tryb tylko odbierania: zdalne usunięcia zostaną zastosowane lokalnie, a pliki istniejące tylko lokalnie mogą zostać usunięte",
     "notif.deletion_risk_manual": "Automatyczna synchronizacja nie została uruchomiona: bieżące ustawienia mogą usunąć pliki lokalne. Sprawdź je i naciśnij Uruchom, aby potwierdzić.",
     "notif.disclaimer_manual": "Automatyczna synchronizacja nie została uruchomiona: wyłączenie odpowiedzialności nie zostało jeszcze zaakceptowane. Naciśnij Uruchom, aby je przeczytać i kontynuować.",
+    "notif.preparing_plan": "Przygotowywanie planu…",
+    "notif.plan_needs_confirmation": "Plan synchronizacji jest gotowy i zawiera usunięcia. Otwórz HSYNC Desktop, aby go przejrzeć i potwierdzić.",
     "notif.master_conflict_title": "Konflikt roli głównej",
     "notif.master_conflict_lost": "Inne urządzenie główne ({cid} pod {ip}) ma priorytet (uruchomione wcześniej). To urządzenie pozostanie podrzędne.",
     "notif.master_conflict_won": "Urządzenie {cid} pod {ip} również zażądało roli głównej. To urządzenie ją przejmuje (uruchomione wcześniej).",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "Anuluj",
     "preview_summary.close": "Zamknij",
     "preview_summary.sync": "Synchronizuj",
+    "preview_summary.sync_now": "Synchronizuj teraz",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "Pokaż panel dziennika",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Synchronizacja",
     "menu.sync.start": "Uruchom",
+    "menu.sync.preview": "Podgląd zmian",
     "menu.sync.stop": "Zatrzymaj",
     "menu.sync.check_changes": "Sprawdź zmiany",
     "menu.sync.direction": "Typ synchronizacji",

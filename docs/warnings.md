@@ -58,7 +58,7 @@ occurrence.
 
 ## Warnings before a sync
 
-Three checks can stop a start or a deletion phase. This is what they mean and
+Four checks can stop a start or a deletion phase. This is what they mean and
 what to do:
 
 - **File Deletion Risk** — the folder is not empty and the current settings can
@@ -77,6 +77,12 @@ what to do:
 - **No shared password** — with an empty p2p password the app confirms before
   starting, because reads are open to anyone who can reach this device. Set the
   password in the p2p tab to stop the prompt; see [Secrets](secrets.md).
+- **A sync plan awaits confirmation** — an automatic start (auto-sync on startup
+  or launch at login) stops when the plan it computed would delete files:
+  nothing is applied and the app says so (under **Synchronisation events** in
+  *Settings → General → Notifications*). Open the window and use
+  **Preview changes** or **Start** to review that plan and confirm it. See
+  [Preview changes without starting a sync](sync-basics.md#preview-changes-without-starting-a-sync).
 
 ## Trust prompts while running
 

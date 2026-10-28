@@ -21,7 +21,12 @@ window's attributes.
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
-| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
+| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Preview-changes/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
+| `_on_preview_changes` / `_begin_start` | `main_window/start.py::StartMixin._on_preview_changes` / `main_window/start.py::StartMixin._begin_start` | the explicit **Preview changes** entry shares Start's gates; `_begin_start` records `_preview_intent` (`"start"` \| `"preview"`) so the two entry points cannot drift |
+| `_enter_preparing_plan_ui` / `_exit_preparing_plan_ui` | `main_window/start.py::StartMixin._enter_preparing_plan_ui` / `main_window/start.py::StartMixin._exit_preparing_plan_ui` | the **Preparing the plan…** state: progress toast + log marker, ended by the plan, a failed comparison, a stop or a teardown |
+| `_apply_automatic_plan` | `main_window/actions.py::ActionsMixin._apply_automatic_plan` | an unattended run never opens the dialog: it applies a plan with no deletions, otherwise `_report_plan_needs_confirmation` |
+| `_report_plan_needs_confirmation` | `main_window/start.py::StartMixin._report_plan_needs_confirmation` | warns (log + notification) that an automatic plan with deletions waits for a manual Preview/Start |
+| `_stop_preview_run` | `main_window/actions.py::ActionsMixin._stop_preview_run` | Close/Cancel of a dry-run plan: `stop_and_wait` + the stopped UI, never a `SYNC` |
 | `_on_stop` / `_enter_stopping_ui` | `main_window/start.py::StartMixin._on_stop` / `main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker) |
 | `_on_stop_timeout` | `main_window/start.py::StartMixin._on_stop_timeout` | `HsyncEngine.stop_timeout`: leave `Stopping…`, restore the stopped UI and warn (`notif.stop_timeout`) |
 | `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
@@ -80,6 +85,10 @@ takes `interactive=False`, returns without a dialog and
 `StartMixin._report_disclaimer_needed` surfaces `notif.disclaimer_manual`. The
 user reviews the settings and presses Start, which prompts interactively as
 before.
+The confirmation *after* the run is covered by the same rule:
+`ActionsMixin._apply_automatic_plan` never opens the dialog and stops with
+`notif.plan_needs_confirmation` when the plan it computed deletes files (see
+*Preview changes — intent, preparing state, automatic runs*).
 `_on_auto_start` hands the origin over as `MainWindow._pending_start_automatic`
 instead of setting `_start_is_automatic` for the duration of the call, because
 `_on_start` defers the run by half a second: the flag has to be live when the
@@ -219,7 +228,53 @@ and the destructive part in the open:
   already aligned.
 * **Buttons**: *Cancel* is the default of a real run (applying a plan is never
   the default), *Synchronize* accepts, Simulation Mode keeps *Close* only and a
-  plan with no work shows *OK*.
+  plan with no work shows *OK*. With `intent="preview"` (the **Preview changes**
+  action) the pair becomes *Close* (default) + *Sync now*: the run exists to show
+  the plan, so applying it is the explicit second click.
+
+### Preview changes — intent, preparing state, automatic runs
+
+`_preview_intent` (set by `StartMixin._begin_start`, `main_window/window.py`) is
+the only difference between *Start* and *Preview changes*: both run the same
+gates (`_show_disclaimer`, `_check_deletion_risk`, `_check_keyless_p2p`,
+`_check_disk_space`, `_ensure_trust`) and the same dry-run
+(`StartMixin._start_preview_run`), and the apply mechanism stays one `SYNC` on the
+already-running process (`ActionsMixin._show_preview_summary`).
+
+| Case | `"start"` | `"preview"` |
+| ---- | --------- | ----------- |
+| empty plan | sends `SYNC` (keeps the dry-run phase armed) | `_stop_preview_run`, reports `preview.no_actions`, never `SYNC` |
+| plan accepted | `HsyncEngine.sync()` | `HsyncEngine.sync()` |
+| plan declined | `_stop_preview_run` | `_stop_preview_run` |
+| Simulation Mode | preview only, never `SYNC` | preview only, never `SYNC` |
+
+The intent is read only while `_is_dry_run_preview` is set, so the `PREVIEW` a
+running session answers keeps the sync semantics of the run that started it.
+
+`_enter_preparing_plan_ui` covers the interval between the dry-run start and its
+plan with a `progress` toast plus `--- notif.preparing_plan ---`; the toast is
+kept alive by `EventsMixin._on_status` on `connected` (the previous progress
+toast is otherwise hidden there) and removed by `_exit_preparing_plan_ui` from the
+plan, a comparison error (`UiBuildMixin._on_engine_error`), a stop
+(`_enter_stopping_ui`) and `_reset_ui_stopped`.
+
+An unattended run (`_dry_run_unattended`, set by `_start_preview_run` from
+`_start_is_automatic`, see `_on_auto_start`) never shows the dialog:
+`ActionsMixin._apply_automatic_plan` applies the plan when
+`PreviewStats.to_delete == 0` — reported through `_report_result`, so the apply
+also reaches the OS while the window is in the tray — and otherwise stops and
+calls `_report_plan_needs_confirmation` (category `sync`: a user who muted
+connection problems still learns that nothing was applied). The settings-level
+deletion gate (`_check_deletion_risk(interactive=False)`) already refused the
+destructive configurations, so this branch only covers deletions the plan itself
+introduces. `to_delete` already counts the deletions the mass-deletion guard will
+pause (the client emits the rows and only adds `preview_warning`), so
+`guard_deletes` is not part of the condition.
+
+`_dry_run_unattended` is per-dry-run on purpose: `_retry_after_auth_fix` clears it
+after the credential prompt (the user is present again, so the retried plan is
+confirmed like a manual one) and re-enters `_enter_preparing_plan_ui`, which the
+restarted dry-run needs to avoid a silent wait.
 
 ### Engine start failure feedback
 
@@ -608,10 +663,10 @@ lifecycle so its result is surfaced exactly once:
   `_important_selection_outcome` — a modal dialog when the window is in the
   foreground, otherwise a warning notification (`_notify_warning`, which also
   raises the in-app warning toast) — and a *non-critical* result through
-  `_info_selection_outcome` (a green `success` toast for a sent/received count, a
-  plain `info` toast for *already up to date* / *nothing to do*, plus an info
-  notification suppressed while the window is focused, so exactly one surface
-  shows).
+  `_report_result` (a green `success` toast for a sent/received count, a
+  plain `info` toast for *already up to date* / *nothing to do* / an automatic
+  plan that was applied, plus an info notification suppressed while the window
+  is focused, so exactly one surface shows).
 - Wiring (in `_connect_signals`): `error_occurred → _on_engine_error`
   (`main_window/ui.py::UiBuildMixin._on_engine_error`, `reason="connection"` in
   server mode → *server unreachable*; a launch failure is skipped and reported by

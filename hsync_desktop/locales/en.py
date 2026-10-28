@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "This device never deletes files (deletion policy: keep): nothing is removed here and deletions from other devices are not applied. Turn it off in Settings → Sync.",
     "simulation.window_title_suffix": " — Simulation",
     "simulation.log_start": "--- Simulation: no changes will be applied ---",
+    "tip.start": "Start syncing — a confirmation shows the plan first",
     "tip.start_simulation": "Simulation Mode: this run only previews, nothing is applied.",
     # Roles
     "role.master": "Primary node",
@@ -406,6 +407,7 @@ translations: dict[str, str] = {
     "tray.hide": "Hide",
     "tray.minimize": "Minimize to tray",
     "tray.start": "Start",
+    "tray.preview_changes": "Preview changes",
     "tray.stop": "Stop",
     "tray.check_changes": "Check for changes",
     "tray.settings": "Settings…",
@@ -443,6 +445,8 @@ translations: dict[str, str] = {
     "notif.deletion_risk_download": "Receive-only mode: remote deletions will be applied locally and local-only files may be removed",
     "notif.deletion_risk_manual": "Automatic sync was not started: the current settings could delete local files. Review them, then press Start to confirm.",
     "notif.disclaimer_manual": "The startup sync was not started: the disclaimer has not been accepted yet. Press Start to read it and continue.",
+    "notif.preparing_plan": "Preparing the plan…",
+    "notif.plan_needs_confirmation": "A sync plan is ready and includes deletions. Open HSYNC Desktop to review and confirm it.",
     "notif.master_conflict_title": "Primary role conflict",
     "notif.master_conflict_lost": "Another primary (device {cid} at {ip}) has priority (started earlier). This device will stay secondary.",
     "notif.master_conflict_won": "Device {cid} at {ip} also requested the primary role. This device takes it (started earlier).",
@@ -492,6 +496,7 @@ translations: dict[str, str] = {
     "preview_summary.cancel": "Cancel",
     "preview_summary.close": "Close",
     "preview_summary.sync": "Synchronize",
+    "preview_summary.sync_now": "Sync now",
     "preview_summary.ok": "OK",
     # Settings appearance - log panel
     "settings.show_log": "Show log panel",
@@ -577,6 +582,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Sync",
     "menu.sync.start": "Start",
+    "menu.sync.preview": "Preview changes",
     "menu.sync.stop": "Stop",
     "menu.sync.check_changes": "Check for changes",
     "menu.sync.direction": "Sync Type",

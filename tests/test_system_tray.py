@@ -46,6 +46,42 @@ class TestCheckChangesEntry:
             tray.hide()
 
 
+class TestPreviewChangesEntry:
+    """The explicit "Preview changes" entry follows Start's enablement rule."""
+
+    def test_it_mirrors_start_and_emits_its_signal(self, qapp):
+        tray = SystemTray()
+        try:
+            emitted: list[int] = []
+            tray.preview_changes_requested.connect(lambda: emitted.append(1))
+
+            tray.set_start_enabled(False)
+            assert not tray._act_preview_changes.isEnabled()
+
+            tray.set_start_enabled(True)
+            assert tray._act_preview_changes.isEnabled()
+            assert tray._act_preview_changes.text() == tr("tray.preview_changes")
+
+            tray._act_preview_changes.trigger()
+            assert emitted == [1]
+        finally:
+            tray.hide()
+
+    def test_running_and_stopping_disable_it(self, qapp):
+        tray = SystemTray()
+        try:
+            tray.set_running(True)
+            assert not tray._act_preview_changes.isEnabled()
+
+            tray.set_running(False)
+            assert tray._act_preview_changes.isEnabled()
+
+            tray.set_stopping()
+            assert not tray._act_preview_changes.isEnabled()
+        finally:
+            tray.hide()
+
+
 class TestStoppingState:
     """The tray follows the window while a stop is in flight."""
 

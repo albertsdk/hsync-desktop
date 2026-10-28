@@ -187,8 +187,9 @@ class EventsMixin:
             # Refresh path display (server_ip now available)
             self._update_path_display()
             # A scoped Send/Receive owns its banner; only the normal flow hides
-            # it and auto-runs the preview on connect.
-            if not self._selection_sync_active:
+            # it and auto-runs the preview on connect. A plan still being
+            # prepared keeps its own progress toast until it arrives.
+            if not self._selection_sync_active and not self._preparing_plan:
                 if self._info_banner_kind == "progress":
                     self._hide_info_banner()
                 if self._engine.is_running:
@@ -704,6 +705,10 @@ class EventsMixin:
             self._awaiting_preview_for_sync = False
             if not self._comparison_errored or self._is_dry_run_preview:
                 self._show_preview_summary()
+        else:
+            # A preview that does not carry the awaited plan still ends the wait:
+            # leaving the toast up would let it outlive the dry-run phase.
+            self._exit_preparing_plan_ui()
 
     @Slot()
     def _on_status_pass_started(self) -> None:
@@ -724,6 +729,9 @@ class EventsMixin:
         self._set_sync_state(*self._serving_sync_state())
         self._stamp_last_check()
         self._end_comparison()
+        # A serving device answers with a pass instead of the plan: the wait for
+        # a plan ends here (this window never opens a summary for a pass).
+        self._exit_preparing_plan_ui()
 
     @Slot(str, int, int, int)
     def _on_device_status(
@@ -903,6 +911,8 @@ class EventsMixin:
         # manual check is not left disabled for the next run.
         self._comparison_in_flight = False
         self._comparison_errored = False
+        # Nor can it produce the plan it was preparing.
+        self._preparing_plan = False
         self._peers_total = 0
         # The sync-set total belongs to the engine session; keep the scan local.
         self._share_total_bytes = -1

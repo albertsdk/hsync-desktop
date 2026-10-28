@@ -356,6 +356,10 @@ class TrustMixin:
             self._file_panel.load_local_files(local_path)
             self._awaiting_preview_for_sync = True
             self._is_dry_run_preview = True
+            # The credential prompt just put the user in front of the window: the
+            # plan of this dry-run is theirs to confirm, even when the run itself
+            # started automatically.
+            self._dry_run_unattended = False
             self._pending_sync_path = local_path
             if self._start_engine(args):
                 self._btn_start.setEnabled(False)
@@ -364,6 +368,9 @@ class TrustMixin:
                     self._tray.set_running(True)
                 self._apply_button_styles()
                 self._update_menu_state()
+                # The restarted dry-run is preparing a plan again: without this
+                # the wait would have no progress state at all.
+                self._enter_preparing_plan_ui()
                 return
         self._hide_info_banner()
         self._reset_ui_stopped()

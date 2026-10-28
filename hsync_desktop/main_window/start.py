@@ -132,6 +132,8 @@ class StartMixin:
     def _reset_ui_stopped(self) -> None:
         """Reset UI buttons to the stopped state."""
         self._stop_requested = False
+        # No run means no plan in flight: the preparing state ends with it.
+        self._preparing_plan = False
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         if self._tray:
@@ -471,6 +473,24 @@ class StartMixin:
         return True
 
     def _on_start(self) -> None:
+        """Start a sync: the run confirms the plan before applying it."""
+        self._begin_start(preview=False)
+
+    def _on_preview_changes(self) -> None:
+        """Show what a sync would do, without framing the run as a sync.
+
+        Same gates and same dry-run as Start; the confirmation that follows
+        applies the plan only on an explicit "Sync now".
+        """
+        self._begin_start(preview=True)
+
+    def _begin_start(self, *, preview: bool) -> None:
+        """Shared prologue of Start and Preview changes.
+
+        Records which intent owns the dry-run this prologue starts, then runs
+        the gates that must pass before any engine starts. The two entry points
+        differ only in that intent, so they cannot drift apart.
+        """
         # Consume the queued origin first: a manual Start clears it, an automatic
         # one keeps it for the whole run (delayed continue + startup failures).
         self._start_is_automatic = self._pending_start_automatic
@@ -478,6 +498,7 @@ class StartMixin:
         # A new session may legitimately re-prompt for fingerprints dismissed in
         # the previous one.
         self._trust_prompted.clear()
+        self._preview_intent = "preview" if preview else "start"
         automatic = self._start_is_automatic
         # Show the disclaimer first. An automatic start never raises it: the
         # notice is surfaced and the run waits for a manual Start.
@@ -535,11 +556,52 @@ class StartMixin:
         # Set flags to show preview summary when dry-run completes
         self._awaiting_preview_for_sync = True
         self._is_dry_run_preview = True  # We're in dry-run mode for initial preview
+        # The run's origin decides whether its plan is applied without asking.
+        self._dry_run_unattended = self._start_is_automatic
         self._pending_sync_path = local_path  # Save path for actual sync
         if not self._start_engine(args):
             self._reset_ui_stopped()
             return
         self._enter_running_ui()
+        self._enter_preparing_plan_ui()
+
+    def _enter_preparing_plan_ui(self) -> None:
+        """Make the wait for the plan visible instead of a silent one.
+
+        The progress toast and the log marker cover the interval between the
+        dry-run start and its plan; the run actions stay disabled because the
+        engine is already running.
+        """
+        self._preparing_plan = True
+        self._append_log(f"--- {tr('notif.preparing_plan')} ---")
+        self._show_info_banner(tr("notif.preparing_plan"), kind="progress")
+
+    def _exit_preparing_plan_ui(self) -> None:
+        """Leave the preparing state and drop its progress toast.
+
+        Every path that ends the wait calls this — the plan arriving, an empty
+        plan, a failed comparison and a stop — so the toast can never leak into
+        the real sync.
+        """
+        if not self._preparing_plan:
+            return
+        self._preparing_plan = False
+        if self._info_banner_kind == "progress":
+            self._hide_info_banner()
+
+    def _report_plan_needs_confirmation(self) -> None:
+        """Surface an automatic run whose plan deletes files.
+
+        The run is dropped rather than applied: deletions are the user's call,
+        so the plan waits for a manual Preview/Start (same shape as the
+        disclaimer and deletion-risk gates). The category follows the
+        *synchronisation events* switch, not the connection one: the run stopped
+        over a plan, and a user who muted connection problems still needs to
+        hear that nothing was applied.
+        """
+        message = tr("notif.plan_needs_confirmation")
+        self._append_desktop_log("WARNING", message)
+        self._notify_warning(tr("notif.warning"), message, category="sync")
 
     def _start_engine(self, args: list[str]) -> bool:
         """Start the engine, surfacing a visible dialog when it fails.
@@ -637,6 +699,9 @@ class StartMixin:
         reports its exit, by the engine's ``stop_timeout``.
         """
         self._stop_requested = True
+        # A plan still being computed will never arrive: its toast must not
+        # compete with the stopping one.
+        self._exit_preparing_plan_ui()
         self._set_status_label("stopping")
         self._btn_start.setEnabled(False)
         self._btn_stop.setEnabled(False)

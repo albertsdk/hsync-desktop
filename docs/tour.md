@@ -10,7 +10,8 @@ using the app — it is here to answer "what is that icon?".
 
 <img src="assets/screens/03-menu-bar.png" alt="The menu bar: Sync, File, Settings, Setup wizard, Help" width="720">
 
-- **Sync** — start and stop a sync, check for changes, choose the sync direction.
+- **Sync** — start and stop a sync, preview the changes a sync would apply
+  without starting one, check for changes, choose the sync direction.
 - **File** — actions on the file or folder you selected (open, copy, rename,
   send/receive now, …).
 - **Settings** — the configuration dialog; see the
@@ -28,7 +29,7 @@ The three buttons on the left are the everyday controls:
 
 | Button | What it does |
 | ------ | ------------ |
-| ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. |
+| ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. To see that plan without starting a sync, use **Sync → Preview changes**. |
 | ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
 | 🔄 **Check for changes** | Re-compares your folder with the other devices and updates the list. It is disabled while a comparison runs; before a connection exists it explains that the check starts on its own. |
 
