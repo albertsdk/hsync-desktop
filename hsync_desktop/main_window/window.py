@@ -125,6 +125,9 @@ class MainWindow(
             self._notifier.enabled = are_notifications_enabled()
             self._notifier.categories = get_enabled_notification_categories()
         self._user_stopped = False  # track if stop was user-initiated
+        # True from the user clicking Stop until the engine reports it finished:
+        # the window shows "Stopping…" and keeps Start/Stop disabled while set.
+        self._stop_requested = False
         # Per-(scope, identity) last-prompted fingerprint for the trust dialogs:
         # the client retries continuously, so a repeated refusal for the same
         # fingerprint must not reopen a dialog the user already dismissed. Reset
@@ -299,6 +302,9 @@ class MainWindow(
         e.pairing_needed.connect(self._on_pairing_needed)
         e.fingerprint_changed.connect(self._on_fingerprint_changed)
         e.process_finished.connect(self._on_process_finished)
+        # The child never reported "finished" after the kill escalation: the
+        # engine declared the run stopped, so leave "Stopping…" with a warning.
+        e.stop_timeout.connect(self._on_stop_timeout)
         # The engine died before readiness (exit-time safety net); the structured
         # startup error path arrives through ``error_occurred``.
         e.startup_failed.connect(self._on_startup_failed)

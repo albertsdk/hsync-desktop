@@ -131,6 +131,7 @@ class StartMixin:
 
     def _reset_ui_stopped(self) -> None:
         """Reset UI buttons to the stopped state."""
+        self._stop_requested = False
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
         self._btn_check_changes.setEnabled(False)
@@ -605,12 +606,61 @@ class StartMixin:
         if msg.clickedButton() is show_log:
             self._show_log_panel()
 
-    def _on_stop(self) -> None:
+    def _mark_user_stopped(self) -> None:
+        """Per-run bookkeeping shared by every user-initiated stop.
+
+        Runs even when the engine is not running: the flag also gates the
+        "connection lost" and engine-warning suppressions, so callers set it
+        before deciding whether there is a process to stop.
+        """
         self._user_stopped = True
         self._trust_prompted.clear()
         if self._notifier:
             self._notifier.user_stopped = True
-        self._engine.stop()
+
+    def _on_stop(self) -> None:
+        self._mark_user_stopped()
+        # The Stop action is disabled once stopping, so a second request can only
+        # come from a click queued before the repaint: ignore it.
+        if not self._engine.is_running or self._stop_requested:
+            return
+        self._enter_stopping_ui()
+        # Non-blocking: the window stays responsive while the child unwinds; the
+        # engine's grace/safety timers escalate and settle the state.
+        self._engine.request_stop()
+
+    def _enter_stopping_ui(self) -> None:
+        """Show the stopping state at once, before the child has exited.
+
+        The badge changes immediately, Start/Stop/Check-changes are disabled and a
+        progress toast plus a log marker make the click visible. The state is
+        cleared by ``EventsMixin._on_process_finished`` or, if the child never
+        reports its exit, by the engine's ``stop_timeout``.
+        """
+        self._stop_requested = True
+        self._set_status_label("stopping")
+        self._btn_start.setEnabled(False)
+        self._btn_stop.setEnabled(False)
+        self._btn_check_changes.setEnabled(False)
+        if self._tray:
+            self._tray.set_stopping()
+        self._apply_button_styles()
+        self._update_menu_state()
+        self._show_info_banner(tr("status.stopping"), kind="progress")
+        self._append_log(f"--- {tr('status.stopping')} ---")
+
+    @Slot()
+    def _on_stop_timeout(self) -> None:
+        """Settle the UI when the engine could not confirm the child exit.
+
+        ``HsyncEngine.stop_timeout`` means the kill escalation produced no
+        ``finished`` and the engine already reset its own state: leaving
+        "Stopping…" and telling the user beats waiting forever.
+        """
+        self._set_status_label("disconnected")
+        self._reset_ui_stopped()
+        self._append_desktop_log("WARNING", tr("notif.stop_timeout"))
+        self._show_info_banner(tr("notif.stop_timeout"), kind="warning", title=tr("notif.warning"))
 
     def _on_check_changes(self) -> None:
         """Ask the running engine for a fresh comparison of the share.
@@ -769,7 +819,10 @@ class StartMixin:
         if self._engine.is_running:
             if not self._confirm_stop_sync():
                 return
-            self._on_stop()
+            self._mark_user_stopped()
+            # The wizard may start the engine right after, so the child must
+            # really be gone: this path waits instead of showing "Stopping…".
+            self._engine.stop_and_wait()
         dlg = SetupWizard(self)
         self._setup_wizard = dlg
         try:

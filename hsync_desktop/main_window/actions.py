@@ -554,7 +554,7 @@ class ActionsMixin:
                 self._finish_selection_sync("cancelled")
             elif self._is_dry_run_preview:
                 # User cancelled - stop the dry-run process
-                self._engine.stop()
+                self._engine.stop_and_wait()
                 # Reset UI state
                 self._btn_start.setEnabled(bool(self._local_path))
                 self._btn_stop.setEnabled(False)

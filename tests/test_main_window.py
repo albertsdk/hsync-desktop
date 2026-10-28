@@ -179,7 +179,7 @@ class TestShutdown:
         quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         stopped: list[int] = []
-        monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
+        monkeypatch.setattr(window._engine, "stop_and_wait", lambda: stopped.append(1))
         self._answer(monkeypatch, QMessageBox.StandardButton.Yes)
 
         window._quit()
@@ -225,7 +225,7 @@ class TestShutdown:
         quit_calls = self._record_quit(monkeypatch)
         window._engine._running = True
         stopped: list[int] = []
-        monkeypatch.setattr(window._engine, "stop", lambda: stopped.append(1))
+        monkeypatch.setattr(window._engine, "stop_and_wait", lambda: stopped.append(1))
         self._answer(monkeypatch, QMessageBox.StandardButton.Yes)
 
         self._fire_sigint(window)
@@ -2964,3 +2964,100 @@ class TestCheckChangesAction:
         assert window._btn_check_changes.toolTip() == tr("tip.check_changes")
         # The shortcut is part of the only text the control shows.
         assert "F5" in window._btn_check_changes.toolTip()
+
+
+class TestStoppingFeedback:
+    """Stop is non-blocking and visible at once (no frozen window)."""
+
+    @pytest.fixture(autouse=True)
+    def _tray(self, window):
+        """Tray stub that keeps ``MainWindow.closeEvent`` on the minimise branch.
+
+        These tests mark the engine running to reach the stopping state; without
+        a tray, pytest-qt closing the window at teardown would take the quit path
+        and block on its modal confirmation dialog.
+        """
+
+        class _Tray:
+            def hide(self) -> None:
+                pass
+
+            def isVisible(self) -> bool:
+                return True
+
+            def set_window_visible(self, _visible: bool) -> None:
+                pass
+
+            def update_status(self, _status: str) -> None:
+                pass
+
+            def set_running(self, _running: bool) -> None:
+                pass
+
+            def set_stopping(self) -> None:
+                pass
+
+            def set_start_enabled(self, _enabled: bool) -> None:
+                pass
+
+        tray = _Tray()
+        window._tray = tray  # type: ignore[assignment]
+        return tray
+
+    @staticmethod
+    def _running(window, monkeypatch) -> list[int]:
+        window._local_path = "/some/share"
+        window._engine._running = True
+        requested: list[int] = []
+        monkeypatch.setattr(window._engine, "request_stop", lambda: requested.append(1))
+        return requested
+
+    def test_stop_shows_the_stopping_state_immediately(self, window, monkeypatch):
+        requested = self._running(window, monkeypatch)
+
+        window._on_stop()
+
+        assert requested == [1]
+        assert window._status_label.text() == tr("status.stopping")
+        assert not window._btn_stop.isEnabled()
+        assert not window._btn_start.isEnabled()
+        assert not window._btn_check_changes.isEnabled()
+        assert not window._info_banner.isHidden()
+        assert tr("status.stopping") in window._log_view.toPlainText()
+
+    def test_a_second_stop_while_stopping_is_ignored(self, window, monkeypatch):
+        requested = self._running(window, monkeypatch)
+
+        window._on_stop()
+        window._on_stop()
+
+        assert requested == [1]
+
+    def test_process_finished_leaves_the_stopping_state(self, window, monkeypatch):
+        from PySide6.QtCore import QProcess
+
+        self._running(window, monkeypatch)
+        window._on_stop()
+        window._engine._stopping = True
+
+        # The engine reports the exit before the window slot runs.
+        window._engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert window._stop_requested is False
+        assert window._status_label.text() == tr("status.disconnected")
+        assert window._btn_start.isEnabled()
+        assert window._info_banner.isHidden()  # the progress toast is run-scoped
+
+    def test_stop_timeout_restores_the_ui_with_a_warning(self, window, monkeypatch):
+        self._running(window, monkeypatch)
+        window._on_stop()
+
+        # The kill escalation produced no "finished": the engine declares it.
+        window._engine._on_stop_safety_elapsed()
+
+        assert window._stop_requested is False
+        assert window._status_label.text() == tr("status.disconnected")
+        assert window._btn_start.isEnabled()
+        assert not window._btn_stop.isEnabled()
+        assert not window._info_banner.isHidden()
+        assert tr("notif.stop_timeout") in window._log_view.toPlainText()

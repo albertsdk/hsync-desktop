@@ -318,7 +318,7 @@ class TrustMixin:
             # state silently before the re-prompt so the retry does not fight it.
             if self._selection_sync_active:
                 self._finish_selection_sync("cancelled")
-            self._engine.stop()
+            self._engine.stop_and_wait()
 
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
             p2p_enabled = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))

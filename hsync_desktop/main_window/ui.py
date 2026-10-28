@@ -647,19 +647,25 @@ class UiBuildMixin:
         if not hasattr(self, "_act_start"):
             return  # Menu bar not yet created
         is_running = self._engine.is_running
+        # A stop in progress is not a usable engine: nothing may be started
+        # until the child has reported its exit (cleared by the window slots).
+        is_stopping = self._stop_requested
         has_path = bool(self._local_path)
 
-        can_start = not is_running and has_path
+        can_start = not is_running and has_path and not is_stopping
         self._act_start.setEnabled(can_start)
         self._btn_start.setEnabled(can_start)
         if self._tray:
             self._tray.set_start_enabled(can_start)
-        self._act_stop.setEnabled(is_running)
-        self._act_check_changes.setEnabled(is_running and self._btn_check_changes.isEnabled())
+        self._act_stop.setEnabled(is_running and not is_stopping)
+        self._act_check_changes.setEnabled(
+            is_running and not is_stopping and self._btn_check_changes.isEnabled()
+        )
         # Send/Receive of a selection are one-shot commands: only while stopped.
-        self._act_file_send.setEnabled(not is_running and self._has_file_selection())
-        self._act_file_receive.setEnabled(not is_running and self._has_file_selection())
-        self._file_panel._table.set_sync_active(is_running)
+        idle = not is_running and not is_stopping
+        self._act_file_send.setEnabled(idle and self._has_file_selection())
+        self._act_file_receive.setEnabled(idle and self._has_file_selection())
+        self._file_panel._table.set_sync_active(is_running and not is_stopping)
         self._apply_button_styles()
 
     @Slot(str)

@@ -35,6 +35,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
     write_secret_pipe,
 )
+from hsync_desktop.engine.process import _STOP_GRACE_MS, _STOP_SAFETY_MS
 from tests._helpers import _capture, _FakeCompleted
 
 
@@ -766,3 +767,135 @@ class TestP2pSecretMode:
     def test_a_legacy_install_without_a_mode_is_normalised(self):
         assert p2p_secret_mode("shortkey15chars", "") == "passphrase"
         assert p2p_secret_mode("k" * 64, "") == "raw"
+
+
+class _FakeSignal:
+    """Records ``disconnect()`` calls on the fake process signals."""
+
+    def __init__(self) -> None:
+        self.disconnects = 0
+
+    def disconnect(self) -> None:
+        self.disconnects += 1
+
+
+class _FakeProcess:
+    """Minimal stand-in for QProcess around the stop paths."""
+
+    def __init__(self, *, finishes: bool = True, pid: int = 4242) -> None:
+        self._finishes = finishes
+        self._pid = pid
+        self.terminated = 0
+        self.killed = 0
+        self.wait_calls: list[int] = []
+        self.finished = _FakeSignal()
+        self.readyReadStandardOutput = _FakeSignal()
+        self.errorOccurred = _FakeSignal()
+
+    def processId(self) -> int:
+        return self._pid
+
+    def terminate(self) -> None:
+        self.terminated += 1
+
+    def kill(self) -> None:
+        self.killed += 1
+
+    def waitForFinished(self, msecs: int) -> bool:
+        self.wait_calls.append(msecs)
+        return self._finishes
+
+
+class TestStopEscalation:
+    """``request_stop`` never blocks; the timers escalate and settle the run."""
+
+    @staticmethod
+    def _engine_with(fake: _FakeProcess) -> HsyncEngine:
+        engine = HsyncEngine()
+        engine._process = fake
+        engine._running = True
+        return engine
+
+    def test_request_stop_signals_and_returns_without_waiting(self, monkeypatch):
+        fake = _FakeProcess()
+        engine = self._engine_with(fake)
+        signaled: list[int] = []
+        monkeypatch.setattr(engine, "_send_stop_signal", lambda: signaled.append(1))
+
+        engine.request_stop()
+
+        assert engine._stopping is True
+        assert signaled == [1]
+        assert fake.wait_calls == []  # never blocks the caller
+        assert engine._stop_grace_timer.isActive()
+
+    def test_a_second_request_is_ignored(self, monkeypatch):
+        fake = _FakeProcess()
+        engine = self._engine_with(fake)
+        signaled: list[int] = []
+        monkeypatch.setattr(engine, "_send_stop_signal", lambda: signaled.append(1))
+
+        engine.request_stop()
+        engine.request_stop()
+
+        assert signaled == [1]
+
+    def test_grace_elapsed_kills_and_arms_the_safety(self):
+        fake = _FakeProcess()
+        engine = self._engine_with(fake)
+        engine._stopping = True
+
+        engine._on_stop_grace_elapsed()
+
+        assert fake.killed == 1
+        assert engine._stop_safety_timer.isActive()
+
+    def test_safety_elapsed_declares_the_run_stopped(self):
+        fake = _FakeProcess()
+        engine = self._engine_with(fake)
+        engine._stopping = True
+        timed_out = _capture(engine.stop_timeout)
+
+        engine._on_stop_safety_elapsed()
+
+        assert timed_out == [()]  # signal with no arguments
+        assert engine.is_running is False
+        assert engine._process is None
+        assert engine._stopping is False
+        assert engine.status == "disconnected"
+        # The abandoned handle must not settle a later run.
+        assert fake.finished.disconnects == 1
+        assert fake.readyReadStandardOutput.disconnects == 1
+        assert fake.errorOccurred.disconnects == 1
+
+    def test_finished_clears_the_escalation_timers(self):
+        engine = HsyncEngine()
+        engine._running = True
+        engine._stop_grace_timer.start()
+        engine._stop_safety_timer.start()
+
+        engine._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert engine._stop_grace_timer.isActive() is False
+        assert engine._stop_safety_timer.isActive() is False
+
+    def test_stop_and_wait_kills_a_child_that_ignores_sigterm(self, monkeypatch):
+        fake = _FakeProcess(finishes=False)
+        engine = self._engine_with(fake)
+        monkeypatch.setattr(engine, "_send_stop_signal", lambda: None)
+
+        engine.stop_and_wait()
+
+        assert fake.killed == 1
+        assert fake.wait_calls == [_STOP_GRACE_MS, _STOP_SAFETY_MS]
+
+    def test_stop_and_wait_returns_once_the_child_exits(self, monkeypatch):
+        fake = _FakeProcess(finishes=True)
+        engine = self._engine_with(fake)
+        monkeypatch.setattr(engine, "_send_stop_signal", lambda: None)
+
+        engine.stop_and_wait()
+
+        assert fake.killed == 0
+        assert fake.wait_calls == [_STOP_GRACE_MS]
+        assert engine._stop_grace_timer.isActive() is False

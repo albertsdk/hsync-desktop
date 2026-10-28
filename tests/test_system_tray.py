@@ -26,3 +26,24 @@ class TestSimulationNote:
             assert tr("simulation.badge") not in tray.toolTip()
         finally:
             tray.hide()
+
+
+class TestStoppingState:
+    """The tray follows the window while a stop is in flight."""
+
+    def test_stopping_names_the_state_and_disables_the_run_actions(self, qapp):
+        tray = SystemTray()
+        try:
+            tray.set_running(True)
+            tray.update_status("stopping")
+
+            assert tr("status.stopping") in tray.toolTip()
+            assert tray._act_stop.isEnabled()
+
+            tray.set_stopping()
+
+            assert not tray._act_start.isEnabled()
+            assert not tray._act_stop.isEnabled()
+            assert not tray._act_check_changes.isEnabled()
+        finally:
+            tray.hide()

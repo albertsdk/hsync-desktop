@@ -29,7 +29,7 @@ The three buttons on the left are the everyday controls:
 | Button | What it does |
 | ------ | ------------ |
 | ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. |
-| ■ **Stop** | Stops the running sync. |
+| ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
 | 🔍 **Check for changes** | Re-compares your folder with the other devices and updates the list. |
 
 ## The path bar
@@ -69,7 +69,7 @@ and you can hide the panel from **Settings → General**.
 The bottom bar answers, left to right:
 
 - **Are we connected?** — the coloured dot and its label (`Connecting…`,
-  `Syncing…`, `Connected`, …).
+  `Syncing…`, `Stopping…`, `Connected`, …).
 - **Is everything in sync?** — `All files in sync`, `2 to download · 1 to send`,
   `No devices`, `Checking…` and the other states described in
   [Warnings and notifications](warnings.md).

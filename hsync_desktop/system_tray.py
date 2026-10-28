@@ -24,6 +24,7 @@ _STATUS_KEYS = {
     "connecting": "status.connecting",
     "waiting": "status.waiting",
     "syncing": "status.syncing",
+    "stopping": "status.stopping",
     "error": "status.error",
 }
 
@@ -125,7 +126,11 @@ class SystemTray(QSystemTrayIcon):
         icon_key = (
             "connected"
             if status == "connected"
-            else ("waiting" if status in ("connecting", "waiting", "syncing") else "disconnected")
+            else (
+                "waiting"
+                if status in ("connecting", "waiting", "syncing", "stopping")
+                else "disconnected"
+            )
         )
         self.setIcon(self._icons[icon_key])
         self._update_tooltip()
@@ -148,6 +153,16 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
         self._act_check_changes.setEnabled(running)
+
+    def set_stopping(self) -> None:
+        """Disable the run actions while a stop is in flight.
+
+        The run is still alive until the engine reports its exit, so Start must
+        stay disabled too. ``set_running(False)`` restores the menu afterwards.
+        """
+        self._act_start.setEnabled(False)
+        self._act_stop.setEnabled(False)
+        self._act_check_changes.setEnabled(False)
 
     def set_window_visible(self, visible: bool) -> None:
         """Update the Show/Minimize action text based on window visibility."""

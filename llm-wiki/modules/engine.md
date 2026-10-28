@@ -50,17 +50,28 @@ to gate controls at first paint.
 | ------ | -------- | ---- |
 | `HsyncEngine` | `engine/process.py::HsyncEngine` | `QObject` wrapper around the process |
 | `start` | `engine/process.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
-| `stop` | `engine/process.py::HsyncEngine.stop` | terminate the process: `SIGTERM`, then `SIGKILL` after 5 s. The client unwinds on `SIGTERM` like `Ctrl+C` (stops its servers, flushes and closes the log sinks), so a stop ends with a normal exit |
+| `request_stop` | `engine/process.py::HsyncEngine.request_stop` | user-facing, **non-blocking** stop: `SIGTERM` at once, `kill()` after the grace, `stop_timeout` if the child still never reports `finished`. The GUI never freezes on it |
+| `stop_and_wait` | `engine/process.py::HsyncEngine.stop_and_wait` | blocking stop for the callers that need the child gone first (quit, restart after an auth error, setup wizard): `SIGTERM`, `kill()` after 5 s, bounded wait |
 | `sync` / `preview` | `engine/process.py::HsyncEngine.sync` / `engine/process.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
 | `set_sync_direction` / `set_bandwidth` | `engine/process.py::HsyncEngine.set_sync_direction` / `engine/process.py::HsyncEngine.set_bandwidth` | live runtime commands |
 | `_send_command` | `engine/process.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
 | `_on_stdout` | `engine/process.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) |
-| `_on_finished` / `_on_error` | `engine/process.py::HsyncEngine._on_finished` / `engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping. The `desc` passed to `process_finished` follows **operator intent** first: a run ended by `stop` reports `stopped` even when it exits `0` normally, and only an exit nobody asked for reports `normal`/`crashed` |
+| `_on_finished` / `_on_error` | `engine/process.py::HsyncEngine._on_finished` / `engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping; also clears the stop escalation timers. The `desc` passed to `process_finished` follows **operator intent** first: a run ended by `request_stop`/`stop_and_wait` reports `stopped` even when it exits `0` normally, and only an exit nobody asked for reports `normal`/`crashed` |
 | `_set_status` | `engine/process.py::HsyncEngine._set_status` | debounced `status_changed` emit |
 
 State accessors: `is_running` (`engine/process.py::HsyncEngine.is_running`), `is_master` (`engine/process.py::HsyncEngine.is_master`),
 `status` (`engine/process.py::HsyncEngine.status`), `cid` (`engine/process.py::HsyncEngine.cid`), `server_ip` (`engine/process.py::HsyncEngine.server_ip`),
 `binary_path` get/set (`engine/process.py::HsyncEngine.binary_path`).
+
+Stop escalation: `request_stop` (`engine/process.py::HsyncEngine.request_stop`) sends
+`SIGTERM` and returns immediately, so the window stays responsive; the client unwinds
+on `SIGTERM` like `Ctrl+C` (stops its servers, flushes and closes the log sinks), so a
+stop normally ends with a normal exit. `_stop_grace_timer` escalates to `kill()` and
+`_stop_safety_timer` (`engine/process.py::HsyncEngine._on_stop_safety_elapsed`)
+declares the run stopped and emits `stop_timeout`
+(`engine/process.py::HsyncEngine.stop_timeout`) when the child never reports
+`finished` — the only path that ends a run without it. `_on_finished` clears both
+timers; `stop_and_wait` is the blocking variant (same escalation, bounded wait).
 
 ## Secrets & event channel (pipe FDs, never argv)
 

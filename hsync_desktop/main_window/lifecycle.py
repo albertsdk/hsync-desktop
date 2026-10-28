@@ -135,7 +135,7 @@ class LifecycleMixin:
     def _shutdown(self) -> None:
         """Stop the engine and close the app once the user has confirmed."""
         if self._engine.is_running:
-            self._engine.stop()
+            self._engine.stop_and_wait()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
         if self._tray:
             self._tray.hide()

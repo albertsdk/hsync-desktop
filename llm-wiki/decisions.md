@@ -208,3 +208,20 @@ disable unsupported controls) is realized in
   the WD OS5 web UI and the modern desktop convention. Switches are kept although
   a checkbox matches a Save/Cancel dialog better (NN/g: a toggle switch should
   take immediate effect); revisit if the dialog ever applies settings instantly.
+- **Stop is non-blocking and immediately visible**: `HsyncEngine.stop`
+  (`engine/process.py::HsyncEngine.stop`) blocked the Qt main thread in
+  `waitForFinished(5000)` (plus `kill()` and 3 s), so clicking Stop gave no
+  feedback until the child had already exited and the user could think nothing was
+  happening. The engine now exposes `request_stop`
+  (`engine/process.py::HsyncEngine.request_stop`: `SIGTERM` at once, `kill()` after
+  a 5 s grace, `stop_timeout` if the child never reports `finished`) for the user
+  action, and keeps the blocking `stop_and_wait`
+  (`engine/process.py::HsyncEngine.stop_and_wait`) for the callers that need the
+  process gone before continuing (app quit, retry after an auth error, setup
+  wizard). The window shows a `Stopping…` badge, disables Start/Stop/Check-changes
+  (tray too) and raises a progress toast at once
+  (`main_window/start.py::StartMixin._on_stop`,
+  `main_window/start.py::StartMixin._enter_stopping_ui`), settled by
+  `process_finished` or, on the engine's `stop_timeout`, by
+  `main_window/start.py::StartMixin._on_stop_timeout` with the `notif.stop_timeout`
+  warning. Guarded by `tests/test_engine_process.py` and `tests/test_main_window.py`.

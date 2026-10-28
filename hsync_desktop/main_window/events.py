@@ -137,6 +137,7 @@ class EventsMixin:
             "connecting": ("status.connecting", COLOR_WAITING),
             "waiting": ("status.waiting", COLOR_WAITING),
             "syncing": ("status.syncing", COLOR_SYNCING),
+            "stopping": ("status.stopping", COLOR_WAITING),
             "error": ("status.error", COLOR_DISCONNECTED),
         }
         key, color = i18n_map.get(status, ("status.unknown", COLOR_DISCONNECTED))
@@ -834,6 +835,9 @@ class EventsMixin:
 
     @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
+        # The run is gone: leave the stopping state (see StartMixin._on_stop) so
+        # the button state restored below reflects a stopped engine.
+        self._stop_requested = False
         # A run that never reached readiness and reported a structured startup
         # error is presented here, where the exit code is known. The exit-time
         # safety net (``_on_startup_failed``) handles the no-event case first.
@@ -902,7 +906,7 @@ class EventsMixin:
     @Slot(str)
     def _on_path_not_found(self, path: str) -> None:
         """Handle shared path not found error."""
-        self._engine.stop()
+        self._engine.stop_and_wait()
         self._reset_ui_stopped()
         self._append_desktop_log("WARNING", tr("notif.path_not_found_msg").replace("{path}", path))
         msg = QMessageBox(self)

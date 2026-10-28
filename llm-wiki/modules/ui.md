@@ -21,7 +21,9 @@ window's attributes.
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
-| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state |
+| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Stop/Check-changes disabled |
+| `_on_stop` / `_enter_stopping_ui` | `main_window/start.py::StartMixin._on_stop` / `main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker) |
+| `_on_stop_timeout` | `main_window/start.py::StartMixin._on_stop_timeout` | `HsyncEngine.stop_timeout`: leave `Stopping…`, restore the stopped UI and warn (`notif.stop_timeout`) |
 | `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
 | `_check_auto_sync` | `main_window/start.py::StartMixin._check_auto_sync` | queued at startup only when `settings/cli_args.py::is_auto_sync_enabled` (`sync/auto_sync`) is on |
 | `_on_auto_start` | `main_window/start.py::StartMixin._on_auto_start` | runs `_on_start` with `_start_is_automatic` set, so failures and prompts avoid modals on a tray-only window |
@@ -610,11 +612,22 @@ lifecycle so its result is surfaced exactly once:
   server mode → *server unreachable*; a launch failure is skipped and reported by
   `_start_engine`), `no_peers_warning → _on_no_peers`,
   `sync_pending → _on_sync_pending`,
-  `sync_completed → _on_sync_completed` and `process_finished → _on_process_finished`
-  finalize. `_on_file_transferred` counts real transfers during the `run` phase.
+  `sync_completed → _on_sync_completed`, `process_finished → _on_process_finished`
+  and `stop_timeout → _on_stop_timeout` finalize. `_on_file_transferred` counts real
+  transfers during the `run` phase.
 - `_ever_connected` (`main_window/window.py::MainWindow`) is set on the first
   `connected` and reset per engine process, so a one-shot that never linked does
   not claim a lost connection (`_on_status`, `main_window/events.py::EventsMixin._on_status`).
+- Stopping is visible at once: `_on_stop` (`main_window/start.py::StartMixin._on_stop`)
+  marks the run user-stopped and calls `HsyncEngine.request_stop` (non-blocking, so
+  the window never freezes), and `_enter_stopping_ui`
+  (`main_window/start.py::StartMixin._enter_stopping_ui`) sets `_stop_requested`, the
+  `Stopping…` badge (`_set_status_label`, `main_window/events.py::EventsMixin._set_status_label`),
+  disables Start/Stop/Check-changes (tray too, `system_tray.py::SystemTray.set_stopping`)
+  and shows a `progress` toast plus a log marker. `_on_process_finished`
+  (`main_window/events.py::EventsMixin._on_process_finished`) clears `_stop_requested`
+  and restores the stopped state; if the engine never confirms the exit,
+  `stop_timeout → _on_stop_timeout` restores it with the `notif.stop_timeout` warning.
 
 ### Transient feedback (overlay toast)
 

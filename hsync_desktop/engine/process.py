@@ -30,6 +30,7 @@ from PySide6.QtCore import (
     QProcessEnvironment,
     QSettings,
     QSocketNotifier,
+    QTimer,
     Signal,
     Slot,
 )
@@ -48,6 +49,13 @@ from hsync_desktop.engine.cli import find_hsync_binary
 # failure report can show the client's own diagnostic instead of a bare exit
 # code. The tail is discarded as soon as the engine reports readiness.
 _STARTUP_TAIL_LINES = 40
+
+# Stop escalation timings (milliseconds). ``request_stop`` sends SIGTERM and
+# returns at once, so the GUI stays responsive; the grace timer escalates to
+# ``kill()`` and the safety timer declares the run stopped if the child still
+# never reports ``finished`` (see ``HsyncEngine.stop_timeout``).
+_STOP_GRACE_MS = 5000
+_STOP_SAFETY_MS = 3000
 
 
 def write_secret_pipe(secret: str) -> int:
@@ -274,6 +282,10 @@ class HsyncEngine(QObject):
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
     path_not_found = Signal(str)  # shared path does not exist
     process_finished = Signal(int, str)  # exit code, exit status description
+    # The child never reported ``finished`` after the stop escalation reached
+    # ``kill()``: the engine declared the run stopped itself. The window restores
+    # its stopped UI and warns instead of staying on "Stopping…" forever.
+    stop_timeout = Signal()
     # The process exited before it reported readiness (exit code, captured
     # stdout/stderr tail). A config error exits *normally* with a non-zero code,
     # so ``process_finished`` alone cannot tell it apart from a clean stop.
@@ -344,6 +356,16 @@ class HsyncEngine(QObject):
         self._ready = False
         self._startup_error_event = False
         self._startup_tail: deque[str] = deque(maxlen=_STARTUP_TAIL_LINES)
+        # Stop escalation: SIGTERM, then kill() after the grace, then declare the
+        # run stopped if the child still never reports ``finished``.
+        self._stop_grace_timer = QTimer(self)
+        self._stop_grace_timer.setSingleShot(True)
+        self._stop_grace_timer.setInterval(_STOP_GRACE_MS)
+        self._stop_grace_timer.timeout.connect(self._on_stop_grace_elapsed)
+        self._stop_safety_timer = QTimer(self)
+        self._stop_safety_timer.setSingleShot(True)
+        self._stop_safety_timer.setInterval(_STOP_SAFETY_MS)
+        self._stop_safety_timer.timeout.connect(self._on_stop_safety_elapsed)
 
     # ── Properties ───────────────────────────────────────────────────────
 
@@ -495,23 +517,102 @@ class HsyncEngine(QObject):
         self._running = True
         return True
 
-    def stop(self) -> None:
-        """Gracefully stop the running process (SIGTERM, then SIGKILL)."""
-        if not self._process or not self._running:
+    def request_stop(self) -> None:
+        """Ask the running child to stop without blocking the caller.
+
+        Sends SIGTERM (``terminate()`` on Windows) and returns immediately, so a
+        GUI action never freezes on the child. The grace timer escalates to
+        ``kill()`` if the child ignores it and, if the child still never reports
+        ``finished``, ``stop_timeout`` is emitted with the engine state reset.
+        Callers that must have the process gone before they continue use
+        ``stop_and_wait`` instead.
+        """
+        if self._process is None or not self._running or self._stopping:
             return
         self._stopping = True
-        # On Unix send SIGTERM; on Windows terminate()
+        self._send_stop_signal()
+        self._stop_grace_timer.start()
+
+    def stop_and_wait(self) -> None:
+        """Gracefully stop the running process (SIGTERM, then SIGKILL).
+
+        Blocking variant for the callers that need the child gone before they
+        continue: quitting the app, restarting after an auth error, and the setup
+        wizard. The user-facing Stop uses ``request_stop`` so the window stays
+        responsive.
+        """
+        if self._process is None or not self._running:
+            return
+        self.request_stop()
+        # Wait synchronously here: the escalation timers must not fire while the
+        # caller is already blocked on the child.
+        self._stop_grace_timer.stop()
+        if not self._process.waitForFinished(_STOP_GRACE_MS):
+            self._process.kill()
+            self._process.waitForFinished(_STOP_SAFETY_MS)
+        self._stop_safety_timer.stop()
+
+    def _send_stop_signal(self) -> None:
+        """Ask the child to exit: SIGTERM on Unix, ``terminate()`` elsewhere."""
+        if self._process is None:
+            return
         pid = self._process.processId()
         if pid and hasattr(signal, "SIGTERM"):
             try:
                 os.kill(pid, signal.SIGTERM)
+                return
             except OSError:
-                self._process.terminate()
-        else:
-            self._process.terminate()
-        if not self._process.waitForFinished(5000):
+                pass
+        self._process.terminate()
+
+    @Slot()
+    def _on_stop_grace_elapsed(self) -> None:
+        """The child ignored SIGTERM: force it down and watch for the safety."""
+        if not self._running:
+            return
+        if self._process is not None:
             self._process.kill()
-            self._process.waitForFinished(3000)
+        self._stop_safety_timer.start()
+
+    @Slot()
+    def _on_stop_safety_elapsed(self) -> None:
+        """The child never reported ``finished`` after kill(): declare it stopped.
+
+        This is the only path that ends a run without ``finished``; it keeps the
+        app usable (the next Start must be possible) instead of leaving a
+        permanent "Stopping…".
+        """
+        if not self._running:
+            return
+        self._stop_grace_timer.stop()
+        self._stop_safety_timer.stop()
+        self._close_events_channel()
+        abandoned = self._process
+        self._process = None
+        self._detach_abandoned_process(abandoned)
+        self._running = False
+        self._stopping = False
+        self._set_status("disconnected")
+        self.stop_timeout.emit()
+
+    @staticmethod
+    def _detach_abandoned_process(proc: QProcess | None) -> None:
+        """Stop listening to a handle whose exit was never reported.
+
+        A late ``finished`` from the abandoned process must not settle a later run:
+        after ``stop_timeout`` the window lets the user start again, and a stale
+        handle would otherwise flip the new run's state.
+        """
+        if proc is None:
+            return
+        for name in ("finished", "readyReadStandardOutput", "errorOccurred"):
+            signal = getattr(proc, name, None)
+            if signal is None:
+                continue
+            try:
+                signal.disconnect()
+            except (RuntimeError, TypeError):
+                pass
 
     def sync(self) -> None:
         """Send SYNC command to the running process.
@@ -588,6 +689,8 @@ class HsyncEngine(QObject):
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         self._running = False
+        self._stop_grace_timer.stop()
+        self._stop_safety_timer.stop()
         self._close_events_channel()
         # An operator-initiated stop is "stopped" however the child exited: a
         # graceful SIGTERM unwinds normally (exit 0), and only a child that
