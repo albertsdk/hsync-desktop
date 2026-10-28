@@ -8,7 +8,7 @@ using the app — it is here to answer "what is that icon?".
 
 ## The menu bar
 
-<img src="assets/screens/03-menu-bar.png" alt="The menu bar: Sync, File, Settings, Setup wizard, Help" width="420">
+<img src="assets/screens/03-menu-bar.png" alt="The menu bar: Sync, File, Settings, Setup wizard, Help" width="720">
 
 - **Sync** — start and stop a sync, check for changes, choose the sync direction.
 - **File** — actions on the file or folder you selected (open, copy, rename,
@@ -47,7 +47,7 @@ the folder button returns to the shared folder's root.
 
 ## The file list
 
-<img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row" width="480">
+<img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row" width="200">
 
 The file list shows every file the sync is working on, one row each, with the
 folder tree above it. Columns are resizable and reorderable; the header menu
@@ -85,7 +85,7 @@ labels.
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu with Show, Setup wizard and Quit" width="360">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu with Show, Setup wizard and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
 the system-tray icon. Use the tray menu to bring the window back (**Show**) or to

@@ -4,7 +4,7 @@ The file list is the table in the middle of the main window. It shows exactly wh
 the sync works on, one row per file or folder, and it doubles as the way to open,
 move and act on your files.
 
-<img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row, grouped by action" width="480">
+<img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row, grouped by action" width="200">
 
 ## Columns
 
