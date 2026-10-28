@@ -650,8 +650,8 @@ pairs share one rendering path (`EventsMixin._begin_comparison` /
   sync: `EventsMixin._on_preview_ended` credits `_pending_initial_reconcile` and
   opens `ActionsMixin._show_preview_summary`.
 * `status_pass_start`/`status_pass_end` — the classification pass a **serving
-  device** runs on its own share (inventory-driven or triggered by the same
-  `PREVIEW` command; see the client wiki).
+  device** runs on its own share (whenever the client re-classifies the share it
+  serves; see the client wiki).
   `EventsMixin._on_status_pass_ended` renders the rows and the file-set state and
   stops there: the device that serves the share has nothing to pull, so there is
   no summary and no `SYNC`.
