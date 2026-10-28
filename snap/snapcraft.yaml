@@ -30,7 +30,8 @@ platforms:
 apps:
   hsync-desktop:
     command: bin/hsync-desktop
-    desktop: snap/gui/hsync-desktop.desktop
+    # Looked up inside snap/, unlike the project-root-relative icon above.
+    desktop: gui/hsync-desktop.desktop
     environment:
       # PyInstaller does not bundle glibc: the onefile runs against the base's
       # glibc and extracts into an executable, revision-safe directory.

@@ -382,10 +382,14 @@ jobs:
         uses: snapcore/action-build@v1
         with:
           path: hsync-desktop
+          # Pinned: the asset paths in snapcraft.yaml follow this major's rules.
+          snapcraft-channel: 9.x/stable
       - name: Lint the snap
+        # The build action adds the runner to the lxd group, but the shell that
+        # runs this step inherits the pre-usermod group list: sudo re-initialises
+        # the supplementary groups so snapcraft can reach the LXD provider.
         run: |
-          sudo snap install snapcraft --classic --channel=8.x/stable
-          snapcraft lint $(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)
+          sudo -u "$USER" -E snapcraft lint "$(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)"
       - uses: actions/upload-artifact@v7
         with:
           name: snap-${{ matrix.arch }}
