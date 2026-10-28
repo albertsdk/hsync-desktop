@@ -58,6 +58,7 @@ from hsync_desktop.settings.tab_indices import (
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.secret_reveal import add_reveal_toggle
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 if TYPE_CHECKING:
@@ -169,6 +170,9 @@ def build_server_tab(dlg: SettingsDialog) -> None:
     # A bare host (or host:port) is enough: https:// and the default port are implied.
     dlg.server_url.setPlaceholderText("hsync.example.com")
     dlg.api_key = dlg.findChild(QLineEdit, "apiKey")
+    # Inline eye toggle: the key is masked but must be readable so it can be
+    # copied to another device.
+    dlg._api_key_reveal = add_reveal_toggle(dlg.api_key)
     dlg.insecure, dlg._lbl_insecure = _replace_checkbox_with_toggle(dlg, "insecure")
     dlg.ca_cert = dlg.findChild(QLineEdit, "caCert")
     dlg.http_timeout = dlg.findChild(QSpinBox, "httpTimeout")
@@ -242,6 +246,9 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.p2p_mode, dlg._lbl_p2p_mode = _replace_checkbox_with_toggle(dlg, "p2pMode")
     dlg.p2p_group = dlg.findChild(QLineEdit, "p2pGroup")
     dlg.p2p_key = dlg.findChild(QLineEdit, "p2pKey")
+    # Inline eye toggle: the shared password is masked but the user must be able
+    # to read it to type the same value on another device.
+    dlg._p2p_key_reveal = add_reveal_toggle(dlg.p2p_key)
     dlg.p2p_port = dlg.findChild(QSpinBox, "p2pPort")
     dlg.discovery_timeout = dlg.findChild(QSpinBox, "discoveryTimeout")
 

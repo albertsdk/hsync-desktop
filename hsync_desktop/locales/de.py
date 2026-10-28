@@ -650,6 +650,8 @@ translations: dict[str, str] = {
     "wizard.action.edit": "Ändern",
     "wizard.action.show": "Anzeigen",
     "wizard.action.hide": "Verbergen",
+    "secret.show": "Anzeigen",
+    "secret.hide": "Ausblenden",
     "wizard.action.regenerate": "Neu erzeugen",
     "wizard.action.skip_defaults": "Überspringen",
     "wizard.action.skip_defaults_tip": "Die empfohlenen Werte verwenden und fortfahren.",

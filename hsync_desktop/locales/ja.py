@@ -673,6 +673,8 @@ translations: dict[str, str] = {
     "wizard.action.edit": "編集",
     "wizard.action.show": "表示",
     "wizard.action.hide": "非表示",
+    "secret.show": "表示",
+    "secret.hide": "非表示",
     "wizard.action.regenerate": "再生成",
     "wizard.action.skip_defaults": "スキップ",
     "wizard.action.skip_defaults_tip": "推奨値を使用して続行します。",

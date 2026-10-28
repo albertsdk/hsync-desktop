@@ -173,6 +173,7 @@ from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.dialogs import confirm
+from hsync_desktop.widgets.secret_reveal import refresh_reveal_tooltip
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 
@@ -416,6 +417,16 @@ class SettingsDialog(QDialog):
         # overriding any normal tooltip cleared above.
         for widget in self._unsupported_widgets:
             _set_field_tooltip(widget, tr("tip.capability_unsupported"))
+
+        # The inline reveal actions are not form fields: their tooltip/label
+        # depends on the toggle state, so re-apply it here after a language or
+        # preference change (and honour "show tooltips" like every other field).
+        for action in (
+            getattr(self, "_p2p_key_reveal", None),
+            getattr(self, "_api_key_reveal", None),
+        ):
+            if action is not None:
+                refresh_reveal_tooltip(action, tooltips_enabled=tips)
 
     def _apply_capabilities(self) -> None:
         """Gate p2p controls by the binary's advertised capabilities.

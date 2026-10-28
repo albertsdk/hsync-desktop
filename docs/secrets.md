@@ -13,6 +13,9 @@ never on a command line, and they never appear in logs or process listings.
 - Stored **encrypted on disk**, with a key derived from your machine.
 - Handed to the sync engine over a **private channel**, so they are not visible as
   command-line arguments or in the log.
+- Masked by default, with a **show/hide (eye) toggle** on the right of every
+  secret field: reveal the value only on demand to check or copy it. The field is
+  masked again the next time you open Settings.
 - Replaceable at any time: reopen the dialog and enter a new value.
 
 ## p2p Mode: the shared password
