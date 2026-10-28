@@ -136,10 +136,11 @@ _SEVERITY_BY_KIND = {
     "info": "info",
     "success": "success",
     "warning": "warning",
+    "notice": "warning",  # a transient warning: same tone, auto-hides
     "error": "error",
 }
 # Non-colour cue (accessibility): a leading glyph for error/warning/success.
-_SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "success": "✔"}
+_SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "notice": "⚠", "success": "✔"}
 # Toasts that survive the engine process finishing.
 _SURVIVES_FINISH = {"success", "error", "warning"}
 # Toasts that survive starting a new run.
@@ -932,13 +933,19 @@ class UiBuildMixin:
         if self._notifier:
             self._notifier.warning(title, message, category=category)
 
-    def _on_engine_warning(self, message: str, source: str = "") -> None:
-        """Surface a non-fatal engine warning (banner + OS notification).
+    def _on_engine_warning(self, message: str, source: str = "", transient: bool = False) -> None:
+        """Surface a non-fatal engine warning.
 
-        The run continues, so this never uses the error path. The client already
-        deduplicates the stream per ``(source, message)`` window, which is what
-        keeps a flapping bootnode or a watcher that degrades and recovers from
-        becoming a notification storm.
+        ``transient`` marks a condition that heals itself (dropped real-time
+        events, a file that kept changing, unreadable files recovered by the next
+        scan): it shows an auto-hiding toast and never a system notification,
+        because the user cannot act on it. A persistent warning (a degraded
+        watcher, an unreachable bootnode, a stalled safety net, a missing shared
+        folder, low disk space) stays in the window and reaches the OS while the
+        window is in the background.
+
+        The client already deduplicates the stream per ``(source, message)``
+        window, which is what keeps a flapping condition from becoming a storm.
         """
         if not message:
             return
@@ -946,6 +953,9 @@ class UiBuildMixin:
         if self._user_stopped:
             # The user stopped the run: a degraded watcher/bootnode is no longer
             # actionable and must not reopen a notification they just dismissed.
+            return
+        if transient:
+            self._show_info_banner(message, kind="notice", title=tr("notif.warning"))
             return
         self._notify_warning(tr("notif.warning"), message, category="warnings")
 

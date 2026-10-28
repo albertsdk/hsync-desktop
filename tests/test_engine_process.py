@@ -241,8 +241,23 @@ class TestStartupPhase:
             )
         )
 
-        assert warnings == [("Bootnode node:443 unreachable", "bootnode")]
+        assert warnings == [("Bootnode node:443 unreachable", "bootnode", False)]
         assert errors == []
+
+    def test_a_transient_warning_is_flagged_for_an_ephemeral_toast(self):
+        engine = HsyncEngine()
+        warnings = _capture(engine.warning_occurred)
+
+        engine._handle_event(
+            build_event(
+                UiEventName.warning,
+                message="Some real-time changes were dropped",
+                source="events",
+                reason="transient",
+            )
+        )
+
+        assert warnings == [("Some real-time changes were dropped", "events", True)]
 
     def test_an_operator_stop_before_ready_is_not_a_startup_failure(self):
         engine = HsyncEngine()

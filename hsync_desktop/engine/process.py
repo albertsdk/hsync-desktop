@@ -261,10 +261,12 @@ class HsyncEngine(QObject):
     # preview/sync), "process" (QProcess error), "start" (engine launch failure).
     error_occurred = Signal(str, str)
     # A non-fatal condition the engine keeps running through (a degraded file
-    # watcher, an unreachable bootnode): message + the stable ``source``
-    # identifier the client reported. The client already deduplicates them per
-    # (source, message) window, so this signal is never a flood.
-    warning_occurred = Signal(str, str)
+    # watcher, an unreachable bootnode): message, the stable ``source``
+    # identifier the client reported and whether it heals itself (``transient``,
+    # carried as ``reason="transient"`` on the wire). The client already
+    # deduplicates them per (source, message) window, so this signal is never a
+    # flood.
+    warning_occurred = Signal(str, str, bool)
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     auth_required_occurred = Signal(str)  # a shared key is required but missing
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
@@ -833,7 +835,11 @@ class HsyncEngine(QObject):
         self.error_occurred.emit(str(event.get("message", "")), str(event.get("reason", "")))
 
     def _on_warning_event(self, event: UiEventDict) -> None:
-        self.warning_occurred.emit(str(event.get("message", "")), str(event.get("source", "")))
+        self.warning_occurred.emit(
+            str(event.get("message", "")),
+            str(event.get("source", "")),
+            event.get("reason") == "transient",
+        )
 
     def _on_sync_paused_event(self, event: UiEventDict) -> None:
         self.sync_paused.emit(

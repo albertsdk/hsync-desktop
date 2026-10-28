@@ -1110,6 +1110,25 @@ class TestInfoToast:
         assert calls[0][1]["category"] == "warnings"
         assert "unreachable" in calls[0][0][1]
 
+    def test_a_transient_warning_shows_an_ephemeral_toast(self, window, monkeypatch):
+        """A self-healing warning must not persist nor reach the OS."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning(
+            "Some real-time changes were queued faster than they could be sent",
+            "events",
+            True,
+        )
+
+        assert calls == []
+        assert window._info_banner_kind == "notice"
+        assert window._info_banner.property("severity") == "warning"
+        assert window._info_timer.isActive()  # auto-hides
+
     def test_an_engine_warning_is_ignored_after_a_user_stop(self, window, monkeypatch):
         calls: list[tuple] = []
         monkeypatch.setattr(

@@ -174,11 +174,16 @@ survive a new sync; they are the in-app counterpart of the desktop notification,
 which is sent only while the window is in the background.
 
 A **warning** is something the sync keeps running through — the file watcher
-degraded to polling because the system ran out of inotify resources, or a
-bootnode could not be reached while device discovery retried. It appears in the
-window and, while the window is in the background, as a desktop notification
-that you can switch off on its own (*Settings → General → Notifications for →
-Warnings*). Each distinct warning is reported once per ten minutes, so a
+degraded to polling because the system ran out of inotify resources, a bootnode
+could not be reached while device discovery retried, free disk space fell below
+the configured reserve, or the shared folder is no longer accessible (drive
+unplugged, network mount dropped). It appears in the window and, while the window
+is in the background, as a desktop notification that you can switch off on its
+own (*Settings → General → Notifications for → Warnings*). A warning that heals
+itself — real-time changes queued faster than they could be sent, a file that
+kept changing while it was being sent, files that could not be read and are
+retried by the next scan — shows as a brief toast instead and never as a
+notification. Each distinct warning is reported once per ten minutes, so a
 condition that comes and goes does not fill the screen; the log panel keeps every
 occurrence.
 

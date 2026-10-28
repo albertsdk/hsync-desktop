@@ -44,9 +44,12 @@ notifier exists and the window is out of focus). Its non-fatal counterpart is
 `warning_occurred → _on_engine_warning` (`main_window/ui.py::UiBuildMixin._on_engine_warning`):
 the same pipeline (log panel + banner + OS notification when unfocused) with
 `kind="warning"` and the dedicated `warnings` notification category, never the
-error path — the run continues. The client already deduplicates that stream per
-`(source, message)` window, and a warning arriving after an operator stop is
-logged but not notified.
+error path — the run continues. The event's `reason="transient"` instead selects
+the `notice` kind: same warning tone, auto-hidden and never a system
+notification, because a self-healing condition (dropped events, an unreadable
+file recovered by the next scan) is not actionable. The client already
+deduplicates that stream per `(source, message)` window, and a warning arriving
+after an operator stop is logged but not notified.
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
 
