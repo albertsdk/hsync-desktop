@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Import files by **drag & drop** onto the file list: dropping files or folders
+  from the OS file manager copies them into the shared folder (hold **Shift** to
+  move). Name conflicts are resolved with a Replace / Keep both / Skip prompt
+  (with an **Apply to all** option), the copy runs in the background, and the
+  result is reported as a toast.
+
 ### Changed
 
 - p2p mode now calls the `boot/1` node a **discovery server** instead of a

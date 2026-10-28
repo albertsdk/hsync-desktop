@@ -1174,6 +1174,12 @@ class UiBuildMixin:
         self._share_local_bytes = total_bytes
         self._render_share_size()
 
+    @Slot(str, str)
+    def _on_import_finished(self, message: str, kind: str) -> None:
+        """Surface the outcome of a drag & drop import as a toast."""
+        title = tr("notif.success") if kind == "success" else tr("notif.warning")
+        self._show_info_banner(message, kind=kind, title=title)
+
     def _apply_log_visibility(self) -> None:
         """Show or hide the log panel based on settings."""
         show_log = is_log_panel_visible()

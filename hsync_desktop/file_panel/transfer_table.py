@@ -31,6 +31,10 @@ from PySide6.QtGui import (
     QAction,
     QColor,
     QDesktopServices,
+    QDragEnterEvent,
+    QDragLeaveEvent,
+    QDragMoveEvent,
+    QDropEvent,
     QFont,
     QGuiApplication,
     QHideEvent,
@@ -56,6 +60,7 @@ from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.file_panel.delegates import ProgressBarDelegate
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import has_dot_segment
+from hsync_desktop.file_panel.import_ops import validate_sources
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     STATUS_COLORS,
@@ -476,6 +481,10 @@ class FileTransferTable(QTableView):
     path_changed = Signal(str)  # Emitted when current navigation path changes
     send_selection_requested = Signal(str)  # Send the selected subtree (filepath)
     receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
+    # Emitted when files are dropped from the OS file manager: the accepted
+    # absolute source paths, the destination folder relative to the share root,
+    # and the requested action ("copy" or "move").
+    files_dropped = Signal(list, str, str)
 
     # Persisted header layout: one QHeaderView state blob carrying the section
     # widths, the visual order and the hidden sections. Bump the version suffix
@@ -501,6 +510,7 @@ class FileTransferTable(QTableView):
         self._base_directory: str = ""
         self._sync_active: bool = False  # A sync is running: Send/Receive disabled
         self._connected: bool = False  # A connection is active: "Local" rows are grey
+        self._drop_enabled: bool = True  # Drops accepted (off while importing)
         # Last completed comparison with the remote (epoch seconds): the
         # unverified tooltip reports it. Kept across a disconnect on purpose.
         self._last_verified_at: float | None = None
@@ -550,6 +560,7 @@ class FileTransferTable(QTableView):
         self.setModel(self._model)
 
         self._setup_table()
+        self._setup_drop()
 
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
@@ -970,6 +981,108 @@ class FileTransferTable(QTableView):
         self._current_path = ""
         self._nav_history = [""]
         self._nav_index = 0
+
+    # ── Drag & drop import ────────────────────────────────────────────────
+
+    def set_drop_enabled(self, enabled: bool) -> None:
+        """Accept or refuse drops (refused while an import is running)."""
+        self._drop_enabled = enabled
+
+    def _setup_drop(self) -> None:
+        """Accept drops from the OS file manager (drop-only, no internal drag).
+
+        The table is not a drag source: only external drops are accepted, and the
+        destination is resolved from the row under the cursor (a folder row) or
+        the folder currently shown.
+        """
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DropOnly)
+        self.setDefaultDropAction(Qt.DropAction.CopyAction)
+        self.setDropIndicatorShown(True)
+        self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
+
+    def _folder_rel_at_row(self, row: int) -> str | None:
+        """The folder path of ``row`` when it is a folder, else ``None``.
+
+        Folders are not first-class rows: a row is a folder when any tracked
+        path sits under it (the same test the double-click navigation uses).
+        """
+        display_name = self._model.display_name(row)
+        if display_name is None:
+            return None
+        full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
+        for transfer in self._transfers.values():
+            if transfer.filepath == full_path + "/" or transfer.filepath.startswith(
+                full_path + "/"
+            ):
+                return full_path
+        return None
+
+    def _drop_target_rel(self, pos) -> str:
+        """Destination folder (relative to the share root) for a drop at ``pos``."""
+        index = self.indexAt(pos)
+        if index.isValid():
+            folder = self._folder_rel_at_row(index.row())
+            if folder is not None:
+                return folder
+        return self._current_path
+
+    @staticmethod
+    def _drop_sources(event) -> list[str]:
+        """Local filesystem paths carried by the drop (empty when none)."""
+        mime = event.mimeData()
+        if not mime.hasUrls():
+            return []
+        sources: list[str] = []
+        for url in mime.urls():
+            local = url.toLocalFile()
+            if local:
+                sources.append(local)
+        return sources
+
+    def _accepts_drop(self, event) -> bool:
+        """True when this drop can be imported where it is being released."""
+        if not self._drop_enabled or not self._base_directory:
+            return False
+        sources = self._drop_sources(event)
+        if not sources:
+            return False
+        target = self._drop_target_rel(event.position().toPoint())
+        accepted, _ = validate_sources(self._base_directory, target, sources)
+        return bool(accepted)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if self._accepts_drop(event):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        if self._accepts_drop(event):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
+        event.accept()
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        if not self._drop_enabled or not self._base_directory:
+            event.ignore()
+            return
+        sources = self._drop_sources(event)
+        target = self._drop_target_rel(event.position().toPoint())
+        accepted, _ = validate_sources(self._base_directory, target, sources)
+        if not accepted:
+            event.ignore()
+            return
+        action = "move" if event.proposedAction() == Qt.DropAction.MoveAction else "copy"
+        self.files_dropped.emit(accepted, target, action)
+        # The import performs the move itself, so a "move" is reported to the
+        # source as a copy: that stops a file manager from deleting a source we
+        # already moved away (and a plain copy keeps the original in place).
+        event.setDropAction(Qt.DropAction.CopyAction)
+        event.accept()
 
     # ── Hierarchical navigation ───────────────────────────────────────────
 

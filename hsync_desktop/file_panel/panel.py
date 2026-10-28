@@ -7,15 +7,18 @@ from __future__ import annotations
 
 import html
 import os
+import shutil
 import sys
 from pathlib import Path
 
 from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QSplitter,
     QTableWidget,
     QToolButton,
@@ -25,11 +28,18 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS
 from hsync_desktop.file_panel.detail_panel import FileDetailPanel
+from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import ignore_file_stamp, is_synced_entry
+from hsync_desktop.file_panel.import_ops import (
+    ImportItem,
+    destination_for,
+    unique_name,
+    validate_sources,
+)
 from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
 from hsync_desktop.file_panel.overlay import LoadingOverlay
 from hsync_desktop.file_panel.transfer_table import FileTransferTable
-from hsync_desktop.file_panel.workers import DirectoryScanWorker
+from hsync_desktop.file_panel.workers import DirectoryScanWorker, ImportWorker
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.ui.loader import load_ui_widget
@@ -82,11 +92,17 @@ class FilePanel(QWidget):
     # Emits when the consistency scan added paths that were not tracked (a
     # missed live event, e.g. a remote rename): the window refreshes statuses.
     scan_found_new_files = Signal()
+    # Emits (message, kind) once a drag & drop import finishes: the window shows
+    # it as a toast. ``kind`` is a banner severity ("success" or "warning").
+    import_finished = Signal(str, str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
+        self._import_thread: QThread | None = None
+        self._import_worker: ImportWorker | None = None
+        self._importing: bool = False
         self._share_size_bytes: int = -1
         self._current_directory: str = ""
         self._matcher: IgnoreMatcher | None = None
@@ -179,6 +195,7 @@ class FilePanel(QWidget):
         self._btn_forward.clicked.connect(self._table.navigate_forward)
         self._btn_up.clicked.connect(self._table.navigate_up)
         self._table.path_changed.connect(self._update_nav_buttons)
+        self._table.files_dropped.connect(self._on_files_dropped)
         self._update_breadcrumb()
 
     @Slot()
@@ -275,6 +292,7 @@ class FilePanel(QWidget):
     def clear(self) -> None:
         self._consistency_timer.stop()
         self._stop_scan()
+        self._stop_import()
         self._table.clear_transfers()
         self._detail.clear()
 
@@ -417,6 +435,153 @@ class FilePanel(QWidget):
     @Slot(int, int)
     def _on_scan_progress(self, current: int, total: int) -> None:
         self._loading_overlay.set_progress(current, total)
+
+    # ── Drag & drop import ────────────────────────────────────────────────
+
+    @Slot(list, str, str)
+    def _on_files_dropped(self, sources: list[str], target_rel: str, action: str) -> None:
+        """Import files dropped onto the file list into the share."""
+        if self._importing:
+            return
+        if not self._current_directory or not os.path.isdir(self._current_directory):
+            self.import_finished.emit(tr("dnd.error_no_folder"), "warning")
+            return
+        accepted, _rejected = validate_sources(self._current_directory, target_rel, sources)
+        if not accepted:
+            self.import_finished.emit(tr("dnd.error_invalid"), "warning")
+            return
+        move = action == "move"
+        if move and not self._confirm_move(accepted, target_rel):
+            return
+        items = self._resolve_conflicts(accepted, target_rel, move)
+        if not items:
+            return
+        self._start_import(items)
+
+    def _confirm_move(self, sources: list[str], target_rel: str) -> bool:
+        """Confirm a destructive move before the originals are removed."""
+        dest_label = target_rel or os.path.basename(self._current_directory.rstrip(os.sep))
+        return _confirm_dialog(
+            self,
+            tr("dnd.confirm_move_title"),
+            tr("dnd.confirm_move").format(count=len(sources), dest=dest_label),
+        )
+
+    def _resolve_conflicts(
+        self, sources: list[str], target_rel: str, move: bool
+    ) -> list[ImportItem]:
+        """Build the import plan, asking once per conflict.
+
+        The prompt offers Replace / Keep both / Skip and, when more than one file
+        already exists, an Apply-to-all checkbox that reuses the choice.
+        """
+        destinations = [destination_for(self._current_directory, target_rel, s) for s in sources]
+        allow_apply_all = sum(1 for d in destinations if os.path.exists(d)) > 1
+        plan: list[ImportItem] = []
+        bulk: str | None = None
+        for src, dest in zip(sources, destinations, strict=True):
+            if not os.path.exists(dest):
+                plan.append(ImportItem(src, dest, move))
+                continue
+            choice = bulk
+            if choice is None:
+                choice, apply_all = self._ask_conflict(os.path.basename(src), allow_apply_all)
+                if apply_all:
+                    bulk = choice
+            if choice == "replace":
+                self._remove_path(dest)
+                plan.append(ImportItem(src, dest, move))
+            elif choice == "keepboth":
+                plan.append(ImportItem(src, unique_name(dest), move))
+            # "skip": keep the existing file and drop the incoming one.
+        return plan
+
+    def _ask_conflict(self, name: str, allow_apply_all: bool) -> tuple[str, bool]:
+        """Ask what to do with a name that already exists; (choice, apply_all)."""
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle(tr("dnd.conflict_title"))
+        msg.setText(tr("dnd.conflict_body").format(name=name))
+        replace = msg.addButton(tr("dnd.conflict_replace"), QMessageBox.ButtonRole.DestructiveRole)
+        keep = msg.addButton(tr("dnd.conflict_keep_both"), QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton(tr("dnd.conflict_skip"), QMessageBox.ButtonRole.RejectRole)
+        msg.setDefaultButton(keep)
+        if allow_apply_all:
+            msg.setCheckBox(QCheckBox(tr("dnd.conflict_apply_all")))
+        msg.exec()
+        clicked = msg.clickedButton()
+        check = msg.checkBox()
+        apply_all = check.isChecked() if check is not None else False
+        if clicked is replace:
+            return "replace", apply_all
+        if clicked is keep:
+            return "keepboth", apply_all
+        return "skip", apply_all
+
+    @staticmethod
+    def _remove_path(path: str) -> None:
+        """Remove a path to make room for a replacement (file or directory)."""
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
+    def _start_import(self, items: list[ImportItem]) -> None:
+        """Run the copy/move plan in its own thread (drops paused meanwhile)."""
+        self._importing = True
+        self._table.set_drop_enabled(False)
+        self._import_thread = QThread()
+        self._import_worker = ImportWorker(items)
+        self._import_worker.moveToThread(self._import_thread)
+        self._import_thread.started.connect(self._import_worker.run)
+        self._import_worker.finished.connect(
+            self._on_import_finished, Qt.ConnectionType.QueuedConnection
+        )
+        self._import_thread.start()
+
+    @Slot(int, int, list)
+    def _on_import_finished(self, imported: int, failed: int, errors: list) -> None:
+        self._importing = False
+        self._table.set_drop_enabled(True)
+        if self._import_thread:
+            self._import_thread.quit()
+            self._import_thread.wait()
+            self._import_thread.deleteLater()
+        self._import_thread = None
+        self._import_worker = None
+        if self._current_directory:
+            # Reload the local tree (the dropped files are on disk now) while
+            # keeping the user in the folder they were browsing.
+            self.load_local_files(
+                self._current_directory, restore_view=(self._table.current_path, None)
+            )
+        if failed and imported:
+            self.import_finished.emit(
+                tr("dnd.import_partial").format(done=imported, failed=failed), "warning"
+            )
+        elif failed:
+            detail = errors[0] if errors else ""
+            self.import_finished.emit(tr("dnd.import_failed").format(error=detail), "warning")
+        else:
+            self.import_finished.emit(tr("dnd.imported").format(count=imported), "success")
+
+    def _stop_import(self) -> None:
+        """Cancel and join a running import (panel teardown)."""
+        if self._import_worker:
+            self._import_worker.cancel()
+            try:
+                self._import_worker.finished.disconnect()
+            except RuntimeError:
+                pass
+            self._import_worker.deleteLater()
+        if self._import_thread and self._import_thread.isRunning():
+            self._import_thread.quit()
+            self._import_thread.wait(1000)
+            self._import_thread.deleteLater()
+        self._import_thread = None
+        self._import_worker = None
+        self._importing = False
+        self._table.set_drop_enabled(True)
 
     def _show_loading(self) -> None:
         self._loading_overlay.setGeometry(self._table_container.rect())

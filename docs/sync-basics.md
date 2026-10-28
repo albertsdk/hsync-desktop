@@ -76,7 +76,8 @@ first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 The status bar also answers **are the files in sync?** — the states are described
 in [Warnings and notifications](warnings.md#is-everything-in-sync).
 
-The file list itself is described in [The file list](file-list.md).
+The file list itself is described in [The file list](file-list.md), including how
+to import files by dragging them into it.
 
 ## Check for changes
 

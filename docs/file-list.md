@@ -65,6 +65,24 @@ reachable from the keyboard.
 Folders created by a remote peer appear in the list as **Synced** (green), like
 the files inside them.
 
+## Import by drag & drop
+
+You can add files to the share by dragging them from your file manager into the
+file list:
+
+- drop onto a **folder row** to import into that folder, or onto the empty area
+  to import into the folder you are currently browsing;
+- a plain drop **copies** the files into the shared folder; hold **Shift** to
+  **move** them instead (the originals are deleted, so the app asks first);
+- if a file with the same name is already there, a prompt offers **Replace**,
+  **Keep both** (the incoming file is saved as `name (1).ext`) or **Skip**, with
+  an **Apply to all** checkbox when several files clash.
+
+The files are written into the shared folder and the sync engine picks them up
+automatically; a toast reports the outcome and the list refreshes. The shared
+folder's own engine files (`.hsyncfolder`, `.hsyncignore`, …) cannot be dropped
+in, and the shared folder cannot be dropped onto itself.
+
 ## Related
 
 - [Start, watch and stop a sync](sync-basics.md) — Send now / Receive now in

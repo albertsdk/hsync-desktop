@@ -296,6 +296,7 @@ class MainWindow(
         e.folder_size_changed.connect(self._on_folder_size)
         self._file_panel.share_size_changed.connect(self._on_share_size_changed)
         self._file_panel.scan_found_new_files.connect(self._on_files_added_on_disk)
+        self._file_panel.import_finished.connect(self._on_import_finished)
         # Engine errors are always mirrored into the log panel; a start failure
         # additionally raises a modal dialog (see `_start_engine`). The handler
         # also owns the outcome of a scoped Send/Receive failure.

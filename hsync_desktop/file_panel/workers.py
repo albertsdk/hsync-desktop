@@ -10,6 +10,7 @@ Contains DirectoryScanWorker for scanning directories in background threads.
 from __future__ import annotations
 
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from hsync_desktop.config import FILE_BATCH_SIZE
 from hsync_desktop.file_panel.filter import is_synced_entry
+from hsync_desktop.file_panel.import_ops import ImportItem
 
 # Minimum time between progress updates (seconds) to avoid flooding the UI
 _PROGRESS_THROTTLE_MS = 100
@@ -230,3 +232,58 @@ class DirectoryScanWorker(QObject):
         self._scan_with_scandir(base_path, total)
 
         self.finished.emit()
+
+
+class ImportWorker(QObject):
+    """Copy or move dropped sources into the share, off the UI thread.
+
+    The caller resolves the target paths and the conflicts first (on the UI
+    thread, where the dialogs live); this worker only performs the filesystem
+    work, so it never touches a widget. Each item is isolated: one failure does
+    not abort the rest, and a move never deletes a source the copy failed to
+    write (``shutil.move`` handles that already).
+    """
+
+    # Emits (done, total) after each item.
+    progress = Signal(int, int)
+    # Emits (imported, failed, errors) once the batch is over.
+    finished = Signal(int, int, list)
+
+    def __init__(self, items: list[ImportItem]) -> None:
+        super().__init__()
+        self._items = list(items)
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Stop before the next item."""
+        self._cancelled = True
+
+    @Slot()
+    def run(self) -> None:
+        imported = 0
+        failed = 0
+        errors: list[str] = []
+        total = len(self._items)
+        for index, item in enumerate(self._items, start=1):
+            if self._cancelled:
+                break
+            try:
+                self._perform(item)
+                imported += 1
+            except Exception as exc:  # noqa: BLE001 - report and keep going
+                failed += 1
+                errors.append(f"{os.path.basename(item.src)}: {exc}")
+            self.progress.emit(index, total)
+        self.finished.emit(imported, failed, errors)
+
+    @staticmethod
+    def _perform(item: ImportItem) -> None:
+        parent = os.path.dirname(item.dest)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        if item.move:
+            shutil.move(item.src, item.dest)
+        elif os.path.isdir(item.src):
+            shutil.copytree(item.src, item.dest)
+        else:
+            shutil.copy2(item.src, item.dest)
