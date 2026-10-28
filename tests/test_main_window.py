@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+from contextlib import contextmanager
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
@@ -1244,9 +1245,10 @@ class TestInitialReconcile:
         from types import SimpleNamespace
         from unittest.mock import MagicMock
 
+        from hsync_desktop.main_window.events import EventsMixin
         from hsync_desktop.preview_summary_dialog import PreviewStats
 
-        return SimpleNamespace(
+        stub = SimpleNamespace(
             _engine=MagicMock(is_running=True),
             _file_panel=MagicMock(),
             _p2p_enabled=p2p,
@@ -1261,6 +1263,10 @@ class TestInitialReconcile:
             _set_sync_state=lambda *_a, **_k: None,
             _sync_state_after_preview=lambda: ("in_sync", 0, 0, 0),
         )
+        # The comparison helpers stay real: the slots under test delegate to them.
+        stub._begin_comparison = EventsMixin._begin_comparison.__get__(stub)
+        stub._finish_comparison = EventsMixin._finish_comparison.__get__(stub)
+        return stub
 
     def test_first_connect_runs_preview_then_sync(self):
         from hsync_desktop.main_window.events import EventsMixin
@@ -2564,17 +2570,17 @@ class TestSyncState:
         finally:
             i18n.set_language(previous)
 
-    def test_a_marker_less_classification_settles_the_summary(self, window, qtbot):
-        """A serving device answers with file_status only; the label still follows."""
+    def test_a_serving_device_classification_is_rendered(self, window):
+        """A primary node answers with the status-pass pair; the label follows."""
         window._p2p_enabled = True
         window._on_status("connected")
 
+        window._on_status_pass_started()
+        assert window._sync_state_label.text() == tr("sync.state.checking")
         window._on_file_status("synced", "/share/a.bin", 4)
+        window._on_status_pass_ended()
 
-        qtbot.waitUntil(
-            lambda: window._sync_state_label.text() == tr("sync.state.in_sync"),
-            timeout=2000,
-        )
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
 
 
 class TestDryRunSyncRetry:
@@ -2669,10 +2675,10 @@ class TestFileMenuCopyPath:
         assert QGuiApplication.clipboard().text() == os.path.normpath("report.bin")
 
 
-class TestMasterPreviewDoesNotConsumeTheConfirmation:
-    """A serving node answers PREVIEW itself; that is not the awaited cycle."""
+class TestServingSideClassification:
+    """A serving node answers a refresh with its own pass, not the preview cycle."""
 
-    def test_the_dry_run_confirmation_survives_a_master_classification(self, window, monkeypatch):
+    def test_a_status_pass_never_consumes_the_confirmation(self, window, monkeypatch):
         calls: list[str] = []
         monkeypatch.setattr(window, "_show_preview_summary", lambda: calls.append("summary"))
         window._p2p_enabled = True
@@ -2680,19 +2686,114 @@ class TestMasterPreviewDoesNotConsumeTheConfirmation:
         window._awaiting_preview_for_sync = True
         window._pending_initial_reconcile = True
 
-        window._on_preview_started()
+        window._on_status_pass_started()
         window._preview_stats.to_upload = 3
-        window._on_preview_ended()
+        window._on_status_pass_ended()
 
         assert calls == []
         assert window._awaiting_preview_for_sync is True
         assert window._pending_initial_reconcile is True
-        # The label still follows the burst.
+        # The label still follows the pass.
         assert window._sync_state[0] == "pending"
 
-        # Once the node is a slave the same event is the awaited answer.
+    def test_the_preview_cycle_consumes_the_confirmation(self, window, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(window, "_show_preview_summary", lambda: calls.append("summary"))
+        window._p2p_enabled = True
         window._is_master = False
+        window._awaiting_preview_for_sync = True
+        window._pending_initial_reconcile = True
+
         window._on_preview_ended()
 
         assert calls == ["summary"]
+        assert window._awaiting_preview_for_sync is False
         assert window._pending_initial_reconcile is False
+
+    def test_the_counters_restart_at_every_pass(self, window):
+        """A repeated classification must not inflate the bottom-bar counts."""
+        window._p2p_enabled = True
+
+        window._on_status_pass_started()
+        window._preview_stats.to_upload = 2
+        window._on_status_pass_ended()
+
+        window._on_status_pass_started()
+        window._preview_stats.to_upload = 1
+        window._on_status_pass_ended()
+
+        expected = tr("sync.state.pending").replace("{download}", "0").replace("{upload}", "1")
+        assert window._sync_state_label.text() == expected
+
+
+class TestCheckChangesAction:
+    """Refresh asks the engine for a comparison, in both roles."""
+
+    @staticmethod
+    @contextmanager
+    def _running_engine(window, preview=None):
+        """A running engine, restored on exit so teardown cannot prompt.
+
+        ``closeEvent`` asks for confirmation while the engine reports a running
+        sync: a fake that outlives the test would block the widget teardown.
+        """
+        from unittest.mock import MagicMock, patch
+
+        spy = preview or MagicMock()
+        with (
+            patch.object(window._engine, "preview", spy),
+            patch.object(type(window._engine), "is_running", property(lambda self: True)),
+        ):
+            yield spy
+
+    def test_the_action_is_available_while_the_engine_runs(self, window):
+        with self._running_engine(window):
+            window._enter_running_ui()
+
+            assert window._btn_check_changes.isEnabled()
+            assert window._act_check_changes.isEnabled()
+
+        window._reset_ui_stopped()
+
+        assert not window._btn_check_changes.isEnabled()
+        assert not window._act_check_changes.isEnabled()
+
+    def test_a_serving_device_refresh_asks_for_a_classification(self, window):
+        window._p2p_enabled = True
+        window._is_master = True
+        window._awaiting_preview_for_sync = False
+
+        with self._running_engine(window) as preview:
+            window._on_check_changes()
+
+            assert preview.call_count == 1
+            # No summary dialog: there is nothing for the serving device to pull.
+            assert window._awaiting_preview_for_sync is False
+
+    def test_a_secondary_refresh_arms_the_sync_confirmation(self, window):
+        window._p2p_enabled = True
+        window._is_master = False
+
+        with self._running_engine(window) as preview:
+            window._on_check_changes()
+
+            assert preview.call_count == 1
+            assert window._awaiting_preview_for_sync is True
+
+    def test_a_refresh_while_stopped_only_logs(self, window, monkeypatch):
+        from unittest.mock import MagicMock
+
+        preview = MagicMock()
+        monkeypatch.setattr(window._engine, "preview", preview)
+
+        window._on_check_changes()
+
+        assert preview.call_count == 0
+
+    def test_the_button_is_icon_only_with_an_explanatory_tooltip(self, window):
+        """The action bar shows no text, so the tooltip has to explain the action."""
+        assert window._btn_check_changes.text() == ""
+        assert not window._btn_check_changes.icon().isNull()
+        assert window._btn_check_changes.toolTip() == tr("tip.check_changes")
+        # The shortcut is part of the only text the control shows.
+        assert "F5" in window._btn_check_changes.toolTip()

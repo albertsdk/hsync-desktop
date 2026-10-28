@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  Starten",
     "btn.stop": "■  Stoppen",
-    "btn.refresh": "Vernieuwen",
     "btn.settings": "⚙  Instellingen",
     "btn.browse": "…",
     "btn.browse_tip": "Bladeren",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Hostnaam, IP of host:poort van de HSYNC-server; https:// en poort 9753 zijn impliciet. Laat leeg voor alleen p2p.",
     "tip.share_size": "Ruimte van de gedeelde map op dit apparaat en de totale grootte van de share (bestanden op de externe server + nog niet geüploade lokale bestanden).",
+    "tip.check_changes": "Vergelijkt de map met de andere apparaten: toont de nog openstaande wijzigingen en werkt de bestandenlijst en de synchronisatiestatus bij (F5).",
     "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: geen apparaat verbonden, controleren, alles gesynchroniseerd of de wijzigingen die nog moeten worden overgedragen.",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimaliseren naar systeemvak",
     "tray.start": "Starten",
     "tray.stop": "Stoppen",
-    "tray.refresh": "Vernieuwen",
+    "tray.check_changes": "Wijzigingen controleren",
     "tray.settings": "Instellingen…",
     "tray.quit": "Afsluiten",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&Synchronisatie",
     "menu.sync.start": "Starten",
     "menu.sync.stop": "Stoppen",
-    "menu.sync.refresh": "Vernieuwen",
+    "menu.sync.check_changes": "Wijzigingen controleren",
     "menu.sync.direction": "Synchronisatietype",
     "menu.sync.direction.bidirectional": "Uitgelijnd houden",
     "menu.sync.direction.upload_only": "Alleen verzenden",

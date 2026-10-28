@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  Uruchom",
     "btn.stop": "■  Zatrzymaj",
-    "btn.refresh": "Odśwież",
     "btn.settings": "⚙  Ustawienia",
     "btn.browse": "…",
     "btn.browse_tip": "Przeglądaj",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Nazwa hosta, adres IP lub host:port serwera HSYNC; https:// i port 9753 są domyślne. Pozostaw puste, aby używać tylko p2p.",
     "tip.share_size": "Miejsce zajmowane przez udostępniony folder na tym urządzeniu i łączny rozmiar udostępnienia (pliki na zdalnym serwerze + lokalne pliki jeszcze nieprzesłane).",
+    "tip.check_changes": "Porównuje folder z innymi urządzeniami: pokazuje oczekujące zmiany i odświeża listę plików oraz stan synchronizacji (F5).",
     "tip.sync_state": "Pokazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak podłączonych urządzeń, trwa sprawdzanie, wszystko zsynchronizowane lub pozostałe zmiany do przesłania.",
     "tip.api_key": "Klucz API do uwierzytelniania na serwerze",
     "tip.insecure": "Nie weryfikuj certyfikatu serwera (mniej bezpieczne).",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Zminimalizuj do zasobnika",
     "tray.start": "Uruchom",
     "tray.stop": "Zatrzymaj",
-    "tray.refresh": "Odśwież",
+    "tray.check_changes": "Sprawdź zmiany",
     "tray.settings": "Ustawienia…",
     "tray.quit": "Zakończ",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&Synchronizacja",
     "menu.sync.start": "Uruchom",
     "menu.sync.stop": "Zatrzymaj",
-    "menu.sync.refresh": "Odśwież",
+    "menu.sync.check_changes": "Sprawdź zmiany",
     "menu.sync.direction": "Typ synchronizacji",
     "menu.sync.direction.bidirectional": "Utrzymuj zgodność",
     "menu.sync.direction.upload_only": "Tylko wysyłanie",

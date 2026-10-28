@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  Iniciar",
     "btn.stop": "■  Parar",
-    "btn.refresh": "Atualizar",
     "btn.settings": "⚙  Configurações",
     "btn.browse": "…",
     "btn.browse_tip": "Procurar",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Nome do host, IP ou host:porta do servidor HSYNC; https:// e a porta 9753 são implícitos. Deixar vazio para apenas p2p.",
     "tip.share_size": "Espaço ocupado pela pasta partilhada neste dispositivo e tamanho total da partilha (ficheiros no servidor remoto + ficheiros locais ainda não enviados).",
+    "tip.check_changes": "Compara a pasta com os outros dispositivos: mostra as alterações pendentes e atualiza a lista de ficheiros e o estado da sincronização (F5).",
     "tip.sync_state": "Indica se a pasta partilhada está igual aos outros dispositivos: nenhum dispositivo ligado, a verificar, tudo sincronizado ou as alterações ainda por transferir.",
     "tip.api_key": "Chave de API para autenticação no servidor",
     "tip.insecure": "Não verificar o certificado do servidor (menos seguro).",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimizar para a bandeja",
     "tray.start": "Iniciar",
     "tray.stop": "Parar",
-    "tray.refresh": "Atualizar",
+    "tray.check_changes": "Verificar alterações",
     "tray.settings": "Configurações…",
     "tray.quit": "Sair",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&Sincronização",
     "menu.sync.start": "Iniciar",
     "menu.sync.stop": "Parar",
-    "menu.sync.refresh": "Atualizar",
+    "menu.sync.check_changes": "Verificar alterações",
     "menu.sync.direction": "Tipo de sincronização",
     "menu.sync.direction.bidirectional": "Manter alinhados",
     "menu.sync.direction.upload_only": "Somente enviar",

@@ -67,7 +67,7 @@ the **Server HSYNC** store.
 | `Alt+Enter` | Properties |
 | `Ctrl+Shift+C` | Copy path |
 | `Ctrl+Alt+C` | Copy to a folder |
-| `F5` | Refresh the file list |
+| `F5` | Check for changes: refresh the file list and the sync state |
 | `Ctrl+Shift+S` | Start |
 | `Ctrl+,` | Settings |
 | `F1` | Documentation |
@@ -110,6 +110,14 @@ opens on the **Server HSYNC** store).
    [Log Labels](log-labels.md).
 4. With **Real-time sync** enabled, the app keeps running and re-syncs on changes
    until you stop it.
+
+**Check for changes** (`F5`, or the magnifier button in the action bar)
+re-compares the folder with the other devices. On a **secondary** device it lists
+the changes still pending and asks whether to sync them; on the **primary** device
+it only re-reads what the connected devices hold — the primary is the source, so
+it has nothing to pull — and updates the file list and the *are the files in
+sync?* label. The action is available for as long as the sync is running, in
+both roles.
 
 When two devices really change the same file at once, the merge keeps one version
 and preserves the other next to it as a conflict copy (`_conflicted_copy_`), so

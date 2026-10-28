@@ -251,7 +251,7 @@ class MainWindow(
         # Button signals
         self._btn_start.clicked.connect(self._on_start)
         self._btn_stop.clicked.connect(self._on_stop)
-        self._btn_refresh.clicked.connect(self._on_refresh)
+        self._btn_check_changes.clicked.connect(self._on_check_changes)
 
         # Engine signals
         e = self._engine
@@ -298,6 +298,8 @@ class MainWindow(
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
         e.preview_ended.connect(self._on_preview_ended)
+        e.status_pass_started.connect(self._on_status_pass_started)
+        e.status_pass_ended.connect(self._on_status_pass_ended)
         e.file_status.connect(self._on_file_status)
         e.file_rename_status.connect(self._on_file_rename_status)
 

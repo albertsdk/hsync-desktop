@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     tray.toggle_window.connect(window._toggle_visibility)
     tray.start_requested.connect(window._on_start)
     tray.stop_requested.connect(window._on_stop)
-    tray.refresh_requested.connect(window._on_refresh)
+    tray.check_changes_requested.connect(window._on_check_changes)
     tray.settings_requested.connect(window._open_settings)
     tray.wizard_requested.connect(window._open_setup_wizard)
     tray.quit_requested.connect(window._quit)

@@ -8,7 +8,7 @@ driven by `HsyncEngine` signals (see [engine.md](engine.md)).
 `MainWindow` is assembled from responsibility mixins (all sharing `self`):
 `window.py` (`MainWindow`, `__init__`, `_connect_signals`), `ui.py`
 (UI construction), `events.py` (engine-signal slots), `trust.py`
-(trust/pinning + pre-flight), `start.py` (start/stop/refresh/pre-flight checks),
+(trust/pinning + pre-flight), `start.py` (start/stop/compare/pre-flight checks),
 `actions.py` (menu actions) and `lifecycle.py` (tray/quit/close/eventFilter).
 The mixins suppress `attr-defined` in mypy because they operate on the composed
 window's attributes.
@@ -17,7 +17,7 @@ window's attributes.
 | ------ | -------- | ---- |
 | `MainWindow` | `main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
 | `_load_ui` | `main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/refresh/direction/file ops/help) |
+| `_create_menu_bar` | `main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/direction/file ops/help) |
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
@@ -33,7 +33,10 @@ Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow.
 `transfer_failed→_on_transfer_failed`, `sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`, `folder_size_changed→_on_folder_size`,
 `file_panel.share_size_changed→_on_share_size_changed`,
-`pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`.
+`pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`,
+and the two comparison marker pairs (`preview_started`/`preview_ended`,
+`status_pass_started`/`status_pass_ended`) → `_on_preview_started` /
+`_on_status_pass_started` and `_on_preview_ended` / `_on_status_pass_ended`.
 `error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::UiBuildMixin._on_engine_error`),
 which stores the message, mirrors it into the log panel and raises an in-app
 error toast through `_notify_error` (an OS notification is sent too, only when a
@@ -73,7 +76,7 @@ live WebSocket (admins excluded), so its title is "Connected users"
 **Keyboard shortcuts** live only on the menu-bar actions (a context menu cannot
 be reached from the keyboard, so it never displays them): `Return`/`Ctrl+O` open,
 `F2` rename, `Delete` trash, `Alt+Return` properties, `Ctrl+Shift+C` copy path,
-`Ctrl+Alt+C` copy to, `F5` refresh, `Ctrl+Shift+S` start,
+`Ctrl+Alt+C` copy to, `F5` compare, `Ctrl+Shift+S` start,
 `QKeySequence.StandardKey.Preferences` settings and `.Quit` quit (Cmd instead of
 Ctrl on macOS), `F1` documentation; the log menu shows `StandardKey.SelectAll` /
 `.Copy` and lets the view handle them.
@@ -617,40 +620,56 @@ state remembered in `EventsMixin._set_sync_state`:
 | --- | --- | --- |
 | `idle` | no engine run, or the link was never up | `sync.state.idle` |
 | `offline` | the link dropped after a real connection; per-file statuses keep their last known value | `sync.state.offline` |
-| `checking` | on `connected` and on every `preview_start` | `sync.state.checking` |
+| `checking` | on `connected` and on every comparison start `preview_start` or `status_pass_start` | `sync.state.checking` |
 | `waiting_inventory` | `sync_pending` with `reason="awaiting_inventory"` (a device is connected but has not published its inventory) | `sync.state.waiting_inventory` |
 | `no_devices` | `no_peers` (one-shot abort) or p2p with `total <= 1` | `sync.state.no_devices` |
-| `in_sync` | `preview_end` with no pending action | `sync.state.in_sync` |
-| `pending` | `preview_end` with downloads/uploads | `sync.state.pending` (`{download}`/`{upload}`) |
-| `pending_other` | `preview_end` with only deletes/renames | `sync.state.pending_other` (`{count}`) |
+| `in_sync` | a comparison end (`preview_end` or `status_pass_end`) with no pending action | `sync.state.in_sync` |
+| `pending` | a comparison end with downloads/uploads | `sync.state.pending` (`{download}`/`{upload}`) |
+| `pending_other` | a comparison end with only deletes/renames | `sync.state.pending_other` (`{count}`) |
 
 The counts come from `PreviewStats` (`preview_summary_dialog.py`), accumulated by
-`EventsMixin._on_file_status` during the preview; `_sync_state_after_preview`
-turns them into the state. The label is re-rendered on a language change from
-`_apply_translations`, and its tooltip is `tip.sync_state`. On a p2p serving
-device the events are produced by the client's own classification (see the
-client wiki `modules/p2p-mode.md`), so the same states cover both roles.
+`EventsMixin._on_file_status` during the comparison; `_sync_state_after_preview`
+turns them into the state, and `EventsMixin._begin_comparison` resets them on
+every start, so repeated comparisons never inflate the counts. The label is
+re-rendered on a language change from `_apply_translations`, and its tooltip is
+`tip.sync_state`. A p2p serving device produces the events through the client's
+own classification (see the client wiki `modules/p2p-mode.md`), so the same
+states cover both roles.
 
 Per-file statuses are a **last known value**, not a live-only signal: dropping
 the link sets the summary to `offline` but never rewrites rows to "Local". Only a
 new preview/classification (or a fresh scan after an engine restart) changes
 them, so a synced file does not look unsynced just because the peer went away.
 
-A classification burst that arrives **without** a preview cycle (a serving device
-re-classifies on every inventory change and answers with plain `file_status`
-events, see the client wiki) settles the label through
-`EventsMixin._sync_state_timer` (`_SYNC_STATE_SETTLE_MS`, restarted by every
-`EventsMixin._on_file_status`) → `EventsMixin._on_sync_state_settled`. The
-`preview_start`/`preview_end` pair is reserved for the previews this window
-requests, so a background pass cannot consume the confirmation one-shot below.
+Every per-file status burst is bracketed by exactly one marker pair, and both
+pairs share one rendering path (`EventsMixin._begin_comparison` /
+`EventsMixin._finish_comparison`), so the window never infers the end of a burst:
 
-A preview that ends while the node is a **serving device** (`_is_master`) is a
-classification of its own share, not the preview cycle this window asked for
-(the dry-run preview only runs once the node is a slave):
-`EventsMixin._on_preview_ended` refreshes the summary from it and returns before
-crediting `_pending_initial_reconcile` or opening the confirmation summary. That
-guard keeps the initial dry-run's `SYNC` alive even against a client that still
-answers `PREVIEW` with the `preview_start`/`preview_end` pair.
+* `preview_start`/`preview_end` — the preview **this window** requested through
+  `engine/process.py::HsyncEngine.preview`. Only its end may confirm a pending
+  sync: `EventsMixin._on_preview_ended` credits `_pending_initial_reconcile` and
+  opens `ActionsMixin._show_preview_summary`.
+* `status_pass_start`/`status_pass_end` — the classification pass a **serving
+  device** runs on its own share (inventory-driven or triggered by the same
+  `PREVIEW` command; see the client wiki).
+  `EventsMixin._on_status_pass_ended` renders the rows and the file-set state and
+  stops there: the device that serves the share has nothing to pull, so there is
+  no summary and no `SYNC`.
+
+Keeping the pairs distinct is what protects the confirmation one-shot: a
+background pass can never consume the preview the window is waiting for.
+
+**Check for changes** (`main_window/start.py::StartMixin._on_check_changes`) writes
+`PREVIEW` on the client's stdin and leaves the rest to the role: a secondary node
+answers with the preview cycle (the summary then offers the sync), a primary node
+with its classification pass. `_awaiting_preview_for_sync` is therefore armed only
+for the requester side, and the action is enabled for as long as the engine runs
+(`ActionsMixin._enter_running_ui`), so the action works in both roles. The action
+bar button is **icon-only** (`main_window/ui.py::UiBuildMixin._load_ui` clears its
+text) and uses the bundled `system-search` icon, so the tooltip (`tip.check_changes`) is
+the control's only text and describes the comparison instead of restating a verb;
+its name is `menu.sync.check_changes`, shared with the tray entry and with the log line
+the click writes (`StartMixin._on_check_changes`).
 
 The p2p **post-initial-sync catch-up** (`EventsMixin._on_connected_refresh`) is
 credited only when the preview answers: it arms

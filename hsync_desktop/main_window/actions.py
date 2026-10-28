@@ -247,7 +247,9 @@ class ActionsMixin:
         self._on_status("connecting")
         self._btn_start.setEnabled(False)
         self._btn_stop.setEnabled(True)
-        self._btn_refresh.setEnabled(False)
+        # A running engine can always compare the share: the command is queued on
+        # its stdin and both roles answer it (see StartMixin._on_check_changes).
+        self._btn_check_changes.setEnabled(True)
         if self._tray:
             self._tray.set_running(True)
         self._apply_button_styles()
@@ -499,8 +501,6 @@ class ActionsMixin:
                 # role), so the next preview it runs in this phase must send it
                 # again. The phase ends when the link comes up (_on_status).
                 self._engine.sync()
-                self._btn_refresh.setEnabled(True)
-                self._apply_button_styles()
                 self._awaiting_preview_for_sync = True
                 if not self._dry_run_preview_reported:
                     self._dry_run_preview_reported = True
@@ -535,8 +535,6 @@ class ActionsMixin:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.
                 self._engine.sync()
-                self._btn_refresh.setEnabled(True)
-                self._apply_button_styles()
             self._is_dry_run_preview = False
         else:
             if selection:

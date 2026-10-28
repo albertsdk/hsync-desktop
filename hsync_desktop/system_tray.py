@@ -5,7 +5,7 @@
 System tray integration for HSYNC Desktop.
 
 Provides a tray icon with context menu for quick access to
-Show/Hide, Start/Stop, Refresh, Settings and Quit.
+Show/Hide, Start/Stop, Check for changes, Settings and Quit.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ class SystemTray(QSystemTrayIcon):
     toggle_window = Signal()
     start_requested = Signal()
     stop_requested = Signal()
-    refresh_requested = Signal()
+    check_changes_requested = Signal()
     settings_requested = Signal()
     wizard_requested = Signal()
     quit_requested = Signal()
@@ -87,10 +87,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.setEnabled(False)
         menu.addAction(self._act_stop)
 
-        self._act_refresh = QAction(tr("tray.refresh"), menu)
-        self._act_refresh.triggered.connect(self.refresh_requested.emit)
-        self._act_refresh.setEnabled(False)
-        menu.addAction(self._act_refresh)
+        self._act_check_changes = QAction(tr("tray.check_changes"), menu)
+        self._act_check_changes.triggered.connect(self.check_changes_requested.emit)
+        self._act_check_changes.setEnabled(False)
+        menu.addAction(self._act_check_changes)
 
         menu.addSeparator()
         self._act_settings = QAction(tr("tray.settings"), menu)
@@ -147,7 +147,7 @@ class SystemTray(QSystemTrayIcon):
         """Update menu items based on running state."""
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
-        self._act_refresh.setEnabled(running)
+        self._act_check_changes.setEnabled(running)
 
     def set_window_visible(self, visible: bool) -> None:
         """Update the Show/Minimize action text based on window visibility."""
@@ -163,7 +163,7 @@ class SystemTray(QSystemTrayIcon):
         self._act_show.setText(tr("tray.minimize") if self._window_visible else tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
         self._act_stop.setText(tr("tray.stop"))
-        self._act_refresh.setText(tr("tray.refresh"))
+        self._act_check_changes.setText(tr("tray.check_changes"))
         self._act_settings.setText(tr("tray.settings"))
         self._act_setup_wizard.setText(tr("tray.setup_wizard"))
         self._act_quit.setText(tr("tray.quit"))

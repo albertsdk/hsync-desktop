@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  Запустить",
     "btn.stop": "■  Остановить",
-    "btn.refresh": "Обновить",
     "btn.settings": "⚙  Настройки",
     "btn.browse": "…",
     "btn.browse_tip": "Обзор",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Имя хоста, IP или host:port сервера HSYNC; https:// и порт 9753 подразумеваются. Оставьте пустым для режима только p2p.",
     "tip.share_size": "Объём, занимаемый общей папкой на этом устройстве, и общий размер общего ресурса (файлы на удалённом сервере + ещё не загруженные локальные файлы).",
+    "tip.check_changes": "Сравнивает папку с другими устройствами: показывает ожидающие изменения и обновляет список файлов и состояние синхронизации (F5).",
     "tip.sync_state": "Показывает, совпадает ли общая папка с другими устройствами: нет подключённых устройств, идёт проверка, всё синхронизировано или остались изменения для передачи.",
     "tip.api_key": "Ключ API для аутентификации на сервере",
     "tip.insecure": "Не проверять сертификат сервера (менее безопасно).",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Свернуть в трей",
     "tray.start": "Запустить",
     "tray.stop": "Остановить",
-    "tray.refresh": "Обновить",
+    "tray.check_changes": "Проверить изменения",
     "tray.settings": "Настройки…",
     "tray.quit": "Выход",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&Синхронизация",
     "menu.sync.start": "Запустить",
     "menu.sync.stop": "Остановить",
-    "menu.sync.refresh": "Обновить",
+    "menu.sync.check_changes": "Проверить изменения",
     "menu.sync.direction": "Тип синхронизации",
     "menu.sync.direction.bidirectional": "Поддерживать синхронность",
     "menu.sync.direction.upload_only": "Только отправка",

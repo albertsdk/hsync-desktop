@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  開始",
     "btn.stop": "■  停止",
-    "btn.refresh": "更新",
     "btn.settings": "⚙  設定",
     "btn.browse": "…",
     "btn.browse_tip": "参照",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "HSYNC サーバーのホスト名、IP、または host:port。https:// とポート 9753 は省略できます。p2p のみの場合は空欄にします。",
     "tip.share_size": "このデバイスの共有フォルダーが使用する容量と、共有の合計サイズ（リモートサーバー上のファイル + 未アップロードのローカルファイル）。",
+    "tip.check_changes": "フォルダーを他のデバイスと比較し、保留中の変更を一覧表示して、ファイル一覧と同期状態を更新します（F5）。",
     "tip.sync_state": "共有フォルダーが他のデバイスと一致しているかを示します。デバイス未接続、確認中、すべて同期済み、または転送待ちの変更。",
     "tip.api_key": "サーバー認証用の API キー",
     "tip.insecure": "サーバー証明書を検証しません（安全性が低下）。",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "トレイに最小化",
     "tray.start": "開始",
     "tray.stop": "停止",
-    "tray.refresh": "更新",
+    "tray.check_changes": "変更を確認",
     "tray.settings": "設定…",
     "tray.quit": "終了",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&同期",
     "menu.sync.start": "開始",
     "menu.sync.stop": "停止",
-    "menu.sync.refresh": "更新",
+    "menu.sync.check_changes": "変更を確認",
     "menu.sync.direction": "同期の種類",
     "menu.sync.direction.bidirectional": "整合を保つ",
     "menu.sync.direction.upload_only": "送信のみ",

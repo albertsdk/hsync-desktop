@@ -100,3 +100,13 @@ class TestWizardModeIcons:
 
         for name in set(_MODE_ICONS.values()):
             assert not icons.icon(name).isNull(), name
+
+
+class TestActionBarCompareIcon:
+    """The compare action uses a registered, loadable bundled icon."""
+
+    def test_the_compare_icon_is_registered(self):
+        assert "system-search" in icons._FALLBACK_MAP
+
+    def test_the_compare_icon_loads(self, qapp):
+        assert not icons.icon("system-search").isNull()

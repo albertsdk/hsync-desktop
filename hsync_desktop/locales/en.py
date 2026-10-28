@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  Start",
     "btn.stop": "■  Stop",
-    "btn.refresh": "Refresh",
     "btn.settings": "⚙  Settings",
     "btn.browse": "…",
     "btn.browse_tip": "Browse",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Hostname, IP or host:port of the HSYNC server; https:// and port 9753 are implied. Leave empty for p2p only.",
     "tip.share_size": "Space used by the shared folder on this device, and the total share size (remote/server files plus local files not yet uploaded).",
+    "tip.check_changes": "Compare the folder with the other devices: it lists the changes still pending and updates the file list and the sync state (F5).",
     "tip.sync_state": "Whether the shared folder matches the other devices: no device connected, checking, all files in sync, or the changes still to transfer.",
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Do not verify the server certificate (less secure).",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimize to tray",
     "tray.start": "Start",
     "tray.stop": "Stop",
-    "tray.refresh": "Refresh",
+    "tray.check_changes": "Check for changes",
     "tray.settings": "Settings…",
     "tray.quit": "Quit",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&Sync",
     "menu.sync.start": "Start",
     "menu.sync.stop": "Stop",
-    "menu.sync.refresh": "Refresh",
+    "menu.sync.check_changes": "Check for changes",
     "menu.sync.direction": "Sync Type",
     "menu.sync.direction.bidirectional": "Keep aligned",
     "menu.sync.direction.upload_only": "Send only",

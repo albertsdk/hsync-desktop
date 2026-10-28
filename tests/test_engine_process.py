@@ -365,6 +365,23 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.role, is_master=False))
         assert out == [(True,), (False,)]
 
+    def test_the_comparison_markers_map_to_their_signals(self, engine):
+        """The requester's preview pair and the serving side's pass pair stay apart."""
+        started = _capture(engine.preview_started)
+        ended = _capture(engine.preview_ended)
+        pass_started = _capture(engine.status_pass_started)
+        pass_ended = _capture(engine.status_pass_ended)
+
+        engine._handle_event(build_event(UiEventName.preview_start))
+        engine._handle_event(build_event(UiEventName.preview_end))
+        engine._handle_event(build_event(UiEventName.status_pass_start))
+        engine._handle_event(build_event(UiEventName.status_pass_end))
+
+        assert started == [()]
+        assert ended == [()]
+        assert pass_started == [()]
+        assert pass_ended == [()]
+
     def test_discovery_event(self, engine):
         out = _capture(engine.discovery_changed)
         engine._handle_event(

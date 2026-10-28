@@ -12,6 +12,7 @@ Ecosystem ADRs are SSOT in `hsync-common`
 | [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine/` package: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine/process.py::HsyncEngine._handle_event`), stdin commands (`engine/process.py::HsyncEngine._send_command`) |
 | [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`engine/cli.py::is_binary_version_compatible`) + `BinaryVersionProbe` (`engine/cli.py::BinaryVersionProbe`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
 | [0001 server-vs-p2p-modes](../../hsync-common/docs/internal/adr/0001-server-vs-p2p-modes.md) | p2p block in the settings dialog + `p2p`/`server` subcommand selection and master flags in `cli_args.py` |
+| [0041 serving-side-status-pass-events](../../hsync-common/docs/internal/adr/0041-serving-side-status-pass-events.md) | `status_pass_started`/`status_pass_ended` signals (`engine/process.py::HsyncEngine`) → `EventsMixin._on_status_pass_started`/`_on_status_pass_ended`, distinct from the preview pair that confirms a sync ([ui.md](modules/ui.md)) |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in

@@ -48,7 +48,6 @@ translations: dict[str, str] = {
     # Buttons
     "btn.start": "▶  启动",
     "btn.stop": "■  停止",
-    "btn.refresh": "刷新",
     "btn.settings": "⚙  设置",
     "btn.browse": "…",
     "btn.browse_tip": "浏览",
@@ -322,6 +321,7 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "HSYNC 服务器的主机名、IP 或 host:port；默认使用 https:// 和端口 9753。仅使用 p2p 时留空。",
     "tip.share_size": "此设备上共享文件夹占用的空间，以及共享总大小（远程服务器上的文件 + 尚未上传的本地文件）。",
+    "tip.check_changes": "将文件夹与其他设备进行比较：列出仍待处理的变化，并更新文件列表和同步状态（F5）。",
     "tip.sync_state": "显示共享文件夹是否与其他设备一致：未连接设备、正在检查、全部已同步或仍有待传输的更改。",
     "tip.api_key": "用于服务器身份验证的 API 密钥",
     "tip.insecure": "不验证服务器证书（安全性较低）。",
@@ -403,7 +403,7 @@ translations: dict[str, str] = {
     "tray.minimize": "最小化到托盘",
     "tray.start": "启动",
     "tray.stop": "停止",
-    "tray.refresh": "刷新",
+    "tray.check_changes": "检查更改",
     "tray.settings": "设置…",
     "tray.quit": "退出",
     # Notifications
@@ -547,7 +547,7 @@ translations: dict[str, str] = {
     "menu.sync": "&同步",
     "menu.sync.start": "启动",
     "menu.sync.stop": "停止",
-    "menu.sync.refresh": "刷新",
+    "menu.sync.check_changes": "检查更改",
     "menu.sync.direction": "同步类型",
     "menu.sync.direction.bidirectional": "保持一致",
     "menu.sync.direction.upload_only": "仅发送",

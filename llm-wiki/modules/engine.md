@@ -105,7 +105,9 @@ command line:
 | `sync_pending` | `sync_pending(reason)` — `no_device` or `awaiting_inventory` |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
-| `preview_start` / `preview_end` / `file_status` / `rename_status` | preview/file-status signals |
+| `preview_start` / `preview_end` | `preview_started` / `preview_ended` — the comparison this window requested |
+| `status_pass_start` / `status_pass_end` | `status_pass_started` / `status_pass_ended` — the classification pass of a serving device |
+| `file_status` / `rename_status` | `file_status(status, filepath, size)` / `file_rename_status(old, new, size)` |
 
 Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`
 Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload shape are SSOT in

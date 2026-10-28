@@ -89,7 +89,7 @@ _FALLBACK_MAP: dict[str, str] = {
     "folder-open": "folder-open.svg",
     "document-save": "document-save.svg",
     "application-exit": "application-exit.svg",
-    "view-refresh": "view-refresh.svg",
+    "system-search": "system-search.svg",
     "media-playback-start": "media-playback-start.svg",
     "media-playback-stop": "media-playback-stop.svg",
     "preferences-system": "preferences-system.svg",

@@ -133,7 +133,7 @@ class StartMixin:
         """Reset UI buttons to the stopped state."""
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
-        self._btn_refresh.setEnabled(False)
+        self._btn_check_changes.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
         # Keep result/error toasts visible; only run-scoped toasts are cleared.
@@ -612,19 +612,26 @@ class StartMixin:
             self._notifier.user_stopped = True
         self._engine.stop()
 
-    def _on_refresh(self) -> None:
-        """Trigger a refresh (preview scan) using the running process.
+    def _on_check_changes(self) -> None:
+        """Ask the running engine for a fresh comparison of the share.
 
-        Sends a PREVIEW command via stdin to the running hsync-client process
-        to get a preview of pending sync actions.  If the preview shows work
-        to do, a confirmation dialog is displayed before restarting the sync.
+        Sends a ``PREVIEW`` command over stdin and lets the role decide the
+        answer: a **secondary** node replies with the preview cycle this window
+        confirms (``preview_start``/``preview_end``), so the summary dialog can
+        offer the sync, while a **primary** node serves the share and replies with
+        its own classification pass (``status_pass_start``/``status_pass_end``),
+        which re-renders the rows and the file-set state — there is nothing for the
+        serving device to pull.
         """
         if not self._engine.is_running:
             self._append_desktop_log("WARNING", "Please start synchronization first.")
             return
-        self._append_log(f"--- {tr('preview.title')} ---")
-        # Set flags to show preview summary when preview completes
-        self._awaiting_preview_for_sync = True
+        # The action name is the menu entry: one vocabulary for the tooltip,
+        # the menu, the tray and the log line this click writes.
+        self._append_log(f"--- {tr('menu.sync.check_changes')} ---")
+        # Only the requester-side preview cycle may confirm a sync: a serving
+        # device answers with a classification, whose markers own the rendering.
+        self._awaiting_preview_for_sync = not (self._p2p_enabled and self._is_master)
         self._is_dry_run_preview = False  # stdin preview, not dry-run mode
         self._engine.preview()
 

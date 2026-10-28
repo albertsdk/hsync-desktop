@@ -283,6 +283,11 @@ class HsyncEngine(QObject):
     # Preview signals (emitted during dry-run preview)
     preview_started = Signal()  # preview scan started
     preview_ended = Signal()  # preview scan ended
+    # The serving device's classification pass (a p2p primary answering
+    # PREVIEW/SYNC and re-classifying on every inventory change): the counterpart
+    # of the preview pair above, which only the previews this window requests use.
+    status_pass_started = Signal()  # classification pass started
+    status_pass_ended = Signal()  # classification pass ended
     file_status = Signal(str, str, int)  # status, filepath, size
     # status can be: "synced", "to_download", "to_upload", "to_delete"
     file_rename_status = Signal(str, str, int)  # old_path, new_path, size
@@ -885,6 +890,12 @@ class HsyncEngine(QObject):
     def _on_preview_end_event(self, event: UiEventDict) -> None:
         self.preview_ended.emit()
 
+    def _on_status_pass_start_event(self, event: UiEventDict) -> None:
+        self.status_pass_started.emit()
+
+    def _on_status_pass_end_event(self, event: UiEventDict) -> None:
+        self.status_pass_ended.emit()
+
     _EVENT_HANDLERS: ClassVar[dict[str, Callable[[HsyncEngine, UiEventDict], None]]] = {
         UiEventName.status: _on_status_event,
         UiEventName.progress: _on_progress_event,
@@ -919,6 +930,8 @@ class HsyncEngine(QObject):
         UiEventName.fingerprint_changed: _on_fingerprint_changed_event,
         UiEventName.preview_start: _on_preview_start_event,
         UiEventName.preview_end: _on_preview_end_event,
+        UiEventName.status_pass_start: _on_status_pass_start_event,
+        UiEventName.status_pass_end: _on_status_pass_end_event,
     }
 
     def _relative_key(self, path: str) -> str:

@@ -107,10 +107,6 @@ def _standard_shortcuts(standard: QKeySequence.StandardKey, fallback: str) -> li
     return bindings if bindings else [QKeySequence(fallback)]
 
 
-# A classification burst (marker-less ``file_status`` events) settles the
-# sync-state label after this quiet period.
-_SYNC_STATE_SETTLE_MS = 400
-
 # ── Button styles ────────────────────────────────────────────────────────────
 _BTN_PAD = "padding: 4px 10px; border-radius: 3px;"
 _BTN_START_ACTIVE = (
@@ -125,7 +121,7 @@ _BTN_STOP_ACTIVE = (
     "QPushButton:hover { background-color: #b71d28; }"
     "QPushButton:pressed { background-color: #a01822; }"
 )
-_BTN_REFRESH_ACTIVE = (
+_BTN_CHECK_CHANGES_ACTIVE = (
     f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
     f" border: none; {_BTN_PAD} }}"
     "QPushButton:hover { background-color: #0860CA; }"
@@ -159,7 +155,7 @@ class UiBuildMixin:
         # Get widget references from .ui file
         self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
-        self._btn_refresh: QPushButton = self.findChild(QPushButton, "btnRefresh")  # type: ignore[assignment]
+        self._btn_check_changes: QPushButton = self.findChild(QPushButton, "btnCheckChanges")  # type: ignore[assignment]
         # Set icons for action buttons (icon-only, no text)
         from PySide6.QtCore import QSize
 
@@ -169,7 +165,7 @@ class UiBuildMixin:
         for btn, ico_name in (
             (self._btn_start, "media-playback-start"),
             (self._btn_stop, "media-playback-stop"),
-            (self._btn_refresh, "view-refresh"),
+            (self._btn_check_changes, "system-search"),
         ):
             btn.setIcon(get_icon(ico_name))
             btn.setIconSize(icon_size)
@@ -266,14 +262,6 @@ class UiBuildMixin:
         self._sync_state_label = QLabel(self.centralWidget())
         self._sync_state = ("idle", 0, 0, 0)
         self._sync_state_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
-        # A serving device re-classifies on every inventory change and answers
-        # with plain file_status events (no preview_start/preview_end pair, which
-        # belongs to the previews this window requests). Settle the label once
-        # the burst goes quiet instead of waiting for a preview cycle.
-        self._sync_state_timer = QTimer(self)
-        self._sync_state_timer.setSingleShot(True)
-        self._sync_state_timer.setInterval(_SYNC_STATE_SETTLE_MS)
-        self._sync_state_timer.timeout.connect(self._on_sync_state_settled)
         if bottom_layout:
             peers_idx = bottom_layout.indexOf(self._lbl_peers)
             if peers_idx >= 0:
@@ -350,7 +338,7 @@ class UiBuildMixin:
         """Apply i18n translations to UI elements."""
         self._btn_start.setToolTip(tr("btn.start"))
         self._btn_stop.setToolTip(tr("btn.stop"))
-        self._btn_refresh.setToolTip(tr("btn.refresh"))
+        self._btn_check_changes.setToolTip(tr("tip.check_changes"))
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
         # Seed the active share name from the configured share; the window title
@@ -378,7 +366,7 @@ class UiBuildMixin:
             self._menu_sync.setTitle(tr("menu.sync"))
             self._act_start.setText(tr("menu.sync.start"))
             self._act_stop.setText(tr("menu.sync.stop"))
-            self._act_refresh.setText(tr("menu.sync.refresh"))
+            self._act_check_changes.setText(tr("menu.sync.check_changes"))
             self._menu_direction.setTitle(tr("menu.sync.direction"))
             self._act_dir_bidi.setText(tr("menu.sync.direction.bidirectional"))
             self._act_dir_upload.setText(tr("menu.sync.direction.upload_only"))
@@ -479,11 +467,11 @@ class UiBuildMixin:
         self._act_stop.triggered.connect(self._on_stop)
         self._menu_sync.addAction(self._act_stop)
 
-        self._act_refresh = QAction(tr("menu.sync.refresh"), self)
-        self._act_refresh.setShortcut("F5")
-        self._act_refresh.setEnabled(False)
-        self._act_refresh.triggered.connect(self._on_refresh)
-        self._menu_sync.addAction(self._act_refresh)
+        self._act_check_changes = QAction(tr("menu.sync.check_changes"), self)
+        self._act_check_changes.setShortcut("F5")
+        self._act_check_changes.setEnabled(False)
+        self._act_check_changes.triggered.connect(self._on_check_changes)
+        self._menu_sync.addAction(self._act_check_changes)
 
         # ── Sync direction submenu ──────────────────────────────────
         self._menu_direction = self._menu_sync.addMenu(tr("menu.sync.direction"))
@@ -664,7 +652,7 @@ class UiBuildMixin:
         if self._tray:
             self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running)
-        self._act_refresh.setEnabled(is_running and self._btn_refresh.isEnabled())
+        self._act_check_changes.setEnabled(is_running and self._btn_check_changes.isEnabled())
         # Send/Receive of a selection are one-shot commands: only while stopped.
         self._act_file_send.setEnabled(not is_running and self._has_file_selection())
         self._act_file_receive.setEnabled(not is_running and self._has_file_selection())
@@ -962,7 +950,7 @@ class UiBuildMixin:
             self._hide_info_banner()
 
     def _apply_button_styles(self) -> None:
-        """Apply colored styles to Start/Stop/Refresh buttons based on enabled state."""
+        """Apply colored styles to the Start/Stop/Check-for-changes buttons."""
         from hsync_desktop.icons import themed_icon
 
         # Start button: green background when enabled
@@ -979,12 +967,12 @@ class UiBuildMixin:
         stop_icon_color = "#FFFFFF" if self._btn_stop.isEnabled() else "#424242"
         self._btn_stop.setIcon(themed_icon("media-playback-stop", stop_icon_color))
 
-        self._btn_refresh.setStyleSheet(
-            _BTN_REFRESH_ACTIVE if self._btn_refresh.isEnabled() else _BTN_IDLE
+        self._btn_check_changes.setStyleSheet(
+            _BTN_CHECK_CHANGES_ACTIVE if self._btn_check_changes.isEnabled() else _BTN_IDLE
         )
-        # Refresh icon: white when enabled, dark when disabled
-        refresh_icon_color = "#FFFFFF" if self._btn_refresh.isEnabled() else "#424242"
-        self._btn_refresh.setIcon(themed_icon("view-refresh", refresh_icon_color))
+        # Check-for-changes icon: white when enabled, dark when disabled
+        check_changes_icon_color = "#FFFFFF" if self._btn_check_changes.isEnabled() else "#424242"
+        self._btn_check_changes.setIcon(themed_icon("system-search", check_changes_icon_color))
 
     # ── Actions ──────────────────────────────────────────────────────────
 
@@ -993,7 +981,7 @@ class UiBuildMixin:
         from hsync_desktop.icons import clear_icon_cache
 
         clear_icon_cache()
-        # Refresh button icons with theme-appropriate colors
+        # Check-for-changes button icon with theme-appropriate colors
         self._apply_button_styles()
         # Refresh role icon (neutral/known, re-coloured for the theme)
         self._retranslate_role()

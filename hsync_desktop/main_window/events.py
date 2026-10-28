@@ -240,16 +240,12 @@ class EventsMixin:
             text = tr(f"sync.state.{state}")
         label.setText(text)
 
-    def _on_sync_state_settled(self) -> None:
-        """Render the summary after a marker-less ``file_status`` burst."""
-        self._set_sync_state(*self._sync_state_after_preview())
-
     def _sync_state_after_preview(self) -> tuple[str, int, int, int]:
-        """Derive the file-set state from the preview counters just collected.
+        """Derive the file-set state from the comparison counters just collected.
 
-        A preview that classified nothing while the table has rows is not "in
-        sync": the other device has not published what it holds yet (the
-        serving device answers ``preview_start``/``preview_end`` only), so the
+        A comparison that classified nothing while the table has rows is not "in
+        sync": the other device has not published what it holds yet (the serving
+        device answers ``status_pass_start``/``status_pass_end`` only), so the
         answer is still pending.
         """
         stats = self._preview_stats
@@ -649,26 +645,14 @@ class EventsMixin:
 
     @Slot()
     def _on_preview_started(self) -> None:
-        """Handle preview scan started."""
-        self._append_log("--- Updating file status... ---")
-        # Reset preview statistics
-        self._preview_stats.reset()
-        self._set_sync_state("checking")
+        """Handle the start of the preview this window requested."""
+        self._begin_comparison()
 
     @Slot()
     def _on_preview_ended(self) -> None:
-        """Handle preview scan ended."""
+        """Handle the end of the preview this window requested."""
         self._append_log("--- File status updated ---")
-        self._set_sync_state(*self._sync_state_after_preview())
-        # A serving device answers this window's own PREVIEW with a
-        # classification, which is not the preview cycle it is waiting for: the
-        # dry-run preview only runs once the node is a slave. Consuming the
-        # confirmation here showed a summary with the wrong counters and left the
-        # dry run parked (no SYNC ever reached it).
-        if self._p2p_enabled and self._is_master:
-            return
-        # The full comparison completed: every rendered "Synced" is verified now.
-        self._file_panel.mark_verified()
+        self._finish_comparison()
         # The preview answered: it is now safe to credit the one-shot catch-up.
         if self._pending_initial_reconcile:
             self._pending_initial_reconcile = False
@@ -677,6 +661,39 @@ class EventsMixin:
         if self._awaiting_preview_for_sync:
             self._awaiting_preview_for_sync = False
             self._show_preview_summary()
+
+    @Slot()
+    def _on_status_pass_started(self) -> None:
+        """Handle a serving device's classification pass starting."""
+        self._begin_comparison()
+
+    @Slot()
+    def _on_status_pass_ended(self) -> None:
+        """Handle a serving device's classification pass ending.
+
+        A pass is the primary node's counterpart of ``preview_end``: it renders
+        the rows and the file-set state but never opens the confirmation summary,
+        because the device that serves the share has nothing to pull and a
+        ``SYNC`` would only re-classify.
+        """
+        self._append_log("--- File status updated ---")
+        self._finish_comparison()
+
+    def _begin_comparison(self) -> None:
+        """Start any comparison: reset the counters and read "checking".
+
+        Both marker pairs open one — the preview this window requested and the
+        pass a serving device runs on its own share — so the counters never
+        accumulate across comparisons.
+        """
+        self._append_log("--- Updating file status... ---")
+        self._preview_stats.reset()
+        self._set_sync_state("checking")
+
+    def _finish_comparison(self) -> None:
+        """Render the outcome of a completed comparison (either marker pair)."""
+        self._file_panel.mark_verified()
+        self._set_sync_state(*self._sync_state_after_preview())
 
     @Slot(str, str, int)
     def _on_file_status(self, status: str, filepath: str, size: int) -> None:
@@ -687,9 +704,6 @@ class EventsMixin:
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(rel_path, status, size, preview=True)
-        # A serving device re-classifies without a preview cycle: settle the
-        # summary once its file_status burst goes quiet.
-        self._sync_state_timer.start()
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(rel_path)
             debug_events.log(
@@ -790,7 +804,7 @@ class EventsMixin:
         self._peers_label.setText("–")
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
-        self._btn_refresh.setEnabled(False)
+        self._btn_check_changes.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
         # Keep result/error toasts visible after the process exits; clear only
