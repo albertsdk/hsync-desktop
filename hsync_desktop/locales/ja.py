@@ -273,6 +273,7 @@ translations: dict[str, str] = {
     "settings.notifications_connection": "接続の問題",
     "settings.notifications_sync": "同期イベント",
     "settings.notifications_peers": "デバイスとロールの変更",
+    "settings.notifications_warnings": "警告",
     "tip.notifications_categories": "システム通知を出すイベントを選択します（エラー推奨）。",
     "settings.language": "言語",
     "settings.language_system": "システム既定",
@@ -409,6 +410,7 @@ translations: dict[str, str] = {
     # Notifications
     "notif.download_complete": "ダウンロード完了：{filename}",
     "notif.error": "エラー",
+    "notif.warning": "警告",
     "notif.success": "完了",
     "notif.transfers_failed": "{count} 件の転送に失敗しました",
     "notif.sync_complete": "同期完了",

@@ -1096,6 +1096,31 @@ class TestInfoToast:
         assert "rgba(180, 83, 9, 0.85)" in window._info_banner.styleSheet()
         assert window._info_banner_label.text().startswith("⚠")
 
+    def test_an_engine_warning_uses_the_warning_channel(self, window, monkeypatch):
+        """A non-fatal engine condition is a warning, never an error."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning("Bootnode node:443 unreachable", "bootnode")
+
+        assert len(calls) == 1
+        assert calls[0][1]["category"] == "warnings"
+        assert "unreachable" in calls[0][0][1]
+
+    def test_an_engine_warning_is_ignored_after_a_user_stop(self, window, monkeypatch):
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = True
+
+        window._on_engine_warning("File watcher degraded to polling", "watcher")
+
+        assert calls == []
+
     def test_success_toast_is_green_and_auto_hides(self, window):
         window._info_selection_outcome("sent")
 

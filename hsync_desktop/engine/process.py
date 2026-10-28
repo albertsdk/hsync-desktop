@@ -260,6 +260,11 @@ class HsyncEngine(QObject):
     # error message + reason: "" (generic), "connection" (network failure in
     # preview/sync), "process" (QProcess error), "start" (engine launch failure).
     error_occurred = Signal(str, str)
+    # A non-fatal condition the engine keeps running through (a degraded file
+    # watcher, an unreachable bootnode): message + the stable ``source``
+    # identifier the client reported. The client already deduplicates them per
+    # (source, message) window, so this signal is never a flood.
+    warning_occurred = Signal(str, str)
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     auth_required_occurred = Signal(str)  # a shared key is required but missing
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
@@ -827,6 +832,9 @@ class HsyncEngine(QObject):
     def _on_error_event(self, event: UiEventDict) -> None:
         self.error_occurred.emit(str(event.get("message", "")), str(event.get("reason", "")))
 
+    def _on_warning_event(self, event: UiEventDict) -> None:
+        self.warning_occurred.emit(str(event.get("message", "")), str(event.get("source", "")))
+
     def _on_sync_paused_event(self, event: UiEventDict) -> None:
         self.sync_paused.emit(
             str(event.get("reason", "")),
@@ -952,6 +960,7 @@ class HsyncEngine(QObject):
         UiEventName.transfer_failed: _on_transfer_failed_event,
         UiEventName.conflict_resolved: _on_conflict_resolved_event,
         UiEventName.error: _on_error_event,
+        UiEventName.warning: _on_warning_event,
         UiEventName.sync_paused: _on_sync_paused_event,
         UiEventName.security_rejected: _on_security_rejected_event,
         UiEventName.peers: _on_peers_event,

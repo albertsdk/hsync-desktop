@@ -284,6 +284,9 @@ class MainWindow(
         # additionally raises a modal dialog (see `_start_engine`). The handler
         # also owns the outcome of a scoped Send/Receive failure.
         e.error_occurred.connect(self._on_engine_error)
+        # Non-fatal engine warnings (degraded watcher, unreachable bootnode):
+        # surfaced in-app and, when unfocused, as a system notification.
+        e.warning_occurred.connect(self._on_engine_warning)
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.auth_required_occurred.connect(self._on_auth_error)

@@ -135,7 +135,7 @@ Application-wide preferences, grouped in three sections.
 | Setting | Description |
 |---------|-------------|
 | Enable system notifications | Show desktop/system notifications for sync events. Errors and warnings are always shown in the app window; this setting only controls the OS notifications |
-| Notifications for | Which events produce a system notification, one switch each: **Errors**, **Connection problems**, **Synchronisation events**, **Devices and role changes**. Greyed out and inert while system notifications are off |
+| Notifications for | Which events produce a system notification, one switch each: **Errors**, **Warnings**, **Connection problems**, **Synchronisation events**, **Devices and role changes**. Greyed out and inert while system notifications are off |
 
 ### Window & Startup
 

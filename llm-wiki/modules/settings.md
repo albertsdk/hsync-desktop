@@ -147,7 +147,10 @@ disabled state must be drawn:
 disabled tone, so a gated block looks greyed instead of merely inert. Labels
 come from `settings.notifications_<category>`; the `peers` category reads
 **Devices and role changes** ("Dispositivi e cambi di ruolo") because the UI
-never says "peer".
+never says "peer". The `warnings` category (`settings.notifications_warnings`)
+governs the engine's non-fatal `warning` stream — a degraded file watcher, an
+unreachable bootnode — while `connection` keeps the connection-loss and
+p2p-role warnings it already had, so the two are tunable independently.
 
 **Dialog sizing & scrolling** (`settings/tab_layout.py::_scrollable_page`,
 `settings/tab_builders.py::finalize_size`): every tab page hosts its content in a

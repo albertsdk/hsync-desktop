@@ -144,7 +144,7 @@ DEFAULT_SHOW_LOG_PANEL = False
 # Appearance defaults
 DEFAULT_NOTIFICATIONS = True
 # Per-event notification categories (all enabled by default).
-NOTIFICATION_CATEGORIES = ("errors", "connection", "sync", "peers")
+NOTIFICATION_CATEGORIES = ("errors", "warnings", "connection", "sync", "peers")
 DEFAULT_TOOLTIPS = True
 # Global font size: follow the desktop ("standard") or reduce every
 # application font by one point ("compact").

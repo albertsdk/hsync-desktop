@@ -273,6 +273,7 @@ translations: dict[str, str] = {
     "settings.notifications_connection": "连接问题",
     "settings.notifications_sync": "同步事件",
     "settings.notifications_peers": "设备与角色变更",
+    "settings.notifications_warnings": "警告",
     "tip.notifications_categories": "选择哪些事件触发系统通知（建议保留错误）。",
     "settings.language": "语言",
     "settings.language_system": "系统默认",
@@ -409,6 +410,7 @@ translations: dict[str, str] = {
     # Notifications
     "notif.download_complete": "下载完成：{filename}",
     "notif.error": "错误",
+    "notif.warning": "警告",
     "notif.success": "完成",
     "notif.transfers_failed": "{count} 个传输失败",
     "notif.sync_complete": "同步完成",

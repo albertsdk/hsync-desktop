@@ -173,6 +173,15 @@ the window until you close them, whatever the notifications preference, and
 survive a new sync; they are the in-app counterpart of the desktop notification,
 which is sent only while the window is in the background.
 
+A **warning** is something the sync keeps running through — the file watcher
+degraded to polling because the system ran out of inotify resources, or a
+bootnode could not be reached while device discovery retried. It appears in the
+window and, while the window is in the background, as a desktop notification
+that you can switch off on its own (*Settings → General → Notifications for →
+Warnings*). Each distinct warning is reported once per ten minutes, so a
+condition that comes and goes does not fill the screen; the log panel keeps every
+occurrence.
+
 While the one-shot runs, a toast shows what it is doing — searching for devices
 (in p2p mode) or connecting to the server, then how many other devices were
 found. When it ends, the result is reported once — a summary dialog in the

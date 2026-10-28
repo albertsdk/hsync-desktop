@@ -273,6 +273,7 @@ translations: dict[str, str] = {
     "settings.notifications_connection": "Problemy z połączeniem",
     "settings.notifications_sync": "Zdarzenia synchronizacji",
     "settings.notifications_peers": "Urządzenia i zmiany roli",
+    "settings.notifications_warnings": "Ostrzeżenia",
     "tip.notifications_categories": "Wybierz zdarzenia wywołujące powiadomienie systemowe (zalecane błędy).",
     "settings.language": "Język",
     "settings.language_system": "Domyślny systemowy",
@@ -409,6 +410,7 @@ translations: dict[str, str] = {
     # Notifications
     "notif.download_complete": "Pobieranie zakończone: {filename}",
     "notif.error": "Błąd",
+    "notif.warning": "Ostrzeżenie",
     "notif.success": "Gotowe",
     "notif.transfers_failed": "Niepowodzenie {count} transferów",
     "notif.sync_complete": "Synchronizacja zakończona",

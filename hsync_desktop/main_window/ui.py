@@ -926,11 +926,28 @@ class UiBuildMixin:
         if self._notifier:
             self._notifier.error(title, message)
 
-    def _notify_warning(self, title: str, message: str) -> None:
+    def _notify_warning(self, title: str, message: str, category: str = "connection") -> None:
         """Surface a warning in-app (always) and via the OS when out of focus."""
         self._show_info_banner(message, kind="warning", title=title)
         if self._notifier:
-            self._notifier.warning(title, message)
+            self._notifier.warning(title, message, category=category)
+
+    def _on_engine_warning(self, message: str, source: str = "") -> None:
+        """Surface a non-fatal engine warning (banner + OS notification).
+
+        The run continues, so this never uses the error path. The client already
+        deduplicates the stream per ``(source, message)`` window, which is what
+        keeps a flapping bootnode or a watcher that degrades and recovers from
+        becoming a notification storm.
+        """
+        if not message:
+            return
+        self._append_desktop_log("WARNING", message)
+        if self._user_stopped:
+            # The user stopped the run: a degraded watcher/bootnode is no longer
+            # actionable and must not reopen a notification they just dismissed.
+            return
+        self._notify_warning(tr("notif.warning"), message, category="warnings")
 
     def _hide_info_banner(self) -> None:
         """Hide the toast and stop its auto-hide timer."""

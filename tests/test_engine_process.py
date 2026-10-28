@@ -227,6 +227,23 @@ class TestStartupPhase:
         assert errors == [("bad config", "startup")]
         assert failures == []
 
+    def test_a_warning_event_carries_its_source(self):
+        """A non-fatal engine warning becomes its own signal, never an error."""
+        engine = HsyncEngine()
+        warnings = _capture(engine.warning_occurred)
+        errors = _capture(engine.error_occurred)
+
+        engine._handle_event(
+            build_event(
+                UiEventName.warning,
+                message="Bootnode node:443 unreachable",
+                source="bootnode",
+            )
+        )
+
+        assert warnings == [("Bootnode node:443 unreachable", "bootnode")]
+        assert errors == []
+
     def test_an_operator_stop_before_ready_is_not_a_startup_failure(self):
         engine = HsyncEngine()
         failures = _capture(engine.startup_failed)

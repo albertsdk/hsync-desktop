@@ -40,7 +40,13 @@ and the two comparison marker pairs (`preview_started`/`preview_ended`,
 `error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::UiBuildMixin._on_engine_error`),
 which stores the message, mirrors it into the log panel and raises an in-app
 error toast through `_notify_error` (an OS notification is sent too, only when a
-notifier exists and the window is out of focus).
+notifier exists and the window is out of focus). Its non-fatal counterpart is
+`warning_occurred → _on_engine_warning` (`main_window/ui.py::UiBuildMixin._on_engine_warning`):
+the same pipeline (log panel + banner + OS notification when unfocused) with
+`kind="warning"` and the dedicated `warnings` notification category, never the
+error path — the run continues. The client already deduplicates that stream per
+`(source, message)` window, and a warning arriving after an operator stop is
+logged but not notified.
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
 
