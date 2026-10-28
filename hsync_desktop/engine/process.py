@@ -265,8 +265,10 @@ class HsyncEngine(QObject):
     # identifier the client reported and whether it heals itself (``transient``,
     # carried as ``reason="transient"`` on the wire). The client already
     # deduplicates them per (source, message) window, so this signal is never a
-    # flood.
-    warning_occurred = Signal(str, str, bool)
+    # flood. The last argument carries the machine-readable detail the UI needs
+    # to name a remedy: ``reason`` (case class) plus ``needed``/``limit`` when the
+    # engine measured a bounded resource.
+    warning_occurred = Signal(str, str, bool, dict)
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     auth_required_occurred = Signal(str)  # a shared key is required but missing
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
@@ -835,10 +837,17 @@ class HsyncEngine(QObject):
         self.error_occurred.emit(str(event.get("message", "")), str(event.get("reason", "")))
 
     def _on_warning_event(self, event: UiEventDict) -> None:
+        reason = str(event.get("reason", ""))
+        details: dict[str, object] = {"reason": reason}
+        for key in ("needed", "limit"):
+            value = event.get(key)
+            if isinstance(value, int):
+                details[key] = value
         self.warning_occurred.emit(
             str(event.get("message", "")),
             str(event.get("source", "")),
-            event.get("reason") == "transient",
+            reason == "transient",
+            details,
         )
 
     def _on_sync_paused_event(self, event: UiEventDict) -> None:

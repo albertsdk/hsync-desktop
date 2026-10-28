@@ -70,6 +70,55 @@ Verify the server address and its certificate. Enable **Skip certificate check**
 only on a trusted network, for a self-signed server; for a permanent setup use
 the **Certificate authority file** setting instead.
 
+## Real-time sync fell back to polling
+
+The warning **the file watcher degraded to polling** means changes are still
+synced, but they are detected by scanning the folder (higher CPU, up to about a
+second of lag) instead of by kernel events. The cause is a host-wide limit, so it
+returns at every start until the limit is raised; the warning names the reason
+and, when it can, how many watches your shared folder needs against the limit in
+force (for example *needs 12000 watches; the current limit is 8192*).
+
+On **Linux** the limit is `fs.inotify` (one watch per folder, capped per user).
+Check both values:
+
+```bash
+cat /proc/sys/fs/inotify/max_user_watches
+cat /proc/sys/fs/inotify/max_user_instances
+```
+
+Raise them permanently — set the number from the warning, or 524288 when it is
+not shown — then restart the sync:
+
+```bash
+echo fs.inotify.max_user_watches=524288 | sudo tee /etc/sysctl.d/99-hsync-inotify.conf
+sudo sysctl --system
+```
+
+If the warning mentions instances rather than watches, write that key instead
+(the two can share one file):
+
+```bash
+echo fs.inotify.max_user_instances=512 | sudo tee /etc/sysctl.d/99-hsync-inotify-instances.conf
+sudo sysctl --system
+```
+
+When the folder needs more watches than the limit allows, the app detects it at
+startup and stays in polling mode instead of half-watching the tree: raising the
+limit and restarting restores real-time sync.
+
+On **macOS** there is no inotify; the same warning appears only for the
+open-files limit. Check it and raise the soft limit for the session:
+
+```bash
+launchctl limit maxfiles
+ulimit -n 4096
+```
+
+On **Windows** the file watcher is not limited by a user-tunable count. If the
+warning repeats, close other programs watching the same folder (indexers, backup
+tools, another sync app) and restart the app.
+
 ## Where are the logs?
 
 The **Log** panel in the main window is the live view. To keep a file, set

@@ -50,6 +50,7 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
+from hsync_desktop.docs_links import TROUBLESHOOTING
 from hsync_desktop.engine import (
     HsyncEngine,
     add_bootnode_trust,
@@ -94,6 +95,8 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.warnings import remedy_text
+from hsync_desktop.widgets.links import help_link, set_help_link_url
 
 
 def _standard_shortcuts(standard: QKeySequence.StandardKey, fallback: str) -> list[QKeySequence]:
@@ -812,6 +815,10 @@ class UiBuildMixin:
             "  padding: 0 4px;"
             "}"
             "#infoBannerClose:hover { color: #ccc; }"
+            "#infoBannerLink {"
+            "  color: #ffffff;"
+            "  font-size: 12px;"
+            "}"
             "#infoProgress {"
             "  background: rgba(255, 255, 255, 0.35);"
             "  border: none;"
@@ -844,6 +851,14 @@ class UiBuildMixin:
         self._info_progress.setTextVisible(False)
         self._info_progress.hide()
         outer.addWidget(self._info_progress)
+        # Actionable warnings carry a link to the guide that holds the
+        # per-platform remedy: the banner is an overlay, so the text alone cannot
+        # be selected or clicked. Created once (the only target is the guide) and
+        # toggled, so language changes rebuild it through set_help_link_text.
+        self._info_banner_link = help_link("notif.open_guide", TROUBLESHOOTING)
+        self._info_banner_link.setObjectName("infoBannerLink")
+        self._info_banner_link.hide()
+        outer.addWidget(self._info_banner_link)
         banner.hide()
         return banner
 
@@ -875,6 +890,7 @@ class UiBuildMixin:
         kind: str = "info",
         *,
         title: str = "",
+        help_url: str | None = None,
     ) -> None:
         """Show the overlay toast.
 
@@ -883,11 +899,16 @@ class UiBuildMixin:
         survive the engine process finishing and a new run; ``success``
         survives the process finishing; ``progress``/``info`` auto-hide.
         ``auto_hide_ms`` overrides the per-kind default (``<= 0`` keeps it
-        visible until ``_hide_info_banner``).
+        visible until ``_hide_info_banner``). ``help_url`` reveals the guide
+        link inside the toast (an actionable warning); every other toast hides
+        it.
         """
         severity = _SEVERITY_BY_KIND.get(kind, "info")
         self._info_banner_kind = kind
         self._info_banner_label.setText(self._toast_text(kind, title, message))
+        self._info_banner_link.setVisible(bool(help_url))
+        if help_url:
+            set_help_link_url(self._info_banner_link, "notif.open_guide", help_url)
         # The background colour is driven by a dynamic property so a single
         # stylesheet carries every severity; repolish applies the new match.
         self._info_banner.setProperty("severity", severity)
@@ -927,13 +948,31 @@ class UiBuildMixin:
         if self._notifier:
             self._notifier.error(title, message)
 
-    def _notify_warning(self, title: str, message: str, category: str = "connection") -> None:
-        """Surface a warning in-app (always) and via the OS when out of focus."""
-        self._show_info_banner(message, kind="warning", title=title)
+    def _notify_warning(
+        self,
+        title: str,
+        message: str,
+        category: str = "connection",
+        *,
+        help_url: str | None = None,
+    ) -> None:
+        """Surface a warning in-app (always) and via the OS when out of focus.
+
+        ``help_url`` adds the guide link inside the banner only: a system
+        notification is not clickable, so an actionable warning must keep its
+        remedy visible in the window as well.
+        """
+        self._show_info_banner(message, kind="warning", title=title, help_url=help_url)
         if self._notifier:
             self._notifier.warning(title, message, category=category)
 
-    def _on_engine_warning(self, message: str, source: str = "", transient: bool = False) -> None:
+    def _on_engine_warning(
+        self,
+        message: str,
+        source: str = "",
+        transient: bool = False,
+        details: dict[str, object] | None = None,
+    ) -> None:
         """Surface a non-fatal engine warning.
 
         ``transient`` marks a condition that heals itself (dropped real-time
@@ -943,6 +982,11 @@ class UiBuildMixin:
         watcher, an unreachable bootnode, a stalled safety net, a missing shared
         folder, low disk space) stays in the window and reaches the OS while the
         window is in the background.
+
+        A persistent warning also carries the remediation the client's ``reason``
+        and numbers imply (a host kernel limit the user must raise) plus a link
+        to the guide: the fallback keeps syncing, so without the remedy the same
+        warning returns at every start.
 
         The client already deduplicates the stream per ``(source, message)``
         window, which is what keeps a flapping condition from becoming a storm.
@@ -954,10 +998,17 @@ class UiBuildMixin:
             # The user stopped the run: a degraded watcher/bootnode is no longer
             # actionable and must not reopen a notification they just dismissed.
             return
+        remedy = remedy_text(source, details)
+        text = f"{message}\n{remedy}" if remedy else message
         if transient:
-            self._show_info_banner(message, kind="notice", title=tr("notif.warning"))
+            self._show_info_banner(text, kind="notice", title=tr("notif.warning"))
             return
-        self._notify_warning(tr("notif.warning"), message, category="warnings")
+        self._notify_warning(
+            tr("notif.warning"),
+            text,
+            category="warnings",
+            help_url=TROUBLESHOOTING,
+        )
 
     def _hide_info_banner(self) -> None:
         """Hide the toast and stop its auto-hide timer."""

@@ -44,12 +44,19 @@ notifier exists and the window is out of focus). Its non-fatal counterpart is
 `warning_occurred → _on_engine_warning` (`main_window/ui.py::UiBuildMixin._on_engine_warning`):
 the same pipeline (log panel + banner + OS notification when unfocused) with
 `kind="warning"` and the dedicated `warnings` notification category, never the
-error path — the run continues. The event's `reason="transient"` instead selects
-the `notice` kind: same warning tone, auto-hidden and never a system
-notification, because a self-healing condition (dropped events, an unreadable
-file recovered by the next scan) is not actionable. The client already
-deduplicates that stream per `(source, message)` window, and a warning arriving
-after an operator stop is logged but not notified.
+error path — the run continues. The signal's fourth argument carries the
+machine-readable detail the engine emitted (`reason`, plus `needed`/`limit` when
+it measured a bounded resource); `hsync_desktop/warnings.py::remedy_text` turns
+the actionable causes into localized advice and it is appended to the message, so
+the banner and the notification both say what to change. A persistent warning
+also exposes the guide link inside the toast (`docs_links.py::TROUBLESHOOTING`,
+`notif.open_guide`): a system notification is not clickable, so the remedy has to
+stay visible in the window. The event's `reason="transient"` instead selects
+the `notice` kind: same warning tone, auto-hidden, never a system
+notification and never a remedy, because a self-healing condition (dropped
+events, an unreadable file recovered by the next scan) is not actionable. The
+client already deduplicates that stream per `(source, message)` window, and a
+warning arriving after an operator stop is logged but not notified.
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
 
@@ -108,7 +115,9 @@ dialog to the desktop connection-modes guide (`help.connection_modes`). They are
 `QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in
-`settings/tab_translations.py::apply_translations`. Link colours are themed
+`settings/tab_translations.py::apply_translations`. The toast's guide link is the
+same widget retargeted at runtime (`widgets/links.py::set_help_link_url`) to
+`docs_links.py::TROUBLESHOOTING`. Link colours are themed
 through `QPalette.Link`/`LinkVisited` in `themes.py`. The labels are
 `widgets/links.py::_HelpLinkLabel`, whose `sizeHint` reports the wrapped height
 at the width the label really has: a word-wrapped rich-text `QLabel` otherwise
@@ -612,12 +621,16 @@ lifecycle so its result is surfaced exactly once:
 `MainWindow._info_banner` is an **overlay child of `centralWidget()`**, never in
 `rootLayout` (`main_window/ui.py::UiBuildMixin._create_info_banner`), so
 showing/hiding it cannot reflow the splitter. `_show_info_banner(message,
-auto_hide_ms, kind, title)` places it bottom-right above the bottom bar
+auto_hide_ms, kind, title, help_url)` places it bottom-right above the bottom bar
 (`_position_info_banner`, kept anchored on `resizeEvent`) and maps `kind`
 (`progress`, `info`, `success`, `warning`, `error`) to a severity colour through a
 dynamic `severity` QSS property; `error`/`warning`/`success` also prefix a
 severity glyph and the given title, so the severity is recognisable without
-relying on colour. Persistence: `error`/`warning` stay until dismissed (`✕`) and
+relying on colour. `help_url` reveals the `_info_banner_link` affordance — a
+`widgets/links.py::help_link` retargeted through
+`widgets/links.py::set_help_link_url`, the only way to offer a click during a
+toast, since the banner is an overlay whose text cannot be selected. Persistence:
+`error`/`warning` stay until dismissed (`✕`) and
 survive both the engine process finishing and a new run, `success` survives the
 process finishing, `progress`/`info` auto-hide (`_clear_run_toast` with
 `_SURVIVES_FINISH`/`_PERSISTENT_ACROSS_RUNS`). Errors and warnings are surfaced

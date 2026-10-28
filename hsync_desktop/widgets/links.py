@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QLabel
 from hsync_desktop.docs_links import open_docs_link
 from hsync_desktop.i18n import tr
 
-__all__ = ["help_link", "set_help_link_text"]
+__all__ = ["help_link", "set_help_link_text", "set_help_link_url"]
 
 _HELP_URL_PROPERTY = "docsUrl"
 _EXTERNAL_ARROW = "\u2197"
@@ -55,6 +55,16 @@ def set_help_link_text(label: QLabel, text_key: str) -> None:
     label.setText(_rich_text(tr(text_key), url))
     label.setToolTip(url)
     label.setAccessibleName(tr(text_key))
+
+
+def set_help_link_url(label: QLabel, text_key: str, url: str) -> None:
+    """Retarget an existing link label to *url* and rebuild its text.
+
+    Lets a reused link (the toast's guide affordance) follow the context that
+    showed it instead of being recreated per message.
+    """
+    label.setProperty(_HELP_URL_PROPERTY, url)
+    set_help_link_text(label, text_key)
 
 
 def help_link(text_key: str, url: str) -> QLabel:

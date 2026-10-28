@@ -179,7 +179,12 @@ could not be reached while device discovery retried, free disk space fell below
 the configured reserve, or the shared folder is no longer accessible (drive
 unplugged, network mount dropped). It appears in the window and, while the window
 is in the background, as a desktop notification that you can switch off on its
-own (*Settings → General → Notifications for → Warnings*). A warning that heals
+own (*Settings → General → Notifications for → Warnings*). When the cause has a
+fix you can apply, the warning also says what to change — and, for the file
+watcher, how many watches this folder needs against the limit in force — with a
+link to [Troubleshooting](troubleshooting.md) for the commands of your system; the
+remedy stays in the window because a desktop notification cannot carry a link. A
+warning that heals
 itself — real-time changes queued faster than they could be sent, a file that
 kept changing while it was being sent, files that could not be read and are
 retried by the next scan — shows as a brief toast instead and never as a

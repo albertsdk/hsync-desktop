@@ -241,7 +241,7 @@ class TestStartupPhase:
             )
         )
 
-        assert warnings == [("Bootnode node:443 unreachable", "bootnode", False)]
+        assert warnings == [("Bootnode node:443 unreachable", "bootnode", False, {"reason": ""})]
         assert errors == []
 
     def test_a_transient_warning_is_flagged_for_an_ephemeral_toast(self):
@@ -257,7 +257,34 @@ class TestStartupPhase:
             )
         )
 
-        assert warnings == [("Some real-time changes were dropped", "events", True)]
+        assert warnings == [
+            ("Some real-time changes were dropped", "events", True, {"reason": "transient"})
+        ]
+
+    def test_a_warning_carries_the_measured_numbers(self):
+        """``needed``/``limit`` reach the UI so it can name a concrete remedy."""
+        engine = HsyncEngine()
+        warnings = _capture(engine.warning_occurred)
+
+        engine._handle_event(
+            build_event(
+                UiEventName.warning,
+                message="The shared folder needs more watches",
+                source="watcher",
+                reason="inotify_watches",
+                needed=12000,
+                limit=8192,
+            )
+        )
+
+        assert warnings == [
+            (
+                "The shared folder needs more watches",
+                "watcher",
+                False,
+                {"reason": "inotify_watches", "needed": 12000, "limit": 8192},
+            )
+        ]
 
     def test_an_operator_stop_before_ready_is_not_a_startup_failure(self):
         engine = HsyncEngine()

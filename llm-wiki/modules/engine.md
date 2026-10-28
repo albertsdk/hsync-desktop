@@ -100,7 +100,7 @@ command line:
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed(dict)` (the cycle counters) / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
-| `warning` | `warning_occurred(message, source, transient)` — a non-fatal condition the run continues through (degraded watcher, unreachable bootnode, low disk space, a vanished shared folder); `source` is the client's stable subsystem id, `transient` (from `reason="transient"`) means it heals itself and gets an auto-hiding toast instead of a persistent banner |
+| `warning` | `warning_occurred(message, source, transient, details)` — a non-fatal condition the run continues through (degraded watcher, unreachable bootnode, low disk space, a vanished shared folder); `source` is the client's stable subsystem id, `transient` (from `reason="transient"`) means it heals itself and gets an auto-hiding toast instead of a persistent banner, and `details` carries `reason` plus `needed`/`limit` when the client measured a bounded resource (the UI turns them into a localized remedy) |
 | `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |
 | `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
 | `sync_pending` | `sync_pending(reason, devices, expected)` — `no_device`, or `awaiting_inventory` with the published/expected inventory counts |
