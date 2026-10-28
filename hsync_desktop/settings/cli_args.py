@@ -15,6 +15,11 @@ import stat
 from pathlib import Path
 from typing import cast
 
+from hsync_common.protocol.pairing import (
+    SYNC_DIRECTION_BIDIRECTIONAL,
+    SYNC_DIRECTION_DOWNLOAD_ONLY,
+    SYNC_DIRECTION_UPLOAD_ONLY,
+)
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import (
@@ -218,11 +223,7 @@ def _append_sync_mode_args(
     """Append the sync-mode, filter, ignore and compression flags."""
     args += ["--deletion-policy", get_deletion_policy()]
 
-    # Validate sync direction
-    sync_dir = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
-    valid_directions = ("bidirectional", "upload-only", "download-only")
-    if sync_dir not in valid_directions:
-        sync_dir = DEFAULT_SYNC_DIRECTION
+    sync_dir = get_sync_direction()
     if sync_dir != DEFAULT_SYNC_DIRECTION:
         args += ["--sync-direction", sync_dir]
 
@@ -479,6 +480,25 @@ def is_simulation_mode() -> bool:
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     return bool(s.value("sync/dry_run", False, bool))
+
+
+SYNC_DIRECTIONS: tuple[str, ...] = (
+    SYNC_DIRECTION_BIDIRECTIONAL,
+    SYNC_DIRECTION_UPLOAD_ONLY,
+    SYNC_DIRECTION_DOWNLOAD_ONLY,
+)
+
+
+def get_sync_direction() -> str:
+    """Return the saved sync direction, falling back to the product default.
+
+    One read site for the engine arguments and for the confirmation dialog, so
+    the direction a run applies and the direction the dialog states can never
+    disagree.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
+    return direction if direction in SYNC_DIRECTIONS else DEFAULT_SYNC_DIRECTION
 
 
 def get_deletion_policy() -> str:

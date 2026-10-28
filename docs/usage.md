@@ -138,9 +138,18 @@ again only when the disclaimer text changes.
 To sync a single folder on demand, right-click it (or use the **File** menu) and
 choose **Send now** (push it to the other devices) or **Receive now** (pull it
 from them). Both run a one-shot scoped to that folder — or, for a file, to its
-containing folder — and are available only while no sync is running. A preview
-summary is shown first, so you confirm exactly what will be transferred before it
-runs.
+containing folder — and are available only while no sync is running.
+
+Every run (and every one-shot) starts with a **confirmation** of the plan: how
+many changes it holds and how much data it moves, the scope and the sync type
+when they are not the default, and the plan itself grouped by action — deletions
+first, then renames, then the downloads and uploads largest-first. The deletions
+are stated before you confirm, with an estimate of the transfer time at the
+bandwidth limit you configured (no limit, no estimate: the number is never
+invented). If **Keep deleted files** is on, the deletions the policy drops are
+counted as skipped; if the plan would trip the mass-deletion guard, the dialog
+says those deletions will be paused. **Cancel** is the default button: only
+**Synchronize** applies the plan.
 
 With **Simulation Mode** enabled (Settings → Sync) the run stops at that summary:
 nothing is transferred or deleted, and the app tells you so. While the mode is

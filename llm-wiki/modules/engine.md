@@ -108,6 +108,7 @@ command line:
 | `preview_start` / `preview_end` | `preview_started` / `preview_ended` — the comparison this window requested |
 | `status_pass_start` / `status_pass_end` | `status_pass_started` / `status_pass_ended` — the classification pass of a serving device |
 | `device_status` | `device_status(cid, pending_here, pending_there, held)` — one row per live device inside a serving pass |
+| `preview_skipped` / `preview_warning` | `preview_skipped(reason, count, size)` — deletions the policy dropped — / `preview_warning(reason, deletes, local)` — a plan the mass-deletion guard will pause |
 | `file_status` / `rename_status` | `file_status(status, filepath, size, holders, devices)` / `file_rename_status(old, new, size)` |
 
 Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`

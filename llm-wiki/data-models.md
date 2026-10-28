@@ -38,6 +38,17 @@ Derived: `filename` (`file_panel/models.py::FileTransfer.filename`), `path` (`fi
 `remaining` (`file_panel/models.py::FileTransfer.remaining`), `eta_seconds`
 (`file_panel/models.py::FileTransfer.eta_seconds`, computed from the elapsed rate only while `DOWNLOADING`/`UPLOADING`).
 
+### PreviewStats / PreviewItem (`preview_summary_dialog.py::PreviewStats`)
+
+The plan one comparison produced, as the confirmation renders it: counters and
+sizes per action (`to_download`/`to_upload`/`to_delete`/`to_rename`/`synced`,
+`download_size`/`upload_size`/`delete_size`), the two engine-reported facts
+(`skipped_deletes`/`skipped_delete_size`, `guard_deletes`/`guard_local`) and the
+bounded detail rows (`deletes`, `renames`, `largest` of `PreviewItem`, capped by
+`DETAIL_CAP`/`LARGEST_CAP`). `record_*` are the only writers, `reset` clears the
+comparison and `has_work`/`action_count`/`transfer_size` are the derived values
+the dialog and `_show_preview_summary` share.
+
 ### TransferStatus (`file_panel/models.py::TransferStatus`)
 
 Enum of row states: `LOCAL`, `SYNCED`, `TO_DOWNLOAD`/`TO_UPLOAD`/`TO_DELETE`/

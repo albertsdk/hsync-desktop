@@ -289,6 +289,11 @@ class HsyncEngine(QObject):
     # of the preview pair above, which only the previews this window requests use.
     status_pass_started = Signal()  # classification pass started
     status_pass_ended = Signal()  # classification pass ended
+    # Preview plan facts only the client knows: deletions the policy dropped
+    # (reason "deletion_policy", count, size) and a plan the mass-deletion guard
+    # will pause (reason "mass_delete_guard", deletes, local).
+    preview_skipped = Signal(str, int, int)
+    preview_warning = Signal(str, int, int)
     # One row per live device inside a serving pass: cid, its identities the
     # share lacks (pending_here), the share identities it lacks (pending_there)
     # and how many identities it published (held).
@@ -744,6 +749,20 @@ class HsyncEngine(QObject):
             int(event.get("devices", -1)),
         )
 
+    def _on_preview_skipped_event(self, event: UiEventDict) -> None:
+        self.preview_skipped.emit(
+            str(event.get("reason", "")),
+            int(event.get("count", 0)),
+            int(event.get("size", 0)),
+        )
+
+    def _on_preview_warning_event(self, event: UiEventDict) -> None:
+        self.preview_warning.emit(
+            str(event.get("reason", "")),
+            int(event.get("deletes", 0)),
+            int(event.get("local", 0)),
+        )
+
     def _on_device_status_event(self, event: UiEventDict) -> None:
         self.device_status.emit(
             str(event.get("peer_cid", "")),
@@ -923,6 +942,8 @@ class HsyncEngine(QObject):
         UiEventName.transfer: _on_transfer_event,
         UiEventName.file_status: _on_file_status_event,
         UiEventName.device_status: _on_device_status_event,
+        UiEventName.preview_skipped: _on_preview_skipped_event,
+        UiEventName.preview_warning: _on_preview_warning_event,
         UiEventName.rename_status: _on_rename_status_event,
         UiEventName.rename: _on_rename_event,
         UiEventName.dir_created: _on_dir_created_event,

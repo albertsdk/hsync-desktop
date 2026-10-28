@@ -305,6 +305,8 @@ class MainWindow(
         e.status_pass_started.connect(self._on_status_pass_started)
         e.status_pass_ended.connect(self._on_status_pass_ended)
         e.device_status.connect(self._on_device_status)
+        e.preview_skipped.connect(self._on_preview_skipped)
+        e.preview_warning.connect(self._on_preview_warning)
         e.file_status.connect(self._on_file_status)
         e.file_rename_status.connect(self._on_file_rename_status)
 

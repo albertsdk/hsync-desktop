@@ -748,16 +748,20 @@ class EventsMixin:
         self._file_panel.mark_verified()
         self._set_sync_state(*self._sync_state_after_preview())
 
+    def _preview_path(self, path: str) -> str:
+        """User-facing path: relative to the selected folder when it is below it."""
+        base = self._local_path
+        if base and path.startswith(base):
+            return path[len(base) :].lstrip("/\\")
+        return path
+
     @Slot(str, str, int, int, int)
     def _on_file_status(
         self, status: str, filepath: str, size: int, holders: int = -1, devices: int = -1
     ) -> None:
         """Handle a per-file status, with its device coverage when known."""
-        # Convert absolute path to relative path for table lookup
+        rel_path = self._preview_path(filepath)
         base_path = self._local_path
-        rel_path = filepath
-        if base_path and filepath.startswith(base_path):
-            rel_path = filepath[len(base_path) :].lstrip("/\\")
         self._file_panel.update_file_status(
             rel_path, status, size, holders=holders, devices=devices, preview=True
         )
@@ -772,27 +776,34 @@ class EventsMixin:
                 size=size,
                 row_status=row.status.value if row else None,
             )
-        # Accumulate preview statistics
+        # Accumulate the plan: counts, sizes and the rows the confirmation lists.
         if status == "to_download":
-            self._preview_stats.to_download += 1
-            self._preview_stats.download_size += size
+            self._preview_stats.record_transfer("download", rel_path, size)
         elif status == "to_upload":
-            self._preview_stats.to_upload += 1
-            self._preview_stats.upload_size += size
+            self._preview_stats.record_transfer("upload", rel_path, size)
         elif status == "to_delete":
-            self._preview_stats.to_delete += 1
+            self._preview_stats.record_delete(rel_path, size)
         elif status == "synced":
             self._preview_stats.synced += 1
 
-    @Slot(str, int)
-    def _on_file_rename_status(self, old_path: str, size: int) -> None:
-        """Handle file rename status from preview."""
-        base_path = self._local_path
-        rel_old = old_path
-        if base_path and old_path.startswith(base_path):
-            rel_old = old_path[len(base_path) :].lstrip("/\\")
-        self._file_panel.update_file_status(rel_old, "to_rename", size, preview=True)
-        self._preview_stats.to_rename += 1
+    @Slot(str, str, int)
+    def _on_file_rename_status(self, src: str, dst: str, size: int) -> None:
+        """Handle a planned rename: the row keeps the current path, the plan both."""
+        rel_src = self._preview_path(src)
+        self._file_panel.update_file_status(rel_src, "to_rename", size, preview=True)
+        self._preview_stats.record_rename(rel_src, self._preview_path(dst))
+
+    @Slot(str, int, int)
+    def _on_preview_skipped(self, _reason: str, count: int, size: int) -> None:
+        """The plan dropped actions before emitting them (deletion policy)."""
+        self._preview_stats.skipped_deletes = count
+        self._preview_stats.skipped_delete_size = size
+
+    @Slot(str, int, int)
+    def _on_preview_warning(self, _reason: str, deletes: int, local: int) -> None:
+        """The plan would trip the mass-deletion guard: say so before asking."""
+        self._preview_stats.guard_deletes = deletes
+        self._preview_stats.guard_local = local
 
     @Slot(int, str)
     def _on_startup_failed(self, code: int, tail: str) -> None:

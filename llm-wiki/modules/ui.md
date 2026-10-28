@@ -164,6 +164,38 @@ The run itself opens with `simulation.log_start` (`_prepare_engine_run`,
 (`preview_summary_dialog.py::PreviewSummaryDialog`, `simulation=True`), so no
 control ever promises an application that cannot happen.
 
+### Preview confirmation — `preview_summary_dialog.py::PreviewSummaryDialog`
+
+The dialog is the point where a plan is accepted, so it states the outcome first
+and the destructive part in the open:
+
+* **Summary line** (`lblSummary`): `summary_changes` ("Changes: N") plus the
+  transfer volume, from `PreviewStats.action_count` / `transfer_size`.
+* **Context line** (`lblContext`, hidden when empty): the scoped path for a
+  Send/Receive (`context_scope`), the direction when it is not bidirectional
+  (`settings/cli_args.py::get_sync_direction` + the existing
+  `menu.sync.direction.*` labels), the Simulation notice, and
+  `skipped_deletions` when the policy dropped planned deletions.
+* **Warning line** (`lblWarning`, hidden when empty, red with a ``glyph`` for a
+  non-colour cue): `warning_guard` when the client reported a plan the
+  mass-deletion guard will pause, otherwise `warning_delete` for any planned
+  deletion.
+* **Details** (`treeDetails`, hidden when the plan is empty): one group per
+  non-empty category, destructive first (Deletions, Renames, Downloads,
+  Uploads). Rows are paths with their size, renames as `src → dst`, transfers
+  largest-first from `PreviewStats.largest`; `more_items` reports what the bounded
+  lists do not name (`DETAIL_CAP` deletions/renames, `LARGEST_CAP` transfers).
+  Counts and totals are always exact.
+* **Estimate**: `estimate` ("≈ {time} at {rate}/s") is computed per direction
+  from `settings/cli_args.py::get_bandwidth_limits`; with no limit there is no
+  number, and the value is approximate by construction (delta transfer can move
+  fewer bytes than the plan's sizes).
+* **Footnote** (`lblFootnote`): `preview_summary.synced` when some files are
+  already aligned.
+* **Buttons**: *Cancel* is the default of a real run (applying a plan is never
+  the default), *Synchronize* accepts, Simulation Mode keeps *Close* only and a
+  plan with no work shows *OK*.
+
 ### Engine start failure feedback
 
 `_start_engine` (`main_window/start.py::StartMixin._start_engine`) wraps
@@ -629,9 +661,10 @@ state remembered in `EventsMixin._set_sync_state`:
 
 The counts come from two sources, one per side of the comparison.
 
-* Requester side: `PreviewStats` (`preview_summary_dialog.py`), accumulated by
-  `EventsMixin._on_file_status` during the preview; `_sync_state_after_preview`
-  turns them into the state.
+* Requester side: `PreviewStats` (`preview_summary_dialog.py`), filled by
+  `EventsMixin._on_file_status` / `_on_file_rename_status` during the preview
+  (counts, sizes, the bounded plan rows and the engine-reported policy/guard
+  facts); `_sync_state_after_preview` turns its counters into the state.
 * Serving side: `EventsMixin._device_stats`, filled by
   `EventsMixin._on_device_status` from the `device_status` rows of the pass;
   `EventsMixin._serving_sync_state` reports the **worst device** (largest

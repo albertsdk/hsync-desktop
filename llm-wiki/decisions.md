@@ -14,6 +14,7 @@ Ecosystem ADRs are SSOT in `hsync-common`
 | [0001 server-vs-p2p-modes](../../hsync-common/docs/internal/adr/0001-server-vs-p2p-modes.md) | p2p block in the settings dialog + `p2p`/`server` subcommand selection and master flags in `cli_args.py` |
 | [0041 serving-side-status-pass-events](../../hsync-common/docs/internal/adr/0041-serving-side-status-pass-events.md) | `status_pass_started`/`status_pass_ended` signals (`engine/process.py::HsyncEngine`) → `EventsMixin._on_status_pass_started`/`_on_status_pass_ended`, distinct from the preview pair that confirms a sync ([ui.md](modules/ui.md)) |
 | [0042 per-device-serving-status](../../hsync-common/docs/internal/adr/0042-per-device-serving-status.md) | `device_status` → `EventsMixin._on_device_status` + `EventsMixin._serving_sync_state` (worst device, never a union), per-file `holders`/`devices` → `FileTransferModel._row_status` ([ui.md](modules/ui.md)) |
+| [0043 preview-confirmation-contract](../../hsync-common/docs/internal/adr/0043-preview-confirmation-contract.md) | `preview_skipped`/`preview_warning` → `PreviewStats.skipped_deletes`/`guard_deletes`; the dialog renders the plan, the estimates come from `get_bandwidth_limits` ([ui.md](modules/ui.md)) |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in

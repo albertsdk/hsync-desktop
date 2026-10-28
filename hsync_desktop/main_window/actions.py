@@ -71,7 +71,10 @@ from hsync_desktop.settings import (
     are_notifications_enabled,
     build_hsync_args,
     build_selection_args,
+    get_bandwidth_limits,
+    get_deletion_policy,
     get_saved_theme,
+    get_sync_direction,
     is_auto_sync_enabled,
     is_log_panel_visible,
     is_simulation_mode,
@@ -483,11 +486,8 @@ class ActionsMixin:
         # Simulation Mode never applies the preview: the client exits after its
         # one-shot dry-run, so no SYNC command is ever sent.
         simulation = is_simulation_mode()
-        nothing_to_sync = (
-            s.to_download == 0 and s.to_upload == 0 and s.to_delete == 0 and s.to_rename == 0
-        )
 
-        if nothing_to_sync:
+        if not s.has_work():
             # Skip the dialog entirely.
             self._append_desktop_log("INFO", tr("preview.no_actions"))
             if selection:
@@ -518,7 +518,20 @@ class ActionsMixin:
             # event does not finalize while this modal dialog is open.
             self._selection_sync_phase = "confirm"
 
-        dlg = PreviewSummaryDialog(self._preview_stats, parent=self, simulation=simulation)
+        download_bps, upload_bps = get_bandwidth_limits()
+        scope = ""
+        if selection and self._pending_selection_sync:
+            scope = self._preview_path(self._pending_selection_sync[0])
+        dlg = PreviewSummaryDialog(
+            self._preview_stats,
+            parent=self,
+            simulation=simulation,
+            download_bps=download_bps,
+            upload_bps=upload_bps,
+            direction=get_sync_direction(),
+            deletions_kept=get_deletion_policy() != "propagate",
+            scope=scope,
+        )
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
             if selection:
                 # Scoped Send/Receive: start the confirmed one-shot for real.
