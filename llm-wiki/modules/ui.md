@@ -118,8 +118,13 @@ dialog to the desktop choose-connection guide (`help.connection_modes`). They ar
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in
 `settings/tab_translations.py::apply_translations`. The toast's guide link is the
-same widget retargeted at runtime (`widgets/links.py::set_help_link_url`) to
-`docs_links.py::TROUBLESHOOTING`. Link colours are themed
+same widget retargeted at runtime (`widgets/links.py::set_help_link_url`): a
+persistent engine warning points it at `docs_links.py::WATCHER_LIMITS` (the client
+guide's file-watcher/inotify section, where the copy-paste host commands are) when
+`warnings.py::remedy_text` produced a remedy, otherwise at
+`docs_links.py::TROUBLESHOOTING` (the desktop symptom guide, which links the client
+section for the watcher case). Both targets share the `notif.open_guide` label.
+Link colours are themed
 through `QPalette.Link`/`LinkVisited` in `themes.py`. The labels are
 `widgets/links.py::_HelpLinkLabel`, whose `sizeHint` reports the wrapped height
 at the width the label really has: a word-wrapped rich-text `QLabel` otherwise

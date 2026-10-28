@@ -50,7 +50,7 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
-from hsync_desktop.docs_links import TROUBLESHOOTING
+from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.engine import (
     HsyncEngine,
     add_bootnode_trust,
@@ -1056,7 +1056,9 @@ class UiBuildMixin:
             tr("notif.warning"),
             text,
             category="warnings",
-            help_url=TROUBLESHOOTING,
+            # A host remedy is only useful on the page that carries the commands;
+            # every other persistent warning keeps the desktop symptom guide.
+            help_url=WATCHER_LIMITS if remedy else TROUBLESHOOTING,
         )
 
     def _hide_info_banner(self) -> None:

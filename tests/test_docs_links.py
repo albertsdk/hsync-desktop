@@ -20,11 +20,21 @@ from hsync_desktop import docs_links
         docs_links.CONNECTION_MODES,
         docs_links.DOCS_INDEX,
         docs_links.GITHUB_REPO,
+        docs_links.TROUBLESHOOTING,
+        docs_links.WATCHER_LIMITS,
     ],
 )
 def test_targets_are_fixed_https_github_links(url):
     assert url.startswith("https://github.com/albertsdk/hsync-")
     assert docs_links.is_allowed_docs_url(url)
+
+
+def test_the_watcher_remedy_deep_links_into_the_client_guide():
+    """The host remedy lives in the client guide, at a stable section anchor."""
+    assert docs_links.WATCHER_LIMITS.startswith(
+        "https://github.com/albertsdk/hsync-client/blob/main/docs/troubleshooting.md#"
+    )
+    assert docs_links.WATCHER_LIMITS != docs_links.TROUBLESHOOTING
 
 
 def test_docs_index_is_the_documentation_landing_page():

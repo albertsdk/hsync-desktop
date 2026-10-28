@@ -208,9 +208,9 @@ disable unsupported controls) is realized in
   the WD OS5 web UI and the modern desktop convention. Switches are kept although
   a checkbox matches a Save/Cancel dialog better (NN/g: a toggle switch should
   take immediate effect); revisit if the dialog ever applies settings instantly.
-- **Stop is non-blocking and immediately visible**: `HsyncEngine.stop`
-  (`engine/process.py::HsyncEngine.stop`) blocked the Qt main thread in
-  `waitForFinished(5000)` (plus `kill()` and 3 s), so clicking Stop gave no
+- **Stop is non-blocking and immediately visible**: the former `HsyncEngine.stop`
+  blocked the Qt main thread in `waitForFinished(5000)` (plus `kill()` and 3 s),
+  so clicking Stop gave no
   feedback until the child had already exited and the user could think nothing was
   happening. The engine now exposes `request_stop`
   (`engine/process.py::HsyncEngine.request_stop`: `SIGTERM` at once, `kill()` after
@@ -225,3 +225,17 @@ disable unsupported controls) is realized in
   `process_finished` or, on the engine's `stop_timeout`, by
   `main_window/start.py::StartMixin._on_stop_timeout` with the `notif.stop_timeout`
   warning. Guarded by `tests/test_engine_process.py` and `tests/test_main_window.py`.
+- **A warning with a host remedy deep-links to the page that carries the
+  commands**: the persistent-warning banner used one link (`TROUBLESHOOTING` →
+  `docs/troubleshooting.md`) for every engine warning, but the desktop symptom
+  guide never documented the file-watcher/inotify limit, whose per-platform
+  commands live in the client guide. `docs_links.py::WATCHER_LIMITS` now points at
+  `hsync-client/docs/troubleshooting.md#the-file-watcher-degrades-to-polling-inotify-limits`
+  and `main_window/ui.py::UiBuildMixin._on_engine_warning` selects it exactly when
+  `warnings.py::remedy_text` produced a remedy (a watcher reason), keeping
+  `TROUBLESHOOTING` otherwise; both share the `notif.open_guide` label, so no new
+  locale key. The desktop `docs/troubleshooting.md` also gained a watcher section
+  that links the client one. Rejected: one link for all warnings (leaves the
+  actionable case on a page without commands) and a new label per target (locale
+  churn for no extra clarity). Guarded by `tests/test_docs_links.py` and
+  `tests/test_main_window.py`.

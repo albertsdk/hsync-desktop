@@ -18,6 +18,19 @@ Your sync engine does not support that feature — the tooltip names the option 
 is missing. Update the app (every package ships a matching engine) and the control
 becomes available.
 
+## The file watcher degrades to polling (inotify limits)
+
+The banner about the file watcher degrading to polling (or needing more watches or
+instances) means the system ran out of the Linux inotify limits your user may hold.
+The sync keeps running in a slower polling mode and the watcher recovers by itself
+once the limits free up. The diagnosis commands and the per-platform remedy are in
+the client guide:
+[The file watcher degrades to polling (inotify limits)](https://github.com/albertsdk/hsync-client/blob/main/docs/troubleshooting.md#the-file-watcher-degrades-to-polling-inotify-limits).
+
+The other warnings the app can raise during a sync (an unreachable discovery
+server, low disk space, a folder that became unavailable) are listed in
+[Warnings and notifications](warnings.md#warnings-during-a-sync).
+
 ## The window closed but the sync kept running
 
 Closing the window hides it to the tray and a run continues. Use the tray menu to

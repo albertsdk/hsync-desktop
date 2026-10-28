@@ -15,7 +15,7 @@ from PySide6.QtCore import QSettings
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
 
-from hsync_desktop.docs_links import TROUBLESHOOTING
+from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.fonts import ui_font
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings import SettingsDialog
@@ -1162,7 +1162,7 @@ class TestInfoToast:
         message = calls[0][0][1]
         assert tr("notif.remedy_inotify_watches") in message
         assert tr("notif.remedy_numbers").format(needed=12000, limit=8192) in message
-        assert calls[0][1]["help_url"] == TROUBLESHOOTING
+        assert calls[0][1]["help_url"] == WATCHER_LIMITS
 
     def test_a_remedy_warning_shows_the_guide_link_in_the_banner(self, window):
         window._user_stopped = False
@@ -1175,7 +1175,7 @@ class TestInfoToast:
         )
 
         assert not window._info_banner_link.isHidden()
-        assert window._info_banner_link.toolTip() == TROUBLESHOOTING
+        assert window._info_banner_link.toolTip() == WATCHER_LIMITS
         assert window._info_banner_link.accessibleName() == tr("notif.open_guide")
 
     def test_a_non_watcher_warning_keeps_the_guide_without_a_remedy(self, window, monkeypatch):
@@ -1188,6 +1188,37 @@ class TestInfoToast:
         window._on_engine_warning("Bootnode unreachable", "bootnode", False, {"reason": ""})
 
         assert calls[0][0][1] == "Bootnode unreachable"  # no remedy text invented
+        assert calls[0][1]["help_url"] == TROUBLESHOOTING
+
+    def test_a_descriptor_limit_warning_also_deep_links(self, window, monkeypatch):
+        """Every watcher remedy lives on the client page, not only inotify."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning(
+            "Too many open files", "watcher", False, {"reason": "fd_exhaustion"}
+        )
+
+        assert calls[0][1]["help_url"] == WATCHER_LIMITS
+
+    def test_an_unclassified_watcher_downgrade_keeps_the_desktop_guide(self, window, monkeypatch):
+        """A downgrade with no actionable reason must not claim a remedy page."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning(
+            "File watcher degraded to polling",
+            "watcher",
+            False,
+            {"reason": "polling_fallback"},
+        )
+
         assert calls[0][1]["help_url"] == TROUBLESHOOTING
 
     def test_a_transient_warning_has_no_guide_link(self, window):
