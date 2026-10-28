@@ -1,61 +1,64 @@
 # Key concepts
 
-The words the app uses, in the order you meet them. Each entry links to the
-client documentation for the full explanation; nothing here redefines the
-protocol itself.
+The words the app uses, in the order you meet them, explained in plain language.
+Each entry points to the page that goes deeper.
 
-## Share name
+## Share
 
-A **share** is one folder kept in sync under a name — the folder name on an HSYNC
-server, or the name peers use in p2p mode. Devices that must see the same content
-use the **same share name**; the local directory behind it is **Local folder**
-(*Settings → Sync*) and may differ between devices.
+A **share** is one folder kept in sync, under a name — the folder name on an HSYNC
+server, or the name devices use in p2p Mode. Devices that must see the same
+content use the **same share name**. The folder on *this* computer can be
+somewhere else: that location is the **Local folder** (*Settings → Sync*).
 
-## Group (p2p)
+## Connection mode
 
-The **p2p group name** is a partition key: devices discover and sync only with
-devices that use the exact same group name. Leaving it empty puts the device in
-the "no group" partition, which sees only other no-group devices. It is not a
-secret — the shared password is.
+**Server Mode** syncs through a central **HSYNC server**; **p2p Mode** syncs your
+devices directly, with no server. See
+[Choose how your devices connect](choose-connection.md).
 
-## Primary and secondary role (p2p)
+## Group (p2p Mode)
 
-In p2p mode one device serves the files to the others: the **primary** device.
-The others are **secondary**. *Prefer primary role* asks for that role and *Never
-become primary* removes the device from the election; the status bar shows the
-role once the election has decided it. The engine's own labels and log lines
-still say "master" for this role. See
-[p2p Mode](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-mode.md).
+The **p2p group name** is a way to keep separate sets of devices apart: devices
+see and sync only with other devices using the **exact same group name**. Leaving
+it empty puts the device in the "no group" set, which sees only other no-group
+devices. It is not a secret — the shared password is.
+
+## Primary and secondary role (p2p Mode)
+
+In p2p Mode one device serves the files to the others: the **primary**. The others
+are **secondary**. **Prefer primary role** asks for that role and **Never become
+primary** removes the device from the election; the status bar shows the role once
+it is decided. (The engine's own log lines still say "master" for this role.)
 
 ## Discovery server
 
-An optional **HSYNC Bootnode** that only helps devices on different networks find
-each other; it never carries or stores your files. With no discovery server the
-app uses mDNS on the local network. See
-[hsync-bootnode](https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md).
+An optional helper (an **HSYNC Bootnode**) that only lets devices on different
+networks find each other. It never carries or stores your files. With no discovery
+server, the app uses mDNS on the local network.
 
 ## Trust and fingerprints
 
-Every server and device presents a certificate. The first time, the app asks
-whether to trust its fingerprint and then pins it: a later change is reported as a
-possible man-in-the-middle and asks again. The stores are shared with the `hsync`
-CLI and editable from *Settings → p2p → Manage trusted servers & devices…*.
+Every server and device proves its identity with a certificate. The first time,
+the app asks whether to trust its **fingerprint** — a short code that names that
+identity — and remembers it; a later change is reported as a possible
+man-in-the-middle and asks again. See
+[Trust, fingerprints and identity checks](choose-trust.md).
 
 ## Conflict copy
 
 When two devices really change the same file at the same time, one version wins
 and the other is kept next to it as `_conflicted_copy_`, so nothing is lost. See
-[Conflict resolution](https://github.com/albertsdk/hsync-client/blob/main/docs/conflict-resolution.md).
+[conflict resolution](https://github.com/albertsdk/hsync-client/blob/main/docs/conflict-resolution.md).
 
 ## Sync state
 
-Per folder, outside the synced directory, the app keeps a small database with the
+For each folder, outside the synced directory, the app keeps a small database of
 merge bases and deletion markers. When it becomes inconsistent the folder keeps
-re-syncing or reports phantom conflicts; resetting it is described in
-[Using HSYNC Desktop → Reset the sync state](usage.md#reset-the-sync-state).
+re-syncing or reports phantom conflicts; see
+[Reset the sync state](reset-sync-state.md).
 
 ## Simulation Mode
 
 A preview-only run: the app compares the two sides and shows the summary without
 transferring or deleting anything. See
-[Configuration → Sync](configuration.md#sync).
+[Start, watch and stop a sync](sync-basics.md#start-a-sync).

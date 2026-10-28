@@ -669,7 +669,7 @@ class TestSuccessLayout:
 
 
 class TestModeDocumentationLink:
-    """The mode step links to the desktop connection-modes guide."""
+    """The mode step links to the desktop choose-connection guide."""
 
     def test_the_mode_page_links_to_the_modes_guide(self, wizard):
         from hsync_desktop import docs_links

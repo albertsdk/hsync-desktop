@@ -163,4 +163,4 @@ deployment mode**:
 | Installer script | `install.sh` — downloads the self-contained bundle and installs it under `~/.local` (no `sudo`, no Docker) |
 | From source | `run.sh` — checks the sibling `hsync-common`, creates `../.venv` via Poetry, launches the GUI |
 | Release | `.github/workflows/release.yml` publishes the native archives, the Windows installer, the `.dmg` (macOS), the `.deb`/`.rpm` packages, the AppImage and `install.sh`, plus fixed-name `latest` aliases (RELEASES.md §5.8); no container image |
-| Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/configuration.md` is the settings SSOT, `docs/usage.md` the runtime guide, `docs/concepts.md` the GUI vocabulary, `docs/troubleshooting.md` the symptom guide |
+| Docs | `docs/getting-started.md` chooser + one `getting-started-<method>.md`; `docs/README.md` the journey index; `docs/configuration.md` the settings SSOT; `docs/sync-basics.md`/`docs/file-list.md`/`docs/warnings.md`/`docs/secrets.md`/`docs/reset-sync-state.md` the runtime guides; `docs/choose-*.md` the decision guides; `docs/concepts.md` the GUI vocabulary; `docs/troubleshooting.md` the symptom guide |

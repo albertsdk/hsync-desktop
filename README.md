@@ -90,7 +90,7 @@ chooser:
 - [From source](docs/getting-started-source.md) — clone and run.
 
 Then configure a connection in the [Configuration Reference](docs/configuration.md)
-and run a sync with the [Usage Guide](docs/usage.md).
+and run a sync with the [Usage Guide](docs/sync-basics.md).
 
 ## Associated Ecosystem Components
 

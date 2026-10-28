@@ -1,5 +1,10 @@
 # Log Labels
 
+> **For advanced users.** You do not need this page for normal use: the log panel
+> is optional and most messages are shown to you as toasts and banners. Come here
+> when you are reading the log to diagnose something — see
+> [Troubleshooting](troubleshooting.md).
+
 HSYNC Desktop runs the `hsync-client` engine as a subprocess and surfaces its
 output in the in-app **Log** panel, so every client label can appear there.
 The desktop also emits a couple of own markers for UI-level events. This page
@@ -47,6 +52,7 @@ set):
 
 ## Related
 
-- [Usage](usage.md)
+- [Start, watch and stop a sync](sync-basics.md)
+- [Warnings and notifications](warnings.md)
 - [Client label reference](https://github.com/albertsdk/hsync-client/blob/main/docs/log-labels.md)
 - [Canonical label catalog](https://github.com/albertsdk/hsync-common/blob/main/docs/log-labels.md)

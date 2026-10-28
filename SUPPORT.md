@@ -9,7 +9,7 @@
 
 ## Before asking for help
 
-1. Check the [documentation](docs/README.md), the [usage guide](docs/usage.md)
+1. Check the [documentation](docs/README.md), the [usage guide](docs/sync-basics.md)
    and the [troubleshooting guide](docs/troubleshooting.md).
 2. Reproduce the problem with the CLI client, to tell a GUI issue from an engine
    issue:

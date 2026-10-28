@@ -2,14 +2,14 @@
 
 ## How do I reset a folder's sync state?
 
-A folder that keeps re-syncing, reports conflicts on files nobody edited, or
-logs a database error has an inconsistent local sync history; resetting it makes
-the next sync reconcile the folder from scratch. It clears only that folder's
-merge bases and deletion markers — never the files, `.hsyncignore`, the settings,
-the saved keys, the device identity or the trusted fingerprints.
+A folder that keeps re-syncing, reports conflicts on files nobody edited, or logs
+a database error has an inconsistent local sync history; resetting it makes the
+next sync reconcile the folder from scratch. It clears only that folder's merge
+bases and deletion markers — never the files, `.hsyncignore`, the settings, the
+saved keys, the device identity or the trusted fingerprints.
 
 The procedure and what to expect on the next cycle are in
-[Using HSYNC Desktop → Reset the sync state](usage.md#reset-the-sync-state).
+[Reset the sync state](reset-sync-state.md).
 
 For a headless or service installation, the same operation is available from the
 client CLI — see the
@@ -41,10 +41,10 @@ group only sees other no-group devices. The full checklist is in
 The folder is not empty and the current settings allow deletions — p2p Mode with
 **Prefer primary role** off, or a **Receive only** sync type. It is a warning
 before anything happens, not an action. Choose **Keep deleted files**
-(Settings → Sync → Deletions) and the warning disappears, because the app can
-no longer delete anything; the status bar then shows a **Backup — deletions
-kept** badge. See
-[Warnings before and during a sync](usage.md#warnings-before-and-during-a-sync).
+(Settings → Sync → Deletions) and the warning disappears, because the app can no
+longer delete anything; the status bar then shows a **Deletions kept** badge. See
+[Warnings and notifications](warnings.md#warnings-before-a-sync) and
+[Choose what happens to deleted files](choose-deletion-policy.md).
 
 ## How do I remove my settings and keys?
 

@@ -20,7 +20,7 @@ _GITHUB_ORG_PATH = "/albertsdk/hsync-"
 
 SERVER_SETUP = "https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md"
 BOOTNODE_SETUP = "https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md"
-CONNECTION_MODES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/connection-modes.md"
+CONNECTION_MODES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/choose-connection.md"
 # Linked from a persistent warning banner (file-watcher limits above all): the
 # remedy is host configuration, so the in-app text states the cause and the
 # guide carries the per-platform commands.

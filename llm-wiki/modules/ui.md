@@ -105,13 +105,13 @@ app-info dialogs — **License** (`main_window/actions.py::ActionsMixin._show_li
 targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 `docs_links.open_docs_link`, which only allows the project HTTPS pages.
 `DOCS_INDEX` is the documentation landing page (`docs/README.md`), distinct from
-`CONNECTION_MODES` (`docs/connection-modes.md`) that the wizard's mode step links to, so
+`CONNECTION_MODES` (`docs/choose-connection.md`) that the wizard's mode step links to, so
 **Help → Documentation** always starts from the docs index.
 
 **Contextual documentation links**: the Server tab links to the hsync-server
 setup guide (`help.server_setup`), the p2p discovery group to the hsync-bootnode
 guide (`help.bootnode_setup`), and the wizard's mode step plus its "Not sure?"
-dialog to the desktop connection-modes guide (`help.connection_modes`). They are
+dialog to the desktop choose-connection guide (`help.connection_modes`). They are
 `QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in
