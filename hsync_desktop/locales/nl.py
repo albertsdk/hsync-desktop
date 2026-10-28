@@ -322,7 +322,7 @@ translations: dict[str, str] = {
     "tip.server_url": "Hostnaam, IP of host:poort van de HSYNC-server; https:// en poort 9753 zijn impliciet. Laat leeg voor alleen p2p.",
     "tip.share_size": "Ruimte van de gedeelde map op dit apparaat en de totale grootte van de share (bestanden op de externe server + nog niet geüploade lokale bestanden).",
     "tip.check_changes": "Vergelijkt de map met de andere apparaten: toont de nog openstaande wijzigingen en werkt de bestandenlijst en de synchronisatiestatus bij (F5).",
-    "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: geen apparaat verbonden, controleren, alles gesynchroniseerd of de wijzigingen die nog moeten worden overgedragen.",
+    "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: niets om te vergelijken, bezig met controleren, alles gesynchroniseerd of de nog te verzenden wijzigingen. Bij meerdere apparaten geldt het apparaat dat het verst achterloopt en de regels hieronder tonen de openstaande wijzigingen per apparaat.",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
     "tip.ca_cert": "Certificaatbestand voor een server met een zelfondertekend certificaat.",

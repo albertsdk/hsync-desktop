@@ -29,6 +29,7 @@ transfer — a resting or never-transferred row carries none.
 | ----- | ----- |
 | `filepath` / `direction` | path + `"↓"`/`"↑"` |
 | `size` / `bytes_transferred` | progress inputs |
+| `holders` / `devices` | device coverage of the last serving pass: how many live devices hold the identity out of how many were compared (`-1` = unknown, e.g. a requester-side preview); drives the `Synced · 2/3` suffix |
 | `start_time` | for ETA |
 | `status` | a `TransferStatus` |
 | `mtime` / `client_cid` / `client_ip` | metadata for detail pane |

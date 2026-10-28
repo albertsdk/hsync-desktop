@@ -110,6 +110,10 @@ class FileTransfer:
     mtime: float = 0.0  # Last modification time (epoch seconds)
     client_cid: str = ""
     client_ip: str = ""
+    # Device coverage of a serving classification: how many live devices hold
+    # this identity out of how many were compared (-1 = unknown).
+    holders: int = -1
+    devices: int = -1
     # Bytes actually crossing the wire (compressed upload size, delta payload
     # size) driving the progress bar; ``size`` keeps the on-disk size for the
     # Size column. 0 means "same as size".

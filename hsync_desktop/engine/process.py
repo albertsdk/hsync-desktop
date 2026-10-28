@@ -272,7 +272,8 @@ class HsyncEngine(QObject):
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     no_peers_warning = Signal(str)  # a p2p one-shot found no peer to sync with
-    sync_pending = Signal(str)  # classification not possible yet: reason
+    # classification not possible yet: reason, published devices, expected ones
+    sync_pending = Signal(str, int, int)
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
     duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
     # Trust refusal events (SSH-style): the GUI must answer instead of the
@@ -288,7 +289,13 @@ class HsyncEngine(QObject):
     # of the preview pair above, which only the previews this window requests use.
     status_pass_started = Signal()  # classification pass started
     status_pass_ended = Signal()  # classification pass ended
-    file_status = Signal(str, str, int)  # status, filepath, size
+    # One row per live device inside a serving pass: cid, its identities the
+    # share lacks (pending_here), the share identities it lacks (pending_there)
+    # and how many identities it published (held).
+    device_status = Signal(str, int, int, int)
+    # status, filepath, size, live devices holding it, live devices compared
+    # (-1/-1 when the pass has no per-device view, e.g. a requester-side preview).
+    file_status = Signal(str, str, int, int, int)
     # status can be: "synced", "to_download", "to_upload", "to_delete"
     file_rename_status = Signal(str, str, int)  # old_path, new_path, size
 
@@ -733,6 +740,16 @@ class HsyncEngine(QObject):
             str(event.get("state", "")),
             str(event.get("file", "")),
             int(event.get("size", 0)),
+            int(event.get("holders", -1)),
+            int(event.get("devices", -1)),
+        )
+
+    def _on_device_status_event(self, event: UiEventDict) -> None:
+        self.device_status.emit(
+            str(event.get("peer_cid", "")),
+            int(event.get("pending_here", 0)),
+            int(event.get("pending_there", 0)),
+            int(event.get("held", 0)),
         )
 
     def _on_rename_status_event(self, event: UiEventDict) -> None:
@@ -860,7 +877,11 @@ class HsyncEngine(QObject):
         self.no_peers_warning.emit(str(event.get("message", "")))
 
     def _on_sync_pending_event(self, event: UiEventDict) -> None:
-        self.sync_pending.emit(str(event.get("reason", "")))
+        self.sync_pending.emit(
+            str(event.get("reason", "")),
+            int(event.get("devices", 0)),
+            int(event.get("expected", 0)),
+        )
 
     def _on_duplicate_identity_event(self, event: UiEventDict) -> None:
         self.duplicate_identity.emit(
@@ -901,6 +922,7 @@ class HsyncEngine(QObject):
         UiEventName.progress: _on_progress_event,
         UiEventName.transfer: _on_transfer_event,
         UiEventName.file_status: _on_file_status_event,
+        UiEventName.device_status: _on_device_status_event,
         UiEventName.rename_status: _on_rename_status_event,
         UiEventName.rename: _on_rename_event,
         UiEventName.dir_created: _on_dir_created_event,

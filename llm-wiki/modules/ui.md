@@ -623,18 +623,31 @@ state remembered in `EventsMixin._set_sync_state`:
 | `checking` | on `connected` and on every comparison start `preview_start` or `status_pass_start` | `sync.state.checking` |
 | `waiting_inventory` | `sync_pending` with `reason="awaiting_inventory"` (a device is connected but has not published its inventory) | `sync.state.waiting_inventory` |
 | `no_devices` | `no_peers` (one-shot abort) or p2p with `total <= 1` | `sync.state.no_devices` |
-| `in_sync` | a comparison end (`preview_end` or `status_pass_end`) with no pending action | `sync.state.in_sync` |
-| `pending` | a comparison end with downloads/uploads | `sync.state.pending` (`{download}`/`{upload}`) |
-| `pending_other` | a comparison end with only deletes/renames | `sync.state.pending_other` (`{count}`) |
+| `in_sync` | a comparison end (`preview_end` or `status_pass_end`) with nothing pending | `sync.state.in_sync` |
+| `pending` | a comparison end with downloads/uploads (a serving pass reports the **worst device's** backlog) | `sync.state.pending` (`{download}`/`{upload}`) |
+| `pending_other` | a preview end with only deletes/renames (a serving pass never reports them) | `sync.state.pending_other` (`{count}`) |
 
-The counts come from `PreviewStats` (`preview_summary_dialog.py`), accumulated by
-`EventsMixin._on_file_status` during the comparison; `_sync_state_after_preview`
-turns them into the state, and `EventsMixin._begin_comparison` resets them on
-every start, so repeated comparisons never inflate the counts. The label is
-re-rendered on a language change from `_apply_translations`, and its tooltip is
-`tip.sync_state`. A p2p serving device produces the events through the client's
-own classification (see the client wiki `modules/p2p-mode.md`), so the same
-states cover both roles.
+The counts come from two sources, one per side of the comparison.
+
+* Requester side: `PreviewStats` (`preview_summary_dialog.py`), accumulated by
+  `EventsMixin._on_file_status` during the preview; `_sync_state_after_preview`
+  turns them into the state.
+* Serving side: `EventsMixin._device_stats`, filled by
+  `EventsMixin._on_device_status` from the `device_status` rows of the pass;
+  `EventsMixin._serving_sync_state` reports the **worst device** (largest
+  `pending_here + pending_there`) and its own counts. The state is never a set
+  union: a file only one device holds is `in_sync` for that device and pending
+  for the others, so `in_sync` here means every device is converged (ADR 0042).
+
+`EventsMixin._begin_comparison` resets both, so repeated comparisons never
+inflate the counts nor keep a device that has left. The label is re-rendered on a
+language change from `_apply_translations`; its tooltip
+(`EventsMixin._sync_state_tooltip`) starts from `tip.sync_state` and lists every
+device as `cccccccc  ↓ pending_here · ↑ pending_there`, plus the published/expected
+inventory counts while the waiting state lasts. Per-file rows carry the same
+coverage: `file_status` carries `holders`/`devices`, and
+`file_panel/transfer_table.py::FileTransferModel._row_status` renders
+`Synced · 2/3` when some device still lacks the content.
 
 Per-file statuses are a **last known value**, not a live-only signal: dropping
 the link sets the summary to `offline` but never rewrites rows to "Local". Only a
@@ -652,7 +665,7 @@ pairs share one rendering path (`EventsMixin._begin_comparison` /
 * `status_pass_start`/`status_pass_end` — the classification pass a **serving
   device** runs on its own share (whenever the client re-classifies the share it
   serves; see the client wiki).
-  `EventsMixin._on_status_pass_ended` renders the rows and the file-set state and
+  `EventsMixin._on_status_pass_ended` renders the rows, the per-device state and
   stops there: the device that serves the share has nothing to pull, so there is
   no summary and no `SYNC`.
 

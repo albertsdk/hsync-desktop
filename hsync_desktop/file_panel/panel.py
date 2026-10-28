@@ -575,10 +575,20 @@ class FilePanel(QWidget):
         client_cid: str = "",
         client_ip: str = "",
         *,
+        holders: int = -1,
+        devices: int = -1,
         preview: bool = False,
     ) -> None:
         self._table.update_file_status(
-            filepath, status, size, mtime, client_cid, client_ip, preview=preview
+            filepath,
+            status,
+            size,
+            mtime,
+            client_cid,
+            client_ip,
+            holders=holders,
+            devices=devices,
+            preview=preview,
         )
 
     def mark_deleted(self, filepath: str) -> None:

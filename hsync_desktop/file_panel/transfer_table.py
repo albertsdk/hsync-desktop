@@ -444,6 +444,15 @@ class FileTransferModel(QAbstractTableModel):
             return "", TransferStatus.LOCAL
         if status is TransferStatus.SYNCED and not self._connected:
             text = tr("detail.synced_stale")
+        elif (
+            not is_folder
+            and transfer is not None
+            and status is TransferStatus.SYNCED
+            and 0 <= transfer.holders < transfer.devices
+        ):
+            # Partial coverage: the content is here and on some devices, not on
+            # all of them. Numbers only, so the suffix needs no translation.
+            text = f"{text} · {transfer.holders}/{transfer.devices}"
         return text, status
 
     def _synced_is_stale(self, status: TransferStatus) -> bool:
@@ -1577,13 +1586,17 @@ class FileTransferTable(QTableView):
         client_cid: str = "",
         client_ip: str = "",
         *,
+        holders: int = -1,
+        devices: int = -1,
         preview: bool = False,
     ) -> None:
         """Update or add a file with the given status.
 
-        ``preview`` marks a dry-run status from the preview pass: it must never
-        downgrade a row that is actively transferring, or a preview triggered by
-        a reconnect would hide the live progress of an in-flight transfer.
+        ``holders``/``devices`` carry the device coverage a serving pass reports
+        (-1 when the pass has no per-device view). ``preview`` marks a dry-run
+        status from the preview pass: it must never downgrade a row that is
+        actively transferring, or a preview triggered by a reconnect would hide
+        the live progress of an in-flight transfer.
         """
         status_mapping = {
             "synced": TransferStatus.SYNCED,
@@ -1623,6 +1636,8 @@ class FileTransferTable(QTableView):
                     t.client_cid = client_cid
                 if client_ip:
                     t.client_ip = client_ip
+                t.holders = holders
+                t.devices = devices
             else:
                 t = FileTransfer(
                     filepath=filepath,
@@ -1632,6 +1647,8 @@ class FileTransferTable(QTableView):
                     mtime=mtime,
                     client_cid=client_cid,
                     client_ip=client_ip,
+                    holders=holders,
+                    devices=devices,
                 )
                 self._transfers[filepath] = t
         self._cached_items = None  # Invalidate cache

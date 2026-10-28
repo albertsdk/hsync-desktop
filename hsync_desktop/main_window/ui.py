@@ -350,7 +350,6 @@ class UiBuildMixin:
         self._update_peers_label_title()
         self._share_size_label.setToolTip(tr("tip.share_size"))
         self._render_share_size()
-        self._sync_state_label.setToolTip(tr("tip.sync_state"))
         self._render_sync_state()
         self._lbl_sent.setText(tr("label.sent"))
         self._lbl_recv.setText(tr("label.received"))

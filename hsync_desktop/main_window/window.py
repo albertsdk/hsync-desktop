@@ -136,6 +136,10 @@ class MainWindow(
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()
+        # Per-device backlog of the last serving pass (cid -> (here, there, held)).
+        self._device_stats: dict[str, tuple[int, int, int]] = {}
+        # Last "waiting for the inventory" counts of a serving pass.
+        self._pending_inventory: tuple[int, int] | None = None
         self._awaiting_preview_for_sync = False  # True when waiting for preview before sync
         self._pending_sync_path: str = ""  # Path saved for actual sync after preview
         self._is_dry_run_preview = False  # True when running in dry-run mode for initial preview
@@ -300,6 +304,7 @@ class MainWindow(
         e.preview_ended.connect(self._on_preview_ended)
         e.status_pass_started.connect(self._on_status_pass_started)
         e.status_pass_ended.connect(self._on_status_pass_ended)
+        e.device_status.connect(self._on_device_status)
         e.file_status.connect(self._on_file_status)
         e.file_rename_status.connect(self._on_file_rename_status)
 

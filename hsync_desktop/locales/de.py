@@ -371,7 +371,7 @@ translations: dict[str, str] = {
     "tip.server_url": "Hostname, IP oder Host:Port des HSYNC-Servers; https:// und Port 9753 werden angenommen. Leer lassen für den reinen p2p-Modus.",
     "tip.share_size": "Belegter Speicher des geteilten Ordners auf diesem Gerät und Gesamtgröße der Freigabe (Dateien auf dem Remote-Server + noch nicht hochgeladene lokale Dateien).",
     "tip.check_changes": "Vergleicht den Ordner mit den anderen Geräten: listet die noch ausstehenden Änderungen und aktualisiert Dateiliste und Synchronisierungsstatus (F5).",
-    "tip.sync_state": "Zeigt, ob der geteilte Ordner mit den anderen Geräten übereinstimmt: kein Gerät verbunden, Prüfung läuft, alles synchron oder noch zu übertragende Änderungen.",
+    "tip.sync_state": "Zeigt, ob der freigegebene Ordner mit den anderen Geräten übereinstimmt: kein Gerät zum Vergleichen, Prüfung läuft, alles synchron oder die noch zu übertragenden Änderungen. Bei mehreren Geräten gilt das am weitesten zurückliegende, und die Zeilen darunter listen die offenen Änderungen je Gerät.",
     "tip.api_key": "API-Schlüssel zur Authentifizierung beim Server",
     "tip.insecure": "Das Serverzertifikat nicht prüfen (weniger sicher).",
     "tip.ca_cert": "Zertifikatsdatei für einen Server mit selbstsigniertem Zertifikat.",

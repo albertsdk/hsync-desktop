@@ -46,12 +46,18 @@ bar shows a neutral icon only); Server Mode has no such role.
 
 Next to the shared-folder size, the status bar also answers the question the
 connection indicator cannot: **are the files in sync?** It reads `Checking…` while
-a comparison runs, `No devices` when there is nothing to compare against (no other
-device connected yet), `All files in sync` when nothing is pending, and
-`2 to download · 1 to send` (or `3 change(s) pending` for deletes and renames)
-when work is left. A device that serves the share as **primary** reports the same
-states: it compares its folder with what the connected devices published, so its
-table shows the pending transfers instead of staying on `Local`.
+a comparison runs, `Waiting for inventory` while a connected device has not
+published what it holds yet, `No devices` when there is nothing to compare
+against (no other device connected yet), `All files in sync` when nothing is
+pending, and `2 to download · 1 to send` (or `3 change(s) pending` for deletes and
+renames) when work is left.
+
+A device that serves the share as **primary** answers that question for the whole
+group: with more than one device connected the counts are those of the device
+**furthest behind**, so `All files in sync` means every device is aligned, and the
+tooltip lists each device with what it still has to receive (`↓`) or send (`↑`).
+Its file list carries the same detail per row: a file the primary holds and only
+some devices have reads `Synced · 2/3` instead of plain `Synced`.
 
 In the trusted-key dialog (*Manage trusted servers & devices…*) the tabs follow the
 active mode: p2p shows the discovery-server and device stores, Server Mode shows

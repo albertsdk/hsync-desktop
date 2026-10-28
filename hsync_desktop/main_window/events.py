@@ -112,6 +112,10 @@ class EventsMixin:
     _role_known: bool
     _is_master: bool | None
     _connected: bool
+    # Per-device backlog of the last serving pass, and the last "waiting for the
+    # inventory" counts (published, expected).
+    _device_stats: dict[str, tuple[int, int, int]]
+    _pending_inventory: tuple[int, int] | None
 
     @Slot(str)
     def _on_bucket_detected(self, bucket: str) -> None:
@@ -239,6 +243,22 @@ class EventsMixin:
         else:
             text = tr(f"sync.state.{state}")
         label.setText(text)
+        label.setToolTip(self._sync_state_tooltip())
+
+    def _sync_state_tooltip(self) -> str:
+        """Explain the state, with one line per device on a serving pass.
+
+        The bar answers "is every device converged?" with the device furthest
+        behind, so the detail names the devices instead of hiding them behind a
+        union count.
+        """
+        lines = [tr("tip.sync_state")]
+        if self._pending_inventory is not None:
+            published, expected = self._pending_inventory
+            lines.append(f"{tr('label.peers')} {published}/{expected}")
+        for cid, (here, there, _held) in sorted(self._device_stats.items()):
+            lines.append(f"{cid[:8]}  ↓ {here} · ↑ {there}")
+        return "\n".join(lines)
 
     def _sync_state_after_preview(self) -> tuple[str, int, int, int]:
         """Derive the file-set state from the comparison counters just collected.
@@ -551,14 +571,17 @@ class EventsMixin:
 
     @Slot(str)
     @Slot(str)
-    def _on_sync_pending(self, reason: str) -> None:
+    @Slot(str, int, int)
+    def _on_sync_pending(self, reason: str, devices: int = 0, expected: int = 0) -> None:
         """The master cannot classify the share yet: show a waiting state.
 
-        ``reason`` is ``awaiting_inventory`` (a device is connected but has not
-        published what it holds) or ``no_device`` (nothing to compare against).
-        Neither is a verdict on the files: never "all synced", and never "no
-        device found" while a device is connected.
+        ``reason`` is ``awaiting_inventory`` (a connected device has not
+        published what it holds — ``devices`` of ``expected`` did) or
+        ``no_device`` (nothing to compare against). Neither is a verdict on the
+        files: never "all synced", and never "no device found" while a device
+        is connected.
         """
+        self._pending_inventory = (devices, expected) if expected else None
         if reason == "awaiting_inventory":
             self._set_sync_state("waiting_inventory")
             return
@@ -672,38 +695,72 @@ class EventsMixin:
         """Handle a serving device's classification pass ending.
 
         A pass is the primary node's counterpart of ``preview_end``: it renders
-        the rows and the file-set state but never opens the confirmation summary,
-        because the device that serves the share has nothing to pull and a
-        ``SYNC`` would only re-classify.
+        the rows and the per-device state but never opens the confirmation
+        summary, because the device that serves the share has nothing to pull and
+        a ``SYNC`` would only re-classify.
         """
         self._append_log("--- File status updated ---")
-        self._finish_comparison()
+        self._file_panel.mark_verified()
+        self._set_sync_state(*self._serving_sync_state())
+
+    @Slot(str, int, int, int)
+    def _on_device_status(
+        self, peer_cid: str, pending_here: int, pending_there: int, held: int
+    ) -> None:
+        """Record one device's backlog reported by the serving pass."""
+        if peer_cid:
+            self._device_stats[peer_cid] = (pending_here, pending_there, held)
+
+    def _serving_sync_state(self) -> tuple[str, int, int, int]:
+        """Derive the file-set state from the per-device rows of a serving pass.
+
+        The aggregate is the device **furthest behind**, never the union: a file
+        only one device holds is in sync for that device and still pending for
+        the others, so the bar answers "is every device converged?". The counts
+        are that device's backlog, which is exactly the union view when a single
+        device is connected.
+        """
+        if not self._device_stats:
+            return ("no_devices", 0, 0, 0)
+        pending_here, pending_there, _held = max(
+            self._device_stats.values(), key=lambda row: (row[0] + row[1], row[0])
+        )
+        if not pending_here and not pending_there:
+            return ("in_sync", 0, 0, 0)
+        return ("pending", pending_here, pending_there, 0)
 
     def _begin_comparison(self) -> None:
         """Start any comparison: reset the counters and read "checking".
 
         Both marker pairs open one — the preview this window requested and the
         pass a serving device runs on its own share — so the counters never
-        accumulate across comparisons.
+        accumulate across comparisons, and the waiting counts of a previous pass
+        cannot outlive it.
         """
         self._append_log("--- Updating file status... ---")
         self._preview_stats.reset()
+        self._device_stats.clear()
+        self._pending_inventory = None
         self._set_sync_state("checking")
 
     def _finish_comparison(self) -> None:
-        """Render the outcome of a completed comparison (either marker pair)."""
+        """Render the outcome of the preview this window requested."""
         self._file_panel.mark_verified()
         self._set_sync_state(*self._sync_state_after_preview())
 
-    @Slot(str, str, int)
-    def _on_file_status(self, status: str, filepath: str, size: int) -> None:
-        """Handle file status from preview."""
+    @Slot(str, str, int, int, int)
+    def _on_file_status(
+        self, status: str, filepath: str, size: int, holders: int = -1, devices: int = -1
+    ) -> None:
+        """Handle a per-file status, with its device coverage when known."""
         # Convert absolute path to relative path for table lookup
         base_path = self._local_path
         rel_path = filepath
         if base_path and filepath.startswith(base_path):
             rel_path = filepath[len(base_path) :].lstrip("/\\")
-        self._file_panel.update_file_status(rel_path, status, size, preview=True)
+        self._file_panel.update_file_status(
+            rel_path, status, size, holders=holders, devices=devices, preview=True
+        )
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(rel_path)
             debug_events.log(

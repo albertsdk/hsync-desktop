@@ -2571,12 +2571,13 @@ class TestSyncState:
             i18n.set_language(previous)
 
     def test_a_serving_device_classification_is_rendered(self, window):
-        """A primary node answers with the status-pass pair; the label follows."""
+        """A primary node answers with the per-device rows of its pass."""
         window._p2p_enabled = True
         window._on_status("connected")
 
         window._on_status_pass_started()
         assert window._sync_state_label.text() == tr("sync.state.checking")
+        window._on_device_status("A" * 21, 0, 0, 1)
         window._on_file_status("synced", "/share/a.bin", 4)
         window._on_status_pass_ended()
 
@@ -2687,7 +2688,7 @@ class TestServingSideClassification:
         window._pending_initial_reconcile = True
 
         window._on_status_pass_started()
-        window._preview_stats.to_upload = 3
+        window._on_device_status("A" * 21, 0, 3, 0)
         window._on_status_pass_ended()
 
         assert calls == []
@@ -2710,20 +2711,81 @@ class TestServingSideClassification:
         assert window._awaiting_preview_for_sync is False
         assert window._pending_initial_reconcile is False
 
-    def test_the_counters_restart_at_every_pass(self, window):
-        """A repeated classification must not inflate the bottom-bar counts."""
+    def test_the_devices_restart_at_every_pass(self, window):
+        """A device that left must not keep its backlog from a previous pass."""
         window._p2p_enabled = True
 
         window._on_status_pass_started()
-        window._preview_stats.to_upload = 2
+        window._on_device_status("A" * 21, 0, 2, 0)
+        window._on_status_pass_ended()
+        assert window._sync_state[0] == "pending"
+
+        window._on_status_pass_started()  # the device left: no row this time
         window._on_status_pass_ended()
 
+        assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+
+class TestPerDeviceSyncState:
+    """The bar reports the device furthest behind, never a set union."""
+
+    def test_the_worst_device_sets_the_counts(self, window):
         window._on_status_pass_started()
-        window._preview_stats.to_upload = 1
+        window._on_device_status("A" * 21, 0, 1, 4)
+        window._on_device_status("B" * 21, 2, 4, 4)
         window._on_status_pass_ended()
 
-        expected = tr("sync.state.pending").replace("{download}", "0").replace("{upload}", "1")
+        expected = tr("sync.state.pending").replace("{download}", "2").replace("{upload}", "4")
         assert window._sync_state_label.text() == expected
+
+    def test_every_device_converged_reads_in_sync(self, window):
+        window._on_status_pass_started()
+        window._on_device_status("A" * 21, 0, 0, 4)
+        window._on_device_status("B" * 21, 0, 0, 7)
+        window._on_status_pass_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
+
+    def test_the_tooltip_names_every_device(self, window):
+        window._on_status_pass_started()
+        window._on_device_status("A" * 21, 0, 1, 4)
+        window._on_device_status("B" * 21, 2, 0, 4)
+        window._on_status_pass_ended()
+
+        tooltip = window._sync_state_label.toolTip()
+        assert tooltip.startswith(tr("tip.sync_state"))
+        assert "A" * 8 in tooltip and "B" * 8 in tooltip
+        assert "↓ 2" in tooltip and "↑ 1" in tooltip
+
+    def test_the_waiting_state_names_the_inventory_gap(self, window):
+        from hsync_desktop.i18n import tr as translate
+
+        window._on_sync_pending("awaiting_inventory", 1, 2)
+
+        assert window._sync_state[0] == "waiting_inventory"
+        assert f"{translate('label.peers')} 1/2" in window._sync_state_label.toolTip()
+
+    def test_a_partially_synced_row_states_its_coverage(self, window):
+        """A file only some devices hold is not plain "Synced"."""
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        table = window._file_panel.table
+        table.set_connected(True)
+        window._on_file_status("synced", "/share/a.bin", 4, holders=2, devices=3)
+
+        row = table._transfers["/share/a.bin"]
+        text, status = table.model()._row_status(row, None, False)
+        assert status is TransferStatus.SYNCED
+        assert text == f"{tr('detail.synced')} · 2/3"
+
+    def test_a_fully_covered_row_stays_plain_synced(self, window):
+        table = window._file_panel.table
+        table.set_connected(True)
+        window._on_file_status("synced", "/share/a.bin", 4, holders=3, devices=3)
+
+        row = table._transfers["/share/a.bin"]
+        text, _status = table.model()._row_status(row, None, False)
+        assert text == tr("detail.synced")
 
 
 class TestCheckChangesAction:

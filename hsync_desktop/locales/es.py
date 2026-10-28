@@ -371,7 +371,7 @@ translations: dict[str, str] = {
     "tip.server_url": "Nombre de host, IP o host:puerto del servidor HSYNC; se asumen https:// y el puerto 9753. Dejar vacío para el modo solo p2p.",
     "tip.share_size": "Espacio ocupado por la carpeta compartida en este dispositivo y tamaño total del recurso compartido (archivos en el servidor remoto + archivos locales aún no subidos).",
     "tip.check_changes": "Compara la carpeta con los demás dispositivos: muestra los cambios pendientes y actualiza la lista de archivos y el estado de sincronización (F5).",
-    "tip.sync_state": "Indica si la carpeta compartida coincide con los demás dispositivos: ningún dispositivo conectado, comprobando, todo sincronizado o los cambios aún por transferir.",
+    "tip.sync_state": "Indica si la carpeta compartida coincide con los demás dispositivos: nada que comparar, comprobando, todo sincronizado o los cambios pendientes de transferir. Con varios dispositivos, el estado es el del dispositivo más atrasado y las líneas siguientes muestran los cambios pendientes de cada uno.",
     "tip.api_key": "Clave API para autenticación con el servidor",
     "tip.insecure": "No verificar el certificado del servidor (menos seguro).",
     "tip.ca_cert": "Archivo de certificado para un servidor con certificado autofirmado.",

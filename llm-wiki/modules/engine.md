@@ -102,12 +102,13 @@ command line:
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
 | `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |
 | `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
-| `sync_pending` | `sync_pending(reason)` — `no_device` or `awaiting_inventory` |
+| `sync_pending` | `sync_pending(reason, devices, expected)` — `no_device`, or `awaiting_inventory` with the published/expected inventory counts |
 | `duplicate_identity` | `duplicate_identity(peer_cid, peer_address)` |
 | `pairing_needed` / `fingerprint_changed` | `pairing_needed(scope, peer_cid, peer_address, fingerprint)` / `fingerprint_changed(scope, peer_cid, peer_address, fingerprint)` |
 | `preview_start` / `preview_end` | `preview_started` / `preview_ended` — the comparison this window requested |
 | `status_pass_start` / `status_pass_end` | `status_pass_started` / `status_pass_ended` — the classification pass of a serving device |
-| `file_status` / `rename_status` | `file_status(status, filepath, size)` / `file_rename_status(old, new, size)` |
+| `device_status` | `device_status(cid, pending_here, pending_there, held)` — one row per live device inside a serving pass |
+| `file_status` / `rename_status` | `file_status(status, filepath, size, holders, devices)` / `file_rename_status(old, new, size)` |
 
 Mappings live in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`). Full signal list: `HsyncEngine`
 Signal declarations (`engine/process.py::HsyncEngine`). Event names + payload shape are SSOT in

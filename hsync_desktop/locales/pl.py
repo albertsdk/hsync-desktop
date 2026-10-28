@@ -322,7 +322,7 @@ translations: dict[str, str] = {
     "tip.server_url": "Nazwa hosta, adres IP lub host:port serwera HSYNC; https:// i port 9753 są domyślne. Pozostaw puste, aby używać tylko p2p.",
     "tip.share_size": "Miejsce zajmowane przez udostępniony folder na tym urządzeniu i łączny rozmiar udostępnienia (pliki na zdalnym serwerze + lokalne pliki jeszcze nieprzesłane).",
     "tip.check_changes": "Porównuje folder z innymi urządzeniami: pokazuje oczekujące zmiany i odświeża listę plików oraz stan synchronizacji (F5).",
-    "tip.sync_state": "Pokazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak podłączonych urządzeń, trwa sprawdzanie, wszystko zsynchronizowane lub pozostałe zmiany do przesłania.",
+    "tip.sync_state": "Wskazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak urządzenia do porównania, sprawdzanie, wszystko zsynchronizowane albo zmiany do przesłania. Przy wielu urządzeniach stan dotyczy urządzenia najbardziej opóźnionego, a poniższe wiersze pokazują oczekujące zmiany każdego z nich.",
     "tip.api_key": "Klucz API do uwierzytelniania na serwerze",
     "tip.insecure": "Nie weryfikuj certyfikatu serwera (mniej bezpieczne).",
     "tip.ca_cert": "Plik certyfikatu dla serwera z certyfikatem z podpisem własnym.",
