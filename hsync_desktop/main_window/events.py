@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
-from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtCore import QPoint, QSettings, Qt, QTime, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -116,6 +116,11 @@ class EventsMixin:
     # inventory" counts (published, expected).
     _device_stats: dict[str, tuple[int, int, int]]
     _pending_inventory: tuple[int, int] | None
+    # Comparison window and its outcome (see MainWindow.__init__).
+    _comparison_in_flight: bool
+    _comparison_errored: bool
+    _last_check_at: QTime | None
+    _peers_total: int
 
     @Slot(str)
     def _on_bucket_detected(self, bucket: str) -> None:
@@ -155,6 +160,9 @@ class EventsMixin:
         # The role text appears only once connected (icon is always shown in p2p).
         self._connected = status == "connected"
         self._apply_role_visibility()
+        # The check action explains itself: "compare now" once linked, "waiting
+        # for a connection" (or the last check time) otherwise.
+        self._update_check_changes_tooltip()
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
@@ -277,6 +285,10 @@ class EventsMixin:
             return "pending", downloads, uploads, others
         if others:
             return "pending_other", 0, 0, others
+        if self._p2p_enabled and self._peers_total == 1:
+            # Alone in the group: an empty answer is the absence of a peer, not
+            # a share that is already in sync (a failed preview classifies nothing).
+            return "no_devices", 0, 0, 0
         if stats.synced or self._file_panel.table.model().rowCount() == 0:
             return "in_sync", 0, 0, 0
         if self._sync_state[0] in ("no_devices", "waiting_inventory", "offline"):
@@ -297,6 +309,8 @@ class EventsMixin:
     @Slot(int, int)
     def _on_peers(self, connected: int, total: int) -> None:
         self._peers_label.setText(f"{connected}/{total}")
+        # Presence includes this device: 1 means nothing to compare against.
+        self._peers_total = total
         if self._p2p_enabled:
             if total <= 1:
                 # Alone in the group: there is no file set to compare against.
@@ -678,13 +692,18 @@ class EventsMixin:
         self._append_log("--- File status updated ---")
         self._finish_comparison()
         # The preview answered: it is now safe to credit the one-shot catch-up.
-        if self._pending_initial_reconcile:
+        # A failed preview is not an answer, so the next connect still asks for it.
+        if self._pending_initial_reconcile and not self._comparison_errored:
             self._pending_initial_reconcile = False
             self._initial_reconcile_done = True
-        # Show summary dialog if awaiting sync confirmation
+        # Show summary dialog if awaiting sync confirmation. A failed comparison
+        # already surfaced its error: never follow it with a "nothing to sync"
+        # plan that was never computed. The initial dry-run keeps the fallback,
+        # because that SYNC is what takes the client out of dry-run mode.
         if self._awaiting_preview_for_sync:
             self._awaiting_preview_for_sync = False
-            self._show_preview_summary()
+            if not self._comparison_errored or self._is_dry_run_preview:
+                self._show_preview_summary()
 
     @Slot()
     def _on_status_pass_started(self) -> None:
@@ -703,6 +722,8 @@ class EventsMixin:
         self._append_log("--- File status updated ---")
         self._file_panel.mark_verified()
         self._set_sync_state(*self._serving_sync_state())
+        self._stamp_last_check()
+        self._end_comparison()
 
     @Slot(str, int, int, int)
     def _on_device_status(
@@ -742,12 +763,31 @@ class EventsMixin:
         self._preview_stats.reset()
         self._device_stats.clear()
         self._pending_inventory = None
+        self._comparison_in_flight = True
+        self._comparison_errored = False
         self._set_sync_state("checking")
+        self._update_menu_state()
 
     def _finish_comparison(self) -> None:
         """Render the outcome of the preview this window requested."""
         self._file_panel.mark_verified()
         self._set_sync_state(*self._sync_state_after_preview())
+        self._stamp_last_check()
+        self._end_comparison()
+
+    def _stamp_last_check(self) -> None:
+        """Record when a comparison answered (never for a failed one)."""
+        if not self._comparison_errored:
+            self._last_check_at = QTime.currentTime()
+
+    def _end_comparison(self) -> None:
+        """Close the comparison a start marker opened and re-enable the action.
+
+        Both marker pairs share it, so the manual check is never left disabled
+        after a serving pass and never re-enabled while another one still runs.
+        """
+        self._comparison_in_flight = False
+        self._update_menu_state()
 
     def _preview_path(self, path: str) -> str:
         """User-facing path: relative to the selected folder when it is below it."""
@@ -859,6 +899,11 @@ class EventsMixin:
         self._role_known = False
         self._is_master = None
         self._connected = False
+        # A dead process cannot finish its comparison: close the window so the
+        # manual check is not left disabled for the next run.
+        self._comparison_in_flight = False
+        self._comparison_errored = False
+        self._peers_total = 0
         # The sync-set total belongs to the engine session; keep the scan local.
         self._share_total_bytes = -1
         self._retranslate_role()
@@ -876,7 +921,6 @@ class EventsMixin:
         self._peers_label.setText("–")
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
-        self._btn_check_changes.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
         # Keep result/error toasts visible after the process exits; clear only

@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
-from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtCore import QPoint, QSettings, Qt, QTime, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -149,6 +149,19 @@ class MainWindow(
         # The "nothing to sync" result of that phase is reported once, even when
         # the SYNC has to be retried (see _show_preview_summary).
         self._dry_run_preview_reported = False
+        # A comparison (preview or serving pass) is in flight: the manual check
+        # stays disabled until its end marker clears it, so a click can never
+        # queue a second full re-hash behind the running one.
+        self._comparison_in_flight = False
+        # The engine reported an error while that comparison ran: a failed preview
+        # still emits its end marker, so only a clean one may claim a last check.
+        self._comparison_errored = False
+        # Wall-clock time of the last comparison that actually answered, shown in
+        # the action tooltip (the app also checks on its own on every connect).
+        self._last_check_at: QTime | None = None
+        # Devices in the group, self included (0 until the client reports it): a
+        # lone device has nothing to compare, and the summary says so.
+        self._peers_total = 0
         # Simulation Mode: read from settings and reflected in badge/title/tray.
         self._simulation_mode = False
         # Theme the log panel's colors are rendered with (updated on a theme change).

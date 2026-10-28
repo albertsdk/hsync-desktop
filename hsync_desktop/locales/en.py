@@ -324,6 +324,8 @@ translations: dict[str, str] = {
     "tip.server_url": "Hostname, IP or host:port of the HSYNC server; https:// and port 9753 are implied. Leave empty for p2p only.",
     "tip.share_size": "Space used by the shared folder on this device, and the total share size (remote/server files plus local files not yet uploaded).",
     "tip.check_changes": "Compare the folder with the other devices: it lists the changes still pending and updates the file list and the sync state (F5).",
+    "tip.check_changes_waiting": "The check starts automatically once the sync is running and a device is reachable. Press F5 to be told what is still missing.",
+    "tip.check_changes_last": "Last check: {time}",
     "tip.sync_state": "Whether the shared folder matches the other devices: nothing to compare, checking, every device in sync, or the changes still to transfer. With more than one device the state is the one furthest behind, and the lines below list each device's pending changes.",
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Do not verify the server certificate (less secure).",
@@ -458,6 +460,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",
+    "check_changes.no_devices": "No other device is reachable, so there is nothing to compare yet. The check runs automatically when one joins.",
     "preview.simulation_no_changes": "Simulation Mode: nothing was applied. Turn it off in Settings → Sync to run for real.",
     # Disclaimer
     "disclaimer.title": "Disclaimer",

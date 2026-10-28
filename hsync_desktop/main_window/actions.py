@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
-from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtCore import QPoint, QSettings, Qt, QTime, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -100,6 +100,11 @@ class ActionsMixin:
     _role_known: bool
     _is_master: bool | None
     _connected: bool
+    # Comparison window and its outcome (see MainWindow.__init__).
+    _comparison_in_flight: bool
+    _comparison_errored: bool
+    _last_check_at: QTime | None
+    _peers_total: int
 
     @Slot(QAction)
     def _on_direction_changed(self, action: QAction) -> None:
@@ -250,12 +255,11 @@ class ActionsMixin:
         self._on_status("connecting")
         self._btn_start.setEnabled(False)
         self._btn_stop.setEnabled(True)
-        # A running engine can always compare the share: the command is queued on
-        # its stdin and both roles answer it (see StartMixin._on_check_changes).
-        self._btn_check_changes.setEnabled(True)
         if self._tray:
             self._tray.set_running(True)
         self._apply_button_styles()
+        # ``_update_menu_state`` derives the check action from ``_can_check_changes``
+        # (single rule for button, F5 menu action and tray): never enable it here.
         self._update_menu_state()
 
     def _prepare_engine_run(
@@ -281,6 +285,11 @@ class ActionsMixin:
         self._pending_initial_reconcile = False
         self._dry_run_preview_reported = False
         self._last_scan_preview_at = 0.0
+        # A fresh process starts with no comparison behind it and no presence yet.
+        self._comparison_in_flight = False
+        self._comparison_errored = False
+        self._last_check_at = None
+        self._peers_total = 0
         # A fresh process runs a fresh p2p election: back to the neutral role.
         self._role_known = False
         self._is_master = None
@@ -488,8 +497,15 @@ class ActionsMixin:
         simulation = is_simulation_mode()
 
         if not s.has_work():
-            # Skip the dialog entirely.
-            self._append_desktop_log("INFO", tr("preview.no_actions"))
+            # Skip the dialog entirely. "Nothing to do" is only true when a peer
+            # answered: a lone device has nothing to compare yet, and saying
+            # "everything is in sync" would claim an answer that never came.
+            message = (
+                tr("check_changes.no_devices")
+                if not selection and self._sync_state[0] == "no_devices"
+                else tr("preview.no_actions")
+            )
+            self._append_desktop_log("INFO", message)
             if selection:
                 # Scoped op with nothing to transfer: report it instead of silence.
                 self._finish_selection_sync("already_synced")
@@ -505,11 +521,11 @@ class ActionsMixin:
                 if not self._dry_run_preview_reported:
                     self._dry_run_preview_reported = True
                     # Surface the result without needing the log panel.
-                    self._info_selection_outcome(tr("preview.no_actions"), success=False)
+                    self._info_selection_outcome(message, success=False)
                 return
             self._is_dry_run_preview = False
             # Non-scoped: surface the result without needing the log panel.
-            self._info_selection_outcome(tr("preview.no_actions"), success=False)
+            self._info_selection_outcome(message, success=False)
             return
 
         if selection:

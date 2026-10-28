@@ -324,6 +324,8 @@ translations: dict[str, str] = {
     "tip.server_url": "HSYNC 服务器的主机名、IP 或 host:port；默认使用 https:// 和端口 9753。仅使用 p2p 时留空。",
     "tip.share_size": "此设备上共享文件夹占用的空间，以及共享总大小（远程服务器上的文件 + 尚未上传的本地文件）。",
     "tip.check_changes": "将文件夹与其他设备进行比较：列出仍待处理的变化，并更新文件列表和同步状态（F5）。",
+    "tip.check_changes_waiting": "同步运行且可连接设备后会自动检查。按 F5 查看仍缺少的内容。",
+    "tip.check_changes_last": "上次检查：{time}",
     "tip.sync_state": "指示共享文件夹是否与其他设备一致：没有可比较的设备、正在检查、全部已同步，或仍有待传输的更改。连接多个设备时，状态取最落后的设备，下面的各行列出每个设备的待处理更改。",
     "tip.api_key": "用于服务器身份验证的 API 密钥",
     "tip.insecure": "不验证服务器证书（安全性较低）。",
@@ -458,6 +460,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "同步预览",
     "preview.no_actions": "没有要执行的操作 — 一切已同步。",
+    "check_changes.no_devices": "没有其他可连接的设备，因此暂时没有可比较的内容。有设备加入后会自动检查。",
     "preview.simulation_no_changes": "模拟模式：未应用任何更改。在“设置 → 同步”中关闭它即可实际执行。",
     # Disclaimer
     "disclaimer.title": "免责声明",

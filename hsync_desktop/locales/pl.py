@@ -324,6 +324,8 @@ translations: dict[str, str] = {
     "tip.server_url": "Nazwa hosta, adres IP lub host:port serwera HSYNC; https:// i port 9753 są domyślne. Pozostaw puste, aby używać tylko p2p.",
     "tip.share_size": "Miejsce zajmowane przez udostępniony folder na tym urządzeniu i łączny rozmiar udostępnienia (pliki na zdalnym serwerze + lokalne pliki jeszcze nieprzesłane).",
     "tip.check_changes": "Porównuje folder z innymi urządzeniami: pokazuje oczekujące zmiany i odświeża listę plików oraz stan synchronizacji (F5).",
+    "tip.check_changes_waiting": "Sprawdzanie rozpoczyna się automatycznie, gdy synchronizacja działa i urządzenie jest osiągalne. Naciśnij F5, aby zobaczyć, czego brakuje.",
+    "tip.check_changes_last": "Ostatnie sprawdzenie: {time}",
     "tip.sync_state": "Wskazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak urządzenia do porównania, sprawdzanie, wszystko zsynchronizowane albo zmiany do przesłania. Przy wielu urządzeniach stan dotyczy urządzenia najbardziej opóźnionego, a poniższe wiersze pokazują oczekujące zmiany każdego z nich.",
     "tip.api_key": "Klucz API do uwierzytelniania na serwerze",
     "tip.insecure": "Nie weryfikuj certyfikatu serwera (mniej bezpieczne).",
@@ -458,6 +460,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Podgląd synchronizacji",
     "preview.no_actions": "Brak działań do wykonania — wszystko jest zsynchronizowane.",
+    "check_changes.no_devices": "Żadne inne urządzenie nie jest osiągalne, więc nie ma jeszcze czego porównywać. Sprawdzanie uruchomi się automatycznie, gdy dołączy urządzenie.",
     "preview.simulation_no_changes": "Tryb symulacji: nie zastosowano żadnych zmian. Wyłącz go w Ustawienia → Synchronizacja, aby wykonać naprawdę.",
     # Disclaimer
     "disclaimer.title": "Zastrzeżenie",

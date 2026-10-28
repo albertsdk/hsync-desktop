@@ -134,7 +134,6 @@ class StartMixin:
         self._stop_requested = False
         self._btn_start.setEnabled(bool(self._local_path))
         self._btn_stop.setEnabled(False)
-        self._btn_check_changes.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
         # Keep result/error toasts visible; only run-scoped toasts are cleared.
@@ -641,7 +640,6 @@ class StartMixin:
         self._set_status_label("stopping")
         self._btn_start.setEnabled(False)
         self._btn_stop.setEnabled(False)
-        self._btn_check_changes.setEnabled(False)
         if self._tray:
             self._tray.set_stopping()
         self._apply_button_styles()
@@ -662,6 +660,23 @@ class StartMixin:
         self._append_desktop_log("WARNING", tr("notif.stop_timeout"))
         self._show_info_banner(tr("notif.stop_timeout"), kind="warning", title=tr("notif.warning"))
 
+    def _can_check_changes(self) -> bool:
+        """Whether the manual comparison can run in the current state.
+
+        One predicate for the action-bar button, the ``F5`` menu action and the
+        tray entry, so the three never disagree. A missing link does **not**
+        disable the action: the click then explains that the check waits for a
+        connection, instead of writing a ``PREVIEW`` the client can only fail.
+        """
+        return (
+            self._engine.is_running
+            and not self._stop_requested
+            and not self._comparison_in_flight
+            and not self._selection_sync_active
+            # Simulation Mode *is* a preview: a second one would race the one-shot.
+            and not is_simulation_mode()
+        )
+
     def _on_check_changes(self) -> None:
         """Ask the running engine for a fresh comparison of the share.
 
@@ -672,9 +687,26 @@ class StartMixin:
         its own classification pass (``status_pass_start``/``status_pass_end``),
         which re-renders the rows and the file-set state — there is nothing for the
         serving device to pull.
+
+        The guards keep the click honest: no comparison with a dead engine, none
+        queued behind a running one, none while Simulation Mode (the whole run is
+        already a preview) and none before a link exists — the client's preview
+        would fail and still report an end marker, which reads as "everything in
+        sync". The app itself compares on every connect, so nothing is lost.
         """
         if not self._engine.is_running:
             self._append_desktop_log("WARNING", "Please start synchronization first.")
+            return
+        if self._comparison_in_flight:
+            # The control is disabled while one runs; this covers a queued click.
+            return
+        if is_simulation_mode():
+            self._append_desktop_log("INFO", tr("simulation.tip"))
+            self._show_info_banner(tr("simulation.tip"), kind="info")
+            return
+        if not self._connected:
+            self._append_desktop_log("INFO", tr("tip.check_changes_waiting"))
+            self._show_info_banner(tr("tip.check_changes_waiting"), kind="info")
             return
         # The action name is the menu entry: one vocabulary for the tooltip,
         # the menu, the tray and the log line this click writes.

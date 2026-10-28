@@ -148,6 +148,9 @@ class TestShutdown:
             def set_window_visible(self, _visible: bool) -> None:
                 pass
 
+            def set_check_changes_enabled(self, _enabled: bool) -> None:
+                pass
+
         tray = _Tray()
         window._tray = tray  # type: ignore[assignment]
         return tray
@@ -1367,10 +1370,19 @@ class TestInitialReconcile:
             _sync_state_label=None,
             _set_sync_state=lambda *_a, **_k: None,
             _sync_state_after_preview=lambda: ("in_sync", 0, 0, 0),
+            _device_stats={},
+            _pending_inventory=None,
+            _comparison_in_flight=False,
+            _comparison_errored=False,
+            _last_check_at=None,
+            _peers_total=0,
+            _update_menu_state=lambda: None,
         )
         # The comparison helpers stay real: the slots under test delegate to them.
         stub._begin_comparison = EventsMixin._begin_comparison.__get__(stub)
         stub._finish_comparison = EventsMixin._finish_comparison.__get__(stub)
+        stub._stamp_last_check = EventsMixin._stamp_last_check.__get__(stub)
+        stub._end_comparison = EventsMixin._end_comparison.__get__(stub)
         return stub
 
     def test_first_connect_runs_preview_then_sync(self):
@@ -2928,6 +2940,7 @@ class TestCheckChangesAction:
     def test_a_serving_device_refresh_asks_for_a_classification(self, window):
         window._p2p_enabled = True
         window._is_master = True
+        window._connected = True
         window._awaiting_preview_for_sync = False
 
         with self._running_engine(window) as preview:
@@ -2940,6 +2953,7 @@ class TestCheckChangesAction:
     def test_a_secondary_refresh_arms_the_sync_confirmation(self, window):
         window._p2p_enabled = True
         window._is_master = False
+        window._connected = True
 
         with self._running_engine(window) as preview:
             window._on_check_changes()
@@ -2957,12 +2971,112 @@ class TestCheckChangesAction:
 
         assert preview.call_count == 0
 
+    def test_a_click_without_a_link_explains_instead_of_failing(self, window):
+        """A PREVIEW before the link exists can only fail, and its end marker
+        would read as "everything in sync": answer the click instead."""
+        window._connected = False
+        window._awaiting_preview_for_sync = False
+
+        with self._running_engine(window) as preview:
+            window._on_check_changes()
+
+            assert preview.call_count == 0
+            assert window._awaiting_preview_for_sync is False
+            assert window._info_banner.isHidden() is False
+            assert tr("tip.check_changes_waiting") in window._log_view.toPlainText()
+
+    def test_a_comparison_in_flight_disables_the_action(self, window):
+        """A click must not queue a second full scan behind the running one."""
+        with self._running_engine(window):
+            window._enter_running_ui()
+            window._on_preview_started()
+
+            assert not window._btn_check_changes.isEnabled()
+            assert not window._act_check_changes.isEnabled()
+
+            window._on_preview_ended()
+
+            assert window._btn_check_changes.isEnabled()
+            assert window._act_check_changes.isEnabled()
+
+        window._reset_ui_stopped()
+
+    def test_a_serving_pass_disables_and_re_enables_the_action(self, window):
+        """The serving-side pair owns the same window as a requester preview."""
+        with self._running_engine(window):
+            window._enter_running_ui()
+            window._on_status_pass_started()
+
+            assert not window._btn_check_changes.isEnabled()
+
+            window._on_status_pass_ended()
+
+            assert window._btn_check_changes.isEnabled()
+
+        window._reset_ui_stopped()
+
+    def test_a_dead_engine_cannot_leave_the_action_disabled(self, window):
+        with self._running_engine(window):
+            window._enter_running_ui()
+            window._on_preview_started()
+
+        window._on_process_finished(0, "stopped")
+
+        assert not window._comparison_in_flight
+        assert not window._btn_check_changes.isEnabled()
+
+    def test_the_tooltip_names_the_last_check(self, window):
+        window._connected = True
+        window._on_preview_started()
+        window._on_preview_ended()
+
+        assert window._last_check_at is not None
+        last = tr("tip.check_changes_last").split("{time}")[0]
+        assert last in window._btn_check_changes.toolTip()
+
+    def test_a_failed_comparison_is_not_a_last_check(self, window):
+        window._connected = True
+        window._on_preview_started()
+        window._on_engine_error("preview failed")
+
+        window._on_preview_ended()
+
+        assert window._last_check_at is None
+
+    def test_a_lone_device_is_not_reported_as_in_sync(self, window):
+        """Nothing was compared, so the result must not claim "everything in sync"."""
+        window._preview_stats.reset()
+        window._p2p_enabled = True
+        window._on_peers(1, 1)
+
+        window._show_preview_summary()
+
+        assert window._info_banner_label.text() == tr("check_changes.no_devices")
+
+    def test_a_failed_preview_opens_no_summary(self, window, monkeypatch):
+        """The error already surfaced: a plan that was never computed is not offered."""
+        calls: list[str] = []
+        monkeypatch.setattr(window, "_show_preview_summary", lambda: calls.append("summary"))
+        window._awaiting_preview_for_sync = True
+        window._pending_initial_reconcile = True
+        window._is_dry_run_preview = False
+
+        window._on_preview_started()
+        window._on_engine_error("preview failed")
+        window._on_preview_ended()
+
+        assert calls == []
+        assert window._awaiting_preview_for_sync is False
+        # A failed preview is not an answer: the catch-up is not burned.
+        assert window._pending_initial_reconcile is True
+        assert window._last_check_at is None
+
     def test_the_button_is_icon_only_with_an_explanatory_tooltip(self, window):
         """The action bar shows no text, so the tooltip has to explain the action."""
         assert window._btn_check_changes.text() == ""
         assert not window._btn_check_changes.icon().isNull()
-        assert window._btn_check_changes.toolTip() == tr("tip.check_changes")
-        # The shortcut is part of the only text the control shows.
+        # Idle: the tooltip says when the check can run, and names the shortcut.
+        assert window._btn_check_changes.toolTip() == tr("tip.check_changes_waiting")
         assert "F5" in window._btn_check_changes.toolTip()
 
 
@@ -2998,6 +3112,9 @@ class TestStoppingFeedback:
                 pass
 
             def set_start_enabled(self, _enabled: bool) -> None:
+                pass
+
+            def set_check_changes_enabled(self, _enabled: bool) -> None:
                 pass
 
         tray = _Tray()

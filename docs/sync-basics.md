@@ -80,7 +80,7 @@ The file list itself is described in [The file list](file-list.md).
 
 ## Check for changes
 
-**Check for changes** (`F5`, or the magnifier button in the action bar) re-compares
+**Check for changes** (`F5`, or the refresh button in the action bar) re-compares
 the folder with the other devices.
 
 - On a **secondary** device it lists the changes still pending and asks whether to
@@ -88,8 +88,15 @@ the folder with the other devices.
 - On the **primary** device it only re-reads what the connected devices hold — the
   primary is the source, so it has nothing to pull — and updates the file list and
   the *are the files in sync?* label.
+- While a comparison is running the button is disabled, so one full scan runs at a
+  time and the tooltip reads **Checking…**.
 
-The action is available for as long as the sync is running, in both roles.
+The app also compares on its own when it connects and when devices or files
+change, so the button is a fallback: its tooltip shows when the folder was last
+checked. Pressing it before a connection exists scans nothing — the window says
+that the check starts automatically as soon as a device is reachable, and a run
+with no other device reports **No devices** instead of claiming that everything is
+in sync.
 
 ## Sync one folder on demand
 

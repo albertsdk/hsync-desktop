@@ -324,6 +324,8 @@ translations: dict[str, str] = {
     "tip.server_url": "Hostnaam, IP of host:poort van de HSYNC-server; https:// en poort 9753 zijn impliciet. Laat leeg voor alleen p2p.",
     "tip.share_size": "Ruimte van de gedeelde map op dit apparaat en de totale grootte van de share (bestanden op de externe server + nog niet geüploade lokale bestanden).",
     "tip.check_changes": "Vergelijkt de map met de andere apparaten: toont de nog openstaande wijzigingen en werkt de bestandenlijst en de synchronisatiestatus bij (F5).",
+    "tip.check_changes_waiting": "De controle start automatisch zodra de synchronisatie loopt en een apparaat bereikbaar is. Druk op F5 om te zien wat er nog ontbreekt.",
+    "tip.check_changes_last": "Laatste controle: {time}",
     "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: niets om te vergelijken, bezig met controleren, alles gesynchroniseerd of de nog te verzenden wijzigingen. Bij meerdere apparaten geldt het apparaat dat het verst achterloopt en de regels hieronder tonen de openstaande wijzigingen per apparaat.",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
@@ -458,6 +460,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "Synchronisatievoorbeeld",
     "preview.no_actions": "Geen acties uit te voeren — alles is gesynchroniseerd.",
+    "check_changes.no_devices": "Er is geen ander apparaat bereikbaar, dus er valt nog niets te vergelijken. De controle start automatisch zodra er een apparaat bijkomt.",
     "preview.simulation_no_changes": "Simulatiemodus: er is niets toegepast. Schakel hem uit in Instellingen → Synchronisatie om echt uit te voeren.",
     # Disclaimer
     "disclaimer.title": "Vrijwaring",

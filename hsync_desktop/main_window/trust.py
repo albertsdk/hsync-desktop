@@ -360,10 +360,10 @@ class TrustMixin:
             if self._start_engine(args):
                 self._btn_start.setEnabled(False)
                 self._btn_stop.setEnabled(True)
-                self._btn_check_changes.setEnabled(False)
                 if self._tray:
                     self._tray.set_running(True)
                 self._apply_button_styles()
+                self._update_menu_state()
                 return
         self._hide_info_banner()
         self._reset_ui_stopped()

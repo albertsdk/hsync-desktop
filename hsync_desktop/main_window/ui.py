@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
 from hsync_common.logger import format_timestamp
-from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtCore import QLocale, QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -169,7 +169,7 @@ class UiBuildMixin:
         for btn, ico_name in (
             (self._btn_start, "media-playback-start"),
             (self._btn_stop, "media-playback-stop"),
-            (self._btn_check_changes, "system-search"),
+            (self._btn_check_changes, "view-refresh"),
         ):
             btn.setIcon(get_icon(ico_name))
             btn.setIconSize(icon_size)
@@ -342,7 +342,7 @@ class UiBuildMixin:
         """Apply i18n translations to UI elements."""
         self._btn_start.setToolTip(tr("btn.start"))
         self._btn_stop.setToolTip(tr("btn.stop"))
-        self._btn_check_changes.setToolTip(tr("tip.check_changes"))
+        self._update_check_changes_tooltip()
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
         # Seed the active share name from the configured share; the window title
@@ -437,6 +437,9 @@ class UiBuildMixin:
         tray = getattr(self, "_tray", None)
         if tray is not None:
             tray.set_simulation(self._simulation_mode)
+        # The check action depends on the mode (a Simulation run *is* a preview):
+        # keep button, F5 and tray in step when settings change mid-session.
+        self._update_menu_state()
 
     def _update_peers_label_title(self) -> None:
         """Label the presence count for what it actually counts.
@@ -643,7 +646,13 @@ class UiBuildMixin:
         self._act_file_receive.setEnabled(selection_sync)
 
     def _update_menu_state(self) -> None:
-        """Update menu/button/tray enabled state based on app state."""
+        """Update menu/button/tray enabled state based on app state.
+
+        The check action is derived here from ``StartMixin._can_check_changes``
+        for the action-bar button, the ``F5`` menu action and the tray entry: one
+        rule, so the three can never disagree (and a comparison in flight greys
+        the control instead of queueing a second scan).
+        """
         if not hasattr(self, "_act_start"):
             return  # Menu bar not yet created
         is_running = self._engine.is_running
@@ -658,15 +667,45 @@ class UiBuildMixin:
         if self._tray:
             self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running and not is_stopping)
-        self._act_check_changes.setEnabled(
-            is_running and not is_stopping and self._btn_check_changes.isEnabled()
-        )
+        can_check = self._can_check_changes()
+        self._btn_check_changes.setEnabled(can_check)
+        self._act_check_changes.setEnabled(can_check)
+        if self._tray:
+            self._tray.set_check_changes_enabled(can_check)
         # Send/Receive of a selection are one-shot commands: only while stopped.
         idle = not is_running and not is_stopping
         self._act_file_send.setEnabled(idle and self._has_file_selection())
         self._act_file_receive.setEnabled(idle and self._has_file_selection())
         self._file_panel._table.set_sync_active(is_running and not is_stopping)
         self._apply_button_styles()
+        self._update_check_changes_tooltip()
+
+    def _update_check_changes_tooltip(self) -> None:
+        """Explain the check action in its current state.
+
+        The action-bar button is icon-only, so this tooltip is the control's only
+        text: it says why the action is off when it is (a comparison running or
+        Simulation Mode), why a click cannot compare yet (no link) and when the
+        folder was last compared — the app also checks on its own on every
+        connect, so the recency is what most often saves the click.
+        """
+        button = getattr(self, "_btn_check_changes", None)
+        if button is None:
+            return
+        if self._comparison_in_flight:
+            button.setToolTip(tr("sync.state.checking"))
+            return
+        if is_simulation_mode():
+            button.setToolTip(tr("simulation.tip"))
+            return
+        if not self._connected:
+            button.setToolTip(tr("tip.check_changes_waiting"))
+            return
+        tooltip = tr("tip.check_changes")
+        if self._last_check_at is not None:
+            stamp = QLocale().toString(self._last_check_at, QLocale.FormatType.ShortFormat)
+            tooltip = f"{tooltip} · {tr('tip.check_changes_last').replace('{time}', stamp)}"
+        button.setToolTip(tooltip)
 
     @Slot(str)
     def _append_log(self, line: str) -> None:
@@ -737,6 +776,10 @@ class UiBuildMixin:
         self._last_engine_error = message
         if message:
             self._append_desktop_log("ERROR", message)
+        if message and self._comparison_in_flight:
+            # The preview/classification failed. Its end marker still arrives, so
+            # record it here: a failed comparison is never a "last check".
+            self._comparison_errored = True
 
         # A structured startup failure: the client is exiting, and
         # ``process_finished`` presents it once with the exit code. Do not toast
@@ -1055,7 +1098,7 @@ class UiBuildMixin:
         )
         # Check-for-changes icon: white when enabled, dark when disabled
         check_changes_icon_color = "#FFFFFF" if self._btn_check_changes.isEnabled() else "#424242"
-        self._btn_check_changes.setIcon(themed_icon("system-search", check_changes_icon_color))
+        self._btn_check_changes.setIcon(themed_icon("view-refresh", check_changes_icon_color))
 
     # ── Actions ──────────────────────────────────────────────────────────
 

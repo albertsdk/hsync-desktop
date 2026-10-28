@@ -324,6 +324,8 @@ translations: dict[str, str] = {
     "tip.server_url": "HSYNC サーバーのホスト名、IP、または host:port。https:// とポート 9753 は省略できます。p2p のみの場合は空欄にします。",
     "tip.share_size": "このデバイスの共有フォルダーが使用する容量と、共有の合計サイズ（リモートサーバー上のファイル + 未アップロードのローカルファイル）。",
     "tip.check_changes": "フォルダーを他のデバイスと比較し、保留中の変更を一覧表示して、ファイル一覧と同期状態を更新します（F5）。",
+    "tip.check_changes_waiting": "同期が実行中でデバイスに接続できると、自動でチェックします。F5 で不足している内容を確認できます。",
+    "tip.check_changes_last": "最終チェック: {time}",
     "tip.sync_state": "共有フォルダーが他のデバイスと一致しているかを示します。比較対象なし、確認中、すべて同期済み、または未転送の変更です。複数のデバイスがある場合、状態は最も遅れているデバイスのものとなり、以下の行に各デバイスの保留中の変更が表示されます。",
     "tip.api_key": "サーバー認証用の API キー",
     "tip.insecure": "サーバー証明書を検証しません（安全性が低下）。",
@@ -458,6 +460,7 @@ translations: dict[str, str] = {
     # Preview
     "preview.title": "同期プレビュー",
     "preview.no_actions": "実行する操作はありません — すべて同期済みです。",
+    "check_changes.no_devices": "接続できる他のデバイスがないため、まだ比較する内容はありません。デバイスが参加すると自動でチェックします。",
     "preview.simulation_no_changes": "シミュレーションモード：変更は適用されていません。実際に実行するには「設定 → 同期」でオフにしてください。",
     # Disclaimer
     "disclaimer.title": "免責事項",

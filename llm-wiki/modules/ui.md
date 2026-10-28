@@ -21,7 +21,7 @@ window's attributes.
 | `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
-| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Stop/Check-changes disabled |
+| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
 | `_on_stop` / `_enter_stopping_ui` | `main_window/start.py::StartMixin._on_stop` / `main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker) |
 | `_on_stop_timeout` | `main_window/start.py::StartMixin._on_stop_timeout` | `HsyncEngine.stop_timeout`: leave `Stopping…`, restore the stopped UI and warn (`notif.stop_timeout`) |
 | `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
@@ -723,13 +723,16 @@ new preview/classification (or a fresh scan after an engine restart) changes
 them, so a synced file does not look unsynced just because the peer went away.
 
 Every per-file status burst is bracketed by exactly one marker pair, and both
-pairs share one rendering path (`EventsMixin._begin_comparison` /
-`EventsMixin._finish_comparison`), so the window never infers the end of a burst:
+pairs share one window (`EventsMixin._begin_comparison` … `EventsMixin._end_comparison`),
+so the window never infers the end of a burst and the manual check stays disabled
+for exactly one comparison:
 
 * `preview_start`/`preview_end` — the preview **this window** requested through
   `engine/process.py::HsyncEngine.preview`. Only its end may confirm a pending
-  sync: `EventsMixin._on_preview_ended` credits `_pending_initial_reconcile` and
-  opens `ActionsMixin._show_preview_summary`.
+  sync: `EventsMixin._on_preview_ended` credits `_pending_initial_reconcile` (only
+  when no engine error hit the comparison) and opens
+  `ActionsMixin._show_preview_summary` (skipped on failure: the error already
+  surfaced, and a plan that was never computed is not offered).
 * `status_pass_start`/`status_pass_end` — the classification pass a **serving
   device** runs on its own share (whenever the client re-classifies the share it
   serves; see the client wiki).
@@ -744,13 +747,36 @@ background pass can never consume the preview the window is waiting for.
 `PREVIEW` on the client's stdin and leaves the rest to the role: a secondary node
 answers with the preview cycle (the summary then offers the sync), a primary node
 with its classification pass. `_awaiting_preview_for_sync` is therefore armed only
-for the requester side, and the action is enabled for as long as the engine runs
-(`ActionsMixin._enter_running_ui`), so the action works in both roles. The action
-bar button is **icon-only** (`main_window/ui.py::UiBuildMixin._load_ui` clears its
-text) and uses the bundled `system-search` icon, so the tooltip (`tip.check_changes`) is
-the control's only text and describes the comparison instead of restating a verb;
-its name is `menu.sync.check_changes`, shared with the tray entry and with the log line
-the click writes (`StartMixin._on_check_changes`).
+for the requester side. Availability is one predicate,
+`StartMixin._can_check_changes` (engine running, not stopping, no comparison in
+flight, no scoped op, not Simulation Mode), consumed by
+`UiBuildMixin._update_menu_state` for the button, the `F5` action and
+`SystemTray.set_check_changes_enabled`, so the three can never disagree.
+
+The slot's guards keep the click honest:
+
+* a comparison already running returns at once — `EventsMixin._begin_comparison`
+  disables the action and `EventsMixin._end_comparison` re-enables it, and both
+  marker pairs (`preview_*`, `status_pass_*`) share that window, so a click never
+  queues a second full re-hash;
+* no link yet: nothing is written, and the window toasts `tip.check_changes_waiting`
+  instead. A `PREVIEW` there could only fail, and a failed preview still emits
+  `preview_end`, which would read as "everything in sync";
+* Simulation Mode toasts `simulation.tip`: the whole run is already a preview.
+
+`EventsMixin._stamp_last_check` records `_last_check_at` only when no engine error
+hit the comparison (`UiBuildMixin._on_engine_error` sets `_comparison_errored`), and
+`UiBuildMixin._update_check_changes_tooltip` renders it through
+`tip.check_changes_last`; the same helper explains the waiting and "Checking…" states.
+`ActionsMixin._show_preview_summary` reports `check_changes.no_devices` instead of
+`preview.no_actions` when `_sync_state` is `no_devices`, so a lone device never
+looks in sync.
+
+The action bar button is **icon-only** (`main_window/ui.py::UiBuildMixin._load_ui`
+clears its text) and uses the bundled `view-refresh` icon (a magnifier reads as
+"search"), so the tooltip is the control's only text and describes the comparison
+instead of restating a verb; its name is `menu.sync.check_changes`, shared with the
+tray entry and with the log line the click writes (`StartMixin._on_check_changes`).
 
 The p2p **post-initial-sync catch-up** (`EventsMixin._on_connected_refresh`) is
 credited only when the preview answers: it arms

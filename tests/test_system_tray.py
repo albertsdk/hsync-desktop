@@ -28,6 +28,24 @@ class TestSimulationNote:
             tray.hide()
 
 
+class TestCheckChangesEntry:
+    """The tray entry mirrors the window's rule: running alone is not enough."""
+
+    def test_running_does_not_enable_the_check_entry(self, qapp):
+        tray = SystemTray()
+        try:
+            tray.set_running(True)
+            assert not tray._act_check_changes.isEnabled()
+
+            tray.set_check_changes_enabled(True)
+            assert tray._act_check_changes.isEnabled()
+
+            tray.set_check_changes_enabled(False)
+            assert not tray._act_check_changes.isEnabled()
+        finally:
+            tray.hide()
+
+
 class TestStoppingState:
     """The tray follows the window while a stop is in flight."""
 

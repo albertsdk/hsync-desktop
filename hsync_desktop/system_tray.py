@@ -149,10 +149,17 @@ class SystemTray(QSystemTrayIcon):
         self.setToolTip(text)
 
     def set_running(self, running: bool) -> None:
-        """Update menu items based on running state."""
+        """Update the run actions; the check entry is set by the window.
+
+        ``set_check_changes_enabled`` carries the window's own rule (a comparison
+        in flight disables it), so this method must not re-enable it on its own.
+        """
         self._act_start.setEnabled(not running)
         self._act_stop.setEnabled(running)
-        self._act_check_changes.setEnabled(running)
+
+    def set_check_changes_enabled(self, enabled: bool) -> None:
+        """Mirror the window's "can compare now" rule for the tray entry."""
+        self._act_check_changes.setEnabled(enabled)
 
     def set_stopping(self) -> None:
         """Disable the run actions while a stop is in flight.

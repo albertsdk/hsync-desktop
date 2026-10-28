@@ -30,7 +30,7 @@ The three buttons on the left are the everyday controls:
 | ------ | ------------ |
 | ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. |
 | ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
-| 🔍 **Check for changes** | Re-compares your folder with the other devices and updates the list. |
+| 🔄 **Check for changes** | Re-compares your folder with the other devices and updates the list. It is disabled while a comparison runs; before a connection exists it explains that the check starts on its own. |
 
 ## The path bar
 

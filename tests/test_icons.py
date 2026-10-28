@@ -103,10 +103,10 @@ class TestWizardModeIcons:
 
 
 class TestActionBarCompareIcon:
-    """The compare action uses a registered, loadable bundled icon."""
+    """The compare action uses a refresh icon: a magnifier reads as "search"."""
 
     def test_the_compare_icon_is_registered(self):
-        assert "system-search" in icons._FALLBACK_MAP
+        assert "view-refresh" in icons._FALLBACK_MAP
 
     def test_the_compare_icon_loads(self, qapp):
-        assert not icons.icon("system-search").isNull()
+        assert not icons.icon("view-refresh").isNull()
