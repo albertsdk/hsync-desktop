@@ -340,7 +340,7 @@ class TrustMixin:
                 accepted = api_dlg.exec() == ApiKeyDialog.DialogCode.Accepted
 
             if accepted:
-                self._append_log(f"--- {tr('p2pauth.retrying')} ---")
+                self._append_desktop_log("INFO", f"--- {tr('p2pauth.retrying')} ---")
                 self._retry_after_auth_fix()
             else:
                 self._reset_ui_stopped()

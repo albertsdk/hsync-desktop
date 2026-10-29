@@ -690,7 +690,7 @@ class EventsMixin:
     @Slot()
     def _on_preview_ended(self) -> None:
         """Handle the end of the preview this window requested."""
-        self._append_log("--- File status updated ---")
+        self._append_desktop_log("INFO", "--- File status updated ---")
         self._finish_comparison()
         # The preview answered: it is now safe to credit the one-shot catch-up.
         # A failed preview is not an answer, so the next connect still asks for it.
@@ -724,7 +724,7 @@ class EventsMixin:
         summary, because the device that serves the share has nothing to pull and
         a ``SYNC`` would only re-classify.
         """
-        self._append_log("--- File status updated ---")
+        self._append_desktop_log("INFO", "--- File status updated ---")
         self._file_panel.mark_verified()
         self._set_sync_state(*self._serving_sync_state())
         self._stamp_last_check()
@@ -767,7 +767,7 @@ class EventsMixin:
         accumulate across comparisons, and the waiting counts of a previous pass
         cannot outlive it.
         """
-        self._append_log("--- Updating file status... ---")
+        self._append_desktop_log("INFO", "--- Updating file status... ---")
         self._preview_stats.reset()
         self._device_stats.clear()
         self._pending_inventory = None
@@ -964,7 +964,7 @@ class EventsMixin:
         self._clear_run_toast()
         self._apply_button_styles()
         self._update_menu_state()
-        self._append_log(f"--- Process finished ({desc}, exit code {code}) ---")
+        self._append_desktop_log("INFO", f"--- Process finished ({desc}, exit code {code}) ---")
 
         # Notify only for truly unexpected crashes (not user stop, auth error,
         # force sync, app quit, etc.). A startup failure already has its own

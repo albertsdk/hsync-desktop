@@ -196,7 +196,9 @@ options** is enabled in General. Changes apply at the next sync start.
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 
 **Log file** mirrors the same output to a file: the log panel keeps showing the
-live log, and the file is a rotated copy of it.
+live log, and the file is a rotated copy of it. The panel also shows the app's
+own lines (the ones with `[desktop]` where the engine puts its device id), which
+the file does not contain — they describe the window, not the sync.
 
 **Deletion protection.** When a cycle would delete more than the configured
 threshold (absolute count or percentage of local files), those deletions are

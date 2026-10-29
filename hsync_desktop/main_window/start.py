@@ -582,7 +582,7 @@ class StartMixin:
         engine is already running.
         """
         self._preparing_plan = True
-        self._append_log(f"--- {tr('notif.preparing_plan')} ---")
+        self._append_desktop_log("INFO", f"--- {tr('notif.preparing_plan')} ---")
         self._show_info_banner(tr("notif.preparing_plan"), kind="progress")
 
     def _exit_preparing_plan_ui(self) -> None:
@@ -741,7 +741,7 @@ class StartMixin:
         self._apply_button_styles()
         self._update_menu_state()
         self._show_info_banner(tr("status.stopping"), kind="progress")
-        self._append_log(f"--- {tr('status.stopping')} ---")
+        self._append_desktop_log("INFO", f"--- {tr('status.stopping')} ---")
 
     @Slot()
     def _on_stop_timeout(self) -> None:
@@ -806,7 +806,7 @@ class StartMixin:
             return
         # The action name is the menu entry: one vocabulary for the tooltip,
         # the menu, the tray and the log line this click writes.
-        self._append_log(f"--- {tr('menu.sync.check_changes')} ---")
+        self._append_desktop_log("INFO", f"--- {tr('menu.sync.check_changes')} ---")
         # Only the requester-side preview cycle may confirm a sync: a serving
         # device answers with a classification, whose markers own the rendering.
         self._awaiting_preview_for_sync = not (self._p2p_enabled and self._is_master)

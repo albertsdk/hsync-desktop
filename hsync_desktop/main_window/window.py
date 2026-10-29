@@ -290,6 +290,9 @@ class MainWindow(
         # Engine signals
         e = self._engine
         e.log_received.connect(self._append_log)
+        # A malformed engine event is a desktop-level diagnostic, not a client
+        # log line: the window renders it in the shared grammar.
+        e.event_error.connect(self._on_engine_event_error)
         e.status_changed.connect(self._on_status)
         e.peers_changed.connect(self._on_peers)
         e.master_changed.connect(self._on_master)

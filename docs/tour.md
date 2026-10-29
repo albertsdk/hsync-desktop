@@ -63,9 +63,14 @@ the actions for that file or folder. The full description is in
 ## The log panel
 
 The **Log** panel at the bottom shows the sync engine's own messages while it
-runs. You do not need it for normal use; it is the first place to look when
-something does not work. The labels are explained in [Log Labels](log-labels.md),
-and you can hide the panel from **Settings → General**.
+runs, interleaved with the app's own status lines (the ones whose source is
+`[desktop]`: a comparison starting or ending, the plan being prepared, the
+engine exiting). Both are written in the same
+`<timestamp> - [<pid>] [<source>] LEVEL: message` shape, in UTC, so a single
+reading covers the whole panel. You do not need it for normal use; it is the
+first place to look when something does not work. The labels are explained in
+[Log Labels](log-labels.md), and you can hide the panel from
+**Settings → General**.
 
 ## The status bar
 

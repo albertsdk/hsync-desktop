@@ -15,6 +15,12 @@ engine refuses to work beside it. Stop that process, or choose another folder.
 Read the log line first; the labels it can contain are in
 [Log Labels](log-labels.md).
 
+Every line in the panel has the same shape —
+`<timestamp> - [<pid>] [<source>] LEVEL: message` — where `<source>` is the
+engine's device id or `[desktop]` for the app's own messages, and the timestamp
+is UTC. Attach the whole panel (or the log file) to a bug report: one format
+means one reading, whichever side wrote the line.
+
 ## A control is greyed out
 
 Your sync engine does not support that feature — the tooltip names the option it

@@ -1454,6 +1454,7 @@ class TestInitialReconcile:
             _awaiting_preview_for_sync=False,
             _preview_stats=PreviewStats(),
             _append_log=lambda *_a, **_k: None,
+            _append_desktop_log=lambda *_a, **_k: None,
             _sync_state=("idle", 0, 0, 0),
             _sync_state_label=None,
             _set_sync_state=lambda *_a, **_k: None,
@@ -1649,16 +1650,66 @@ class TestMasterRoleNotification:
 
 
 class TestDesktopLogFormat:
-    def test_desktop_line_uses_the_client_timestamp_shape(self, window):
-        import re
-
+    def test_desktop_line_has_the_client_layout(self, window):
         window._append_desktop_log("WARNING", "probe")
 
         line = window._log_view.toPlainText().splitlines()[-1]
+        # Same grammar as the client: <ts> - [pid] [correlation field] LEVEL: msg
+        # (the desktop has no CID, so "desktop" takes that slot).
         assert re.match(
-            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z - \[desktop\] WARNING: probe$",
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"
+            r" - \[\d+\] \[desktop\] WARNING: probe$",
             line,
         )
+
+    def test_desktop_line_is_parseable_by_the_shared_grammar(self, window):
+        from hsync_common.logger import LOG_LINE_RE
+
+        window._append_desktop_log("ERROR", "[EVENT ERROR] boom")
+
+        line = window._log_view.toPlainText().splitlines()[-1]
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        assert parsed.group("level") == "ERROR"
+        assert parsed.group("message") == "[EVENT ERROR] boom"
+
+    def test_timestamp_is_utc_like_the_client(self, window):
+        from datetime import UTC, datetime
+
+        from hsync_common.logger import LOG_LINE_RE
+
+        window._append_desktop_log("INFO", "probe")
+
+        line = window._log_view.toPlainText().splitlines()[-1]
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        # A local wall clock labelled "Z" would read hours off next to the
+        # engine's own lines in the same panel.
+        stamp = datetime.fromisoformat(parsed.group("timestamp"))
+        assert abs((datetime.now(UTC) - stamp).total_seconds()) < 5
+
+    def test_phase_marker_obeys_the_grammar(self, window):
+        from hsync_common.logger import LOG_LINE_RE
+
+        window._on_status_pass_started()
+
+        line = window._log_view.toPlainText().splitlines()[-1]
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        assert parsed.group("level") == "INFO"
+        assert parsed.group("message") == "--- Updating file status... ---"
+
+    def test_malformed_engine_event_is_logged_under_the_desktop_identity(self, window):
+        from hsync_common.logger import LOG_LINE_RE
+
+        window._on_engine_event_error("{'event': 'peers', 'connected': 'NaN'}")
+
+        line = window._log_view.toPlainText().splitlines()[-1]
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        assert parsed.group("level") == "ERROR"
+        assert parsed.group("fields").endswith("[desktop] ")
+        assert parsed.group("message").startswith("[EVENT ERROR] ")
 
     def test_selection_busy_logs_and_warns(self, window, monkeypatch):
         engine_cls = type(window._engine)
@@ -2947,7 +2998,7 @@ class TestColoredLog:
 
         window._log_view.clear()
         window._log_theme = THEME_LIGHT
-        window._append_log("2026-10-21T14:48:08Z - [desktop] ERROR: [EVENT ERROR] boom")
+        window._append_log("2026-10-21T14:48:08Z - [41234] [desktop] ERROR: [EVENT ERROR] boom")
 
         colors = self._first_line_colors(window)
         assert colors["ERROR"] == QColor(LOG_COLORS[THEME_LIGHT]["red"]).name()
@@ -2957,7 +3008,7 @@ class TestColoredLog:
 
         window._log_view.clear()
         window._log_theme = THEME_LIGHT
-        window._append_log("2026-10-21T14:48:08Z - [desktop] ERROR: boom")
+        window._append_log("2026-10-21T14:48:08Z - [41234] [desktop] ERROR: boom")
         light = self._first_line_colors(window)["ERROR"]
 
         window._log_theme = THEME_DARK
@@ -2965,7 +3016,9 @@ class TestColoredLog:
         dark = self._first_line_colors(window)["ERROR"]
 
         assert light != dark
-        assert window._log_view.toPlainText() == "2026-10-21T14:48:08Z - [desktop] ERROR: boom"
+        assert (
+            window._log_view.toPlainText() == "2026-10-21T14:48:08Z - [41234] [desktop] ERROR: boom"
+        )
 
 
 class TestMenuFontRefresh:

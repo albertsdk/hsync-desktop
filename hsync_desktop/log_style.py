@@ -11,8 +11,10 @@ Two sources, applied in this order:
    ``hsync_common.labels.LABEL_STYLES``. Those are rendered 1:1 through the
    theme-aware ANSI palette below, so the panel looks exactly like the terminal.
 2. **The shared level/label contract** for lines that arrive without SGR (the
-   Desktop's own ``[desktop] WARNING:`` markers, plain logs): the same two
-   mappings from ``hsync-common`` decide which span is colored, and the panel
+   Desktop's own ``[pid] [desktop] LEVEL:`` lines, plain logs): the same two
+   mappings from ``hsync-common`` decide which span is colored — the level is
+   located with the canonical ``hsync_common.logger.LOG_LINE_RE`` grammar, so
+   the panel reads client and Desktop lines with one parser — and the panel
    translates their tag names to the same Qt colors.
 
 The perceived colors are Desktop-owned on purpose: the terminal palette belongs
@@ -27,7 +29,7 @@ import re
 from dataclasses import dataclass
 
 from hsync_common.labels import LABEL_STYLES
-from hsync_common.logger import LEVEL_STYLES
+from hsync_common.logger import LEVEL_STYLES, LOG_LINE_RE
 from PySide6.QtGui import QColor, QFont, QTextCharFormat
 
 from hsync_desktop.ansi import AnsiRun, parse_sgr
@@ -113,8 +115,9 @@ _TAG_NAMES: dict[str, str] = {
     "dim": "dim",
 }
 
-# The documented log format is "<ts> - [pid] [cid] LEVEL: message".
-_LEVEL_RE = re.compile(r"(?<=] )(CRITICAL|ERROR|SUCCESS|WARNING|INFO|DEBUG)(?=: )")
+# The canonical grammar (``hsync_common.logger.LOG_LINE_RE``) locates the level:
+# "<ts> - [pid] [cid|desktop] LEVEL: message". Shared with the client and with
+# the engine's own ERROR harvest, so no consumer re-encodes the shape.
 
 # Longest-first so "[REMOTE DOWNLOAD]" wins over "[DOWNLOAD]" at the same spot.
 _LABEL_RE = re.compile(
@@ -152,10 +155,11 @@ def _fallback_runs(line: str, colors: dict[str, str]) -> list[StyledRun]:
 
     spans: list[tuple[int, int, str | None, bool]] = []
 
-    level = _LEVEL_RE.search(line)
-    if level is not None:
-        name, bold = _tag_style(LEVEL_STYLES.get(level.group(1), ("", "")))
-        spans.append((level.start(1), level.end(1), name, bold))
+    record = LOG_LINE_RE.match(line)
+    if record is not None:
+        start, end = record.span("level")
+        name, bold = _tag_style(LEVEL_STYLES.get(record.group("level"), ("", "")))
+        spans.append((start, end, name, bold))
 
     for match in _LABEL_RE.finditer(line):
         name, bold = _tag_style(LABEL_STYLES[match.group(0)])

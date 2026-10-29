@@ -36,6 +36,7 @@ window's attributes.
 | `_shutdown` | `main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
 Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
+`event_error→_on_engine_event_error` (`main_window/ui.py::UiBuildMixin._on_engine_event_error`, which logs it as the desktop's own `[EVENT ERROR]` line),
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
 `transfer_failed→_on_transfer_failed`, `sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`, `folder_size_changed→_on_folder_size`,
@@ -762,11 +763,21 @@ never hidden by an older timeout.
 
 ### Desktop log lines
 
-Client log lines arrive verbatim (`<timestamp> - [pid] [client_id] LEVEL:`).
-Desktop-originated events use `_append_desktop_log(level, message)`
-(`main_window/ui.py::UiBuildMixin._append_desktop_log`), which renders the same shape with `[desktop]` in place of
-the pid/CID (no client session exists), reusing
-`hsync_common.logger.format_timestamp`: `<timestamp> - [desktop] LEVEL: message`.
+Every line in the panel — the engine's and the window's own — follows the
+grammar of ADR 0046: `<timestamp> - [<pid>] [<correlation field>] LEVEL: message`,
+UTC with milliseconds, levels from `hsync_common.logger.LEVEL_STYLES`. Client
+lines arrive verbatim (`[<pid>] [<client_id>]`). Desktop-originated events use
+`_append_desktop_log(level, message)`
+(`main_window/ui.py::UiBuildMixin._append_desktop_log`), which renders the same
+shape through `hsync_common.logger.format_log_line` with `desktop` in the
+correlation slot (no client session exists, so the app's own pid is rendered and
+`[desktop]` replaces the CID): `<timestamp> - [<pid>] [desktop] LEVEL: message`.
+Nothing writes to the panel with a hand-built prefix — the phase markers
+(`--- … ---`: comparison started/ended, stopping, preparing a plan, selection
+sync, process finished) are `INFO` lines through the same helper, and the
+engine's malformed-event diagnostic is an `ERROR` one (`event_error` →
+`main_window/ui.py::UiBuildMixin._on_engine_event_error`).
+
 Events surfaced to the user (Send/Receive busy, nothing to sync, connection
 results) additionally raise a toast, so their outcome is visible without the log
 panel. Master role changes (`_on_master_conflict`,
@@ -1028,9 +1039,10 @@ so the raw stdout feed carries the SGR sequences loguru builds from
 `ansi.py::parse_sgr` splits each line into `ansi.py::AnsiRun`s (foreground index,
 bold, dim) and `log_style.py::styled_runs` turns them into `QTextCharFormat`s via
 `LOG_COLORS` (`log_style.py`, per theme). Lines without SGR — the Desktop's own
-`[desktop] LEVEL:` markers, plain logs — fall back to the same two shared
-mappings, matched by `log_style.py::_LEVEL_RE` / `log_style.py::_LABEL_RE`
-(labels longest-first so `[REMOTE DOWNLOAD]` never collapses into `[DOWNLOAD]`).
+`[<pid>] [desktop] LEVEL:` lines, plain logs — fall back to the same two shared
+mappings, matched by `hsync_common.logger.LOG_LINE_RE` (the level, at its grammar
+position) and `log_style.py::_LABEL_RE` (labels longest-first so
+`[REMOTE DOWNLOAD]` never collapses into `[DOWNLOAD]`).
 
 `main_window/ui.py::UiBuildMixin._append_log` inserts the runs with a `QTextCursor` (never
 `appendPlainText` for styled lines), so the escape sequences are stripped from

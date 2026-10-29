@@ -10,6 +10,26 @@ output in the in-app **Log** panel, so every client label can appear there.
 The desktop also emits a couple of own markers for UI-level events. This page
 lists what you can see.
 
+Both producers write the **same line**, so one reading covers the whole panel:
+
+```
+<timestamp> - [<pid>] [<source>] LEVEL: <message>
+```
+
+- `<timestamp>` is UTC with milliseconds (`2026-10-29T10:46:23.187Z`), so the
+  app's own lines interleave with the engine's in the right order.
+- `[<source>]` is the client's device id (`[a1b2c3d4]`) for the engine, and
+  `[desktop]` for the app itself — the app has no client session.
+- `LEVEL` is one of `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR`,
+  `CRITICAL` and is colored by the same palette for both.
+
+Example, with the two origins one after the other:
+
+```
+2026-10-29T10:46:23.187Z - [41234] [desktop] INFO: --- Updating file status... ---
+2026-10-29T10:46:23.190Z - [12345] [a1b2c3d4] INFO: [READY] Client ready for sync
+```
+
 > The complete, cross-project catalog (descriptions, color categories, and which
 > project emits each label) lives in
 > [`hsync-common/docs/log-labels.md`](https://github.com/albertsdk/hsync-common/blob/main/docs/log-labels.md).
@@ -44,11 +64,17 @@ desktop notification (the latter only while the window is in the background):
 ## Desktop-only markers
 
 These are emitted by the desktop itself (not part of the shared `ActionLabel`
-set):
+set). They are written exactly like the engine's lines, with `[desktop]` as the
+source:
 
 | Marker | Meaning |
 |--------|---------|
 | `[EVENT ERROR]` | The desktop's own prefix for an error event from the engine/UI layer |
+| `--- … ---` | The desktop's phase markers: a comparison starting (`--- Updating file status... ---`) or finishing (`--- File status updated ---`), `--- Stopping ---`, the plan being prepared, a Send/Receive of a selection, and the engine exiting (`--- Process finished (…, exit code N) ---`) |
+
+A malformed engine event is logged as
+`<timestamp> - [<pid>] [desktop] ERROR: [EVENT ERROR] …` and nothing else: it is
+a diagnostic, never a user-facing error.
 
 ## Related
 

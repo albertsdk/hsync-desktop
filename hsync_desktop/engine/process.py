@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import signal
 from collections import deque
 from collections.abc import Callable
@@ -23,6 +22,7 @@ from typing import ClassVar, cast
 from urllib.parse import urlparse
 
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
+from hsync_common.logger import LOG_LINE_RE
 from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 from PySide6.QtCore import (
@@ -64,10 +64,12 @@ _RECENT_ERROR_LINES = 5
 # 2..5 are verdicts of a *completed* cycle and never a failure to report here.
 _FATAL_EXIT_CODE = 1
 
-# The documented log format is "<ts> - [pid] [cid] LEVEL: message". The client
+# The shared log-line grammar (``hsync_common.logger.LOG_LINE_RE``) parses the
+# client's ``[pid] [cid]`` lines; the same grammar covers the desktop's own
+# ``[pid] [desktop]`` ones, so no consumer re-encodes the shape. The client
 # colorizes its output (``--color=always``), so the escapes are stripped before
-# the level is matched.
-_CLIENT_ERROR_RE = re.compile(r"(?<=] )(?:CRITICAL|ERROR): ")
+# matching.
+_RECENT_ERROR_LEVELS = ("ERROR", "CRITICAL")
 
 # Stop escalation timings (milliseconds). ``request_stop`` sends SIGTERM and
 # returns at once, so the GUI stays responsive; the grace timer escalates to
@@ -266,6 +268,10 @@ class HsyncEngine(QObject):
 
     # ── Signals ──────────────────────────────────────────────────────────
     log_received = Signal(str)  # raw log line
+    # A structured event whose payload could not be dispatched (malformed
+    # JSON types). The payload is not a log line: the window renders it as its
+    # own ``[EVENT ERROR]`` line, because only the UI layer owns presentation.
+    event_error = Signal(str)  # truncated event payload
     status_changed = Signal(str)  # disconnected|connecting|connected|waiting|error
     peers_changed = Signal(int, int)  # connected clients, total clients (self included)
     master_changed = Signal(bool)  # True ⇒ this client is master
@@ -713,10 +719,9 @@ class HsyncEngine(QObject):
                 # fatal exit. The substring test avoids stripping the escapes
                 # on every line of a burst.
                 if "ERROR" in line or "CRITICAL" in line:
-                    plain = strip_sgr(line)
-                    match = _CLIENT_ERROR_RE.search(plain)
-                    if match is not None:
-                        self._recent_errors.append(plain[match.end() :].strip())
+                    parsed = LOG_LINE_RE.match(strip_sgr(line))
+                    if parsed is not None and parsed.group("level") in _RECENT_ERROR_LEVELS:
+                        self._recent_errors.append(parsed.group("message").strip())
                 if not self._ready:
                     # Keep the startup output so a failure can show the client's
                     # own reason instead of only the exit code.
@@ -886,7 +891,7 @@ class HsyncEngine(QObject):
             self._dispatch_event(name, event)
         except Exception:
             # A malformed payload must never take down the engine.
-            self.log_received.emit(f"[EVENT ERROR] {str(event)[:100]}")
+            self.event_error.emit(str(event)[:100])
 
     def _dispatch_event(self, name: str | None, event: UiEventDict) -> None:
         handler = self._EVENT_HANDLERS.get(name) if name is not None else None

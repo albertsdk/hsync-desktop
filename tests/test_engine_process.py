@@ -349,6 +349,21 @@ class TestFatalExitAfterReady:
         assert fatal == [(1, "Another hsync process is already syncing '/data/photos' (pid 42).")]
         assert failures == []
 
+    def test_a_critical_line_is_harvested_too(self):
+        # CRITICAL is rendered bold-red by the client: the escapes must not hide
+        # the level from the shared grammar either.
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+        self._feed(
+            engine,
+            "\x1b[1m\x1b[31m2026-10-28T20:51:27.980Z - [1] [cid] CRITICAL: disk full\x1b[0m\n",
+        )
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == [(1, "disk full")]
+
     def test_a_fatal_exit_without_a_client_error_still_reports(self):
         engine = HsyncEngine()
         fatal = _capture(engine.fatal_exit)
@@ -842,10 +857,14 @@ class TestHandleEvent:
         assert out == []
 
     def test_malformed_event_does_not_raise(self, engine):
-        # A wrong-typed payload is swallowed (logged) rather than crashing.
+        # A wrong-typed payload is swallowed and reported on its own signal.
+        errors = _capture(engine.event_error)
         logs = _capture(engine.log_received)
         engine._handle_event({"schema_version": 1, "ts": "x", "event": "peers", "connected": "NaN"})
-        assert any("EVENT ERROR" in args[0] for args in logs)
+        assert errors and "peers" in errors[0][0]
+        # The payload is not a client log line: the window renders it as its own
+        # ``[EVENT ERROR]`` line, so nothing enters the raw log feed.
+        assert logs == []
 
 
 class TestWriteSecretPipe:

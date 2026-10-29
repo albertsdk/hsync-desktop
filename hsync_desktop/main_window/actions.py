@@ -343,7 +343,7 @@ class ActionsMixin:
             return
         subdir = self._selection_subdir(filepath)
         label = tr("action.send_now") if direction == "upload-only" else tr("action.receive_now")
-        self._append_log(f"--- {label}: {subdir or '.'} ---")
+        self._append_desktop_log("INFO", f"--- {label}: {subdir or '.'} ---")
         view_path = self._file_panel.current_path
         self._selection_sync_view = (
             view_path,

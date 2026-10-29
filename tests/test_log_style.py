@@ -70,9 +70,16 @@ class TestLevelAndLabelFallback:
     """Lines without SGR (desktop markers, plain logs) use the shared mapping."""
 
     def test_desktop_error_level_is_colored(self):
-        colors = _colored("2026-10-21T14:48:08Z - [desktop] ERROR: [EVENT ERROR] boom")
+        colors = _colored("2026-10-21T14:48:08Z - [41234] [desktop] ERROR: [EVENT ERROR] boom")
 
         assert colors["ERROR"] == _hex(_LIGHT["red"])
+
+    def test_client_and_desktop_lines_share_the_level_category(self):
+        # One panel, one palette: only the identity field differs.
+        client = _colored("2026-10-21T14:48:08.123Z - [1] [cid] WARNING: x")
+        desktop = _colored("2026-10-21T14:48:08.123Z - [41234] [desktop] WARNING: x")
+
+        assert client["WARNING"] == desktop["WARNING"] == _hex(_LIGHT["yellow"])
 
     def test_label_category_is_applied(self):
         colors = _colored("2026-10-21T14:48:08Z - [1] [cid] INFO: [DELETE] gone.txt")

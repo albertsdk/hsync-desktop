@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from datetime import datetime
 from typing import cast
 from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
-from hsync_common.logger import format_timestamp
+from hsync_common.logger import format_log_line
 from PySide6.QtCore import QLocale, QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
@@ -784,13 +783,27 @@ class UiBuildMixin:
             self._append_log(line)
 
     def _append_desktop_log(self, level: str, message: str) -> None:
-        """Append a desktop-originated line in the client log format.
+        """Append a desktop-originated line in the canonical log grammar.
 
-        Client lines carry ``<timestamp> - [pid] [client_id] LEVEL:``; desktop
-        events have no client CID, so ``[desktop]`` takes that slot.
+        Client lines carry ``<timestamp> - [pid] [client_id] LEVEL:``; the
+        desktop has no client session, so it renders its own pid and puts
+        ``desktop`` in the correlation slot. Same layout, same level vocabulary,
+        same UTC timestamp: one reader (and one regex, in
+        ``hsync_common.logger``) covers both producers, so the panel reads as a
+        single log. See ``docs/log-labels.md``.
         """
-        stamp = format_timestamp({"time": datetime.now()})
-        self._append_log(f"{stamp} - [desktop] {level}: {message}")
+        self._append_log(format_log_line(level, message, fields=("desktop",)))
+
+    @Slot(str)
+    def _on_engine_event_error(self, payload: str) -> None:
+        """Record an engine event the desktop could not interpret.
+
+        The payload is truncated by the engine, so it is a diagnostic only: it
+        is logged as ``[EVENT ERROR]`` under the desktop's own identity and
+        never surfaced as a toast (a malformed envelope is not a user action
+        failing).
+        """
+        self._append_desktop_log("ERROR", f"[EVENT ERROR] {payload}")
 
     @Slot(str, str)
     def _on_engine_error(self, message: str, reason: str = "") -> None:
