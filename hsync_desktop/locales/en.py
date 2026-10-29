@@ -200,7 +200,7 @@ translations: dict[str, str] = {
     # Settings p2p
     "settings.p2p_mode": "Enable p2p mode",
     "settings.p2p_group": "p2p Group Name",
-    "settings.p2p_bootnode": "Discovery server (optional)",
+    "settings.p2p_bootnode": "Discovery servers (optional)",
     "settings.p2p_bootnode_trust": "Discovery server identity check",
     "settings.p2p_bootnode_trust_ask": "Ask on first use",
     "settings.p2p_bootnode_trust_accept_new": "Accept automatically",
@@ -366,7 +366,7 @@ translations: dict[str, str] = {
     "hsyncignore.write_error": "Could not write .hsyncignore: {error}",
     "tip.p2p_mode": "Sync directly between your devices — on the local network, or across networks via a discovery server — without a central server.",
     "tip.p2p_group": "Group name to filter p2p devices",
-    "tip.p2p_bootnode": "A discovery server helps devices on different networks find each other. It never carries or stores your files. Leave empty to find devices on the local network only.",
+    "tip.p2p_bootnode": "One or more discovery servers help devices on different networks find each other. Give several separated by commas: the client uses every server it can reach and merges the peers. They never carry or store your files. Leave empty to find devices on the local network only.",
     "tip.p2p_bootnode_trust": "How the app checks the discovery server's identity before trusting it.",
     "tip.manage_trusted_keys": "Manage the trusted discovery servers, servers and devices.",
     "tip.p2p_upnp": "Open the listening port on the router automatically via UPnP, so devices on other networks can connect to this one (only effective with a discovery server).",

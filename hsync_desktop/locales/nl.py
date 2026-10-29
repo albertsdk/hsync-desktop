@@ -200,7 +200,7 @@ translations: dict[str, str] = {
     # Settings p2p
     "settings.p2p_mode": "p2p-modus inschakelen",
     "settings.p2p_group": "p2p-groepsnaam",
-    "settings.p2p_bootnode": "Detectieserver (optioneel)",
+    "settings.p2p_bootnode": "Detectieservers (optioneel)",
     "settings.p2p_bootnode_trust": "Identiteitscontrole van de detectieserver",
     "settings.p2p_bootnode_trust_ask": "Vragen bij eerste gebruik",
     "settings.p2p_bootnode_trust_accept_new": "Automatisch accepteren",
@@ -366,7 +366,7 @@ translations: dict[str, str] = {
     "hsyncignore.write_error": "Kan .hsyncignore niet schrijven: {error}",
     "tip.p2p_mode": "Synchroniseer rechtstreeks tussen uw apparaten — in het lokale netwerk of tussen netwerken via een detectieserver — zonder centrale server.",
     "tip.p2p_group": "Groepsnaam om p2p-apparaten te filteren",
-    "tip.p2p_bootnode": "Een detectieserver helpt apparaten in verschillende netwerken elkaar te vinden. Hij verstuurt en bewaart uw bestanden niet. Laat leeg om apparaten alleen in het lokale netwerk te vinden.",
+    "tip.p2p_bootnode": "Een of meer detectieservers helpen apparaten in verschillende netwerken elkaar te vinden. Geef er meerdere op, gescheiden door komma’s: de client gebruikt elke bereikbare server en voegt de peers samen. Ze versturen en bewaren uw bestanden niet. Laat leeg om apparaten alleen in het lokale netwerk te vinden.",
     "tip.p2p_bootnode_trust": "Hoe de app de identiteit van de detectieserver verifieert voordat deze wordt vertrouwd.",
     "tip.manage_trusted_keys": "Beheer de vertrouwde detectieservers, servers en apparaten.",
     "tip.p2p_upnp": "De luisterpoort automatisch via UPnP op de router openen, zodat apparaten in andere netwerken dit apparaat kunnen bereiken (alleen effectief met een detectieserver).",

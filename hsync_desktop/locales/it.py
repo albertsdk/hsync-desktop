@@ -426,7 +426,7 @@ translations: dict[str, str] = {
     "tip.auto_sync": "Avvia automaticamente la sincronizzazione all'avvio dell'applicazione",
     "tip.p2p_mode": "Sincronizza direttamente tra i tuoi dispositivi — sulla rete locale o tra reti tramite un server di individuazione — senza un server centrale.",
     "tip.p2p_group": "Sincronizza solo con i dispositivi nello stesso gruppo",
-    "tip.p2p_bootnode": "Un server di individuazione aiuta i dispositivi su reti diverse a trovarsi. Non trasporta né archivia i tuoi file. Lascia vuoto per trovare i dispositivi solo sulla rete locale.",
+    "tip.p2p_bootnode": "Uno o più server di individuazione aiutano i dispositivi su reti diverse a trovarsi. Puoi indicarne più di uno, separati da virgole: il client usa ogni server raggiungibile e unisce i peer. Non trasportano né archiviano i tuoi file. Lascia vuoto per trovare i dispositivi solo sulla rete locale.",
     "tip.p2p_bootnode_trust": "Come l'app verifica l'identità del server di individuazione prima di fidarsi.",
     "tip.manage_trusted_keys": "Gestisci i server di individuazione, i server e i dispositivi attendibili.",
     "tip.p2p_upnp": "Apri automaticamente la porta in ascolto sul router via UPnP, così i dispositivi su altre reti possono connettersi a questo (ha effetto solo con un server di individuazione).",

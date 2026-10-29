@@ -426,7 +426,7 @@ translations: dict[str, str] = {
     "tip.auto_sync": "Synchronisation automatisch beim Programmstart starten",
     "tip.p2p_mode": "Synchronisieren Sie direkt zwischen Ihren Geräten — im lokalen Netzwerk oder netzwerkübergreifend über einen Erkennungsserver — ohne zentralen Server.",
     "tip.p2p_group": "Nur mit Geräten in derselben Gruppe synchronisieren",
-    "tip.p2p_bootnode": "Ein Erkennungsserver hilft Geräten in verschiedenen Netzwerken, sich zu finden. Er überträgt und speichert Ihre Dateien nicht. Leer lassen, um Geräte nur im lokalen Netzwerk zu finden.",
+    "tip.p2p_bootnode": "Ein oder mehrere Erkennungsserver helfen Geräten in verschiedenen Netzwerken, sich zu finden. Mehrere Server durch Kommas getrennt angeben: der Client nutzt jeden erreichbaren Server und führt die Peers zusammen. Sie übertragen und speichern Ihre Dateien nicht. Leer lassen, um Geräte nur im lokalen Netzwerk zu finden.",
     "tip.p2p_bootnode_trust": "Wie die App die Identität des Erkennungsservers prüft, bevor sie ihm vertraut.",
     "tip.manage_trusted_keys": "Verwalten Sie die vertrauenswürdigen Erkennungsserver, Server und Geräte.",
     "tip.p2p_upnp": "Den Listening-Port am Router automatisch per UPnP öffnen, damit Geräte in anderen Netzwerken dieses Gerät erreichen können (nur mit einem Erkennungsserver wirksam).",

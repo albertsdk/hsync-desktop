@@ -200,7 +200,7 @@ translations: dict[str, str] = {
     # Settings p2p
     "settings.p2p_mode": "Ativar modo p2p",
     "settings.p2p_group": "Nome do grupo p2p",
-    "settings.p2p_bootnode": "Servidor de descoberta (opcional)",
+    "settings.p2p_bootnode": "Servidores de descoberta (opcional)",
     "settings.p2p_bootnode_trust": "Verificação da identidade do servidor de descoberta",
     "settings.p2p_bootnode_trust_ask": "Perguntar no primeiro uso",
     "settings.p2p_bootnode_trust_accept_new": "Aceitar automaticamente",
@@ -366,7 +366,7 @@ translations: dict[str, str] = {
     "hsyncignore.write_error": "Não foi possível gravar .hsyncignore: {error}",
     "tip.p2p_mode": "Sincronize diretamente entre os seus dispositivos — na rede local ou entre redes por meio de um servidor de descoberta — sem um servidor central.",
     "tip.p2p_group": "Nome do grupo para filtrar dispositivos p2p",
-    "tip.p2p_bootnode": "Um servidor de descoberta ajuda dispositivos em redes diferentes a encontrarem-se. Não transporta nem armazena os seus ficheiros. Deixe vazio para encontrar dispositivos apenas na rede local.",
+    "tip.p2p_bootnode": "Um ou mais servidores de descoberta ajudam dispositivos em redes diferentes a encontrarem-se. Indique vários separados por vírgulas: o cliente usa todos os que alcança e junta os peers. Não transportam nem armazenam os seus ficheiros. Deixe vazio para encontrar dispositivos apenas na rede local.",
     "tip.p2p_bootnode_trust": "Como a aplicação verifica a identidade do servidor de descoberta antes de confiar nele.",
     "tip.manage_trusted_keys": "Gerir os servidores de descoberta, servidores e dispositivos de confiança.",
     "tip.p2p_upnp": "Abrir a porta de escuta no roteador automaticamente via UPnP, para que dispositivos em outras redes possam se conectar a este (só tem efeito com um servidor de descoberta).",

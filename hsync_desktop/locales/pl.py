@@ -200,7 +200,7 @@ translations: dict[str, str] = {
     # Settings p2p
     "settings.p2p_mode": "Włącz tryb p2p",
     "settings.p2p_group": "Nazwa grupy p2p",
-    "settings.p2p_bootnode": "Serwer wykrywania (opcjonalnie)",
+    "settings.p2p_bootnode": "Serwery wykrywania (opcjonalnie)",
     "settings.p2p_bootnode_trust": "Weryfikacja tożsamości serwera wykrywania",
     "settings.p2p_bootnode_trust_ask": "Pytaj przy pierwszym użyciu",
     "settings.p2p_bootnode_trust_accept_new": "Akceptuj automatycznie",
@@ -366,7 +366,7 @@ translations: dict[str, str] = {
     "hsyncignore.write_error": "Nie można zapisać .hsyncignore: {error}",
     "tip.p2p_mode": "Synchronizuj bezpośrednio między urządzeniami — w sieci lokalnej lub między sieciami przez serwer wykrywania — bez serwera centralnego.",
     "tip.p2p_group": "Nazwa grupy do filtrowania urządzeń p2p",
-    "tip.p2p_bootnode": "Serwer wykrywania pomaga urządzeniom w różnych sieciach się odnaleźć. Nie przesyła ani nie przechowuje Twoich plików. Pozostaw puste, aby znajdować urządzenia tylko w sieci lokalnej.",
+    "tip.p2p_bootnode": "Jeden lub więcej serwerów wykrywania pomaga urządzeniom w różnych sieciach się odnaleźć. Podaj kilka oddzielonych przecinkami: klient użyje każdego osiągalnego serwera i połączy peerów. Nie przesyłają ani nie przechowują Twoich plików. Pozostaw puste, aby znajdować urządzenia tylko w sieci lokalnej.",
     "tip.p2p_bootnode_trust": "Jak aplikacja weryfikuje tożsamość serwera wykrywania przed zaufaniem.",
     "tip.manage_trusted_keys": "Zarządzaj zaufanymi serwerami wykrywania, serwerami i urządzeniami.",
     "tip.p2p_upnp": "Automatycznie otwieraj port nasłuchu na routerze przez UPnP, aby urządzenia w innych sieciach mogły połączyć się z tym urządzeniem (działa tylko z serwerem wykrywania).",
