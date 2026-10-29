@@ -371,6 +371,11 @@ class UiBuildMixin:
             self._act_preview_changes.setText(tr("menu.sync.preview"))
             self._act_stop.setText(tr("menu.sync.stop"))
             self._act_check_changes.setText(tr("menu.sync.check_changes"))
+            # The menu shows these, so a language change must re-translate them
+            # like the labels above.
+            self._act_start.setToolTip(tr("tip.start"))
+            self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
+            self._act_check_changes.setToolTip(tr("tip.check_changes"))
             self._menu_direction.setTitle(tr("menu.sync.direction"))
             self._act_dir_bidi.setText(tr("menu.sync.direction.bidirectional"))
             self._act_dir_upload.setText(tr("menu.sync.direction.upload_only"))
@@ -463,13 +468,20 @@ class UiBuildMixin:
 
         # ── Sync menu ─────────────────────────────────────────────────
         self._menu_sync = menubar.addMenu(tr("menu.sync"))
+        # Only Start, Preview changes and Check for changes carry a tooltip; a menu
+        # shows them only when asked (QMenu defaults to off), and those labels
+        # alone do not explain when an action can be used or what it will not do.
+        self._menu_sync.setToolTipsVisible(True)
 
         self._act_start = QAction(tr("menu.sync.start"), self)
         self._act_start.setShortcut("Ctrl+Shift+S")
+        self._act_start.setToolTip(tr("tip.start"))
         self._act_start.triggered.connect(self._on_start)
         self._menu_sync.addAction(self._act_start)
 
         self._act_preview_changes = QAction(tr("menu.sync.preview"), self)
+        self._act_preview_changes.setShortcut("Ctrl+Shift+P")
+        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_preview_changes.triggered.connect(self._on_preview_changes)
         self._menu_sync.addAction(self._act_preview_changes)
 
@@ -480,6 +492,7 @@ class UiBuildMixin:
 
         self._act_check_changes = QAction(tr("menu.sync.check_changes"), self)
         self._act_check_changes.setShortcut("F5")
+        self._act_check_changes.setToolTip(tr("tip.check_changes"))
         self._act_check_changes.setEnabled(False)
         self._act_check_changes.triggered.connect(self._on_check_changes)
         self._menu_sync.addAction(self._act_check_changes)
@@ -693,7 +706,9 @@ class UiBuildMixin:
         text: it says why the action is off when it is (a comparison running or
         Simulation Mode), why a click cannot compare yet (no link) and when the
         folder was last compared — the app also checks on its own on every
-        connect, so the recency is what most often saves the click.
+        connect, so the recency is what most often saves the click. While the app
+        is stopped with no link it also names the action that *does* show a plan,
+        so a user who only wants to look is not left starting a sync.
         """
         button = getattr(self, "_btn_check_changes", None)
         if button is None:
@@ -705,7 +720,14 @@ class UiBuildMixin:
             button.setToolTip(tr("simulation.tip"))
             return
         if not self._connected:
-            button.setToolTip(tr("tip.check_changes_waiting"))
+            tooltip = tr("tip.check_changes_waiting")
+            if not self._engine.is_running:
+                # Stopped: this is the state where a user looks for a plan and
+                # the check cannot produce one. Point at the action that can;
+                # while a run is starting, that action is disabled, so the hint
+                # would advertise something the menu greys out.
+                tooltip = f"{tooltip} {tr('tip.check_changes_preview_hint')}"
+            button.setToolTip(tooltip)
             return
         tooltip = tr("tip.check_changes")
         if self._last_check_at is not None:

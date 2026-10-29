@@ -33,6 +33,10 @@ The three buttons on the left are the everyday controls:
 | ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
 | 🔄 **Check for changes** | Re-compares your folder with the other devices and updates the list. It is disabled while a comparison runs; before a connection exists it explains that the check starts on its own. |
 
+The check compares inside the running sync, because the plan is computed against
+the other devices over the connection. To see a plan while no sync is running,
+use **Sync → Preview changes** (`Ctrl+Shift+P`).
+
 ## The path bar
 
 The path bar tells you **what** you are looking at and **where it goes**:
@@ -86,7 +90,7 @@ labels.
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu with Show, Setup wizard and Quit" width="200">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: Show, Start, Preview changes, Stop, Check for changes, Settings, Setup wizard and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
 the system-tray icon. Use the tray menu to bring the window back (**Show**) or to

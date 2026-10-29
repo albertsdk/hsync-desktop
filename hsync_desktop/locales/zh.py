@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "将文件夹与其他设备进行比较：列出仍待处理的变化，并更新文件列表和同步状态（F5）。",
     "tip.check_changes_waiting": "同步运行且可连接设备后会自动检查。按 F5 查看仍缺少的内容。",
     "tip.check_changes_last": "上次检查：{time}",
+    "tip.preview_changes": "以预览方式运行同步：显示计划，只有选择“立即同步”才会应用。仅在同步停止时可用。",
+    "tip.check_changes_preview_hint": "要在启动同步前查看计划，请使用“同步 → 预览更改”。",
     "tip.sync_state": "指示共享文件夹是否与其他设备一致：没有可比较的设备、正在检查、全部已同步，或仍有待传输的更改。连接多个设备时，状态取最落后的设备，下面的各行列出每个设备的待处理更改。",
     "tip.api_key": "用于服务器身份验证的 API 密钥",
     "tip.insecure": "不验证服务器证书（安全性较低）。",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "文件冲突已解决",
     "notif.conflict_resolved_msg": "{file} 在两端都被修改。保留了远程版本；您的本地版本已保存为 {conflict_copy}。",
     # Preview
-    "preview.title": "同步预览",
     "preview.no_actions": "没有要执行的操作 — 一切已同步。",
     "check_changes.no_devices": "没有其他可连接的设备，因此暂时没有可比较的内容。有设备加入后会自动检查。",
     "preview.simulation_no_changes": "模拟模式：未应用任何更改。在“设置 → 同步”中关闭它即可实际执行。",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "不再显示此消息",
     # Preview Summary Dialog
     "preview_summary.title": "同步预览",
+    "preview_summary.title_plan": "同步计划",
     "preview_summary.summary_changes": "更改：{count}",
     "preview_summary.context_scope": "范围：{path}",
     "preview_summary.estimate": "≈ {time}，{rate}/s",

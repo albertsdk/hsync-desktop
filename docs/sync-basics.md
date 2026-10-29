@@ -59,8 +59,8 @@ first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 ## Preview changes without starting a sync
 
 To see what a sync would do without committing to one, choose **Menu bar →
-Sync → Preview changes** (or the same entry in the tray menu) while no sync is
-running:
+Sync → Preview changes** (`Ctrl+Shift+P`, or the same entry in the tray menu)
+while no sync is running:
 
 1. The window shows **Preparing the plan…** with a progress toast and a matching
    line in the log, so the wait is never silent.
@@ -119,6 +119,12 @@ the folder with the other devices.
 - While a comparison is running the button is disabled, so one full scan runs at a
   time and the tooltip reads **Checking…**.
 
+The check compares *inside* the sync: the plan is computed by the client against
+the other devices over a live connection, so it cannot run while the app is
+stopped. To see a plan without starting a sync, use
+[Preview changes](#preview-changes-without-starting-a-sync) — the same dialog,
+with **Close** as the default and nothing applied.
+
 The app also compares on its own when it connects and when devices or files
 change, so the button is a fallback: its tooltip shows when the folder was last
 checked. Pressing it before a connection exists scans nothing — the window says
@@ -159,6 +165,7 @@ nothing is lost; the log names the file. The rules behind it are the client's
 | `Ctrl+Alt+C` | Copy to a folder |
 | `F5` | Check for changes: refresh the file list and the sync state |
 | `Ctrl+Shift+S` | Start |
+| `Ctrl+Shift+P` | Preview changes: show the plan without starting a sync |
 | `Ctrl+,` | Settings |
 | `F1` | Documentation |
 | `Ctrl+Q` | Quit |

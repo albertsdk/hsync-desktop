@@ -115,7 +115,9 @@ class TestButtons:
         qtbot.addWidget(dialog)
 
         assert _button_texts(dialog) == [tr("preview_summary.close")]
-        assert dialog.windowTitle().endswith(tr("simulation.window_title_suffix"))
+        assert dialog.windowTitle() == (
+            f"{tr('preview_summary.title')}{tr('simulation.window_title_suffix')}"
+        )
         assert tr("preview_summary.simulation") in dialog._lbl_context.text()
 
     def test_a_real_run_makes_cancel_the_default(self, qtbot):
@@ -126,10 +128,21 @@ class TestButtons:
             tr("preview_summary.cancel"),
             tr("preview_summary.sync"),
         ]
-        assert dialog.windowTitle() == tr("preview_summary.title")
+        assert dialog.windowTitle() == tr("preview_summary.title_plan")
         buttons = dialog._button_box.buttons()
         defaults = [button for button in buttons if button.isDefault()]
         assert [button.text() for button in defaults] == [tr("preview_summary.cancel")]
+
+    def test_the_title_follows_the_intent(self, qtbot):
+        """A run that will apply is a plan, not a preview that never applies."""
+        plan = PreviewSummaryDialog(_stats(to_upload=1))
+        preview = PreviewSummaryDialog(_stats(to_upload=1), intent="preview")
+        qtbot.addWidget(plan)
+        qtbot.addWidget(preview)
+
+        assert plan.windowTitle() == tr("preview_summary.title_plan")
+        assert preview.windowTitle() == tr("preview_summary.title")
+        assert plan.windowTitle() != preview.windowTitle()
 
     def test_the_preview_intent_closes_by_default(self, qtbot):
         """A preview run asked to see the plan: Close ends it, nothing applied."""

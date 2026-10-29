@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "フォルダーを他のデバイスと比較し、保留中の変更を一覧表示して、ファイル一覧と同期状態を更新します（F5）。",
     "tip.check_changes_waiting": "同期が実行中でデバイスに接続できると、自動でチェックします。F5 で不足している内容を確認できます。",
     "tip.check_changes_last": "最終チェック: {time}",
+    "tip.preview_changes": "同期をプレビューとして実行します。プランを表示し、「今すぐ同期」を選ぶまで何も適用しません。同期が停止しているときのみ利用できます。",
+    "tip.check_changes_preview_hint": "同期を開始する前にプランを確認するには、「同期 → 変更をプレビュー」を使用します。",
     "tip.sync_state": "共有フォルダーが他のデバイスと一致しているかを示します。比較対象なし、確認中、すべて同期済み、または未転送の変更です。複数のデバイスがある場合、状態は最も遅れているデバイスのものとなり、以下の行に各デバイスの保留中の変更が表示されます。",
     "tip.api_key": "サーバー認証用の API キー",
     "tip.insecure": "サーバー証明書を検証しません（安全性が低下）。",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "ファイルの競合を解決しました",
     "notif.conflict_resolved_msg": "{file} が両側で変更されました。リモートバージョンが保持され、ローカルバージョンは {conflict_copy} として保存されました。",
     # Preview
-    "preview.title": "同期プレビュー",
     "preview.no_actions": "実行する操作はありません — すべて同期済みです。",
     "check_changes.no_devices": "接続できる他のデバイスがないため、まだ比較する内容はありません。デバイスが参加すると自動でチェックします。",
     "preview.simulation_no_changes": "シミュレーションモード：変更は適用されていません。実際に実行するには「設定 → 同期」でオフにしてください。",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "このメッセージを今後表示しない",
     # Preview Summary Dialog
     "preview_summary.title": "同期プレビュー",
+    "preview_summary.title_plan": "同期プラン",
     "preview_summary.summary_changes": "変更: {count}",
     "preview_summary.context_scope": "対象: {path}",
     "preview_summary.estimate": "≈ {time}（{rate}/s）",

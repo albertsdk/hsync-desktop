@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "Compara a pasta com os outros dispositivos: mostra as alterações pendentes e atualiza a lista de ficheiros e o estado da sincronização (F5).",
     "tip.check_changes_waiting": "A verificação começa automaticamente quando a sincronização está ativa e há um dispositivo acessível. Prima F5 para saber o que falta.",
     "tip.check_changes_last": "Última verificação: {time}",
+    "tip.preview_changes": "Executa uma sincronização em pré-visualização: o plano é mostrado e nada é aplicado até escolher Sincronizar agora. Disponível quando não há sincronização em curso.",
+    "tip.check_changes_preview_hint": "Para ver o plano antes de iniciar uma sincronização, use Sincronização → Pré-visualizar alterações.",
     "tip.sync_state": "Indica se a pasta partilhada corresponde aos outros dispositivos: nada a comparar, a verificar, tudo sincronizado ou as alterações ainda por transferir. Com vários dispositivos, o estado é o do dispositivo mais atrasado e as linhas abaixo listam as alterações pendentes de cada um.",
     "tip.api_key": "Chave de API para autenticação no servidor",
     "tip.insecure": "Não verificar o certificado do servidor (menos seguro).",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "Conflito de arquivo resolvido",
     "notif.conflict_resolved_msg": "{file} foi modificado nos dois lados. A versão remota foi mantida; sua versão local foi salva como {conflict_copy}.",
     # Preview
-    "preview.title": "Pré-visualização da sincronização",
     "preview.no_actions": "Nenhuma ação a executar — tudo está sincronizado.",
     "check_changes.no_devices": "Não há outro dispositivo acessível, por isso ainda não há nada para comparar. A verificação é executada automaticamente quando um se junta.",
     "preview.simulation_no_changes": "Modo de simulação: nada foi aplicado. Desative-o em Configurações → Sincronização para executar de verdade.",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Não mostrar esta mensagem novamente",
     # Preview Summary Dialog
     "preview_summary.title": "Pré-visualização da sincronização",
+    "preview_summary.title_plan": "Plano de sincronização",
     "preview_summary.summary_changes": "Alterações: {count}",
     "preview_summary.context_scope": "Âmbito: {path}",
     "preview_summary.estimate": "≈ {time} a {rate}/s",

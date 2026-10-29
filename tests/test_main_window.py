@@ -2174,6 +2174,17 @@ class TestPreviewChanges:
 
         assert texts.index(tr("menu.sync.preview")) == texts.index(tr("menu.sync.start")) + 1
 
+    def test_the_action_carries_a_shortcut_and_a_tooltip(self, window):
+        """The menu names the action; the tooltip says what it will not do.
+
+        Without it "Preview changes" sits one row below "Start" with no visible
+        difference, and the dialog it opens looks like the one a Start shows.
+        QMenu hides tooltips by default, so the menu has to ask for them.
+        """
+        assert window._act_preview_changes.shortcut().toString() == "Ctrl+Shift+P"
+        assert window._act_preview_changes.toolTip() == tr("tip.preview_changes")
+        assert window._menu_sync.toolTipsVisible()
+
     def test_it_starts_the_dry_run_with_the_preview_intent(self, window, monkeypatch, tmp_path):
         _stop_the_deferred_timer(monkeypatch)
         monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
@@ -3593,12 +3604,34 @@ class TestCheckChangesAction:
         assert window._last_check_at is None
 
     def test_the_button_is_icon_only_with_an_explanatory_tooltip(self, window):
-        """The action bar shows no text, so the tooltip has to explain the action."""
+        """The action-bar button is icon-only, so the tooltip has to explain the action."""
         assert window._btn_check_changes.text() == ""
         assert not window._btn_check_changes.icon().isNull()
-        # Idle: the tooltip says when the check can run, and names the shortcut.
-        assert window._btn_check_changes.toolTip() == tr("tip.check_changes_waiting")
-        assert "F5" in window._btn_check_changes.toolTip()
+        # Idle: the tooltip says when the check can run, names the shortcut and
+        # points at the action that shows a plan while the app is stopped.
+        tooltip = window._btn_check_changes.toolTip()
+        assert tooltip.startswith(tr("tip.check_changes_waiting"))
+        assert tr("tip.check_changes_preview_hint") in tooltip
+        assert "F5" in tooltip
+
+    def test_the_waiting_hint_stays_out_of_the_click_toast(self, window):
+        """The pointer belongs to the tooltip: a toast must stay a short message."""
+        window._connected = False
+
+        with self._running_engine(window):
+            window._on_check_changes()
+
+        assert window._info_banner_label.text() == tr("tip.check_changes_waiting")
+
+    def test_the_stopped_hint_is_not_offered_while_a_run_starts(self, window):
+        """While starting, Preview changes is greyed out: do not advertise it."""
+        window._connected = False
+
+        with self._running_engine(window):
+            window._update_check_changes_tooltip()
+
+            tooltip = window._btn_check_changes.toolTip()
+            assert tr("tip.check_changes_preview_hint") not in tooltip
 
 
 class TestStoppingFeedback:

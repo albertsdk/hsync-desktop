@@ -49,6 +49,18 @@ class TestCheckChangesEntry:
 class TestPreviewChangesEntry:
     """The explicit "Preview changes" entry follows Start's enablement rule."""
 
+    def test_the_entry_explains_what_it_will_not_do(self, qapp):
+        """The tray has no other text, so the tooltip has to separate the entry
+        from Start, and the menu has to be told to show it."""
+        tray = SystemTray()
+        try:
+            assert tray._act_preview_changes.toolTip() == tr("tip.preview_changes")
+            menu = tray.contextMenu()
+            assert menu is not None
+            assert menu.toolTipsVisible()
+        finally:
+            tray.hide()
+
     def test_it_mirrors_start_and_emits_its_signal(self, qapp):
         tray = SystemTray()
         try:

@@ -75,16 +75,21 @@ class SystemTray(QSystemTrayIcon):
 
         # Context menu
         menu = QMenu()
+        # The run entries carry a tooltip (see below); a menu shows them only
+        # when asked, and QMenu defaults to off.
+        menu.setToolTipsVisible(True)
         self._act_show = QAction(tr("tray.show"), menu)
         self._act_show.triggered.connect(self.toggle_window.emit)
         menu.addAction(self._act_show)
         menu.addSeparator()
 
         self._act_start = QAction(tr("tray.start"), menu)
+        self._act_start.setToolTip(tr("tip.start"))
         self._act_start.triggered.connect(self.start_requested.emit)
         menu.addAction(self._act_start)
 
         self._act_preview_changes = QAction(tr("tray.preview_changes"), menu)
+        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_preview_changes.triggered.connect(self.preview_changes_requested.emit)
         menu.addAction(self._act_preview_changes)
 
@@ -94,6 +99,7 @@ class SystemTray(QSystemTrayIcon):
         menu.addAction(self._act_stop)
 
         self._act_check_changes = QAction(tr("tray.check_changes"), menu)
+        self._act_check_changes.setToolTip(tr("tip.check_changes"))
         self._act_check_changes.triggered.connect(self.check_changes_requested.emit)
         self._act_check_changes.setEnabled(False)
         menu.addAction(self._act_check_changes)
@@ -196,9 +202,12 @@ class SystemTray(QSystemTrayIcon):
         """Apply i18n translations to menu items."""
         self._act_show.setText(tr("tray.minimize") if self._window_visible else tr("tray.show"))
         self._act_start.setText(tr("tray.start"))
+        self._act_start.setToolTip(tr("tip.start"))
         self._act_preview_changes.setText(tr("tray.preview_changes"))
+        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_stop.setText(tr("tray.stop"))
         self._act_check_changes.setText(tr("tray.check_changes"))
+        self._act_check_changes.setToolTip(tr("tip.check_changes"))
         self._act_settings.setText(tr("tray.settings"))
         self._act_setup_wizard.setText(tr("tray.setup_wizard"))
         self._act_quit.setText(tr("tray.quit"))

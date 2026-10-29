@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "Compare the folder with the other devices: it lists the changes still pending and updates the file list and the sync state (F5).",
     "tip.check_changes_waiting": "The check starts automatically once the sync is running and a device is reachable. Press F5 to be told what is still missing.",
     "tip.check_changes_last": "Last check: {time}",
+    "tip.preview_changes": "Run a sync in preview: the plan is shown and nothing is applied unless you choose Sync now. Available while no sync is running.",
+    "tip.check_changes_preview_hint": "To see the plan before starting a sync, use Sync → Preview changes.",
     "tip.sync_state": "Whether the shared folder matches the other devices: nothing to compare, checking, every device in sync, or the changes still to transfer. With more than one device the state is the one furthest behind, and the lines below list each device's pending changes.",
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Do not verify the server certificate (less secure).",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "File Conflict Resolved",
     "notif.conflict_resolved_msg": "{file} was modified on both sides. The remote version was kept; your local version was saved as {conflict_copy}.",
     # Preview
-    "preview.title": "Sync Preview",
     "preview.no_actions": "No actions to perform — everything is in sync.",
     "check_changes.no_devices": "No other device is reachable, so there is nothing to compare yet. The check runs automatically when one joins.",
     "preview.simulation_no_changes": "Simulation Mode: nothing was applied. Turn it off in Settings → Sync to run for real.",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Don't show this message again",
     # Preview Summary Dialog
     "preview_summary.title": "Sync Preview",
+    "preview_summary.title_plan": "Sync plan",
     "preview_summary.summary_changes": "Changes: {count}",
     "preview_summary.context_scope": "Scope: {path}",
     "preview_summary.estimate": "≈ {time} at {rate}/s",

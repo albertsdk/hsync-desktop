@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "Vergelijkt de map met de andere apparaten: toont de nog openstaande wijzigingen en werkt de bestandenlijst en de synchronisatiestatus bij (F5).",
     "tip.check_changes_waiting": "De controle start automatisch zodra de synchronisatie loopt en een apparaat bereikbaar is. Druk op F5 om te zien wat er nog ontbreekt.",
     "tip.check_changes_last": "Laatste controle: {time}",
+    "tip.preview_changes": "Voert een synchronisatie als voorbeeld uit: het plan verschijnt en er wordt niets toegepast tot u 'Nu synchroniseren' kiest. Beschikbaar als er geen synchronisatie loopt.",
+    "tip.check_changes_preview_hint": "Gebruik Synchronisatie → Wijzigingen bekijken om het plan te zien voordat u een synchronisatie start.",
     "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: niets om te vergelijken, bezig met controleren, alles gesynchroniseerd of de nog te verzenden wijzigingen. Bij meerdere apparaten geldt het apparaat dat het verst achterloopt en de regels hieronder tonen de openstaande wijzigingen per apparaat.",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "Bestandsconflict opgelost",
     "notif.conflict_resolved_msg": "{file} is aan beide zijden gewijzigd. De externe versie is behouden; uw lokale versie is opgeslagen als {conflict_copy}.",
     # Preview
-    "preview.title": "Synchronisatievoorbeeld",
     "preview.no_actions": "Geen acties uit te voeren — alles is gesynchroniseerd.",
     "check_changes.no_devices": "Er is geen ander apparaat bereikbaar, dus er valt nog niets te vergelijken. De controle start automatisch zodra er een apparaat bijkomt.",
     "preview.simulation_no_changes": "Simulatiemodus: er is niets toegepast. Schakel hem uit in Instellingen → Synchronisatie om echt uit te voeren.",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Dit bericht niet meer tonen",
     # Preview Summary Dialog
     "preview_summary.title": "Synchronisatievoorbeeld",
+    "preview_summary.title_plan": "Synchronisatieplan",
     "preview_summary.summary_changes": "Wijzigingen: {count}",
     "preview_summary.context_scope": "Bereik: {path}",
     "preview_summary.estimate": "≈ {time} bij {rate}/s",

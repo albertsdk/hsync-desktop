@@ -108,10 +108,10 @@ live WebSocket (admins excluded), so its title is "Connected users"
 **Keyboard shortcuts** live only on the menu-bar actions (a context menu cannot
 be reached from the keyboard, so it never displays them): `Return`/`Ctrl+O` open,
 `F2` rename, `Delete` trash, `Alt+Return` properties, `Ctrl+Shift+C` copy path,
-`Ctrl+Alt+C` copy to, `F5` compare, `Ctrl+Shift+S` start,
-`QKeySequence.StandardKey.Preferences` settings and `.Quit` quit (Cmd instead of
-Ctrl on macOS), `F1` documentation; the log menu shows `StandardKey.SelectAll` /
-`.Copy` and lets the view handle them.
+`Ctrl+Alt+C` copy to, `F5` compare, `Ctrl+Shift+S` start, `Ctrl+Shift+P` preview
+changes, `QKeySequence.StandardKey.Preferences` settings and `.Quit` quit (Cmd
+instead of Ctrl on macOS), `F1` documentation; the log menu shows
+`StandardKey.SelectAll` / `.Copy` and lets the view handle them.
 
 Help menu (`main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local
@@ -217,6 +217,9 @@ control ever promises an application that cannot happen.
 The dialog is the point where a plan is accepted, so it states the outcome first
 and the destructive part in the open:
 
+* **Title**: `preview_summary.title_plan` for a `"start"` intent, and
+  `preview_summary.title` for `"preview"` or Simulation Mode — the window title
+  must not call a plan that a real sync is waiting on a preview.
 * **Summary line** (`lblSummary`): `summary_changes` ("Changes: N") plus the
   transfer volume, from `PreviewStats.action_count` / `transfer_size`.
 * **Context line** (`lblContext`, hidden when empty): the scoped path for a
@@ -264,6 +267,16 @@ already-running process (`ActionsMixin._show_preview_summary`).
 
 The intent is read only while `_is_dry_run_preview` is set, so the `PREVIEW` a
 running session answers keeps the sync semantics of the run that started it.
+
+The action lives in the Sync menu and the tray only (no action-bar button, no new
+icon). Both entries carry `tip.preview_changes`, the two menus show it
+(`QMenu.setToolTipsVisible(True)`; Qt hides tooltips in menus by default) and the
+menu-bar action owns `Ctrl+Shift+P`, so a stopped app can reach the plan from the
+keyboard too. `_update_check_changes_tooltip` appends
+`tip.check_changes_preview_hint` in its no-link state *while the engine is
+stopped*: that is where a user looks for a plan the check cannot produce, and
+where the pointed action is enabled. A run that is still starting keeps the short
+waiting text, because Preview changes is greyed out until it stops.
 
 `_enter_preparing_plan_ui` covers the interval between the dry-run start and its
 plan with a `progress` toast plus `--- notif.preparing_plan ---`; the toast is
@@ -849,7 +862,10 @@ The slot's guards keep the click honest:
 `EventsMixin._stamp_last_check` records `_last_check_at` only when no engine error
 hit the comparison (`UiBuildMixin._on_engine_error` sets `_comparison_errored`), and
 `UiBuildMixin._update_check_changes_tooltip` renders it through
-`tip.check_changes_last`; the same helper explains the waiting and "Checking…" states.
+`tip.check_changes_last`; the same helper explains the waiting and "Checking…"
+states, and appends `tip.check_changes_preview_hint` to the waiting tooltip only —
+the toast a click writes keeps `tip.check_changes_waiting`, so the hint never
+lengthens a transient message.
 `ActionsMixin._show_preview_summary` reports `check_changes.no_devices` instead of
 `preview.no_actions` when `_sync_state` is `no_devices`, so a lone device never
 looks in sync.

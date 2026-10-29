@@ -330,6 +330,8 @@ translations: dict[str, str] = {
     "tip.check_changes": "Porównuje folder z innymi urządzeniami: pokazuje oczekujące zmiany i odświeża listę plików oraz stan synchronizacji (F5).",
     "tip.check_changes_waiting": "Sprawdzanie rozpoczyna się automatycznie, gdy synchronizacja działa i urządzenie jest osiągalne. Naciśnij F5, aby zobaczyć, czego brakuje.",
     "tip.check_changes_last": "Ostatnie sprawdzenie: {time}",
+    "tip.preview_changes": "Uruchamia synchronizację w podglądzie: plan jest wyświetlany, a nic nie zostaje zastosowane, dopóki nie wybierzesz „Synchronizuj teraz”. Dostępne, gdy synchronizacja nie działa.",
+    "tip.check_changes_preview_hint": "Aby zobaczyć plan przed rozpoczęciem synchronizacji, użyj Synchronizacja → Podgląd zmian.",
     "tip.sync_state": "Wskazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak urządzenia do porównania, sprawdzanie, wszystko zsynchronizowane albo zmiany do przesłania. Przy wielu urządzeniach stan dotyczy urządzenia najbardziej opóźnionego, a poniższe wiersze pokazują oczekujące zmiany każdego z nich.",
     "tip.api_key": "Klucz API do uwierzytelniania na serwerze",
     "tip.insecure": "Nie weryfikuj certyfikatu serwera (mniej bezpieczne).",
@@ -466,7 +468,6 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_title": "Konflikt plików rozwiązany",
     "notif.conflict_resolved_msg": "{file} został zmodyfikowany po obu stronach. Zachowano wersję zdalną; Twoja wersja lokalna została zapisana jako {conflict_copy}.",
     # Preview
-    "preview.title": "Podgląd synchronizacji",
     "preview.no_actions": "Brak działań do wykonania — wszystko jest zsynchronizowane.",
     "check_changes.no_devices": "Żadne inne urządzenie nie jest osiągalne, więc nie ma jeszcze czego porównywać. Sprawdzanie uruchomi się automatycznie, gdy dołączy urządzenie.",
     "preview.simulation_no_changes": "Tryb symulacji: nie zastosowano żadnych zmian. Wyłącz go w Ustawienia → Synchronizacja, aby wykonać naprawdę.",
@@ -478,6 +479,7 @@ translations: dict[str, str] = {
     "disclaimer.dont_show": "Nie pokazuj ponownie tego komunikatu",
     # Preview Summary Dialog
     "preview_summary.title": "Podgląd synchronizacji",
+    "preview_summary.title_plan": "Plan synchronizacji",
     "preview_summary.summary_changes": "Zmiany: {count}",
     "preview_summary.context_scope": "Zakres: {path}",
     "preview_summary.estimate": "≈ {time} przy {rate}/s",

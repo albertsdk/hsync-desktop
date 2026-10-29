@@ -153,6 +153,12 @@ class PreviewSummaryDialog(QDialog):
     ``intent`` is the action that asked for the plan: ``"start"`` (the run is a
     sync that confirms before applying) or ``"preview"`` (the run exists to show
     the plan, so applying is an explicit "Sync now" instead of the default).
+
+    The title follows the intent, because the same dialog is reached from two
+    different actions: a preview (and a Simulation Mode run, which is a preview
+    by definition) is titled ``preview_summary.title``, a plan that a real sync
+    is waiting on is titled ``preview_summary.title_plan`` — a confirmation of a
+    run must not read as a preview that never applies anything.
     """
 
     def __init__(
@@ -184,7 +190,11 @@ class PreviewSummaryDialog(QDialog):
     def _load_ui(self) -> None:
         load_ui_widget("preview_summary_dialog", self)
 
-        title = tr("preview_summary.title")
+        title = tr(
+            "preview_summary.title"
+            if self._simulation or self._intent == "preview"
+            else "preview_summary.title_plan"
+        )
         if self._simulation:
             title += tr("simulation.window_title_suffix")
         self.setWindowTitle(title)
