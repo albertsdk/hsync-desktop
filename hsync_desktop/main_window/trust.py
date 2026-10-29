@@ -41,8 +41,8 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
 )
 from hsync_desktop.crypto import decrypt_value
@@ -50,16 +50,16 @@ from hsync_desktop.engine import (
     AsyncProbe,
     HsyncEngine,
     ProbeOutcome,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
 )
@@ -95,8 +95,8 @@ class _TrustCheck:
 
     ``fetch_fn`` is the blocking fingerprint probe (a client CLI call): it only
     ever runs on the ``AsyncProbe`` thread; ``add_fn`` writes the confirmed pin.
-    ``kind`` is the host class (``"bootnode"`` or ``"server"``): only the sync
-    server is mandatory for a run, so an unreachable discovery server degrades
+    ``kind`` is the host class (``"rendezvous"`` or ``"server"``): only the sync
+    server is mandatory for a run, so an unreachable rendezvous server degrades
     the run instead of cancelling it.
     """
 
@@ -137,7 +137,7 @@ class TrustMixin:
         return f"{endpoint.authority}:{endpoint.port}" if endpoint.port else endpoint.authority
 
     def _host_port_from_address(self, address: str) -> tuple[str, int | None]:
-        """Split a bootnode/server ``peer_address`` into (host, port) for the CLI."""
+        """Split a rendezvous/server ``peer_address`` into (host, port) for the CLI."""
         endpoint = parse_host_port(address) if address else None
         if endpoint is None:
             return address or "", None
@@ -147,19 +147,19 @@ class TrustMixin:
     def _host_trust_actions(
         scope: str,
     ) -> tuple[Callable[..., bool], Callable[..., bool], str] | None:
-        """(add, remove, label) for a host:port trust scope (bootnode/server).
+        """(add, remove, label) for a host:port trust scope (rendezvous/server).
 
         Resolved at call time (not captured at import) so tests can monkeypatch
         the engine helpers; ``master`` pins a P2P peer and is handled separately.
         """
-        if scope == "bootnode":
-            return add_bootnode_trust, remove_bootnode_trust, "Discovery server"
+        if scope == "rendezvous":
+            return add_rendezvous_trust, remove_rendezvous_trust, "Rendezvous server"
         if scope == "server":
             return add_server_trust, remove_server_trust, "Server"
         return None
 
     def _maybe_offer_restart(self) -> None:
-        """Offer to restart a stopped sync after a bootnode pin change."""
+        """Offer to restart a stopped sync after a rendezvous pin change."""
         if self._engine.is_running or not self._local_path:
             return
         answer = QMessageBox.question(
@@ -405,27 +405,27 @@ class TrustMixin:
         self._run_next_trust_check()
 
     def _pending_trust_checks(self) -> list[_TrustCheck]:
-        """The hosts that still need an operator decision, bootnode first."""
+        """The hosts that still need an operator decision, rendezvous first."""
         binary = find_hsync_binary()
         if not binary:
             return []  # the engine reports the missing binary
         checks: list[_TrustCheck] = []
-        for check in (self._bootnode_trust_check(binary), self._server_trust_check(binary)):
+        for check in (self._rendezvous_trust_check(binary), self._server_trust_check(binary)):
             if check is not None:
                 checks.append(check)
         return checks
 
-    def _bootnode_trust_check(self, binary: str) -> _TrustCheck | None:
-        """Bootnode pre-flight (ADR-0035), or ``None`` when nothing to ask."""
+    def _rendezvous_trust_check(self, binary: str) -> _TrustCheck | None:
+        """Rendezvous pre-flight (ADR-0035), or ``None`` when nothing to ask."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if not bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
             return None
-        host = str(s.value("p2p/discovery_server_endpoints", "", str)).strip()
+        host = str(s.value("p2p/rendezvous_server_endpoints", "", str)).strip()
         if not host:
             return None
-        if str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
+        if str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str)) != "ask":
             return None
-        # The bootnode setting may carry a port ("[IPv6]:port"): normalize it to
+        # The rendezvous setting may carry a port ("[IPv6]:port"): normalize it to
         # its unbracketed host and use the real port for the trust store/fetch.
         try:
             endpoint = parse_host_port(host)
@@ -435,11 +435,11 @@ class TrustMixin:
             binary,
             endpoint.host,
             endpoint.port or 443,
-            list_fn=list_bootnode_trust,
-            fetch_fn=fetch_bootnode_fingerprint,
-            add_fn=add_bootnode_trust,
-            label="Bootnode",
-            kind="bootnode",
+            list_fn=list_rendezvous_trust,
+            fetch_fn=fetch_rendezvous_fingerprint,
+            add_fn=add_rendezvous_trust,
+            label="Rendezvous",
+            kind="rendezvous",
         )
 
     def _server_trust_check(self, binary: str) -> _TrustCheck | None:
@@ -527,15 +527,15 @@ class TrustMixin:
         self._hide_info_banner()
         fingerprint = outcome.fingerprint if isinstance(outcome, ProbeOutcome) else ""
         if not fingerprint:
-            if check.kind == "bootnode":
-                # The discovery server is an optional cross-network source: an
-                # unreachable node degrades the run to local-network discovery
+            if check.kind == "rendezvous":
+                # The rendezvous server is an optional cross-network source: an
+                # unreachable node degrades the run to local-network rendezvous
                 # instead of cancelling it. The client retries the node on its
                 # own and, once it answers, reports the unpinned identity through
-                # ``pairing_needed`` (scope ``bootnode``), which re-prompts here.
+                # ``pairing_needed`` (scope ``rendezvous``), which re-prompts here.
                 self._append_desktop_log(
                     "WARNING",
-                    f"Discovery server {check.host}:{check.port} is not reachable: "
+                    f"Rendezvous server {check.host}:{check.port} is not reachable: "
                     "devices are discovered on the local network only. Pin its "
                     "fingerprint (Manage trusted servers & devices) to use it.",
                 )
@@ -544,14 +544,14 @@ class TrustMixin:
             self._finish_trust_preflight()
             QMessageBox.warning(
                 self,
-                tr("dialogs.bootnode_trust_title"),
-                tr("dialogs.bootnode_unreachable").format(host=check.host),
+                tr("dialogs.rendezvous_trust_title"),
+                tr("dialogs.rendezvous_unreachable").format(host=check.host),
             )
             return
         answer = QMessageBox.question(
             self,
-            tr("dialogs.bootnode_trust_title"),
-            tr("dialogs.bootnode_trust_body").format(host=check.host, fingerprint=fingerprint),
+            tr("dialogs.rendezvous_trust_title"),
+            tr("dialogs.rendezvous_trust_body").format(host=check.host, fingerprint=fingerprint),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -564,7 +564,7 @@ class TrustMixin:
         if not check.add_fn(check.binary, check.host, fingerprint, check.port):
             self._finish_trust_preflight()
             QMessageBox.warning(
-                self, tr("dialogs.bootnode_trust_title"), tr("dialogs.trust_failed")
+                self, tr("dialogs.rendezvous_trust_title"), tr("dialogs.trust_failed")
             )
             return
         self._run_next_trust_check()

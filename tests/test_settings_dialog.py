@@ -117,7 +117,7 @@ class TestCapabilityGating:
                 "--prefer-master",
                 "--never-master",
                 "--p2p-trust",
-                "--discovery-server",
+                "--rendezvous-server",
                 "--map-data-port",
                 "--no-autotune",
                 "--max-concurrent-transfers",
@@ -136,23 +136,23 @@ class TestCapabilityGating:
         assert dlg.prefer_master.isEnabled()
         assert dlg.never_master.isEnabled()
         assert dlg.p2p_trust.isEnabled()
-        assert dlg.p2p_bootnode.isEnabled()
+        assert dlg.p2p_rendezvous.isEnabled()
         assert dlg.p2p_upnp.isEnabled()
         assert not dlg._unsupported_widgets
 
-    def test_bootnode_field_gated_on_the_discovery_server_flag(self, qtbot, monkeypatch):
-        """The discovery-server field belongs to the cross-network plan."""
+    def test_rendezvous_field_gated_on_the_rendezvous_server_flag(self, qtbot, monkeypatch):
+        """The rendezvous-server field belongs to the cross-network plan."""
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            p2p_flags=["--prefer-master", "--discovery-server", "--map-data-port"],
+            p2p_flags=["--prefer-master", "--rendezvous-server", "--map-data-port"],
         )
         dlg.p2p_mode.setChecked(True)
-        assert dlg.p2p_bootnode.isEnabled()
+        assert dlg.p2p_rendezvous.isEnabled()
         dlg2 = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
         dlg2.p2p_mode.setChecked(True)
-        assert not dlg2.p2p_bootnode.isEnabled()
-        assert dlg2.p2p_bootnode.toolTip() == tr("tip.capability_unsupported")
+        assert not dlg2.p2p_rendezvous.isEnabled()
+        assert dlg2.p2p_rendezvous.toolTip() == tr("tip.capability_unsupported")
 
     def test_p2p_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_supported=False)
@@ -197,11 +197,11 @@ class TestCapabilityGating:
         assert not dlg.p2p_trust.isEnabled()
 
 
-class TestBootnodeTrustPolicy:
-    """The bootnode trust policy is a combo offering the four ADR-0035 policies."""
+class TestRendezvousTrustPolicy:
+    """The rendezvous trust policy is a combo offering the four ADR-0035 policies."""
 
     def test_combo_offers_the_four_policies_and_defaults_to_ask(self, dialog):
-        combo = dialog.p2p_bootnode_trust
+        combo = dialog.p2p_rendezvous_trust
         assert [combo.itemData(i) for i in range(combo.count())] == [
             "ask",
             "accept-new",
@@ -213,32 +213,32 @@ class TestBootnodeTrustPolicy:
     def test_label_sits_in_form_label_column(self, dialog):
         """The trust label is the caption of the trust combo's own form row."""
 
-        form = dialog.p2p_bootnode.parentWidget().layout()
+        form = dialog.p2p_rendezvous.parentWidget().layout()
         assert isinstance(form, QFormLayout)
         for row in range(form.rowCount()):
             label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
             field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            if field_item is not None and field_item.widget() is dialog.p2p_bootnode:
-                bootnode_row = row
+            if field_item is not None and field_item.widget() is dialog.p2p_rendezvous:
+                rendezvous_row = row
                 break
         else:
-            raise AssertionError("bootnode field not in form layout")
+            raise AssertionError("rendezvous field not in form layout")
         for row in range(form.rowCount()):
             label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
             field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
-            if label_item is not None and label_item.widget() is dialog._lbl_p2p_bootnode_trust:
+            if label_item is not None and label_item.widget() is dialog._lbl_p2p_rendezvous_trust:
                 trust_row = row
                 break
         else:
             raise AssertionError("trust label not in form label column")
-        assert trust_row == bootnode_row + 1
+        assert trust_row == rendezvous_row + 1
 
 
 class TestTrustedKeysUi:
     """The fingerprint field is gone; the store is managed via the dialog."""
 
-    def test_bootnode_fingerprint_widget_is_absent(self, dialog):
-        assert dialog.findChild(QLineEdit, "p2pBootnodeFingerprint") is None
+    def test_rendezvous_fingerprint_widget_is_absent(self, dialog):
+        assert dialog.findChild(QLineEdit, "p2pRendezvousFingerprint") is None
 
     def test_manage_trusted_keys_buttons_open_the_matching_tab(self, dialog, monkeypatch):
         from hsync_desktop.settings import dialog as dialog_mod
@@ -246,7 +246,7 @@ class TestTrustedKeysUi:
         opened: list[str] = []
 
         class _Fake:
-            def __init__(self, parent, *, initial_tab="bootnodes"):
+            def __init__(self, parent, *, initial_tab="rendezvouss"):
                 self._tab = initial_tab
 
             def exec(self):
@@ -259,7 +259,7 @@ class TestTrustedKeysUi:
         dialog.btn_manage_trusted_keys.click()
         dialog.p2p_mode.setChecked(False)
         dialog.btn_manage_trusted_keys_server.click()
-        assert opened == ["bootnodes", "servers"]
+        assert opened == ["rendezvouss", "servers"]
 
 
 class TestServerTrustPolicy:
@@ -317,24 +317,24 @@ class TestP2pPanelGating:
 
     def test_trust_controls_disabled_when_p2p_is_off(self, dialog):
         dialog.p2p_mode.setChecked(True)
-        assert dialog.p2p_bootnode_trust.isEnabled()
+        assert dialog.p2p_rendezvous_trust.isEnabled()
         assert dialog.btn_manage_trusted_keys.isEnabled()
         dialog.p2p_mode.setChecked(False)
-        assert not dialog.p2p_bootnode_trust.isEnabled()
+        assert not dialog.p2p_rendezvous_trust.isEnabled()
         assert not dialog.btn_manage_trusted_keys.isEnabled()
 
     def test_trust_controls_disabled_while_a_sync_is_active(self, dialog):
         dialog.p2p_mode.setChecked(True)
         dialog.set_connection_active(True)
-        assert not dialog.p2p_bootnode_trust.isEnabled()
+        assert not dialog.p2p_rendezvous_trust.isEnabled()
         assert not dialog.btn_manage_trusted_keys.isEnabled()
         dialog.set_connection_active(False)
-        assert dialog.p2p_bootnode_trust.isEnabled()
+        assert dialog.p2p_rendezvous_trust.isEnabled()
         assert dialog.btn_manage_trusted_keys.isEnabled()
 
 
 class TestEndpointNormalization:
-    """Server/bootnode fields validate + normalize through the shared grammar."""
+    """Server/rendezvous fields validate + normalize through the shared grammar."""
 
     def test_server_url_normalizes_bare_host(self, dialog):
         dialog.server_url.setText("host.example.com")
@@ -350,19 +350,19 @@ class TestEndpointNormalization:
         with pytest.raises(ValueError):
             dialog._normalize_server_endpoint()
 
-    def test_bootnode_normalizes_ipv6_composite(self, dialog):
-        dialog.p2p_bootnode.setText("[::1]:8443")
-        assert dialog._normalize_discovery_server_endpoints() == "[::1]:8443"
+    def test_rendezvous_normalizes_ipv6_composite(self, dialog):
+        dialog.p2p_rendezvous.setText("[::1]:8443")
+        assert dialog._normalize_rendezvous_server_endpoints() == "[::1]:8443"
 
-    def test_bootnode_bare_ipv6_is_unbracketed(self, dialog):
-        dialog.p2p_bootnode.setText("[::1]")
-        assert dialog._normalize_discovery_server_endpoints() == "::1"
+    def test_rendezvous_bare_ipv6_is_unbracketed(self, dialog):
+        dialog.p2p_rendezvous.setText("[::1]")
+        assert dialog._normalize_rendezvous_server_endpoints() == "::1"
 
-    def test_bootnode_rejects_scheme(self, dialog):
+    def test_rendezvous_rejects_scheme(self, dialog):
 
-        dialog.p2p_bootnode.setText("https://boot.example.net")
+        dialog.p2p_rendezvous.setText("https://boot.example.net")
         with pytest.raises(ValueError):
-            dialog._normalize_discovery_server_endpoints()
+            dialog._normalize_rendezvous_server_endpoints()
 
 
 def _isolated_dialog(qtbot, monkeypatch, tmp_path):
@@ -434,7 +434,7 @@ class TestP2PSecretModeRepair:
         assert store.value("p2p/key_mode", "", str) == "passphrase"
 
     def test_a_raw_key_at_the_floor_keeps_its_mode(self, qtbot, monkeypatch, tmp_path):
-        from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
+        from hsync_common.protocol.rdv_tokens import MIN_GROUP_KEY_CHARS
 
         dlg, store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
         store.setValue("p2p/key", "k" * MIN_GROUP_KEY_CHARS)
@@ -583,7 +583,7 @@ class TestTimeSettingFloors:
         assert dlg.max_wait.minimum() == 60
         assert dlg.retry_delay.minimum() == 5
         assert dlg.http_timeout.minimum() == 5
-        assert dlg.discovery_timeout.minimum() == 5
+        assert dlg.rendezvous_timeout.minimum() == 5
         assert dlg.resync.maximum() == 3600
 
 

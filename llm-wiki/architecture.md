@@ -64,7 +64,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
 ## Build & packaging
 
 `compile.sh` exposes the uniform target interface shared with `hsync-client` and
-`hsync-bootnode`:
+`hsync-rendezvous`:
 
 | Target | Output | How |
 | ------ | ------ | --- |

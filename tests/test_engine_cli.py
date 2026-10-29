@@ -14,21 +14,21 @@ from hsync_desktop.engine import (
     _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
     apply_settings_env,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
     is_binary_version_compatible,
-    list_bootnode_trust,
     list_peer_pins,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
     write_secret_pipe,
@@ -349,8 +349,8 @@ class TestGetBinaryCapabilities:
         assert get_binary_capabilities("/fake/hsync") is None
 
 
-class TestFetchBootnodeFingerprint:
-    """The GUI pre-flight reads a bootnode fingerprint without trusting it."""
+class TestFetchRendezvousFingerprint:
+    """The GUI pre-flight reads a rendezvous fingerprint without trusting it."""
 
     def test_returns_the_last_stdout_line_on_success(self, monkeypatch):
         import types
@@ -362,11 +362,11 @@ class TestFetchBootnodeFingerprint:
             return types.SimpleNamespace(returncode=0, stdout="noise line\nsha256:abc\n")
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
-        assert fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
+        assert fetch_rendezvous_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
         assert calls["args"] == [
             "/bin/hsync",
             "trust",
-            "discovery-server",
+            "rendezvous-server",
             "fingerprint",
             "boot.example.net",
         ]
@@ -381,7 +381,7 @@ class TestFetchBootnodeFingerprint:
             return types.SimpleNamespace(returncode=0, stdout="sha256:abc\n")
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
-        fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net", 1443)
+        fetch_rendezvous_fingerprint("/bin/hsync", "boot.example.net", 1443)
         assert calls["args"][-1] == "boot.example.net:1443"
 
     def test_returns_none_on_failure_or_empty_output(self, monkeypatch):
@@ -391,20 +391,20 @@ class TestFetchBootnodeFingerprint:
             "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
         )
-        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+        assert fetch_rendezvous_fingerprint("/bin/hsync", "h") is None
 
         monkeypatch.setattr(
             "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="  \n"),
         )
-        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+        assert fetch_rendezvous_fingerprint("/bin/hsync", "h") is None
 
     def test_returns_none_when_the_binary_cannot_be_run(self, monkeypatch):
         def boom(*args, **kwargs):
             raise OSError("missing binary")
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", boom)
-        assert fetch_bootnode_fingerprint("/bin/hsync", "h") is None
+        assert fetch_rendezvous_fingerprint("/bin/hsync", "h") is None
 
 
 class TestTrustSubprocessHelpers:
@@ -416,12 +416,14 @@ class TestTrustSubprocessHelpers:
 
         return types.SimpleNamespace(returncode=0, stdout=stdout)
 
-    def test_list_bootnode_trust_returns_entries(self, monkeypatch):
+    def test_list_rendezvous_trust_returns_entries(self, monkeypatch):
         monkeypatch.setattr(
             "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: self._ok('[{"host": "b", "port": 443, "fingerprint": "f"}]'),
         )
-        assert list_bootnode_trust("/bin/hsync") == [{"host": "b", "port": 443, "fingerprint": "f"}]
+        assert list_rendezvous_trust("/bin/hsync") == [
+            {"host": "b", "port": 443, "fingerprint": "f"}
+        ]
 
     def test_list_peer_pins_returns_entries(self, monkeypatch):
         monkeypatch.setattr(
@@ -435,13 +437,13 @@ class TestTrustSubprocessHelpers:
             "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: self._ok("not json"),
         )
-        assert list_bootnode_trust("/bin/hsync") is None
+        assert list_rendezvous_trust("/bin/hsync") is None
         assert list_peer_pins("/bin/hsync") is None
 
     def test_add_and_remove_return_success_flag(self, monkeypatch):
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", lambda *a, **k: self._ok(""))
-        assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is True
-        assert remove_bootnode_trust("/bin/hsync", "b") is True
+        assert add_rendezvous_trust("/bin/hsync", "b", "f" * 64) is True
+        assert remove_rendezvous_trust("/bin/hsync", "b") is True
         assert add_peer_pin("/bin/hsync", "c", "bk", "f" * 64) is True
         assert remove_peer_pin("/bin/hsync", "c", "bk") is True
 
@@ -451,7 +453,7 @@ class TestTrustSubprocessHelpers:
             "hsync_desktop.engine.cli.subprocess.run",
             lambda *a, **k: types.SimpleNamespace(returncode=1, stdout=""),
         )
-        assert add_bootnode_trust("/bin/hsync", "b", "f" * 64) is False
+        assert add_rendezvous_trust("/bin/hsync", "b", "f" * 64) is False
         assert remove_peer_pin("/bin/hsync", "c", "bk") is False
 
     def test_supports_peer_trust_is_permissive_without_capabilities(self, monkeypatch):

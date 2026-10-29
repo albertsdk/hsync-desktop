@@ -318,10 +318,11 @@ def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
         if port:
             args += ["--listen-port", str(port)]
 
-        # Validate discovery timeout
-        discovery_timeout = cast(int, s.value("p2p/discovery_timeout", 10, int))
-        discovery_timeout = max(5, min(discovery_timeout, 60))
-        args += ["--discovery-timeout", str(discovery_timeout)]
+        # Validate rendezvous timeout (the client names it peer-rendezvous-timeout,
+        # so the peer-rendezvous surface is distinct from the rendezvous-server one).
+        rendezvous_timeout = cast(int, s.value("p2p/rendezvous_timeout", 10, int))
+        rendezvous_timeout = max(5, min(rendezvous_timeout, 60))
+        args += ["--peer-rendezvous-timeout", str(rendezvous_timeout)]
 
         # p2p group: an optional partition key (the client's --group is optional;
         # "no group" is its own partition). An emptied setting must clear the

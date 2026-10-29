@@ -26,9 +26,9 @@ from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     find_hsync_binary,
-    normalize_discovery_server_endpoints,
+    normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
     probe_server_bucket,
     probe_server_health,
@@ -65,7 +65,7 @@ _TOOLTIP_KEYS = {
     "bucket": "wizard.tip.share_name",
     "p2p_group": "wizard.tip.group",
     "p2p_key": "wizard.tip.password",
-    "discovery_server": "wizard.tip.discovery_server",
+    "rendezvous_server": "wizard.tip.rendezvous_server",
     "receive_only": "wizard.tip.receive_only",
     "cert": "wizard.tip.cert",
 }
@@ -82,11 +82,11 @@ class ConnectionPage(WizardPage):
         super().__init__()
         self._mode: WizardMode | None = None
         self._server_fingerprint = ""
-        self._discovery_server_fingerprint = ""
+        self._rendezvous_server_fingerprint = ""
         self._server_verified = False
         self._server_verified_at = ""
-        self._discovery_server_verified = False
-        self._discovery_server_verified_at = ""
+        self._rendezvous_server_verified = False
+        self._rendezvous_server_verified_at = ""
         self._share_missing = False
         self._probing = False
         self._active_target = ""
@@ -164,38 +164,40 @@ class ConnectionPage(WizardPage):
             self.password.regenerate.clicked.connect(self._on_regenerate)
         network_form.addRow(*self._row("p2p_key", "wizard.connection.password", self.password))
 
-        self.discovery_server = QLineEdit()
-        self.discovery_server.setPlaceholderText("boot.example.net")
-        self.discovery_server.textChanged.connect(self._on_edit)
-        self.discovery_server.textChanged.connect(self._on_discovery_server_edited)
+        self.rendezvous_server = QLineEdit()
+        self.rendezvous_server.setPlaceholderText("boot.example.net")
+        self.rendezvous_server.textChanged.connect(self._on_edit)
+        self.rendezvous_server.textChanged.connect(self._on_rendezvous_server_edited)
         network_form.addRow(
             *self._row(
-                "discovery_server", "wizard.connection.discovery_server", self.discovery_server
+                "rendezvous_server", "wizard.connection.rendezvous_server", self.rendezvous_server
             )
         )
 
-        self.test_discovery_server = QPushButton()
-        self.test_discovery_server.clicked.connect(self._on_test_discovery_server)
-        self.discovery_server_status = self._make_status()
-        network_form.addRow(*self._action_row("test_discovery_server", self.test_discovery_server))
+        self.test_rendezvous_server = QPushButton()
+        self.test_rendezvous_server.clicked.connect(self._on_test_rendezvous_server)
+        self.rendezvous_server_status = self._make_status()
+        network_form.addRow(
+            *self._action_row("test_rendezvous_server", self.test_rendezvous_server)
+        )
         # Its own row: a long error can never overlap the button.
-        network_form.addRow("", self.discovery_server_status)
+        network_form.addRow("", self.rendezvous_server_status)
 
-        # Discovery-server trust buttons, shown under the result after a good check.
-        self.discovery_server_trust_box = QWidget()
-        trust_layout = QHBoxLayout(self.discovery_server_trust_box)
+        # Rendezvous-server trust buttons, shown under the result after a good check.
+        self.rendezvous_server_trust_box = QWidget()
+        trust_layout = QHBoxLayout(self.rendezvous_server_trust_box)
         trust_layout.setContentsMargins(0, 0, 0, 0)
         self.trust_save = QPushButton()
         self.trust_save.setCheckable(True)
         self.trust_ask = QPushButton()
         self.trust_ask.setCheckable(True)
-        self.trust_save.clicked.connect(lambda: self._set_discovery_server_pin(True))
-        self.trust_ask.clicked.connect(lambda: self._set_discovery_server_pin(False))
+        self.trust_save.clicked.connect(lambda: self._set_rendezvous_server_pin(True))
+        self.trust_ask.clicked.connect(lambda: self._set_rendezvous_server_pin(False))
         trust_layout.addWidget(self.trust_save)
         trust_layout.addWidget(self.trust_ask)
         trust_layout.addStretch(1)
-        self.discovery_server_trust_box.setVisible(False)
-        network_form.addRow("", self.discovery_server_trust_box)
+        self.rendezvous_server_trust_box.setVisible(False)
+        network_form.addRow("", self.rendezvous_server_trust_box)
 
         self.receive_only = ToggleSwitch()
         self.receive_only.toggled.connect(self._on_edit)
@@ -301,15 +303,15 @@ class ConnectionPage(WizardPage):
         self._server_verified_at = ""
         self._clear_status(self.server_status)
 
-    def _on_discovery_server_edited(self, *_args) -> None:
-        """A discovery-server edit invalidates its result, fingerprint and trust choice."""
-        self._discovery_server_fingerprint = ""
-        self._discovery_server_verified = False
-        self._discovery_server_verified_at = ""
-        self.discovery_server_trust_box.setVisible(False)
+    def _on_rendezvous_server_edited(self, *_args) -> None:
+        """A rendezvous-server edit invalidates its result, fingerprint and trust choice."""
+        self._rendezvous_server_fingerprint = ""
+        self._rendezvous_server_verified = False
+        self._rendezvous_server_verified_at = ""
+        self.rendezvous_server_trust_box.setVisible(False)
         self.trust_save.setChecked(False)
         self.trust_ask.setChecked(False)
-        self._clear_status(self.discovery_server_status)
+        self._clear_status(self.rendezvous_server_status)
 
     def _on_regenerate(self) -> None:
         self.password.setText(generate_password())
@@ -318,11 +320,11 @@ class ConnectionPage(WizardPage):
         """Test buttons stay disabled until their required inputs are present."""
         server_ready = bool(self.server_url.text().strip() and self.api_key.text().strip())
         self.test_server.setEnabled(not self._probing and server_ready)
-        self.test_discovery_server.setEnabled(
-            not self._probing and bool(self.discovery_server.text().strip())
+        self.test_rendezvous_server.setEnabled(
+            not self._probing and bool(self.rendezvous_server.text().strip())
         )
 
-    def _set_discovery_server_pin(self, pinned: bool) -> None:
+    def _set_rendezvous_server_pin(self, pinned: bool) -> None:
         self.trust_save.setChecked(pinned)
         self.trust_ask.setChecked(not pinned)
         self.changed.emit()
@@ -336,12 +338,12 @@ class ConnectionPage(WizardPage):
         current = self._server_page if (profile is None or server) else self._network_page
         self._stack.setCurrentWidget(current)
         self._set_visible("direction", mode == WizardMode.TEAM_SHARE)
-        for name in ("discovery_server", "test_discovery_server"):
-            self._set_visible(name, bool(profile and profile.requires_discovery_server))
+        for name in ("rendezvous_server", "test_rendezvous_server"):
+            self._set_visible(name, bool(profile and profile.requires_rendezvous_server))
         self._set_visible("receive_only", p2p)
-        self.discovery_server_trust_box.setVisible(False)
+        self.rendezvous_server_trust_box.setVisible(False)
         self._clear_status(self.server_status)
-        self._clear_status(self.discovery_server_status)
+        self._clear_status(self.rendezvous_server_status)
         self._update_test_enabled()
 
     def _current_direction(self) -> str:
@@ -409,34 +411,34 @@ class ConnectionPage(WizardPage):
 
         self._probe.start(job)
 
-    def _on_test_discovery_server(self) -> None:
-        raw = self.discovery_server.text().strip()
+    def _on_test_rendezvous_server(self) -> None:
+        raw = self.rendezvous_server.text().strip()
         try:
-            normalized = normalize_discovery_server_endpoints(raw)
+            normalized = normalize_rendezvous_server_endpoints(raw)
             if normalized is None:
                 raise ValueError
         except ValueError:
             set_field_error(
-                self.discovery_server,
-                self._rows["discovery_server"][2],
-                tr("wizard.error.discovery_server_invalid"),
+                self.rendezvous_server,
+                self._rows["rendezvous_server"][2],
+                tr("wizard.error.rendezvous_server_invalid"),
             )
             return
-        set_field_error(self.discovery_server, self._rows["discovery_server"][2], "")
-        self._discovery_server_fingerprint = ""
-        self._discovery_server_verified = False
-        self._discovery_server_verified_at = ""
-        self.discovery_server_trust_box.setVisible(False)
+        set_field_error(self.rendezvous_server, self._rows["rendezvous_server"][2], "")
+        self._rendezvous_server_fingerprint = ""
+        self._rendezvous_server_verified = False
+        self._rendezvous_server_verified_at = ""
+        self.rendezvous_server_trust_box.setVisible(False)
         self.trust_save.setChecked(False)
         self.trust_ask.setChecked(False)
         binary = find_hsync_binary()
         if not binary:
             self._set_status(
-                self.discovery_server_status, "error", tr("wizard.error.pin_no_binary")
+                self.rendezvous_server_status, "error", tr("wizard.error.pin_no_binary")
             )
             return
-        self._active_target = "discovery_server"
-        self._set_status(self.discovery_server_status, "working", tr("wizard.connection.testing"))
+        self._active_target = "rendezvous_server"
+        self._set_status(self.rendezvous_server_status, "working", tr("wizard.connection.testing"))
         self._probing = True
         self._update_test_enabled()
         from hsync_common.endpoint import parse_host_port
@@ -444,7 +446,7 @@ class ConnectionPage(WizardPage):
         endpoint = parse_host_port(raw)
 
         def job() -> ProbeOutcome:
-            fingerprint = fetch_bootnode_fingerprint(binary, endpoint.host, endpoint.port)
+            fingerprint = fetch_rendezvous_fingerprint(binary, endpoint.host, endpoint.port)
             return ProbeOutcome(
                 bool(fingerprint),
                 fingerprint=fingerprint or "",
@@ -463,30 +465,30 @@ class ConnectionPage(WizardPage):
         if target == "server":
             if self._mode not in (WizardMode.BACKUP, WizardMode.TEAM_SHARE):
                 return
-        elif target == "discovery_server":
+        elif target == "rendezvous_server":
             if self._mode != WizardMode.REMOTE_SYNC:
                 return
         else:
             return
-        if target == "discovery_server":
+        if target == "rendezvous_server":
             if outcome.fingerprint:
-                self._discovery_server_fingerprint = outcome.fingerprint
-                self._discovery_server_verified = True
-                self._discovery_server_verified_at = datetime.now(UTC).isoformat()
+                self._rendezvous_server_fingerprint = outcome.fingerprint
+                self._rendezvous_server_verified = True
+                self._rendezvous_server_verified_at = datetime.now(UTC).isoformat()
                 self._set_status(
-                    self.discovery_server_status,
+                    self.rendezvous_server_status,
                     "ok",
-                    tr("wizard.connection.test_discovery_server_ok").format(
+                    tr("wizard.connection.test_rendezvous_server_ok").format(
                         fingerprint=outcome.fingerprint
                     ),
                 )
-                self.discovery_server_trust_box.setVisible(True)
-                self._set_discovery_server_pin(True)
+                self.rendezvous_server_trust_box.setVisible(True)
+                self._set_rendezvous_server_pin(True)
             else:
                 self._set_status(
-                    self.discovery_server_status,
+                    self.rendezvous_server_status,
                     "error",
-                    tr("wizard.connection.discovery_server_unreachable"),
+                    tr("wizard.connection.rendezvous_server_unreachable"),
                 )
             self.changed.emit()
             return
@@ -513,7 +515,7 @@ class ConnectionPage(WizardPage):
                 if isinstance(field, ToggleSwitch):
                     field.setAccessibleName(text)
         self.test_server.setText(tr("settings.test_connection"))
-        self.test_discovery_server.setText(tr("settings.test_connection"))
+        self.test_rendezvous_server.setText(tr("settings.test_connection"))
         self.trust_save.setText(tr("wizard.connection.trust_save"))
         self.trust_ask.setText(tr("wizard.connection.trust_ask"))
         self.direction.setItemText(0, tr("settings.sync_direction.bidirectional"))
@@ -566,18 +568,18 @@ class ConnectionPage(WizardPage):
         self.group.setText(draft.p2p_group)
         self.password.setText(draft.p2p_key)
         self.receive_only.setChecked(draft.direction == "download-only")
-        self.discovery_server.setText(draft.discovery_server)
+        self.rendezvous_server.setText(draft.rendezvous_server)
         index = _DIRECTIONS.index(draft.direction) if draft.direction in _DIRECTIONS else 0
         self.direction.setCurrentIndex(index)
         self.continuous.setChecked(draft.continuous)
         self.auto_sync.setChecked(draft.auto_sync)
         self.start_at_login.setChecked(draft.start_at_login)
         self._server_fingerprint = draft.server_fingerprint
-        self._discovery_server_fingerprint = draft.discovery_server_fingerprint
+        self._rendezvous_server_fingerprint = draft.rendezvous_server_fingerprint
         self._server_verified = draft.server_verified
         self._server_verified_at = draft.server_verified_at
-        self._discovery_server_verified = draft.discovery_server_verified
-        self._discovery_server_verified_at = draft.discovery_server_verified_at
+        self._rendezvous_server_verified = draft.rendezvous_server_verified
+        self._rendezvous_server_verified_at = draft.rendezvous_server_verified_at
         if draft.p2p_group == "" and draft.mode in (WizardMode.LAN_SYNC, WizardMode.REMOTE_SYNC):
             self.group.setText(generate_group_name(draft.local_path))
         self._update_test_enabled()
@@ -589,21 +591,21 @@ class ConnectionPage(WizardPage):
         draft.accept_server_cert = self.cert_switch.isChecked()
         draft.p2p_group = self.group.text().strip()
         draft.p2p_key = self.password.text().strip()
-        draft.discovery_server = self.discovery_server.text().strip()
+        draft.rendezvous_server = self.rendezvous_server.text().strip()
         draft.direction = self._current_direction()
         draft.continuous = self.continuous.isChecked()
         draft.auto_sync = self.auto_sync.isChecked()
         draft.start_at_login = self.start_at_login.isChecked()
         draft.server_pin = self.cert_switch.isChecked()
-        draft.discovery_server_pin = self.trust_save.isChecked() and bool(
-            self._discovery_server_fingerprint
+        draft.rendezvous_server_pin = self.trust_save.isChecked() and bool(
+            self._rendezvous_server_fingerprint
         )
         draft.server_fingerprint = self._server_fingerprint
-        draft.discovery_server_fingerprint = self._discovery_server_fingerprint
+        draft.rendezvous_server_fingerprint = self._rendezvous_server_fingerprint
         draft.server_verified = self._server_verified
         draft.server_verified_at = self._server_verified_at
-        draft.discovery_server_verified = self._discovery_server_verified
-        draft.discovery_server_verified_at = self._discovery_server_verified_at
+        draft.rendezvous_server_verified = self._rendezvous_server_verified
+        draft.rendezvous_server_verified_at = self._rendezvous_server_verified_at
 
     def field_error_targets(self) -> dict[str, tuple[QWidget, InlineError]]:
         return {name: (field, error) for name, (_c, field, error, _l) in self._rows.items()}

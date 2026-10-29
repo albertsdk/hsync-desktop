@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Tests for the POSIX ``install.sh`` bootstrap.
+"""Tests for the POSIX ``install.sh`` rendezvous.
 
 The desktop app also ships a Windows installer (``tests/test_windows_installer.py``);
 this module only covers the Unix script that release downloads.

@@ -1,7 +1,7 @@
 # HSYNC Desktop — Engine (subprocess bridge)
 
 The `engine/` package is the only code that talks to the `hsync` binary:
-`engine/cli.py` holds the synchronous helpers (binary discovery, version /
+`engine/cli.py` holds the synchronous helpers (binary rendezvous, version /
 capabilities probe + cache, trust-store subcommands) and `engine/process.py`
 owns the `QProcess`, the secret/event pipes and the event→signal translation.
 `engine/__init__.py` re-exports the former `engine.py` surface.
@@ -21,7 +21,7 @@ reports the app as unresponsive). Consumers: `settings/dialog.py` (both Test
 Connection actions), `trusted_keys.py` (Read from server), `main_window/trust.py`
 (start pre-flight) and the wizard connection page.
 
-## Binary discovery & compatibility
+## Binary rendezvous & compatibility
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
@@ -87,7 +87,7 @@ command line:
 - `p2p_secret_option` (`engine/process.py::p2p_secret_option`) turns the mode
   resolved by `p2p_secret_mode` (`engine/process.py::p2p_secret_mode`) into
   `--p2p-key-fd` or `--p2p-passphrase-fd`. A secret below
-  `hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw group
+  `hsync_common.protocol.rdv_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw group
   key (the client rejects it), so it always travels as a passphrase and the
   client derives the key. That keeps a legacy `p2p/key_mode=raw` install with a
   short secret working instead of aborting at startup.
@@ -105,13 +105,13 @@ command line:
 | ------------- | ------ |
 | `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip |
-| `discovery` | `discovery_changed(plan, bootnode)` — the active plan (mdns/bootnode) at startup |
+| `rendezvous` | `rendezvous_changed(plan, rendezvous)` — the active plan (mdns/rendezvous) at startup |
 | `transfer` / `rename` / `dir_created` | `file_transferred(direction, file, size)` / `file_renamed(old, new)` / `directory_created(path)` |
 | `progress` | `file_progress(file, transferred, total, op)` — `op` gives the direction of a file that has no local row yet |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed(dict)` (the cycle counters) / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |
 | `error` / `auth_error` / `auth_required` / `path_not_found` | `error_occurred` / `auth_error_occurred` / `auth_required_occurred` / `path_not_found` |
-| `warning` | `warning_occurred(message, source, transient, details)` — a non-fatal condition the run continues through (degraded watcher, unreachable bootnode, low disk space, a vanished shared folder); `source` is the client's stable subsystem id, `transient` (from `reason="transient"`) means it heals itself and gets an auto-hiding toast instead of a persistent banner, and `details` carries `reason` plus `needed`/`limit` when the client measured a bounded resource (the UI turns them into a localized remedy) |
+| `warning` | `warning_occurred(message, source, transient, details)` — a non-fatal condition the run continues through (degraded watcher, unreachable rendezvous, low disk space, a vanished shared folder); `source` is the client's stable subsystem id, `transient` (from `reason="transient"`) means it heals itself and gets an auto-hiding toast instead of a persistent banner, and `details` carries `reason` plus `needed`/`limit` when the client measured a bounded resource (the UI turns them into a localized remedy) |
 | `ready` | *(no signal)* — ends the startup phase; see the startup-failure note below |
 | `master_conflict` / `no_master` / `no_peers` | `master_conflict` / `no_master_warning` / `no_peers_warning` |
 | `sync_pending` | `sync_pending(reason, devices, expected)` — `no_device`, or `awaiting_inventory` with the published/expected inventory counts |
@@ -185,8 +185,8 @@ The GUI edits the client's three SSH-style trust stores through subprocess helpe
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
 | `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine/cli.py::_run_hsync_success` / `engine/cli.py::_run_hsync_json` / `engine/cli.py::_run_hsync_line` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
-| `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `engine/cli.py::fetch_bootnode_fingerprint` / `engine/cli.py::fetch_server_fingerprint` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
-| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine/cli.py::list_bootnode_trust` / `engine/cli.py::add_bootnode_trust` / `engine/cli.py::remove_bootnode_trust` | `hsync trust discovery-server {list --json,add,remove}` |
+| `fetch_rendezvous_fingerprint` / `fetch_server_fingerprint` | `engine/cli.py::fetch_rendezvous_fingerprint` / `engine/cli.py::fetch_server_fingerprint` | `hsync trust {rendezvous,server} fingerprint` (raw probe) |
+| `list_rendezvous_trust` / `add_rendezvous_trust` / `remove_rendezvous_trust` | `engine/cli.py::list_rendezvous_trust` / `engine/cli.py::add_rendezvous_trust` / `engine/cli.py::remove_rendezvous_trust` | `hsync trust rendezvous-server {list --json,add,remove}` |
 | `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine/cli.py::list_server_trust` / `engine/cli.py::add_server_trust` / `engine/cli.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
 | `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine/cli.py::list_peer_pins` / `engine/cli.py::add_peer_pin` / `engine/cli.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
 | `supports_peer_trust` | `engine/cli.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |

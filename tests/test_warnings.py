@@ -49,7 +49,7 @@ class TestRemedyText:
         assert remedy_text("watcher", {"reason": "transient"}) == ""
 
     def test_another_subsystem_has_no_remedy(self):
-        assert remedy_text("bootnode", {"reason": "inotify_watches"}) == ""
+        assert remedy_text("rendezvous", {"reason": "inotify_watches"}) == ""
 
     def test_missing_details_are_tolerated(self):
         assert remedy_text("watcher", None) == ""

@@ -8,7 +8,7 @@ the command line.
 HSYNC Desktop is a **desktop application only**: it has no Docker or server
 deployment mode (those belong to
 [HSYNC Server](https://github.com/albertsdk/hsync-server) and
-[HSYNC Bootnode](https://github.com/albertsdk/hsync-bootnode)).
+[HSYNC Rendezvous](https://github.com/albertsdk/hsync-rendezvous)).
 
 Pick **one** installation method below and follow it to a running app. The
 methods are ordered from the simplest and most immediate to the most involved.

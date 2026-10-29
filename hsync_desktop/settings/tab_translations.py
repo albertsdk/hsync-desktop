@@ -123,7 +123,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_timing.setTitle(escape_mnemonics(tr("settings.group.timing")))
     dlg._grp_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
     dlg._grp_p2p_mode.setTitle(escape_mnemonics(tr("settings.group.p2p_mode")))
-    dlg._grp_p2p_discovery.setTitle(escape_mnemonics(tr("settings.group.p2p_discovery")))
+    dlg._grp_p2p_rendezvous.setTitle(escape_mnemonics(tr("settings.group.p2p_rendezvous")))
     dlg._grp_p2p_role.setTitle(escape_mnemonics(tr("settings.group.p2p_role")))
     dlg._grp_p2p_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
     dlg._grp_server.setTitle(escape_mnemonics(tr("settings.group.server")))
@@ -152,22 +152,22 @@ def apply_translations(dlg: SettingsDialog) -> None:
     lbl = dlg.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.p2p_port"))
-    dlg._lbl_p2p_bootnode.setText(tr("settings.p2p_bootnode"))
-    dlg._lbl_p2p_bootnode_trust.setText(tr("settings.p2p_bootnode_trust"))
-    dlg._populate_bootnode_trust()
+    dlg._lbl_p2p_rendezvous.setText(tr("settings.p2p_rendezvous"))
+    dlg._lbl_p2p_rendezvous_trust.setText(tr("settings.p2p_rendezvous_trust"))
+    dlg._populate_rendezvous_trust()
     dlg.btn_manage_trusted_keys.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
     dlg.btn_manage_trusted_keys_server.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
-    dlg.btn_test_bootnode.setText(
+    dlg.btn_test_rendezvous.setText(
         escape_mnemonics(
             tr("common.checking")
-            if getattr(dlg, "_probe_target", None) == "bootnode"
+            if getattr(dlg, "_probe_target", None) == "rendezvous"
             else tr("settings.test_connection")
         )
     )
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
-    lbl = dlg.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
+    lbl = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
     if lbl:
-        lbl.setText(tr("settings.discovery_timeout"))
+        lbl.setText(tr("settings.rendezvous_timeout"))
     dlg._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
     dlg._lbl_prefer_master.setText(tr("settings.prefer_master"))
     dlg._lbl_never_master.setText(tr("settings.never_master"))
@@ -229,7 +229,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
 
     # Contextual documentation links (fixed URLs; only the text is localized).
     set_help_link_text(dlg._lbl_help_server, "help.server_setup")
-    set_help_link_text(dlg._lbl_help_bootnode, "help.bootnode_setup")
+    set_help_link_text(dlg._lbl_help_rendezvous, "help.rendezvous_setup")
 
     # Button box
     style_ok_cancel_button_box(dlg._button_box)

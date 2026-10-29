@@ -40,23 +40,23 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
     HsyncEngine,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
 )

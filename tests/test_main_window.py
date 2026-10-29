@@ -89,11 +89,11 @@ class TestRemoteIcon:
         window._update_path_display()
         return names
 
-    def test_p2p_without_bootnode_uses_p2p_icon(self, window, monkeypatch, tmp_path):
-        """p2p + no bootnode shows the peer icon."""
+    def test_p2p_without_rendezvous_uses_p2p_icon(self, window, monkeypatch, tmp_path):
+        """p2p + no rendezvous shows the peer icon."""
 
         s = _settings(tmp_path)
-        s.setValue("p2p/discovery_server_endpoints", "")
+        s.setValue("p2p/rendezvous_server_endpoints", "")
         _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
         window._local_path = str(tmp_path)
         names = self._run_and_record(window, monkeypatch)
@@ -1166,7 +1166,7 @@ class TestInfoToast:
         )
         window._user_stopped = False
 
-        window._on_engine_warning("Bootnode node:443 unreachable", "bootnode")
+        window._on_engine_warning("Rendezvous node:443 unreachable", "rendezvous")
 
         assert len(calls) == 1
         assert calls[0][1]["category"] == "warnings"
@@ -1243,9 +1243,9 @@ class TestInfoToast:
         )
         window._user_stopped = False
 
-        window._on_engine_warning("Bootnode unreachable", "bootnode", False, {"reason": ""})
+        window._on_engine_warning("Rendezvous unreachable", "rendezvous", False, {"reason": ""})
 
-        assert calls[0][0][1] == "Bootnode unreachable"  # no remedy text invented
+        assert calls[0][0][1] == "Rendezvous unreachable"  # no remedy text invented
         assert calls[0][1]["help_url"] == TROUBLESHOOTING
 
     def test_a_descriptor_limit_warning_also_deep_links(self, window, monkeypatch):

@@ -32,7 +32,7 @@ the CLI moves it aside with `hsync state reset --folder DIR --quarantine`.
 ## Why do my two devices not see each other?
 
 In p2p Mode they must use the **same group name** and the **same share name**, and
-be on the same network (or reach the same discovery server). A device with no
+be on the same network (or reach the same rendezvous server). A device with no
 group only sees other no-group devices. The full checklist is in
 [Troubleshooting → Devices are not found in p2p Mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
 

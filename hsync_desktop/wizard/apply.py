@@ -23,12 +23,12 @@ from hsync_desktop import autostart
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.crypto import encrypt_value
 from hsync_desktop.engine import (
-    add_bootnode_trust,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    normalize_discovery_server_endpoints,
+    normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
 )
 from hsync_desktop.wizard.model import WizardDraft, profile_for
@@ -37,7 +37,7 @@ __all__ = ["ApplyResult", "apply_draft"]
 
 # Trust port when the endpoint carries none: mirrors the client/GUI pre-flight
 # (``TrustMixin._ensure_trust`` uses 443 for https, the shared server
-# default otherwise; the discovery-server pre-flight uses 443).
+# default otherwise; the rendezvous-server pre-flight uses 443).
 _HTTPS_PORT = 443
 
 
@@ -62,9 +62,9 @@ def _server_host_port(url: str) -> tuple[str, int] | None:
     return parts.hostname, port
 
 
-def _discovery_server_host_port(discovery_server: str) -> tuple[str, int] | None:
+def _rendezvous_server_host_port(rendezvous_server: str) -> tuple[str, int] | None:
     try:
-        endpoint = parse_host_port(discovery_server)
+        endpoint = parse_host_port(rendezvous_server)
     except ValueError:
         return None
     return endpoint.host, endpoint.port or _HTTPS_PORT
@@ -82,7 +82,7 @@ def _pin_endpoint(
 
     Returns ``""`` on success and ``"failed"`` otherwise; the wizard maps that to
     its per-endpoint status label. Single implementation for the server and
-    discovery-server pins, which differ only in how the endpoint is resolved and
+    rendezvous-server pins, which differ only in how the endpoint is resolved and
     which ``hsync trust`` subcommand is used.
     """
     if target is None:
@@ -104,13 +104,13 @@ def _pin_server(binary: str, url: str, fingerprint: str) -> str:
     )
 
 
-def _pin_discovery_server(binary: str, discovery_server: str, fingerprint: str) -> str:
+def _pin_rendezvous_server(binary: str, rendezvous_server: str, fingerprint: str) -> str:
     return _pin_endpoint(
         binary,
-        _discovery_server_host_port(discovery_server),
+        _rendezvous_server_host_port(rendezvous_server),
         fingerprint,
-        fetch=fetch_bootnode_fingerprint,
-        add=add_bootnode_trust,
+        fetch=fetch_rendezvous_fingerprint,
+        add=add_rendezvous_trust,
     )
 
 
@@ -119,9 +119,13 @@ def _pin_requested(draft: WizardDraft, *, server_mode: bool) -> list[tuple[str, 
     requests: list[tuple[str, str, str]] = []
     if server_mode and draft.server_pin and draft.server_url.strip():
         requests.append(("server", draft.server_url.strip(), draft.server_fingerprint))
-    if draft.discovery_server_pin and draft.discovery_server.strip():
+    if draft.rendezvous_server_pin and draft.rendezvous_server.strip():
         requests.append(
-            ("discovery_server", draft.discovery_server.strip(), draft.discovery_server_fingerprint)
+            (
+                "rendezvous_server",
+                draft.rendezvous_server.strip(),
+                draft.rendezvous_server_fingerprint,
+            )
         )
     return requests
 
@@ -146,8 +150,8 @@ def apply_draft(
     server_mode = profile is not None and not profile.p2p_enabled
     if server_mode:
         s.setValue("p2p/enabled", False)
-        # Clear a stale discovery server so it cannot leak HSYNC_DISCOVERY_SERVER_ENDPOINTS into a server run.
-        s.setValue("p2p/discovery_server_endpoints", "")
+        # Clear a stale rendezvous server so it cannot leak HSYNC_RENDEZVOUS_SERVER_ENDPOINTS into a server run.
+        s.setValue("p2p/rendezvous_server_endpoints", "")
         s.setValue("connection/server_url", normalize_server_endpoint(draft.server_url) or "")
         s.setValue("connection/api_key", encrypt_value(draft.api_key) if draft.api_key else "")
         if draft.accept_server_cert:
@@ -157,13 +161,13 @@ def apply_draft(
         s.setValue("p2p/group", draft.p2p_group.strip())
         s.setValue("p2p/key", encrypt_value(draft.p2p_key) if draft.p2p_key else "")
         s.setValue("p2p/key_mode", "passphrase")
-        s.setValue("p2p/discovery_server_trust", "ask")
-        discovery_server = (
-            normalize_discovery_server_endpoints(draft.discovery_server)
-            if profile and profile.requires_discovery_server
+        s.setValue("p2p/rendezvous_server_trust", "ask")
+        rendezvous_server = (
+            normalize_rendezvous_server_endpoints(draft.rendezvous_server)
+            if profile and profile.requires_rendezvous_server
             else ""
         )
-        s.setValue("p2p/discovery_server_endpoints", discovery_server or "")
+        s.setValue("p2p/rendezvous_server_endpoints", rendezvous_server or "")
 
     s.setValue("appearance/start_at_login", draft.start_at_login)
     if autostart.is_supported():
@@ -185,7 +189,7 @@ def apply_draft(
         error = (
             _pin_server(binary, endpoint, fingerprint)
             if kind == "server"
-            else _pin_discovery_server(binary, endpoint, fingerprint)
+            else _pin_rendezvous_server(binary, endpoint, fingerprint)
         )
         if error:
             return ApplyResult(pin_error=error)

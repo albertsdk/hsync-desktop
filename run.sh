@@ -5,7 +5,7 @@
 # Requires the hsync-common repository checked out as a sibling (the project
 # declares it as a Poetry path dependency). This script is the uniform
 # "run after clone" entry point, mirroring hsync-server/run.sh and
-# hsync-bootnode/run.sh: it creates (or reuses) the in-project virtualenv,
+# hsync-rendezvous/run.sh: it creates (or reuses) the in-project virtualenv,
 # installs the main dependencies once, and launches the GUI.
 #
 # The GUI drives the `hsync` client binary; at runtime it looks for it bundled

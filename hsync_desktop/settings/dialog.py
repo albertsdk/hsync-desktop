@@ -16,13 +16,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from hsync_common.constants import BOOT_DEFAULT_PORT, HSYNCIGNORE_FILENAME
+from hsync_common.constants import HSYNCIGNORE_FILENAME, RDV_DEFAULT_PORT
 from hsync_common.endpoint import format_authority, parse_endpoint_list, parse_host_port
-from hsync_common.protocol.boot_tokens import (
+from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
+from hsync_common.protocol.rdv_tokens import (
     WeakGroupPassphrase,
     validate_group_passphrase,
 )
-from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from PySide6.QtCore import QSettings, QTimer, Slot
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
@@ -59,7 +59,6 @@ from hsync_desktop.config import (
     DEFAULT_DELTA_ENABLED,
     DEFAULT_DELTA_MIN_FILE_SIZE_KB,
     DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB,
-    DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_DRY_RUN,
     DEFAULT_FILTER_PATH,
     DEFAULT_FONT_SCALE,
@@ -79,18 +78,19 @@ from hsync_desktop.config import (
     DEFAULT_NO_COMPRESSION,
     DEFAULT_NOTIFICATIONS,
     DEFAULT_NTP_HOSTS,
-    DEFAULT_P2P_BOOTNODE,
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_KEY,
     DEFAULT_P2P_PEER_DOWNLOAD,
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
     DEFAULT_P2P_PORT,
+    DEFAULT_P2P_RENDEZVOUS,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_P2P_TRUST,
     DEFAULT_P2P_UPNP_ENABLED,
     DEFAULT_PREFER_MASTER,
     DEFAULT_QUIET,
+    DEFAULT_RENDEZVOUS_TIMEOUT,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
     DEFAULT_SERVER_TRUST,
@@ -111,10 +111,10 @@ from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     find_hsync_binary,
     get_binary_capabilities_cached,
-    normalize_discovery_server_endpoints,
+    normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
     p2p_secret_mode,
     probe_server_health,
@@ -237,19 +237,19 @@ class SettingsDialog(QDialog):
 
     # ── Sync tab grouping ─────────────────────────────────────────
 
-    def _populate_bootnode_trust(self) -> None:
-        """Fill the bootnode trust-policy combo (ADR-0035), preserving selection."""
-        current = self.p2p_bootnode_trust.currentData()
-        self.p2p_bootnode_trust.clear()
+    def _populate_rendezvous_trust(self) -> None:
+        """Fill the rendezvous trust-policy combo (ADR-0035), preserving selection."""
+        current = self.p2p_rendezvous_trust.currentData()
+        self.p2p_rendezvous_trust.clear()
         for value, key in (
-            ("ask", "settings.p2p_bootnode_trust_ask"),
-            ("accept-new", "settings.p2p_bootnode_trust_accept_new"),
-            ("strict", "settings.p2p_bootnode_trust_strict"),
-            ("none", "settings.p2p_bootnode_trust_none"),
+            ("ask", "settings.p2p_rendezvous_trust_ask"),
+            ("accept-new", "settings.p2p_rendezvous_trust_accept_new"),
+            ("strict", "settings.p2p_rendezvous_trust_strict"),
+            ("none", "settings.p2p_rendezvous_trust_none"),
         ):
-            self.p2p_bootnode_trust.addItem(tr(key), value)
-        index = self.p2p_bootnode_trust.findData(current)
-        self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
+            self.p2p_rendezvous_trust.addItem(tr(key), value)
+        index = self.p2p_rendezvous_trust.findData(current)
+        self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         """Re-align the tab purpose lines: their wrap depends on the width."""
@@ -293,8 +293,8 @@ class SettingsDialog(QDialog):
         self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
 
     def _open_trusted_keys(self) -> None:
-        """Open the trust dialog on the bootnode tab (p2p panel button)."""
-        TrustedKeysDialog(self, initial_tab="bootnodes").exec()
+        """Open the trust dialog on the rendezvous tab (p2p panel button)."""
+        TrustedKeysDialog(self, initial_tab="rendezvouss").exec()
 
     def _open_server_trusted_keys(self) -> None:
         """Open the trust dialog on the server tab (server panel button)."""
@@ -372,14 +372,14 @@ class SettingsDialog(QDialog):
             (self.btn_manage_trusted_keys_server, "tip.manage_trusted_keys"),
             (self.p2p_mode, "tip.p2p_mode"),
             (self.p2p_group, "tip.p2p_group"),
-            (self.p2p_bootnode, "tip.p2p_bootnode"),
-            (self.p2p_bootnode_trust, "tip.p2p_bootnode_trust"),
+            (self.p2p_rendezvous, "tip.p2p_rendezvous"),
+            (self.p2p_rendezvous_trust, "tip.p2p_rendezvous_trust"),
             (self.btn_manage_trusted_keys, "tip.manage_trusted_keys"),
-            (self.btn_test_bootnode, "tip.test_bootnode"),
+            (self.btn_test_rendezvous, "tip.test_rendezvous"),
             (self.p2p_upnp, "tip.p2p_upnp"),
             (self.p2p_key, "tip.p2p_key"),
             (self.p2p_port, "tip.p2p_port"),
-            (self.discovery_timeout, "tip.discovery_timeout"),
+            (self.rendezvous_timeout, "tip.rendezvous_timeout"),
             (self.ntp_hosts, "tip.ntp_hosts"),
             (self.prefer_master, "tip.prefer_master"),
             (self.never_master, "tip.never_master"),
@@ -460,14 +460,16 @@ class SettingsDialog(QDialog):
             widget.setEnabled(False)
             label.setEnabled(False)
             _set_field_tooltip(widget, tr("tip.capability_unsupported"))
-        # The discovery-server field belongs to the cross-network plan: gate it
-        # on the client's ``--discovery-server`` option.
-        if not (p2p_supported and supports_cli_option(doc, "--discovery-server", subcommand="p2p")):
-            self._unsupported_widgets.add(self.p2p_bootnode)
-            self._unsupported_labels.add(self._lbl_p2p_bootnode)
-            self.p2p_bootnode.setEnabled(False)
-            self._lbl_p2p_bootnode.setEnabled(False)
-            _set_field_tooltip(self.p2p_bootnode, tr("tip.capability_unsupported"))
+        # The rendezvous-server field belongs to the cross-network plan: gate it
+        # on the client's ``--rendezvous-server`` option.
+        if not (
+            p2p_supported and supports_cli_option(doc, "--rendezvous-server", subcommand="p2p")
+        ):
+            self._unsupported_widgets.add(self.p2p_rendezvous)
+            self._unsupported_labels.add(self._lbl_p2p_rendezvous)
+            self.p2p_rendezvous.setEnabled(False)
+            self._lbl_p2p_rendezvous.setEnabled(False)
+            _set_field_tooltip(self.p2p_rendezvous, tr("tip.capability_unsupported"))
         if not p2p_supported:
             # The p2p subcommand itself is the master gate for the p2p tab.
             self._unsupported_widgets.add(self.p2p_mode)
@@ -716,14 +718,14 @@ class SettingsDialog(QDialog):
         # Enable/disable p2p tab widgets (except the p2p_mode toggle itself)
         p2p_sub_widgets: list[QWidget] = [
             self.p2p_group,
-            self.p2p_bootnode,
-            self.p2p_bootnode_trust,
+            self.p2p_rendezvous,
+            self.p2p_rendezvous_trust,
             self.btn_manage_trusted_keys,
-            self.btn_test_bootnode,
+            self.btn_test_rendezvous,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,
-            self.discovery_timeout,
+            self.rendezvous_timeout,
             self.ntp_hosts,
             self.prefer_master,
             self.never_master,
@@ -847,9 +849,9 @@ class SettingsDialog(QDialog):
         """
         return normalize_server_endpoint(self.server_url.text())
 
-    def _normalize_discovery_server_endpoints(self) -> str | None:
-        """Canonicalize the discovery-server field, or raise ``ValueError``."""
-        return normalize_discovery_server_endpoints(self.p2p_bootnode.text())
+    def _normalize_rendezvous_server_endpoints(self) -> str | None:
+        """Canonicalize the rendezvous-server field, or raise ``ValueError``."""
+        return normalize_rendezvous_server_endpoints(self.p2p_rendezvous.text())
 
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
@@ -884,25 +886,25 @@ class SettingsDialog(QDialog):
             lambda: self._server_probe_outcome(base, ssl_context, timeout),
         )
 
-    def _on_test_bootnode(self) -> None:
-        """Verify the configured bootnode is reachable (probes its certificate)."""
+    def _on_test_rendezvous(self) -> None:
+        """Verify the configured rendezvous is reachable (probes its certificate)."""
         if self._probe_target is not None:
             return  # a probe is already running
-        raw = self.p2p_bootnode.text().strip()
+        raw = self.p2p_rendezvous.text().strip()
         if not raw:
             QMessageBox.warning(
                 self,
                 tr("settings.test_connection_title"),
-                tr("settings.test_bootnode_no_host"),
+                tr("settings.test_rendezvous_no_host"),
             )
             return
         try:
-            endpoints = parse_endpoint_list(raw, strict=True, default_port=BOOT_DEFAULT_PORT)
+            endpoints = parse_endpoint_list(raw, strict=True, default_port=RDV_DEFAULT_PORT)
         except ValueError:
             QMessageBox.warning(
                 self,
                 tr("settings.test_connection_title"),
-                tr("settings.invalid_bootnode_endpoint"),
+                tr("settings.invalid_rendezvous_endpoint"),
             )
             return
 
@@ -911,7 +913,7 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(
                 self,
                 tr("settings.test_connection_title"),
-                tr("settings.test_bootnode_no_binary"),
+                tr("settings.test_rendezvous_no_binary"),
             )
             return
 
@@ -919,8 +921,8 @@ class SettingsDialog(QDialog):
         # written); every configured endpoint is probed, because the client
         # leases all of them and one unreachable server must be visible here.
         self._start_probe(
-            "bootnode",
-            lambda: self._bootnode_probe_outcome(binary, endpoints),
+            "rendezvous",
+            lambda: self._rendezvous_probe_outcome(binary, endpoints),
         )
 
     # ── Connection probes (off the UI thread) ─────────────────────────────
@@ -934,8 +936,8 @@ class SettingsDialog(QDialog):
         return ProbeOutcome(result.ok, result.status, reason=result.reason)
 
     @staticmethod
-    def _bootnode_probe_outcome(binary: str, endpoints: tuple) -> ProbeOutcome:
-        """Read every discovery server fingerprint, from the probe thread.
+    def _rendezvous_probe_outcome(binary: str, endpoints: tuple) -> ProbeOutcome:
+        """Read every rendezvous server fingerprint, from the probe thread.
 
         The field accepts a list, so the outcome reports one line per server and
         fails only when none answered: a partial outage is exactly what the
@@ -944,8 +946,8 @@ class SettingsDialog(QDialog):
         lines: list[str] = []
         reachable = 0
         for endpoint in endpoints:
-            fingerprint = fetch_bootnode_fingerprint(binary, endpoint.host, endpoint.port)
-            where = format_authority(endpoint.host, endpoint.port or BOOT_DEFAULT_PORT)
+            fingerprint = fetch_rendezvous_fingerprint(binary, endpoint.host, endpoint.port)
+            where = format_authority(endpoint.host, endpoint.port or RDV_DEFAULT_PORT)
             if fingerprint:
                 reachable += 1
                 lines.append(f"✓ {where}: {fingerprint}")
@@ -959,7 +961,7 @@ class SettingsDialog(QDialog):
 
     def _test_button(self, target: str) -> QPushButton:
         """The Test Connection button of the given panel."""
-        return self.btn_test_connection if target == "server" else self.btn_test_bootnode
+        return self.btn_test_connection if target == "server" else self.btn_test_rendezvous
 
     def _start_probe(self, target: str, job: Callable[[], ProbeOutcome]) -> None:
         """Run *job* off the UI thread, showing which panel is being tested."""
@@ -975,7 +977,7 @@ class SettingsDialog(QDialog):
         target = self._end_probe()
         if target is None or not isinstance(outcome, ProbeOutcome):
             return
-        if target == "bootnode":
+        if target == "rendezvous":
             # Keyed on the outcome, not on the text: the multi-server report is
             # always non-empty, so a failed probe must still take the failure
             # branch (and its warning, never a modal "success").
@@ -983,7 +985,7 @@ class SettingsDialog(QDialog):
                 QMessageBox.information(
                     self,
                     tr("settings.test_connection_title"),
-                    tr("settings.test_bootnode_success").replace(
+                    tr("settings.test_rendezvous_success").replace(
                         "{fingerprint}", outcome.fingerprint
                     ),
                 )
@@ -991,7 +993,7 @@ class SettingsDialog(QDialog):
                 QMessageBox.warning(
                     self,
                     tr("settings.test_connection_title"),
-                    tr("settings.test_bootnode_failure"),
+                    tr("settings.test_rendezvous_failure"),
                 )
             return
         if outcome.ok:
@@ -1026,16 +1028,16 @@ class SettingsDialog(QDialog):
         """
         p2p_enabled = self.p2p_mode.isChecked()
         self.btn_test_connection.setText(tr("settings.test_connection"))
-        self.btn_test_bootnode.setText(tr("settings.test_connection"))
+        self.btn_test_rendezvous.setText(tr("settings.test_connection"))
         self.btn_test_connection.setEnabled(
             not p2p_enabled
             and not self._connection_active
             and self.btn_test_connection not in self._unsupported_widgets
         )
-        self.btn_test_bootnode.setEnabled(
+        self.btn_test_rendezvous.setEnabled(
             p2p_enabled
             and not self._connection_active
-            and self.btn_test_bootnode not in self._unsupported_widgets
+            and self.btn_test_rendezvous not in self._unsupported_widgets
         )
 
     def done(self, result: int) -> None:
@@ -1133,23 +1135,23 @@ class SettingsDialog(QDialog):
         # Validate: the API key is never sent over an unencrypted channel.
         if not self._confirm_insecure_api_key():
             return False  # Go back to dialog
-        # Validate + normalize the server and bootnode endpoints (shared grammar).
+        # Validate + normalize the server and rendezvous endpoints (shared grammar).
         try:
             normalized_server = self._normalize_server_endpoint()
         except ValueError:
             QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_server_endpoint"))
             return False
         try:
-            normalized_bootnode = self._normalize_discovery_server_endpoints()
+            normalized_rendezvous = self._normalize_rendezvous_server_endpoints()
         except ValueError:
             QMessageBox.warning(
-                self, tr("settings.title"), tr("settings.invalid_bootnode_endpoint")
+                self, tr("settings.title"), tr("settings.invalid_rendezvous_endpoint")
             )
             return False
         if normalized_server is not None:
             self.server_url.setText(normalized_server)
-        if normalized_bootnode is not None:
-            self.p2p_bootnode.setText(normalized_bootnode)
+        if normalized_rendezvous is not None:
+            self.p2p_rendezvous.setText(normalized_rendezvous)
         # Validate: the OS login item must match the toggle before persisting.
         if not self._apply_start_at_login():
             return False  # Go back to dialog
@@ -1258,16 +1260,16 @@ class SettingsDialog(QDialog):
         )
         s.setValue("p2p/enabled", self.p2p_mode.isChecked())
         s.setValue("p2p/group", self.p2p_group.text().strip())
-        s.setValue("p2p/discovery_server_endpoints", self.p2p_bootnode.text().strip())
+        s.setValue("p2p/rendezvous_server_endpoints", self.p2p_rendezvous.text().strip())
         s.setValue(
-            "p2p/discovery_server_trust",
-            self.p2p_bootnode_trust.currentData() or DEFAULT_P2P_BOOTNODE_TRUST,
+            "p2p/rendezvous_server_trust",
+            self.p2p_rendezvous_trust.currentData() or DEFAULT_P2P_RENDEZVOUS_TRUST,
         )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
         s.setValue("p2p/key", encrypt_value(self.p2p_key.text().strip()))
         s.setValue("p2p/key_mode", self._effective_p2p_key_mode())
         s.setValue("p2p/port", self.p2p_port.value())
-        s.setValue("p2p/discovery_timeout", self.discovery_timeout.value())
+        s.setValue("p2p/rendezvous_timeout", self.rendezvous_timeout.value())
         s.setValue("p2p/ntp_hosts", self.ntp_hosts.text())
         s.setValue("p2p/prefer_master", self.prefer_master.isChecked())
         s.setValue("p2p/never_master", self.never_master.isChecked())
@@ -1399,20 +1401,20 @@ class SettingsDialog(QDialog):
         self.bandwidth_download.setValue((download_bps or 0) / (1024 * 1024))
         self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
-        self.p2p_bootnode.setText(
-            str(s.value("p2p/discovery_server_endpoints", DEFAULT_P2P_BOOTNODE, str))
+        self.p2p_rendezvous.setText(
+            str(s.value("p2p/rendezvous_server_endpoints", DEFAULT_P2P_RENDEZVOUS, str))
         )
-        index = self.p2p_bootnode_trust.findData(
-            str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str))
+        index = self.p2p_rendezvous_trust.findData(
+            str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str))
         )
-        self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
+        self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
         self._p2p_key_loaded = self.p2p_key.text().strip()
         self._p2p_key_mode_loaded = str(s.value("p2p/key_mode", "raw", str)) or "raw"
         self.p2p_port.setValue(cast(int, s.value("p2p/port", DEFAULT_P2P_PORT, int)))
-        self.discovery_timeout.setValue(
-            cast(int, s.value("p2p/discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT, int))
+        self.rendezvous_timeout.setValue(
+            cast(int, s.value("p2p/rendezvous_timeout", DEFAULT_RENDEZVOUS_TIMEOUT, int))
         )
         self.ntp_hosts.setText(str(s.value("p2p/ntp_hosts", DEFAULT_NTP_HOSTS, str)))
         self.prefer_master.setChecked(
@@ -1554,14 +1556,14 @@ class SettingsDialog(QDialog):
         p2p_widgets: list[QWidget] = [
             self.p2p_mode,
             self.p2p_group,
-            self.p2p_bootnode,
-            self.p2p_bootnode_trust,
+            self.p2p_rendezvous,
+            self.p2p_rendezvous_trust,
             self.btn_manage_trusted_keys,
-            self.btn_test_bootnode,
+            self.btn_test_rendezvous,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,
-            self.discovery_timeout,
+            self.rendezvous_timeout,
             self.ntp_hosts,
             self.prefer_master,
             self.never_master,

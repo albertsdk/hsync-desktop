@@ -141,7 +141,7 @@ class TestContentWidth:
         qtbot.waitExposed(dialog)
         qtbot.wait(10)
         pairs = (
-            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_bootnode)),
+            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
             (
                 _SERVER_TAB_INDEX,
                 (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection),

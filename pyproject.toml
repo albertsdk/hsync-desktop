@@ -69,7 +69,7 @@ filterwarnings = [
 [tool.coverage.run]
 omit = [
     "*/shibokensupport/*",
-    "*/signature_bootstrap.py",
+    "*/signature_rendezvous.py",
     "*/.venv/*",
 ]
 

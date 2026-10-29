@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.docs_links import BOOTNODE_SETUP, SERVER_SETUP
+from hsync_desktop.docs_links import RENDEZVOUS_SETUP, SERVER_SETUP
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
@@ -349,7 +349,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     lbl_group: QLabel = dlg.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
     lbl_key: QLabel = dlg.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
     lbl_port: QLabel = dlg.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
-    lbl_discovery: QLabel = dlg.findChild(QLabel, "lblDiscoveryTimeout")  # type: ignore[assignment]
+    lbl_rendezvous: QLabel = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
 
     manage_container: QWidget = dlg.btn_manage_trusted_keys.parent()  # type: ignore[assignment]
 
@@ -373,18 +373,18 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g1, lbl_key, dlg.p2p_key)
     vbox.addWidget(dlg._grp_p2p_mode)
 
-    # Group 2: cross-network discovery through a bootnode
-    dlg._grp_p2p_discovery = _group_box("settings.group.p2p_discovery")
-    g2 = QFormLayout(dlg._grp_p2p_discovery)
-    add_row(g2, dlg._lbl_p2p_bootnode, dlg.p2p_bootnode)
-    add_row(g2, dlg._lbl_p2p_bootnode_trust, dlg.p2p_bootnode_trust)
+    # Group 2: cross-network rendezvous through a rendezvous
+    dlg._grp_p2p_rendezvous = _group_box("settings.group.p2p_rendezvous")
+    g2 = QFormLayout(dlg._grp_p2p_rendezvous)
+    add_row(g2, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
+    add_row(g2, dlg._lbl_p2p_rendezvous_trust, dlg.p2p_rendezvous_trust)
     # Spanning row: the button pair cannot fit the field column once the captions
     # and the labels are localized (see ``_action_row``).
     g2.addRow(manage_container)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
-    dlg._lbl_help_bootnode = help_link("help.bootnode_setup", BOOTNODE_SETUP)
-    g2.addRow("", dlg._lbl_help_bootnode)
-    vbox.addWidget(dlg._grp_p2p_discovery)
+    dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
+    g2.addRow("", dlg._lbl_help_rendezvous)
+    vbox.addWidget(dlg._grp_p2p_rendezvous)
 
     # Group 3: role election + pairing
     dlg._grp_p2p_role = _group_box("settings.group.p2p_role")
@@ -398,7 +398,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     dlg._grp_p2p_advanced = _group_box("settings.group.advanced")
     g4 = QFormLayout(dlg._grp_p2p_advanced)
     add_row(g4, lbl_port, dlg.p2p_port)
-    add_row(g4, lbl_discovery, dlg.discovery_timeout)
+    add_row(g4, lbl_rendezvous, dlg.rendezvous_timeout)
     add_row(g4, dlg._lbl_ntp_hosts, dlg.ntp_hosts)
     add_row(g4, dlg._lbl_peer_download, dlg.peer_download)
     add_row(g4, dlg._lbl_peer_read_cap, dlg.peer_read_cap)

@@ -13,7 +13,7 @@ from hsync_desktop.trusted_keys import TrustedKeysDialog, _format_local_time, _P
 
 
 def _patch_store(
-    monkeypatch, *, bootnodes=(), servers=(), peers=(), supports_peer=True, p2p_enabled=True
+    monkeypatch, *, rendezvouss=(), servers=(), peers=(), supports_peer=True, p2p_enabled=True
 ):
     """Point the dialog's module-level helpers at in-memory fakes."""
     import hsync_desktop.trusted_keys as mod
@@ -24,17 +24,17 @@ def _patch_store(
 
     monkeypatch.setattr(mod, "QSettings", lambda *a, **k: _FakeSettings())
     monkeypatch.setattr(mod, "find_hsync_binary", lambda: "/fake/hsync")
-    monkeypatch.setattr(mod, "list_bootnode_trust", lambda binary: list(bootnodes))
+    monkeypatch.setattr(mod, "list_rendezvous_trust", lambda binary: list(rendezvouss))
     monkeypatch.setattr(mod, "list_server_trust", lambda binary: list(servers))
     monkeypatch.setattr(mod, "list_peer_pins", lambda binary: list(peers))
     monkeypatch.setattr(mod, "supports_peer_trust", lambda binary: supports_peer)
 
 
 class TestTrustedKeysDialog:
-    def test_bootnode_list_is_populated(self, qtbot, monkeypatch):
+    def test_rendezvous_list_is_populated(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,
-            bootnodes=[
+            rendezvouss=[
                 {
                     "host": "boot.example.net",
                     "port": 443,
@@ -46,9 +46,9 @@ class TestTrustedKeysDialog:
         )
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
-        assert dlg._bootnode_table.rowCount() == 1
-        assert dlg._bootnode_table.item(0, 0).text() == "boot.example.net:443"
-        assert dlg._bootnode_table.item(0, 1).text() == "a" * 64
+        assert dlg._rendezvous_table.rowCount() == 1
+        assert dlg._rendezvous_table.item(0, 0).text() == "boot.example.net:443"
+        assert dlg._rendezvous_table.item(0, 1).text() == "a" * 64
 
     def test_peer_list_is_populated(self, qtbot, monkeypatch):
         _patch_store(
@@ -81,10 +81,10 @@ class TestTrustedKeysDialog:
         qtbot.addWidget(dlg)
         assert dlg._peer_table.item(0, 0).text() == tr("trusted_keys.capability_missing")
 
-    def test_remove_bootnode_flow(self, qtbot, monkeypatch):
+    def test_remove_rendezvous_flow(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,
-            bootnodes=[
+            rendezvouss=[
                 {
                     "host": "boot.example.net",
                     "port": 443,
@@ -96,14 +96,14 @@ class TestTrustedKeysDialog:
         )
         removed: list[tuple[str, int | None]] = []
         monkeypatch.setattr(
-            "hsync_desktop.trusted_keys.remove_bootnode_trust",
+            "hsync_desktop.trusted_keys.remove_rendezvous_trust",
             lambda binary, host, port: removed.append((host, port)) or True,
         )
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
-        dlg._bootnode_table.selectRow(0)
-        dlg._remove_bootnode()
+        dlg._rendezvous_table.selectRow(0)
+        dlg._remove_rendezvous()
         assert removed == [("boot.example.net", 443)]
 
     def test_peer_add_rejects_an_invalid_fingerprint(self, qtbot, monkeypatch):
@@ -124,7 +124,7 @@ class TestTrustedKeysDialog:
 
 
 class TestServerTrustTab:
-    """The Servers tab mirrors the bootnode tab for the sync-server store."""
+    """The Servers tab mirrors the rendezvous tab for the sync-server store."""
 
     def test_server_list_is_populated(self, qtbot, monkeypatch):
         _patch_store(
@@ -173,7 +173,7 @@ class TestServerTrustTab:
 class TestTrustedKeysInitialTab:
     """``initial_tab`` opens the dialog on the panel that launched it."""
 
-    def test_default_is_bootnodes(self, qtbot, monkeypatch):
+    def test_default_is_rendezvouss(self, qtbot, monkeypatch):
         _patch_store(monkeypatch)
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
@@ -343,10 +343,10 @@ class TestSourceLabel:
         assert _source_label("future-mode") == "future-mode"
         assert _source_label("") == ""
 
-    def test_discovery_server_source_column_is_humanized(self, qtbot, monkeypatch):
+    def test_rendezvous_server_source_column_is_humanized(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,
-            bootnodes=[
+            rendezvouss=[
                 {
                     "host": "boot.example.net",
                     "port": 443,
@@ -358,7 +358,7 @@ class TestSourceLabel:
         )
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
-        assert dlg._bootnode_table.item(0, 2).text() == tr("trusted_keys.source_tofu")
+        assert dlg._rendezvous_table.item(0, 2).text() == tr("trusted_keys.source_tofu")
 
 
 class TestLocalTimeFormatting:
@@ -384,11 +384,11 @@ class TestLocalTimeFormatting:
         assert _format_local_time("") == ""
         assert _format_local_time("not-a-date") == "not-a-date"
 
-    def test_discovery_server_added_column_is_localized(self, qtbot, monkeypatch):
+    def test_rendezvous_server_added_column_is_localized(self, qtbot, monkeypatch):
         iso = "2020-01-02T03:04:05.000Z"
         _patch_store(
             monkeypatch,
-            bootnodes=[
+            rendezvouss=[
                 {
                     "host": "boot.example.net",
                     "port": 443,
@@ -400,7 +400,7 @@ class TestLocalTimeFormatting:
         )
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
-        assert dlg._bootnode_table.item(0, 3).text() == _format_local_time(iso)
+        assert dlg._rendezvous_table.item(0, 3).text() == _format_local_time(iso)
 
 
 class TestDevicesTerminology:

@@ -62,18 +62,18 @@ for when to use it.
 
 | Setting | Description |
 |---------|-------------|
-| p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
+| p2p Group Name | Partition key for p2p rendezvous: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A legacy raw group key (32+ characters) already stored by an older version keeps being used as-is — see [Secrets](secrets.md) |
-| Discovery server (optional) | Endpoint of an optional discovery server (an HSYNC Bootnode) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files |
-| Discovery server identity check | How the app checks the discovery server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
-| Manage trusted servers & devices | List, add and remove the discovery server, server and device fingerprints the client actually uses |
-| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
+| Rendezvous server (optional) | Endpoint of an optional rendezvous server (an HSYNC Rendezvous) for cross-network rendezvous (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files |
+| Rendezvous server identity check | How the app checks the rendezvous server identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
+| Manage trusted servers & devices | List, add and remove the rendezvous server, server and device fingerprints the client actually uses |
+| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a rendezvous server set) |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | New primary device | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
 | Download from other devices | In p2p mode, fetch file blocks from other devices, not only the primary |
 | Port | Fixed p2p listening port |
-| Device search timeout | How long to wait for device discovery |
+| Device search timeout | How long to wait for device rendezvous |
 | Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
 The tab also holds **Enable p2p mode**, **Max simultaneous reads from other
@@ -90,10 +90,10 @@ to the Sync tab). Declining either prompt keeps your choice and repeats the
 generic warning when saving.
 
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
-known-hosts (discovery server and sync server) and known-devices stores directly —
+known-hosts (rendezvous server and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
 source of truth. The dialog shows only the stores relevant to the active mode: p2p
-shows the discovery-server and device stores, Server Mode shows the **Server
+shows the rendezvous-server and device stores, Server Mode shows the **Server
 HSYNC** store.
 
 **Keyless runs.** Without a shared password the app confirms before starting:
@@ -101,7 +101,7 @@ devices are not authenticated and reads are open to anyone who can reach this
 device. Set a shared password in the p2p tab to avoid the prompt; the confirmation
 is requested on every start and is not a stored setting. See [Secrets](secrets.md).
 
-**Test Connection.** *Test Connection* contacts the configured discovery server
+**Test Connection.** *Test Connection* contacts the configured rendezvous server
 and shows the certificate fingerprint it presents, which proves the address is
 reachable; no pin is written. The button reads **Checking…** while the request
 runs and the window stays responsive, so the result arrives in a dialog when the

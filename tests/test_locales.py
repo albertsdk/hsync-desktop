@@ -92,16 +92,16 @@ class TestTerminologyConsistency:
     """Keep the visible wording coherent for non-technical users, in every locale.
 
     Guards that the incompatibility warnings name the option exactly as its
-    checkbox label reads, and that role/discovery wording avoids
-    master/relay/bootnode jargon.
+    checkbox label reads, and that role/rendezvous wording avoids
+    master/relay/rendezvous jargon.
     """
 
     ALL = ALL_MODULES
 
-    # User-facing name of the `boot/1` node in each locale. It is a discovery
-    # service (it never relays file data), so "relay" and "bootnode" are jargon.
-    DISCOVERY_TERMS = {
-        "en": "discovery",
+    # User-facing name of the `rdv/1` node in each locale. It is a rendezvous
+    # service (it never relays file data), so "relay" and "rendezvous" are jargon.
+    RENDEZVOUS_TERMS = {
+        "en": "rendezvous",
         "it": "individuazione",
         "de": "erkennung",
         "fr": "découverte",
@@ -117,32 +117,32 @@ class TestTerminologyConsistency:
     # Locale-independent tokens that wrongly imply a data relay.
     RELAY_TOKENS = ("relay", "relais", "中继", "リレー", "ретрансляц", "przekaźnik")
 
-    BOOTNODE_KEYS = (
-        "settings.test_bootnode_no_host",
-        "settings.test_bootnode_no_binary",
-        "settings.test_bootnode_success",
-        "settings.test_bootnode_failure",
-        "settings.invalid_bootnode_endpoint",
-        "settings.p2p_bootnode",
-        "settings.p2p_bootnode_trust",
-        "dialogs.bootnode_trust_title",
-        "dialogs.bootnode_trust_body",
-        "dialogs.bootnode_unreachable",
-        "trusted_keys.tabs_bootnodes",
+    RENDEZVOUS_KEYS = (
+        "settings.test_rendezvous_no_host",
+        "settings.test_rendezvous_no_binary",
+        "settings.test_rendezvous_success",
+        "settings.test_rendezvous_failure",
+        "settings.invalid_rendezvous_endpoint",
+        "settings.p2p_rendezvous",
+        "settings.p2p_rendezvous_trust",
+        "dialogs.rendezvous_trust_title",
+        "dialogs.rendezvous_trust_body",
+        "dialogs.rendezvous_unreachable",
+        "trusted_keys.tabs_rendezvouss",
         "tip.p2p_mode",
-        "tip.p2p_bootnode",
-        "tip.p2p_bootnode_trust",
+        "tip.p2p_rendezvous",
+        "tip.p2p_rendezvous_trust",
         "tip.manage_trusted_keys",
-        "tip.test_bootnode",
+        "tip.test_rendezvous",
         "tip.p2p_key",
         "wizard.mode.remote_sync.desc",
-        "wizard.connection.discovery_server",
-        "wizard.connection.test_discovery_server_ok",
+        "wizard.connection.rendezvous_server",
+        "wizard.connection.test_rendezvous_server_ok",
         "wizard.connection.trust_save",
-        "wizard.error.discovery_server_required",
-        "wizard.error.discovery_server_invalid",
-        "wizard.connection.discovery_server_unreachable",
-        "wizard.tip.discovery_server",
+        "wizard.error.rendezvous_server_required",
+        "wizard.error.rendezvous_server_invalid",
+        "wizard.connection.rendezvous_server_unreachable",
+        "wizard.tip.rendezvous_server",
     )
 
     def test_prefer_role_warning_quotes_the_visible_label(self):
@@ -169,22 +169,21 @@ class TestTerminologyConsistency:
             ):
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
 
-    def test_discovery_terms_avoid_relay_and_bootnode_jargon(self):
-        """The boot/1 node is a discovery server, never a relay or a bootnode."""
+    def test_rendezvous_terms_avoid_relay_jargon(self):
+        """The rdv/1 node is a rendezvous server; the wording must never use a relay term."""
         for module in self.ALL:
             name = module.__name__.rsplit(".", 1)[-1]
-            term = self.DISCOVERY_TERMS[name]
-            for key in self.BOOTNODE_KEYS:
+            term = self.RENDEZVOUS_TERMS[name]
+            for key in self.RENDEZVOUS_KEYS:
                 text = module.translations[key].lower()
                 assert term in text, f"{module.__name__}:{key}: missing {term!r}"
-                assert "bootnode" not in text, f"{module.__name__}:{key}"
                 for token in self.RELAY_TOKENS:
                     assert token not in text, f"{module.__name__}:{key}: {token!r}"
 
     def test_device_finding_group_is_about_devices_only(self):
-        """The settings group names device finding, not the discovery server."""
+        """The settings group names device finding, not the rendezvous server."""
         for module in self.ALL:
-            text = module.translations["settings.group.p2p_discovery"].lower()
+            text = module.translations["settings.group.p2p_rendezvous"].lower()
             for token in self.RELAY_TOKENS:
                 assert token not in text, f"{module.__name__}:{token!r}"
 
@@ -339,7 +338,7 @@ class TestTerminologyConsistency:
         "ja": "方向",
     }
     _JARGON_KEYS = (
-        "settings.test_bootnode_no_binary",
+        "settings.test_rendezvous_no_binary",
         "dialogs.trust_failed",
         "trusted_keys.failed",
         "trusted_keys.capability_missing",
@@ -413,7 +412,7 @@ class TestTerminologyConsistency:
         for module in self.ALL:
             for key in (
                 "settings.invalid_server_endpoint",
-                "settings.invalid_bootnode_endpoint",
+                "settings.invalid_rendezvous_endpoint",
             ):
                 value = module.translations[key].lower()
                 assert "ipv6" not in value and "host:port" not in value, f"{module.__name__}:{key}"
@@ -473,13 +472,14 @@ class TestWizardTerminology:
             for key in required:
                 assert key in module.translations, f"{module.__name__}:{key}"
 
-    def test_wizard_strings_avoid_master_and_bootnode(self):
+    def test_wizard_strings_avoid_role_and_relay_jargon(self):
         for module in ALL_MODULES:
             for key, value in module.translations.items():
                 if key.startswith("wizard.") or key == "menu.setup_wizard":
                     lowered = value.lower()
                     assert "master" not in lowered, f"{module.__name__}:{key}"
-                    assert "bootnode" not in lowered, f"{module.__name__}:{key}"
+                    for token in TestTerminologyConsistency.RELAY_TOKENS:
+                        assert token not in lowered, f"{module.__name__}:{key}: {token!r}"
 
 
 class TestEllipsisPolicy:
@@ -526,14 +526,13 @@ class TestTabDescriptions:
             for key in self.KEYS:
                 lowered = module.translations[key].lower()
                 assert "master" not in lowered, f"{module.__name__}:{key}"
-                assert "bootnode" not in lowered, f"{module.__name__}:{key}"
                 for token in TestTerminologyConsistency.RELAY_TOKENS:
                     assert token not in lowered, f"{module.__name__}:{key}"
 
-    def test_p2p_description_names_the_discovery_server(self):
-        # The discovery-server option is the non-obvious part of the tab: every
-        # locale must call it a discovery service, never a relay or a bootnode.
+    def test_p2p_description_names_the_rendezvous_server(self):
+        # The rendezvous-server option is the non-obvious part of the tab: every
+        # locale must call it a rendezvous service, never a relay or a rendezvous.
         for module in ALL_MODULES:
             code = module.__name__.rsplit(".", 1)[-1]
             lowered = module.translations["settings.p2p.description"].lower()
-            assert TestTerminologyConsistency.DISCOVERY_TERMS[code] in lowered, module.__name__
+            assert TestTerminologyConsistency.RENDEZVOUS_TERMS[code] in lowered, module.__name__

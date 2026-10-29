@@ -98,7 +98,7 @@ class TestP2PSectionConsistency:
             {
                 "p2p/enabled": True,
                 "p2p/port": 9000,
-                "p2p/discovery_timeout": 15,
+                "p2p/rendezvous_timeout": 15,
                 "p2p/group": "test-group",
                 "sync/continuous": False,  # emits --once
                 "p2p/prefer_master": True,  # emits --prefer-master
@@ -109,7 +109,7 @@ class TestP2PSectionConsistency:
         for flag in (
             "p2p",
             "--listen-port",
-            "--discovery-timeout",
+            "--peer-rendezvous-timeout",
             "--group",
             "--once",
             "--prefer-master",
@@ -118,7 +118,7 @@ class TestP2PSectionConsistency:
 
         # Argument values follow their flag.
         assert args[args.index("--listen-port") + 1] == "9000"
-        assert args[args.index("--discovery-timeout") + 1] == "15"
+        assert args[args.index("--peer-rendezvous-timeout") + 1] == "15"
         assert args[args.index("--group") + 1] == "test-group"
 
     def test_one_shot_and_prefer_master_are_independent(self):
@@ -356,14 +356,14 @@ class TestClientCapabilitiesParity:
             "--allow-deletions",
             "--allow-unauthenticated-p2p",
             "--allow-unauthenticated-writes",
-            "--bootnode-fingerprint",
-            "--bootnode-tofu",
-            "--bootnode-trust",
+            "--rendezvous-server-fingerprint",
+            "--rendezvous-server-tofu",
+            "--rendezvous-server-trust",
             "--bucket",
             "--ca-cert",
             "--delta-min-file-size",
             "--delta-min-file-size-p2p",
-            "--discovery-timeout",
+            "--peer-rendezvous-timeout",
             "--dry-run",
             "--env-file",
             "--events-json-fd",
@@ -401,7 +401,7 @@ class TestClientCapabilitiesParity:
             "--stability-delay",
             "--subdir",
             "--sync-direction",
-            "--upnp",
+            "--map-data-port",
             "--verbose",
         }
     )
@@ -480,9 +480,9 @@ class TestClientCapabilitiesParity:
         }
         assert long_flags <= self._SERVER_ADVERTISED | frozenset(self._ENGINE_SERVER_FLAGS)
 
-    def test_gated_upnp_flag_matches_client(self):
-        assert "--upnp" in self._P2P_ADVERTISED
-        assert "--no-upnp" not in self._P2P_ADVERTISED
+    def test_gated_map_data_port_flag_matches_client(self):
+        assert "--map-data-port" in self._P2P_ADVERTISED
+        assert "--no-map-data-port" not in self._P2P_ADVERTISED
 
 
 class TestClientPaletteFlag:

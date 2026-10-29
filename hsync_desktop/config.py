@@ -104,21 +104,21 @@ DEFAULT_DELTA_MIN_FILE_SIZE_P2P_KB = DELTA_MIN_FILE_SIZE_P2P // 1024
 DEFAULT_P2P_ENABLED = True
 DEFAULT_P2P_KEY = ""
 DEFAULT_P2P_PORT = 0  # 0 = auto-assign
-DEFAULT_DISCOVERY_TIMEOUT = 10
+DEFAULT_RENDEZVOUS_TIMEOUT = 10
 DEFAULT_PREFER_MASTER = False
 DEFAULT_NEVER_MASTER = False
 # P2P master trust policy (ADR-0040): ask (default) | accept-new | strict.
 # Passed to hsync-client via --p2p-trust; chain/none never pin, so they are not
 # selectable here.
 DEFAULT_P2P_TRUST = "ask"
-# Optional bootnode host for cross-network discovery (bare hostname; empty =
-# mDNS-only). Passed to hsync-client via HSYNC_DISCOVERY_SERVER_ENDPOINTS.
-DEFAULT_P2P_BOOTNODE = ""
-# Bootnode TLS trust policy (ADR-0035): ask | accept-new | strict | none.
-# Passed via HSYNC_BOOTNODE_TRUST.
-DEFAULT_P2P_BOOTNODE_TRUST = "ask"
-# Map the master TCP port with UPnP when a bootnode is used. Passed via
-# HSYNC_MAP_DATA_PORT; the client treats it as on only with a discovery server by
+# Optional rendezvous host for cross-network rendezvous (bare hostname; empty =
+# mDNS-only). Passed to hsync-client via HSYNC_RENDEZVOUS_SERVER_ENDPOINTS.
+DEFAULT_P2P_RENDEZVOUS = ""
+# Rendezvous TLS trust policy (ADR-0035): ask | accept-new | strict | none.
+# Passed via HSYNC_RENDEZVOUS_TRUST.
+DEFAULT_P2P_RENDEZVOUS_TRUST = "ask"
+# Map the master TCP port with UPnP when a rendezvous is used. Passed via
+# HSYNC_MAP_DATA_PORT; the client treats it as on only with a rendezvous server by
 # default.
 DEFAULT_P2P_UPNP_ENABLED = True
 # Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the

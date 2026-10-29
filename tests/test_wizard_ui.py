@@ -291,12 +291,12 @@ class TestTestGating:
         page.api_key.setText("key")
         assert page.test_server.isEnabled()
 
-    def test_discovery_server_test_needs_discovery_server(self, wizard):
+    def test_rendezvous_server_test_needs_rendezvous_server(self, wizard):
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        assert not page.test_discovery_server.isEnabled()
-        page.discovery_server.setText("boot.example.net")
-        assert page.test_discovery_server.isEnabled()
+        assert not page.test_rendezvous_server.isEnabled()
+        page.rendezvous_server.setText("boot.example.net")
+        assert page.test_rendezvous_server.isEnabled()
 
 
 class TestSwitches:
@@ -369,7 +369,7 @@ class TestProbeStatus:
         page._on_probe_done(ProbeOutcome(True, 200))
         assert not page.server_status.isHidden()
         assert page.server_status.text() == tr("settings.test_connection_success")
-        assert page.discovery_server_status.isHidden()
+        assert page.rendezvous_server_status.isHidden()
 
     def test_server_error_lands_on_server_status(self, wizard):
         from hsync_desktop.engine import ProbeOutcome
@@ -379,30 +379,30 @@ class TestProbeStatus:
         page._active_target = "server"
         page._on_probe_done(ProbeOutcome(False, None, reason="unreachable"))
         assert page.server_status.text() == tr("wizard.probe.unreachable")
-        assert page.discovery_server_status.isHidden()
+        assert page.rendezvous_server_status.isHidden()
 
-    def test_discovery_server_success_lands_on_discovery_server_status(self, wizard):
+    def test_rendezvous_server_success_lands_on_rendezvous_server_status(self, wizard):
         from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page._active_target = "discovery_server"
+        page._active_target = "rendezvous_server"
         page._on_probe_done(ProbeOutcome(True, fingerprint="AA:BB"))
-        assert page.discovery_server_status.text() == tr(
-            "wizard.connection.test_discovery_server_ok"
+        assert page.rendezvous_server_status.text() == tr(
+            "wizard.connection.test_rendezvous_server_ok"
         ).format(fingerprint="AA:BB")
-        assert not page.discovery_server_trust_box.isHidden()
+        assert not page.rendezvous_server_trust_box.isHidden()
         assert page.server_status.isHidden()
 
-    def test_discovery_server_error_uses_discovery_server_message(self, wizard):
+    def test_rendezvous_server_error_uses_rendezvous_server_message(self, wizard):
         from hsync_desktop.engine import ProbeOutcome
 
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page._active_target = "discovery_server"
+        page._active_target = "rendezvous_server"
         page._on_probe_done(ProbeOutcome(False, reason="unreachable"))
-        assert page.discovery_server_status.text() == tr(
-            "wizard.connection.discovery_server_unreachable"
+        assert page.rendezvous_server_status.text() == tr(
+            "wizard.connection.rendezvous_server_unreachable"
         )
 
     def test_result_ignored_when_section_hidden(self, wizard):
@@ -424,18 +424,18 @@ class TestProbeStatus:
         assert page.server_status.isHidden()
         assert page._server_fingerprint == ""
 
-    def test_editing_discovery_server_clears_status_fingerprint_and_trust(self, wizard):
+    def test_editing_rendezvous_server_clears_status_fingerprint_and_trust(self, wizard):
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
-        page.discovery_server_status.setVisible(True)
-        page.discovery_server_status.setText("ok")
-        page.discovery_server_trust_box.setVisible(True)
+        page.rendezvous_server_status.setVisible(True)
+        page.rendezvous_server_status.setText("ok")
+        page.rendezvous_server_trust_box.setVisible(True)
         page.trust_save.setChecked(True)
-        page._discovery_server_fingerprint = "AA:BB"
-        page.discovery_server.setText("boot.example.net")
-        assert page.discovery_server_status.isHidden()
-        assert page._discovery_server_fingerprint == ""
-        assert page.discovery_server_trust_box.isHidden()
+        page._rendezvous_server_fingerprint = "AA:BB"
+        page.rendezvous_server.setText("boot.example.net")
+        assert page.rendezvous_server_status.isHidden()
+        assert page._rendezvous_server_fingerprint == ""
+        assert page.rendezvous_server_trust_box.isHidden()
         assert not page.trust_save.isChecked()
 
 
@@ -462,8 +462,8 @@ class TestReviewChecks:
         wizard.review_page.load(
             WizardDraft(
                 mode=WizardMode.REMOTE_SYNC,
-                discovery_server_verified=True,
-                discovery_server_fingerprint="AA:BB",
+                rendezvous_server_verified=True,
+                rendezvous_server_fingerprint="AA:BB",
             )
         )
         assert "AA:BB" in self._checks(wizard)
@@ -566,7 +566,7 @@ class TestLayoutImprovements:
         assert page.server_url.toolTip() == tr("wizard.tip.server_url")
         assert page.api_key.edit.toolTip() == tr("wizard.tip.api_key")
         assert page.bucket.toolTip() == tr("wizard.tip.share_name")
-        assert page.discovery_server.toolTip() == tr("wizard.tip.discovery_server")
+        assert page.rendezvous_server.toolTip() == tr("wizard.tip.rendezvous_server")
         assert page.continuous.toolTip() == tr("wizard.tip.continuous")
 
     def test_folder_suggestions_have_icons(self, wizard):
@@ -577,7 +577,7 @@ class TestLayoutImprovements:
     def test_connection_placeholders(self, wizard):
         page = wizard.connection_page
         assert page.server_url.placeholderText() == "https://hsync.example.com:9753"
-        assert page.discovery_server.placeholderText() == "boot.example.net"
+        assert page.rendezvous_server.placeholderText() == "boot.example.net"
         assert page.bucket.placeholderText() == "my-share"
         assert page.group.placeholderText() == "my-devices"
 
@@ -598,7 +598,7 @@ class TestLayoutImprovements:
             "direction",
             "p2p_group",
             "p2p_key",
-            "discovery_server",
+            "rendezvous_server",
         ):
             text = rows[name][3].text()
             assert not text.rstrip().endswith((":", "：")), text

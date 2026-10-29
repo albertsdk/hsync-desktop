@@ -16,7 +16,7 @@ from hsync_desktop import docs_links
     "url",
     [
         docs_links.SERVER_SETUP,
-        docs_links.BOOTNODE_SETUP,
+        docs_links.RENDEZVOUS_SETUP,
         docs_links.CONNECTION_MODES,
         docs_links.DOCS_INDEX,
         docs_links.GITHUB_REPO,

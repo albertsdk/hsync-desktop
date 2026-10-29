@@ -50,23 +50,23 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine import (
     HsyncEngine,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
 )
@@ -133,7 +133,7 @@ class MainWindow(
         # fingerprint must not reopen a dialog the user already dismissed. Reset
         # on start/stop so a new session prompts again.
         self._trust_prompted: dict[tuple[str, str], str] = {}
-        # Bootnode/server fingerprint pre-flight (ADR-0035/0036): unknown hosts
+        # Rendezvous/server fingerprint pre-flight (ADR-0035/0036): unknown hosts
         # are probed off the UI thread before the client starts.
         self._init_trust_preflight()
         # Release update check (ADR-0048): the probe is created on first use and
@@ -323,7 +323,7 @@ class MainWindow(
         # additionally raises a modal dialog (see `_start_engine`). The handler
         # also owns the outcome of a scoped Send/Receive failure.
         e.error_occurred.connect(self._on_engine_error)
-        # Non-fatal engine warnings (degraded watcher, unreachable bootnode):
+        # Non-fatal engine warnings (degraded watcher, unreachable rendezvous):
         # surfaced in-app and, when unfocused, as a system notification.
         e.warning_occurred.connect(self._on_engine_warning)
         e.path_not_found.connect(self._on_path_not_found)

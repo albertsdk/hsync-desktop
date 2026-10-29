@@ -97,8 +97,8 @@ class TestP2pTooltips:
     """The p2p panel's previously tip-less fields now explain themselves."""
 
     _KEYS = {
-        "p2p_bootnode": "tip.p2p_bootnode",
-        "p2p_bootnode_trust": "tip.p2p_bootnode_trust",
+        "p2p_rendezvous": "tip.p2p_rendezvous",
+        "p2p_rendezvous_trust": "tip.p2p_rendezvous_trust",
         "btn_manage_trusted_keys": "tip.manage_trusted_keys",
         "p2p_upnp": "tip.p2p_upnp",
     }
@@ -118,49 +118,49 @@ class TestP2pTooltips:
             assert getattr(dialog, name).toolTip() == ""
 
 
-class TestBootnodeTestButton:
-    """'Test Connection' in the p2p panel probes the configured bootnode."""
+class TestRendezvousTestButton:
+    """'Test Connection' in the p2p panel probes the configured rendezvous."""
 
     def _capture(self, monkeypatch, name):
         seen: list[str] = []
         monkeypatch.setattr(QMessageBox, name, staticmethod(lambda *a, **k: seen.append(a[2])))
         return seen
 
-    def test_no_bootnode_warns_without_probing(self, dialog, monkeypatch):
+    def test_no_rendezvous_warns_without_probing(self, dialog, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
 
         warned = self._capture(monkeypatch, "warning")
         probed: list = []
         monkeypatch.setattr(
-            dialog_mod, "fetch_bootnode_fingerprint", lambda *a, **k: probed.append(a)
+            dialog_mod, "fetch_rendezvous_fingerprint", lambda *a, **k: probed.append(a)
         )
-        dialog.p2p_bootnode.setText("")
-        dialog._on_test_bootnode()
-        assert warned == [tr("settings.test_bootnode_no_host")]
+        dialog.p2p_rendezvous.setText("")
+        dialog._on_test_rendezvous()
+        assert warned == [tr("settings.test_rendezvous_no_host")]
         assert probed == []
 
     def test_invalid_endpoint_warns(self, dialog, monkeypatch):
         warned = self._capture(monkeypatch, "warning")
-        dialog.p2p_bootnode.setText("https://boot.example.net")
-        dialog._on_test_bootnode()
-        assert warned == [tr("settings.invalid_bootnode_endpoint")]
+        dialog.p2p_rendezvous.setText("https://boot.example.net")
+        dialog._on_test_rendezvous()
+        assert warned == [tr("settings.invalid_rendezvous_endpoint")]
 
     def test_unreachable_warns(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
 
         warned = self._capture(monkeypatch, "warning")
         monkeypatch.setattr(dialog_mod, "find_hsync_binary", lambda: "/fake/hsync")
-        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", lambda *a, **k: None)
-        dialog.p2p_bootnode.setText("boot.example.net")
-        dialog._on_test_bootnode()
+        monkeypatch.setattr(dialog_mod, "fetch_rendezvous_fingerprint", lambda *a, **k: None)
+        dialog.p2p_rendezvous.setText("boot.example.net")
+        dialog._on_test_rendezvous()
         # The probe is off the UI thread: the button shows the busy state and the
         # window keeps running instead of freezing for the CLI timeout.
-        assert not dialog.btn_test_bootnode.isEnabled()
-        assert dialog.btn_test_bootnode.text() == tr("common.checking")
+        assert not dialog.btn_test_rendezvous.isEnabled()
+        assert dialog.btn_test_rendezvous.text() == tr("common.checking")
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
-        assert warned == [tr("settings.test_bootnode_failure")]
-        assert dialog.btn_test_bootnode.isEnabled()
-        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
+        assert warned == [tr("settings.test_rendezvous_failure")]
+        assert dialog.btn_test_rendezvous.isEnabled()
+        assert dialog.btn_test_rendezvous.text() == tr("settings.test_connection")
 
     def test_reachable_reports_the_fingerprint(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
@@ -174,13 +174,13 @@ class TestBootnodeTestButton:
             captured.update(binary=binary, host=host, port=port)
             return fingerprint
 
-        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", fake_probe)
-        dialog.p2p_bootnode.setText("boot.example.net:443")
-        dialog._on_test_bootnode()
+        monkeypatch.setattr(dialog_mod, "fetch_rendezvous_fingerprint", fake_probe)
+        dialog.p2p_rendezvous.setText("boot.example.net:443")
+        dialog._on_test_rendezvous()
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
         assert captured == {"binary": "/fake/hsync", "host": "boot.example.net", "port": 443}
         report = f"✓ boot.example.net:443: {fingerprint}"
-        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", report)]
+        assert infos == [tr("settings.test_rendezvous_success").replace("{fingerprint}", report)]
 
     def test_every_configured_server_is_probed(self, dialog, qtbot, monkeypatch):
         """The field is a list: one line per server, and a dead one is visible."""
@@ -195,9 +195,9 @@ class TestBootnodeTestButton:
             probed.append((host, port))
             return None if host == "dead.example.net" else fingerprint
 
-        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", fake_probe)
-        dialog.p2p_bootnode.setText("live.example.net,dead.example.net:8443")
-        dialog._on_test_bootnode()
+        monkeypatch.setattr(dialog_mod, "fetch_rendezvous_fingerprint", fake_probe)
+        dialog.p2p_rendezvous.setText("live.example.net,dead.example.net:8443")
+        dialog._on_test_rendezvous()
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
         assert probed == [("live.example.net", 443), ("dead.example.net", 8443)]
         report = "\n".join(
@@ -206,13 +206,13 @@ class TestBootnodeTestButton:
                 "✗ dead.example.net:8443: unreachable",
             ]
         )
-        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", report)]
+        assert infos == [tr("settings.test_rendezvous_success").replace("{fingerprint}", report)]
 
     def test_button_disabled_in_server_mode(self, dialog):
         dialog.p2p_mode.setChecked(False)
-        assert not dialog.btn_test_bootnode.isEnabled()
+        assert not dialog.btn_test_rendezvous.isEnabled()
         dialog.p2p_mode.setChecked(True)
-        assert dialog.btn_test_bootnode.isEnabled()
+        assert dialog.btn_test_rendezvous.isEnabled()
 
 
 class TestServerTestConnection:
@@ -265,7 +265,7 @@ class TestServerTestConnection:
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
         assert warned == [tr("settings.test_connection_failure")]
 
-    def test_the_bootnode_button_label_is_untouched(self, dialog, qtbot, monkeypatch):
+    def test_the_rendezvous_button_label_is_untouched(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
         from hsync_desktop.engine.probes import ServerProbeResult
 
@@ -278,7 +278,7 @@ class TestServerTestConnection:
         dialog.p2p_mode.setChecked(False)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
-        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
+        assert dialog.btn_test_rendezvous.text() == tr("settings.test_connection")
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
 
     def test_closing_the_dialog_drops_a_pending_probe(self, dialog, qtbot, monkeypatch):
@@ -336,7 +336,7 @@ class TestP2pPanelSections:
     def test_four_sections_with_expected_titles(self, dialog):
         assert set(self._groups(dialog)) == {
             escape_mnemonics(tr("settings.group.p2p_mode")),
-            escape_mnemonics(tr("settings.group.p2p_discovery")),
+            escape_mnemonics(tr("settings.group.p2p_rendezvous")),
             escape_mnemonics(tr("settings.group.p2p_role")),
             escape_mnemonics(tr("settings.group.advanced")),
         }
@@ -344,18 +344,18 @@ class TestP2pPanelSections:
     def test_fields_are_in_the_expected_section(self, dialog):
         groups = self._groups(dialog)
         mode = groups[escape_mnemonics(tr("settings.group.p2p_mode"))]
-        discovery = groups[escape_mnemonics(tr("settings.group.p2p_discovery"))]
+        rendezvous = groups[escape_mnemonics(tr("settings.group.p2p_rendezvous"))]
         role = groups[escape_mnemonics(tr("settings.group.p2p_role"))]
         advanced = groups[escape_mnemonics(tr("settings.group.advanced"))]
 
         assert dialog.p2p_group.parent() is mode
         assert dialog.p2p_key.parent() is mode
-        assert dialog.p2p_bootnode.parent() is discovery
-        assert dialog.p2p_bootnode_trust.parent() is discovery
+        assert dialog.p2p_rendezvous.parent() is rendezvous
+        assert dialog.p2p_rendezvous_trust.parent() is rendezvous
         assert dialog.prefer_master.parent() is role
         assert dialog.p2p_trust.parent() is role
         assert dialog.p2p_port.parent() is advanced
-        assert dialog.discovery_timeout.parent() is advanced
+        assert dialog.rendezvous_timeout.parent() is advanced
         assert dialog.ntp_hosts.parent() is advanced
 
 
@@ -470,14 +470,14 @@ class TestActionButtonRows:
     """Manage-keys / Verify are labelled and share one horizontal row per panel."""
 
     def test_p2p_verify_button_is_labelled(self, dialog):
-        assert dialog.btn_test_bootnode.text() == tr("settings.test_connection")
+        assert dialog.btn_test_rendezvous.text() == tr("settings.test_connection")
 
     def test_server_verify_button_is_labelled(self, dialog):
         assert dialog.btn_test_connection.text() == tr("settings.test_connection")
 
     def test_p2p_actions_are_in_one_horizontal_row(self, dialog):
         parent = dialog.btn_manage_trusted_keys.parent()
-        assert parent is dialog.btn_test_bootnode.parent()
+        assert parent is dialog.btn_test_rendezvous.parent()
         assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
 
     def test_server_actions_are_in_one_horizontal_row(self, dialog):
@@ -592,21 +592,21 @@ class TestServerSetupLink:
         assert label.height() <= 2 * label.fontMetrics().height()
 
 
-class TestBootnodeSetupLink:
-    """The p2p discovery group links to the hsync-bootnode guide."""
+class TestRendezvousSetupLink:
+    """The p2p rendezvous group links to the hsync-rendezvous guide."""
 
-    def test_it_lives_in_the_discovery_group_with_the_expected_target(self, dialog):
-        label = dialog._lbl_help_bootnode
+    def test_it_lives_in_the_rendezvous_group_with_the_expected_target(self, dialog):
+        label = dialog._lbl_help_rendezvous
 
-        assert dialog._grp_p2p_discovery.isAncestorOf(label)
+        assert dialog._grp_p2p_rendezvous.isAncestorOf(label)
         assert label.objectName() == "helpLink"
-        assert label.property("docsUrl") == docs_links.BOOTNODE_SETUP
-        assert docs_links.BOOTNODE_SETUP in label.text()
-        assert tr("help.bootnode_setup") in label.text()
+        assert label.property("docsUrl") == docs_links.RENDEZVOUS_SETUP
+        assert docs_links.RENDEZVOUS_SETUP in label.text()
+        assert tr("help.rendezvous_setup") in label.text()
 
-    def test_clicking_it_opens_the_bootnode_guide(self, dialog):
+    def test_clicking_it_opens_the_rendezvous_guide(self, dialog):
         with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
-            dialog._lbl_help_bootnode.linkActivated.emit(docs_links.BOOTNODE_SETUP)
+            dialog._lbl_help_rendezvous.linkActivated.emit(docs_links.RENDEZVOUS_SETUP)
 
         open_url.assert_called_once()
 
@@ -615,6 +615,6 @@ class TestBootnodeSetupLink:
         dialog._tabs.setCurrentIndex(_P2P_TAB_INDEX)
         dialog.show()
         qtbot.wait(1)
-        label = dialog._lbl_help_bootnode
+        label = dialog._lbl_help_rendezvous
 
         assert label.height() <= 2 * label.fontMetrics().height()

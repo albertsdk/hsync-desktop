@@ -12,13 +12,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hsync_common.protocol.boot_tokens import (
+from hsync_common.protocol.rdv_tokens import (
     WeakGroupPassphrase,
     passphrase_warning,
     validate_group_passphrase,
 )
 
-from hsync_desktop.engine import normalize_discovery_server_endpoints, normalize_server_endpoint
+from hsync_desktop.engine import normalize_rendezvous_server_endpoints, normalize_server_endpoint
 from hsync_desktop.settings.validators import (
     _validate_bucket,
     _validate_group_name,
@@ -96,7 +96,7 @@ def _check_server(draft: WizardDraft) -> list[Issue]:
     return issues
 
 
-def _check_p2p(draft: WizardDraft, requires_discovery_server: bool) -> list[Issue]:
+def _check_p2p(draft: WizardDraft, requires_rendezvous_server: bool) -> list[Issue]:
     issues: list[Issue] = []
     if _validate_group_name(draft.p2p_group.strip()) is None:
         issues.append(Issue("error", "group_invalid", "p2p_group"))
@@ -111,15 +111,15 @@ def _check_p2p(draft: WizardDraft, requires_discovery_server: bool) -> list[Issu
         else:
             if passphrase_warning(password) == "short":
                 issues.append(Issue("warning", "password_short", "p2p_key"))
-    if requires_discovery_server:
-        discovery_server = draft.discovery_server.strip()
-        if not discovery_server:
-            issues.append(Issue("error", "discovery_server_required", "discovery_server"))
+    if requires_rendezvous_server:
+        rendezvous_server = draft.rendezvous_server.strip()
+        if not rendezvous_server:
+            issues.append(Issue("error", "rendezvous_server_required", "rendezvous_server"))
         else:
             try:
-                normalize_discovery_server_endpoints(discovery_server)
+                normalize_rendezvous_server_endpoints(rendezvous_server)
             except ValueError:
-                issues.append(Issue("error", "discovery_server_invalid", "discovery_server"))
+                issues.append(Issue("error", "rendezvous_server_invalid", "rendezvous_server"))
     return issues
 
 
@@ -129,7 +129,7 @@ def validate_connection(draft: WizardDraft) -> list[Issue]:
         return []
     profile = profile_for(draft.mode)
     if profile.p2p_enabled:
-        issues = _check_p2p(draft, profile.requires_discovery_server)
+        issues = _check_p2p(draft, profile.requires_rendezvous_server)
     else:
         issues = _check_server(draft)
     share = _check_share(draft)

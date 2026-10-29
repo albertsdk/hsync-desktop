@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from hsync_common.protocol.boot_tokens import (
+from hsync_common.protocol.rdv_tokens import (
     WeakGroupPassphrase,
     validate_group_passphrase,
 )

@@ -72,10 +72,10 @@ def _checks_text(draft: WizardDraft) -> str:
                 time=_format_verified_at(draft.server_verified_at)
             )
         return tr("wizard.review.not_verified")
-    if profile is not None and profile.requires_discovery_server:
-        if draft.discovery_server_verified and draft.discovery_server_fingerprint:
-            return tr("wizard.connection.test_discovery_server_ok").format(
-                fingerprint=draft.discovery_server_fingerprint
+    if profile is not None and profile.requires_rendezvous_server:
+        if draft.rendezvous_server_verified and draft.rendezvous_server_fingerprint:
+            return tr("wizard.connection.test_rendezvous_server_ok").format(
+                fingerprint=draft.rendezvous_server_fingerprint
             )
         return tr("wizard.review.not_verified")
     return tr("wizard.review.not_verified")
@@ -155,9 +155,9 @@ class ReviewPage(WizardPage):
         else:
             lines.append(f"{tr('wizard.connection.group')}: {draft.p2p_group or '—'}")
             lines.append(f"{tr('wizard.connection.password')}: {_mask(draft.p2p_key)}")
-            if profile is not None and profile.requires_discovery_server:
+            if profile is not None and profile.requires_rendezvous_server:
                 lines.append(
-                    f"{tr('wizard.connection.discovery_server')}: {draft.discovery_server or '—'}"
+                    f"{tr('wizard.connection.rendezvous_server')}: {draft.rendezvous_server or '—'}"
                 )
         self._set("connection", "\n".join(lines))
 

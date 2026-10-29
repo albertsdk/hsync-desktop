@@ -49,7 +49,7 @@ The fields depend on the choice you made in step 2:
 - **Back up** / **Share** — the server address, the account key and the share
   name. Press **Test connection** once the address and key are in.
 - **Same network** — a group name and a generated password.
-- **From anywhere** — the group, the password and the address of a discovery
+- **From anywhere** — the group, the password and the address of a rendezvous
   server (a helper that lets your devices find each other across networks; it
   never stores your files).
 

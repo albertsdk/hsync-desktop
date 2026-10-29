@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- p2p mode now calls the `boot/1` node a **discovery server** instead of a
+- p2p mode now calls the `rdv/1` node a **rendezvous server** instead of a
   "relay server": the node only helps devices find each other and never carries
   file data. The setup wizard, the Settings p2p tab, the trusted-servers dialog
   and all locales use the same wording. Internal identifiers, wizard-draft
@@ -28,3 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The p2p invite shown after the setup wizard now includes the share name, so a
   second device can join the same share without guessing it.
+- Sync could not start in p2p mode with exit code 2: the engine now receives the
+  client's current `--peer-rendezvous-timeout` flag instead of the renamed
+  `--rendezvous-timeout` (hsync-client 1.0.11).

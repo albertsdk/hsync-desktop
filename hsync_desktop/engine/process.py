@@ -23,8 +23,8 @@ from urllib.parse import urlparse
 
 from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
 from hsync_common.logger import LOG_LINE_RE
-from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
+from hsync_common.protocol.rdv_tokens import MIN_GROUP_KEY_CHARS
 from PySide6.QtCore import (
     QObject,
     QProcess,
@@ -38,9 +38,9 @@ from PySide6.QtCore import (
 
 from hsync_desktop.ansi import strip_sgr
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_SERVER_TRUST,
 )
@@ -165,7 +165,7 @@ def p2p_secret_mode(secret: str, stored_mode: str) -> str:
     """Return the input mode to use for *secret*: ``"passphrase"`` or ``"raw"``.
 
     A raw group key must reach the client's floor
-    (``hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS``, enforced on
+    (``hsync_common.protocol.rdv_tokens::MIN_GROUP_KEY_CHARS``, enforced on
     ``--p2p-key-fd``/``HSYNC_P2P_KEY``), so a secret shorter than that cannot be
     one: it is a shared password and must travel as ``--p2p-passphrase-fd`` so
     the client derives the group key from it. Legacy installs that stored a short
@@ -210,7 +210,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     server_url = str(s.value("connection/server_url", "", str)).strip()
     if server_url:
         env.insert("HSYNC_SERVER_URL", server_url)
-    # Server TLS trust policy (ADR-0036): env-driven like the bootnode policy,
+    # Server TLS trust policy (ADR-0036): env-driven like the rendezvous policy,
     # so the client's EnvSettings reads it and no CLI flag/gate is involved. The
     # pin itself lives in the shared server known-hosts store.
     env.insert(
@@ -221,13 +221,13 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
-    # Cross-network discovery: the discovery servers travel through the
+    # Cross-network rendezvous: the rendezvous servers travel through the
     # environment as an ordered, comma-separated HOST[:PORT] list (exactly the
     # grammar of the client's option, so no argument plumbing is needed). UPnP
     # is sent explicitly so the user's choice wins over the plan default.
-    discovery_servers = str(s.value("p2p/discovery_server_endpoints", "", str)).strip()
-    if discovery_servers:
-        env.insert("HSYNC_DISCOVERY_SERVER_ENDPOINTS", discovery_servers)
+    rendezvous_servers = str(s.value("p2p/rendezvous_server_endpoints", "", str)).strip()
+    if rendezvous_servers:
+        env.insert("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS", rendezvous_servers)
         env.insert(
             "HSYNC_MAP_DATA_PORT",
             "true" if bool(s.value("p2p/upnp_enabled", True, bool)) else "false",
@@ -237,8 +237,8 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         # the shared known-hosts store (managed by the client CLI / the GUI's
         # "Manage trusted keys" dialog), not in a GUI-only setting.
         env.insert(
-            "HSYNC_DISCOVERY_SERVER_TRUST",
-            str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
+            "HSYNC_RENDEZVOUS_SERVER_TRUST",
+            str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str)),
         )
     # Periodic full check: 0 disables it. The client has no CLI "off" for
     # -i (absence means its 300 s default), so the off state travels through
@@ -277,9 +277,9 @@ class HsyncEngine(QObject):
     master_changed = Signal(bool)  # True ⇒ this client is master
     bucket_detected = Signal(str)  # bucket name
     group_detected = Signal(str)  # p2p group name
-    discovery_changed = Signal(
+    rendezvous_changed = Signal(
         str, str
-    )  # plan ("mdns"|"mdns+bootnode"), bootnode host ("" without one)
+    )  # plan ("mdns"|"mdns+rendezvous"), rendezvous host ("" without one)
     file_transferred = Signal(str, str, int)  # direction ("↓"|"↑"|"✕"), filename, size
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
@@ -294,7 +294,7 @@ class HsyncEngine(QObject):
     # preview/sync), "process" (QProcess error), "start" (engine launch failure).
     error_occurred = Signal(str, str)
     # A non-fatal condition the engine keeps running through (a degraded file
-    # watcher, an unreachable bootnode): message, the stable ``source``
+    # watcher, an unreachable rendezvous): message, the stable ``source``
     # identifier the client reported and whether it heals itself (``transient``,
     # carried as ``reason="transient"`` on the wire). The client already
     # deduplicates them per (source, message) window, so this signal is never a
@@ -329,7 +329,7 @@ class HsyncEngine(QObject):
     conflict_resolved = Signal(str, str)  # filepath, conflict_copy path
     duplicate_identity = Signal(str, str)  # peer_cid, peer_address (cloned device ID)
     # Trust refusal events (SSH-style): the GUI must answer instead of the
-    # terminal. Scope is "master" (P2P pin), "bootnode" or "server" (known-hosts).
+    # terminal. Scope is "master" (P2P pin), "rendezvous" or "server" (known-hosts).
     pairing_needed = Signal(str, str, str, str)  # scope, peer_cid, peer_address, fingerprint
     fingerprint_changed = Signal(str, str, str, str)  # scope, peer_cid, peer_address, fingerprint
 
@@ -1047,8 +1047,8 @@ class HsyncEngine(QObject):
     def _on_group_event(self, event: UiEventDict) -> None:
         self.group_detected.emit(str(event.get("group", "")))
 
-    def _on_discovery_event(self, event: UiEventDict) -> None:
-        self.discovery_changed.emit(str(event.get("plan", "")), str(event.get("bootnode", "")))
+    def _on_rendezvous_event(self, event: UiEventDict) -> None:
+        self.rendezvous_changed.emit(str(event.get("plan", "")), str(event.get("rendezvous", "")))
 
     def _on_session_event(self, event: UiEventDict) -> None:
         self._cid = str(event.get("cid", ""))
@@ -1145,7 +1145,7 @@ class HsyncEngine(QObject):
         UiEventName.role: _on_role_event,
         UiEventName.bucket: _on_bucket_event,
         UiEventName.group: _on_group_event,
-        UiEventName.discovery: _on_discovery_event,
+        UiEventName.rendezvous: _on_rendezvous_event,
         UiEventName.session: _on_session_event,
         UiEventName.server: _on_server_event,
         UiEventName.auth_error: _on_auth_error_event,

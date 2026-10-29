@@ -68,18 +68,18 @@ and the returned mode so the two can never disagree.
 - **Free space** is rendered with `hsync_common.format.format_bytes`
   (`FolderCheck.free_bytes`).
 - **Test buttons** sit above their own result line and stay disabled until the
-  required inputs are present (server: address + key; discovery server: address);
+  required inputs are present (server: address + key; rendezvous server: address);
   `ConnectionPage._update_test_enabled`. The result is a dedicated form row
   below the button (a long error can never overlap it), reported via
   `ConnectionPage._set_status` (grey "checking…" / green success / red error;
-  QSS `#statusOk`/`#statusError`), and the discovery-server trust buttons appear
+  QSS `#statusOk`/`#statusError`), and the rendezvous-server trust buttons appear
   under the result. Editing a test's fields clears its result and captured
-  fingerprint (`_on_server_edited`/`_on_discovery_server_edited`) so a stale trust pin is
+  fingerprint (`_on_server_edited`/`_on_rendezvous_server_edited`) so a stale trust pin is
   never applied.
 - **Tooltips and placeholders**: every connection field and automation switch
   has a short explanation (`wizard.tip.*`) without changing the visible labels;
-  the text fields show language-neutral example placeholders. The discovery-server
-  field is labelled "Discovery server address".
+  the text fields show language-neutral example placeholders. The rendezvous-server
+  field is labelled "Rendezvous server address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
   as plain `QFormLayout` fields (`widgets/forms.py::add_row`), so the automation
   block shares the same two columns and caption/control distance as the fields
@@ -108,7 +108,7 @@ and the returned mode so the two can never disagree.
   `selected` dynamic property; `themes.py` draws the border/background state
   (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
   without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
-  `network-p2p` (local peers), `network-cloud` (discovery server/anywhere), `people`
+  `network-p2p` (local peers), `network-cloud` (rendezvous server/anywhere), `people`
   (team share). The caption is word-wrapped, and a wrapped ``QLabel`` reports one
   line as its minimum height: `RadioCard._sync_description_height` pins it to
   ``heightForWidth(width)`` (on resize and re-translation) so a short window
@@ -130,8 +130,8 @@ and the returned mode so the two can never disagree.
   `ConnectionPage._current_direction` → `draft.direction = "download-only"`, the
   value Settings shows as **Sync Type → Receive only (from other devices)**.
 - **Review**: sections are separated by rules and the "Checks" section reflects
-  the last real probe (`server_verified`/`discovery_server_verified` in the draft, rendered
-  as a localised time or the discovery server fingerprint); editing a section's
+  the last real probe (`server_verified`/`rendezvous_server_verified` in the draft, rendered
+  as a localised time or the rendezvous server fingerprint); editing a section's
   fields clears it. `_set_step` reloads the page on entry, because the summaries
   are rendered from the draft (a stale review used to keep the previous
   direction). The page writes its own ``label: value`` separator over the
@@ -148,10 +148,10 @@ and the returned mode so the two can never disagree.
 ## Modes, defaults and inference
 
 `wizard/model.py::WizardMode` (StrEnum) + `wizard/model.py::profile_for` hold the
-per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, discovery
+per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, rendezvous
 server, server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
 re-run from the distinctive traits (p2p on/off, `sync/direction`,
-`p2p/discovery_server_endpoints`).
+`p2p/rendezvous_server_endpoints`).
 
 Derived names (`wizard/defaults.py::default_share_name`,
 `generate_group_name`, `generate_password`) are sanitized so they always pass the
@@ -172,21 +172,21 @@ bump discards a stale draft. On finish the draft is cleared and
   `file_panel/workers.py::DirectoryScanWorker`) with a generation counter; the
   wizard, the Settings probes, the trusted-keys read and the MainWindow trust
   pre-flight share it.
-- `engine/endpoints.py` normalizes the server/discovery-server fields; `engine/probes.py`
+- `engine/endpoints.py` normalizes the server/rendezvous-server fields; `engine/probes.py`
   performs `GET /health` and `GET /api/v1/buckets/{bucket}` (the latter is
   mode-aware: a 404 is benign for a fresh backup share — auto-created on first
   upload — and blocks Finish for a team share).
 - `wizard/apply.py::apply_draft` writes only the wizard's keys (see the plan's
   mapping) and pins a confirmed certificate through
-  `engine/cli.py::add_bootnode_trust` / `add_server_trust`; a failed pin blocks
+  `engine/cli.py::add_rendezvous_trust` / `add_server_trust`; a failed pin blocks
   Finish unless the user skips it. Both pins run through
   `_pin_endpoint` (`wizard/apply.py::_pin_endpoint`): resolve the endpoint, fetch
   the fingerprint when the user left it empty, pin, and report `""`/`failed` —
-  the server and discovery-server paths differ only in those three callables.
+  the server and rendezvous-server paths differ only in those three callables.
 
 ## Trust
 
-Discovery server and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
+Rendezvous server and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
 writes the fingerprint to the client known-hosts store, "Ask on first start"
 leaves the existing first-start pre-flight (`main_window/trust.py`) to confirm.
 Never `strict`/`accept-new`.

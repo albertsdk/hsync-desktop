@@ -4,7 +4,7 @@
 """Trusted-keys management dialog for HSYNC Desktop.
 
 Lists and edits the three SSH-style trust stores through the hsync-client CLI
-(no terminal required): the bootnode and sync-server known-hosts stores and the
+(no terminal required): the rendezvous and sync-server known-hosts stores and the
 P2P known-peers store. Every action is a subprocess helper from
 :mod:`hsync_desktop.engine`, so the GUI and the CLI share a single source of
 truth per store.
@@ -40,17 +40,17 @@ from hsync_desktop.config import DEFAULT_P2P_ENABLED, SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
     list_peer_pins,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
 )
@@ -98,7 +98,7 @@ def _format_local_time(iso: str) -> str:
 class _HostAddDialog(QDialog):
     """Collect a ``host:port`` + fingerprint (optionally read from the node).
 
-    Shared by the bootnode and sync-server tabs: both stores have the same shape
+    Shared by the rendezvous and sync-server tabs: both stores have the same shape
     and the same probe/add helper signature, so only the placeholder differs.
     """
 
@@ -242,24 +242,26 @@ class _PeerAddDialog(QDialog):
 
 
 class TrustedKeysDialog(QDialog):
-    """Manage the bootnode/server known-hosts stores and the P2P known-peers store."""
+    """Manage the rendezvous/server known-hosts stores and the P2P known-peers store."""
 
     # ``initial_tab`` values → index in ``self._tabs``.
-    _TAB_INDEX = {"bootnodes": 0, "servers": 1, "peers": 2}
+    _TAB_INDEX = {"rendezvouss": 0, "servers": 1, "peers": 2}
 
-    def __init__(self, parent: QWidget | None = None, *, initial_tab: str = "bootnodes") -> None:
+    def __init__(self, parent: QWidget | None = None, *, initial_tab: str = "rendezvouss") -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("trusted_keys.title"))
         self.resize(680, 380)
         self._binary = find_hsync_binary()
 
         self._tabs = QTabWidget(self)
-        self._bootnode_table = QTableWidget(0, 4, self)
+        self._rendezvous_table = QTableWidget(0, 4, self)
         self._server_table = QTableWidget(0, 4, self)
         self._peer_table = QTableWidget(0, 3, self)
         self._tabs.addTab(
-            self._build_host_tab(self._bootnode_table, self._add_bootnode, self._remove_bootnode),
-            tr("trusted_keys.tabs_bootnodes"),
+            self._build_host_tab(
+                self._rendezvous_table, self._add_rendezvous, self._remove_rendezvous
+            ),
+            tr("trusted_keys.tabs_rendezvouss"),
         )
         self._tabs.addTab(
             self._build_host_tab(self._server_table, self._add_server, self._remove_server),
@@ -286,14 +288,14 @@ class TrustedKeysDialog(QDialog):
     def _apply_mode_tab_visibility(self, initial_tab: str) -> None:
         """Show only the trust stores the active sync mode can use.
 
-        The discovery-server and device stores belong to p2p mode; the sync-server
+        The rendezvous-server and device stores belong to p2p mode; the sync-server
         store belongs to Server Mode. Hiding the irrelevant ones keeps the
         dialog focused (each mode's settings panel opens its own tab).
         """
         p2p_enabled = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
         )
-        visible = {"bootnodes": p2p_enabled, "servers": not p2p_enabled, "peers": p2p_enabled}
+        visible = {"rendezvouss": p2p_enabled, "servers": not p2p_enabled, "peers": p2p_enabled}
         for name, index in self._TAB_INDEX.items():
             self._tabs.setTabVisible(index, visible[name])
         # Never select a hidden page: fall back to the first visible one.
@@ -303,7 +305,7 @@ class TrustedKeysDialog(QDialog):
         self._tabs.setCurrentIndex(index)
 
     def _build_host_tab(self, table: QTableWidget, on_add, on_remove) -> QWidget:
-        """Build a bootnode/server-style tab: a ``host:port`` table + buttons."""
+        """Build a rendezvous/server-style tab: a ``host:port`` table + buttons."""
         table.setHorizontalHeaderLabels(
             [
                 tr("trusted_keys.host"),
@@ -370,15 +372,15 @@ class TrustedKeysDialog(QDialog):
     # ── Population ─────────────────────────────────────────────────────────
 
     def _refresh(self) -> None:
-        self._reload_hosts(self._bootnode_table)
+        self._reload_hosts(self._rendezvous_table)
         self._reload_hosts(self._server_table)
         self._load_peers()
 
     def _reload_hosts(self, table: QTableWidget) -> None:
-        """Reload the bootnode or server table from its store."""
+        """Reload the rendezvous or server table from its store."""
         if self._binary is None:
             return
-        lister = list_server_trust if table is self._server_table else list_bootnode_trust
+        lister = list_server_trust if table is self._server_table else list_rendezvous_trust
         self._load_hosts(table, lister(self._binary))
 
     def _load_hosts(self, table: QTableWidget, entries: list[dict[str, Any]] | None) -> None:
@@ -446,15 +448,15 @@ class TrustedKeysDialog(QDialog):
 
     # ── Actions ────────────────────────────────────────────────────────────
 
-    def _add_bootnode(self) -> None:
+    def _add_rendezvous(self) -> None:
         dialog = _HostAddDialog(
-            fetch_fingerprint=fetch_bootnode_fingerprint,
-            add_trust=add_bootnode_trust,
+            fetch_fingerprint=fetch_rendezvous_fingerprint,
+            add_trust=add_rendezvous_trust,
             placeholder="boot.example.net",
             parent=self,
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self._reload_hosts(self._bootnode_table)
+            self._reload_hosts(self._rendezvous_table)
 
     def _add_server(self) -> None:
         dialog = _HostAddDialog(
@@ -475,8 +477,8 @@ class TrustedKeysDialog(QDialog):
         if _PeerAddDialog(self).exec() == QDialog.DialogCode.Accepted:
             self._load_peers()
 
-    def _remove_bootnode(self) -> None:
-        self._remove_host(self._bootnode_table, remove_bootnode_trust)
+    def _remove_rendezvous(self) -> None:
+        self._remove_host(self._rendezvous_table, remove_rendezvous_trust)
 
     def _remove_server(self) -> None:
         self._remove_host(self._server_table, remove_server_trust)

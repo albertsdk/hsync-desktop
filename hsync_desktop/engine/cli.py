@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Alberto Basso
 
 """
-Synchronous hsync-client CLI helpers: binary discovery/version/capabilities
+Synchronous hsync-client CLI helpers: binary rendezvous/version/capabilities
 (with a QSettings-backed probe cache) and the trust-store subcommands.
 """
 
@@ -85,16 +85,16 @@ def _endpoint_arg(host: str, port: int | None) -> str:
     return format_authority(host, port) if port else host
 
 
-def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
-    """Read a discovery-server certificate fingerprint without trusting it (ADR-0035).
+def fetch_rendezvous_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
+    """Read a rendezvous-server certificate fingerprint without trusting it (ADR-0035).
 
-    Runs ``hsync trust discovery-server fingerprint HOST[:PORT]`` with a bounded
+    Runs ``hsync trust rendezvous-server fingerprint HOST[:PORT]`` with a bounded
     timeout and returns the canonical fingerprint, or ``None`` when the node cannot
     be reached. Used by the GUI pre-flight so the operator can confirm an unknown
     node before the client is started.
     """
     return _run_hsync_line(
-        binary, ["trust", "discovery-server", "fingerprint", _endpoint_arg(host, port)]
+        binary, ["trust", "rendezvous-server", "fingerprint", _endpoint_arg(host, port)]
     )
 
 
@@ -130,24 +130,24 @@ def _only_dict_entries(payload: object) -> list[dict] | None:
     return [entry for entry in payload if isinstance(entry, dict)]
 
 
-def list_bootnode_trust(binary: str) -> list[dict] | None:
-    """Return the discovery-server entries (``hsync trust discovery-server list --json``)."""
+def list_rendezvous_trust(binary: str) -> list[dict] | None:
+    """Return the rendezvous-server entries (``hsync trust rendezvous-server list --json``)."""
     return _only_dict_entries(
-        _run_hsync_json(binary, ["trust", "discovery-server", "list", "--json"])
+        _run_hsync_json(binary, ["trust", "rendezvous-server", "list", "--json"])
     )
 
 
-def add_bootnode_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
-    """Pin a discovery-server fingerprint; True on success."""
+def add_rendezvous_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
+    """Pin a rendezvous-server fingerprint; True on success."""
     return _run_hsync_success(
-        binary, ["trust", "discovery-server", "add", _endpoint_arg(host, port), fingerprint]
+        binary, ["trust", "rendezvous-server", "add", _endpoint_arg(host, port), fingerprint]
     )
 
 
-def remove_bootnode_trust(binary: str, host: str, port: int | None = None) -> bool:
-    """Forget a discovery-server pin; True on success."""
+def remove_rendezvous_trust(binary: str, host: str, port: int | None = None) -> bool:
+    """Forget a rendezvous-server pin; True on success."""
     return _run_hsync_success(
-        binary, ["trust", "discovery-server", "remove", _endpoint_arg(host, port)]
+        binary, ["trust", "rendezvous-server", "remove", _endpoint_arg(host, port)]
     )
 
 

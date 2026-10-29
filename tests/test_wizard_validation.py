@@ -114,14 +114,14 @@ class TestConnectionValidation:
         )
         assert [i.code for i in validate_connection(draft)] == ["server_invalid"]
 
-    def test_remote_requires_discovery_server(self):
+    def test_remote_requires_rendezvous_server(self):
         draft = WizardDraft(
             mode=WizardMode.REMOTE_SYNC,
             bucket="data",
             p2p_group="grp",
             p2p_key="abcdwxyz12345678",
         )
-        assert [i.code for i in validate_connection(draft)] == ["discovery_server_required"]
+        assert [i.code for i in validate_connection(draft)] == ["rendezvous_server_required"]
 
     def test_lan_needs_no_server(self):
         draft = WizardDraft(

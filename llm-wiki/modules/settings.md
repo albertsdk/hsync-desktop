@@ -88,7 +88,7 @@ one. Two constraints to keep:
   unwrapped text width as `sizeHint`, so a longer translation would widen the page
   instead of wrapping. Keep every locale within
   `tests/test_locales.py::TestTabDescriptions` (≤ 24 words, no
-  master/bootnode/relay jargon, discovery-server wording in the p2p line).
+  master/rendezvous/relay jargon, rendezvous-server wording in the p2p line).
 
 **Tab order**: the tab widget order is sync (0), p2p (1), Server Mode (2),
 General (3), Advanced (4), sourced from `ui/settings_dialog.ui` (the p2p page
@@ -149,7 +149,7 @@ come from `settings.notifications_<category>`; the `peers` category reads
 **Devices and role changes** ("Dispositivi e cambi di ruolo") because the UI
 never says "peer". The `warnings` category (`settings.notifications_warnings`)
 governs the engine's non-fatal `warning` stream — a degraded file watcher, an
-unreachable bootnode — while `connection` keeps the connection-loss and
+unreachable rendezvous — while `connection` keeps the connection-loss and
 p2p-role warnings it already had, so the two are tunable independently.
 
 **Dialog sizing & scrolling** (`settings/tab_layout.py::_scrollable_page`,
@@ -216,7 +216,7 @@ enabled value still travels as `-i`). The retry delay is `>= 5 s`, the maximum
 wait uses the shared default
 (`hsync_common/defaults.py::MAX_WAIT_TIMEOUT_DEFAULT`) and its spin box spans
 `GUI_MAX_WAIT_MIN`..`MAX_WAIT_MAX` (`hsync_desktop/config.py`), and the
-HTTP/discovery timeouts are `>= 5 s`; `build_hsync_args` clamps stored values to
+HTTP/rendezvous timeouts are `>= 5 s`; `build_hsync_args` clamps stored values to
 the same shared bounds (`hsync_common/defaults.py`), so the GUI never emits a
 value the CLI rejects.
 
@@ -288,7 +288,7 @@ re-triggers the prompt in a loop. Covered by
 `tests/test_settings_dialog_warnings.py::TestDeletionPolicyWarning`.
 
 **NTP hosts (ADR-0023)**: `ntp_hosts` (`settings/dialog.py::SettingsDialog`, dynamic widget injected
-after the discovery-timeout row) + `_lbl_ntp_hosts`; save/load under the
+after the rendezvous-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `p2p/ntp_hosts` QSettings key (`settings/dialog.py::SettingsDialog`); the label comes from
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all locales). It is
 an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
@@ -296,52 +296,52 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
-**Bootnode** (user-facing label **Discovery server**, translated in every
+**Rendezvous** (user-facing label **Rendezvous server**, translated in every
 locale — `Server di individuazione`, `Erkennungsserver`, `Serveur de
-découverte`, … — `settings.p2p_bootnode`):
-`p2p_bootnode` (dynamic `QLineEdit` injected right after the
-group row via `_insert_row_after`) + `p2p_bootnode_trust` (`QComboBox`, filled
-by `_populate_bootnode_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
-opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
-(`QPushButton`, probes the bootnode via `fetch_bootnode_fingerprint` on
+découverte`, … — `settings.p2p_rendezvous`):
+`p2p_rendezvous` (dynamic `QLineEdit` injected right after the
+group row via `_insert_row_after`) + `p2p_rendezvous_trust` (`QComboBox`, filled
+by `_populate_rendezvous_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
+opens `TrustedKeysDialog` on the rendezvouss tab) + `btn_test_rendezvous`
+(`QPushButton`, probes the rendezvous via `fetch_rendezvous_fingerprint` on
 `engine/async_probe.py::AsyncProbe`) +
 `p2p_upnp` (`ToggleSwitch`), saved/loaded under
-`p2p/discovery_server_endpoints` / `p2p/discovery_server_trust` / `p2p/upnp_enabled`; labels from
-`settings.p2p_bootnode` / `settings.manage_trusted_keys` /
-`settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
+`p2p/rendezvous_server_endpoints` / `p2p/rendezvous_server_trust` / `p2p/upnp_enabled`; labels from
+`settings.p2p_rendezvous` / `settings.manage_trusted_keys` /
+`settings.p2p_rendezvous_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
 `*_none` option labels) / `settings.p2p_upnp` (all locales); tips from
-`tip.p2p_bootnode` (what a bootnode is/does) / `tip.p2p_bootnode_trust` /
-`tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_bootnode`, shown per the
+`tip.p2p_rendezvous` (what a rendezvous is/does) / `tip.p2p_rendezvous_trust` /
+`tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_rendezvous`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
 `QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
-(`settings.group.p2p_mode`), Finding devices (`settings.group.p2p_discovery`),
+(`settings.group.p2p_mode`), Finding devices (`settings.group.p2p_rendezvous`),
 Role & Pairing (`settings.group.p2p_role`) and Advanced Options
 (`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is
-env-driven (the client positional exists, but `HSYNC_DISCOVERY_SERVER_ENDPOINTS` is the documented
+env-driven (the client positional exists, but `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
-`HSYNC_DISCOVERY_SERVER_ENDPOINTS` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
+`HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
 `[IPv6]:port`), `HSYNC_MAP_DATA_PORT` (the user's explicit choice),
-and — when a bootnode is set — `HSYNC_DISCOVERY_SERVER_TRUST` (`ask` / `accept-new` /
-`strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
+and — when a rendezvous is set — `HSYNC_RENDEZVOUS_SERVER_TRUST` (`ask` / `accept-new` /
+`strict` / `none`) for the ADR-0035 trust policy. The rendezvous pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
 `main_window/trust.py::TrustMixin._ensure_trust` (using the
 endpoint's real port). The GUI
 cannot answer the client's terminal prompt,
-so it always sends an explicit policy. Empty bootnode = mDNS-only discovery.
+so it always sends an explicit policy. Empty rendezvous = mDNS-only rendezvous.
 The trust combo and `btn_manage_trusted_keys` follow the panel's gating: both are
 disabled when p2p mode is off (server mode) and while a sync is running. The
-button opens the dialog on the bootnodes tab; the server panel has its own twin
+button opens the dialog on the rendezvouss tab; the server panel has its own twin
 (`btn_manage_trusted_keys_server`) opening the servers tab, so the two buttons
-gate independently. `btn_test_bootnode` (`_on_test_bootnode`) is gated like the
+gate independently. `btn_test_rendezvous` (`_on_test_rendezvous`) is gated like the
 other p2p fields (disabled in server mode and while syncing); it reuses the
-`settings.test_connection` label and the existing `settings.invalid_bootnode_endpoint`
-key, and reports the bootnode's certificate fingerprint on success.
+`settings.test_connection` label and the existing `settings.invalid_rendezvous_endpoint`
+key, and reports the rendezvous's certificate fingerprint on success.
 
 **Action rows**: each mode panel pairs its two related secondary actions in one
 left-aligned horizontal row via `_action_row` (`settings/form_helpers.py::_action_row`) —
-the p2p *Manage trusted keys* + *Test connection* (`btn_test_bootnode`), and the
+the p2p *Manage trusted keys* + *Test connection* (`btn_test_rendezvous`), and the
 Server twin `btn_manage_trusted_keys_server` + `btn_test_connection`. One row reads
 as a group and uses less vertical space than two stacked form rows; the trailing
 stretch keeps them left-aligned. Both test buttons carry the
@@ -361,14 +361,14 @@ both labels (a large system font); `TestActionRow` pins that switch and
 guards the invariant for the widest locales.
 
 **Test Connection probes** (`settings/dialog.py::SettingsDialog._on_test_connection`
-and `SettingsDialog._on_test_bootnode`): the input validation and its warnings are
+and `SettingsDialog._on_test_rendezvous`): the input validation and its warnings are
 synchronous, then `_start_probe` disables the button, labels it
 `common.checking` and runs the probe on `engine/async_probe.py::AsyncProbe`.
 `_on_probe_done` restores both buttons and reports the outcome, and `_end_probe`
 drops a pending result when the dialog closes (`SettingsDialog.done`). The
 enable state is recomputed from the p2p-mode/capability/connection gates
 (`_restore_test_buttons`), never blindly re-enabled. The probe never touches the
-UI thread: the bootnode fingerprint is a client subprocess (up to 15 s) and the
+UI thread: the rendezvous fingerprint is a client subprocess (up to 15 s) and the
 `/health` call waits up to the configured HTTP timeout.
 
 **Server**: `server_trust` (`QComboBox`, filled by `_populate_server_trust`,
@@ -376,7 +376,7 @@ inserted after the `http_timeout` row), saved/loaded under
 `connection/server_trust`; labels from `settings.server_trust` (+ the five
 `*_chain`/`*_ask`/`*_accept_new`/`*_strict`/`*_none` option labels), tip from
 `tip.server_trust` (all locales). The server pin is not a setting (ADR-0036):
-it lives in the client's server known-hosts store. Like the bootnode policy,
+it lives in the client's server known-hosts store. Like the rendezvous policy,
 the combo is env-driven: `apply_settings_env` always inserts
 `HSYNC_SERVER_TRUST` (`chain` default), and `build_hsync_args` emits no
 server-trust flag. The server pin is
@@ -476,8 +476,10 @@ The peer-download caps (`p2p/peer_read_cap`, `p2p/peer_sources_max`) are env-onl
 (no CLI flag) and exported by
 `engine/process.py::apply_settings_env` as `HSYNC_P2P_PEER_READ_CAP` /
 `HSYNC_P2P_PEER_SOURCES_MAX` in p2p mode.
-The UPnP toggle is gated on the client's `--upnp` flag (opt-in, enabled by
-`--upnp` / `HSYNC_MAP_DATA_PORT`; no `--no-upnp` flag exists). A capability-parity test
+The UPnP toggle is gated on the client's `--map-data-port` flag (opt-in; enabled
+via `--map-data-port` / `HSYNC_MAP_DATA_PORT`, exported by
+`engine/process.py::apply_settings_env` with the rendezvous-server endpoints; no
+`--no-map-data-port` flag exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every
 emitted long flag is advertised by the client help output.
 One-shot is
@@ -518,7 +520,7 @@ key) or a raw group key, recorded in `p2p/key_mode`. The dialog persists the
 mode it resolves for the current field value (`settings/dialog.py::SettingsDialog._effective_p2p_key_mode`):
 an edited field is a password, an untouched one keeps its stored mode normalised
 by `engine/process.py::p2p_secret_mode` — a secret shorter than
-`hsync_common.protocol.boot_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw key, so
+`hsync_common.protocol.rdv_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw key, so
 it is stored as `passphrase`. That normalisation is the same one the engine
 applies at start, so a legacy short secret stored as `raw` is both repaired on
 the next save and accepted by the running engine.
@@ -536,15 +538,15 @@ string **must** exist in all `hsync_desktop/locales/*.py`.
 
 ## Shared endpoint/probe helpers (Settings + wizard)
 
-The server/discovery-server reachability logic is shared so the Settings dialog
+The server/rendezvous-server reachability logic is shared so the Settings dialog
 and the setup wizard agree:
 
-- `engine/endpoints.py::normalize_server_endpoint` / `normalize_discovery_server_endpoints`
-  (the GUI default port `SERVER_DEFAULT_PORT` = 9753; the bootnode variant is a
+- `engine/endpoints.py::normalize_server_endpoint` / `normalize_rendezvous_server_endpoints`
+  (the GUI default port `SERVER_DEFAULT_PORT` = 9753; the rendezvous variant is a
   thin wrapper over the shared `hsync_common.endpoint.normalize_bare_endpoint`,
-  the same rule the client's `HSYNC_DISCOVERY_SERVER_ENDPOINTS` validator applies) and
+  the same rule the client's `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` validator applies) and
   `build_probe_ssl_context`; `SettingsDialog._normalize_server_endpoint` /
-  `_normalize_discovery_server_endpoints` / `_test_connection_ssl_context` delegate to them.
+  `_normalize_rendezvous_server_endpoints` / `_test_connection_ssl_context` delegate to them.
   `_on_accept` still normalizes the fields before `save()`.
 - `engine/probes.py::probe_server_health` / `probe_server_bucket` /
   `ServerProbeResult`; the Settings "Test connection" action and the wizard both

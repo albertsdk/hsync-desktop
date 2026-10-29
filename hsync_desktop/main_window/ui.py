@@ -43,8 +43,8 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
     DEFAULT_SYNC_DIRECTION,
 )
@@ -52,16 +52,16 @@ from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.engine import (
     HsyncEngine,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
 )
@@ -1076,7 +1076,7 @@ class UiBuildMixin:
         events, a file that kept changing, unreadable files recovered by the next
         scan): it shows an auto-hiding toast and never a system notification,
         because the user cannot act on it. A persistent warning (a degraded
-        watcher, an unreachable bootnode, a stalled safety net, a missing shared
+        watcher, an unreachable rendezvous, a stalled safety net, a missing shared
         folder, low disk space) stays in the window and reaches the OS while the
         window is in the background.
 
@@ -1092,7 +1092,7 @@ class UiBuildMixin:
             return
         self._append_desktop_log("WARNING", message)
         if self._user_stopped:
-            # The user stopped the run: a degraded watcher/bootnode is no longer
+            # The user stopped the run: a degraded watcher/rendezvous is no longer
             # actionable and must not reopen a notification they just dismissed.
             return
         remedy = remedy_text(source, details)

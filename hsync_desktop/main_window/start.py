@@ -39,8 +39,8 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
-    DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
     DEFAULT_SYNC_DIRECTION,
 )
@@ -53,16 +53,16 @@ from hsync_desktop.deletion_risk import (
 )
 from hsync_desktop.engine import (
     HsyncEngine,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    list_bootnode_trust,
+    list_rendezvous_trust,
     list_server_trust,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     reset_sync_state,
     supports_peer_trust,
@@ -552,7 +552,7 @@ class StartMixin:
         if not self._check_disk_space():
             return
 
-        # Resolve bootnode/server trust before the client starts (the client
+        # Resolve rendezvous/server trust before the client starts (the client
         # cannot prompt without a terminal). The fingerprint probe runs off the
         # UI thread, so the start continues from its callback.
         self._ensure_trust(lambda: self._start_preview_run(local_path))

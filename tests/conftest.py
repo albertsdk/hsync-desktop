@@ -34,7 +34,7 @@ def settings(tmp_path):
 
 @pytest.fixture
 def window(qtbot, monkeypatch, settings):
-    """A MainWindow with QSettings and binary discovery patched."""
+    """A MainWindow with QSettings and binary rendezvous patched."""
     from hsync_desktop.engine import HsyncEngine
     from hsync_desktop.main_window import MainWindow
 

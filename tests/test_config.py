@@ -85,8 +85,8 @@ class TestP2PDefaults:
     def test_default_p2p_port(self):
         assert config.DEFAULT_P2P_PORT == 0
 
-    def test_default_discovery_timeout(self):
-        assert config.DEFAULT_DISCOVERY_TIMEOUT == 10
+    def test_default_rendezvous_timeout(self):
+        assert config.DEFAULT_RENDEZVOUS_TIMEOUT == 10
 
     def test_default_prefer_master(self):
         assert config.DEFAULT_PREFER_MASTER is False

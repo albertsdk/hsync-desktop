@@ -14,7 +14,7 @@ from hsync_desktop.settings import SettingsDialog
 from tests._helpers import _patch_all, _resolve_dialog
 
 
-class TestEnsureBootnodeTrust:
+class TestEnsureRendezvousTrust:
     @staticmethod
     def _run(window, started: list[int]) -> None:
         window._ensure_trust(lambda: started.append(1))
@@ -23,12 +23,14 @@ class TestEnsureBootnodeTrust:
 
         _patch_all(
             monkeypatch,
-            "list_bootnode_trust",
+            "list_rendezvous_trust",
             lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
         )
         fetched: list[tuple] = []
         _patch_all(
-            monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "f" * 64
+            monkeypatch,
+            "fetch_rendezvous_fingerprint",
+            lambda *a, **k: fetched.append(a) or "f" * 64,
         )
         started: list[int] = []
         self._run(window, started)
@@ -38,30 +40,32 @@ class TestEnsureBootnodeTrust:
 
     def test_prompts_and_pins_when_unknown(self, window, qtbot, monkeypatch):
 
-        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
+        _patch_all(monkeypatch, "list_rendezvous_trust", lambda binary: [])
         fetched: list[tuple] = []
         _patch_all(
-            monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: fetched.append(a) or "a" * 64
+            monkeypatch,
+            "fetch_rendezvous_fingerprint",
+            lambda *a, **k: fetched.append(a) or "a" * 64,
         )
         added: list[tuple] = []
         _patch_all(
             monkeypatch,
-            "add_bootnode_trust",
+            "add_rendezvous_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
         started: list[int] = []
         self._run(window, started)
         qtbot.waitUntil(lambda: bool(started), timeout=5000)
-        # The client dials 443 (bare HSYNC_DISCOVERY_SERVER_ENDPOINTS): the p2p listen port must
-        # never be passed to the bootnode trust commands.
+        # The client dials 443 (bare HSYNC_RENDEZVOUS_SERVER_ENDPOINTS): the p2p listen port must
+        # never be passed to the rendezvous trust commands.
         assert fetched[0][1:] == ("boot.example.net", 443)
         assert added == [("boot.example.net", 443)]
 
     def test_aborts_when_the_user_declines(self, window, qtbot, monkeypatch):
 
-        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
-        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
+        _patch_all(monkeypatch, "list_rendezvous_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_rendezvous_fingerprint", lambda *a, **k: "a" * 64)
         asked: list = []
         monkeypatch.setattr(
             QMessageBox,
@@ -74,15 +78,15 @@ class TestEnsureBootnodeTrust:
         assert started == []
 
     def test_unreachable_host_continues_on_the_local_network(self, window, qtbot, monkeypatch):
-        """An unreachable discovery server degrades the run, never cancels it.
+        """An unreachable rendezvous server degrades the run, never cancels it.
 
         Regression: the pre-flight abandoned every start when the configured
-        bootnode could not be probed, so a desktop client with a stale discovery
+        rendezvous could not be probed, so a desktop client with a stale rendezvous
         server never synced even with peers on the local network.
         """
 
-        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
-        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: None)
+        _patch_all(monkeypatch, "list_rendezvous_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_rendezvous_fingerprint", lambda *a, **k: None)
         warned: list[str] = []
         monkeypatch.setattr(
             QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
@@ -94,15 +98,15 @@ class TestEnsureBootnodeTrust:
         started: list[int] = []
         self._run(window, started)
         qtbot.waitUntil(lambda: bool(started), timeout=5000)
-        assert started == [1], "the run must continue without the discovery server"
+        assert started == [1], "the run must continue without the rendezvous server"
         assert warned == []
         assert logged and "boot.example.net" in logged[0][1]
 
     def test_a_second_request_while_probing_is_ignored(self, window, qtbot, monkeypatch):
 
-        _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
-        _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: "a" * 64)
-        _patch_all(monkeypatch, "add_bootnode_trust", lambda *a, **k: True)
+        _patch_all(monkeypatch, "list_rendezvous_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_rendezvous_fingerprint", lambda *a, **k: "a" * 64)
+        _patch_all(monkeypatch, "add_rendezvous_trust", lambda *a, **k: True)
         monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
         started: list[int] = []
         window._ensure_trust(lambda: started.append(1))
@@ -113,41 +117,43 @@ class TestEnsureBootnodeTrust:
 
 
 class TestTrustDialogs:
-    def test_bootnode_changed_trust_calls_add(self, window, monkeypatch):
+    def test_rendezvous_changed_trust_calls_add(self, window, monkeypatch):
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_accept"))
         added: list[tuple] = []
         _patch_all(
             monkeypatch,
-            "add_bootnode_trust",
+            "add_rendezvous_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
-        window._on_fingerprint_changed("bootnode", "", "boot.example.net:443", "a" * 64)
+        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
         assert added == [("boot.example.net", 443)]
 
-    def test_bootnode_changed_forget_removes(self, window, monkeypatch):
+    def test_rendezvous_changed_forget_removes(self, window, monkeypatch):
 
         _resolve_dialog(monkeypatch, tr("dialogs.trust_forget"))
         removed: list[tuple] = []
         _patch_all(
             monkeypatch,
-            "remove_bootnode_trust",
+            "remove_rendezvous_trust",
             lambda binary, host, port=None: removed.append((host, port)) or True,
         )
-        window._on_fingerprint_changed("bootnode", "", "boot.example.net:443", "a" * 64)
+        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
         assert removed == [("boot.example.net", 443)]
 
-    def test_bootnode_changed_dismiss_leaves_the_pin(self, window, monkeypatch):
+    def test_rendezvous_changed_dismiss_leaves_the_pin(self, window, monkeypatch):
         # Regression: dismissing the dialog (window close → no clicked button)
         # must never run the destructive "forget" on the stored pin.
 
         _resolve_dialog(monkeypatch, None)
         touched: list[str] = []
-        _patch_all(monkeypatch, "add_bootnode_trust", lambda *a, **k: touched.append("add") or True)
         _patch_all(
-            monkeypatch, "remove_bootnode_trust", lambda *a, **k: touched.append("remove") or True
+            monkeypatch, "add_rendezvous_trust", lambda *a, **k: touched.append("add") or True
         )
-        window._on_fingerprint_changed("bootnode", "", "boot.example.net:443", "a" * 64)
+        _patch_all(
+            monkeypatch, "remove_rendezvous_trust", lambda *a, **k: touched.append("remove") or True
+        )
+        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
         assert touched == []
 
     def test_master_pairing_trust_pins_the_peer(self, window, monkeypatch):
@@ -185,11 +191,11 @@ class TestEnsureServerTrust:
     """Server-mode pre-flight (ADR-0036)."""
 
     def test_skips_in_p2p_mode(self, window, monkeypatch):
-        # The fixture enables p2p: server trust is not consulted. The bootnode is
+        # The fixture enables p2p: server trust is not consulted. The rendezvous is
         # already pinned, so the pre-flight has nothing to probe.
         _patch_all(
             monkeypatch,
-            "list_bootnode_trust",
+            "list_rendezvous_trust",
             lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
         )
         _patch_all(monkeypatch, "list_server_trust", lambda binary: pytest.fail("must not probe"))
@@ -235,7 +241,7 @@ class TestEnsureServerTrust:
     def test_unreachable_server_warns_and_aborts(self, window, qtbot, settings, monkeypatch):
         """The sync server is mandatory: a dead one still cancels the run.
 
-        Only the optional discovery server degrades; server mode has no
+        Only the optional rendezvous server degrades; server mode has no
         alternative path, so a refused or unreachable server keeps the run from
         starting instead of syncing nothing.
         """
@@ -252,7 +258,7 @@ class TestEnsureServerTrust:
         started: list[int] = []
         window._ensure_trust(lambda: started.append(1))
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
-        assert warned == [tr("dialogs.bootnode_unreachable").format(host="server.example.com")]
+        assert warned == [tr("dialogs.rendezvous_unreachable").format(host="server.example.com")]
         assert started == []
 
     def test_server_changed_trust_calls_add(self, window, monkeypatch):

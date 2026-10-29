@@ -250,28 +250,28 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     # to read it to type the same value on another device.
     dlg._p2p_key_reveal = add_reveal_toggle(dlg.p2p_key)
     dlg.p2p_port = dlg.findChild(QSpinBox, "p2pPort")
-    dlg.discovery_timeout = dlg.findChild(QSpinBox, "discoveryTimeout")
+    dlg.rendezvous_timeout = dlg.findChild(QSpinBox, "rendezvousTimeout")
 
-    # Bootnode (optional) – cross-network discovery through a boot/1 node.
+    # Rendezvous (optional) – cross-network rendezvous through a rdv/1 node.
     # Dynamic, no .ui counterpart; inserted right after the group row.
-    dlg.p2p_bootnode = QLineEdit(dlg)
-    dlg.p2p_bootnode.setObjectName("p2pBootnode")
-    dlg.p2p_bootnode.setPlaceholderText("boot.example.net")
-    dlg._lbl_p2p_bootnode = QLabel(dlg)
-    _insert_row_after(dlg.p2p_group, dlg._lbl_p2p_bootnode, dlg.p2p_bootnode)
+    dlg.p2p_rendezvous = QLineEdit(dlg)
+    dlg.p2p_rendezvous.setObjectName("p2pRendezvous")
+    dlg.p2p_rendezvous.setPlaceholderText("boot.example.net")
+    dlg._lbl_p2p_rendezvous = QLabel(dlg)
+    _insert_row_after(dlg.p2p_group, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
 
-    # Trust policy (ADR-0035): how the client authenticates the bootnode.
-    # Own form row so the label aligns under "Bootnode (optional)".
-    dlg.p2p_bootnode_trust = QComboBox(dlg)
-    dlg.p2p_bootnode_trust.setObjectName("p2pBootnodeTrust")
-    dlg._lbl_p2p_bootnode_trust = QLabel(dlg)
+    # Trust policy (ADR-0035): how the client authenticates the rendezvous.
+    # Own form row so the label aligns under "Rendezvous (optional)".
+    dlg.p2p_rendezvous_trust = QComboBox(dlg)
+    dlg.p2p_rendezvous_trust.setObjectName("p2pRendezvousTrust")
+    dlg._lbl_p2p_rendezvous_trust = QLabel(dlg)
     trust_container = QWidget(dlg)
     hl_trust = QHBoxLayout(trust_container)
     hl_trust.setContentsMargins(0, 0, 0, 0)
-    hl_trust.addWidget(dlg.p2p_bootnode_trust)
+    hl_trust.addWidget(dlg.p2p_rendezvous_trust)
     hl_trust.addStretch()
-    dlg._populate_bootnode_trust()
-    _insert_row_after(dlg.p2p_bootnode, dlg._lbl_p2p_bootnode_trust, trust_container)
+    dlg._populate_rendezvous_trust()
+    _insert_row_after(dlg.p2p_rendezvous, dlg._lbl_p2p_rendezvous_trust, trust_container)
 
     # Manage trusted keys (ADR-0035): opens the known-hosts / known-peers
     # dialog that edits the shared stores via the hsync CLI.
@@ -279,16 +279,16 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.btn_manage_trusted_keys.setObjectName("btnManageTrustedKeys")
     dlg.btn_manage_trusted_keys.clicked.connect(dlg._open_trusted_keys)
 
-    # Verify the configured bootnode answers (probes its certificate via the
+    # Verify the configured rendezvous answers (probes its certificate via the
     # client; mirrors the server panel's Test Connection button).
-    dlg.btn_test_bootnode = QPushButton(dlg)
-    dlg.btn_test_bootnode.setObjectName("btnTestBootnode")
-    dlg.btn_test_bootnode.clicked.connect(dlg._on_test_bootnode)
+    dlg.btn_test_rendezvous = QPushButton(dlg)
+    dlg.btn_test_rendezvous.setObjectName("btnTestRendezvous")
+    dlg.btn_test_rendezvous.clicked.connect(dlg._on_test_rendezvous)
 
-    manage_container = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_bootnode)
+    manage_container = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_rendezvous)
     _insert_row_after(trust_container, QLabel(""), manage_container)
 
-    # UPnP toggle for the master TCP port (only effective with a bootnode).
+    # UPnP toggle for the master TCP port (only effective with a rendezvous).
     dlg.p2p_upnp = ToggleSwitch(dlg)
     dlg.p2p_upnp.setObjectName("p2pUpnp")
     dlg._lbl_p2p_upnp = QLabel(dlg)
@@ -296,18 +296,18 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
 
     # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
     # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
-    # no .ui counterpart; inserted right after the discovery_timeout row.
+    # no .ui counterpart; inserted right after the rendezvous_timeout row.
     dlg.ntp_hosts = QLineEdit(dlg)
     dlg.ntp_hosts.setObjectName("ntpHosts")
     dlg.ntp_hosts.setPlaceholderText("pool.ntp.org, time.cloudflare.com, time.google.com")
     dlg._lbl_ntp_hosts = QLabel(dlg)
-    disc_container = dlg.discovery_timeout.parent()
+    disc_container = dlg.rendezvous_timeout.parent()
     if isinstance(disc_container, QWidget):
         disc_layout = disc_container.layout()
         if isinstance(disc_layout, QFormLayout):
             for row in range(disc_layout.rowCount()):
                 item = disc_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
-                if item and item.widget() is dlg.discovery_timeout:
+                if item and item.widget() is dlg.rendezvous_timeout:
                     disc_layout.insertRow(row + 1, dlg._lbl_ntp_hosts, dlg.ntp_hosts)
                     break
 

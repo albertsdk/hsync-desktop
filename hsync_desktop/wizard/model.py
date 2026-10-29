@@ -18,8 +18,8 @@ from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import (
     DEFAULT_AUTO_SYNC,
-    DEFAULT_P2P_BOOTNODE,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_RENDEZVOUS,
     DEFAULT_SYNC_DIRECTION,
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -70,7 +70,7 @@ class WizardProfile:
     direction: str  # "bidirectional" | "upload-only" | "download-only"
     deletion_policy: str  # "propagate" | "keep"
     start_at_login: bool
-    requires_discovery_server: bool
+    requires_rendezvous_server: bool
     server_trust: str | None  # None = mode has no server field
 
 
@@ -81,7 +81,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="upload-only",
         deletion_policy="keep",
         start_at_login=True,
-        requires_discovery_server=False,
+        requires_rendezvous_server=False,
         server_trust="chain",
     ),
     WizardMode.LAN_SYNC: WizardProfile(
@@ -90,7 +90,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         deletion_policy="propagate",
         start_at_login=False,
-        requires_discovery_server=False,
+        requires_rendezvous_server=False,
         server_trust=None,
     ),
     WizardMode.REMOTE_SYNC: WizardProfile(
@@ -99,7 +99,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         deletion_policy="propagate",
         start_at_login=False,
-        requires_discovery_server=True,
+        requires_rendezvous_server=True,
         server_trust=None,
     ),
     WizardMode.TEAM_SHARE: WizardProfile(
@@ -108,7 +108,7 @@ _PROFILES: dict[WizardMode, WizardProfile] = {
         direction="bidirectional",
         deletion_policy="propagate",
         start_at_login=False,
-        requires_discovery_server=False,
+        requires_rendezvous_server=False,
         server_trust="chain",
     ),
 }
@@ -167,7 +167,7 @@ class WizardDraft:
     api_key: str = ""
     p2p_group: str = ""
     p2p_key: str = ""
-    discovery_server: str = ""
+    rendezvous_server: str = ""
     direction: str = "bidirectional"
     deletion_policy: str = "propagate"
     continuous: bool = True
@@ -179,13 +179,13 @@ class WizardDraft:
     accept_server_cert: bool = False
     server_fingerprint: str = ""
     server_pin: bool = False
-    discovery_server_fingerprint: str = ""
-    discovery_server_pin: bool = False
+    rendezvous_server_fingerprint: str = ""
+    rendezvous_server_pin: bool = False
     # Last successful reachability check (ISO 8601 UTC); cleared on edit.
     server_verified: bool = False
     server_verified_at: str = ""
-    discovery_server_verified: bool = False
-    discovery_server_verified_at: str = ""
+    rendezvous_server_verified: bool = False
+    rendezvous_server_verified_at: str = ""
 
 
 def _settings() -> QSettings:
@@ -200,10 +200,10 @@ def infer_mode_from_settings(settings: QSettings | None = None) -> WizardMode | 
     p2p = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
     direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
     if p2p:
-        discovery_server = str(
-            s.value("p2p/discovery_server_endpoints", DEFAULT_P2P_BOOTNODE, str)
+        rendezvous_server = str(
+            s.value("p2p/rendezvous_server_endpoints", DEFAULT_P2P_RENDEZVOUS, str)
         ).strip()
-        return WizardMode.REMOTE_SYNC if discovery_server else WizardMode.LAN_SYNC
+        return WizardMode.REMOTE_SYNC if rendezvous_server else WizardMode.LAN_SYNC
     if direction == "upload-only":
         return WizardMode.BACKUP
     return WizardMode.TEAM_SHARE

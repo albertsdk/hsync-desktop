@@ -306,14 +306,14 @@
         </widget>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="lblDiscoveryTimeout">
+        <widget class="QLabel" name="lblRendezvousTimeout">
          <property name="text">
-          <string>Discovery timeout:</string>
+          <string>Rendezvous timeout:</string>
          </property>
         </widget>
        </item>
        <item row="4" column="1">
-        <widget class="QSpinBox" name="discoveryTimeout">
+        <widget class="QSpinBox" name="rendezvousTimeout">
          <property name="minimum">
           <number>5</number>
          </property>

@@ -3,7 +3,7 @@
 Pictures used across the user documentation live here. They are captures of the
 real application, taken with an English interface (`appearance/language = en`) and
 the Light theme, with **sample data only** (share `my-share`, group `my-group`,
-server `my-nas:9753`, discovery server `boot.example.net`, a generic path
+server `my-nas:9753`, rendezvous server `boot.example.net`, a generic path
 `/home/user/...`) so no personal information is published.
 
 ## Keeping them current

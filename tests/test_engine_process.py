@@ -14,23 +14,23 @@ from hsync_desktop.engine import (
     _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
-    add_bootnode_trust,
     add_peer_pin,
+    add_rendezvous_trust,
     add_server_trust,
     apply_settings_env,
-    fetch_bootnode_fingerprint,
+    fetch_rendezvous_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
     is_binary_version_compatible,
-    list_bootnode_trust,
     list_peer_pins,
+    list_rendezvous_trust,
     list_server_trust,
     p2p_secret_mode,
     p2p_secret_option,
-    remove_bootnode_trust,
     remove_peer_pin,
+    remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
     write_secret_pipe,
@@ -237,12 +237,14 @@ class TestStartupPhase:
         engine._handle_event(
             build_event(
                 UiEventName.warning,
-                message="Bootnode node:443 unreachable",
-                source="bootnode",
+                message="Rendezvous node:443 unreachable",
+                source="rendezvous",
             )
         )
 
-        assert warnings == [("Bootnode node:443 unreachable", "bootnode", False, {"reason": ""})]
+        assert warnings == [
+            ("Rendezvous node:443 unreachable", "rendezvous", False, {"reason": ""})
+        ]
         assert errors == []
 
     def test_a_transient_warning_is_flagged_for_an_ephemeral_toast(self):
@@ -479,25 +481,25 @@ class TestApplySettingsEnv:
         env = self._env_with({"connection/server_url": "https://srv.example"})
         assert env.value("HSYNC_SERVER_URL") == "https://srv.example"
 
-    def test_bootnode_inserted_with_upnp_choice(self):
+    def test_rendezvous_inserted_with_upnp_choice(self):
         env = self._env_with(
-            {"p2p/discovery_server_endpoints": "boot.example.net", "p2p/upnp_enabled": False}
+            {"p2p/rendezvous_server_endpoints": "boot.example.net", "p2p/upnp_enabled": False}
         )
-        assert env.value("HSYNC_DISCOVERY_SERVER_ENDPOINTS") == "boot.example.net"
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS") == "boot.example.net"
         assert env.value("HSYNC_MAP_DATA_PORT") == "false"
 
-    def test_bootnode_defaults_upnp_on(self):
-        env = self._env_with({"p2p/discovery_server_endpoints": "boot.example.net"})
+    def test_rendezvous_defaults_upnp_on(self):
+        env = self._env_with({"p2p/rendezvous_server_endpoints": "boot.example.net"})
         assert env.value("HSYNC_MAP_DATA_PORT") == "true"
 
-    def test_bootnode_blank_is_skipped(self):
-        env = self._env_with({"p2p/discovery_server_endpoints": "   "})
-        assert not env.contains("HSYNC_DISCOVERY_SERVER_ENDPOINTS")
+    def test_rendezvous_blank_is_skipped(self):
+        env = self._env_with({"p2p/rendezvous_server_endpoints": "   "})
+        assert not env.contains("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS")
         assert not env.contains("HSYNC_MAP_DATA_PORT")
 
-    def test_bootnode_trust_defaults_to_ask(self):
-        env = self._env_with({"p2p/discovery_server_endpoints": "boot.example.net"})
-        assert env.value("HSYNC_DISCOVERY_SERVER_TRUST") == "ask"
+    def test_rendezvous_trust_defaults_to_ask(self):
+        env = self._env_with({"p2p/rendezvous_server_endpoints": "boot.example.net"})
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "ask"
 
     def test_server_trust_policy_is_exported(self):
         env = self._env_with({"connection/server_trust": "strict"})
@@ -518,24 +520,24 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_SERVER_CERT_FINGERPRINT")
         assert not env.contains("HSYNC_SERVER_FINGERPRINT")
 
-    def test_bootnode_pin_is_not_exported_as_env(self):
+    def test_rendezvous_pin_is_not_exported_as_env(self):
         # The pin lives in the shared known-hosts store, not in a GUI-only env
-        # var: a stale HSYNC_DISCOVERY_SERVER_FINGERPRINTS setting must not be sent.
+        # var: a stale HSYNC_RENDEZVOUS_SERVER_FINGERPRINTS setting must not be sent.
         env = self._env_with(
             {
-                "p2p/discovery_server_endpoints": "boot.example.net",
-                "p2p/discovery_server_fingerprints": "sha256:" + "0" * 64,
-                "p2p/discovery_server_trust": "strict",
+                "p2p/rendezvous_server_endpoints": "boot.example.net",
+                "p2p/rendezvous_server_fingerprints": "sha256:" + "0" * 64,
+                "p2p/rendezvous_server_trust": "strict",
             }
         )
-        assert not env.contains("HSYNC_DISCOVERY_SERVER_FINGERPRINTS")
-        assert env.value("HSYNC_DISCOVERY_SERVER_TRUST") == "strict"
+        assert not env.contains("HSYNC_RENDEZVOUS_SERVER_FINGERPRINTS")
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "strict"
 
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
         assert not env.contains("HSYNC_SERVER_URL")
         assert not env.contains("HSYNC_NTP_HOSTS")
-        assert not env.contains("HSYNC_DISCOVERY_SERVER_ENDPOINTS")
+        assert not env.contains("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS")
 
     def test_gui_value_overrides_ambient(self):
         # The GUI setting is the user's explicit choice: insert() overwrites
@@ -551,7 +553,7 @@ class TestHandleEvent:
 
     @pytest.fixture
     def engine(self, qtbot):
-        """A HsyncEngine with a fixed binary path (no discovery side effects)."""
+        """A HsyncEngine with a fixed binary path (no rendezvous side effects)."""
         return HsyncEngine(binary_path="/fake/hsync")
 
     def test_status_event(self, engine):
@@ -590,13 +592,13 @@ class TestHandleEvent:
         assert pass_started == [()]
         assert pass_ended == [()]
 
-    def test_discovery_event(self, engine):
-        out = _capture(engine.discovery_changed)
+    def test_rendezvous_event(self, engine):
+        out = _capture(engine.rendezvous_changed)
         engine._handle_event(
-            build_event(UiEventName.discovery, plan="bootnode", bootnode="boot.example.net")
+            build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="boot.example.net")
         )
-        engine._handle_event(build_event(UiEventName.discovery, plan="mdns"))
-        assert out == [("bootnode", "boot.example.net"), ("mdns", "")]
+        engine._handle_event(build_event(UiEventName.rendezvous, plan="mdns"))
+        assert out == [("rendezvous", "boot.example.net"), ("mdns", "")]
 
     def test_bucket_and_group_events(self, engine):
         buckets = _capture(engine.bucket_detected)
@@ -845,12 +847,12 @@ class TestHandleEvent:
         engine._handle_event(
             build_event(
                 UiEventName.fingerprint_changed,
-                scope="bootnode",
+                scope="rendezvous",
                 peer_address="boot.example.net:443",
                 fingerprint="b" * 64,
             )
         )
-        assert out == [("bootnode", "", "boot.example.net:443", "b" * 64)]
+        assert out == [("rendezvous", "", "boot.example.net:443", "b" * 64)]
 
     def test_unknown_event_is_ignored(self, engine):
         # Should not raise and should emit nothing observable.
@@ -897,7 +899,7 @@ class TestP2pSecretMode:
     """A secret below the client's raw-key floor can only be a shared password."""
 
     def test_a_secret_at_the_floor_stays_a_raw_key(self):
-        from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS
+        from hsync_common.protocol.rdv_tokens import MIN_GROUP_KEY_CHARS
 
         secret = "k" * MIN_GROUP_KEY_CHARS
 

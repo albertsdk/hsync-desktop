@@ -12,7 +12,7 @@ prefer the [installer script](getting-started-script.md) or the
 - The `hsync-common` repository checked out as a sibling of `hsync-desktop`
   (a path dependency of the project)
 - The `hsync` client engine, either on `PATH` or built from the sibling
-  `hsync-client` checkout (see [hsync binary discovery](#hsync-binary-discovery)).
+  `hsync-client` checkout (see [hsync binary rendezvous](#hsync-binary-rendezvous)).
   Building a self-contained bundle needs the sibling binary: `./compile.sh`
   fails without it
 
@@ -86,7 +86,7 @@ The `windows` target produces the per-user Inno Setup installer and a portable
 `.zip` for **x64** Windows 10 (version 1809 or later) or Windows 11; it builds on
 an x64 Windows host and needs Inno Setup 6 (`ISCC`) and ImageMagick.
 
-## hsync binary discovery
+## hsync binary rendezvous
 
 At runtime the application searches for the `hsync` binary in this order:
 

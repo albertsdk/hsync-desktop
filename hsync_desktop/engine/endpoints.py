@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Server/discovery-server endpoint grammar and probe TLS context for the desktop GUI.
+"""Server/rendezvous-server endpoint grammar and probe TLS context for the desktop GUI.
 
 The endpoint grammar itself lives in ``hsync_common.endpoint`` (SSOT). This
 module fixes only the GUI's server default port and the probe's SSL policy, so
 the Settings dialog and the setup wizard interpret the "server address" and
-"discovery server" fields identically.
+"rendezvous server" fields identically.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from hsync_common.endpoint import (
 __all__ = [
     "SERVER_DEFAULT_PORT",
     "build_probe_ssl_context",
-    "normalize_discovery_server_endpoints",
+    "normalize_rendezvous_server_endpoints",
     "normalize_server_endpoint",
     "unverified_ssl_context",
 ]
@@ -55,13 +55,13 @@ def normalize_server_endpoint(raw: str) -> str | None:
     return build_https_url(parse_host_port(value), SERVER_DEFAULT_PORT)
 
 
-def normalize_discovery_server_endpoints(raw: str) -> str | None:
-    """Canonicalize the discovery-server field; raise ``ValueError`` on invalid input.
+def normalize_rendezvous_server_endpoints(raw: str) -> str | None:
+    """Canonicalize the rendezvous-server field; raise ``ValueError`` on invalid input.
 
     Returns the ordered comma-separated list of ``host``/``host:port``/
     ``[IPv6]:port`` endpoints; empty input yields ``None``. Delegates to the
     shared rule (``hsync_common.endpoint.normalize_endpoint_list``, strict) so
-    the GUI field and the client's ``HSYNC_DISCOVERY_SERVER_ENDPOINTS`` cannot
+    the GUI field and the client's ``HSYNC_RENDEZVOUS_SERVER_ENDPOINTS`` cannot
     normalize differently, and a typo is reported instead of silently dropped.
     """
     return normalize_endpoint_list(raw, strict=True)

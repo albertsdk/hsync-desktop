@@ -293,7 +293,7 @@ class TestPreferMasterLiveWarning:
         )
         self._arm_conflict_silently(dialog)
         dialog.server_url.setText("")
-        dialog.p2p_bootnode.setText("")
+        dialog.p2p_rendezvous.setText("")
         dialog._on_accept()
         assert msg_keys == ["warn.prefer_master_msg"]  # save-gate message
         assert dialog.sync_direction_combo.currentData() == "bidirectional"
@@ -313,7 +313,7 @@ class TestPreferMasterLiveWarning:
         )
         self._arm_conflict_silently(dialog)
         dialog.server_url.setText("")
-        dialog.p2p_bootnode.setText("")
+        dialog.p2p_rendezvous.setText("")
         dialog._on_accept()
         assert msg_keys == ["warn.prefer_master_msg"]  # save-gate message
         assert dialog.sync_direction_combo.currentData() == "upload-only"

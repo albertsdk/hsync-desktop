@@ -49,7 +49,7 @@ disable unsupported controls) is realized in
 - **Setup wizard is a Settings subset**: the four-mode wizard
   (`wizard/`, [wizard.md](modules/wizard.md)) writes only the keys it owns and
   never redefines CLI/env contracts; advanced options stay in the Settings
-  dialog. Its server/discovery-server reachability probes and endpoint grammar
+  dialog. Its server/rendezvous-server reachability probes and endpoint grammar
   are shared with Settings (`engine/probes.py`, `engine/endpoints.py`), and its
   trust model is TOFU + pin (policy `ask`), never `strict`/`accept-new`.
 - **Host fonts, not a bundled typeface**: the GUI follows the desktop's
@@ -149,12 +149,12 @@ disable unsupported controls) is realized in
 
 > New cross-repo decisions: add the ADR in `hsync-common` first, then map it here.
 
-- **Bootnode trust is selected as a policy (ADR-0035)**: the "Trust bootnode on
-  first use" toggle is replaced by a `p2p_bootnode_trust` combo
-  (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_DISCOVERY_SERVER_TRUST`
+- **Rendezvous trust is selected as a policy (ADR-0035)**: the "Trust rendezvous on
+  first use" toggle is replaced by a `p2p_rendezvous_trust` combo
+  (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_RENDEZVOUS_SERVER_TRUST`
   (default `ask`). The pin lives in the client's known-hosts store, not a GUI
   env var: the GUI resolves policy `ask` in its start pre-flight
-  (`main_window/trust.py::TrustMixin._ensure_trust`) by writing `hsync trust discovery-server add`, and both
+  (`main_window/trust.py::TrustMixin._ensure_trust`) by writing `hsync trust rendezvous-server add`, and both
   trust stores are editable through the "Manage trusted keys" dialog
   (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
   always sends an explicit policy; the client's SSH-style prompt is terminal-only

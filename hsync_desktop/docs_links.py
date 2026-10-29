@@ -19,7 +19,7 @@ from PySide6.QtGui import QDesktopServices
 _GITHUB_ORG_PATH = "/albertsdk/hsync-"
 
 SERVER_SETUP = "https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md"
-BOOTNODE_SETUP = "https://github.com/albertsdk/hsync-bootnode/blob/main/docs/getting-started.md"
+RENDEZVOUS_SETUP = "https://github.com/albertsdk/hsync-rendezvous/blob/main/docs/getting-started.md"
 CONNECTION_MODES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/choose-connection.md"
 # Linked from every persistent warning banner as the generic symptom guide
 # (docs/troubleshooting.md). A warning whose remedy needs host commands links to
@@ -43,7 +43,7 @@ RELEASES = "https://github.com/albertsdk/hsync-desktop/releases"
 LATEST_RELEASE = "https://github.com/albertsdk/hsync-desktop/releases/latest"
 
 __all__ = [
-    "BOOTNODE_SETUP",
+    "RENDEZVOUS_SETUP",
     "CONNECTION_MODES",
     "DOCS_INDEX",
     "GITHUB_REPO",

@@ -38,16 +38,16 @@ class TestProfiles:
         assert p.direction == "upload-only"
         assert p.deletion_policy == "keep"
         assert p.start_at_login is True
-        assert p.requires_discovery_server is False
+        assert p.requires_rendezvous_server is False
 
     def test_lan_defaults(self):
         p = profile_for(WizardMode.LAN_SYNC)
         assert p.p2p_enabled is True
-        assert p.requires_discovery_server is False
+        assert p.requires_rendezvous_server is False
         assert p.server_trust is None
 
-    def test_remote_requires_discovery_server(self):
-        assert profile_for(WizardMode.REMOTE_SYNC).requires_discovery_server is True
+    def test_remote_requires_rendezvous_server(self):
+        assert profile_for(WizardMode.REMOTE_SYNC).requires_rendezvous_server is True
 
     def test_team_is_server_mode(self):
         assert profile_for(WizardMode.TEAM_SHARE).p2p_enabled is False
@@ -89,16 +89,16 @@ class TestInference:
     def test_none_without_path(self, store):
         assert infer_mode_from_settings(store) is None
 
-    def test_lan_when_p2p_without_discovery_server(self, store):
+    def test_lan_when_p2p_without_rendezvous_server(self, store):
         store.setValue("path/local", "/data")
         store.setValue("p2p/enabled", True)
-        store.setValue("p2p/discovery_server_endpoints", "")
+        store.setValue("p2p/rendezvous_server_endpoints", "")
         assert infer_mode_from_settings(store) == WizardMode.LAN_SYNC
 
-    def test_remote_when_discovery_server_set(self, store):
+    def test_remote_when_rendezvous_server_set(self, store):
         store.setValue("path/local", "/data")
         store.setValue("p2p/enabled", True)
-        store.setValue("p2p/discovery_server_endpoints", "boot.example.net")
+        store.setValue("p2p/rendezvous_server_endpoints", "boot.example.net")
         assert infer_mode_from_settings(store) == WizardMode.REMOTE_SYNC
 
     def test_backup_on_upload_only(self, store):
@@ -173,12 +173,12 @@ class TestDraft:
             mode=WizardMode.BACKUP,
             server_verified=True,
             server_verified_at="2026-01-02T10:00:00+00:00",
-            discovery_server_verified=True,
-            discovery_server_verified_at="2026-01-02T11:00:00+00:00",
+            rendezvous_server_verified=True,
+            rendezvous_server_verified_at="2026-01-02T11:00:00+00:00",
         )
         save_draft(store, draft, step=3)
         loaded, _step = load_draft(store)
         assert loaded.server_verified is True
         assert loaded.server_verified_at == "2026-01-02T10:00:00+00:00"
-        assert loaded.discovery_server_verified is True
-        assert loaded.discovery_server_verified_at == "2026-01-02T11:00:00+00:00"
+        assert loaded.rendezvous_server_verified is True
+        assert loaded.rendezvous_server_verified_at == "2026-01-02T11:00:00+00:00"

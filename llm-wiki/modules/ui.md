@@ -126,8 +126,8 @@ targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 **Help → Documentation** always starts from the docs index.
 
 **Contextual documentation links**: the Server tab links to the hsync-server
-setup guide (`help.server_setup`), the p2p discovery group to the hsync-bootnode
-guide (`help.bootnode_setup`), and the wizard's mode step plus its "Not sure?"
+setup guide (`help.server_setup`), the p2p rendezvous group to the hsync-rendezvous
+guide (`help.rendezvous_setup`), and the wizard's mode step plus its "Not sure?"
 dialog to the desktop choose-connection guide (`help.connection_modes`). They are
 `QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
@@ -328,7 +328,7 @@ vs banner + tray policy stays in one place.
 
 `main_window/start.py::StartMixin._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
-always `network-p2p` (the bootnode does not change the icon). The role
+always `network-p2p` (the rendezvous does not change the icon). The role
 indicator is p2p-only: `_apply_role_visibility`
 (`main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
 once the election has decided the role (`_role_known`) and hides it entirely in
@@ -363,16 +363,16 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
   build their box through `_trust_prompt` (`main_window/trust.py::TrustMixin._trust_prompt`),
   the single warning-box construction (translated title/body, reject as default,
   returns the clicked button *role*), then
-  route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `bootnode`/`server`
-  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::TrustMixin._host_trust_actions`) (`add_bootnode_trust`/
-  `remove_bootnode_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
+  route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `rendezvous`/`server`
+  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::TrustMixin._host_trust_actions`) (`add_rendezvous_trust`/
+  `remove_rendezvous_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
   `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`main_window/window.py::MainWindow`) via
   `_should_prompt_trust` (`main_window/trust.py::TrustMixin._should_prompt_trust`), cleared on start/stop (`main_window/window.py::MainWindow`): a
   repeated refusal for the same fingerprint reuses no dialog, a changed one
   re-prompts. A dismissed or ignored dialog never touches the stored pin (the
   host branch acts only on the explicit Trust/Forget buttons).
 - `_maybe_offer_restart` (`main_window/trust.py::TrustMixin._maybe_offer_restart`) offers to restart a stopped sync after a
-  bootnode/server pin change (those failures are fatal; mDNS refusals are not).
+  rendezvous/server pin change (those failures are fatal; mDNS refusals are not).
 - `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`) is the start
   pre-flight for both hosts: `_pending_trust_checks` collects the
   `_TrustCheck` (`main_window/trust.py::_TrustCheck`) entries that still need an
@@ -381,9 +381,9 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
   `engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
   (`main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
   The run starts only from the `on_ready` continuation, so a refused host
-  abandons it — except for an **unreachable discovery server**: `_TrustCheck.kind`
-  distinguishes the two, and a bootnode whose fingerprint cannot be read only
-  warns (log + the client's own `bootnode`/`unreachable` banner) and continues on
+  abandons it — except for an **unreachable rendezvous server**: `_TrustCheck.kind`
+  distinguishes the two, and a rendezvous whose fingerprint cannot be read only
+  warns (log + the client's own `rendezvous`/`unreachable` banner) and continues on
   the local network (ADR-0045), because that source is optional. The probe never
   runs on the UI thread, and a progress toast (`common.checking`) covers the
   wait. Pins are written to the shared known-hosts stores (no GUI-only
@@ -393,16 +393,16 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
 `TrustedKeysDialog` (`trusted_keys.py::TrustedKeysDialog`) lists and edits all three stores via
 the `engine` subprocess helpers (never the store files directly): three tabs
-(bootnodes / servers / devices), each a `QTableWidget` + Add/Remove/Refresh. The
-`initial_tab` keyword (`bootnodes` default, or `servers`) selects the opening
+(rendezvouss / servers / devices), each a `QTableWidget` + Add/Remove/Refresh. The
+`initial_tab` keyword (`rendezvouss` default, or `servers`) selects the opening
 tab; the settings dialog passes the tab matching the panel that launched it.
 Tabs are filtered by the active mode
 (`trusted_keys.py::TrustedKeysDialog._apply_mode_tab_visibility`, reading
-`p2p/enabled`): p2p shows **Discovery servers** + **Devices** and hides the server
+`p2p/enabled`): p2p shows **Rendezvous servers** + **Devices** and hides the server
 store; Server Mode shows only **Server HSYNC** and hides the p2p stores. When
 `initial_tab` is hidden, the dialog falls back to the first visible page. The
 server tab is labelled **Server HSYNC** (`trusted_keys.tabs_servers`). The
-bootnode/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
+rendezvous/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
 stores); *Add* supports "read from server" or manual entry. *Read from server*
 (`trusted_keys.py::_HostAddDialog._read_from_node`) runs the fingerprint probe on
 `engine/async_probe.py::AsyncProbe` and labels the button `common.checking`
@@ -411,7 +411,7 @@ the bucket from `sync/bucket`. The tab/column labels are localized in every
 locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 `trusted_keys.fingerprint` = the locale's term for the certificate fingerprint).
 
-The bootnode/server tabs show host, fingerprint, **source** and **added** date.
+The rendezvous/server tabs show host, fingerprint, **source** and **added** date.
 The raw client `source` (`cli` / `tofu` / `prompt` / `flag`, from
 `hsync-client known_hosts.py::TRUST_SOURCES`) is humanized by
 `trusted_keys.py::_source_label` (`trusted_keys.source_cli` …), and the

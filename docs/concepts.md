@@ -30,10 +30,10 @@ are **secondary**. **Prefer primary role** asks for that role and **Never become
 primary** removes the device from the election; the status bar shows the role once
 it is decided. (The engine's own log lines still say "master" for this role.)
 
-## Discovery server
+## Rendezvous server
 
-An optional helper (an **HSYNC Bootnode**) that only lets devices on different
-networks find each other. It never carries or stores your files. With no discovery
+An optional helper (an **HSYNC Rendezvous**) that only lets devices on different
+networks find each other. It never carries or stores your files. With no rendezvous
 server, the app uses mDNS on the local network.
 
 ## Trust and fingerprints
