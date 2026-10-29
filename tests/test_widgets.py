@@ -127,3 +127,45 @@ class TestToggleSwitchDisabledState:
         toggle.setEnabled(True)
         QTest.mouseClick(toggle, Qt.MouseButton.LeftButton, pos=QPoint(22, 12))
         assert toggle.isChecked() is False
+
+
+class TestOptoutConfirmBox:
+    """A confirm box that may be silenced keeps the shared contract."""
+
+    def test_the_optout_starts_unchecked(self, qtbot):
+        from hsync_desktop.widgets.dialogs import build_optout_confirm_box
+
+        box, checkbox = build_optout_confirm_box(
+            None,
+            title="Risk",
+            text="Continue?",
+            checkbox_text="Don't ask again",
+        )
+        qtbot.addWidget(box)
+
+        assert box.checkBox() is checkbox
+        assert checkbox.text() == "Don't ask again"
+        assert checkbox.isChecked() is False
+
+    def test_it_keeps_the_localized_yes_no_contract(self, qtbot):
+        from PySide6.QtWidgets import QMessageBox
+
+        from hsync_desktop.i18n import tr
+        from hsync_desktop.icons import icon
+        from hsync_desktop.widgets.dialogs import build_optout_confirm_box
+
+        box, _checkbox = build_optout_confirm_box(
+            None,
+            title="Risk",
+            text="Continue?",
+            checkbox_text="Don't ask again",
+        )
+        qtbot.addWidget(box)
+        yes = box.button(QMessageBox.StandardButton.Yes)
+        no = box.button(QMessageBox.StandardButton.No)
+
+        assert yes.text() == tr("action.yes")
+        assert no.text() == tr("action.no")
+        assert box.defaultButton() is no
+        assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
+        assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()

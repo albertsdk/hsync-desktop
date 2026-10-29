@@ -420,6 +420,12 @@ def build_advanced_tab(dlg: SettingsDialog) -> None:
     dlg.bandwidth_download.setSuffix(" MB/s")
     dlg.bandwidth_download.setSpecialValueText(tr("settings.unlimited"))
 
+    # The deletion-risk notice can be silenced from its own dialog; this is the
+    # way back to it, so it lives with the other deletion-protection controls.
+    dlg._lbl_deletion_risk_reset = muted_label()
+    dlg.btn_deletion_risk_reset = QPushButton(dlg)
+    dlg.btn_deletion_risk_reset.setObjectName("btnDeletionRiskReset")
+
     dlg._reorganize_advanced_tab()
 
 

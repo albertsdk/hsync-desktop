@@ -2398,27 +2398,43 @@ class TestDeletionRiskGate:
     """The "File Deletion Risk" prompt only guards a run that can delete."""
 
     @staticmethod
-    def _risky_folder(window, settings, tmp_path) -> str:
-        """A non-empty folder with the p2p configuration that risks deletions."""
+    def _risky_folder(window, settings, tmp_path, name: str = "shared") -> str:
+        """A non-empty folder with the one posture that can delete local files."""
 
-        folder = tmp_path / "shared"
+        folder = tmp_path / name
         folder.mkdir()
         (folder / "file.txt").write_text("x", encoding="utf-8")
-        settings.setValue("p2p/enabled", True)
-        settings.setValue("p2p/prefer_master", False)
-        settings.setValue("sync/direction", "bidirectional")
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("sync/direction", "download-only")
+        settings.setValue("sync/dry_run", False)
+        settings.setValue("sync/deletion_policy", "propagate")
         window._local_path = str(folder)
         return str(folder)
+
+    @staticmethod
+    def _answer(monkeypatch, *, confirm: bool, dont_show: bool = False) -> list[QMessageBox]:
+        """Answer the dialog, ticking the opt-out checkbox when asked to."""
+
+        shown: list[QMessageBox] = []
+
+        def fake_exec(box: QMessageBox) -> int:
+            shown.append(box)
+            checkbox = box.checkBox()
+            if checkbox is not None:
+                checkbox.setChecked(dont_show)
+            answer = QMessageBox.StandardButton.Yes if confirm else QMessageBox.StandardButton.No
+            return int(answer)
+
+        monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+        return shown
 
     def test_simulation_mode_skips_the_prompt(self, window, settings, monkeypatch, tmp_path):
         """--dry-run only previews, so nothing can be deleted: no confirmation."""
         self._risky_folder(window, settings, tmp_path)
-        settings.setValue("sync/dry_run", True)
         import hsync_desktop.main_window.start as start_module
 
         monkeypatch.setattr(start_module, "is_simulation_mode", lambda: True)
-        shown: list[QMessageBox] = []
-        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        shown = self._answer(monkeypatch, confirm=True)
 
         assert window._check_deletion_risk() is True
         assert shown == []
@@ -2426,34 +2442,68 @@ class TestDeletionRiskGate:
     def test_keep_policy_skips_the_prompt(self, window, settings, monkeypatch, tmp_path):
         """Keep deleted files never removes anything: no confirmation."""
         self._risky_folder(window, settings, tmp_path)
-        settings.setValue("sync/dry_run", False)
         settings.setValue("sync/deletion_policy", "keep")
         import hsync_desktop.main_window.start as start_module
 
         monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
-        shown: list[QMessageBox] = []
-        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        shown = self._answer(monkeypatch, confirm=True)
 
         assert window._check_deletion_risk() is True
         assert window._check_deletion_risk(interactive=False) is True
         assert shown == []
 
-    def test_risky_configuration_still_prompts(self, window, settings, monkeypatch, tmp_path):
-        self._risky_folder(window, settings, tmp_path)
+    def test_p2p_without_primary_role_does_not_prompt(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """Bidirectional p2p uploads the local-only files, it never deletes them."""
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        (folder / "file.txt").write_text("x", encoding="utf-8")
+        settings.setValue("p2p/enabled", True)
+        settings.setValue("p2p/prefer_master", False)
+        settings.setValue("sync/direction", "bidirectional")
+        window._local_path = str(folder)
+        shown = self._answer(monkeypatch, confirm=True)
+
+        assert window._check_deletion_risk() is True
+        assert window._check_deletion_risk(interactive=False) is True
+        assert shown == []
+
+    def test_a_folder_with_only_sync_artefacts_does_not_prompt(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """The sentinel and the ignored entries are not data the user could lose."""
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        (folder / ".hsynckeep").write_text("", encoding="utf-8")
+        (folder / "Thumbs.db").write_text("x", encoding="utf-8")
+        settings.setValue("sync/direction", "download-only")
         settings.setValue("sync/dry_run", False)
+        settings.setValue("sync/deletion_policy", "propagate")
+        window._local_path = str(folder)
         import hsync_desktop.main_window.start as start_module
 
         monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
-        shown: list[QMessageBox] = []
-        monkeypatch.setattr(
-            QMessageBox,
-            "exec",
-            lambda self: shown.append(self) or int(QMessageBox.StandardButton.Yes),
-        )
+        shown = self._answer(monkeypatch, confirm=True)
+
+        assert window._check_deletion_risk() is True
+        assert shown == []
+
+    def test_risky_configuration_still_prompts(self, window, settings, monkeypatch, tmp_path):
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        shown = self._answer(monkeypatch, confirm=True)
 
         assert window._check_deletion_risk() is True
         assert len(shown) == 1
         assert shown[0].windowTitle() == tr("notif.deletion_risk")
+        # Silence is always an explicit act: the opt-out starts unchecked.
+        checkbox = shown[0].checkBox()
+        assert checkbox is not None
+        assert checkbox.text() == tr("notif.deletion_risk_dont_show")
+        assert checkbox.isChecked() is False
         # The Yes/No buttons use the app theme icons, not the system ones.
         from hsync_desktop.icons import icon
 
@@ -2462,19 +2512,97 @@ class TestDeletionRiskGate:
         assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
         assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
+    def test_declining_never_silences_the_notice(self, window, settings, monkeypatch, tmp_path):
+        """Only an explicit Yes can hide the notice, whatever the checkbox says."""
+        from hsync_desktop.deletion_risk import _ACK_KEY
+
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        shown = self._answer(monkeypatch, confirm=False, dont_show=True)
+
+        assert window._check_deletion_risk() is False
+        assert len(shown) == 1
+        assert not settings.contains(_ACK_KEY)
+
+    def test_an_acknowledged_risk_skips_the_prompt(self, window, settings, monkeypatch, tmp_path):
+        """Yes plus the checkbox silences the notice for this folder and posture."""
+        from hsync_desktop.deletion_risk import _ACK_KEY
+
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        self._answer(monkeypatch, confirm=True, dont_show=True)
+        assert window._check_deletion_risk() is True
+        assert settings.contains(_ACK_KEY)
+
+        shown = self._answer(monkeypatch, confirm=True)
+        assert window._check_deletion_risk() is True
+        assert window._check_deletion_risk(interactive=False) is True
+        assert shown == []
+
+    def test_the_acknowledgement_is_scoped_to_the_folder(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """A share the user never confirmed asks on its own."""
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        self._answer(monkeypatch, confirm=True, dont_show=True)
+        assert window._check_deletion_risk() is True
+
+        self._risky_folder(window, settings, tmp_path, name="other")
+        shown = self._answer(monkeypatch, confirm=True)
+        assert window._check_deletion_risk() is True
+        assert len(shown) == 1
+
+    def test_a_changed_posture_asks_again(self, window, settings, monkeypatch, tmp_path):
+        """The acknowledgement covers the settings it was given for, not more."""
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        self._answer(monkeypatch, confirm=True, dont_show=True)
+        assert window._check_deletion_risk() is True
+
+        settings.setValue("p2p/enabled", True)
+        shown = self._answer(monkeypatch, confirm=True)
+        assert window._check_deletion_risk() is True
+        assert len(shown) == 1
+
+    def test_a_new_notice_version_asks_again(self, window, settings, monkeypatch, tmp_path):
+        """An acknowledgement never covers a wording the user did not read."""
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.deletion_risk as deletion_risk_module
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        self._answer(monkeypatch, confirm=True, dont_show=True)
+        assert window._check_deletion_risk() is True
+
+        monkeypatch.setattr(
+            deletion_risk_module,
+            "DELETION_RISK_NOTICE_VERSION",
+            deletion_risk_module.DELETION_RISK_NOTICE_VERSION + 1,
+        )
+        shown = self._answer(monkeypatch, confirm=True)
+        assert window._check_deletion_risk() is True
+        assert len(shown) == 1
+
     def test_an_automatic_start_reports_the_risk_instead_of_prompting(
         self, window, settings, monkeypatch, tmp_path
     ):
         """A startup run must never start from a dialog nobody was asked to answer."""
         self._risky_folder(window, settings, tmp_path)
-        settings.setValue("sync/dry_run", False)
         import hsync_desktop.main_window.start as start_module
 
         monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
         monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
         _stop_the_deferred_timer(monkeypatch)
-        shown: list[QMessageBox] = []
-        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        shown = self._answer(monkeypatch, confirm=True)
         warned: list[tuple[str, str]] = []
         monkeypatch.setattr(
             window, "_notify_warning", lambda title, message: warned.append((title, message))
@@ -2490,6 +2618,30 @@ class TestDeletionRiskGate:
         assert warned == [(tr("notif.deletion_risk"), tr("notif.deletion_risk_manual"))]
         assert tr("notif.deletion_risk_manual") in window._log_view.toPlainText()
 
+    def test_an_acknowledged_risk_lets_the_automatic_start_preview(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """The acknowledgement replaces the pre-flight gate, not the per-run one."""
+        self._risky_folder(window, settings, tmp_path)
+        import hsync_desktop.main_window.start as start_module
+
+        monkeypatch.setattr(start_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(window, "_show_disclaimer", lambda **_: True)
+        _stop_the_deferred_timer(monkeypatch)
+        self._answer(monkeypatch, confirm=True, dont_show=True)
+        assert window._check_deletion_risk() is True
+
+        shown = self._answer(monkeypatch, confirm=True)
+        started: list[str] = []
+        monkeypatch.setattr(window, "_start_preview_run", lambda path: started.append(path))
+        window._pending_sync_path = window._local_path
+        window._start_is_automatic = True
+
+        window._continue_start_after_disclaimer()
+
+        assert shown == []
+        assert started == [window._local_path]
+
     def test_an_automatic_start_proceeds_when_nothing_is_at_risk(
         self, window, settings, monkeypatch, tmp_path
     ):
@@ -2497,12 +2649,10 @@ class TestDeletionRiskGate:
         folder = tmp_path / "shared"
         folder.mkdir()
         (folder / "file.txt").write_text("x", encoding="utf-8")
-        settings.setValue("p2p/enabled", True)
-        settings.setValue("p2p/prefer_master", True)  # this device is authoritative
+        settings.setValue("sync/direction", "bidirectional")
         window._local_path = str(folder)
         window._pending_sync_path = str(folder)
-        shown: list[QMessageBox] = []
-        monkeypatch.setattr(QMessageBox, "exec", lambda self: shown.append(self) or 0)
+        shown = self._answer(monkeypatch, confirm=True)
         monkeypatch.setattr(window, "_check_keyless_p2p", lambda: True)
         monkeypatch.setattr(window, "_check_disk_space", lambda: True)
         monkeypatch.setattr(window, "_ensure_trust", lambda continuation: continuation())

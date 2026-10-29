@@ -136,6 +136,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_advanced_perf.setTitle(escape_mnemonics(tr("settings.group.performance")))
     dlg._grp_advanced_delta.setTitle(escape_mnemonics(tr("settings.group.delta")))
     dlg._grp_advanced_guard.setTitle(escape_mnemonics(tr("settings.group.deletion_protection")))
+    dlg._lbl_deletion_risk_reset.setText(tr("settings.deletion_risk_reset_hint"))
+    dlg.btn_deletion_risk_reset.setText(escape_mnemonics(tr("settings.deletion_risk_reset")))
     dlg._grp_advanced_network.setTitle(escape_mnemonics(tr("settings.group.network")))
     dlg._grp_advanced_logging.setTitle(escape_mnemonics(tr("settings.group.logging")))
 

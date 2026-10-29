@@ -45,6 +45,12 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
+from hsync_desktop.deletion_risk import (
+    REASON_DOWNLOAD_ONLY,
+    acknowledge,
+    folder_has_user_content,
+    is_acknowledged,
+)
 from hsync_desktop.engine import (
     HsyncEngine,
     add_bootnode_trust,
@@ -96,7 +102,11 @@ from hsync_desktop.themes import (
     apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
-from hsync_desktop.widgets.dialogs import build_confirm_box, confirm
+from hsync_desktop.widgets.dialogs import (
+    build_confirm_box,
+    build_optout_confirm_box,
+    confirm,
+)
 from hsync_desktop.wizard import SetupWizard
 from hsync_desktop.wizard.model import mark_auto_shown, should_auto_open
 
@@ -344,9 +354,16 @@ class StartMixin:
     def _check_deletion_risk(self, *, interactive: bool = True) -> bool:
         """Check if sync settings could cause local file deletion.
 
-        Returns True if safe to proceed (no risk or user confirmed). Simulation
-        Mode always proceeds: the client only previews in ``--dry-run``, so a
-        run with it enabled can neither delete nor transfer anything.
+        Returns True if safe to proceed (no risk or user confirmed). Only
+        *Receive only* can remove a local file at the initial sync, so it is the
+        only posture that asks: a bidirectional run (server or p2p) uploads the
+        files that exist only here, *Send only* never deletes on this device,
+        Simulation Mode only previews and the keep policy cannot delete.
+
+        An acknowledgement (``deletion_risk``) covers the folder and the
+        settings it was given for. It also lets an automatic start proceed: that
+        run can only preview, and the plan it computes still stops at the
+        per-run confirmation before applying a deletion.
 
         ``interactive=False`` is for a run the user did not trigger (auto-sync on
         startup): a confirmation answered by nobody must never start a
@@ -356,15 +373,6 @@ class StartMixin:
         if not local_path or not os.path.exists(local_path):
             return True
 
-        # Check if directory has any content
-        try:
-            entries = os.listdir(local_path)
-        except OSError:
-            return True
-        if not entries:
-            return True
-
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         # Simulation Mode never applies changes (the run is a preview-only
         # one-shot), so nothing can be deleted and the confirmation would be a
         # false alarm.
@@ -375,36 +383,37 @@ class StartMixin:
         # a deletion that cannot happen).
         if get_deletion_policy() == "keep":
             return True
-        p2p_mode = s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
-        prefer_master = s.value("p2p/prefer_master", False, bool)
-        sync_dir = s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str)
 
-        # upload-only never deletes local files
-        if sync_dir == "upload-only":
+        # Only Receive only can wipe the local-only files of a non-empty folder;
+        # every other posture uploads them instead of deleting (this mirrors the
+        # client's ``_check_deletion_risk``, the guard it has to agree with).
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str) != "download-only":
             return True
 
-        # prefer_master in p2p mode means this client is authoritative
-        if p2p_mode and prefer_master:
+        # An acknowledgement covers this folder and this posture only, and it
+        # lets an automatic start through as well: that run previews only, and
+        # its plan still asks before deleting.
+        if is_acknowledged(s, local_path, REASON_DOWNLOAD_ONLY):
             return True
-
-        # Determine risk
-        if p2p_mode and not prefer_master:
-            reason = tr("notif.deletion_risk_p2p")
-        elif sync_dir == "download-only":
-            reason = tr("notif.deletion_risk_download")
-        else:
-            # bidirectional server mode – normal behaviour
+        if not folder_has_user_content(local_path):
             return True
 
         if not interactive:
             return False
 
-        return confirm(
+        box, dont_show = build_optout_confirm_box(
             self,
             title=tr("notif.deletion_risk"),
-            text=tr("notif.deletion_risk_msg").replace("{reason}", reason),
-            with_icons=True,
+            text=tr("notif.deletion_risk_msg"),
+            checkbox_text=tr("notif.deletion_risk_dont_show"),
         )
+        # Closing the window answers nothing: only an explicit Yes can silence
+        # the notice, and only for this folder and these settings.
+        confirmed = box.exec() == QMessageBox.StandardButton.Yes
+        if confirmed and dont_show.isChecked():
+            acknowledge(s, local_path, REASON_DOWNLOAD_ONLY)
+        return confirmed
 
     def _report_deletion_risk_needed(self) -> None:
         """Surface a startup run stopped by the deletion-risk gate.

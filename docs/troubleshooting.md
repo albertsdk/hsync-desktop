@@ -45,8 +45,8 @@ first). Without a system tray the window really closes; see
 
 The **File Deletion Risk** prompt and the **Deletions skipped** warning are
 explained in
-[Warnings and notifications](warnings.md#warnings-before-a-sync), with the option
-that makes the prompt stop.
+[Warnings and notifications](warnings.md#warnings-before-a-sync), with the
+acknowledgement that silences the prompt and the control that brings it back.
 
 ## Devices are not found in p2p Mode
 

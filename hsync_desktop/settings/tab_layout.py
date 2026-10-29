@@ -507,6 +507,8 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     add_row(f3, dlg._lbl_guard_threshold, dlg.mass_delete_threshold)
     dlg._lbl_guard_percent = QLabel(tr("settings.mass_delete_percent"))
     add_row(f3, dlg._lbl_guard_percent, dlg.mass_delete_percent)
+    f3.addRow(dlg._lbl_deletion_risk_reset)
+    f3.addRow("", dlg.btn_deletion_risk_reset)
     vbox.addWidget(dlg._grp_advanced_guard)
 
     # Group 4: network

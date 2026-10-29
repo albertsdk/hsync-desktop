@@ -106,6 +106,7 @@ from hsync_desktop.config import (
     SETTINGS_ORG,
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
+from hsync_desktop.deletion_risk import forget_acknowledgement
 from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
@@ -361,6 +362,7 @@ class SettingsDialog(QDialog):
             (self.ignore_patterns, "tip.ignore_patterns"),
             (self.btn_edit_hsyncignore, "tip.edit_hsyncignore"),
             (self.btn_reset_state, "tip.reset_state"),
+            (self.btn_deletion_risk_reset, "tip.deletion_risk_reset"),
             (self.server_url, "tip.server_url"),
             (self.api_key, "tip.api_key"),
             (self.insecure, "tip.insecure"),
@@ -545,6 +547,7 @@ class SettingsDialog(QDialog):
         self.btn_test_connection.clicked.connect(self._on_test_connection)
         self.btn_edit_hsyncignore.clicked.connect(self._on_edit_hsyncignore)
         self.btn_reset_state.clicked.connect(self._on_reset_state)
+        self.btn_deletion_risk_reset.clicked.connect(self._on_reset_deletion_risk)
         self.resync.valueChanged.connect(self._normalize_resync)
         self._tabs.currentChanged.connect(self._fit_current_tab)
         self._button_box.accepted.connect(self._on_accept)
@@ -599,6 +602,23 @@ class SettingsDialog(QDialog):
             return
         dlg = HsyncIgnoreEditorDialog(Path(shared), self)
         dlg.exec()
+
+    def _on_reset_deletion_risk(self) -> None:
+        """Bring the deletion-risk notice back after it was silenced.
+
+        The acknowledgement is scoped to one folder and one posture, so
+        forgetting it is the only way back. Nothing needs confirming before it
+        happens (showing a warning again cannot destroy anything) and nothing in
+        the settings changes, so there is no commit to run.
+        """
+        settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        forget_acknowledgement(settings)
+        settings.sync()
+        QMessageBox.information(
+            self,
+            tr("settings.deletion_risk_reset"),
+            tr("notif.deletion_risk_reset_done"),
+        )
 
     def _on_reset_state(self) -> None:
         """Confirm a sync-state reset and hand the request to the main window.
@@ -1545,6 +1565,7 @@ class SettingsDialog(QDialog):
             self.bandwidth_download,
             self.verbose,
             self.logfile,
+            self.btn_deletion_risk_reset,
         ]
 
         # Combine all widgets that should be disabled

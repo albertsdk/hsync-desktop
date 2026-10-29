@@ -295,7 +295,7 @@ class TestTerminologyConsistency:
         """Warnings reuse the settings labels, not raw protocol terms."""
         en_t = en.translations
         assert "certificate" in en_t["warn.api_key_insecure_msg"].lower()
-        assert "receive" in en_t["notif.deletion_risk_download"].lower()
+        assert "receive only" in en_t["notif.deletion_risk_msg"].lower()
 
     # Locale token maps for the terminology guards below. Inflected languages are
     # matched on a stem: the guard only needs to catch the jargon, not the case.
@@ -366,12 +366,6 @@ class TestTerminologyConsistency:
             token = self._NODE[module.__name__.rsplit(".", 1)[-1]]
             value = module.translations["trusted_keys.read_from_node"].lower()
             assert token not in value, f"{module.__name__}:trusted_keys.read_from_node"
-
-    def test_primary_role_prompts_quote_the_visible_label(self):
-        """Deletion-risk and force-role text name the option as its label reads."""
-        for module in self.ALL:
-            label = module.translations["settings.prefer_master"]
-            assert label in module.translations["notif.deletion_risk_p2p"], module.__name__
 
     def test_duplicate_identity_uses_device_id_label(self):
         """The duplicate-identity warning names the identifier as its label does."""

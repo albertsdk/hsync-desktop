@@ -61,13 +61,20 @@ occurrence.
 Four checks can stop a start or a deletion phase. This is what they mean and
 what to do:
 
-- **File Deletion Risk** — the folder is not empty and the current settings can
-  delete local files. It appears in p2p Mode while **Prefer primary role** is off
-  (local files missing on the primary device may be removed here) and with the
-  **Receive only** sync type (deletions made elsewhere apply here). Check the
-  folder and confirm to continue; enabling **Prefer primary role** or the one-way
-  **Send only** type is what makes it stop asking. Simulation Mode and the
-  **Keep deleted files** policy skip it: neither can remove a local file.
+- **File Deletion Risk** — the folder holds files and the **Receive only** sync
+  type can delete the ones that exist only on this device, because deletions made
+  on the other device are applied here too. Check the folder and confirm to
+  continue. It is the only posture that asks: a bidirectional run uploads the
+  files that exist only here, **Send only** never deletes on this device,
+  Simulation Mode only previews and the **Keep deleted files** policy cannot
+  remove anything, so none of them ever prompts.
+  Tick **Don't warn me again for this folder and these settings** to stop it for
+  the folder and the configuration you confirmed: another folder, or a changed
+  sync type, deletion policy or p2p posture, asks again. **Settings → Advanced →
+  Deletion protection → Show the deletion-risk warning again** brings it back.
+  Neither choice weakens the run: the plan is always listed before it is applied
+  and its deletions are confirmed there, and the mass-deletion guard still pauses
+  a cycle that would remove too many files.
   See [Choose what happens to deleted files](choose-deletion-policy.md).
 - **Deletions skipped (deletion protection)** — a cycle wanted to delete more
   local files than **Max deletions per cycle** or **Max deletions percent** allow.

@@ -36,7 +36,7 @@ transfer behaviour. It is used in both p2p and Server Mode.
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync type](choose-sync-type.md) |
 | Real-time sync | Keep syncing automatically as files change |
 | Deletions | `Apply deletions (propagate)` keeps this device aligned: a file deleted on one device is deleted on the others. `Keep deleted files (backup)` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Apply deletions` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
-| Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files, the one-time disclaimer has not been accepted yet, or the plan the run computed includes deletions, the startup run stops and warns you instead of asking (and never opens a dialog) — press **Start** or **Preview changes** to review the plan and confirm it |
+| Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files and the deletion-risk warning has not been acknowledged for this folder, when the one-time disclaimer has not been accepted yet, or when the plan the run computed includes deletions, the startup run stops and warns you instead of asking (and never opens a dialog) — press **Start** or **Preview changes** to review the plan and confirm it |
 | Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
 | Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
 | Wait for file to settle | Ignore a file for this long while it is still being written |
@@ -191,6 +191,7 @@ options** is enabled in General. Changes apply at the next sync start.
 | Deletion protection | Pause a cycle that would delete too many local files (see below) |
 | Max deletions per cycle | Number of deletions that trips the guard; 0 disables this rule |
 | Max deletions percent | Percentage of local files whose deletion trips the guard; 0 disables this rule |
+| Show the deletion-risk warning again | Bring back the warning silenced from its own dialog; it is scoped to the folder and settings you confirmed |
 | Upload limit / Download limit | Bandwidth caps (1 MB/s = 1 MiB/s), enforced from the first byte and shared by all transfers of that direction; 0 (**Unlimited**) uses all available bandwidth |
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
 
@@ -203,6 +204,12 @@ skipped and the main window shows a warning, so a stray delete on one device
 cannot wipe the folder. The sync itself keeps running and a later cycle retries
 the deletions. Set either rule to 0 to disable it. See
 [Warnings and notifications](warnings.md).
+
+**Deletion-risk warning.** The pre-flight notice about **Receive only** can be
+silenced with its own checkbox, for the folder and settings it was confirmed for.
+**Show the deletion-risk warning again** clears that acknowledgement, so the next
+start asks again; nothing else changes. See
+[Warnings and notifications](warnings.md#warnings-before-a-sync).
 
 **Bandwidth limits** are also editable from the status bar: click the
 sent/received labels in the bottom-right of the main window. Both entry points

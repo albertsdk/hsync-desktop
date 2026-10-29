@@ -79,7 +79,12 @@ with `interactive=False`, which reports the risk instead of prompting, and
 `notif.deletion_risk_manual` through `_notify_warning` (in-app toast + OS
 notification when out of focus) and drops the run. A confirmation nobody was
 asked to answer therefore never starts a destructive sync — and a tray-only
-`--minimized` launch never raises a modal on a hidden window. The same rule
+`--minimized` launch never raises a modal on a hidden window. The one exception
+is an explicit acknowledgement: `deletion_risk.is_acknowledged` (key
+`ui/deletion_risk_ack`) covers one folder and one posture, and a covered
+configuration lets the automatic run through to the dry-run preview — which
+cannot delete anything — while `ActionsMixin._apply_automatic_plan` still refuses
+to apply a plan that deletes. The same rule
 applies to the one-time disclaimer: `main_window/start.py::StartMixin._show_disclaimer`
 takes `interactive=False`, returns without a dialog and
 `StartMixin._report_disclaimer_needed` surfaces `notif.disclaimer_manual`. The
@@ -162,13 +167,22 @@ gates in this order: `_check_deletion_risk`, `_check_keyless_p2p`,
 `_check_disk_space`, then `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`);
 the scoped
 Send/Receive path (`main_window/actions.py`) reuses the same checks. The
-deletion-risk confirmation (`notif.deletion_risk`, p2p without *Prefer primary
-role* or Receive-only) is a guard for a run that actually applies changes, so
-`_check_deletion_risk` (`main_window/start.py::StartMixin._check_deletion_risk`)
-returns early when **Simulation Mode** (`sync/dry_run`) is on or when the
-deletion policy is `keep` (`settings/cli_args.py::get_deletion_policy`): neither
-can remove a local file, and an automatic startup run must not be dropped for a
-risk that cannot materialise. That setting makes
+deletion-risk confirmation (`notif.deletion_risk`) guards the only posture that
+can remove a local file, **Receive only** (`sync/direction` = `download-only`;
+the client's `_check_deletion_risk` applies the same rule, and a bidirectional
+run uploads the local-only files instead), so `_check_deletion_risk`
+(`main_window/start.py::StartMixin._check_deletion_risk`) returns early for every
+other direction and when **Simulation Mode** (`sync/dry_run`) is on or when the
+deletion policy is `keep` (`settings/cli_args.py::get_deletion_policy`): none of
+them can remove a local file, and an automatic startup run must not be dropped
+for a risk that cannot materialise. `deletion_risk.folder_has_user_content`
+skips the entries the engine ignores (`is_hidden_file` / `is_hidden_dir` /
+`.hsynckeep`, the same walk as the client), and `deletion_risk.is_acknowledged`
+ends the gate for a folder and posture the user confirmed with the dialog's
+checkbox (value
+`<DELETION_RISK_NOTICE_VERSION>|download-only|<sha256(folder+posture)[:16]>`).
+`SettingsDialog._on_reset_deletion_risk`, under *Advanced → Deletion protection*,
+removes the key. Simulation Mode makes
 every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
 client shows the preview and exits instead of parking in the dry-run "wait for a
 `SYNC` command" state, where `SYNC` would flip it to a real sync

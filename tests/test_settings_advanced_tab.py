@@ -265,3 +265,42 @@ class TestThemeSetting:
         monkeypatch.setattr(cli, "detect_system_theme", lambda: "dark")
 
         assert cli.get_saved_theme() == "dark"
+
+
+class TestDeletionRiskReset:
+    """The silenced deletion-risk notice has a way back in the Advanced tab."""
+
+    def test_the_control_lives_in_the_deletion_protection_group(self, dialog):
+        from hsync_desktop.i18n import tr
+
+        assert dialog._grp_advanced_guard.isAncestorOf(dialog.btn_deletion_risk_reset)
+        assert dialog._grp_advanced_guard.isAncestorOf(dialog._lbl_deletion_risk_reset)
+        assert dialog.btn_deletion_risk_reset.text() == tr("settings.deletion_risk_reset")
+        assert dialog._lbl_deletion_risk_reset.text() == tr("settings.deletion_risk_reset_hint")
+
+    def test_it_is_disabled_while_a_sync_runs(self, dialog):
+        dialog.set_connection_active(True)
+        assert not dialog.btn_deletion_risk_reset.isEnabled()
+        dialog.set_connection_active(False)
+        assert dialog.btn_deletion_risk_reset.isEnabled()
+
+    def test_it_forgets_the_acknowledgement_and_says_so(self, qtbot, monkeypatch, tmp_path):
+        from PySide6.QtWidgets import QMessageBox
+
+        dlg, store = _make_dialog(
+            qtbot,
+            monkeypatch,
+            tmp_path,
+            {"ui/deletion_risk_ack": "1|download-only|0123456789abcdef"},
+        )
+        told: list[tuple] = []
+        monkeypatch.setattr(
+            QMessageBox,
+            "information",
+            lambda *args, **kwargs: told.append(args) or QMessageBox.StandardButton.Ok,
+        )
+
+        dlg.btn_deletion_risk_reset.click()
+
+        assert not store.contains("ui/deletion_risk_ack")
+        assert len(told) == 1

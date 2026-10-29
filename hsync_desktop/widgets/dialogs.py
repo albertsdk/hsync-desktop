@@ -8,18 +8,23 @@ buttons, retitled with the localized ``action.yes`` / ``action.no`` labels (and
 optionally the app icons), with ``No`` as the safe default. Hand-building the
 box at each call site let those details drift, so the construction lives here.
 
+A confirmation that may be silenced adds an opt-out checkbox through
+``build_optout_confirm_box``: the checkbox always starts unchecked, so silence is
+always the user's explicit act, and only the caller decides what an
+acknowledgement covers.
+
 Consumers: ``main_window/{actions,events,lifecycle,start,trust,ui,window}``,
 ``settings/dialog``, ``wizard/dialog``, ``trusted_keys``.
 """
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox, QWidget
+from PySide6.QtWidgets import QCheckBox, QMessageBox, QWidget
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 
-__all__ = ["build_confirm_box", "confirm"]
+__all__ = ["build_confirm_box", "build_optout_confirm_box", "confirm"]
 
 
 def build_confirm_box(
@@ -51,6 +56,34 @@ def build_confirm_box(
         QMessageBox.StandardButton.Yes if default_yes else QMessageBox.StandardButton.No
     )
     return box
+
+
+def build_optout_confirm_box(
+    parent: QWidget | None,
+    *,
+    title: str,
+    text: str,
+    checkbox_text: str,
+    icon_name: QMessageBox.Icon = QMessageBox.Icon.Warning,
+    with_icons: bool = True,
+) -> tuple[QMessageBox, QCheckBox]:
+    """Build a confirm box whose opt-out checkbox starts unchecked.
+
+    The box keeps the shared contract (localized ``Yes``/``No``, ``No`` as the
+    default answer) and returns the checkbox so the caller can read the user's
+    choice. Nothing is persisted here: what an acknowledgement covers, and for
+    how long, belongs to the call site.
+    """
+    box = build_confirm_box(
+        parent,
+        title=title,
+        text=text,
+        icon_name=icon_name,
+        with_icons=with_icons,
+    )
+    checkbox = QCheckBox(checkbox_text)
+    box.setCheckBox(checkbox)
+    return box, checkbox
 
 
 def confirm(
