@@ -20,6 +20,8 @@ from hsync_desktop import docs_links
         docs_links.CONNECTION_MODES,
         docs_links.DOCS_INDEX,
         docs_links.GITHUB_REPO,
+        docs_links.LATEST_RELEASE,
+        docs_links.RELEASES,
         docs_links.TROUBLESHOOTING,
         docs_links.WATCHER_LIMITS,
     ],

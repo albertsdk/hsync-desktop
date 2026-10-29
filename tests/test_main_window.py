@@ -633,7 +633,7 @@ class TestLanguageChangeRetranslatesTable:
 
 
 class TestHelpMenu:
-    """Help menu: external links first, then License and About (About last)."""
+    """Help menu: external links first, then the app actions (About last)."""
 
     def test_order_is_links_then_license_then_about(self, window):
         from hsync_desktop.i18n import tr
@@ -642,6 +642,7 @@ class TestHelpMenu:
             tr("menu.help.docs"),
             tr("menu.help.github"),
             "",
+            tr("menu.help.updates"),
             tr("menu.help.license"),
             tr("menu.help.about"),
         ]

@@ -56,6 +56,10 @@ DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compr
 DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
+# The release update check is opt-in: an installation that never asked about
+# updates makes no request outside the servers the operator configured
+# (ADR-0048).
+DEFAULT_UPDATE_CHECK = False
 DEFAULT_MIN_FREE_DISK_SPACE = defaults.MIN_FREE_DISK_SPACE_DEFAULT // BYTES_PER_MB  # MB
 # Absolute cap on a single inbound file (--max-inbound-size); the same shared
 # default the client uses. 0 = disabled.

@@ -21,6 +21,7 @@ Ecosystem ADRs are SSOT in `hsync-common`
 disable unsupported controls) is realized in
 `engine.get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) + `SettingsDialog`
 ([settings.md](modules/settings.md)).
+| [0048 desktop-update-check](../../hsync-common/docs/internal/adr/0048-desktop-update-check.md) | `updates.py` resolves the newest tag from the pinned `releases/latest` redirect (never a download or an install); opt-in via `updates/check_enabled`, driven by `ActionsMixin.maybe_check_updates_on_startup`/`_check_for_updates` on `AsyncProbe` ([ui.md](modules/ui.md)) |
 
 ## Desktop-only rules
 

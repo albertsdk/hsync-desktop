@@ -275,6 +275,12 @@ def main(argv: list[str] | None = None) -> int:
     probe.finished.connect(_warn_on_mismatch)
     probe.start()
 
+    # Opt-in release check (ADR-0048). Skipped when the OS autostart entry
+    # launched the app straight into the tray: a dialog must never pop up over a
+    # background start.
+    if not start_minimized:
+        window.maybe_check_updates_on_startup()
+
     return app.exec()
 
 

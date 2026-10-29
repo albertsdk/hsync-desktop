@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 
 from hsync_common.endpoint import parse_host_port
@@ -88,8 +88,17 @@ from hsync_desktop.themes import (
 )
 from hsync_desktop.ui.loader import load_ui_widget
 
+if TYPE_CHECKING:
+    from hsync_desktop.engine.async_probe import AsyncProbe
+
 
 class ActionsMixin:
+    # Release update check (ADR-0048): the probe is created on first use, and
+    # ``manual`` records whether the in-flight result answers a Help-menu click
+    # or the opt-in startup check (the two render differently).
+    _update_probe: AsyncProbe | None
+    _update_manual: bool
+
     # Scoped Send/Receive target ``(subdir, direction)``; None when idle. Declared
     # here so the composed ``MainWindow`` shares the optional type.
     _pending_selection_sync: tuple[str, str] | None
@@ -489,6 +498,129 @@ class ActionsMixin:
         from hsync_desktop.license_dialog import LicenseDialog
 
         LicenseDialog(self).exec()
+
+    # ── Release update check (ADR-0048) ──────────────────────────────────
+
+    def maybe_check_updates_on_startup(self) -> None:
+        """Run the opt-in update check once per interval, off the UI thread.
+
+        Called once the window is up. It stays silent unless a newer release
+        exists and the operator has not dismissed that release, so an offline
+        machine, or one already up to date, sees nothing at all.
+        """
+        from hsync_desktop import updates
+
+        if not updates.should_check():
+            return
+        self._start_update_check(manual=False)
+
+    def _check_for_updates(self) -> None:
+        """Help → Check for Updates: probe the newest release off the UI thread."""
+        self._start_update_check(manual=True)
+
+    def _start_update_check(self, manual: bool) -> None:
+        """Start the release probe; the outcome is rendered by ``_on_update_checked``.
+
+        The HTTP call runs on ``AsyncProbe`` so the window never blocks on the
+        network. The QSettings write happens on the UI thread, in
+        ``_on_update_checked``: the worker only performs the request.
+        """
+        from hsync_desktop.engine.async_probe import AsyncProbe, ProbeOutcome
+        from hsync_desktop.updates import fetch_latest_version
+
+        if self._update_probe is None:
+            self._update_probe = AsyncProbe(self)
+            self._update_probe.done.connect(self._on_update_checked)
+        self._update_manual = manual
+
+        def job() -> ProbeOutcome:
+            latest = fetch_latest_version()
+            return ProbeOutcome(
+                ok=bool(latest),
+                value=latest or "",
+                reason="" if latest else "unreachable",
+            )
+
+        self._update_probe.start(job)
+
+    @Slot(object)
+    def _on_update_checked(self, outcome: object) -> None:
+        """Record the probe result and render it for the operator."""
+        from hsync_desktop import __version__, updates
+
+        value = str(getattr(outcome, "value", "") or "")
+        manual = self._update_manual
+        self._update_manual = False
+        updates.record_check(value or None)
+        if not value:
+            if manual:
+                QMessageBox.warning(
+                    self,
+                    tr("updates.check_failed_title"),
+                    tr("updates.check_failed_msg"),
+                )
+            return
+        if updates.is_newer(__version__, value):
+            if not manual and updates.is_dismissed(value):
+                return
+            self._offer_update(value, manual=manual)
+            return
+        if manual:
+            self._show_up_to_date(__version__)
+
+    def _offer_update(self, latest: str, *, manual: bool) -> None:
+        """Offer the newer release: open the release page, never run an artifact.
+
+        The app deliberately does not download or execute the update
+        (ADR-0048): Snap refreshes itself, the Windows installer upgrades in
+        place and ``.deb``/``.rpm`` belong to the system package manager, so the
+        dialog only routes the operator to the upgrade path they already use.
+        """
+        from hsync_desktop import __version__, updates
+        from hsync_desktop.docs_links import RELEASES, open_docs_link
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(tr("updates.dialog_title"))
+        box.setText(
+            tr("updates.available_msg")
+            .replace("{latest}", latest)
+            .replace("{current}", __version__)
+        )
+        download = box.addButton(tr("updates.download"), QMessageBox.ButtonRole.AcceptRole)
+        later = box.addButton(tr("updates.later"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(later)
+        if manual:
+            # A manual check is where the operator can turn the automatic one on.
+            opt_in = QCheckBox(tr("updates.check_at_startup"), box)
+            opt_in.setChecked(updates.is_enabled())
+            box.setCheckBox(opt_in)
+            box.exec()
+            updates.set_enabled(opt_in.isChecked())
+        else:
+            # The startup check only reminds once per release.
+            dismiss = QCheckBox(tr("updates.dont_remind"), box)
+            box.setCheckBox(dismiss)
+            box.exec()
+            if dismiss.isChecked():
+                updates.set_dismissed_version(latest)
+        if box.clickedButton() is download:
+            open_docs_link(RELEASES)
+
+    def _show_up_to_date(self, current: str) -> None:
+        """Report that the running build is the newest release."""
+        from hsync_desktop import updates
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(tr("updates.dialog_title"))
+        box.setText(tr("updates.up_to_date_msg").replace("{current}", current))
+        box.addButton(QMessageBox.StandardButton.Ok)
+        opt_in = QCheckBox(tr("updates.check_at_startup"), box)
+        opt_in.setChecked(updates.is_enabled())
+        box.setCheckBox(opt_in)
+        box.exec()
+        updates.set_enabled(opt_in.isChecked())
 
     # ── Signal wiring ────────────────────────────────────────────────────
 

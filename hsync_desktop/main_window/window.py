@@ -136,6 +136,11 @@ class MainWindow(
         # Bootnode/server fingerprint pre-flight (ADR-0035/0036): unknown hosts
         # are probed off the UI thread before the client starts.
         self._init_trust_preflight()
+        # Release update check (ADR-0048): the probe is created on first use and
+        # ``manual`` records whether the in-flight result answers a Help-menu
+        # click or the opt-in startup check (the two render differently).
+        self._update_probe = None
+        self._update_manual = False
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()

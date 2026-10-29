@@ -161,6 +161,24 @@ Application-wide preferences, grouped in three sections.
 **Show tooltips** and **Show log panel** toggle the option tooltips and the in-app
 log viewer.
 
+### Updates
+
+| Setting | Description |
+|---------|-------------|
+| Check for updates at startup | Off by default. When on, the app asks the release page once a day whether a newer version exists. The switch sits in the two update dialogs (Help → Check for Updates… and the startup reminder), where the choice is relevant |
+
+**Help → Check for Updates…** always works, whatever the setting: it asks the
+GitHub release page for the newest published version and answers with either the
+version you are running or the release you can download. The request needs no
+account, carries no identifier and is the only outbound request the app makes to
+a host other than your own sync server or peers.
+
+The app never downloads or installs the update itself: **Download** opens the
+release page, and the upgrade stays with the process your installation already
+uses — `snap refresh`, the Windows installer, `apt`/`dnf`, or a manual replace of
+the portable bundle. The startup reminder appears once per release; choosing not
+to be reminded again for that version silences it until the next one.
+
 Supported interface languages: English, Italian, German, Spanish, French,
 Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
 

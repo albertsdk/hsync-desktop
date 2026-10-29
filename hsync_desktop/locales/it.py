@@ -616,6 +616,17 @@ translations: dict[str, str] = {
     "help.connection_modes": "Guida alle modalità di connessione",
     "menu.help.github": "Progetto su GitHub",
     "menu.help.about": "Informazioni",
+    "menu.help.updates": "Verifica aggiornamenti…",
+    # Release update check (ADR-0048)
+    "updates.dialog_title": "Aggiornamento software",
+    "updates.available_msg": "HSYNC Desktop {latest} è disponibile. Stai usando {current}.",
+    "updates.up_to_date_msg": "HSYNC Desktop {current} è l'ultima versione.",
+    "updates.check_failed_title": "Verifica aggiornamenti non riuscita",
+    "updates.check_failed_msg": "Impossibile raggiungere il server delle release. Controlla la connessione.",
+    "updates.download": "Scarica",
+    "updates.later": "Più tardi",
+    "updates.check_at_startup": "Controlla gli aggiornamenti all'avvio",
+    "updates.dont_remind": "Non ricordarmelo per questa versione",
     "menu.help.license": "Licenza",
     "license.unavailable": "Testo della licenza non disponibile.",
     # Bandwidth dialog

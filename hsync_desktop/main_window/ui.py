@@ -397,6 +397,7 @@ class UiBuildMixin:
             self._menu_help.setTitle(tr("menu.help"))
             self._act_help_docs.setText(tr("menu.help.docs"))
             self._act_help_github.setText(tr("menu.help.github"))
+            self._act_help_updates.setText(tr("menu.help.updates"))
             self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
 
@@ -634,6 +635,10 @@ class UiBuildMixin:
         self._menu_help.addAction(self._act_help_github)
 
         self._menu_help.addSeparator()
+
+        self._act_help_updates = QAction(tr("menu.help.updates"), self)
+        self._act_help_updates.triggered.connect(self._check_for_updates)
+        self._menu_help.addAction(self._act_help_updates)
 
         self._act_help_license = QAction(tr("menu.help.license"), self)
         self._act_help_license.triggered.connect(self._show_license)

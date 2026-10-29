@@ -37,12 +37,18 @@ WATCHER_LIMITS = (
 # wizard's mode step and its "Not sure?" dialog deep-link through CONNECTION_MODES.
 DOCS_INDEX = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md"
 GITHUB_REPO = "https://github.com/albertsdk/hsync-desktop"
+RELEASES = "https://github.com/albertsdk/hsync-desktop/releases"
+# Redirect that resolves the newest release tag without the GitHub API rate
+# limit; ``updates.py`` reads the tag from the final URL.
+LATEST_RELEASE = "https://github.com/albertsdk/hsync-desktop/releases/latest"
 
 __all__ = [
     "BOOTNODE_SETUP",
     "CONNECTION_MODES",
     "DOCS_INDEX",
     "GITHUB_REPO",
+    "LATEST_RELEASE",
+    "RELEASES",
     "SERVER_SETUP",
     "TROUBLESHOOTING",
     "WATCHER_LIMITS",

@@ -639,6 +639,17 @@ translations: dict[str, str] = {
     "help.connection_modes": "连接模式指南",
     "menu.help.github": "GitHub 上的项目",
     "menu.help.about": "关于",
+    "menu.help.updates": "检查更新…",
+    # Release update check (ADR-0048)
+    "updates.dialog_title": "软件更新",
+    "updates.available_msg": "HSYNC Desktop {latest} 已可用。您当前使用的是 {current}。",
+    "updates.up_to_date_msg": "HSYNC Desktop {current} 已是最新版本。",
+    "updates.check_failed_title": "检查更新失败",
+    "updates.check_failed_msg": "无法连接到发布服务器。请检查网络连接后重试。",
+    "updates.download": "下载",
+    "updates.later": "稍后",
+    "updates.check_at_startup": "启动时检查更新",
+    "updates.dont_remind": "不再提示此版本",
     "menu.help.license": "许可证",
     "license.unavailable": "许可证文本不可用。",
     # Bandwidth dialog

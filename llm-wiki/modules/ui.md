@@ -936,6 +936,37 @@ ends (`main_window/events.py::EventsMixin._on_process_finished`), without
 reloading the file table. It is skipped while a full scan is already running.
 Sizes use `hsync_common.format.format_bytes`.
 
+## updates.py — Release update check (ADR-0048)
+
+`updates.py` answers one question — is a newer release published? — and never
+downloads or runs anything. `fetch_latest_version`
+(`updates.py::fetch_latest_version`) issues a `HEAD` to the pinned
+`releases/latest` redirect (`docs_links.LATEST_RELEASE`, guarded by
+`docs_links.is_allowed_docs_url`) and reads the tag from the final URL, so no
+GitHub API and no token are involved. `parse_version`/`is_newer`
+(`updates.py::parse_version`, `updates.py::is_newer`) compare dotted integers and
+drop `-rc`/`+build` suffixes; unparseable input is never reported as an update.
+
+State lives in `QSettings`: `updates/check_enabled` (opt-in, default
+`config.DEFAULT_UPDATE_CHECK` = off), `updates/last_check`,
+`updates/latest_version` and `updates/dismissed_version`. `should_check`
+(`updates.py::should_check`) gates the startup path on the flag and a 24 h
+interval; `record_check` (`updates.py::record_check`) writes the attempt time
+even when the request failed, so an offline machine retries tomorrow rather than
+on every launch.
+
+The UI wiring is `ActionsMixin` (`main_window/actions.py::
+ActionsMixin.maybe_check_updates_on_startup` and
+`main_window/actions.py::ActionsMixin._check_for_updates`): the first is called
+from `main.py::main` and skipped when autostart launched the app into the tray,
+the second is the Help-menu `menu.help.updates` action. Both run the blocking
+call on `AsyncProbe` (`engine/async_probe.py::AsyncProbe`) and render it in
+`_on_update_checked`: a failure is reported only for the manual path, a newer
+release opens `_offer_update` (Download → `docs_links.RELEASES`, the dismissed
+version is stored per release), an up-to-date result opens `_show_up_to_date`.
+Both manual dialogs carry the "check at startup" switch, which is the only place
+the opt-in is toggled.
+
 ## splash_screen.py — Splash / About
 
 `SplashScreen` (`splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and

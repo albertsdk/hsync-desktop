@@ -39,6 +39,9 @@ class ProbeOutcome:
     status: int | None = None
     fingerprint: str = ""
     reason: str = ""
+    #: Non-fingerprint payload a probe may report (e.g. the version found by the
+    #: release check); empty for probes that only enrich ``status``/``reason``.
+    value: str = ""
 
 
 class _Worker(QObject):
