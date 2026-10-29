@@ -296,7 +296,7 @@ NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
 
-**Rendezvous** (user-facing label **Rendezvous server**, translated in every
+**Rendezvous node** (user-facing label **Discovery server**, translated in every
 locale — `Server di individuazione`, `Erkennungsserver`, `Serveur de
 découverte`, … — `settings.p2p_rendezvous`):
 `p2p_rendezvous` (dynamic `QLineEdit` injected right after the

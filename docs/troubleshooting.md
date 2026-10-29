@@ -61,8 +61,8 @@ acknowledgement that silences the prompt and the control that brings it back.
   [Key concepts → Share](concepts.md#share).
 - The devices must be on the same network, with mDNS allowed through the
   firewall.
-- Devices on different networks need a **rendezvous server** set in the p2p tab.
-- If a rendezvous server is set but cannot be reached, the app warns you and keeps
+- Devices on different networks need a **discovery servers** set in the p2p tab.
+- If a discovery server is set but cannot be reached, the app warns you and keeps
   working on the local network — devices on this network are still found. The
   server only adds devices on *other* networks.
 - A shared password is only needed to authorize writes.

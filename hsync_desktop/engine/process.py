@@ -221,7 +221,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
-    # Cross-network rendezvous: the rendezvous servers travel through the
+    # Cross-network rendezvous: the discovery servers travel through the
     # environment as an ordered, comma-separated HOST[:PORT] list (exactly the
     # grammar of the client's option, so no argument plumbing is needed). UPnP
     # is sent explicitly so the user's choice wins over the plan default.

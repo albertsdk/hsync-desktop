@@ -6,7 +6,7 @@
 The endpoint grammar itself lives in ``hsync_common.endpoint`` (SSOT). This
 module fixes only the GUI's server default port and the probe's SSL policy, so
 the Settings dialog and the setup wizard interpret the "server address" and
-"rendezvous server" fields identically.
+"discovery servers" fields identically.
 """
 
 from __future__ import annotations

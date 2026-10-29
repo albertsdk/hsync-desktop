@@ -25,7 +25,7 @@ the main window appears. You can always reopen it later:
 | ------ | ----------- |
 | Back up my files | You want a copy of your files on a server. |
 | Sync devices on the same network | Your devices share a Wi-Fi/LAN and need no server. |
-| Sync devices from anywhere | The devices are on different networks (needs a rendezvous server address). |
+| Sync devices from anywhere | The devices are on different networks (needs a discovery server address). |
 | Share a folder with my team | Several people edit the same folder on a server. |
 
 Not sure? Use **Help me choose**: answer a few short questions (are you sharing
@@ -54,7 +54,7 @@ The fields depend on the purpose:
   available once the address and key are entered; its result appears right below
   the button (grey while checking, green on success, red on error).
 - *Same network* — a group name and a generated shared password.
-- *From anywhere* — the group and password plus a rendezvous server address;
+- *From anywhere* — the group and password plus a discovery server address;
   **Test connection** becomes available once the address is entered and shows its
   fingerprint below the button.
 
@@ -84,9 +84,9 @@ directly or copied with one click.
 
 <img src="assets/screens/20-wizard-invite.png" alt="The wizard success screen with the invite details and the copy action" width="640">
 
-If a rendezvous server's certificate was not saved during setup, the app asks for
+If a discovery server's certificate was not saved during setup, the app asks for
 confirmation the first time you connect (a one-time security check — see
-[Trust, fingerprints and identity checks](choose-trust.md)). A rendezvous server
+[Trust, fingerprints and identity checks](choose-trust.md)). A discovery servers
 that cannot be reached never blocks the sync: the app warns you and keeps working
 on the local network, and you can pin the server later from **Manage trusted
 servers & devices**.

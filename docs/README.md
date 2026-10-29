@@ -46,7 +46,7 @@ notifications. When something does not work at all, go to
 | [tour.md](tour.md) | A tour of the window, part by part. |
 | [first-sync.md](first-sync.md) | The guided path to a first sync. |
 | [setup-wizard.md](setup-wizard.md) | The guided four-step setup and its fields. |
-| [concepts.md](concepts.md) | The words the app uses (share, group, primary, rendezvous server, conflict copy). |
+| [concepts.md](concepts.md) | The words the app uses (share, group, primary, discovery servers, conflict copy). |
 | [choose-connection.md](choose-connection.md) | Server Mode vs p2p Mode, and which to pick. |
 | [choose-sync-type.md](choose-sync-type.md) | Send-only, receive-only, or both. |
 | [choose-deletion-policy.md](choose-deletion-policy.md) | Apply deletions (mirror) vs keep deleted files (backup). |

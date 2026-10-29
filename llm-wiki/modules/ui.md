@@ -381,7 +381,7 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
   `engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
   (`main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
   The run starts only from the `on_ready` continuation, so a refused host
-  abandons it — except for an **unreachable rendezvous server**: `_TrustCheck.kind`
+  abandons it — except for an **unreachable discovery servers**: `_TrustCheck.kind`
   distinguishes the two, and a rendezvous whose fingerprint cannot be read only
   warns (log + the client's own `rendezvous`/`unreachable` banner) and continues on
   the local network (ADR-0045), because that source is optional. The probe never
@@ -398,7 +398,7 @@ the `engine` subprocess helpers (never the store files directly): three tabs
 tab; the settings dialog passes the tab matching the panel that launched it.
 Tabs are filtered by the active mode
 (`trusted_keys.py::TrustedKeysDialog._apply_mode_tab_visibility`, reading
-`p2p/enabled`): p2p shows **Rendezvous servers** + **Devices** and hides the server
+`p2p/enabled`): p2p shows **Discovery servers** + **Devices** and hides the server
 store; Server Mode shows only **Server HSYNC** and hides the p2p stores. When
 `initial_tab` is hidden, the dialog falls back to the first visible page. The
 server tab is labelled **Server HSYNC** (`trusted_keys.tabs_servers`). The

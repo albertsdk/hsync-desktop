@@ -148,7 +148,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Mecanismo de sincronização não encontrado; não é possível verificar o servidor de descoberta.",
     "settings.test_rendezvous_success": "✓ Servidor de descoberta acessível\nFingerprint: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Servidor de descoberta inacessível. Verifique o endereço do servidor de descoberta e a sua rede.",
-    "settings.invalid_rendezvous_endpoint": "Endereço de servidor de descoberta inválido. Informe um endereço como boot.example.net ou boot.example.net:8443.",
+    "settings.invalid_rendezvous_endpoint": "Endereço de servidor de descoberta inválido. Informe um endereço como rdv.example.net ou rdv.example.net:8443.",
     # Settings sync
     "settings.bucket": "Nome do compartilhamento",
     "settings.watch": "Monitorar alterações (contínuo)",

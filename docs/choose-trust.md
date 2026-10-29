@@ -1,6 +1,6 @@
 # Trust, fingerprints and identity checks
 
-When HSYNC Desktop connects to another device, a rendezvous server or a sync
+When HSYNC Desktop connects to another device, a discovery server or a sync
 server, it first checks **that it is talking to the right one**. Each of them
 proves its identity with a certificate, and the app remembers the "fingerprint" of
 that certificate — a short code that uniquely names it. This page explains the
@@ -47,7 +47,7 @@ In **p2p Mode** the same idea applies to the device that becomes primary, throug
 default, **Accept automatically**, or **Require an explicit confirmation** (which
 waits for you to pin the fingerprint with **Confirm a primary device…**).
 
-The **rendezvous server** is optional, so its identity check never blocks a sync: if
+The **discovery server** is optional, so its identity check never blocks a sync: if
 it cannot be reached when a sync starts, the app warns you and keeps syncing on
 the local network, and it stops using the server until you pin its fingerprint.
 The **sync server** has no alternative path, so an unreachable or refused one keeps
@@ -58,7 +58,7 @@ the sync from starting.
 <img src="assets/screens/15-trusted-keys.png" alt="Manage trusted servers and devices dialog with tabs per mode" width="640">
 
 Open **Settings → p2p Mode → Manage trusted servers & devices…** (in Server Mode
-the dialog shows the **Server HSYNC** store). It lists the rendezvous servers, sync
+the dialog shows the **Server HSYNC** store). It lists the discovery servers, sync
 servers and devices whose fingerprints are stored, with the date they were added,
 and lets you add or remove entries. There is no separate setting: this dialog
 edits the same store the engine uses.

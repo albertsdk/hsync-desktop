@@ -295,7 +295,7 @@ class TestTestGating:
         page = wizard.connection_page
         page.set_mode(WizardMode.REMOTE_SYNC)
         assert not page.test_rendezvous_server.isEnabled()
-        page.rendezvous_server.setText("boot.example.net")
+        page.rendezvous_server.setText("rdv.example.net")
         assert page.test_rendezvous_server.isEnabled()
 
 
@@ -432,7 +432,7 @@ class TestProbeStatus:
         page.rendezvous_server_trust_box.setVisible(True)
         page.trust_save.setChecked(True)
         page._rendezvous_server_fingerprint = "AA:BB"
-        page.rendezvous_server.setText("boot.example.net")
+        page.rendezvous_server.setText("rdv.example.net")
         assert page.rendezvous_server_status.isHidden()
         assert page._rendezvous_server_fingerprint == ""
         assert page.rendezvous_server_trust_box.isHidden()
@@ -577,7 +577,7 @@ class TestLayoutImprovements:
     def test_connection_placeholders(self, wizard):
         page = wizard.connection_page
         assert page.server_url.placeholderText() == "https://hsync.example.com:9753"
-        assert page.rendezvous_server.placeholderText() == "boot.example.net"
+        assert page.rendezvous_server.placeholderText() == "rdv.example.net"
         assert page.bucket.placeholderText() == "my-share"
         assert page.group.placeholderText() == "my-devices"
 

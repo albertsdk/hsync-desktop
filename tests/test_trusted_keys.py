@@ -36,7 +36,7 @@ class TestTrustedKeysDialog:
             monkeypatch,
             rendezvouss=[
                 {
-                    "host": "boot.example.net",
+                    "host": "rdv.example.net",
                     "port": 443,
                     "fingerprint": "a" * 64,
                     "source": "cli",
@@ -47,7 +47,7 @@ class TestTrustedKeysDialog:
         dlg = TrustedKeysDialog()
         qtbot.addWidget(dlg)
         assert dlg._rendezvous_table.rowCount() == 1
-        assert dlg._rendezvous_table.item(0, 0).text() == "boot.example.net:443"
+        assert dlg._rendezvous_table.item(0, 0).text() == "rdv.example.net:443"
         assert dlg._rendezvous_table.item(0, 1).text() == "a" * 64
 
     def test_peer_list_is_populated(self, qtbot, monkeypatch):
@@ -86,7 +86,7 @@ class TestTrustedKeysDialog:
             monkeypatch,
             rendezvouss=[
                 {
-                    "host": "boot.example.net",
+                    "host": "rdv.example.net",
                     "port": 443,
                     "fingerprint": "a" * 64,
                     "source": "cli",
@@ -104,7 +104,7 @@ class TestTrustedKeysDialog:
         qtbot.addWidget(dlg)
         dlg._rendezvous_table.selectRow(0)
         dlg._remove_rendezvous()
-        assert removed == [("boot.example.net", 443)]
+        assert removed == [("rdv.example.net", 443)]
 
     def test_peer_add_rejects_an_invalid_fingerprint(self, qtbot, monkeypatch):
         _patch_store(monkeypatch)
@@ -259,7 +259,7 @@ class TestAddDialogButtons:
         dlg = _HostAddDialog(
             fetch_fingerprint=lambda *a, **k: None,
             add_trust=lambda *a, **k: False,
-            placeholder="boot.example.net:443",
+            placeholder="rdv.example.net:443",
         )
         qtbot.addWidget(dlg)
         self._assert_buttons(dlg)
@@ -282,7 +282,7 @@ class TestHostAddReadFromNode:
         dlg = _HostAddDialog(
             fetch_fingerprint=fetch,
             add_trust=lambda *a, **k: True,
-            placeholder="boot.example.net:443",
+            placeholder="rdv.example.net:443",
         )
         dlg._binary = "/fake/hsync"
         qtbot.addWidget(dlg)
@@ -291,7 +291,7 @@ class TestHostAddReadFromNode:
     def test_fills_the_field_with_the_fingerprint(self, qtbot):
         fingerprint = "sha256:" + "b" * 64
         dlg = self._dialog(qtbot, lambda *a, **k: fingerprint)
-        dlg.host_edit.setText("boot.example.net:443")
+        dlg.host_edit.setText("rdv.example.net:443")
         dlg._read_from_node()
         # Off the UI thread: the button reports the wait instead of freezing.
         assert not dlg.fetch_btn.isEnabled()
@@ -307,7 +307,7 @@ class TestHostAddReadFromNode:
             QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
         )
         dlg = self._dialog(qtbot, lambda *a, **k: None)
-        dlg.host_edit.setText("boot.example.net:443")
+        dlg.host_edit.setText("rdv.example.net:443")
         dlg._read_from_node()
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
         assert warned == [tr("trusted_keys.failed")]
@@ -348,7 +348,7 @@ class TestSourceLabel:
             monkeypatch,
             rendezvouss=[
                 {
-                    "host": "boot.example.net",
+                    "host": "rdv.example.net",
                     "port": 443,
                     "fingerprint": "a" * 64,
                     "source": "tofu",
@@ -390,7 +390,7 @@ class TestLocalTimeFormatting:
             monkeypatch,
             rendezvouss=[
                 {
-                    "host": "boot.example.net",
+                    "host": "rdv.example.net",
                     "port": 443,
                     "fingerprint": "a" * 64,
                     "source": "cli",

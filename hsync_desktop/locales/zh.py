@@ -148,7 +148,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "未找到同步引擎；无法验证发现服务器。",
     "settings.test_rendezvous_success": "✓ 发现服务器可访问\n指纹：{fingerprint}",
     "settings.test_rendezvous_failure": "✗ 无法访问发现服务器。请检查发现服务器地址和网络。",
-    "settings.invalid_rendezvous_endpoint": "发现服务器地址无效。请输入类似 boot.example.net 或 boot.example.net:8443 的地址。",
+    "settings.invalid_rendezvous_endpoint": "发现服务器地址无效。请输入类似 rdv.example.net 或 rdv.example.net:8443 的地址。",
     # Settings sync
     "settings.bucket": "共享名称",
     "settings.watch": "监视更改（持续）",

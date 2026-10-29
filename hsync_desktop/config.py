@@ -118,7 +118,7 @@ DEFAULT_P2P_RENDEZVOUS = ""
 # Passed via HSYNC_RENDEZVOUS_TRUST.
 DEFAULT_P2P_RENDEZVOUS_TRUST = "ask"
 # Map the master TCP port with UPnP when a rendezvous is used. Passed via
-# HSYNC_MAP_DATA_PORT; the client treats it as on only with a rendezvous server by
+# HSYNC_MAP_DATA_PORT; the client treats it as on only with a discovery server by
 # default.
 DEFAULT_P2P_UPNP_ENABLED = True
 # Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the

@@ -150,7 +150,7 @@ def apply_draft(
     server_mode = profile is not None and not profile.p2p_enabled
     if server_mode:
         s.setValue("p2p/enabled", False)
-        # Clear a stale rendezvous server so it cannot leak HSYNC_RENDEZVOUS_SERVER_ENDPOINTS into a server run.
+        # Clear a stale discovery servers so it cannot leak HSYNC_RENDEZVOUS_SERVER_ENDPOINTS into a server run.
         s.setValue("p2p/rendezvous_server_endpoints", "")
         s.setValue("connection/server_url", normalize_server_endpoint(draft.server_url) or "")
         s.setValue("connection/api_key", encrypt_value(draft.api_key) if draft.api_key else "")

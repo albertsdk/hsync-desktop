@@ -937,7 +937,7 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _rendezvous_probe_outcome(binary: str, endpoints: tuple) -> ProbeOutcome:
-        """Read every rendezvous server fingerprint, from the probe thread.
+        """Read every discovery servers fingerprint, from the probe thread.
 
         The field accepts a list, so the outcome reports one line per server and
         fails only when none answered: a partial outage is exactly what the

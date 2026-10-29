@@ -30,7 +30,7 @@ are **secondary**. **Prefer primary role** asks for that role and **Never become
 primary** removes the device from the election; the status bar shows the role once
 it is decided. (The engine's own log lines still say "master" for this role.)
 
-## Rendezvous server
+## Discovery server
 
 An optional helper (an **HSYNC Rendezvous**) that only lets devices on different
 networks find each other. It never carries or stores your files. With no rendezvous

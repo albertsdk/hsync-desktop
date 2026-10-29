@@ -138,7 +138,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Synchronisierungs-Engine nicht gefunden; der Erkennungsserver kann nicht geprüft werden.",
     "settings.test_rendezvous_success": "✓ Erkennungsserver erreichbar\nFingerabdruck: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Erkennungsserver nicht erreichbar. Prüfen Sie die Adresse des Erkennungsservers und Ihr Netzwerk.",
-    "settings.invalid_rendezvous_endpoint": "Ungültige Adresse des Erkennungsservers. Geben Sie eine Adresse wie boot.example.net oder boot.example.net:8443 ein.",
+    "settings.invalid_rendezvous_endpoint": "Ungültige Adresse des Erkennungsservers. Geben Sie eine Adresse wie rdv.example.net oder rdv.example.net:8443 ein.",
     "settings.bucket": "Freigabename",
     "settings.watch": "Änderungen überwachen (kontinuierlich)",
     "settings.resync": "Periodischer Vollabgleich",

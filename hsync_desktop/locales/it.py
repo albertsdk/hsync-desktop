@@ -138,7 +138,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Motore di sincronizzazione non trovato: impossibile verificare il server di individuazione.",
     "settings.test_rendezvous_success": "✓ Server di individuazione raggiungibile\nImpronta: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Server di individuazione non raggiungibile. Controlla l'indirizzo del server di individuazione e la tua rete.",
-    "settings.invalid_rendezvous_endpoint": "Indirizzo del server di individuazione non valido. Inserisci un indirizzo come boot.example.net o boot.example.net:8443.",
+    "settings.invalid_rendezvous_endpoint": "Indirizzo del server di individuazione non valido. Inserisci un indirizzo come rdv.example.net o rdv.example.net:8443.",
     "settings.bucket": "Nome condivisione",
     "settings.watch": "Monitora le modifiche (continuo)",
     "settings.resync": "Controllo completo periodico",

@@ -141,7 +141,7 @@ class TestRendezvousTestButton:
 
     def test_invalid_endpoint_warns(self, dialog, monkeypatch):
         warned = self._capture(monkeypatch, "warning")
-        dialog.p2p_rendezvous.setText("https://boot.example.net")
+        dialog.p2p_rendezvous.setText("https://rdv.example.net")
         dialog._on_test_rendezvous()
         assert warned == [tr("settings.invalid_rendezvous_endpoint")]
 
@@ -151,7 +151,7 @@ class TestRendezvousTestButton:
         warned = self._capture(monkeypatch, "warning")
         monkeypatch.setattr(dialog_mod, "find_hsync_binary", lambda: "/fake/hsync")
         monkeypatch.setattr(dialog_mod, "fetch_rendezvous_fingerprint", lambda *a, **k: None)
-        dialog.p2p_rendezvous.setText("boot.example.net")
+        dialog.p2p_rendezvous.setText("rdv.example.net")
         dialog._on_test_rendezvous()
         # The probe is off the UI thread: the button shows the busy state and the
         # window keeps running instead of freezing for the CLI timeout.
@@ -175,11 +175,11 @@ class TestRendezvousTestButton:
             return fingerprint
 
         monkeypatch.setattr(dialog_mod, "fetch_rendezvous_fingerprint", fake_probe)
-        dialog.p2p_rendezvous.setText("boot.example.net:443")
+        dialog.p2p_rendezvous.setText("rdv.example.net:443")
         dialog._on_test_rendezvous()
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
-        assert captured == {"binary": "/fake/hsync", "host": "boot.example.net", "port": 443}
-        report = f"✓ boot.example.net:443: {fingerprint}"
+        assert captured == {"binary": "/fake/hsync", "host": "rdv.example.net", "port": 443}
+        report = f"✓ rdv.example.net:443: {fingerprint}"
         assert infos == [tr("settings.test_rendezvous_success").replace("{fingerprint}", report)]
 
     def test_every_configured_server_is_probed(self, dialog, qtbot, monkeypatch):

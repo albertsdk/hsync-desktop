@@ -452,7 +452,7 @@ class TrustedKeysDialog(QDialog):
         dialog = _HostAddDialog(
             fetch_fingerprint=fetch_rendezvous_fingerprint,
             add_trust=add_rendezvous_trust,
-            placeholder="boot.example.net",
+            placeholder="rdv.example.net",
             parent=self,
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:

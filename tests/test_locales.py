@@ -98,10 +98,10 @@ class TestTerminologyConsistency:
 
     ALL = ALL_MODULES
 
-    # User-facing name of the `rdv/1` node in each locale. It is a rendezvous
+    # User-facing name of the `rdv/1` node in each locale. It is a discovery
     # service (it never relays file data), so "relay" and "rendezvous" are jargon.
     RENDEZVOUS_TERMS = {
-        "en": "rendezvous",
+        "en": "discovery",
         "it": "individuazione",
         "de": "erkennung",
         "fr": "découverte",
@@ -170,7 +170,7 @@ class TestTerminologyConsistency:
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
 
     def test_rendezvous_terms_avoid_relay_jargon(self):
-        """The rdv/1 node is a rendezvous server; the wording must never use a relay term."""
+        """The rdv/1 node is a discovery server; the wording must never use a relay term."""
         for module in self.ALL:
             name = module.__name__.rsplit(".", 1)[-1]
             term = self.RENDEZVOUS_TERMS[name]
@@ -181,7 +181,7 @@ class TestTerminologyConsistency:
                     assert token not in text, f"{module.__name__}:{key}: {token!r}"
 
     def test_device_finding_group_is_about_devices_only(self):
-        """The settings group names device finding, not the rendezvous server."""
+        """The settings group names device finding, not the discovery server."""
         for module in self.ALL:
             text = module.translations["settings.group.p2p_rendezvous"].lower()
             for token in self.RELAY_TOKENS:
@@ -530,8 +530,8 @@ class TestTabDescriptions:
                     assert token not in lowered, f"{module.__name__}:{key}"
 
     def test_p2p_description_names_the_rendezvous_server(self):
-        # The rendezvous-server option is the non-obvious part of the tab: every
-        # locale must call it a rendezvous service, never a relay or a rendezvous.
+        # The discovery-server option is the non-obvious part of the tab: every
+        # locale must call it a discovery service, never a relay or a rendezvous.
         for module in ALL_MODULES:
             code = module.__name__.rsplit(".", 1)[-1]
             lowered = module.translations["settings.p2p.description"].lower()

@@ -256,7 +256,7 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     # Dynamic, no .ui counterpart; inserted right after the group row.
     dlg.p2p_rendezvous = QLineEdit(dlg)
     dlg.p2p_rendezvous.setObjectName("p2pRendezvous")
-    dlg.p2p_rendezvous.setPlaceholderText("boot.example.net")
+    dlg.p2p_rendezvous.setPlaceholderText("rdv.example.net")
     dlg._lbl_p2p_rendezvous = QLabel(dlg)
     _insert_row_after(dlg.p2p_group, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
 

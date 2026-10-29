@@ -138,7 +138,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Moteur de synchronisation introuvable ; impossible de vérifier le serveur de découverte.",
     "settings.test_rendezvous_success": "✓ Serveur de découverte joignable\nEmpreinte : {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Serveur de découverte injoignable. Vérifiez l'adresse du serveur de découverte et votre réseau.",
-    "settings.invalid_rendezvous_endpoint": "Adresse de serveur de découverte non valide. Saisissez une adresse comme boot.example.net ou boot.example.net:8443.",
+    "settings.invalid_rendezvous_endpoint": "Adresse de serveur de découverte non valide. Saisissez une adresse comme rdv.example.net ou rdv.example.net:8443.",
     "settings.bucket": "Nom du partage",
     "settings.watch": "Surveiller les modifications (continu)",
     "settings.resync": "Vérification complète périodique",

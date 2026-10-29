@@ -165,7 +165,7 @@ class ConnectionPage(WizardPage):
         network_form.addRow(*self._row("p2p_key", "wizard.connection.password", self.password))
 
         self.rendezvous_server = QLineEdit()
-        self.rendezvous_server.setPlaceholderText("boot.example.net")
+        self.rendezvous_server.setPlaceholderText("rdv.example.net")
         self.rendezvous_server.textChanged.connect(self._on_edit)
         self.rendezvous_server.textChanged.connect(self._on_rendezvous_server_edited)
         network_form.addRow(

@@ -59,7 +59,7 @@ class TestServerModeMapping:
         assert store.value("advanced/autotune", True, bool) is False
 
     def test_stale_rendezvous_server_cleared_in_server_mode(self, store):
-        store.setValue("p2p/rendezvous_server_endpoints", "old.boot.example.net")
+        store.setValue("p2p/rendezvous_server_endpoints", "old.rdv.example.net")
         apply_draft(store, WizardDraft(mode=WizardMode.BACKUP, bucket="b"))
         assert store.value("p2p/rendezvous_server_endpoints", "x", str) == ""
 
@@ -77,7 +77,7 @@ class TestServerModeMapping:
 
 class TestP2pModeMapping:
     def test_lan_clears_rendezvous_server_and_disables_server_fields(self, store):
-        store.setValue("p2p/rendezvous_server_endpoints", "old.boot.example.net")
+        store.setValue("p2p/rendezvous_server_endpoints", "old.rdv.example.net")
         draft = WizardDraft(
             mode=WizardMode.LAN_SYNC,
             bucket="data",
@@ -111,7 +111,7 @@ class TestTrustPinning:
             bucket="data",
             p2p_group="grp",
             p2p_key="pw",
-            rendezvous_server="boot.example.net",
+            rendezvous_server="rdv.example.net",
             rendezvous_server_fingerprint="AA:BB",
             rendezvous_server_pin=True,
         )
@@ -143,7 +143,7 @@ class TestTrustPinning:
         draft = self._draft()
         draft.rendezvous_server_fingerprint = ""
         assert apply_draft(store, draft).pin_error == ""
-        assert captured == {"host": "boot.example.net", "fingerprint": "CC:DD", "port": 443}
+        assert captured == {"host": "rdv.example.net", "fingerprint": "CC:DD", "port": 443}
 
     def test_skip_pinning(self, store, monkeypatch):
         monkeypatch.setattr(apply_mod, "find_hsync_binary", lambda: None)

@@ -68,7 +68,7 @@ and the returned mode so the two can never disagree.
 - **Free space** is rendered with `hsync_common.format.format_bytes`
   (`FolderCheck.free_bytes`).
 - **Test buttons** sit above their own result line and stay disabled until the
-  required inputs are present (server: address + key; rendezvous server: address);
+  required inputs are present (server: address + key; discovery servers: address);
   `ConnectionPage._update_test_enabled`. The result is a dedicated form row
   below the button (a long error can never overlap it), reported via
   `ConnectionPage._set_status` (grey "checking…" / green success / red error;
@@ -79,7 +79,7 @@ and the returned mode so the two can never disagree.
 - **Tooltips and placeholders**: every connection field and automation switch
   has a short explanation (`wizard.tip.*`) without changing the visible labels;
   the text fields show language-neutral example placeholders. The rendezvous-server
-  field is labelled "Rendezvous server address".
+  field is labelled "Discovery servers address".
 - **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
   as plain `QFormLayout` fields (`widgets/forms.py::add_row`), so the automation
   block shares the same two columns and caption/control distance as the fields
@@ -108,7 +108,7 @@ and the returned mode so the two can never disagree.
   `selected` dynamic property; `themes.py` draws the border/background state
   (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
   without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
-  `network-p2p` (local peers), `network-cloud` (rendezvous server/anywhere), `people`
+  `network-p2p` (local peers), `network-cloud` (discovery servers/anywhere), `people`
   (team share). The caption is word-wrapped, and a wrapped ``QLabel`` reports one
   line as its minimum height: `RadioCard._sync_description_height` pins it to
   ``heightForWidth(width)`` (on resize and re-translation) so a short window
@@ -131,7 +131,7 @@ and the returned mode so the two can never disagree.
   value Settings shows as **Sync Type → Receive only (from other devices)**.
 - **Review**: sections are separated by rules and the "Checks" section reflects
   the last real probe (`server_verified`/`rendezvous_server_verified` in the draft, rendered
-  as a localised time or the rendezvous server fingerprint); editing a section's
+  as a localised time or the discovery servers fingerprint); editing a section's
   fields clears it. `_set_step` reloads the page on entry, because the summaries
   are rendered from the draft (a stale review used to keep the previous
   direction). The page writes its own ``label: value`` separator over the
@@ -186,7 +186,7 @@ bump discards a stale draft. On finish the draft is cleared and
 
 ## Trust
 
-Rendezvous server and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
+Discovery servers and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
 writes the fingerprint to the client known-hosts store, "Ask on first start"
 leaves the existing first-start pre-flight (`main_window/trust.py`) to confirm.
 Never `strict`/`accept-new`.

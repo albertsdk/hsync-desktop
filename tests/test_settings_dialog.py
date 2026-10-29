@@ -360,7 +360,7 @@ class TestEndpointNormalization:
 
     def test_rendezvous_rejects_scheme(self, dialog):
 
-        dialog.p2p_rendezvous.setText("https://boot.example.net")
+        dialog.p2p_rendezvous.setText("https://rdv.example.net")
         with pytest.raises(ValueError):
             dialog._normalize_rendezvous_server_endpoints()
 

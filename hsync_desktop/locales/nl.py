@@ -148,7 +148,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Synchronisatie-engine niet gevonden; de detectieserver kan niet worden geverifieerd.",
     "settings.test_rendezvous_success": "✓ Detectieserver bereikbaar\nVingerafdruk: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Detectieserver niet bereikbaar. Controleer het adres van de detectieserver en uw netwerk.",
-    "settings.invalid_rendezvous_endpoint": "Ongeldig adres van detectieserver. Voer een adres in zoals boot.example.net of boot.example.net:8443.",
+    "settings.invalid_rendezvous_endpoint": "Ongeldig adres van detectieserver. Voer een adres in zoals rdv.example.net of rdv.example.net:8443.",
     # Settings sync
     "settings.bucket": "Naam van share",
     "settings.watch": "Wijzigingen volgen (continu)",

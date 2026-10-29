@@ -483,13 +483,13 @@ class TestApplySettingsEnv:
 
     def test_rendezvous_inserted_with_upnp_choice(self):
         env = self._env_with(
-            {"p2p/rendezvous_server_endpoints": "boot.example.net", "p2p/upnp_enabled": False}
+            {"p2p/rendezvous_server_endpoints": "rdv.example.net", "p2p/upnp_enabled": False}
         )
-        assert env.value("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS") == "boot.example.net"
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS") == "rdv.example.net"
         assert env.value("HSYNC_MAP_DATA_PORT") == "false"
 
     def test_rendezvous_defaults_upnp_on(self):
-        env = self._env_with({"p2p/rendezvous_server_endpoints": "boot.example.net"})
+        env = self._env_with({"p2p/rendezvous_server_endpoints": "rdv.example.net"})
         assert env.value("HSYNC_MAP_DATA_PORT") == "true"
 
     def test_rendezvous_blank_is_skipped(self):
@@ -498,7 +498,7 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_MAP_DATA_PORT")
 
     def test_rendezvous_trust_defaults_to_ask(self):
-        env = self._env_with({"p2p/rendezvous_server_endpoints": "boot.example.net"})
+        env = self._env_with({"p2p/rendezvous_server_endpoints": "rdv.example.net"})
         assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "ask"
 
     def test_server_trust_policy_is_exported(self):
@@ -525,7 +525,7 @@ class TestApplySettingsEnv:
         # var: a stale HSYNC_RENDEZVOUS_SERVER_FINGERPRINTS setting must not be sent.
         env = self._env_with(
             {
-                "p2p/rendezvous_server_endpoints": "boot.example.net",
+                "p2p/rendezvous_server_endpoints": "rdv.example.net",
                 "p2p/rendezvous_server_fingerprints": "sha256:" + "0" * 64,
                 "p2p/rendezvous_server_trust": "strict",
             }
@@ -595,10 +595,10 @@ class TestHandleEvent:
     def test_rendezvous_event(self, engine):
         out = _capture(engine.rendezvous_changed)
         engine._handle_event(
-            build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="boot.example.net")
+            build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="rdv.example.net")
         )
         engine._handle_event(build_event(UiEventName.rendezvous, plan="mdns"))
-        assert out == [("rendezvous", "boot.example.net"), ("mdns", "")]
+        assert out == [("rendezvous", "rdv.example.net"), ("mdns", "")]
 
     def test_bucket_and_group_events(self, engine):
         buckets = _capture(engine.bucket_detected)
@@ -848,11 +848,11 @@ class TestHandleEvent:
             build_event(
                 UiEventName.fingerprint_changed,
                 scope="rendezvous",
-                peer_address="boot.example.net:443",
+                peer_address="rdv.example.net:443",
                 fingerprint="b" * 64,
             )
         )
-        assert out == [("rendezvous", "", "boot.example.net:443", "b" * 64)]
+        assert out == [("rendezvous", "", "rdv.example.net:443", "b" * 64)]
 
     def test_unknown_event_is_ignored(self, engine):
         # Should not raise and should emit nothing observable.

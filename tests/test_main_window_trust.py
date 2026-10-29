@@ -24,7 +24,7 @@ class TestEnsureRendezvousTrust:
         _patch_all(
             monkeypatch,
             "list_rendezvous_trust",
-            lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
+            lambda binary: [{"host": "rdv.example.net", "port": 443, "fingerprint": "f" * 64}],
         )
         fetched: list[tuple] = []
         _patch_all(
@@ -59,8 +59,8 @@ class TestEnsureRendezvousTrust:
         qtbot.waitUntil(lambda: bool(started), timeout=5000)
         # The client dials 443 (bare HSYNC_RENDEZVOUS_SERVER_ENDPOINTS): the p2p listen port must
         # never be passed to the rendezvous trust commands.
-        assert fetched[0][1:] == ("boot.example.net", 443)
-        assert added == [("boot.example.net", 443)]
+        assert fetched[0][1:] == ("rdv.example.net", 443)
+        assert added == [("rdv.example.net", 443)]
 
     def test_aborts_when_the_user_declines(self, window, qtbot, monkeypatch):
 
@@ -78,7 +78,7 @@ class TestEnsureRendezvousTrust:
         assert started == []
 
     def test_unreachable_host_continues_on_the_local_network(self, window, qtbot, monkeypatch):
-        """An unreachable rendezvous server degrades the run, never cancels it.
+        """An unreachable discovery servers degrades the run, never cancels it.
 
         Regression: the pre-flight abandoned every start when the configured
         rendezvous could not be probed, so a desktop client with a stale rendezvous
@@ -98,9 +98,9 @@ class TestEnsureRendezvousTrust:
         started: list[int] = []
         self._run(window, started)
         qtbot.waitUntil(lambda: bool(started), timeout=5000)
-        assert started == [1], "the run must continue without the rendezvous server"
+        assert started == [1], "the run must continue without the discovery server"
         assert warned == []
-        assert logged and "boot.example.net" in logged[0][1]
+        assert logged and "rdv.example.net" in logged[0][1]
 
     def test_a_second_request_while_probing_is_ignored(self, window, qtbot, monkeypatch):
 
@@ -126,8 +126,8 @@ class TestTrustDialogs:
             "add_rendezvous_trust",
             lambda binary, host, fingerprint, port=None: added.append((host, port)) or True,
         )
-        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
-        assert added == [("boot.example.net", 443)]
+        window._on_fingerprint_changed("rendezvous", "", "rdv.example.net:443", "a" * 64)
+        assert added == [("rdv.example.net", 443)]
 
     def test_rendezvous_changed_forget_removes(self, window, monkeypatch):
 
@@ -138,8 +138,8 @@ class TestTrustDialogs:
             "remove_rendezvous_trust",
             lambda binary, host, port=None: removed.append((host, port)) or True,
         )
-        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
-        assert removed == [("boot.example.net", 443)]
+        window._on_fingerprint_changed("rendezvous", "", "rdv.example.net:443", "a" * 64)
+        assert removed == [("rdv.example.net", 443)]
 
     def test_rendezvous_changed_dismiss_leaves_the_pin(self, window, monkeypatch):
         # Regression: dismissing the dialog (window close → no clicked button)
@@ -153,7 +153,7 @@ class TestTrustDialogs:
         _patch_all(
             monkeypatch, "remove_rendezvous_trust", lambda *a, **k: touched.append("remove") or True
         )
-        window._on_fingerprint_changed("rendezvous", "", "boot.example.net:443", "a" * 64)
+        window._on_fingerprint_changed("rendezvous", "", "rdv.example.net:443", "a" * 64)
         assert touched == []
 
     def test_master_pairing_trust_pins_the_peer(self, window, monkeypatch):
@@ -196,7 +196,7 @@ class TestEnsureServerTrust:
         _patch_all(
             monkeypatch,
             "list_rendezvous_trust",
-            lambda binary: [{"host": "boot.example.net", "port": 443, "fingerprint": "f" * 64}],
+            lambda binary: [{"host": "rdv.example.net", "port": 443, "fingerprint": "f" * 64}],
         )
         _patch_all(monkeypatch, "list_server_trust", lambda binary: pytest.fail("must not probe"))
         started: list[int] = []
@@ -241,7 +241,7 @@ class TestEnsureServerTrust:
     def test_unreachable_server_warns_and_aborts(self, window, qtbot, settings, monkeypatch):
         """The sync server is mandatory: a dead one still cancels the run.
 
-        Only the optional rendezvous server degrades; server mode has no
+        Only the optional discovery servers degrades; server mode has no
         alternative path, so a refused or unreachable server keeps the run from
         starting instead of syncing nothing.
         """

@@ -148,7 +148,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "同期エンジンが見つかりません。探索サーバーを検証できません。",
     "settings.test_rendezvous_success": "✓ 探索サーバーに到達可能\nフィンガープリント：{fingerprint}",
     "settings.test_rendezvous_failure": "✗ 探索サーバーに到達できません。探索サーバーのアドレスとネットワークを確認してください。",
-    "settings.invalid_rendezvous_endpoint": "無効な探索サーバーアドレスです。boot.example.net や boot.example.net:8443 のようなアドレスを入力してください。",
+    "settings.invalid_rendezvous_endpoint": "無効な探索サーバーアドレスです。rdv.example.net や rdv.example.net:8443 のようなアドレスを入力してください。",
     # Settings sync
     "settings.bucket": "共有名",
     "settings.watch": "変更を監視（継続的）",

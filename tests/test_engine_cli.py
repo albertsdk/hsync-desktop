@@ -362,13 +362,13 @@ class TestFetchRendezvousFingerprint:
             return types.SimpleNamespace(returncode=0, stdout="noise line\nsha256:abc\n")
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
-        assert fetch_rendezvous_fingerprint("/bin/hsync", "boot.example.net") == "sha256:abc"
+        assert fetch_rendezvous_fingerprint("/bin/hsync", "rdv.example.net") == "sha256:abc"
         assert calls["args"] == [
             "/bin/hsync",
             "trust",
             "rendezvous-server",
             "fingerprint",
-            "boot.example.net",
+            "rdv.example.net",
         ]
 
     def test_passes_the_port_when_given(self, monkeypatch):
@@ -381,8 +381,8 @@ class TestFetchRendezvousFingerprint:
             return types.SimpleNamespace(returncode=0, stdout="sha256:abc\n")
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
-        fetch_rendezvous_fingerprint("/bin/hsync", "boot.example.net", 1443)
-        assert calls["args"][-1] == "boot.example.net:1443"
+        fetch_rendezvous_fingerprint("/bin/hsync", "rdv.example.net", 1443)
+        assert calls["args"][-1] == "rdv.example.net:1443"
 
     def test_returns_none_on_failure_or_empty_output(self, monkeypatch):
         import types

@@ -148,7 +148,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_no_binary": "Nie znaleziono silnika synchronizacji; nie można zweryfikować serwera wykrywania.",
     "settings.test_rendezvous_success": "✓ Serwer wykrywania osiągalny\nOdcisk: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Serwer wykrywania nieosiągalny. Sprawdź adres serwera wykrywania i sieć.",
-    "settings.invalid_rendezvous_endpoint": "Nieprawidłowy adres serwera wykrywania. Wprowadź adres taki jak boot.example.net lub boot.example.net:8443.",
+    "settings.invalid_rendezvous_endpoint": "Nieprawidłowy adres serwera wykrywania. Wprowadź adres taki jak rdv.example.net lub rdv.example.net:8443.",
     # Settings sync
     "settings.bucket": "Nazwa udziału",
     "settings.watch": "Śledź zmiany (ciągle)",

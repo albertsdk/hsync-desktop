@@ -96,7 +96,7 @@ class _TrustCheck:
     ``fetch_fn`` is the blocking fingerprint probe (a client CLI call): it only
     ever runs on the ``AsyncProbe`` thread; ``add_fn`` writes the confirmed pin.
     ``kind`` is the host class (``"rendezvous"`` or ``"server"``): only the sync
-    server is mandatory for a run, so an unreachable rendezvous server degrades
+    server is mandatory for a run, so an unreachable discovery servers degrades
     the run instead of cancelling it.
     """
 
@@ -153,7 +153,7 @@ class TrustMixin:
         the engine helpers; ``master`` pins a P2P peer and is handled separately.
         """
         if scope == "rendezvous":
-            return add_rendezvous_trust, remove_rendezvous_trust, "Rendezvous server"
+            return add_rendezvous_trust, remove_rendezvous_trust, "Discovery servers"
         if scope == "server":
             return add_server_trust, remove_server_trust, "Server"
         return None
@@ -528,14 +528,14 @@ class TrustMixin:
         fingerprint = outcome.fingerprint if isinstance(outcome, ProbeOutcome) else ""
         if not fingerprint:
             if check.kind == "rendezvous":
-                # The rendezvous server is an optional cross-network source: an
+                # The discovery server is an optional cross-network source: an
                 # unreachable node degrades the run to local-network rendezvous
                 # instead of cancelling it. The client retries the node on its
                 # own and, once it answers, reports the unpinned identity through
                 # ``pairing_needed`` (scope ``rendezvous``), which re-prompts here.
                 self._append_desktop_log(
                     "WARNING",
-                    f"Rendezvous server {check.host}:{check.port} is not reachable: "
+                    f"Discovery servers {check.host}:{check.port} is not reachable: "
                     "devices are discovered on the local network only. Pin its "
                     "fingerprint (Manage trusted servers & devices) to use it.",
                 )
