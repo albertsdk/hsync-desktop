@@ -500,7 +500,7 @@ being silently re-applied; an invalid non-empty value also falls back to
 
 > Any new flag here must mirror an option the client actually exposes
 > (`hsync-client` [cli-config.md](../../../hsync-client/llm-wiki/modules/cli-config.md))
-> and, if it is an `HSYNC_*`/behavior change, the `hsync-client/packaging/wd-os5` web UI.
+> and, if it is an `HSYNC_*`/behavior change, the WD OS5 web UI in `hsync-wd-os5`.
 
 ## crypto.py — secrets at rest
 
