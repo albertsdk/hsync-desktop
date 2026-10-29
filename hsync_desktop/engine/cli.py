@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNC_VERSION as _EXPECTED_VERSION
+from hsync_common.endpoint import format_authority
 from hsync_common.protocol.capabilities import (
     CapabilitiesDoc,
     parse_capabilities,
@@ -79,29 +80,30 @@ def _run_hsync_line(binary: str, args: list[str], timeout: float = 15.0) -> str 
     return lines[-1] if lines else None
 
 
-def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
-    """Read a bootnode certificate fingerprint without trusting it (ADR-0035).
+def _endpoint_arg(host: str, port: int | None) -> str:
+    """``HOST[:PORT]`` for a client trust subcommand (the port is part of it)."""
+    return format_authority(host, port) if port else host
 
-    Runs ``hsync trust bootnode fingerprint <host> [--port <port>]`` with a bounded
+
+def fetch_bootnode_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
+    """Read a discovery-server certificate fingerprint without trusting it (ADR-0035).
+
+    Runs ``hsync trust discovery-server fingerprint HOST[:PORT]`` with a bounded
     timeout and returns the canonical fingerprint, or ``None`` when the node cannot
     be reached. Used by the GUI pre-flight so the operator can confirm an unknown
     node before the client is started.
     """
-    args = ["trust", "bootnode", "fingerprint", host]
-    if port:
-        args += ["--port", str(port)]
-    return _run_hsync_line(binary, args)
+    return _run_hsync_line(
+        binary, ["trust", "discovery-server", "fingerprint", _endpoint_arg(host, port)]
+    )
 
 
 def fetch_server_fingerprint(binary: str, host: str, port: int | None = None) -> str | None:
     """Read a sync-server certificate fingerprint without trusting it (ADR-0036).
 
-    Runs ``hsync trust server fingerprint <host> [--port <port>]`` (raw TLS probe).
+    Runs ``hsync trust server fingerprint HOST[:PORT]`` (raw TLS probe).
     """
-    args = ["trust", "server", "fingerprint", host]
-    if port:
-        args += ["--port", str(port)]
-    return _run_hsync_line(binary, args)
+    return _run_hsync_line(binary, ["trust", "server", "fingerprint", _endpoint_arg(host, port)])
 
 
 def _run_hsync_success(binary: str, args: list[str], timeout: float = 15.0) -> bool:
@@ -128,26 +130,25 @@ def _only_dict_entries(payload: object) -> list[dict] | None:
     return [entry for entry in payload if isinstance(entry, dict)]
 
 
-def _port_args(port: int | None) -> list[str]:
-    """The ``[--port PORT]`` tail shared by the host trust subcommands."""
-    return ["--port", str(port)] if port else []
-
-
 def list_bootnode_trust(binary: str) -> list[dict] | None:
-    """Return the bootnode known-hosts entries (``hsync trust bootnode list --json``)."""
-    return _only_dict_entries(_run_hsync_json(binary, ["trust", "bootnode", "list", "--json"]))
+    """Return the discovery-server entries (``hsync trust discovery-server list --json``)."""
+    return _only_dict_entries(
+        _run_hsync_json(binary, ["trust", "discovery-server", "list", "--json"])
+    )
 
 
 def add_bootnode_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
-    """Pin a bootnode fingerprint (``hsync trust bootnode add``); True on success."""
+    """Pin a discovery-server fingerprint; True on success."""
     return _run_hsync_success(
-        binary, ["trust", "bootnode", "add", host, fingerprint, *_port_args(port)]
+        binary, ["trust", "discovery-server", "add", _endpoint_arg(host, port), fingerprint]
     )
 
 
 def remove_bootnode_trust(binary: str, host: str, port: int | None = None) -> bool:
-    """Forget a bootnode pin (``hsync trust bootnode remove``); True on success."""
-    return _run_hsync_success(binary, ["trust", "bootnode", "remove", host, *_port_args(port)])
+    """Forget a discovery-server pin; True on success."""
+    return _run_hsync_success(
+        binary, ["trust", "discovery-server", "remove", _endpoint_arg(host, port)]
+    )
 
 
 def list_peer_pins(binary: str) -> list[dict] | None:
@@ -173,15 +174,15 @@ def list_server_trust(binary: str) -> list[dict] | None:
 
 
 def add_server_trust(binary: str, host: str, fingerprint: str, port: int | None = None) -> bool:
-    """Pin a sync-server fingerprint (``hsync trust server add``); True on success."""
+    """Pin a sync-server fingerprint; True on success."""
     return _run_hsync_success(
-        binary, ["trust", "server", "add", host, fingerprint, *_port_args(port)]
+        binary, ["trust", "server", "add", _endpoint_arg(host, port), fingerprint]
     )
 
 
 def remove_server_trust(binary: str, host: str, port: int | None = None) -> bool:
-    """Forget a sync-server pin (``hsync trust server remove``); True on success."""
-    return _run_hsync_success(binary, ["trust", "server", "remove", host, *_port_args(port)])
+    """Forget a sync-server pin; True on success."""
+    return _run_hsync_success(binary, ["trust", "server", "remove", _endpoint_arg(host, port)])
 
 
 def supports_peer_trust(binary: str | None = None) -> bool:

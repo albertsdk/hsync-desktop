@@ -30,8 +30,8 @@ def _patch_all(monkeypatch, name: str, value) -> None:
 def _settings(tmp_path) -> QSettings:
     s = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
     s.setValue("p2p/enabled", True)
-    s.setValue("p2p/bootnode", "boot.example.net")
-    s.setValue("p2p/bootnode_trust", "ask")
+    s.setValue("p2p/discovery_server_endpoints", "boot.example.net")
+    s.setValue("p2p/discovery_server_trust", "ask")
     return s
 
 

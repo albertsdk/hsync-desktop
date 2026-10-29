@@ -150,7 +150,7 @@ def _append_target_args(args: list[str], s: QSettings, local_path: str) -> None:
 def _append_connection_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
     """Append the server connection flags and the shared HTTP timeout."""
     # Connection (server subcommand only). The server endpoint travels on the
-    # environment channel (engine.apply_settings_env exports HSYNC_SERVER from
+    # environment channel (engine.apply_settings_env exports HSYNC_SERVER_URL from
     # the same setting): the client CLI takes the bare host + --port and has no
     # URL flag, so the validated full URL is passed unchanged via env.
     if not p2p_enabled:

@@ -16,8 +16,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from hsync_common.constants import HSYNCIGNORE_FILENAME
-from hsync_common.endpoint import parse_host_port
+from hsync_common.constants import BOOT_DEFAULT_PORT, HSYNCIGNORE_FILENAME
+from hsync_common.endpoint import format_authority, parse_endpoint_list, parse_host_port
 from hsync_common.protocol.boot_tokens import (
     WeakGroupPassphrase,
     validate_group_passphrase,
@@ -114,7 +114,7 @@ from hsync_desktop.engine import (
     fetch_bootnode_fingerprint,
     find_hsync_binary,
     get_binary_capabilities_cached,
-    normalize_bootnode_endpoint,
+    normalize_discovery_server_endpoints,
     normalize_server_endpoint,
     p2p_secret_mode,
     probe_server_health,
@@ -448,7 +448,7 @@ class SettingsDialog(QDialog):
             ("--prefer-master", self.prefer_master, self._lbl_prefer_master),
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--p2p-trust", self.p2p_trust, self._lbl_p2p_trust),
-            ("--upnp", self.p2p_upnp, self._lbl_p2p_upnp),
+            ("--map-data-port", self.p2p_upnp, self._lbl_p2p_upnp),
         ]
         for flag, widget, label in gated:
             if p2p_supported and supports_cli_option(doc, flag, subcommand="p2p"):
@@ -460,9 +460,9 @@ class SettingsDialog(QDialog):
             widget.setEnabled(False)
             label.setEnabled(False)
             _set_field_tooltip(widget, tr("tip.capability_unsupported"))
-        # The bootnode host field belongs to the bootnode discovery plan: gate it
-        # on its ``--port`` flag (the positional is not in cli_options).
-        if not (p2p_supported and supports_cli_option(doc, "--port", subcommand="p2p")):
+        # The discovery-server field belongs to the cross-network plan: gate it
+        # on the client's ``--discovery-server`` option.
+        if not (p2p_supported and supports_cli_option(doc, "--discovery-server", subcommand="p2p")):
             self._unsupported_widgets.add(self.p2p_bootnode)
             self._unsupported_labels.add(self._lbl_p2p_bootnode)
             self.p2p_bootnode.setEnabled(False)
@@ -841,15 +841,15 @@ class SettingsDialog(QDialog):
     def _normalize_server_endpoint(self) -> str | None:
         """Canonicalize the server field, or raise ``ValueError``.
 
-        Accepts the same forms as ``HSYNC_SERVER`` (bare ``host``/``host:port``/
+        Accepts the same forms as ``HSYNC_SERVER_URL`` (bare ``host``/``host:port``/
         ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
         canonical HTTPS URL so ``_ensure_trust``/``urlsplit`` keep working.
         """
         return normalize_server_endpoint(self.server_url.text())
 
-    def _normalize_bootnode_endpoint(self) -> str | None:
-        """Canonicalize the bootnode field, or raise ``ValueError``."""
-        return normalize_bootnode_endpoint(self.p2p_bootnode.text())
+    def _normalize_discovery_server_endpoints(self) -> str | None:
+        """Canonicalize the discovery-server field, or raise ``ValueError``."""
+        return normalize_discovery_server_endpoints(self.p2p_bootnode.text())
 
     def _on_test_connection(self) -> None:
         """Test the server connection by calling the /health endpoint."""
@@ -897,7 +897,7 @@ class SettingsDialog(QDialog):
             )
             return
         try:
-            endpoint = parse_host_port(raw)
+            endpoints = parse_endpoint_list(raw, strict=True, default_port=BOOT_DEFAULT_PORT)
         except ValueError:
             QMessageBox.warning(
                 self,
@@ -915,11 +915,12 @@ class SettingsDialog(QDialog):
             )
             return
 
-        # Contacting the bootnode reads its certificate fingerprint (no pin is
-        # written); a value means the node answered, None means unreachable.
+        # Contacting each server reads its certificate fingerprint (no pin is
+        # written); every configured endpoint is probed, because the client
+        # leases all of them and one unreachable server must be visible here.
         self._start_probe(
             "bootnode",
-            lambda: self._bootnode_probe_outcome(binary, endpoint.host, endpoint.port),
+            lambda: self._bootnode_probe_outcome(binary, endpoints),
         )
 
     # ── Connection probes (off the UI thread) ─────────────────────────────
@@ -933,13 +934,27 @@ class SettingsDialog(QDialog):
         return ProbeOutcome(result.ok, result.status, reason=result.reason)
 
     @staticmethod
-    def _bootnode_probe_outcome(binary: str, host: str, port: int | None) -> ProbeOutcome:
-        """Read the discovery server fingerprint, from the probe thread."""
-        fingerprint = fetch_bootnode_fingerprint(binary, host, port)
+    def _bootnode_probe_outcome(binary: str, endpoints: tuple) -> ProbeOutcome:
+        """Read every discovery server fingerprint, from the probe thread.
+
+        The field accepts a list, so the outcome reports one line per server and
+        fails only when none answered: a partial outage is exactly what the
+        operator needs to see (the client keeps working through the others).
+        """
+        lines: list[str] = []
+        reachable = 0
+        for endpoint in endpoints:
+            fingerprint = fetch_bootnode_fingerprint(binary, endpoint.host, endpoint.port)
+            where = format_authority(endpoint.host, endpoint.port or BOOT_DEFAULT_PORT)
+            if fingerprint:
+                reachable += 1
+                lines.append(f"✓ {where}: {fingerprint}")
+            else:
+                lines.append(f"✗ {where}: unreachable")
         return ProbeOutcome(
-            bool(fingerprint),
-            fingerprint=fingerprint or "",
-            reason="" if fingerprint else "unreachable",
+            reachable > 0,
+            fingerprint="\n".join(lines),
+            reason="" if reachable else "unreachable",
         )
 
     def _test_button(self, target: str) -> QPushButton:
@@ -961,7 +976,10 @@ class SettingsDialog(QDialog):
         if target is None or not isinstance(outcome, ProbeOutcome):
             return
         if target == "bootnode":
-            if outcome.fingerprint:
+            # Keyed on the outcome, not on the text: the multi-server report is
+            # always non-empty, so a failed probe must still take the failure
+            # branch (and its warning, never a modal "success").
+            if outcome.ok:
                 QMessageBox.information(
                     self,
                     tr("settings.test_connection_title"),
@@ -1122,7 +1140,7 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_server_endpoint"))
             return False
         try:
-            normalized_bootnode = self._normalize_bootnode_endpoint()
+            normalized_bootnode = self._normalize_discovery_server_endpoints()
         except ValueError:
             QMessageBox.warning(
                 self, tr("settings.title"), tr("settings.invalid_bootnode_endpoint")
@@ -1240,9 +1258,9 @@ class SettingsDialog(QDialog):
         )
         s.setValue("p2p/enabled", self.p2p_mode.isChecked())
         s.setValue("p2p/group", self.p2p_group.text().strip())
-        s.setValue("p2p/bootnode", self.p2p_bootnode.text().strip())
+        s.setValue("p2p/discovery_server_endpoints", self.p2p_bootnode.text().strip())
         s.setValue(
-            "p2p/bootnode_trust",
+            "p2p/discovery_server_trust",
             self.p2p_bootnode_trust.currentData() or DEFAULT_P2P_BOOTNODE_TRUST,
         )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
@@ -1381,9 +1399,11 @@ class SettingsDialog(QDialog):
         self.bandwidth_download.setValue((download_bps or 0) / (1024 * 1024))
         self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
-        self.p2p_bootnode.setText(str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)))
+        self.p2p_bootnode.setText(
+            str(s.value("p2p/discovery_server_endpoints", DEFAULT_P2P_BOOTNODE, str))
+        )
         index = self.p2p_bootnode_trust.findData(
-            str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str))
+            str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str))
         )
         self.p2p_bootnode_trust.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))

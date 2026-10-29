@@ -37,7 +37,7 @@ from hsync_desktop.engine.cli import (
 from hsync_desktop.engine.endpoints import (
     SERVER_DEFAULT_PORT,
     build_probe_ssl_context,
-    normalize_bootnode_endpoint,
+    normalize_discovery_server_endpoints,
     normalize_server_endpoint,
     unverified_ssl_context,
 )
@@ -81,7 +81,7 @@ __all__ = [
     "list_bootnode_trust",
     "list_peer_pins",
     "list_server_trust",
-    "normalize_bootnode_endpoint",
+    "normalize_discovery_server_endpoints",
     "normalize_server_endpoint",
     "p2p_secret_mode",
     "p2p_secret_option",

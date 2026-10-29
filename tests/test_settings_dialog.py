@@ -117,8 +117,8 @@ class TestCapabilityGating:
                 "--prefer-master",
                 "--never-master",
                 "--p2p-trust",
-                "--port",
-                "--upnp",
+                "--discovery-server",
+                "--map-data-port",
                 "--no-autotune",
                 "--max-concurrent-transfers",
                 "--no-delta",
@@ -140,10 +140,12 @@ class TestCapabilityGating:
         assert dlg.p2p_upnp.isEnabled()
         assert not dlg._unsupported_widgets
 
-    def test_bootnode_field_gated_on_the_port_flag(self, qtbot, monkeypatch):
-        """The bootnode host/UPnP belong to the bootnode plan (its --port flag)."""
+    def test_bootnode_field_gated_on_the_discovery_server_flag(self, qtbot, monkeypatch):
+        """The discovery-server field belongs to the cross-network plan."""
         dlg = self._make_dialog(
-            qtbot, monkeypatch, p2p_flags=["--prefer-master", "--port", "--upnp"]
+            qtbot,
+            monkeypatch,
+            p2p_flags=["--prefer-master", "--discovery-server", "--map-data-port"],
         )
         dlg.p2p_mode.setChecked(True)
         assert dlg.p2p_bootnode.isEnabled()
@@ -350,17 +352,17 @@ class TestEndpointNormalization:
 
     def test_bootnode_normalizes_ipv6_composite(self, dialog):
         dialog.p2p_bootnode.setText("[::1]:8443")
-        assert dialog._normalize_bootnode_endpoint() == "[::1]:8443"
+        assert dialog._normalize_discovery_server_endpoints() == "[::1]:8443"
 
     def test_bootnode_bare_ipv6_is_unbracketed(self, dialog):
         dialog.p2p_bootnode.setText("[::1]")
-        assert dialog._normalize_bootnode_endpoint() == "::1"
+        assert dialog._normalize_discovery_server_endpoints() == "::1"
 
     def test_bootnode_rejects_scheme(self, dialog):
 
         dialog.p2p_bootnode.setText("https://boot.example.net")
         with pytest.raises(ValueError):
-            dialog._normalize_bootnode_endpoint()
+            dialog._normalize_discovery_server_endpoints()
 
 
 def _isolated_dialog(qtbot, monkeypatch, tmp_path):

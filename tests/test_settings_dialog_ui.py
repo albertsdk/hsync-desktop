@@ -179,7 +179,34 @@ class TestBootnodeTestButton:
         dialog._on_test_bootnode()
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
         assert captured == {"binary": "/fake/hsync", "host": "boot.example.net", "port": 443}
-        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", fingerprint)]
+        report = f"✓ boot.example.net:443: {fingerprint}"
+        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", report)]
+
+    def test_every_configured_server_is_probed(self, dialog, qtbot, monkeypatch):
+        """The field is a list: one line per server, and a dead one is visible."""
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        infos = self._capture(monkeypatch, "information")
+        monkeypatch.setattr(dialog_mod, "find_hsync_binary", lambda: "/fake/hsync")
+        fingerprint = "sha256:" + "b" * 64
+        probed: list[tuple[str, int | None]] = []
+
+        def fake_probe(binary, host, port=None):
+            probed.append((host, port))
+            return None if host == "dead.example.net" else fingerprint
+
+        monkeypatch.setattr(dialog_mod, "fetch_bootnode_fingerprint", fake_probe)
+        dialog.p2p_bootnode.setText("live.example.net,dead.example.net:8443")
+        dialog._on_test_bootnode()
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+        assert probed == [("live.example.net", 443), ("dead.example.net", 8443)]
+        report = "\n".join(
+            [
+                f"✓ live.example.net:443: {fingerprint}",
+                "✗ dead.example.net:8443: unreachable",
+            ]
+        )
+        assert infos == [tr("settings.test_bootnode_success").replace("{fingerprint}", report)]
 
     def test_button_disabled_in_server_mode(self, dialog):
         dialog.p2p_mode.setChecked(False)

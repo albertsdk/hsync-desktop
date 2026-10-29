@@ -186,7 +186,7 @@ The GUI edits the client's three SSH-style trust stores through subprocess helpe
 | ------ | -------- | ---- |
 | `_run_hsync_success` / `_run_hsync_json` / `_run_hsync_line` | `engine/cli.py::_run_hsync_success` / `engine/cli.py::_run_hsync_json` / `engine/cli.py::_run_hsync_line` | run `<binary> <args>`; return exit-0 flag / parsed JSON / last stdout line (None on any failure) |
 | `fetch_bootnode_fingerprint` / `fetch_server_fingerprint` | `engine/cli.py::fetch_bootnode_fingerprint` / `engine/cli.py::fetch_server_fingerprint` | `hsync trust {bootnode,server} fingerprint` (raw probe) |
-| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine/cli.py::list_bootnode_trust` / `engine/cli.py::add_bootnode_trust` / `engine/cli.py::remove_bootnode_trust` | `hsync trust bootnode {list --json,add,remove}` |
+| `list_bootnode_trust` / `add_bootnode_trust` / `remove_bootnode_trust` | `engine/cli.py::list_bootnode_trust` / `engine/cli.py::add_bootnode_trust` / `engine/cli.py::remove_bootnode_trust` | `hsync trust discovery-server {list --json,add,remove}` |
 | `list_server_trust` / `add_server_trust` / `remove_server_trust` | `engine/cli.py::list_server_trust` / `engine/cli.py::add_server_trust` / `engine/cli.py::remove_server_trust` | `hsync trust server {list --json,add,remove}` |
 | `list_peer_pins` / `add_peer_pin` / `remove_peer_pin` | `engine/cli.py::list_peer_pins` / `engine/cli.py::add_peer_pin` / `engine/cli.py::remove_peer_pin` | `hsync trust peer {list --json,add,remove}` |
 | `supports_peer_trust` | `engine/cli.py::supports_peer_trust` | True when the binary advertises the `trust` subcommand; permissive (True) on an unknown `CapabilitiesDoc` |

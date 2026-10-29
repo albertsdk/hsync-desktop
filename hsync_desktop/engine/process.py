@@ -198,7 +198,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     Reads the QSettings values that hsync-client consumes from the process
     environment (no CLI flag exists for them) and inserts them when set:
 
-    * ``HSYNC_SERVER`` (``connection/server_url``) — the server-endpoint
+    * ``HSYNC_SERVER_URL`` (``connection/server_url``) — the sync-server
       channel: the client CLI takes the bare host, so the full (validated)
       URL travels through the environment;
     * ``HSYNC_NTP_HOSTS`` (``p2p/ntp_hosts``, ADR-0023) — SNTP host list for
@@ -209,7 +209,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     """
     server_url = str(s.value("connection/server_url", "", str)).strip()
     if server_url:
-        env.insert("HSYNC_SERVER", server_url)
+        env.insert("HSYNC_SERVER_URL", server_url)
     # Server TLS trust policy (ADR-0036): env-driven like the bootnode policy,
     # so the client's EnvSettings reads it and no CLI flag/gate is involved. The
     # pin itself lives in the shared server known-hosts store.
@@ -221,15 +221,15 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
     if ntp_hosts:
         env.insert("HSYNC_NTP_HOSTS", ntp_hosts)
-    # Cross-network discovery: the bootnode travels through the environment as
-    # a HOST[:PORT] endpoint (same grammar as the client's BOOTNODE positional,
-    # so no argument plumbing is needed). UPnP is sent explicitly so the user's
-    # choice wins over the plan default.
-    bootnode = str(s.value("p2p/bootnode", "", str)).strip()
-    if bootnode:
-        env.insert("HSYNC_BOOTNODE", bootnode)
+    # Cross-network discovery: the discovery servers travel through the
+    # environment as an ordered, comma-separated HOST[:PORT] list (exactly the
+    # grammar of the client's option, so no argument plumbing is needed). UPnP
+    # is sent explicitly so the user's choice wins over the plan default.
+    discovery_servers = str(s.value("p2p/discovery_server_endpoints", "", str)).strip()
+    if discovery_servers:
+        env.insert("HSYNC_DISCOVERY_SERVER_ENDPOINTS", discovery_servers)
         env.insert(
-            "HSYNC_UPNP_ENABLED",
+            "HSYNC_MAP_DATA_PORT",
             "true" if bool(s.value("p2p/upnp_enabled", True, bool)) else "false",
         )
         # Trust policy (ADR-0035): the GUI cannot answer the client's terminal
@@ -237,8 +237,8 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         # the shared known-hosts store (managed by the client CLI / the GUI's
         # "Manage trusted keys" dialog), not in a GUI-only setting.
         env.insert(
-            "HSYNC_BOOTNODE_TRUST",
-            str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
+            "HSYNC_DISCOVERY_SERVER_TRUST",
+            str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)),
         )
     # Periodic full check: 0 disables it. The client has no CLI "off" for
     # -i (absence means its 300 s default), so the off state travels through

@@ -93,7 +93,7 @@ class TestRemoteIcon:
         """p2p + no bootnode shows the peer icon."""
 
         s = _settings(tmp_path)
-        s.setValue("p2p/bootnode", "")
+        s.setValue("p2p/discovery_server_endpoints", "")
         _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
         window._local_path = str(tmp_path)
         names = self._run_and_record(window, monkeypatch)

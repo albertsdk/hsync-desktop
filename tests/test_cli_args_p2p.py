@@ -283,11 +283,11 @@ class TestMaxDownloadSizeFlag:
 class TestServerUrlViaEnvOnly:
     """The server endpoint is env-only: the client CLI takes the bare host and
     has no URL flag, so a stored server_url must never hit the command line
-    (engine.apply_settings_env exports it as HSYNC_SERVER instead)."""
+    (engine.apply_settings_env exports it as HSYNC_SERVER_URL instead)."""
 
     def test_server_mode_emits_no_url_flag(self):
         """p2p disabled + stored URL: neither the URL nor any -s/--server flag
-        is emitted (the endpoint travels via HSYNC_SERVER)."""
+        is emitted (the endpoint travels via HSYNC_SERVER_URL)."""
         args = _build_args(
             {
                 "p2p/enabled": False,

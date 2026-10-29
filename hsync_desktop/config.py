@@ -112,13 +112,14 @@ DEFAULT_NEVER_MASTER = False
 # selectable here.
 DEFAULT_P2P_TRUST = "ask"
 # Optional bootnode host for cross-network discovery (bare hostname; empty =
-# mDNS-only). Passed to hsync-client via HSYNC_BOOTNODE.
+# mDNS-only). Passed to hsync-client via HSYNC_DISCOVERY_SERVER_ENDPOINTS.
 DEFAULT_P2P_BOOTNODE = ""
 # Bootnode TLS trust policy (ADR-0035): ask | accept-new | strict | none.
 # Passed via HSYNC_BOOTNODE_TRUST.
 DEFAULT_P2P_BOOTNODE_TRUST = "ask"
 # Map the master TCP port with UPnP when a bootnode is used. Passed via
-# HSYNC_UPNP_ENABLED; the client treats it as on only with a bootnode by default.
+# HSYNC_MAP_DATA_PORT; the client treats it as on only with a discovery server by
+# default.
 DEFAULT_P2P_UPNP_ENABLED = True
 # Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the
 # HSYNC_NTP_HOSTS environment variable. Empty = client defaults

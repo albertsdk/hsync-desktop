@@ -18,7 +18,7 @@ from hsync_common.protocol.boot_tokens import (
     validate_group_passphrase,
 )
 
-from hsync_desktop.engine import normalize_bootnode_endpoint, normalize_server_endpoint
+from hsync_desktop.engine import normalize_discovery_server_endpoints, normalize_server_endpoint
 from hsync_desktop.settings.validators import (
     _validate_bucket,
     _validate_group_name,
@@ -117,7 +117,7 @@ def _check_p2p(draft: WizardDraft, requires_discovery_server: bool) -> list[Issu
             issues.append(Issue("error", "discovery_server_required", "discovery_server"))
         else:
             try:
-                normalize_bootnode_endpoint(discovery_server)
+                normalize_discovery_server_endpoints(discovery_server)
             except ValueError:
                 issues.append(Issue("error", "discovery_server_invalid", "discovery_server"))
     return issues

@@ -477,25 +477,27 @@ class TestApplySettingsEnv:
 
     def test_server_url_inserted_when_set(self):
         env = self._env_with({"connection/server_url": "https://srv.example"})
-        assert env.value("HSYNC_SERVER") == "https://srv.example"
+        assert env.value("HSYNC_SERVER_URL") == "https://srv.example"
 
     def test_bootnode_inserted_with_upnp_choice(self):
-        env = self._env_with({"p2p/bootnode": "boot.example.net", "p2p/upnp_enabled": False})
-        assert env.value("HSYNC_BOOTNODE") == "boot.example.net"
-        assert env.value("HSYNC_UPNP_ENABLED") == "false"
+        env = self._env_with(
+            {"p2p/discovery_server_endpoints": "boot.example.net", "p2p/upnp_enabled": False}
+        )
+        assert env.value("HSYNC_DISCOVERY_SERVER_ENDPOINTS") == "boot.example.net"
+        assert env.value("HSYNC_MAP_DATA_PORT") == "false"
 
     def test_bootnode_defaults_upnp_on(self):
-        env = self._env_with({"p2p/bootnode": "boot.example.net"})
-        assert env.value("HSYNC_UPNP_ENABLED") == "true"
+        env = self._env_with({"p2p/discovery_server_endpoints": "boot.example.net"})
+        assert env.value("HSYNC_MAP_DATA_PORT") == "true"
 
     def test_bootnode_blank_is_skipped(self):
-        env = self._env_with({"p2p/bootnode": "   "})
-        assert not env.contains("HSYNC_BOOTNODE")
-        assert not env.contains("HSYNC_UPNP_ENABLED")
+        env = self._env_with({"p2p/discovery_server_endpoints": "   "})
+        assert not env.contains("HSYNC_DISCOVERY_SERVER_ENDPOINTS")
+        assert not env.contains("HSYNC_MAP_DATA_PORT")
 
     def test_bootnode_trust_defaults_to_ask(self):
-        env = self._env_with({"p2p/bootnode": "boot.example.net"})
-        assert env.value("HSYNC_BOOTNODE_TRUST") == "ask"
+        env = self._env_with({"p2p/discovery_server_endpoints": "boot.example.net"})
+        assert env.value("HSYNC_DISCOVERY_SERVER_TRUST") == "ask"
 
     def test_server_trust_policy_is_exported(self):
         env = self._env_with({"connection/server_trust": "strict"})
@@ -518,22 +520,22 @@ class TestApplySettingsEnv:
 
     def test_bootnode_pin_is_not_exported_as_env(self):
         # The pin lives in the shared known-hosts store, not in a GUI-only env
-        # var: a stale HSYNC_BOOTNODE_FINGERPRINT setting must not be sent.
+        # var: a stale HSYNC_DISCOVERY_SERVER_FINGERPRINTS setting must not be sent.
         env = self._env_with(
             {
-                "p2p/bootnode": "boot.example.net",
-                "p2p/bootnode_fingerprint": "sha256:" + "0" * 64,
-                "p2p/bootnode_trust": "strict",
+                "p2p/discovery_server_endpoints": "boot.example.net",
+                "p2p/discovery_server_fingerprints": "sha256:" + "0" * 64,
+                "p2p/discovery_server_trust": "strict",
             }
         )
-        assert not env.contains("HSYNC_BOOTNODE_FINGERPRINT")
-        assert env.value("HSYNC_BOOTNODE_TRUST") == "strict"
+        assert not env.contains("HSYNC_DISCOVERY_SERVER_FINGERPRINTS")
+        assert env.value("HSYNC_DISCOVERY_SERVER_TRUST") == "strict"
 
     def test_no_values_inserts_nothing(self):
         env = self._env_with({})
-        assert not env.contains("HSYNC_SERVER")
+        assert not env.contains("HSYNC_SERVER_URL")
         assert not env.contains("HSYNC_NTP_HOSTS")
-        assert not env.contains("HSYNC_BOOTNODE")
+        assert not env.contains("HSYNC_DISCOVERY_SERVER_ENDPOINTS")
 
     def test_gui_value_overrides_ambient(self):
         # The GUI setting is the user's explicit choice: insert() overwrites

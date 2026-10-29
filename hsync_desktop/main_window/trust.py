@@ -153,7 +153,7 @@ class TrustMixin:
         the engine helpers; ``master`` pins a P2P peer and is handled separately.
         """
         if scope == "bootnode":
-            return add_bootnode_trust, remove_bootnode_trust, "Bootnode"
+            return add_bootnode_trust, remove_bootnode_trust, "Discovery server"
         if scope == "server":
             return add_server_trust, remove_server_trust, "Server"
         return None
@@ -420,10 +420,10 @@ class TrustMixin:
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if not bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
             return None
-        host = str(s.value("p2p/bootnode", "", str)).strip()
+        host = str(s.value("p2p/discovery_server_endpoints", "", str)).strip()
         if not host:
             return None
-        if str(s.value("p2p/bootnode_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
+        if str(s.value("p2p/discovery_server_trust", DEFAULT_P2P_BOOTNODE_TRUST, str)) != "ask":
             return None
         # The bootnode setting may carry a port ("[IPv6]:port"): normalize it to
         # its unbracketed host and use the real port for the trust store/fetch.

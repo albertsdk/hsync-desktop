@@ -53,7 +53,7 @@ class TestEnsureBootnodeTrust:
         started: list[int] = []
         self._run(window, started)
         qtbot.waitUntil(lambda: bool(started), timeout=5000)
-        # The client dials 443 (bare HSYNC_BOOTNODE): the p2p listen port must
+        # The client dials 443 (bare HSYNC_DISCOVERY_SERVER_ENDPOINTS): the p2p listen port must
         # never be passed to the bootnode trust commands.
         assert fetched[0][1:] == ("boot.example.net", 443)
         assert added == [("boot.example.net", 443)]

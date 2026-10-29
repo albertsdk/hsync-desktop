@@ -59,9 +59,9 @@ class TestServerModeMapping:
         assert store.value("advanced/autotune", True, bool) is False
 
     def test_stale_discovery_server_cleared_in_server_mode(self, store):
-        store.setValue("p2p/bootnode", "old.boot.example.net")
+        store.setValue("p2p/discovery_server_endpoints", "old.boot.example.net")
         apply_draft(store, WizardDraft(mode=WizardMode.BACKUP, bucket="b"))
-        assert store.value("p2p/bootnode", "x", str) == ""
+        assert store.value("p2p/discovery_server_endpoints", "x", str) == ""
 
     def test_team_keeps_bidirectional_by_default(self, store):
         draft = WizardDraft(
@@ -77,7 +77,7 @@ class TestServerModeMapping:
 
 class TestP2pModeMapping:
     def test_lan_clears_discovery_server_and_disables_server_fields(self, store):
-        store.setValue("p2p/bootnode", "old.boot.example.net")
+        store.setValue("p2p/discovery_server_endpoints", "old.boot.example.net")
         draft = WizardDraft(
             mode=WizardMode.LAN_SYNC,
             bucket="data",
@@ -89,8 +89,8 @@ class TestP2pModeMapping:
         assert store.value("p2p/group") == "grp"
         assert store.value("p2p/key").startswith("enc::")
         assert store.value("p2p/key_mode") == "passphrase"
-        assert store.value("p2p/bootnode", "x", str) == ""
-        assert store.value("p2p/bootnode_trust") == "ask"
+        assert store.value("p2p/discovery_server_endpoints", "x", str) == ""
+        assert store.value("p2p/discovery_server_trust") == "ask"
 
     def test_remote_sets_normalized_discovery_server(self, store):
         draft = WizardDraft(
@@ -101,7 +101,7 @@ class TestP2pModeMapping:
             discovery_server="[::1]:8443",
         )
         apply_draft(store, draft)
-        assert store.value("p2p/bootnode") == "[::1]:8443"
+        assert store.value("p2p/discovery_server_endpoints") == "[::1]:8443"
 
 
 class TestTrustPinning:

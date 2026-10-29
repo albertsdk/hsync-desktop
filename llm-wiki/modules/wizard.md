@@ -151,7 +151,7 @@ and the returned mode so the two can never disagree.
 per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, discovery
 server, server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
 re-run from the distinctive traits (p2p on/off, `sync/direction`,
-`p2p/bootnode`).
+`p2p/discovery_server_endpoints`).
 
 Derived names (`wizard/defaults.py::default_share_name`,
 `generate_group_name`, `generate_password`) are sanitized so they always pass the

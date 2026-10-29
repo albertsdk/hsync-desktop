@@ -200,7 +200,9 @@ def infer_mode_from_settings(settings: QSettings | None = None) -> WizardMode | 
     p2p = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
     direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
     if p2p:
-        discovery_server = str(s.value("p2p/bootnode", DEFAULT_P2P_BOOTNODE, str)).strip()
+        discovery_server = str(
+            s.value("p2p/discovery_server_endpoints", DEFAULT_P2P_BOOTNODE, str)
+        ).strip()
         return WizardMode.REMOTE_SYNC if discovery_server else WizardMode.LAN_SYNC
     if direction == "upload-only":
         return WizardMode.BACKUP

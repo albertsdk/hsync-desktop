@@ -28,7 +28,7 @@ from hsync_desktop.engine import (
     build_probe_ssl_context,
     fetch_bootnode_fingerprint,
     find_hsync_binary,
-    normalize_bootnode_endpoint,
+    normalize_discovery_server_endpoints,
     normalize_server_endpoint,
     probe_server_bucket,
     probe_server_health,
@@ -412,7 +412,7 @@ class ConnectionPage(WizardPage):
     def _on_test_discovery_server(self) -> None:
         raw = self.discovery_server.text().strip()
         try:
-            normalized = normalize_bootnode_endpoint(raw)
+            normalized = normalize_discovery_server_endpoints(raw)
             if normalized is None:
                 raise ValueError
         except ValueError:

@@ -17,7 +17,7 @@ from pathlib import Path
 from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import (
     build_https_url,
-    normalize_bare_endpoint,
+    normalize_endpoint_list,
     parse_host_port,
     parse_https_url,
 )
@@ -25,7 +25,7 @@ from hsync_common.endpoint import (
 __all__ = [
     "SERVER_DEFAULT_PORT",
     "build_probe_ssl_context",
-    "normalize_bootnode_endpoint",
+    "normalize_discovery_server_endpoints",
     "normalize_server_endpoint",
     "unverified_ssl_context",
 ]
@@ -42,7 +42,7 @@ _FINGERPRINT_POLICIES = frozenset({"ask", "accept-new", "strict"})
 def normalize_server_endpoint(raw: str) -> str | None:
     """Canonicalize the server field; raise ``ValueError`` on invalid input.
 
-    Accepts the same forms as ``HSYNC_SERVER`` (bare ``host``/``host:port``/
+    Accepts the same forms as ``HSYNC_SERVER_URL`` (bare ``host``/``host:port``/
     ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
     canonical HTTPS URL so ``urlsplit``-based trust handling keeps working.
     Empty input yields ``None``.
@@ -55,15 +55,16 @@ def normalize_server_endpoint(raw: str) -> str | None:
     return build_https_url(parse_host_port(value), SERVER_DEFAULT_PORT)
 
 
-def normalize_bootnode_endpoint(raw: str) -> str | None:
+def normalize_discovery_server_endpoints(raw: str) -> str | None:
     """Canonicalize the discovery-server field; raise ``ValueError`` on invalid input.
 
-    Returns ``host`` (no port) or ``host:port``/``[IPv6]:port``; empty input
-    yields ``None``. Delegates to the shared rule
-    (``hsync_common.endpoint.normalize_bare_endpoint``) so the GUI field and the
-    client's ``HSYNC_BOOTNODE`` cannot normalize differently.
+    Returns the ordered comma-separated list of ``host``/``host:port``/
+    ``[IPv6]:port`` endpoints; empty input yields ``None``. Delegates to the
+    shared rule (``hsync_common.endpoint.normalize_endpoint_list``, strict) so
+    the GUI field and the client's ``HSYNC_DISCOVERY_SERVER_ENDPOINTS`` cannot
+    normalize differently, and a typo is reported instead of silently dropped.
     """
-    return normalize_bare_endpoint(raw)
+    return normalize_endpoint_list(raw, strict=True)
 
 
 def unverified_ssl_context() -> ssl.SSLContext:

@@ -366,7 +366,7 @@ class TestFetchBootnodeFingerprint:
         assert calls["args"] == [
             "/bin/hsync",
             "trust",
-            "bootnode",
+            "discovery-server",
             "fingerprint",
             "boot.example.net",
         ]
@@ -382,7 +382,7 @@ class TestFetchBootnodeFingerprint:
 
         monkeypatch.setattr("hsync_desktop.engine.cli.subprocess.run", fake_run)
         fetch_bootnode_fingerprint("/bin/hsync", "boot.example.net", 1443)
-        assert calls["args"][-2:] == ["--port", "1443"]
+        assert calls["args"][-1] == "boot.example.net:1443"
 
     def test_returns_none_on_failure_or_empty_output(self, monkeypatch):
         import types
@@ -510,19 +510,15 @@ class TestServerTrustSubprocessHelpers:
             "trust",
             "server",
             "add",
-            "h",
+            "h:9753",
             "f" * 64,
-            "--port",
-            "9753",
         ]
         assert calls[1] == [
             "/bin/hsync",
             "trust",
             "server",
             "remove",
-            "h",
-            "--port",
-            "9753",
+            "h:9753",
         ]
 
 

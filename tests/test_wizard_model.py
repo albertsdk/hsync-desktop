@@ -92,13 +92,13 @@ class TestInference:
     def test_lan_when_p2p_without_discovery_server(self, store):
         store.setValue("path/local", "/data")
         store.setValue("p2p/enabled", True)
-        store.setValue("p2p/bootnode", "")
+        store.setValue("p2p/discovery_server_endpoints", "")
         assert infer_mode_from_settings(store) == WizardMode.LAN_SYNC
 
     def test_remote_when_discovery_server_set(self, store):
         store.setValue("path/local", "/data")
         store.setValue("p2p/enabled", True)
-        store.setValue("p2p/bootnode", "boot.example.net")
+        store.setValue("p2p/discovery_server_endpoints", "boot.example.net")
         assert infer_mode_from_settings(store) == WizardMode.REMOTE_SYNC
 
     def test_backup_on_upload_only(self, store):

@@ -306,7 +306,7 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 (`QPushButton`, probes the bootnode via `fetch_bootnode_fingerprint` on
 `engine/async_probe.py::AsyncProbe`) +
 `p2p_upnp` (`ToggleSwitch`), saved/loaded under
-`p2p/bootnode` / `p2p/bootnode_trust` / `p2p/upnp_enabled`; labels from
+`p2p/discovery_server_endpoints` / `p2p/discovery_server_trust` / `p2p/upnp_enabled`; labels from
 `settings.p2p_bootnode` / `settings.manage_trusted_keys` /
 `settings.p2p_bootnode_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
 `*_none` option labels) / `settings.p2p_upnp` (all locales); tips from
@@ -318,11 +318,11 @@ opens `TrustedKeysDialog` on the bootnodes tab) + `btn_test_bootnode`
 Role & Pairing (`settings.group.p2p_role`) and Advanced Options
 (`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is
-env-driven (the client positional exists, but `HSYNC_BOOTNODE` is the documented
+env-driven (the client positional exists, but `HSYNC_DISCOVERY_SERVER_ENDPOINTS` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
-`HSYNC_BOOTNODE` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
-`[IPv6]:port`), `HSYNC_UPNP_ENABLED` (the user's explicit choice),
-and — when a bootnode is set — `HSYNC_BOOTNODE_TRUST` (`ask` / `accept-new` /
+`HSYNC_DISCOVERY_SERVER_ENDPOINTS` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
+`[IPv6]:port`), `HSYNC_MAP_DATA_PORT` (the user's explicit choice),
+and — when a bootnode is set — `HSYNC_DISCOVERY_SERVER_TRUST` (`ask` / `accept-new` /
 `strict` / `none`) for the ADR-0035 trust policy. The bootnode pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
@@ -477,7 +477,7 @@ The peer-download caps (`p2p/peer_read_cap`, `p2p/peer_sources_max`) are env-onl
 `engine/process.py::apply_settings_env` as `HSYNC_P2P_PEER_READ_CAP` /
 `HSYNC_P2P_PEER_SOURCES_MAX` in p2p mode.
 The UPnP toggle is gated on the client's `--upnp` flag (opt-in, enabled by
-`--upnp` / `HSYNC_UPNP_ENABLED`; no `--no-upnp` flag exists). A capability-parity test
+`--upnp` / `HSYNC_MAP_DATA_PORT`; no `--no-upnp` flag exists). A capability-parity test
 (`tests/test_cli_args_p2p.py::TestClientCapabilitiesParity`) asserts every
 emitted long flag is advertised by the client help output.
 One-shot is
@@ -539,12 +539,12 @@ string **must** exist in all `hsync_desktop/locales/*.py`.
 The server/discovery-server reachability logic is shared so the Settings dialog
 and the setup wizard agree:
 
-- `engine/endpoints.py::normalize_server_endpoint` / `normalize_bootnode_endpoint`
+- `engine/endpoints.py::normalize_server_endpoint` / `normalize_discovery_server_endpoints`
   (the GUI default port `SERVER_DEFAULT_PORT` = 9753; the bootnode variant is a
   thin wrapper over the shared `hsync_common.endpoint.normalize_bare_endpoint`,
-  the same rule the client's `HSYNC_BOOTNODE` validator applies) and
+  the same rule the client's `HSYNC_DISCOVERY_SERVER_ENDPOINTS` validator applies) and
   `build_probe_ssl_context`; `SettingsDialog._normalize_server_endpoint` /
-  `_normalize_bootnode_endpoint` / `_test_connection_ssl_context` delegate to them.
+  `_normalize_discovery_server_endpoints` / `_test_connection_ssl_context` delegate to them.
   `_on_accept` still normalizes the fields before `save()`.
 - `engine/probes.py::probe_server_health` / `probe_server_bucket` /
   `ServerProbeResult`; the Settings "Test connection" action and the wizard both

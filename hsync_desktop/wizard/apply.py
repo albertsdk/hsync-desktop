@@ -28,7 +28,7 @@ from hsync_desktop.engine import (
     fetch_bootnode_fingerprint,
     fetch_server_fingerprint,
     find_hsync_binary,
-    normalize_bootnode_endpoint,
+    normalize_discovery_server_endpoints,
     normalize_server_endpoint,
 )
 from hsync_desktop.wizard.model import WizardDraft, profile_for
@@ -146,8 +146,8 @@ def apply_draft(
     server_mode = profile is not None and not profile.p2p_enabled
     if server_mode:
         s.setValue("p2p/enabled", False)
-        # Clear a stale discovery server so it cannot leak HSYNC_BOOTNODE into a server run.
-        s.setValue("p2p/bootnode", "")
+        # Clear a stale discovery server so it cannot leak HSYNC_DISCOVERY_SERVER_ENDPOINTS into a server run.
+        s.setValue("p2p/discovery_server_endpoints", "")
         s.setValue("connection/server_url", normalize_server_endpoint(draft.server_url) or "")
         s.setValue("connection/api_key", encrypt_value(draft.api_key) if draft.api_key else "")
         if draft.accept_server_cert:
@@ -157,13 +157,13 @@ def apply_draft(
         s.setValue("p2p/group", draft.p2p_group.strip())
         s.setValue("p2p/key", encrypt_value(draft.p2p_key) if draft.p2p_key else "")
         s.setValue("p2p/key_mode", "passphrase")
-        s.setValue("p2p/bootnode_trust", "ask")
+        s.setValue("p2p/discovery_server_trust", "ask")
         discovery_server = (
-            normalize_bootnode_endpoint(draft.discovery_server)
+            normalize_discovery_server_endpoints(draft.discovery_server)
             if profile and profile.requires_discovery_server
             else ""
         )
-        s.setValue("p2p/bootnode", discovery_server or "")
+        s.setValue("p2p/discovery_server_endpoints", discovery_server or "")
 
     s.setValue("appearance/start_at_login", draft.start_at_login)
     if autostart.is_supported():
