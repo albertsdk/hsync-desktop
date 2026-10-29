@@ -288,6 +288,14 @@ the engine reason as informative text). Both start sites use it —
 cannot launch (missing/incompatible binary, spawn failure) surfaces the dialog
 instead of a silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
+A fatal exit that happens *after* the engine started (`fatal_exit`) is reported by
+`_on_fatal_exit` (`main_window/events.py::EventsMixin._on_fatal_exit`) through
+`_report_engine_stop_failure`, which reuses the same presentation with the body
+`notif.engine_stopped` (exit code included) and skips a run the user stopped, a
+scoped Send/Receive, and any failure the client already reported through
+`error_occurred`. Both helpers delegate to `_report_engine_failure`, so the modal
+vs banner + tray policy stays in one place.
+
 ### Remote endpoint icon (`_update_path_display`)
 
 `main_window/start.py::StartMixin._update_path_display` picks the remote icon from

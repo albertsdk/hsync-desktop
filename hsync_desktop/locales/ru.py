@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Процесс синхронизации неожиданно завершился (код выхода {code})",
     "notif.engine_start_failed": "Не удалось запустить синхронизацию.",
     "notif.engine_startup_failed": "Модуль синхронизации остановился при запуске (код выхода {code}).",
+    "notif.engine_stopped": "Модуль синхронизации неожиданно остановился (код выхода {code}).",
     "notif.path_not_found": "Путь не найден",
     "notif.path_not_found_msg": "Общая папка '{path}' не существует. Проверьте путь в настройках.",
     "notif.version_mismatch": "Несовместимость версий",

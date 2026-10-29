@@ -352,6 +352,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Der Synchronisierungsprozess wurde unerwartet beendet (Exit-Code {code})",
     "notif.engine_start_failed": "Die Synchronisierung konnte nicht gestartet werden.",
     "notif.engine_startup_failed": "Die Synchronisierungs-Engine wurde beim Start beendet (Exit-Code {code}).",
+    "notif.engine_stopped": "Die Synchronisierungs-Engine wurde unerwartet beendet (Exit-Code {code}).",
     "notif.path_not_found": "Pfad nicht gefunden",
     "notif.path_not_found_msg": "Der freigegebene Ordner '{path}' existiert nicht. Überprüfen Sie den Pfad in den Einstellungen.",
     "notif.version_mismatch": "Versionskonflikt",

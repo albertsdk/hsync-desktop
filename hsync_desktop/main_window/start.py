@@ -650,6 +650,28 @@ class StartMixin:
         text = tr("notif.engine_start_failed")
         if code:
             text = f"{text}\n\n{tr('notif.engine_startup_failed').replace('{code}', str(code))}"
+        self._report_engine_failure(text=text, detail=detail, automatic=automatic)
+
+    def _report_engine_stop_failure(self, *, code: int, detail: str, automatic: bool) -> None:
+        """Show why an engine that had already started died.
+
+        A fatal exit *after* readiness has no startup phase left to blame and
+        used to look like a clean stop, so it carries its own wording; the
+        presentation matches the start failure.
+        """
+        self._report_engine_failure(
+            text=tr("notif.engine_stopped").replace("{code}", str(code)),
+            detail=detail.strip(),
+            automatic=automatic,
+        )
+
+    def _report_engine_failure(self, *, text: str, detail: str, automatic: bool) -> None:
+        """Present *text* plus *detail* as a modal, or as banner + tray notice.
+
+        An automatic run must not raise a blocking dialog while the app sits in
+        the tray: it gets the persistent error banner and the system
+        notification, and the same message is recorded in the log panel.
+        """
         if automatic:
             message = f"{text}\n{detail}".strip()
             self._append_desktop_log("ERROR", message.replace("\n", " "))

@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "同期プロセスが予期せず終了しました（終了コード {code}）",
     "notif.engine_start_failed": "同期を開始できませんでした。",
     "notif.engine_startup_failed": "同期エンジンが起動中に停止しました（終了コード {code}）。",
+    "notif.engine_stopped": "同期エンジンが予期せず停止しました（終了コード {code}）。",
     "notif.path_not_found": "パスが見つかりません",
     "notif.path_not_found_msg": "共有フォルダー「{path}」が存在しません。設定でパスを確認してください。",
     "notif.version_mismatch": "バージョンの不一致",

@@ -882,6 +882,32 @@ class EventsMixin:
         )
 
     @Slot(int, str)
+    def _on_fatal_exit(self, code: int, detail: str) -> None:
+        """Present an engine that died with the documented FATAL code after start.
+
+        The startup safety net only covers exits before readiness: a client that
+        refuses later (the folder's instance lock, a failed trust/connectivity
+        resolution) or dies on an unexpected exception exits *normally* with
+        code 1, which used to leave the window on "disconnected" with the reason
+        in the log only.
+
+        Nothing is reported twice: a scoped Send/Receive owns its own outcome, a
+        run the user stopped is not a failure, and an error the client already
+        explained on the error channel is already on screen.
+        """
+        if self._user_stopped or self._selection_sync_active:
+            return
+        if self._last_engine_error or self._startup_failure_surfaced:
+            return
+        if detail:
+            self._append_desktop_log("ERROR", detail)
+        self._report_engine_stop_failure(
+            code=code,
+            detail=detail,
+            automatic=self._start_is_automatic,
+        )
+
+    @Slot(int, str)
     def _on_process_finished(self, code: int, desc: str) -> None:
         # The run is gone: leave the stopping state (see StartMixin._on_stop) so
         # the button state restored below reflects a stopped engine.

@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Het synchronisatieproces is onverwacht beëindigd (afsluitcode {code})",
     "notif.engine_start_failed": "Synchronisatie kon niet worden gestart.",
     "notif.engine_startup_failed": "De synchronisatie-engine is tijdens het opstarten gestopt (exitcode {code}).",
+    "notif.engine_stopped": "De synchronisatie-engine is onverwacht gestopt (exitcode {code}).",
     "notif.path_not_found": "Pad niet gevonden",
     "notif.path_not_found_msg": "De gedeelde map '{path}' bestaat niet. Controleer het pad in de instellingen.",
     "notif.version_mismatch": "Versie komt niet overeen",

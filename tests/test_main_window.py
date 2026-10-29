@@ -352,6 +352,63 @@ class TestEngineStartFailure:
 
         assert shown == []
 
+    def test_a_fatal_exit_after_ready_reports_the_client_reason(self, window, monkeypatch):
+        """A refusal after readiness (the folder's instance lock) used to be silent."""
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        window._engine._handle_event(build_event(UiEventName.ready))
+        window._engine.fatal_exit.emit(
+            1, "Another hsync process is already syncing '/data/photos' (pid 42)."
+        )
+
+        assert len(shown) == 1
+        assert shown[0].text() == tr("notif.engine_stopped").replace("{code}", "1")
+        assert "already syncing" in shown[0].informativeText()
+        assert "already syncing" in window._log_view.toPlainText()
+
+    def test_a_fatal_exit_is_not_reported_twice(self, window, monkeypatch):
+        """An error the client already explained must not raise a second report."""
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+        monkeypatch.setattr(window, "_notify_error", lambda *_args: None)
+
+        assert window._start_engine(["p2p"]) is True
+        window._engine._handle_event(
+            build_event(UiEventName.error, message="Connection lost", reason="connection")
+        )
+        window._engine.fatal_exit.emit(1, "Connection lost")
+
+        assert shown == []
+
+    def test_a_fatal_exit_after_a_user_stop_is_not_reported(self, window, monkeypatch):
+        shown = self._capture_dialogs(monkeypatch)
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        assert window._start_engine(["p2p"]) is True
+        window._user_stopped = True
+        window._engine.fatal_exit.emit(1, "whatever")
+
+        assert shown == []
+
+    def test_an_automatic_fatal_exit_uses_the_banner(self, window, monkeypatch):
+        """An autostart in the tray must not raise an invisible blocking modal."""
+        shown = self._capture_dialogs(monkeypatch)
+        notified: list[tuple[str, str]] = []
+        monkeypatch.setattr(window, "_notify_error", lambda t, m: notified.append((t, m)))
+        monkeypatch.setattr(window._engine, "start", lambda _args: True)
+
+        window._start_is_automatic = True
+        try:
+            assert window._start_engine(["p2p"]) is True
+            window._engine.fatal_exit.emit(1, "Another hsync process is already syncing")
+        finally:
+            window._start_is_automatic = False
+
+        assert shown == []
+        assert notified and "already syncing" in notified[0][1]
+
 
 class TestAboutMenu:
     """The Help > About entry is just 'About' / 'Informazioni', not the app name."""

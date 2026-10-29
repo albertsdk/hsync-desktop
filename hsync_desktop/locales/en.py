@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "The sync process terminated unexpectedly (exit code {code})",
     "notif.engine_start_failed": "Synchronization could not start.",
     "notif.engine_startup_failed": "The sync engine stopped during startup (exit code {code}).",
+    "notif.engine_stopped": "The sync engine stopped unexpectedly (exit code {code}).",
     "notif.path_not_found": "Path not found",
     "notif.path_not_found_msg": "The shared folder '{path}' does not exist. Check the path in Settings.",
     "notif.version_mismatch": "Version Mismatch",

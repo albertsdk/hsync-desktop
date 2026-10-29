@@ -199,7 +199,9 @@ class MainWindow(
         self._role_known = False
         self._is_master: bool | None = None
         self._connected = False
-        self._last_engine_error: str = ""  # Reason for the last failed engine start
+        self._last_engine_error: str = ""
+        # ^ Last error the engine reported this run. Also the "already reported"
+        #   marker for a fatal exit after start (see ``_on_fatal_exit``).
         self._auth_prompt_active = False  # True while the auth re-prompt dialog is open
         # True only while ``HsyncEngine.start`` runs, so a launch failure is
         # reported once (by ``_start_engine``) and not also by the error slot.
@@ -334,6 +336,9 @@ class MainWindow(
         # The engine died before readiness (exit-time safety net); the structured
         # startup error path arrives through ``error_occurred``.
         e.startup_failed.connect(self._on_startup_failed)
+        # A fatal exit *after* readiness has no startup safety net: report it
+        # instead of leaving the reason in the log only.
+        e.fatal_exit.connect(self._on_fatal_exit)
         # Preview signals
         e.preview_started.connect(self._on_preview_started)
         e.preview_ended.connect(self._on_preview_ended)

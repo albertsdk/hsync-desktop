@@ -352,6 +352,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Il processo di sincronizzazione si è interrotto inaspettatamente (codice uscita {code})",
     "notif.engine_start_failed": "Impossibile avviare la sincronizzazione.",
     "notif.engine_startup_failed": "Il motore di sincronizzazione si è arrestato durante l'avvio (codice di uscita {code}).",
+    "notif.engine_stopped": "Il motore di sincronizzazione si è arrestato inaspettatamente (codice di uscita {code}).",
     "notif.path_not_found": "Percorso non trovato",
     "notif.path_not_found_msg": "La cartella condivisa '{path}' non esiste. Verifica il percorso nelle impostazioni.",
     "notif.version_mismatch": "Versioni non compatibili",

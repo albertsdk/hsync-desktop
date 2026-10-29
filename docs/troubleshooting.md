@@ -6,10 +6,13 @@ sync runs are explained in
 
 ## A sync does not start
 
-When the engine cannot start (for example the bundled `hsync` client is missing or
-incompatible), the app shows an error dialog with the reason the engine reported
-and writes the same message to the log panel, instead of failing silently. Read
-the log line first; the labels it can contain are in
+When the engine cannot start — or stops with a fatal error instead of syncing —
+the app shows an error dialog with the reason the engine reported and writes the
+same message to the log panel, instead of failing silently. One frequent reason is
+the folder's instance lock: another `hsync` process is already syncing the same
+folder (a terminal run, a scheduled job, an older process still running), and the
+engine refuses to work beside it. Stop that process, or choose another folder.
+Read the log line first; the labels it can contain are in
 [Log Labels](log-labels.md).
 
 ## A control is greyed out

@@ -146,7 +146,20 @@ operator stop), it emits `startup_failed(exit_code, tail)`. A received
 exactly once. The window presents a **manual** start with a modal dialog and an
 **automatic** start (`_on_auto_start`, OS autostart in the tray) with the
 persistent error banner + tray notification
-(`main_window/events.py::EventsMixin._present_startup_failure`). `no_peers_warning` is emitted when a p2p one-shot aborts because
+(`main_window/events.py::EventsMixin._present_startup_failure`).
+
+**Fatal exits after readiness** (`engine/process.py::HsyncEngine.fatal_exit`): the
+client can still refuse once the startup phase is over — the per-directory
+instance lock is taken just before the run loop, and a trust/connectivity gate or
+an unexpected exception can also end the process — always with exit code `1`
+(`ExitCode.FATAL`; `2..5` are verdicts of a completed cycle, never a failure).
+Since the startup tail is discarded at readiness, `_on_stdout` keeps the run's
+last `ERROR`/`CRITICAL` messages (SGR stripped, level parsed from the documented
+log format) and `_on_finished` emits `fatal_exit(exit_code, last_error)` for that
+code when no `error(reason="startup")` was reported. The window presents it once
+(`main_window/events.py::EventsMixin._on_fatal_exit` → `_report_engine_stop_failure`)
+unless the run was a user stop, a scoped Send/Receive, or the client already
+explained itself through `error_occurred`. `no_peers_warning` is emitted when a p2p one-shot aborts because
 no peer was discovered.
 
 Both `auth_error` (invalid/missing key) and `auth_required` (a shared key is

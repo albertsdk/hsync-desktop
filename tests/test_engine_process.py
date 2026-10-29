@@ -297,6 +297,137 @@ class TestStartupPhase:
         assert failures == []
 
 
+class _StdoutData:
+    """Minimal QByteArray stand-in: ``_on_stdout`` only calls ``.data()``."""
+
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+
+    def data(self) -> bytes:
+        return self._payload
+
+
+class _StdoutProcess:
+    """Minimal QProcess stand-in feeding one chunk to the log parser."""
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    def readAllStandardOutput(self) -> _StdoutData:
+        return _StdoutData(self._text.encode("utf-8"))
+
+
+class TestFatalExitAfterReady:
+    """A fatal exit that happens *after* readiness must not stay silent.
+
+    The client can still refuse once the run is live (the folder's instance
+    lock, a trust/connectivity gate) or die on an unexpected exception, and it
+    exits *normally* with the documented FATAL code — indistinguishable from a
+    clean stop by the exit status alone. The startup tail is already gone, so
+    the engine keeps the run's last ERROR/CRITICAL messages.
+    """
+
+    LOG_LINE = (
+        "\x1b[31m2026-10-28T20:51:27.980Z - [521114] [cid] ERROR: Another hsync "
+        "process is already syncing '/data/photos' (pid 42).\x1b[0m"
+    )
+
+    @staticmethod
+    def _feed(engine: HsyncEngine, text: str) -> None:
+        engine._process = _StdoutProcess(text)  # type: ignore[assignment]
+        engine._on_stdout()
+
+    def test_a_fatal_exit_after_ready_carries_the_last_client_error(self):
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        failures = _capture(engine.startup_failed)
+        engine._handle_event(build_event(UiEventName.ready))
+        self._feed(engine, self.LOG_LINE + "\n")
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == [(1, "Another hsync process is already syncing '/data/photos' (pid 42).")]
+        assert failures == []
+
+    def test_a_fatal_exit_without_a_client_error_still_reports(self):
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == [(1, "")]
+
+    def test_a_completed_cycle_verdict_is_not_a_fatal_exit(self):
+        """Codes 2..5 describe a finished cycle, not a failure to report."""
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+
+        engine._on_finished(2, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == []
+
+    def test_a_structured_startup_error_suppresses_the_fatal_report(self):
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+        engine._handle_event(build_event(UiEventName.error, message="bad config", reason="startup"))
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == []
+
+    def test_an_operator_stop_is_not_a_fatal_exit(self):
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+        engine._stopping = True
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == []
+
+    def test_a_crash_keeps_the_generic_crash_report(self):
+        """A killed child has its own report: it must not be reported twice."""
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+
+        engine._on_finished(1, QProcess.ExitStatus.CrashExit)
+
+        assert fatal == []
+
+    def test_only_level_bearing_lines_are_kept(self):
+        """A message that merely mentions ERROR is not an error line."""
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+        self._feed(
+            engine,
+            "2026-10-28T20:51:27.980Z - [42] [cid] WARNING: retrying after ERROR\n"
+            "2026-10-28T20:51:27.981Z - [42] [cid] INFO: ERROR budget is zero\n",
+        )
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == [(1, "")]
+
+    def test_the_last_error_wins(self):
+        engine = HsyncEngine()
+        fatal = _capture(engine.fatal_exit)
+        engine._handle_event(build_event(UiEventName.ready))
+        self._feed(
+            engine,
+            "2026-10-28T20:51:27.980Z - [42] [cid] ERROR: first failure\n"
+            "\x1b[31m2026-10-28T20:51:28.000Z - [42] [cid] CRITICAL: second failure\x1b[0m\n",
+        )
+
+        engine._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        assert fatal == [(1, "second failure")]
+
+
 class _EnvFakeSettings:
     """Minimal QSettings stand-in for ``apply_settings_env`` (dict-backed)."""
 

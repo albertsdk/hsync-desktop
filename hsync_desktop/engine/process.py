@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 from collections import deque
 from collections.abc import Callable
@@ -35,6 +36,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
+from hsync_desktop.ansi import strip_sgr
 from hsync_desktop.config import (
     DEFAULT_P2P_BOOTNODE_TRUST,
     DEFAULT_P2P_PEER_READ_CAP,
@@ -49,6 +51,23 @@ from hsync_desktop.engine.cli import find_hsync_binary
 # failure report can show the client's own diagnostic instead of a bare exit
 # code. The tail is discarded as soon as the engine reports readiness.
 _STARTUP_TAIL_LINES = 40
+
+# How many client ERROR/CRITICAL messages are retained for the *whole* run. The
+# startup tail is gone at readiness, so it cannot explain a fatal exit that
+# happens afterwards (a refusal to take the folder's instance lock, a failed
+# trust/connectivity resolution, an unexpected exception).
+_RECENT_ERROR_LINES = 5
+
+# The client's documented exit-code contract (hsync-client/docs/scheduling.md):
+# 1 is a fatal error — invalid configuration, unreachable server, authentication
+# failure, directory lock held by another process, unexpected exception — while
+# 2..5 are verdicts of a *completed* cycle and never a failure to report here.
+_FATAL_EXIT_CODE = 1
+
+# The documented log format is "<ts> - [pid] [cid] LEVEL: message". The client
+# colorizes its output (``--color=always``), so the escapes are stripped before
+# the level is matched.
+_CLIENT_ERROR_RE = re.compile(r"(?<=] )(?:CRITICAL|ERROR): ")
 
 # Stop escalation timings (milliseconds). ``request_stop`` sends SIGTERM and
 # returns at once, so the GUI stays responsive; the grace timer escalates to
@@ -290,6 +309,12 @@ class HsyncEngine(QObject):
     # stdout/stderr tail). A config error exits *normally* with a non-zero code,
     # so ``process_finished`` alone cannot tell it apart from a clean stop.
     startup_failed = Signal(int, str)
+    # The process exited with the documented FATAL code *after* readiness, with
+    # nothing else reported: exit code, last client ERROR/CRITICAL message ("" if
+    # it logged none). The startup safety net only covers exits before the
+    # ``ready`` marker, and a normal exit with code 1 would otherwise look like a
+    # clean stop — leaving the reason in the log only.
+    fatal_exit = Signal(int, str)
     master_conflict = Signal(str, str, str)  # conflict_type, peer_cid, peer_address
     no_master_warning = Signal(str)  # no master elected (all peers never-master)
     no_peers_warning = Signal(str)  # a p2p one-shot found no peer to sync with
@@ -356,6 +381,9 @@ class HsyncEngine(QObject):
         self._ready = False
         self._startup_error_event = False
         self._startup_tail: deque[str] = deque(maxlen=_STARTUP_TAIL_LINES)
+        # Last ERROR/CRITICAL messages of the run, kept past readiness: a fatal
+        # exit that happens while the run is live must still be explainable.
+        self._recent_errors: deque[str] = deque(maxlen=_RECENT_ERROR_LINES)
         # Stop escalation: SIGTERM, then kill() after the grace, then declare the
         # run stopped if the child still never reports ``finished``.
         self._stop_grace_timer = QTimer(self)
@@ -419,6 +447,7 @@ class HsyncEngine(QObject):
         self._ready = False
         self._startup_error_event = False
         self._startup_tail.clear()
+        self._recent_errors.clear()
         self._set_status("connecting")
 
         proc = QProcess(self)
@@ -679,6 +708,15 @@ class HsyncEngine(QObject):
             line = raw_line.rstrip()
             if line:
                 self.log_received.emit(line)
+                # Keep the level-bearing lines of the whole run: the startup
+                # tail is discarded at readiness and cannot explain a later
+                # fatal exit. The substring test avoids stripping the escapes
+                # on every line of a burst.
+                if "ERROR" in line or "CRITICAL" in line:
+                    plain = strip_sgr(line)
+                    match = _CLIENT_ERROR_RE.search(plain)
+                    if match is not None:
+                        self._recent_errors.append(plain[match.end() :].strip())
                 if not self._ready:
                     # Keep the startup output so a failure can show the client's
                     # own reason instead of only the exit code.
@@ -705,6 +743,18 @@ class HsyncEngine(QObject):
         # startup error is a startup failure: ``process_finished`` alone would
         # look like a clean stop (a config error exits normally with code 1).
         startup_failed = not self._ready and not self._stopping and not self._startup_error_event
+        # A fatal exit *after* readiness with nothing reported: the client can
+        # still refuse mid-startup (the folder's instance lock, the trust and
+        # connectivity gates) or die on an unexpected exception, and a normal
+        # exit with code 1 is otherwise indistinguishable from a clean stop. A
+        # crash (signal) keeps its own reporting path.
+        fatal_after_start = (
+            self._ready
+            and not self._stopping
+            and not self._startup_error_event
+            and exit_status == QProcess.ExitStatus.NormalExit
+            and exit_code == _FATAL_EXIT_CODE
+        )
         tail = "\n".join(self._startup_tail)
         self._stopping = False
         self._set_status("disconnected")
@@ -712,6 +762,11 @@ class HsyncEngine(QObject):
             # Emitted first so the window can mark the failure as surfaced
             # before its generic ``process_finished`` handling runs.
             self.startup_failed.emit(exit_code, tail)
+        elif fatal_after_start:
+            # Same ordering: the window presents it once, and its generic
+            # ``process_finished`` handling must not report it again.
+            detail = self._recent_errors[-1] if self._recent_errors else ""
+            self.fatal_exit.emit(exit_code, detail)
         self.process_finished.emit(exit_code, desc)
 
     @Slot(QProcess.ProcessError)

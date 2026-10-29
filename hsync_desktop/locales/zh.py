@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "同步进程意外终止（退出代码 {code}）",
     "notif.engine_start_failed": "无法启动同步。",
     "notif.engine_startup_failed": "同步引擎在启动期间停止（退出代码 {code}）。",
+    "notif.engine_stopped": "同步引擎意外停止（退出代码 {code}）。",
     "notif.path_not_found": "找不到路径",
     "notif.path_not_found_msg": "共享文件夹“{path}”不存在。请在设置中检查路径。",
     "notif.version_mismatch": "版本不匹配",

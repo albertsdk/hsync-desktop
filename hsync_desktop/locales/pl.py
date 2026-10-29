@@ -435,6 +435,7 @@ translations: dict[str, str] = {
     "notif.process_crashed": "Proces synchronizacji zakończył się nieoczekiwanie (kod wyjścia {code})",
     "notif.engine_start_failed": "Nie udało się uruchomić synchronizacji.",
     "notif.engine_startup_failed": "Silnik synchronizacji zatrzymał się podczas uruchamiania (kod wyjścia {code}).",
+    "notif.engine_stopped": "Silnik synchronizacji zatrzymał się nieoczekiwanie (kod wyjścia {code}).",
     "notif.path_not_found": "Nie znaleziono ścieżki",
     "notif.path_not_found_msg": "Folder udostępniony '{path}' nie istnieje. Sprawdź ścieżkę w ustawieniach.",
     "notif.version_mismatch": "Niezgodność wersji",
