@@ -86,7 +86,10 @@ directly or copied with one click.
 
 If a discovery server's certificate was not saved during setup, the app asks for
 confirmation the first time you connect (a one-time security check — see
-[Trust, fingerprints and identity checks](choose-trust.md)).
+[Trust, fingerprints and identity checks](choose-trust.md)). A discovery server
+that cannot be reached never blocks the sync: the app warns you and keeps working
+on the local network, and you can pin the server later from **Manage trusted
+servers & devices**.
 
 ## Changing things later
 

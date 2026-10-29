@@ -73,7 +73,13 @@ class TestEnsureBootnodeTrust:
         qtbot.waitUntil(lambda: bool(asked), timeout=5000)
         assert started == []
 
-    def test_unreachable_host_warns_and_aborts(self, window, qtbot, monkeypatch):
+    def test_unreachable_host_continues_on_the_local_network(self, window, qtbot, monkeypatch):
+        """An unreachable discovery server degrades the run, never cancels it.
+
+        Regression: the pre-flight abandoned every start when the configured
+        bootnode could not be probed, so a desktop client with a stale discovery
+        server never synced even with peers on the local network.
+        """
 
         _patch_all(monkeypatch, "list_bootnode_trust", lambda binary: [])
         _patch_all(monkeypatch, "fetch_bootnode_fingerprint", lambda *a, **k: None)
@@ -81,11 +87,16 @@ class TestEnsureBootnodeTrust:
         monkeypatch.setattr(
             QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
         )
+        logged: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_append_desktop_log", lambda level, message: logged.append((level, message))
+        )
         started: list[int] = []
         self._run(window, started)
-        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
-        assert warned == [tr("dialogs.bootnode_unreachable").format(host="boot.example.net")]
-        assert started == []
+        qtbot.waitUntil(lambda: bool(started), timeout=5000)
+        assert started == [1], "the run must continue without the discovery server"
+        assert warned == []
+        assert logged and "boot.example.net" in logged[0][1]
 
     def test_a_second_request_while_probing_is_ignored(self, window, qtbot, monkeypatch):
 
@@ -220,6 +231,29 @@ class TestEnsureServerTrust:
         started: list[int] = []
         window._ensure_trust(lambda: started.append(1))
         assert started == [1]
+
+    def test_unreachable_server_warns_and_aborts(self, window, qtbot, settings, monkeypatch):
+        """The sync server is mandatory: a dead one still cancels the run.
+
+        Only the optional discovery server degrades; server mode has no
+        alternative path, so a refused or unreachable server keeps the run from
+        starting instead of syncing nothing.
+        """
+        s = settings
+        s.setValue("p2p/enabled", False)
+        s.setValue("connection/server_url", "https://server.example.com:9753")
+        s.setValue("connection/server_trust", "ask")
+        _patch_all(monkeypatch, "list_server_trust", lambda binary: [])
+        _patch_all(monkeypatch, "fetch_server_fingerprint", lambda *a, **k: None)
+        warned: list[str] = []
+        monkeypatch.setattr(
+            QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[2]))
+        )
+        started: list[int] = []
+        window._ensure_trust(lambda: started.append(1))
+        qtbot.waitUntil(lambda: bool(warned), timeout=5000)
+        assert warned == [tr("dialogs.bootnode_unreachable").format(host="server.example.com")]
+        assert started == []
 
     def test_server_changed_trust_calls_add(self, window, monkeypatch):
 

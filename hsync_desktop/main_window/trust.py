@@ -95,6 +95,9 @@ class _TrustCheck:
 
     ``fetch_fn`` is the blocking fingerprint probe (a client CLI call): it only
     ever runs on the ``AsyncProbe`` thread; ``add_fn`` writes the confirmed pin.
+    ``kind`` is the host class (``"bootnode"`` or ``"server"``): only the sync
+    server is mandatory for a run, so an unreachable discovery server degrades
+    the run instead of cancelling it.
     """
 
     host: str
@@ -103,6 +106,7 @@ class _TrustCheck:
     fetch_fn: Callable[..., str | None]
     label: str
     binary: str
+    kind: str
 
 
 class TrustMixin:
@@ -435,6 +439,7 @@ class TrustMixin:
             fetch_fn=fetch_bootnode_fingerprint,
             add_fn=add_bootnode_trust,
             label="Bootnode",
+            kind="bootnode",
         )
 
     def _server_trust_check(self, binary: str) -> _TrustCheck | None:
@@ -460,6 +465,7 @@ class TrustMixin:
             fetch_fn=fetch_server_fingerprint,
             add_fn=add_server_trust,
             label="Server",
+            kind="server",
         )
 
     @staticmethod
@@ -472,6 +478,7 @@ class TrustMixin:
         fetch_fn: Callable[..., str | None],
         add_fn: Callable[..., bool],
         label: str,
+        kind: str,
     ) -> _TrustCheck | None:
         """Build the check for an unpinned ``host:port`` (``None`` when pinned).
 
@@ -482,7 +489,7 @@ class TrustMixin:
             entry.get("host") == host and entry.get("port") == port for entry in entries
         ):
             return None
-        return _TrustCheck(host, port, add_fn, fetch_fn, label, binary)
+        return _TrustCheck(host, port, add_fn, fetch_fn, label, binary, kind)
 
     def _run_next_trust_check(self) -> None:
         """Probe the next unknown host, or hand control back to the caller."""
@@ -520,6 +527,20 @@ class TrustMixin:
         self._hide_info_banner()
         fingerprint = outcome.fingerprint if isinstance(outcome, ProbeOutcome) else ""
         if not fingerprint:
+            if check.kind == "bootnode":
+                # The discovery server is an optional cross-network source: an
+                # unreachable node degrades the run to local-network discovery
+                # instead of cancelling it. The client retries the node on its
+                # own and, once it answers, reports the unpinned identity through
+                # ``pairing_needed`` (scope ``bootnode``), which re-prompts here.
+                self._append_desktop_log(
+                    "WARNING",
+                    f"Discovery server {check.host}:{check.port} is not reachable: "
+                    "devices are discovered on the local network only. Pin its "
+                    "fingerprint (Manage trusted servers & devices) to use it.",
+                )
+                self._run_next_trust_check()
+                return
             self._finish_trust_preflight()
             QMessageBox.warning(
                 self,

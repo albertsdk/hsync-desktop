@@ -47,6 +47,12 @@ In **p2p Mode** the same idea applies to the device that becomes primary, throug
 default, **Accept automatically**, or **Require an explicit confirmation** (which
 waits for you to pin the fingerprint with **Confirm a primary device…**).
 
+The **discovery server** is optional, so its identity check never blocks a sync: if
+it cannot be reached when a sync starts, the app warns you and keeps syncing on
+the local network, and it stops using the server until you pin its fingerprint.
+The **sync server** has no alternative path, so an unreachable or refused one keeps
+the sync from starting.
+
 ## Where to review what is trusted
 
 <img src="assets/screens/15-trusted-keys.png" alt="Manage trusted servers and devices dialog with tabs per mode" width="640">

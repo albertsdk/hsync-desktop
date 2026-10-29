@@ -379,10 +379,14 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
   hold `host:port`), then `_run_next_trust_check` probes them one at a time on
   `engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
   (`main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
-  The run starts only from the `on_ready` continuation, so a refused or
-  unreachable host abandons it. The probe never runs on the UI thread, and a
-  progress toast (`common.checking`) covers the wait. Pins are written to the
-  shared known-hosts stores (no GUI-only fingerprint settings).
+  The run starts only from the `on_ready` continuation, so a refused host
+  abandons it — except for an **unreachable discovery server**: `_TrustCheck.kind`
+  distinguishes the two, and a bootnode whose fingerprint cannot be read only
+  warns (log + the client's own `bootnode`/`unreachable` banner) and continues on
+  the local network (ADR-0045), because that source is optional. The probe never
+  runs on the UI thread, and a progress toast (`common.checking`) covers the
+  wait. Pins are written to the shared known-hosts stores (no GUI-only
+  fingerprint settings).
 
 ## trusted_keys.py — TrustedKeysDialog
 
