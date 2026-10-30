@@ -132,6 +132,32 @@ _STATUS_TEXT_KEYS = {
     TransferStatus.ERROR: "status.error",
 }
 
+# Statuses in which the engine still owns the path: a user rename, move or
+# delete would race a running or planned transfer (a finished download would
+# recreate the renamed-away entry, a tombstone and an in-flight apply fight for
+# ordering, a source rename aborts an upload). The context menu keeps the
+# destructive actions disabled for these rows and for folders that contain one.
+_BUSY_STATUSES = {
+    TransferStatus.TO_DOWNLOAD,
+    TransferStatus.TO_UPLOAD,
+    TransferStatus.TO_DELETE,
+    TransferStatus.TO_RENAME,
+    TransferStatus.DOWNLOADING,
+    TransferStatus.UPLOADING,
+    TransferStatus.QUEUED,
+    TransferStatus.TRANSFERRING,
+    TransferStatus.DELETED,
+}
+
+# Statuses in which the entry is not a complete local file on disk: a download
+# commits at the end and a DELETED row is already gone, so read-only actions
+# that need the actual file (Copy to) have nothing to work with.
+_UNMATERIALIZED_STATUSES = {
+    TransferStatus.TO_DOWNLOAD,
+    TransferStatus.DOWNLOADING,
+    TransferStatus.DELETED,
+}
+
 # Minimum width a data column keeps when fitted, restored or dragged, in px. It
 # is also the header's global minimum section size, so Qt enforces the floor on
 # an interactive drag.
@@ -1351,6 +1377,52 @@ class FileTransferTable(QTableView):
         QGuiApplication.clipboard().setText(text)
         return text
 
+    # ── Safety gating for file actions ───────────────────────────────────
+
+    def _entry_is_busy(self, transfer: FileTransfer) -> bool:
+        """True when the engine owns ``transfer``'s path, or any below a folder.
+
+        Resting rows (``LOCAL``/``SYNCED``/``ERROR``/``COMPLETED``) are safe to
+        mutate; planned (``TO_*``), in-flight (``DOWNLOADING``/``UPLOADING``)
+        and legacy (``QUEUED``/``TRANSFERRING``) ones must wait for the engine.
+        A folder row's transfer carries an aggregate status that can look
+        resting while a descendant is transferring, so a folder is checked
+        against every entry below it.
+        """
+        if transfer.status in _BUSY_STATUSES:
+            return True
+        # Child keys all start with the folder key (``dir/f`` vs ``folder2/f``
+        # cannot collide), so a prefix scan over the flat map is the whole test.
+        return transfer.filepath.endswith("/") and self._subtree_is_busy(transfer.filepath)
+
+    def _subtree_is_busy(self, folder_key: str) -> bool:
+        """True when any row under the folder is busy (prefix scan)."""
+        return any(
+            path.startswith(folder_key) and path != folder_key
+            for path, transfer in self._transfers.items()
+            if transfer.status in _BUSY_STATUSES
+        )
+
+    def _entry_materialized(self, transfer: FileTransfer) -> bool:
+        """True when the entry is expected to exist on disk right now.
+
+        Incoming rows have no local file until the transfer commits and a
+        DELETED row is already gone, so Copy to cannot work on them.
+        """
+        return transfer.status not in _UNMATERIALIZED_STATUSES
+
+    def _copy_enabled(self, transfer: FileTransfer) -> bool:
+        """True when Copy to can produce a real snapshot of the entry.
+
+        The source must exist on disk (see ``_entry_materialized``) and a
+        folder must not be busy below it: the copy would sweep the engine's
+        ``.part`` staging files and export an incomplete tree. A busy *file*
+        row stays copyable — the local file it reads is the snapshot asked for.
+        """
+        if not self._entry_materialized(transfer):
+            return False
+        return not (transfer.filepath.endswith("/") and self._entry_is_busy(transfer))
+
     # ── File context menu ─────────────────────────────────────────────────
 
     def _show_file_context_menu(self, pos) -> None:
@@ -1401,14 +1473,18 @@ class FileTransferTable(QTableView):
         send_action.setEnabled(not self._sync_active)
         receive_action.setEnabled(not self._sync_active)
         menu.addSeparator()
-        menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
+        entry_busy = self._entry_is_busy(transfer)
+        copy_to_action = menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
+        copy_to_action.setEnabled(self._copy_enabled(transfer))
         menu.addAction(tr("ctx.copy_path"), lambda: self.copy_path(transfer))
         menu.addAction(
             tr("ctx.copy_path_relative"), lambda: self.copy_path(transfer, relative=True)
         )
-        menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
+        rename_action = menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
+        rename_action.setEnabled(not entry_busy)
         menu.addSeparator()
-        menu.addAction(tr("ctx.trash"), lambda: self._ctx_trash(transfer))
+        trash_action = menu.addAction(tr("ctx.trash"), lambda: self._ctx_trash(transfer))
+        trash_action.setEnabled(not entry_busy)
         menu.addSeparator()
         menu.addAction(tr("ctx.properties"), lambda: self._ctx_properties(transfer))
         return menu
@@ -1490,7 +1566,15 @@ class FileTransferTable(QTableView):
             raise RuntimeError(reply.errorMessage())
 
     def _ctx_copy_to(self, transfer: FileTransfer) -> None:
-        """Copy the file or directory to a user-chosen directory."""
+        """Copy the file or directory to a user-chosen directory.
+
+        Guarded like the context menu (``_copy_enabled``): the window File menu
+        also lands here, whose enabled state can lag a transfer that only just
+        started, so the snapshot is never taken off a missing or incomplete
+        entry.
+        """
+        if not self._copy_enabled(transfer):
+            return
         abs_path = self._absolute_path(transfer)
         dest_dir = QFileDialog.getExistingDirectory(
             self, tr("ctx.copy_dialog_title"), os.path.dirname(abs_path)
@@ -1539,7 +1623,14 @@ class FileTransferTable(QTableView):
             )
 
     def _ctx_rename(self, transfer: FileTransfer) -> None:
-        """Show a rename dialog and rename the file on disk."""
+        """Show a rename dialog and rename the file on disk.
+
+        No-op while the engine owns the path (see ``_entry_is_busy``): the
+        context menu greys the action and the window File menu shares the
+        guard, so a rename can never race a transfer on the same path.
+        """
+        if self._entry_is_busy(transfer):
+            return
         abs_path = self._absolute_path(transfer)
         old_name = transfer.filename
 
@@ -1607,7 +1698,14 @@ class FileTransferTable(QTableView):
             )
 
     def _ctx_trash(self, transfer: FileTransfer) -> None:
-        """Move the file to the system trash."""
+        """Move the file to the system trash.
+
+        No-op while the engine owns the path: trashing a file with a transfer
+        in flight resurrects it at the next commit, and deleting a folder with
+        transfers inside would orphan the in-flight rows.
+        """
+        if self._entry_is_busy(transfer):
+            return
         display_name = transfer.filepath.rstrip("/")
         if not _confirm_dialog(
             self, tr("ctx.confirm_trash_title"), tr("ctx.confirm_trash").format(name=display_name)

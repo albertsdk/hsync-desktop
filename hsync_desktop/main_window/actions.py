@@ -131,13 +131,24 @@ class ActionsMixin:
 
     @Slot(object)
     def _on_file_selection_changed(self, transfer) -> None:
-        """Handle file selection change from the file panel table."""
+        """Handle file selection change from the file panel table.
+
+        Rename/trash are disabled for rows the engine still owns (planned or
+        in-flight transfer) and Copy to for entries not materialized on disk;
+        the row's status can change while the menu is open, so the table's
+        ``_ctx_*`` guards remain the backstop.
+        """
         has_selection = transfer is not None
         self._set_file_menu_enabled(has_selection)
         # Hide "Open With" for folders
         if has_selection and hasattr(transfer, "filepath"):
             is_dir = transfer.filepath.endswith("/")
             self._act_file_open_with.setEnabled(not is_dir)
+            table = self._file_panel._table
+            busy = table._entry_is_busy(transfer)
+            self._act_file_rename.setEnabled(not busy)
+            self._act_file_trash.setEnabled(not busy)
+            self._act_file_copy_to.setEnabled(table._copy_enabled(transfer))
 
     # ── File menu action wrappers ─────────────────────────────────────────
 

@@ -62,6 +62,16 @@ Windows) on the clipboard; **Copy relative path** copies the path inside the
 shared folder. The same two commands are in the **File** menu, where they are
 reachable from the keyboard.
 
+**Rename** and **Move to trash** are greyed out for a row the engine is still
+working on (a file that is being transferred or is waiting to be, and folders
+that contain any) — renaming or deleting such a file mid-transfer would race the
+sync and could recreate it, so the action stays disabled until the row is
+resting. **Copy to…** is disabled while a file is coming in (there is nothing to
+copy yet) and for folders that are still transferring (the copy would catch them
+mid-way); a file that is uploading can still be copied — the local copy is what
+you asked for. The same rules apply to the **File** menu entries; **Open**,
+**Copy path** and **Properties** are always available.
+
 Folders created by a remote peer appear in the list as **Synced** (green), like
 the files inside them.
 

@@ -1469,6 +1469,106 @@ class TestCopyPath:
         assert table.model().headerData(0, Qt.Orientation.Horizontal) == tr("file.name")
 
 
+class TestContextMenuGating:
+    """Destructive/read actions are gated while the engine owns the row.
+
+    The context menu and the window File menu share the same helpers, and the
+    ``_ctx_*`` handlers re-check them so a caller cannot race a transfer.
+    """
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        return table
+
+    @staticmethod
+    def _action(menu, key):
+        from hsync_desktop.i18n import tr
+
+        return next(a for a in menu.actions() if not a.isSeparator() and a.text() == tr(key))
+
+    def _open_menu(self, qtbot, *transfers):
+        """Build the context menu of row 0 after adding ``transfers``."""
+        table = self._table(qtbot)
+        for transfer in transfers:
+            table.add_transfer(transfer)
+        table.resize(400, 200)
+        table.show()
+        qtbot.wait(1)
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(0, 0)).center())
+        assert menu is not None
+        return table, menu
+
+    def test_resting_rows_keep_the_destructive_actions(self, qtbot):
+        _, menu = self._open_menu(
+            qtbot,
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL),
+        )
+        assert self._action(menu, "ctx.rename").isEnabled()
+        assert self._action(menu, "ctx.trash").isEnabled()
+        assert self._action(menu, "ctx.copy_to").isEnabled()
+
+    def test_an_in_flight_download_disables_rename_trash_and_copy(self, qtbot):
+        _, menu = self._open_menu(
+            qtbot,
+            FileTransfer(
+                filepath="a.bin", direction="↓", size=1024, status=TransferStatus.DOWNLOADING
+            ),
+        )
+        assert not self._action(menu, "ctx.rename").isEnabled()
+        assert not self._action(menu, "ctx.trash").isEnabled()
+        assert not self._action(menu, "ctx.copy_to").isEnabled()
+
+    def test_a_planned_upload_locks_renaming_but_copy_stays_usable(self, qtbot):
+        _, menu = self._open_menu(
+            qtbot,
+            FileTransfer(filepath="a.bin", direction="↑", size=1, status=TransferStatus.TO_UPLOAD),
+        )
+        assert not self._action(menu, "ctx.rename").isEnabled()
+        assert not self._action(menu, "ctx.trash").isEnabled()
+        assert self._action(menu, "ctx.copy_to").isEnabled()
+
+    def test_a_folder_with_in_flight_children_is_locked_too(self, qtbot):
+        _, menu = self._open_menu(
+            qtbot,
+            FileTransfer(filepath="dir/", direction="—", size=0, status=TransferStatus.LOCAL),
+            FileTransfer(
+                filepath="dir/a.bin",
+                direction="↓",
+                size=1,
+                status=TransferStatus.DOWNLOADING,
+            ),
+        )
+        assert not self._action(menu, "ctx.rename").isEnabled()
+        assert not self._action(menu, "ctx.trash").isEnabled()
+        assert not self._action(menu, "ctx.copy_to").isEnabled()
+
+    def test_the_ctx_handlers_guard_programmatic_calls(self, qtbot, monkeypatch):
+        """The window File menu lands in the same handlers: no dialog, no fs."""
+        table = self._table(qtbot)
+        transfer = FileTransfer(
+            filepath="a.bin", direction="↓", size=1, status=TransferStatus.DOWNLOADING
+        )
+        table.add_transfer(transfer)
+
+        monkeypatch.setattr(
+            table,
+            "_absolute_path",
+            lambda *_a, **_k: pytest.fail("the guard must stop before the filesystem"),
+        )
+        monkeypatch.setattr(
+            "hsync_desktop.file_panel.transfer_table._confirm_dialog",
+            lambda *_a, **_k: pytest.fail("the guard must stop before any dialog"),
+        )
+        table._ctx_rename(transfer)
+        table._ctx_copy_to(transfer)
+        table._ctx_trash(transfer)
+
+
 class TestEmptyFolderStatus:
     """An empty folder shows its own status; a remote-created dir is SYNCED."""
 

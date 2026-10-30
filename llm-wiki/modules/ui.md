@@ -528,6 +528,23 @@ The entries are disabled while a sync is running
 (`main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
 enabled only with a selection and a stopped engine.
 
+Destructive acts (`Rename` / `Trash`) add a **per-row** gate on top:
+`FileTransferTable._entry_is_busy` returns True while the engine owns the path —
+planned (`TO_*`), in-flight (`DOWNLOADING`/`UPLOADING`), legacy
+(`QUEUED`/`TRANSFERRING`) or `DELETED` rows — or, for a folder, while any row
+below it is busy (`_subtree_is_busy`, a prefix scan over the flat transfer
+map, because a folder's aggregate status can look resting while a child
+transfers). `Copy to…` is additionally gated by `_copy_enabled` — the source
+must be materialized on disk (an incoming download commits at the end and a
+DELETED row is gone) and a folder must not be busy below it (the copy would
+sweep the engine's `.part` staging files), while a busy *file* row stays
+copyable — so the menu never offers an action that would race the transfer or
+fail on a missing file. The same helpers drive the window File menu at selection
+time (`_on_file_selection_changed`) and are re-checked
+inside `_ctx_rename` / `_ctx_trash` / `_ctx_copy_to`, whose enabled state can
+lag a transfer that only just started; Open / Copy path / Properties stay
+available because they are read-only.
+
 The menu is built by `FileTransferTable._build_file_context_menu` (split from the
 `exec` so its order is asserted in tests) and groups the entries by kind: open ▸
 send/receive ▸ copy ▸ rename ▸ destructive ▸ properties (last, the conventional
