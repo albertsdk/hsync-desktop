@@ -36,7 +36,7 @@ once the limits free up. The diagnosis commands and the per-platform remedy are 
 the client guide:
 [The file watcher degrades to polling (inotify limits)](https://github.com/albertsdk/hsync-client/blob/main/docs/troubleshooting.md#the-file-watcher-degrades-to-polling-inotify-limits).
 
-The other warnings the app can raise during a sync (an unreachable rendezvous
+The other warnings the app can raise during a sync (an unreachable discovery
 server, low disk space, a folder that became unavailable) are listed in
 [Warnings and notifications](warnings.md#warnings-during-a-sync).
 

@@ -21,7 +21,7 @@ can be switched later; a given setup uses one or the other.
   Mode**. The server is always reachable and holds the share.
 - **Your own devices, mostly on the same Wi-Fi** → **p2p Mode**. One device
   becomes the primary and serves the others; no server needed.
-- **Your own devices on different networks** → **p2p Mode plus a rendezvous
+- **Your own devices on different networks** → **p2p Mode plus a discovery
   server**. The discovery server only helps the devices find each other; it never
   carries or stores your files.
 - **Not sure yet** → in the [Setup wizard](setup-wizard.md), press **Help me

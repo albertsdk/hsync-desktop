@@ -44,7 +44,7 @@ A **warning** is something the sync keeps running through, for example:
 
 - the file watcher degraded to polling because the system ran out of inotify
   resources;
-- a discovery server could not be reached while device rendezvous retried;
+- a discovery server could not be reached while device discovery retried;
 - free disk space fell below the configured reserve;
 - the shared folder is no longer accessible (drive unplugged, network mount
   dropped).
