@@ -519,6 +519,7 @@ translations: dict[str, str] = {
     "ctx.rename_title": "Datei umbenennen",
     "ctx.rename_label": "Neuer Name",
     "ctx.rename_btn": "Umbenennen",
+    "ctx.rename_busy_dest": "Der neue Name bezieht sich auf eine Datei, mit der die Synchronisierung noch beschäftigt ist. Warten Sie, bis die Übertragung abgeschlossen ist, und versuchen Sie es erneut.",
     "ctx.error_title": "Fehler",
     "ctx.error_open": "Datei kann nicht geöffnet werden: {error}",
     "ctx.error_open_with": "Auswahlfenster kann nicht geöffnet werden: {error}",

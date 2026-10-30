@@ -519,6 +519,7 @@ translations: dict[str, str] = {
     "ctx.rename_title": "Rinomina file",
     "ctx.rename_label": "Nuovo nome",
     "ctx.rename_btn": "Rinomina",
+    "ctx.rename_busy_dest": "Il nuovo nome corrisponde a un file su cui la sincronizzazione sta ancora lavorando. Attendi la fine del trasferimento e riprova.",
     "ctx.error_title": "Errore",
     "ctx.error_open": "Impossibile aprire il file: {error}",
     "ctx.error_open_with": "Impossibile aprire la finestra di selezione: {error}",

@@ -1423,6 +1423,18 @@ class FileTransferTable(QTableView):
             return False
         return not (transfer.filepath.endswith("/") and self._entry_is_busy(transfer))
 
+    def _rename_collides_with_engine(self, new_rel: str) -> bool:
+        """True when renaming onto *new_rel* would race the engine.
+
+        The selected row may be resting while the destination is not: a
+        planned/in-flight transfer on that name would be clobbered by the
+        ``os.rename`` (a folder with busy children would orphan them).
+        """
+        dest = self._transfers.get(new_rel) or self._transfers.get(new_rel + "/")
+        if dest is not None and self._entry_is_busy(dest):
+            return True
+        return self._subtree_is_busy(new_rel + "/")
+
     # ── File context menu ─────────────────────────────────────────────────
 
     def _show_file_context_menu(self, pos) -> None:
@@ -1631,7 +1643,6 @@ class FileTransferTable(QTableView):
         """
         if self._entry_is_busy(transfer):
             return
-        abs_path = self._absolute_path(transfer)
         old_name = transfer.filename
 
         dlg = QDialog(self)
@@ -1657,6 +1668,15 @@ class FileTransferTable(QTableView):
         new_name = line_edit.text().strip()
         if not new_name or new_name == old_name:
             return
+        self._apply_rename(transfer, new_name)
+
+    def _apply_rename(self, transfer: FileTransfer, new_name: str) -> None:
+        """Rename *transfer* to *new_name* on disk and re-key the row.
+
+        Split from ``_ctx_rename`` so the path validation and the destination
+        collision guard are testable without driving the dialog.
+        """
+        abs_path = self._absolute_path(transfer)
         # Reject names that contain path separators or traversal components
         # (slash, backslash, "..", null byte), preventing arbitrary filesystem
         # escape from the sync directory.
@@ -1672,20 +1692,23 @@ class FileTransferTable(QTableView):
                 "The file name cannot contain path separators or traversal sequences.",
             )
             return
-        # Fix: rstrip trailing slash from abs_path before dirname
-        # Otherwise for directories, dirname removes the slash and join creates wrong path
+        # rstrip trailing slash from abs_path before dirname: for directories
+        # dirname would otherwise drop the slash and join the wrong path.
         abs_path_rstripped = abs_path.rstrip("/")
         new_abs = os.path.join(os.path.dirname(abs_path_rstripped), new_name)
+        # Handle directories: filepath ends with "/"
+        is_dir = transfer.filepath.endswith("/")
+        parent = transfer.path
+        new_rel = (
+            (parent + new_name + "/")
+            if is_dir
+            else (os.path.join(parent, new_name) if parent else new_name)
+        )
+        if self._rename_collides_with_engine(new_rel):
+            QMessageBox.warning(self, tr("ctx.rename_title"), tr("ctx.rename_busy_dest"))
+            return
         try:
             os.rename(abs_path, new_abs)
-            # Handle directories: filepath ends with "/"
-            is_dir = transfer.filepath.endswith("/")
-            parent = transfer.path
-            new_rel = (
-                (parent + new_name + "/")
-                if is_dir
-                else (os.path.join(parent, new_name) if parent else new_name)
-            )
             old_rel = transfer.filepath
             del self._transfers[old_rel]
             transfer.filepath = new_rel

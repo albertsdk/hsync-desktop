@@ -542,6 +542,7 @@ translations: dict[str, str] = {
     "ctx.rename_title": "重命名文件",
     "ctx.rename_label": "新名称",
     "ctx.rename_btn": "重命名",
+    "ctx.rename_busy_dest": "新名称指向同步仍在处理的文件。请等待传输结束后再重命名。",
     "ctx.error_title": "错误",
     "ctx.error_open": "无法打开文件：{error}",
     "ctx.error_open_with": "无法打开选择对话框：{error}",

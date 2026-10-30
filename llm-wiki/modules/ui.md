@@ -543,7 +543,12 @@ fail on a missing file. The same helpers drive the window File menu at selection
 time (`_on_file_selection_changed`) and are re-checked
 inside `_ctx_rename` / `_ctx_trash` / `_ctx_copy_to`, whose enabled state can
 lag a transfer that only just started; Open / Copy path / Properties stay
-available because they are read-only.
+available because they are read-only. The rename submission is guarded too
+(`_apply_rename`, called by `_ctx_rename` after the dialog): a free-form new
+name is re-checked against the row map (`_rename_collides_with_engine`) because
+the *selected* row may be resting while the typed *destination* is a
+planned/in-flight transfer — renaming over it would clobber the file the engine
+is writing.
 
 The menu is built by `FileTransferTable._build_file_context_menu` (split from the
 `exec` so its order is asserted in tests) and groups the entries by kind: open ▸

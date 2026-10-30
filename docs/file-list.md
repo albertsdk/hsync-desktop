@@ -69,8 +69,10 @@ sync and could recreate it, so the action stays disabled until the row is
 resting. **Copy to…** is disabled while a file is coming in (there is nothing to
 copy yet) and for folders that are still transferring (the copy would catch them
 mid-way); a file that is uploading can still be copied — the local copy is what
-you asked for. The same rules apply to the **File** menu entries; **Open**,
-**Copy path** and **Properties** are always available.
+you asked for. **Rename** also refuses a new name that matches a file the sync
+is still working on (or a folder containing one): the selected row may be
+resting while the name you type is not. The same rules apply to the **File**
+menu entries; **Open**, **Copy path** and **Properties** are always available.
 
 Folders created by a remote peer appear in the list as **Synced** (green), like
 the files inside them.

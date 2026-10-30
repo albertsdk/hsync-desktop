@@ -542,6 +542,7 @@ translations: dict[str, str] = {
     "ctx.rename_title": "Bestand hernoemen",
     "ctx.rename_label": "Nieuwe naam",
     "ctx.rename_btn": "Naam wijzigen",
+    "ctx.rename_busy_dest": "De nieuwe naam verwijst naar een bestand waar de synchronisatie nog mee bezig is. Wacht tot de overdracht klaar is en probeer het opnieuw.",
     "ctx.error_title": "Fout",
     "ctx.error_open": "Kan bestand niet openen: {error}",
     "ctx.error_open_with": "Kan selectiedialoogvenster niet openen: {error}",

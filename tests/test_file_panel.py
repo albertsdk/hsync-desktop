@@ -1568,6 +1568,49 @@ class TestContextMenuGating:
         table._ctx_copy_to(transfer)
         table._ctx_trash(transfer)
 
+    def test_rename_onto_a_busy_destination_is_blocked(self, qtbot, monkeypatch):
+        """The selected row may rest while the destination is transferring."""
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.add_transfer(
+            FileTransfer(filepath="b.bin", direction="↓", size=1, status=TransferStatus.DOWNLOADING)
+        )
+        table.refresh_view()
+        transfer = table._transfers["a.bin"]
+
+        warnings = []
+        monkeypatch.setattr(
+            "hsync_desktop.file_panel.transfer_table.QMessageBox.warning",
+            lambda *a, **k: warnings.append(a),
+        )
+        monkeypatch.setattr(
+            "hsync_desktop.file_panel.transfer_table.os.rename",
+            lambda *_a, **_k: pytest.fail("os.rename must not run over a busy destination"),
+        )
+
+        table._apply_rename(transfer, "b.bin")
+        assert warnings
+        assert table._transfers["a.bin"] is transfer  # the row was not re-keyed
+
+    def test_rename_to_a_free_name_works_end_to_end(self, qtbot, tmp_path):
+        """A rename to a resting destination still renames and re-keys the row."""
+        table = self._table(qtbot)
+        table.set_base_directory(str(tmp_path))
+        (tmp_path / "a.bin").write_bytes(b"x")
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+        transfer = table._transfers["a.bin"]
+
+        table._apply_rename(transfer, "c.bin")
+        assert (tmp_path / "c.bin").exists()
+        assert not (tmp_path / "a.bin").exists()
+        assert table._transfers["c.bin"] is transfer
+        assert "a.bin" not in table._transfers
+
 
 class TestEmptyFolderStatus:
     """An empty folder shows its own status; a remote-created dir is SYNCED."""
