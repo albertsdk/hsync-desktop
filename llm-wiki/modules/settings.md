@@ -11,11 +11,11 @@ Plain module of `DEFAULT_*` constants and app identity (`config.py`): app/org/id
 (`config.py::DEFAULT_NTP_HOSTS`). These seed `QSettings` and the dialog.
 
 Values the GUI shares with the CLI engine are **aliases** of
-`hsync_common/defaults.py` (HTTP timeout, retry/stability delays, sync direction,
+`hsync-common/hsync_common/defaults.py` (HTTP timeout, retry/stability delays, sync direction,
 bandwidth bounds, mass-delete guard, free-space/inbound limits, peer-download
 defaults); the delta floors are derived from the client's byte constants
-(`hsync_common/constants.py::DELTA_MIN_FILE_SIZE` and
-`hsync_common/constants.py::DELTA_MIN_FILE_SIZE_P2P`), since the dialog works in
+(`hsync-common/hsync_common/constants.py::DELTA_MIN_FILE_SIZE` and
+`hsync-common/hsync_common/constants.py::DELTA_MIN_FILE_SIZE_P2P`), since the dialog works in
 KB. `tests/test_defaults_parity.py` fails if any of them is written back as a
 literal.
 
@@ -35,7 +35,7 @@ emitted subcommand always agree.
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, log, appearance); load/save QSettings |
+| `SettingsDialog` | `settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, general, advanced); load/save QSettings |
 | tab builders | `settings/tab_builders.py::build_sync_tab`, `settings/tab_builders.py::build_server_tab`, `settings/tab_builders.py::build_p2p_tab`, `settings/tab_builders.py::build_advanced_tab`, `settings/tab_builders.py::build_general_tab`, `settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
 | tab indices | `settings/tab_indices.py::_P2P_TAB_INDEX`, `settings/tab_indices.py::_TAB_DESCRIPTION_KEYS` | sync/p2p/server tab positions and the per-tab purpose string keys (shared by dialog + builders + layout) |
 | tab layout | `settings/tab_layout.py::reorganize_sync_tab`, `settings/tab_layout.py::reorganize_p2p_tab`, `settings/tab_layout.py::reorganize_server_tab`, `settings/tab_layout.py::_group_box`, `settings/tab_layout.py::_add_tab_description` | regroup the Sync/p2p/Server Mode tabs into `QGroupBox` sections and open each with its purpose line |
@@ -214,10 +214,10 @@ check is `0` (disabled) or `>= 20 s`;
 (the client's CLI > env > default precedence makes that authoritative; an
 enabled value still travels as `-i`). The retry delay is `>= 5 s`, the maximum
 wait uses the shared default
-(`hsync_common/defaults.py::MAX_WAIT_TIMEOUT_DEFAULT`) and its spin box spans
+(`hsync-common/hsync_common/defaults.py::MAX_WAIT_TIMEOUT_DEFAULT`) and its spin box spans
 `GUI_MAX_WAIT_MIN`..`MAX_WAIT_MAX` (`hsync_desktop/config.py`), and the
 HTTP/rendezvous timeouts are `>= 5 s`; `build_hsync_args` clamps stored values to
-the same shared bounds (`hsync_common/defaults.py`), so the GUI never emits a
+the same shared bounds (`hsync-common/hsync_common/defaults.py`), so the GUI never emits a
 value the CLI rejects.
 
 **Server address**: `settings.server_url` accepts `host`, `host:port`, IPv6 and a
@@ -291,7 +291,7 @@ re-triggers the prompt in a loop. Covered by
 after the rendezvous-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `p2p/ntp_hosts` QSettings key (`settings/dialog.py::SettingsDialog`); the label comes from
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all locales). It is
-an env-driven setting (no client CLI flag), so `cli_args.py` deliberately does
+an env-driven setting (no client CLI flag), so `settings/cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
 `apply_settings_env` (`engine/process.py::apply_settings_env`, called from `engine/process.py::HsyncEngine.start`). Empty = the
 client's built-in defaults.
@@ -411,7 +411,7 @@ Validators for dialog fields: `settings/validators.py` — `_validate_path` (`se
 `appearance/start_at_login` is the General-tab toggle `start_at_login` (built by
 `settings/tab_builders.py::build_general_tab`, placed in the General form,
 label `settings.start_at_login`, tip `tip.start_at_login`), a desktop-only
-preference (no client CLI flag, so `cli_args.py` is not involved). On accept,
+preference (no client CLI flag, so `settings/cli_args.py` is not involved). On accept,
 `SettingsDialog._apply_start_at_login` (`settings/dialog.py::SettingsDialog._apply_start_at_login`)
 reconciles the OS login item through `autostart.py` — `autostart.is_supported`,
 `autostart.is_enabled`, `autostart.set_enabled`: a freedesktop XDG entry
@@ -450,9 +450,9 @@ and the dialog additionally applies the change live through
 
 The deletion policy (`sync/deletion_policy`) is a two-value combo built by
 `settings/tab_builders.py::build_sync_tab` through
-`form_helpers.py::_replace_checkbox_with_combo`, populated and translated by
+`settings/form_helpers.py::_replace_checkbox_with_combo`, populated and translated by
 `settings/dialog.py::SettingsDialog._populate_deletion_policy`. Its vocabulary
-is the client contract (`hsync_common/defaults.py::DELETION_POLICIES`, aliased
+is the client contract (`hsync-common/hsync_common/defaults.py::DELETION_POLICIES`, aliased
 as `config.DELETION_POLICIES`): `propagate` applies deletions both ways,
 `keep` never deletes on this device. Unlike a toggle, only the `keep` →
 `propagate` transition can destroy data, so that is the only change
@@ -485,7 +485,7 @@ emitted long flag is advertised by the client help output.
 One-shot is
 expressed via the global `sync/continuous` setting, which maps to
 `--once`; **Simulation Mode** (`sync/dry_run`, read through
-`cli_args.py::is_simulation_mode`) also forces `--once` alongside `-n`, so the
+`settings/cli_args.py::is_simulation_mode`) also forces `--once` alongside `-n`, so the
 run is a preview-only one-shot instead of a continuous session that a `SYNC`
 command could turn into a real sync. Secrets are
 **not** here — they go through engine pipe FDs.

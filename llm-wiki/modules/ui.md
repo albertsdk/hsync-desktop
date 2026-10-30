@@ -54,7 +54,7 @@ the same pipeline (log panel + banner + OS notification when unfocused) with
 `kind="warning"` and the dedicated `warnings` notification category, never the
 error path — the run continues. The signal's fourth argument carries the
 machine-readable detail the engine emitted (`reason`, plus `needed`/`limit` when
-it measured a bounded resource); `hsync_desktop/warnings.py::remedy_text` turns
+it measured a bounded resource); `warnings.py::remedy_text` turns
 the actionable causes into localized advice and it is appended to the message, so
 the banner and the notification both say what to change. A persistent warning
 also exposes the guide link inside the toast (`docs_links.py::TROUBLESHOOTING`,
@@ -413,11 +413,11 @@ locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 
 The rendezvous/server tabs show host, fingerprint, **source** and **added** date.
 The raw client `source` (`cli` / `tofu` / `prompt` / `flag`, from
-`hsync-client known_hosts.py::TRUST_SOURCES`) is humanized by
+`hsync-client/hsync_client/known_hosts.py::TRUST_SOURCES`) is humanized by
 `trusted_keys.py::_source_label` (`trusted_keys.source_cli` …), and the
 `first_seen` column is labelled **Added on** (`trusted_keys.first_seen`), not the
 SSH jargon "first seen". The devices tab shows device, fingerprint and the
-**Added on** date: the client's peer pin store (`hsync-client pinning.py::PinStore`)
+**Added on** date: the client's peer pin store (`hsync-client/hsync_client/pinning.py::PinStore`)
 records `{fingerprint, first_seen}` per `(cid, bucket)`, exposed by
 `hsync trust peer list --json`.
 
@@ -458,7 +458,7 @@ consistency pass and the status-bar size share
 patterns, internal names and `*.part` artifacts are excluded) plus an explicit
 `.hsynckeep` exclusion — the sentinel is synced by the engine but stays internal
 to the UI, and the client's folder-size totals exclude it too. `.hsyncignore` is
-re-read when its `(mtime_ns, size)` changes (`filter.py::ignore_file_stamp`).
+re-read when its `(mtime_ns, size)` changes (`file_panel/filter.py::ignore_file_stamp`).
 
 Dot-prefixed names are only a **view** option: `ui/show_hidden_files`
 (`FileTransferTable._SHOW_HIDDEN_SETTINGS_KEY`) hides an item when its own name
@@ -699,9 +699,9 @@ already displayed.
 textual path on macOS) or `" > "` on Windows (Explorer) — and the breadcrumb
 never starts with a separator: the root icon is the first segment, so a leading
 `/` would read as an absolute path. The navigation buttons and the root icon
-render at `panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled 24×24
-SVGs); the root icon keeps a `panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
-the WCAG 2.2 minimum. `panel.py::FilePanel._refresh_breadcrumb_icon` is the only
+render at `file_panel/panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled 24×24
+SVGs); the root icon keeps a `file_panel/panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
+the WCAG 2.2 minimum. `file_panel/panel.py::FilePanel._refresh_breadcrumb_icon` is the only
 place that re-renders that icon, including after a theme change.
 
 Models for the panel live in `file_panel/models.py` — see
@@ -955,7 +955,7 @@ the local size and **Y** the whole-share size; when the total is unknown the
 label reads "X / —", and it is a bare `—` before the first value arrives.
 **Local** reuses the existing `DirectoryScanWorker` scan: it already `stat`s
 every file, so the total is an integer sum with no extra I/O
-(`workers.py::DirectoryScanWorker.size_progress` →
+(`file_panel/workers.py::DirectoryScanWorker.size_progress` →
 `file_panel/panel.py::FilePanel.share_size_changed` →
 `main_window/ui.py::UiBuildMixin._on_share_size_changed`). **Total** is the
 `folder_size` event's sync-set union (see the client wiki): the remote/master
@@ -968,7 +968,7 @@ The client emits `folder_size` once per cycle, *before* that cycle's transfers,
 so the value it leaves behind describes the folder as of the cycle start.
 `FilePanel.refresh_share_size` (`file_panel/panel.py::FilePanel.refresh_share_size`)
 therefore re-runs the walk in size-only mode
-(`workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
+(`file_panel/workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
 pass, no `files_found`/`progress`) when a cycle completes
 (`main_window/events.py::EventsMixin._on_sync_completed`) and when the process
 ends (`main_window/events.py::EventsMixin._on_process_finished`), without
@@ -1158,10 +1158,10 @@ Two independent indicators sit next to the status label of
 `main_window/ui.py::UiBuildMixin` on build, on language change and after the
 settings are applied):
 
-- `simulationBadge` — `ui.py::UiBuildMixin._refresh_simulation_state`, driven by
+- `simulationBadge` — `main_window/ui.py::UiBuildMixin._refresh_simulation_state`, driven by
   `settings/cli_args.py::is_simulation_mode` (window title suffix and tray
   tooltip change with it).
-- `deletionBadge` — `ui.py::UiBuildMixin._refresh_deletion_badge`, driven by
+- `deletionBadge` — `main_window/ui.py::UiBuildMixin._refresh_deletion_badge`, driven by
   `settings/cli_args.py::get_deletion_policy`: visible only while the deletion
   policy is `keep`, so a device that silently never deletes always says so.
   `get_deletion_policy` is the single read of `sync/deletion_policy`, also used

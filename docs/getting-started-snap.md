@@ -23,11 +23,17 @@ does not matter.
 
 ## Install
 
+The store publication is currently on the **`edge`** channel only, while the
+store runs its one-time classic-confinement review; there is no `stable` install
+yet. Install from `edge`:
+
 ```bash
-sudo snap install hsync-desktop --classic
+sudo snap install hsync-desktop --classic --channel=edge
 ```
 
-`--classic` is required: without it `snapd` refuses a classic-confined snap.
+`--classic` is required: without it `snapd` refuses a classic-confined snap. Until
+the review is approved the store has no published revision at all — use the
+alternative offline path below, which always works.
 
 ## Verify
 
@@ -54,7 +60,8 @@ verification, which is expected for a locally downloaded file checked against
 ## Update and uninstall
 
 Snaps update automatically from the store, including the `edge`/`beta`/`candidate`
-channels when you opt into them. To check or force an update:
+channels when you opt into them; a snap installed from `edge` keeps that channel
+on refresh. To check or force an update:
 
 ```bash
 snap refresh --time
