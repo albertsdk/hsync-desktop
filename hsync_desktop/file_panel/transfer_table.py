@@ -114,6 +114,18 @@ _PRIORITY_TO_STATUS = {
     5: TransferStatus.SYNCED,
     6: TransferStatus.LOCAL,
 }
+# Planned (not-yet-started) statuses a comparison pass reports. They must never
+# downgrade a row that is actively transferring: flipping ``UPLOADING`` to
+# ``TO_UPLOAD`` hides the ETA (``speed_bps`` needs an in-flight status) while the
+# progress bar keeps rendering (``TO_UPLOAD`` is not a no-progress status), and a
+# serve that then aborts leaves that mismatched row visible. Only a terminal
+# event ends an in-flight row (``transfer`` → synced, ``transfer_failed`` → error).
+_PLANNED_STATUSES = {
+    TransferStatus.TO_DOWNLOAD,
+    TransferStatus.TO_UPLOAD,
+    TransferStatus.TO_DELETE,
+    TransferStatus.TO_RENAME,
+}
 # Per-file status label i18n keys, resolved with ``tr()`` per row so a live
 # language change is reflected without rebuilding the table.
 _STATUS_TEXT_KEYS = {
@@ -1827,10 +1839,12 @@ class FileTransferTable(QTableView):
         """Update or add a file with the given status.
 
         ``holders``/``devices`` carry the device coverage a serving pass reports
-        (-1 when the pass has no per-device view). ``preview`` marks a dry-run
-        status from the preview pass: it must never downgrade a row that is
-        actively transferring, or a preview triggered by a reconnect would hide
-        the live progress of an in-flight transfer.
+        (-1 when the pass has no per-device view). A status that must not
+        downgrade an in-flight row is ignored: ``preview`` names a dry-run status
+        (it must never hide the live progress of a transfer a reconnect-triggered
+        preview would otherwise override), and any *planned* status
+        (``_PLANNED_STATUSES``) is a comparison claim about a transfer that has
+        not necessarily finished. Only a terminal event ends a transferring row.
         """
         status_mapping = {
             "synced": TransferStatus.SYNCED,
@@ -1855,10 +1869,10 @@ class FileTransferTable(QTableView):
         with QMutexLocker(self._transfers_mutex):
             if filepath in self._transfers:
                 t = self._transfers[filepath]
-                if preview and t.status in (
+                if t.status in (
                     TransferStatus.DOWNLOADING,
                     TransferStatus.UPLOADING,
-                ):
+                ) and (preview or transfer_status in _PLANNED_STATUSES):
                     return
                 t.status = transfer_status
                 t.direction = direction

@@ -863,6 +863,31 @@ class TestOptionalColumns:
 
         assert _cell_text(table, 0, tt.COL_SPEED) == ""
 
+    def test_a_plan_refresh_does_not_downgrade_an_in_flight_row(self, qtbot):
+        """A comparison pass must not blank the ETA of a row that is uploading.
+
+        ``master_status`` re-emits ``file_status`` with a ``to_upload`` state for
+        every file on each pass; applied to the row being served it flipped it
+        from UPLOADING to TO_UPLOAD, which hides the ETA (it needs an in-flight
+        status) while the progress bar keeps rendering.
+        """
+        table = self._table(qtbot)
+        transfer = FileTransfer(filepath="big.bin", direction="↑", size=1_000_000)
+        transfer.start_transfer("↑", now=100.0)
+        transfer.note_progress(0, now=100.0)
+        transfer.note_progress(500_000, now=110.0)
+        table.add_transfer(transfer)
+        assert transfer.eta_seconds is not None
+
+        table.update_file_status("big.bin", "to_upload", size=1_000_000)
+
+        row = table._transfers["big.bin"]
+        assert row.status is TransferStatus.UPLOADING
+        assert row.eta_seconds is not None
+        # A terminal status still lands: only *planned* claims are ignored.
+        table.update_file_status("big.bin", "synced", size=1_000_000)
+        assert table._transfers["big.bin"].status is TransferStatus.SYNCED
+
     def test_folder_tooltip_lists_the_planned_operations(self, qtbot):
         """A folder aggregates mixed actions: its tooltip spells them out."""
         from hsync_desktop.file_panel import transfer_table as tt

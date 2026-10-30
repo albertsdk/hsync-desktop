@@ -19,7 +19,7 @@ Each row shows the file's icon next to its name, then:
 | **Modified** | The last modification date. |
 | **Progress** | A bar with the percentage while a transfer runs. |
 | **Status** | The planned action ("To upload" / "To download" / …) or the result ("Syncing", "Synced"). |
-| **Estimated Time** | The estimated time left for a running transfer. |
+| **Estimated Time** | The estimated time left for a running transfer, once the rate is known (blank until the first samples arrive). |
 | **Speed** | The live transfer rate (hidden until you enable it). |
 
 **Type** and **Speed** are hidden by default; turn them on from the header menu.

@@ -655,6 +655,13 @@ that gives up is flagged `TransferStatus.ERROR`
 (`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
 (`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
+A status refresh must never downgrade an in-flight row:
+`update_file_status` ignores a *planned* status (`TO_*` — the master's
+`master_status` re-emits every file on each pass) while the row is
+`DOWNLOADING`/`UPLOADING`, and any status at all when the update is a preview.
+Letting it through flipped the row to `TO_UPLOAD`, which hid the ETA (it needs an
+in-flight status, `FileTransfer.speed_bps`) while the progress bar kept
+rendering; only a terminal event ends an in-flight row.
 The rate is the bytes moved over the last `SPEED_WINDOW_SECONDS` of progress
 samples (`file_panel/models.py::FileTransfer.note_progress`), not
 `bytes / (now - start_time)`: the column follows the real stream, drops back to
