@@ -81,6 +81,17 @@ class TestLevelAndLabelFallback:
 
         assert client["WARNING"] == desktop["WARNING"] == _hex(_LIGHT["yellow"])
 
+    def test_desktop_timestamp_is_dimmed_like_the_client(self):
+        """A SGR-free desktop line dims its timestamp like the engine's lines.
+
+        The client wraps the timestamp in ``<dim>``; without the same treatment
+        the desktop's own lines showed the same column in the default text color,
+        so one panel looked like two.
+        """
+        colors = _colored("2026-10-21T14:48:08.123Z - [41234] [desktop] INFO: x")
+
+        assert colors["2026-10-21T14:48:08.123Z"] == _hex(_LIGHT["dim"])
+
     def test_label_category_is_applied(self):
         colors = _colored("2026-10-21T14:48:08Z - [1] [cid] INFO: [DELETE] gone.txt")
 

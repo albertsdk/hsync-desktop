@@ -143,6 +143,12 @@ _SEVERITY_BY_KIND = {
 }
 # Non-colour cue (accessibility): a leading glyph for error/warning/success.
 _SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "notice": "⚠", "success": "✔"}
+# The toast paints its message in bold white on a coloured fill. A rich-text
+# anchor ignores the label QSS colour, so the guide link must be coloured inline
+# or it falls back to the theme's blue — unreadable on the warning/error fills.
+# White matches the message text; the underline (added with the colour) keeps the
+# link recognisable without relying on hue alone.
+_TOAST_LINK_COLOR = "#FFFFFF"
 # Toasts that survive the engine process finishing.
 _SURVIVES_FINISH = {"success", "error", "warning"}
 # Toasts that survive starting a new run.
@@ -952,7 +958,9 @@ class UiBuildMixin:
         # per-platform remedy: the banner is an overlay, so the text alone cannot
         # be selected or clicked. Created once (the only target is the guide) and
         # toggled, so language changes rebuild it through set_help_link_text.
-        self._info_banner_link = help_link("notif.open_guide", TROUBLESHOOTING)
+        self._info_banner_link = help_link(
+            "notif.open_guide", TROUBLESHOOTING, color=_TOAST_LINK_COLOR
+        )
         self._info_banner_link.setObjectName("infoBannerLink")
         self._info_banner_link.hide()
         outer.addWidget(self._info_banner_link)

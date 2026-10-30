@@ -160,6 +160,12 @@ def _fallback_runs(line: str, colors: dict[str, str]) -> list[StyledRun]:
         start, end = record.span("level")
         name, bold = _tag_style(LEVEL_STYLES.get(record.group("level"), ("", "")))
         spans.append((start, end, name, bold))
+        # The client wraps the timestamp in ``<dim>`` (``build_record_formatter``
+        # with ``colored=True``), so the engine's timestamps read gray. A desktop
+        # line carries no SGR, so without this the same column would stay the
+        # default text color and the two producers would look like two panels.
+        t_start, t_end = record.span("timestamp")
+        spans.append((t_start, t_end, "dim", False))
 
     for match in _LABEL_RE.finditer(line):
         name, bold = _tag_style(LABEL_STYLES[match.group(0)])

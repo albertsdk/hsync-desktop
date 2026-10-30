@@ -764,7 +764,12 @@ severity glyph and the given title, so the severity is recognisable without
 relying on colour. `help_url` reveals the `_info_banner_link` affordance — a
 `widgets/links.py::help_link` retargeted through
 `widgets/links.py::set_help_link_url`, the only way to offer a click during a
-toast, since the banner is an overlay whose text cannot be selected. Persistence:
+toast, since the banner is an overlay whose text cannot be selected. That link is
+built with an explicit `color=#FFFFFF` (`help_link(..., color=...)` → an inline
+anchor style plus underline): a rich-text anchor ignores the label's QSS `color`,
+so without it the link fell back to the theme's blue, which does not contrast
+against the orange/red fills, and the underline keeps it a link without relying on
+hue (WCAG 1.4.1). Persistence:
 `error`/`warning` stay until dismissed (`✕`) and
 survive both the engine process finishing and a new run, `success` survives the
 process finishing, `progress`/`info` auto-hide (`_clear_run_toast` with
@@ -799,6 +804,11 @@ Nothing writes to the panel with a hand-built prefix — the phase markers
 sync, process finished) are `INFO` lines through the same helper, and the
 engine's malformed-event diagnostic is an `ERROR` one (`event_error` →
 `main_window/ui.py::UiBuildMixin._on_engine_event_error`).
+
+Both producers show the timestamp in the same gray: the engine's lines carry the
+client's `<dim>` SGR, and for the SGR-free desktop lines
+`log_style.py::_fallback_runs` dims the `timestamp` group of `LOG_LINE_RE` with
+the `dim` palette entry, so the two never read as two panels.
 
 Events surfaced to the user (Send/Receive busy, nothing to sync, connection
 results) additionally raise a toast, so their outcome is visible without the log

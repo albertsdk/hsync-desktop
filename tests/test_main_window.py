@@ -1140,6 +1140,19 @@ class TestInfoToast:
         assert float(match.group(1)) < 1.0
         assert "color: #ffffff" in sheet
 
+    def test_banner_link_overrides_the_theme_link_color(self, window):
+        """The guide link is white and underlined, not the theme's blue.
+
+        A rich-text anchor ignores a label's QSS ``color``, so without an inline
+        colour the link kept the default blue, which does not contrast against the
+        orange/red toast fills; the underline keeps it a link without colour.
+        """
+        text = window._info_banner_link.text()
+
+        assert "color: #FFFFFF" in text
+        assert "text-decoration: underline" in text
+        assert TROUBLESHOOTING in text
+
     def test_error_toast_uses_the_error_severity(self, window):
         window._notify_error(tr("notif.error"), "boom")
 
