@@ -439,7 +439,8 @@ class TestDialogButtonIcons:
         assert ok is not None and cancel is not None
         assert ok.text() == tr("settings.apply")
         assert cancel.text() == tr("settings.cancel")
-        assert ok.icon().cacheKey() == icon("document-save").cacheKey()
+        # Apply carries the confirm check, not the floppy (which means Save).
+        assert ok.icon().cacheKey() == icon("dialog-ok").cacheKey()
         assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
 

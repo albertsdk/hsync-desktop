@@ -1135,13 +1135,16 @@ to the system theme only when no bundled icon exists. The application icon
 the running window's WM_CLASS/app_id matches `hsync-desktop.desktop` and the
 taskbar shows the app icon. The app-icon SVG keeps `<svg` at the very top of the
 file (no long leading comment): gdk-pixbuf/GNOME only recognizes an SVG when the
-root element is within the first bytes, otherwise the icon renders blank. The Settings **Save** /
-**Cancel** buttons and the `TrustedKeysDialog` add dialogs use
-`style_ok_cancel_button_box` (`icons.py::style_ok_cancel_button_box`) with
-`document-save` / `dialog-cancel` (the latter bundled for this purpose, plus the
-translated `settings.save`/`settings.cancel` labels); the `TrustedKeysDialog`
-**Close** button uses `window-close` with the `action.close` label (translated in
-every locale).
+root element is within the first bytes, otherwise the icon renders blank. The
+dialog accept button's icon **follows the action**
+(`icons.py::style_ok_cancel_button_box`): an **Apply** caller passes
+`accept_icon_key="dialog-ok"` (the confirm check — the Settings dialog and the
+bandwidth dialog do), while a **Save** caller keeps the default `document-save`
+(the floppy, which means *write to disk* — the credential prompts, the
+`TrustedKeysDialog` add dialogs and the `.hsyncignore` editor), always paired
+with `dialog-cancel` and the translated `settings.cancel` label. The
+`TrustedKeysDialog` **Close** button uses `window-close` with the `action.close`
+label (translated in every locale).
 
 > Strings shown here must be looked up via `i18n.tr` and exist in all locales
 > (see [settings.md](settings.md)).

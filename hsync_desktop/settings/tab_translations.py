@@ -234,5 +234,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     set_help_link_text(dlg._lbl_help_rendezvous, "help.rendezvous_setup")
 
     # Button box: the primary action applies the settings (the dialog stays a
-    # modal OK/Cancel pair; see the "Apply, not Save" desktop rule).
-    style_ok_cancel_button_box(dlg._button_box, accept_text_key="settings.apply")
+    # modal OK/Cancel pair; see the "Apply, not Save" desktop rule). The icon is
+    # the confirm check, not the floppy, which would read as "Save".
+    style_ok_cancel_button_box(
+        dlg._button_box, accept_text_key="settings.apply", accept_icon_key="dialog-ok"
+    )

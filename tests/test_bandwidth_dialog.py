@@ -51,13 +51,17 @@ class TestStrategy:
         assert down.maximum() == BANDWIDTH_MAX_MBPS
 
     def test_buttons_use_app_theme_icons(self, qtbot):
-        """Apply/Cancel carry the same themed icons as the app's Save/Cancel."""
+        """Apply carries the confirm check; Cancel the app-theme cancel icon."""
+        from hsync_desktop.icons import icon
+
         dlg = _dialog(qtbot, None, None)
         box: QDialogButtonBox = dlg.findChild(QDialogButtonBox, "buttonBox")
         ok = box.button(QDialogButtonBox.StandardButton.Ok)
         cancel = box.button(QDialogButtonBox.StandardButton.Cancel)
         assert ok is not None and not ok.icon().isNull()
         assert cancel is not None and not cancel.icon().isNull()
+        assert ok.icon().cacheKey() == icon("dialog-ok").cacheKey()
+        assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
         assert ok.text() == tr("bandwidth.apply")
         assert cancel.text() == tr("settings.cancel")
 

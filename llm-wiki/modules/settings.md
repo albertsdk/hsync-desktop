@@ -49,11 +49,13 @@ emitted subcommand always agree.
 The settings dialog is a **modal Apply/Cancel** pair: the primary button is
 labelled with `settings.apply` (not "Save" — it applies preferences, it does
 not store a document) via `tab_translations.py::apply_translations` →
-`icons.py::style_ok_cancel_button_box(accept_text_key="settings.apply")`. The
-same helper keeps **Save** for the credential prompts, the trusted-keys Add
-dialogs and the `.hsyncignore` editor, where persisting an entry is the
-operation. The dialog closes on Apply (the window re-applies live after
-`main_window/start.py::StartMixin._open_settings`); there is no stay-open
+`icons.py::style_ok_cancel_button_box(accept_text_key="settings.apply", accept_icon_key="dialog-ok")`.
+The icon follows the action: Apply carries the confirm check (`dialog-ok`), not
+the floppy (`document-save`, which means *save to disk*). The same helper keeps
+**Save** — label `settings.save` and the floppy — for the credential prompts,
+the trusted-keys Add dialogs and the `.hsyncignore` editor, where persisting an
+entry is the operation. The dialog closes on Apply (the window re-applies live
+after `main_window/start.py::StartMixin._open_settings`); there is no stay-open
 Apply button.
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):

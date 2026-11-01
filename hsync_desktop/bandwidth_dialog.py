@@ -83,8 +83,11 @@ class BandwidthDialog(QDialog):
         self._upload_spin.setSpecialValueText(tr("settings.unlimited"))
         self._download_spin.setSpecialValueText(tr("settings.unlimited"))
 
-        # Apply/Cancel with the app-theme button icons (same style as Save/Cancel).
-        style_ok_cancel_button_box(self._button_box, accept_text_key="bandwidth.apply")
+        # Apply/Cancel with the app-theme button icons: the check for Apply (the
+        # floppy would read as "Save"), the standard cancel icon.
+        style_ok_cancel_button_box(
+            self._button_box, accept_text_key="bandwidth.apply", accept_icon_key="dialog-ok"
+        )
 
     def _load_settings(self) -> None:
         """Load current bandwidth settings (0 shows as unlimited)."""

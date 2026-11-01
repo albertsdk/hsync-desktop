@@ -236,23 +236,28 @@ def clear_icon_cache() -> None:
 
 
 def style_ok_cancel_button_box(
-    button_box: QDialogButtonBox, *, accept_text_key: str = "settings.save"
+    button_box: QDialogButtonBox,
+    *,
+    accept_text_key: str = "settings.save",
+    accept_icon_key: str = "document-save",
 ) -> None:
     """Label and icon a standard OK/Cancel ``QDialogButtonBox`` with the app theme.
 
     The accept button is presented as Apply or Save (the label named by
     ``accept_text_key``) and Cancel with the translated labels, both using the
     bundled app-theme icons, so the buttons never fall back to the platform
-    theme's icons or the (untranslated) Qt standard labels. The settings dialog
-    passes ``accept_text_key="settings.apply"``; the credential prompts, the
-    trusted-keys Add dialogs and the ``.hsyncignore`` editor keep the default.
+    theme's icons or the (untranslated) Qt standard labels. The icon follows the
+    action: the floppy (``document-save``) means *save to disk*, so an **Apply**
+    caller passes ``accept_icon_key="dialog-ok"`` (the app's confirm idiom)
+    instead. The settings and bandwidth dialogs apply; the credential prompts,
+    the trusted-keys Add dialogs and the ``.hsyncignore`` editor save.
     """
     from hsync_desktop.i18n import tr
 
     ok = button_box.button(QDialogButtonBox.StandardButton.Ok)
     if ok is not None:
         ok.setText(tr(accept_text_key))
-        ok.setIcon(icon("document-save"))
+        ok.setIcon(icon(accept_icon_key))
     cancel = button_box.button(QDialogButtonBox.StandardButton.Cancel)
     if cancel is not None:
         cancel.setText(tr("settings.cancel"))
