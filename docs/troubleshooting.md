@@ -84,6 +84,27 @@ characters). A shorter value is refused at startup. Generate a password with
 `openssl rand -hex 16` and use the exact same string on every device in the group.
 See [Secrets](secrets.md).
 
+## The discovery server refuses the shared password (`token_required`)
+
+A protected discovery server (a *private* node, or one that protects its
+buckets) only introduces devices that know the group's key. When the key does
+not match, the app keeps the run going but shows a warning that reads
+`Rendezvous <server> refused the lease frame: token_required`.
+
+There is **no token to type**: the app derives the key from the **Shared
+password** in the p2p tab, so a `token_required` warning means that password
+does not match the key configured on the discovery server.
+
+To fix it:
+
+1. Open *Settings → p2p Mode → Shared password*.
+2. Enter the **same password** that was used to create the key on the server
+   (ideally the password the rest of the group already uses).
+3. Start the sync again. If the warning returns, the server's key was not
+   derived from that password — ask the operator to create it with
+   `hsync derive-group-key` (see
+   [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password)).
+
 ## A device's fingerprint changed, or pairing is required
 
 These are the trust prompts; they appear when a device presents a new or changed

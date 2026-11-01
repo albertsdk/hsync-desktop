@@ -51,7 +51,9 @@ The fields depend on the choice you made in step 2:
 - **Same network** — a group name and a generated password.
 - **From anywhere** — the group, the password and the address of a discovery server
   (a helper that lets your devices find each other across networks; it
-  never stores your files).
+  never stores your files). If that server is protected, the shared password is
+  also what lets your device in — there is no separate token; see
+  [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password).
 
 For the two device-to-device choices, **This device should only receive files**
 turns this computer into a receiver instead of a two-way peer.

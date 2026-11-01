@@ -56,7 +56,10 @@ The fields depend on the purpose:
 - *Same network* — a group name and a generated shared password.
 - *From anywhere* — the group and password plus a discovery server address;
   **Test connection** becomes available once the address is entered and shows its
-  fingerprint below the button.
+  fingerprint below the button. If the discovery server is protected, the
+  shared password is also what lets your device in — there is no separate
+  token; see
+  [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password).
 
 For the two device-to-device setups, **This device should only receive files**
 turns this device into a receiver. It is the same setting as **Sync Type →

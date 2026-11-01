@@ -23,7 +23,9 @@ can be switched later; a given setup uses one or the other.
   becomes the primary and serves the others; no server needed.
 - **Your own devices on different networks** → **p2p Mode plus a discovery
   server**. The discovery server only helps the devices find each other; it never
-  carries or stores your files.
+  carries or stores your files. If the server is protected, it also checks the
+  group's shared password (no separate token) — see
+  [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password).
 - **Not sure yet** → in the [Setup wizard](setup-wizard.md), press **Help me
   choose**: it asks a few short questions and preselects the matching mode for
   you.
