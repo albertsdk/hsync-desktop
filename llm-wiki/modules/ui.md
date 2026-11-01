@@ -957,7 +957,12 @@ label reads "X / —", and it is a bare `—` before the first value arrives.
 every file, so the total is an integer sum with no extra I/O
 (`file_panel/workers.py::DirectoryScanWorker.size_progress` →
 `file_panel/panel.py::FilePanel.share_size_changed` →
-`main_window/ui.py::UiBuildMixin._on_share_size_changed`). **Total** is the
+`main_window/ui.py::UiBuildMixin._on_share_size_changed`). All three legs carry
+the total as an arbitrary-size Python `int` (`Signal(object)`), so a share
+above 2 GiB crosses the Qt marshalling intact (the old 32-bit `Signal(int)`
+overflowed). Scan teardown parks (never destroys) a still-running thread
+(`FilePanel._join_thread`) and the worker always emits `finished` exactly once.
+**Total** is the
 `folder_size` event's sync-set union (see the client wiki): the remote/master
 listing sizes plus local-only pending uploads, so it is the whole share, not
 local + remote; scoped runs skip it. While stopped the total is `—` and the scan

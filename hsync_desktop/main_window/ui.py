@@ -1228,7 +1228,7 @@ class UiBuildMixin:
             )
         self._share_size_label.setText(text)
 
-    @Slot(int)
+    @Slot(object)
     def _on_share_size_changed(self, total_bytes: int) -> None:
         """Update the local size from the folder scan."""
         self._share_local_bytes = total_bytes

@@ -136,6 +136,10 @@ class LifecycleMixin:
         """Stop the engine and close the app once the user has confirmed."""
         if self._engine.is_running:
             self._engine.stop_and_wait()
+        # A scan/import still in flight must never outlive the panel: joining
+        # them here keeps a later window teardown from destroying a live
+        # ``QThread`` (which aborts the process).
+        self._file_panel.stop_background_work()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
         if self._tray:
             self._tray.hide()

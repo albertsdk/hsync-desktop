@@ -53,6 +53,11 @@ _NAV_ICON_PX = 20
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
 
+# How long stopping a worker thread waits for it to leave its event loop before
+# the thread is parked (and released on its own ``finished``) instead of being
+# destroyed while still running (which aborts the application).
+_THREAD_STOP_WAIT_MS = 5000
+
 
 def _platform() -> str:
     """The current platform string (a seam for tests)."""
@@ -88,7 +93,9 @@ class FilePanel(QWidget):
     """Complete file transfer panel with table and collapsible detail panel."""
 
     # Emits the scanned local size in bytes (-1 = unknown, 0 = empty share).
-    share_size_changed = Signal(int)
+    # Arbitrary-size Python int: shares exceed the 2 GiB ceiling of a 32-bit
+    # ``Signal(int)``, which used to overflow.
+    share_size_changed = Signal(object)
     # Emits when the consistency scan added paths that were not tracked (a
     # missed live event, e.g. a remote rename): the window refreshes statuses.
     scan_found_new_files = Signal()
@@ -103,6 +110,9 @@ class FilePanel(QWidget):
         self._import_thread: QThread | None = None
         self._import_worker: ImportWorker | None = None
         self._importing: bool = False
+        # Worker threads a stop could not join in time, parked until they end
+        # (see ``_join_thread``/``_detach_thread``).
+        self._detached_threads: list[QThread] = []
         self._share_size_bytes: int = -1
         self._current_directory: str = ""
         self._matcher: IgnoreMatcher | None = None
@@ -370,32 +380,54 @@ class FilePanel(QWidget):
         self._start_scan(self._current_directory, emit_rows=False)
 
     def _stop_scan(self) -> None:
+        """Cancel and join a running scan without ever destroying it alive."""
         self._hide_loading()
-        if self._scan_worker:
-            try:
-                self._scan_worker.files_found.disconnect()
-            except RuntimeError:
-                pass
-            try:
-                self._scan_worker.progress.disconnect()
-            except RuntimeError:
-                pass
-            try:
-                self._scan_worker.size_progress.disconnect()
-            except RuntimeError:
-                pass
-            try:
-                self._scan_worker.finished.disconnect()
-            except RuntimeError:
-                pass
-            self._scan_worker.cancel()
-            self._scan_worker.deleteLater()
-        if self._scan_thread and self._scan_thread.isRunning():
-            self._scan_thread.quit()
-            self._scan_thread.wait(1000)
-            self._scan_thread.deleteLater()
+        worker = self._scan_worker
+        if worker is not None:
+            for signal_name in ("files_found", "progress", "size_progress", "finished"):
+                try:
+                    getattr(worker, signal_name).disconnect()
+                except RuntimeError:
+                    pass
+            worker.cancel()
+            worker.deleteLater()
+        self._join_thread(self._scan_thread)
         self._scan_thread = None
         self._scan_worker = None
+
+    def _join_thread(self, thread: QThread | None) -> None:
+        """Stop and join a worker thread, parking it if it cannot finish in time.
+
+        Destroying a ``QThread`` that is still running aborts the application
+        (``QThread: Destroyed while thread is still running``), so a thread that
+        ignores ``quit`` within the wait budget is parked in
+        ``_detached_threads`` and released when its ``finished`` fires, instead
+        of being torn down.
+        """
+        if thread is None:
+            return
+        if thread.isRunning():
+            thread.quit()
+            if not thread.wait(_THREAD_STOP_WAIT_MS):
+                self._detach_thread(thread)
+            else:
+                # Joined cleanly: the loop has exited, safe to release it.
+                thread.deleteLater()
+        elif thread.isFinished():
+            thread.deleteLater()
+
+    def _detach_thread(self, thread: QThread) -> None:
+        """Park a thread until it ends; never delete a live ``QThread``."""
+        self._detached_threads.append(thread)
+        thread.finished.connect(self._on_detached_thread_finished)
+
+    @Slot()
+    def _on_detached_thread_finished(self) -> None:
+        """Release a parked thread once its event loop has really exited."""
+        thread = self.sender()
+        if isinstance(thread, QThread) and thread in self._detached_threads:
+            self._detached_threads.remove(thread)
+            thread.deleteLater()
 
     @Slot(list)
     def _on_files_found(self, files: list[tuple[str, int, float]]) -> None:
@@ -414,7 +446,7 @@ class FilePanel(QWidget):
         ]
         self._table.add_transfers_batch(transfers)
 
-    @Slot(int)
+    @Slot(object)
     def _on_scan_size(self, total_bytes: int) -> None:
         """Forward the accumulated local size from the scan worker."""
         self._share_size_bytes = total_bytes
@@ -423,9 +455,7 @@ class FilePanel(QWidget):
     @Slot()
     def _on_scan_finished(self) -> None:
         self._hide_loading()
-        if self._scan_thread:
-            self._scan_thread.quit()
-            self._scan_thread.wait()
+        self._join_thread(self._scan_thread)
         self._scan_thread = None
         self._scan_worker = None
         self._table.refresh_view()
@@ -543,10 +573,7 @@ class FilePanel(QWidget):
     def _on_import_finished(self, imported: int, failed: int, errors: list) -> None:
         self._importing = False
         self._table.set_drop_enabled(True)
-        if self._import_thread:
-            self._import_thread.quit()
-            self._import_thread.wait()
-            self._import_thread.deleteLater()
+        self._join_thread(self._import_thread)
         self._import_thread = None
         self._import_worker = None
         if self._current_directory:
@@ -567,21 +594,29 @@ class FilePanel(QWidget):
 
     def _stop_import(self) -> None:
         """Cancel and join a running import (panel teardown)."""
-        if self._import_worker:
-            self._import_worker.cancel()
+        worker = self._import_worker
+        if worker is not None:
+            worker.cancel()
             try:
-                self._import_worker.finished.disconnect()
+                worker.finished.disconnect()
             except RuntimeError:
                 pass
-            self._import_worker.deleteLater()
-        if self._import_thread and self._import_thread.isRunning():
-            self._import_thread.quit()
-            self._import_thread.wait(1000)
-            self._import_thread.deleteLater()
+            worker.deleteLater()
+        self._join_thread(self._import_thread)
         self._import_thread = None
         self._import_worker = None
         self._importing = False
         self._table.set_drop_enabled(True)
+
+    def stop_background_work(self) -> None:
+        """Cancel and join every background worker before the panel closes.
+
+        Main-window shutdown calls this so a scan or import still in flight can
+        never outlive the panel: destroying a live ``QThread`` aborts the app.
+        """
+        self._consistency_timer.stop()
+        self._stop_scan()
+        self._stop_import()
 
     def _show_loading(self) -> None:
         self._loading_overlay.setGeometry(self._table_container.rect())

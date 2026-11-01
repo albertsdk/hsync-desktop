@@ -45,7 +45,15 @@ disable unsupported controls) is realized in
   rest (`crypto.py`). The settings file is permission-restricted
   (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
-  `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`).
+  `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`). Size signals
+  carry an arbitrary-size Python `int` (`Signal(object)`): a share exceeds the
+  2 GiB ceiling of a 32-bit `int` signal, and the old `Signal(int)` overflowed
+  on large folders. Workers always emit `finished` exactly once (their `run`
+  catches unexpected errors, logs them, and finishes in a bare `try/finally`),
+  and the panel never destroys a still-running `QThread`: stopping parks it in
+  `FilePanel._detached_threads` (`file_panel/panel.py::FilePanel._join_thread`)
+  until it ends (`main_window/lifecycle.py::LifecycleMixin._shutdown` calls
+  `FilePanel.stop_background_work` so a live scan cannot outlive the window).
 - **Setup wizard is a Settings subset**: the four-mode wizard
   (`wizard/`, [wizard.md](modules/wizard.md)) writes only the keys it owns and
   never redefines CLI/env contracts; advanced options stay in the Settings

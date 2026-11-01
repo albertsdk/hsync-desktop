@@ -1864,6 +1864,22 @@ class TestShareSize:
 
         assert sizes[-1] == 30
 
+    def test_sizes_beyond_2_33_gib_survive_the_64_bit_signal(self, tmp_path):
+        """A share above the 32-bit int ceiling crosses the signal intact."""
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        big = tmp_path / "big.bin"
+        big.touch()
+        os.truncate(big, 3_000_000_000)
+
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
+        sizes: list[int] = []
+        worker.size_progress.connect(sizes.append)
+
+        worker.run()
+
+        assert sizes[-1] == 3_000_000_000
+
     def test_an_empty_share_reports_zero(self, tmp_path):
         from hsync_desktop.file_panel.workers import DirectoryScanWorker
 
@@ -1874,6 +1890,24 @@ class TestShareSize:
         worker.run()
 
         assert sizes == [0]
+
+    def test_run_always_emits_finished_when_the_scan_raises(self, tmp_path, monkeypatch):
+        """An unhandled scan error must never strand the worker thread."""
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / "a.bin").write_bytes(b"x")
+        worker = DirectoryScanWorker(str(tmp_path), IgnoreMatcher(str(tmp_path)))
+        done: list[bool] = []
+        worker.finished.connect(lambda: done.append(True))
+
+        def boom(*_args) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(worker, "_scan_with_scandir", boom)
+
+        worker.run()
+
+        assert done == [True]
 
     def test_panel_forwards_the_scan_size(self, qtbot):
         from hsync_desktop.file_panel import FilePanel
@@ -1887,6 +1921,64 @@ class TestShareSize:
 
         assert panel._share_size_bytes == 42
         assert seen[-1] == 42
+
+    def test_panel_forwards_a_share_size_beyond_2_33_gib(self, qtbot):
+        from hsync_desktop.file_panel import FilePanel
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        seen: list[int] = []
+        panel.share_size_changed.connect(seen.append)
+
+        panel._on_scan_size(3_000_000_000)
+
+        assert panel._share_size_bytes == 3_000_000_000
+        assert seen[-1] == 3_000_000_000
+
+
+class TestScanTeardown:
+    """Stopping/clearing a scan never destroys a still-running thread."""
+
+    def test_clear_parks_an_inflight_scan_instead_of_aborting(self, qtbot, tmp_path, monkeypatch):
+        import threading
+
+        import hsync_desktop.file_panel.panel as panel_mod
+        from hsync_desktop.file_panel import FilePanel
+        from hsync_desktop.file_panel.workers import DirectoryScanWorker
+
+        (tmp_path / "a.bin").write_bytes(b"x")
+        entered = threading.Event()
+        release = threading.Event()
+        thread_done: list[bool] = []
+        original_scan = DirectoryScanWorker._scan_with_scandir
+
+        def slow_scan(self, base_path, total):
+            entered.set()
+            release.wait(5)
+            return original_scan(self, base_path, total)
+
+        monkeypatch.setattr(DirectoryScanWorker, "_scan_with_scandir", slow_scan)
+        # A short budget forces the "park, don't destroy" branch.
+        monkeypatch.setattr(panel_mod, "_THREAD_STOP_WAIT_MS", 200)
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel.load_local_files(str(tmp_path))
+        assert entered.wait(5)
+        thread = panel._scan_thread
+        assert thread is not None and thread.isRunning()
+        thread.finished.connect(lambda: thread_done.append(True))
+
+        try:
+            panel.clear()
+        finally:
+            release.set()
+
+        assert panel._scan_thread is None
+        assert panel._scan_worker is None
+        # The parked thread ends by itself and is released, never destroyed alive.
+        qtbot.waitUntil(lambda: bool(thread_done), timeout=5000)
+        qtbot.waitUntil(lambda: not panel._detached_threads, timeout=5000)
 
 
 class TestEntryFiltering:

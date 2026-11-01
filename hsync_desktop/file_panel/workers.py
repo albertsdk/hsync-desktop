@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import shutil
 import time
+import traceback
 from pathlib import Path
 
 from hsync_common.ignore import IgnoreMatcher
@@ -32,8 +33,10 @@ class DirectoryScanWorker(QObject):
     files_found = Signal(list)
     # Emits (processed_count, total_count) for progress
     progress = Signal(int, int)
-    # Emits the accumulated local size in bytes (throttled, plus the final value)
-    size_progress = Signal(int)
+    # Emits the accumulated local size in bytes (throttled, plus the final
+    # value). Carried as a Python ``int`` (via ``object``) because a share can
+    # exceed the 2 GiB ceiling of a 32-bit ``Signal(int)`` — which overflowed.
+    size_progress = Signal(object)
     # Emitted when scan is complete
     finished = Signal()
 
@@ -207,31 +210,39 @@ class DirectoryScanWorker(QObject):
         With ``emit_rows=False`` the walk only accumulates the size (no counting
         pass, no ``files_found``/``progress``): the caller wants the total for the
         current folder state, not a table reload.
+
+        ``finished`` is emitted exactly once, whatever the scan does: the caller
+        joins the worker thread on it, so an unhandled error (e.g. a signal
+        overflow) must never leave the thread running.
         """
-        if not self._directory or not os.path.isdir(self._directory):
+        try:
+            if not self._directory or not os.path.isdir(self._directory):
+                return
+
+            base_path = Path(self._directory)
+            if not self._emit_rows:
+                self._scan_with_scandir(base_path, 0)
+                return
+
+            # First pass: count files for progress
+            total = self._count_files()
+            if self._cancelled or total == 0:
+                if not self._cancelled:
+                    self.size_progress.emit(0)  # empty share: a known 0 B
+                return
+
+            self.progress.emit(0, total)
+
+            # Use optimized scandir-based scanner
+            self._scan_with_scandir(base_path, total)
+        except Exception:
+            # The scan must never strand its thread: log and still finish, so
+            # the caller can join the worker. An uncaught error would escape
+            # through the Qt/C++ boundary, leak a raw traceback and emit no
+            # ``finished``, leaving the thread running forever.
+            traceback.print_exc()
+        finally:
             self.finished.emit()
-            return
-
-        base_path = Path(self._directory)
-        if not self._emit_rows:
-            self._scan_with_scandir(base_path, 0)
-            self.finished.emit()
-            return
-
-        # First pass: count files for progress
-        total = self._count_files()
-        if self._cancelled or total == 0:
-            if not self._cancelled:
-                self.size_progress.emit(0)  # empty share: a known 0 B
-            self.finished.emit()
-            return
-
-        self.progress.emit(0, total)
-
-        # Use optimized scandir-based scanner
-        self._scan_with_scandir(base_path, total)
-
-        self.finished.emit()
 
 
 class ImportWorker(QObject):
@@ -264,17 +275,24 @@ class ImportWorker(QObject):
         failed = 0
         errors: list[str] = []
         total = len(self._items)
-        for index, item in enumerate(self._items, start=1):
-            if self._cancelled:
-                break
-            try:
-                self._perform(item)
-                imported += 1
-            except Exception as exc:  # noqa: BLE001 - report and keep going
-                failed += 1
-                errors.append(f"{os.path.basename(item.src)}: {exc}")
-            self.progress.emit(index, total)
-        self.finished.emit(imported, failed, errors)
+        try:
+            for index, item in enumerate(self._items, start=1):
+                if self._cancelled:
+                    break
+                try:
+                    self._perform(item)
+                    imported += 1
+                except Exception as exc:  # noqa: BLE001 - report and keep going
+                    failed += 1
+                    errors.append(f"{os.path.basename(item.src)}: {exc}")
+                self.progress.emit(index, total)
+        except Exception:
+            # Same guarantee as DirectoryScanWorker.run: never let an unhandled
+            # error escape through the Qt boundary and strand the thread.
+            traceback.print_exc()
+        finally:
+            # Guaranteed once per run: the caller joins the thread on this.
+            self.finished.emit(imported, failed, errors)
 
     @staticmethod
     def _perform(item: ImportItem) -> None:

@@ -156,6 +156,27 @@ class TestImportWorker:
         assert (dest_dir / "good.txt").read_text() == "x"
         assert len(errors) == 1
 
+    def test_run_reports_finished_once_even_when_every_item_fails(
+        self, qtbot, tmp_path, monkeypatch
+    ):
+        """The batch reports failed items and still emits ``finished`` once."""
+        src = tmp_path / "a.txt"
+        src.write_text("x")
+        dest = tmp_path / "share" / "a.txt"
+        worker = ImportWorker([ImportItem(str(src), str(dest), move=False)])
+        results: list = []
+        worker.finished.connect(lambda *args: results.append(args))
+
+        def boom(*_args) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(worker, "_perform", boom)
+
+        worker.run()
+
+        assert len(results) == 1
+        assert results[0][:2] == (0, 1)
+
 
 class TestTableDrop:
     def _drop(self, table, sources, action=Qt.DropAction.CopyAction):
