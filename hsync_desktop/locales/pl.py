@@ -437,6 +437,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_instances": "Zbyt wiele programów używa obserwacji plików: zamknij część z nich lub trwale zwiększ limit instancji inotify na użytkownika, a następnie uruchom synchronizację ponownie.",
     "notif.remedy_fd_exhaustion": "Zwiększ limit otwartych plików dla tego użytkownika i uruchom synchronizację ponownie.",
     "notif.remedy_rdv_token_required": "Ustaw wspólne hasło w Ustawienia → P2P: jest ono również tokenem dostępu do chronionego serwera wykrywania i musi być identyczne na każdym urządzeniu.",
+    "notif.remedy_relay_unavailable": "Urządzenie nie jest bezpośrednio osiągalne (NAT). W Ustawieniach → P2P włącz „Automatycznie otwieraj port na routerze” albo poproś operatora serwera wykrywania o pozostawienie włączonego przekazywania danych.",
     "notif.remedy_numbers": "Ten folder wymaga {needed} obserwacji; obecny limit to {limit}.",
     "notif.success": "Gotowe",
     "notif.transfers_failed": "Niepowodzenie {count} transferów",

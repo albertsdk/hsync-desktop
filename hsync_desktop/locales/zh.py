@@ -437,6 +437,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_instances": "太多程序正在使用文件监控：请关闭一些程序，或永久提高每个用户的 inotify 实例上限，然后重新启动同步。",
     "notif.remedy_fd_exhaustion": "请提高该用户的打开文件数上限，然后重新启动同步。",
     "notif.remedy_rdv_token_required": "请在 设置 → P2P 中设置共享密码：它也是受保护发现服务器的访问令牌，并且必须在每台设备上完全相同。",
+    "notif.remedy_relay_unavailable": "无法直接访问某台设备（NAT）。请在 设置 → P2P 中启用“自动在路由器上打开端口”，或请发现服务器运营者保持数据中继开启。",
     "notif.remedy_numbers": "此文件夹需要 {needed} 个监控；当前上限为 {limit}。",
     "notif.success": "完成",
     "notif.transfers_failed": "{count} 个传输失败",

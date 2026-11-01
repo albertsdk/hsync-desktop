@@ -55,8 +55,17 @@ class TestRemedyText:
             "notif.remedy_rdv_token_required"
         )
 
+    def test_the_relay_unavailable_warning_has_a_remedy(self):
+        """Two NATed peers that cannot pair the data relay need a concrete fix."""
+        assert remedy_text("relay", {"reason": "relay_unavailable"}) == tr(
+            "notif.remedy_relay_unavailable"
+        )
+
     def test_another_rendezvous_reason_has_no_remedy(self):
         assert remedy_text("rendezvous", {"reason": "unreachable"}) == ""
+
+    def test_another_relay_reason_has_no_remedy(self):
+        assert remedy_text("relay", {"reason": "transient"}) == ""
 
     def test_another_subsystem_has_no_remedy(self):
         assert remedy_text("rendezvous", {"reason": "inotify_watches"}) == ""

@@ -352,6 +352,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_instances": "Zu viele Programme nutzen Datei-Watches: Schließen Sie einige oder erhöhen Sie das Inotify-Instanzlimit pro Benutzer dauerhaft, dann starten Sie die Synchronisierung neu.",
     "notif.remedy_fd_exhaustion": "Erhöhen Sie das Limit für geöffnete Dateien dieses Benutzers und starten Sie die Synchronisierung neu.",
     "notif.remedy_rdv_token_required": "Legen Sie das gemeinsame Passwort unter Einstellungen → P2P fest: Es ist auch der Zugriffstoken für den geschützten Erkennungsserver und muss auf jedem Gerät identisch sein.",
+    "notif.remedy_relay_unavailable": "Ein Gerät ist nicht direkt erreichbar (NAT). Aktivieren Sie unter Einstellungen → P2P „Port automatisch am Router öffnen“ oder bitten Sie den Betreiber des Erkennungsservers, das Daten-Relay aktiviert zu lassen.",
     "notif.remedy_numbers": "Dieser Ordner braucht {needed} Watches; das aktuelle Limit ist {limit}.",
     "notif.success": "Fertig",
     "notif.transfers_failed": "{count} Übertragung(en) fehlgeschlagen",

@@ -53,6 +53,17 @@ A **warning** is something the sync keeps running through, for example:
 - the shared folder is no longer accessible (drive unplugged, network mount
   dropped).
 
+### The data relay could not be paired (`relay_unavailable`)
+
+Only with a discovery server. Two devices that no port map can reach directly
+(strict NAT / CGNAT — mobile data, hotspots) still try to sync *through* the
+node. When the node cannot pair that relay, the app keeps the run going and
+shows a warning whose remedy names what to do: a public endpoint on the
+**primary** device (UPnP) or the node's data relay enabled (it is **on by
+default** — check that the operator did not start it with `--no-relay` or
+`HSYNC_RENDEZVOUS_RELAY=0`). See
+[Troubleshooting → Devices stay on "Connecting…"](troubleshooting.md#devices-stay-on-connecting-or-flip-to-disconnected-though-the-discovery-server-is-fine).
+
 A warning that heals itself — real-time changes queued faster than they could be
 sent, a file that kept changing while it was being sent, files that could not be
 read and are retried by the next scan — shows as a brief toast instead and never

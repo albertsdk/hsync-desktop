@@ -33,6 +33,11 @@ _WATCHER_REMEDY_KEYS: dict[str, str] = {
 # the remedy points at that setting — the only thing that can unblock it.
 _RENDEZVOUS_TOKEN_REMEDY_KEY = "notif.remedy_rdv_token_required"
 
+# The rendezvous could not relay the data plane between two peers that no
+# inbound NAT mapping reaches. The user-facing fix spans both ends: a public
+# endpoint on the device that serves as primary (UPnP) or the node's relay.
+_RELAY_UNAVAILABLE_REMEDY_KEY = "notif.remedy_relay_unavailable"
+
 
 def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
     """Return the localized remedy for a warning, or ``""`` when there is none.
@@ -43,6 +48,8 @@ def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
     """
     if source == "rendezvous" and str((details or {}).get("reason")) == "token_required":
         return tr(_RENDEZVOUS_TOKEN_REMEDY_KEY)
+    if source == "relay" and str((details or {}).get("reason")) == "relay_unavailable":
+        return tr(_RELAY_UNAVAILABLE_REMEDY_KEY)
     if source != "watcher":
         return ""
     reason = str((details or {}).get("reason") or "")

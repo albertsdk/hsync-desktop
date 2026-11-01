@@ -437,6 +437,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_instances": "Demasiados programas usam monitorização de ficheiros: feche alguns ou aumente de forma permanente o limite de instâncias inotify por utilizador, e depois reinicie a sincronização.",
     "notif.remedy_fd_exhaustion": "Aumente o limite de ficheiros abertos deste utilizador e reinicie a sincronização.",
     "notif.remedy_rdv_token_required": "Defina a palavra-passe partilhada em Definições → P2P: é também o token de acesso do servidor de descoberta protegido e deve ser idêntica em todos os dispositivos.",
+    "notif.remedy_relay_unavailable": "Um dispositivo não é alcançável diretamente (NAT). Em Definições → P2P ative “Abrir automaticamente a porta no router”, ou peça ao operador do servidor de descoberta para manter o relé de dados ativo.",
     "notif.remedy_numbers": "Esta pasta precisa de {needed} monitorizações; o limite atual é {limit}.",
     "notif.success": "Concluído",
     "notif.transfers_failed": "{count} transferência(s) falhou",

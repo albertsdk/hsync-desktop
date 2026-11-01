@@ -437,6 +437,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_instances": "ファイル監視を使うプログラムが多すぎます。いくつか終了するか、ユーザーごとの inotify インスタンス上限を恒久的に引き上げてから、同期を再起動してください。",
     "notif.remedy_fd_exhaustion": "このユーザーの開いているファイル数の上限を引き上げ、同期を再起動してください。",
     "notif.remedy_rdv_token_required": "設定 → P2P で共有パスワードを設定してください。保護された探索サーバーのアクセストークンとしても使用され、すべてのデバイスで同一である必要があります。",
+    "notif.remedy_relay_unavailable": "デバイスに直接到達できません（NAT）。設定 → P2P で「ルーターのポートを自動的に開く」を有効にするか、探索サーバーの運用者にデータリレーを有効に保つよう依頼してください。",
     "notif.remedy_numbers": "このフォルダーには {needed} 個の監視が必要です。現在の上限は {limit} です。",
     "notif.success": "完了",
     "notif.transfers_failed": "{count} 件の転送に失敗しました",

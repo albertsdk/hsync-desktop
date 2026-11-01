@@ -1350,6 +1350,26 @@ class TestInfoToast:
         assert tr("notif.remedy_rdv_token_required") in message
         assert calls[0][1]["help_url"] == TROUBLESHOOTING
 
+    def test_a_relay_unavailable_warning_carries_the_remedy(self, window, monkeypatch):
+        """A data-relay failure tells the user the concrete NAT/relay fix."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning(
+            "[RELAY] master … is unreachable directly and the rendezvous node "
+            "could not relay the data plane",
+            "relay",
+            False,
+            {"reason": "relay_unavailable"},
+        )
+
+        message = calls[0][0][1]
+        assert tr("notif.remedy_relay_unavailable") in message
+        assert calls[0][1]["help_url"] == TROUBLESHOOTING
+
     def test_a_descriptor_limit_warning_also_deep_links(self, window, monkeypatch):
         """Every watcher remedy lives on the client page, not only inotify."""
         calls: list[tuple] = []

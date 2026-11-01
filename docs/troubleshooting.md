@@ -67,6 +67,35 @@ acknowledgement that silences the prompt and the control that brings it back.
   server only adds devices on *other* networks.
 - A shared password is only needed to authorize writes.
 
+## Devices stay on "Connecting…" (or flip to "Disconnected") though the discovery server is fine
+
+Two devices can *find* each other through the discovery server (the log keeps
+saying `refresh ok (1 peer(s))`) yet never *link*: the file traffic between
+them cannot flow. The discovery server only introduces the peers — it does not
+carry the sync in most cases — so the remaining step is for the two devices to
+reach each other.
+
+Common causes, in order:
+
+1. **Better to enable the link through a public endpoint.** On the device that
+   acts as **primary**, open *Settings → p2p Mode → Open the port on my router
+   automatically* (UPnP). Without a port the router can forward, devices on
+   other networks cannot dial in.
+2. **The data relay needs to be active on the discovery server.** If neither
+   device has a publicly reachable port (both behind strict NAT — mobile
+   data, hotspots, CGNAT), the sync can run *through* the discovery server.
+   The operator must run it with the data relay **enabled** (the default; check
+   that `--no-relay` or `HSYNC_RENDEZVOUS_RELAY=0` were not set). The app shows a
+   warning that names this case and a remedy when it cannot pair the relay.
+3. **Same group + share + password** — re-check the checklist in the previous
+   section; a mismatch still shows `refresh ok` because discovery is separate
+   from the link.
+
+If you see a warning containing `[RELAY]` and `could not relay the data plane`,
+read its remedy: it says whether to open a port on the primary or to enable the
+relay on the discovery server. See
+[Warnings → The data relay could not be paired](warnings.md#the-data-relay-could-not-be-paired-relay_unavailable).
+
 ## p2p authentication failed
 
 A device you are syncing with requires a shared password that this device is
