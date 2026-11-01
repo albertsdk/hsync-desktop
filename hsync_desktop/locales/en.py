@@ -426,6 +426,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_watches": "Raise the file-watch limit for your user, make it permanent, then restart the sync.",
     "notif.remedy_inotify_instances": "Too many programs use file watches: close some, or raise the per-user inotify instance limit permanently, then restart the sync.",
     "notif.remedy_fd_exhaustion": "Raise the open-files limit for this user, then restart the sync.",
+    "notif.remedy_rdv_token_required": "Set the Shared password in Settings → P2P: it is also the access token for the protected discovery server and must be identical on every device.",
     "notif.remedy_numbers": "This folder needs {needed} watches; the current limit is {limit}.",
     "notif.success": "Done",
     "notif.transfers_failed": "{count} transfer(s) failed",

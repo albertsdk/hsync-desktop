@@ -48,6 +48,16 @@ class TestRemedyText:
     def test_a_transient_condition_has_no_remedy(self):
         assert remedy_text("watcher", {"reason": "transient"}) == ""
 
+    def test_the_token_required_rendezvous_refusal_has_a_remedy(self):
+        """A protected bucket refusal is actionable: point at the Shared password
+        (the discovery-server token is derived from it, not typed directly)."""
+        assert remedy_text("rendezvous", {"reason": "token_required"}) == tr(
+            "notif.remedy_rdv_token_required"
+        )
+
+    def test_another_rendezvous_reason_has_no_remedy(self):
+        assert remedy_text("rendezvous", {"reason": "unreachable"}) == ""
+
     def test_another_subsystem_has_no_remedy(self):
         assert remedy_text("rendezvous", {"reason": "inotify_watches"}) == ""
 

@@ -341,6 +341,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_watches": "Augmentez la limite de surveillance de fichiers de votre utilisateur, rendez-la permanente, puis redémarrez la synchronisation.",
     "notif.remedy_inotify_instances": "Trop de programmes utilisent la surveillance de fichiers : fermez-en quelques-uns ou augmentez durablement la limite d'instances inotify par utilisateur, puis redémarrez la synchronisation.",
     "notif.remedy_fd_exhaustion": "Augmentez la limite de fichiers ouverts de cet utilisateur, puis redémarrez la synchronisation.",
+    "notif.remedy_rdv_token_required": "Définissez le mot de passe partagé dans Paramètres → P2P : il sert aussi de jeton d'accès au serveur de découverte protégé et doit être identique sur chaque appareil.",
     "notif.remedy_numbers": "Ce dossier a besoin de {needed} surveillances ; la limite actuelle est {limit}.",
     "notif.success": "Terminé",
     "notif.transfers_failed": "{count} transfert(s) échoué(s)",

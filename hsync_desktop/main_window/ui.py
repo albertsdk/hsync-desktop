@@ -1112,9 +1112,11 @@ class UiBuildMixin:
             tr("notif.warning"),
             text,
             category="warnings",
-            # A host remedy is only useful on the page that carries the commands;
-            # every other persistent warning keeps the desktop symptom guide.
-            help_url=WATCHER_LIMITS if remedy else TROUBLESHOOTING,
+            # The host-remedy guide is only useful for the watcher causes that
+            # carry the commands; every other persistent warning (including the
+            # rendezvous token refusal, whose remedy points at Settings) keeps
+            # the desktop symptom guide.
+            help_url=WATCHER_LIMITS if source == "watcher" and remedy else TROUBLESHOOTING,
         )
 
     def _hide_info_banner(self) -> None:

@@ -1331,6 +1331,25 @@ class TestInfoToast:
         assert calls[0][0][1] == "Rendezvous unreachable"  # no remedy text invented
         assert calls[0][1]["help_url"] == TROUBLESHOOTING
 
+    def test_a_token_required_rendezvous_warning_carries_the_remedy(self, window, monkeypatch):
+        """A protected-bucket refusal tells the user where to set the key."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+
+        window._on_engine_warning(
+            "Rendezvous rdv:443 refused the lease frame: token_required",
+            "rendezvous",
+            False,
+            {"reason": "token_required"},
+        )
+
+        message = calls[0][0][1]
+        assert tr("notif.remedy_rdv_token_required") in message
+        assert calls[0][1]["help_url"] == TROUBLESHOOTING
+
     def test_a_descriptor_limit_warning_also_deep_links(self, window, monkeypatch):
         """Every watcher remedy lives on the client page, not only inotify."""
         calls: list[tuple] = []

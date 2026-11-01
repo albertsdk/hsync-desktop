@@ -28,6 +28,11 @@ _WATCHER_REMEDY_KEYS: dict[str, str] = {
     "fd_exhaustion": "notif.remedy_fd_exhaustion",
 }
 
+# A protected rendezvous refused the group token. The token is not typed by
+# the user: it is derived from the p2p shared password (Settings → p2p), so
+# the remedy points at that setting — the only thing that can unblock it.
+_RENDEZVOUS_TOKEN_REMEDY_KEY = "notif.remedy_rdv_token_required"
+
 
 def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
     """Return the localized remedy for a warning, or ``""`` when there is none.
@@ -36,6 +41,8 @@ def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
     numbers. The numbers are appended only when both are present: a remedy with
     a wrong or partial figure is worse than one without.
     """
+    if source == "rendezvous" and str((details or {}).get("reason")) == "token_required":
+        return tr(_RENDEZVOUS_TOKEN_REMEDY_KEY)
     if source != "watcher":
         return ""
     reason = str((details or {}).get("reason") or "")
