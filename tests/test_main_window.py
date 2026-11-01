@@ -3408,6 +3408,72 @@ class TestSyncState:
 
         assert window._sync_state_label.text() == tr("sync.state.in_sync")
 
+    def test_a_completed_download_retires_a_plan_item(self, window):
+        """The pending counts are live, not the plan snapshot frozen at the preview."""
+        window._on_preview_started()
+        window._preview_stats.to_download = 2
+        window._preview_stats.to_upload = 1
+        window._on_preview_ended()
+
+        window._on_file_transferred("↓", "/share/a.bin", 10)
+
+        expected = tr("sync.state.pending").replace("{download}", "1").replace("{upload}", "1")
+        assert window._sync_state_label.text() == expected
+
+    def test_completing_the_plan_reads_in_sync(self, window):
+        window._on_preview_started()
+        window._preview_stats.to_download = 1
+        window._preview_stats.to_upload = 1
+        window._on_preview_ended()
+
+        window._on_file_transferred("↓", "/share/a.bin", 10)
+        window._on_file_transferred("↑", "/share/b.bin", 10)
+
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
+
+    def test_a_deleted_file_keeps_the_counters(self, window):
+        window._on_preview_started()
+        window._preview_stats.to_download = 1
+        window._on_preview_ended()
+
+        window._on_file_transferred("✕", "/share/gone.bin", 0)
+
+        expected = tr("sync.state.pending").replace("{download}", "1").replace("{upload}", "0")
+        assert window._sync_state_label.text() == expected
+
+    def test_pending_other_survives_the_counters_reaching_zero(self, window):
+        window._on_preview_started()
+        window._preview_stats.to_download = 1
+        window._preview_stats.to_delete = 1
+        window._on_preview_ended()
+
+        window._on_file_transferred("↓", "/share/a.bin", 10)
+
+        assert window._sync_state_label.text() == tr("sync.state.pending_other").replace(
+            "{count}", "1"
+        )
+
+    def test_a_transfer_while_checking_settles_from_the_plan_rows(self, window):
+        """A file actually moving proves the peer is reconciled, not "checking"."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._on_preview_started()  # a comparison that left no verdict
+        window._file_panel.table.add_transfer(
+            FileTransfer(filepath="x.bin", direction="↑", size=1, status=TransferStatus.TO_UPLOAD)
+        )
+
+        window._on_file_transferred("↑", "/share/done.bin", 1)
+
+        expected = tr("sync.state.pending").replace("{download}", "0").replace("{upload}", "1")
+        assert window._sync_state_label.text() == expected
+
+    def test_a_transfer_while_checking_without_plan_rows_reads_in_sync(self, window):
+        window._on_preview_started()
+
+        window._on_file_transferred("↑", "/share/done.bin", 1)
+
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
+
 
 class TestDryRunSyncRetry:
     """The SYNC that ends the initial dry-run is retried until the link is up."""

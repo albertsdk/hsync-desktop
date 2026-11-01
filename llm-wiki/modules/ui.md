@@ -864,7 +864,16 @@ The counts come from two sources, one per side of the comparison.
   for the others, so `in_sync` here means every device is converged (ADR 0042).
 
 `EventsMixin._begin_comparison` resets both, so repeated comparisons never
-inflate the counts nor keep a device that has left. The label is re-rendered on a
+inflate the counts nor keep a device that has left. The label is **live during a
+transfer**: `EventsMixin._note_transfer_progress` (called from
+`EventsMixin._on_file_transferred`) retires one plan item per completed
+download/upload and settles to `in_sync`/`pending_other` when nothing is left,
+so the counts no longer freeze at the plan for the whole transfer. A transfer
+observed while the label still reads `checking` — a comparison that left no
+verdict (the peer publishes its inventory through the serving pass) — re-derives
+the counts from the plan rows the table shows
+(`EventsMixin._pending_from_table`), because a file actually moving proves the
+peer is reconciled. The label is re-rendered on a
 language change from `_apply_translations`; its tooltip
 (`EventsMixin._sync_state_tooltip`) starts from `tip.sync_state` and lists every
 device as `cccccccc  ↓ pending_here · ↑ pending_there`, plus the published/expected

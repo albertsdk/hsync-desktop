@@ -61,7 +61,7 @@ from hsync_desktop.engine import (
     remove_server_trust,
     supports_peer_trust,
 )
-from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.file_panel import FilePanel, TransferStatus
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
@@ -353,6 +353,52 @@ class EventsMixin:
         self._sent_label.setText(f"{st.files_sent} ({format_bytes(st.bytes_sent)})")
         self._recv_label.setText(f"{st.files_received} ({format_bytes(st.bytes_received)})")
 
+    def _note_transfer_progress(self, direction: str) -> None:
+        """Retire one plan item per completed transfer, so the label stays live.
+
+        The file-set label is a snapshot taken at the comparison end and nothing
+        re-computes it while files move: the pending counts used to freeze at the
+        plan for the whole transfer, and a comparison that left no verdict kept
+        reading "checking". A completed transfer retires the matching plan item;
+        while the label still reads "checking" the counts are re-derived from the
+        plan rows the table shows, because a file actually moving proves the peer
+        is reconciled.
+        """
+        if direction not in ("↓", "↑"):
+            return
+        state, downloads, uploads, others = self._sync_state
+        if state == "checking":
+            downloads, uploads, others = self._pending_from_table()
+            state = (
+                "pending" if (downloads or uploads) else ("pending_other" if others else "in_sync")
+            )
+        elif state == "pending":
+            if direction == "↓" and downloads > 0:
+                downloads -= 1
+            elif direction == "↑" and uploads > 0:
+                uploads -= 1
+            if not downloads and not uploads:
+                state = "pending_other" if others else "in_sync"
+        else:
+            return
+        self._set_sync_state(state, downloads, uploads, others)
+
+    def _pending_from_table(self) -> tuple[int, int, int]:
+        """Plan rows the table still shows as pending: (downloads, uploads, others)."""
+        transfers = self._file_panel.table._transfers.values()
+        downloads = sum(
+            1
+            for f in transfers
+            if f.status in (TransferStatus.TO_DOWNLOAD, TransferStatus.DOWNLOADING)
+        )
+        uploads = sum(
+            1 for f in transfers if f.status in (TransferStatus.TO_UPLOAD, TransferStatus.UPLOADING)
+        )
+        others = sum(
+            1 for f in transfers if f.status in (TransferStatus.TO_DELETE, TransferStatus.TO_RENAME)
+        )
+        return downloads, uploads, others
+
     def _rel_path(self, path: str) -> str:
         """Map a client-reported absolute path onto the table's relative key."""
         base = self._local_path
@@ -401,6 +447,9 @@ class EventsMixin:
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
+        # The row above is already settled, so the live backlog the label derives
+        # never counts the file that just completed.
+        self._note_transfer_progress(direction)
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(rel_path)
             stats = self._engine.stats
