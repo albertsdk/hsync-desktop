@@ -98,9 +98,10 @@ never promises progress it cannot know. **Cancel** stops the copy at the next
 file — whatever was already written stays in the shared folder.
 
 The files are written into the shared folder and the sync engine picks them up
-automatically; a toast reports the outcome and the list refreshes. The shared
-folder's own engine files (`.hsyncfolder`, `.hsyncignore`, …) cannot be dropped
-in, and the shared folder cannot be dropped onto itself.
+automatically; a toast reports the outcome and the list refreshes, keeping the
+status the other files already had. The shared folder's own engine files
+(`.hsyncfolder`, `.hsyncignore`, …) cannot be dropped in, and the shared folder
+cannot be dropped onto itself.
 
 ## Related
 

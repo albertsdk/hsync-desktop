@@ -2674,3 +2674,119 @@ class TestLiveTransferProgress:
 
         table.update_file_status("up.bin", "synced", size=10)
         assert table._transfers["up.bin"].status is TransferStatus.SYNCED
+
+
+class TestReloadKeepsClassifications:
+    """A local rescan rebuilds the tree: it must not wipe what the engine said.
+
+    ``TransferStatus.LOCAL`` is the only claim a scan can make ("exists here,
+    status unknown"), so a scanned row may never downgrade a classified one.
+    Losing them turned every row grey after a drag & drop import, and they came
+    back only with the next comparison.
+    """
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        return table
+
+    @staticmethod
+    def _scanned(filepath, size=10, mtime=1.0):
+        """The placeholder row a directory scan emits for one path."""
+        return FileTransfer(
+            filepath=filepath,
+            direction="—",
+            size=size,
+            status=TransferStatus.LOCAL,
+            mtime=mtime,
+        )
+
+    def test_the_snapshot_keeps_only_classified_rows(self, qtbot):
+        table = self._table(qtbot)
+        table.add_transfers_batch([self._scanned("plain.txt")])
+        table.update_file_status("kept.txt", "synced")
+
+        assert set(table.status_snapshot()) == {"kept.txt"}
+
+    def test_a_scanned_row_keeps_the_known_classification(self, qtbot):
+        table = self._table(qtbot)
+        table.update_file_status("a.txt", "synced", holders=2, devices=3)
+        snapshot = table.status_snapshot()
+
+        table.clear_transfers()
+        table.add_transfers_batch([self._scanned("a.txt", size=99, mtime=5.0)], known=snapshot)
+
+        row = table._transfers["a.txt"]
+        assert row.status is TransferStatus.SYNCED
+        assert (row.holders, row.devices) == (2, 3)
+        # The filesystem facts are the scan's: it just read them.
+        assert (row.size, row.mtime) == (99, 5.0)
+
+    def test_a_classification_that_lands_during_the_scan_survives(self, qtbot):
+        """The engine can classify a path between two scan batches."""
+        table = self._table(qtbot)
+        table.clear_transfers()
+        table.update_file_status("a.txt", "to_upload")
+
+        table.add_transfers_batch([self._scanned("a.txt")], known={})
+
+        assert table._transfers["a.txt"].status is TransferStatus.TO_UPLOAD
+
+    def test_an_unknown_path_stays_local(self, qtbot):
+        table = self._table(qtbot)
+
+        table.add_transfers_batch([self._scanned("new.txt")], known={})
+
+        assert table._transfers["new.txt"].status is TransferStatus.LOCAL
+
+    def test_a_rescan_never_downgrades_a_live_classification(self, qtbot):
+        """Once classified, a row stays classified while it exists."""
+        table = self._table(qtbot)
+        table.update_file_status("a.txt", "synced")
+        snapshot = table.status_snapshot()
+        table.clear_transfers()
+        table.add_transfers_batch([self._scanned("a.txt")], known=snapshot)
+
+        table.add_transfers_batch([self._scanned("a.txt")])
+
+        assert table._transfers["a.txt"].status is TransferStatus.SYNCED
+
+    def test_a_reload_keeps_the_classifications(self, qtbot, tmp_path):
+        """The reload after an import (or a scoped Send now) keeps them."""
+        from hsync_desktop.file_panel import FilePanel
+
+        (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel.load_local_files(str(tmp_path))
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+        panel.update_file_status("a.txt", "synced")
+
+        panel.load_local_files(str(tmp_path))
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+
+        assert panel._table._transfers["a.txt"].status is TransferStatus.SYNCED
+
+    def test_a_reload_of_another_folder_starts_clean(self, qtbot, tmp_path):
+        """Statuses are keyed by relative path: another base has its own."""
+        from hsync_desktop.file_panel import FilePanel
+
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        for folder in (first, second):
+            folder.mkdir()
+            (folder / "a.txt").write_text("x", encoding="utf-8")
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel.load_local_files(str(first))
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+        panel.update_file_status("a.txt", "synced")
+
+        panel.load_local_files(str(second))
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+
+        assert panel._table._transfers["a.txt"].status is TransferStatus.LOCAL

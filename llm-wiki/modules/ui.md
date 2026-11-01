@@ -522,6 +522,23 @@ refreshes and is cleared on user navigation, a new click, or a panel clear
 (`main_window/actions.py::ActionsMixin._selection_display_name` maps a nested
 target to the first path segment below the current folder).
 
+The reload **keeps the per-file classifications**:
+`file_panel/transfer_table.py::FileTransferTable.clear_transfers` drops every row
+and the scan that follows re-emits plain `LOCAL` placeholders
+(`TransferStatus.LOCAL` means "exists here, status unknown"), so
+`FilePanel.load_local_files` captures
+`file_panel/transfer_table.py::FileTransferTable.status_snapshot` — copies of the
+rows that carry a classification — and hands it to
+`FileTransferTable.add_transfers_batch(..., known=...)`, which merges it back:
+`status`, device coverage and client attribution survive, while `size`/`mtime`
+come from the fresh scan. A classification that lands *while* the scan runs wins
+as well (`file_panel/transfer_table.py::FileTransferTable._classified_row`
+consults the live row first), so the race between the
+scan's batches and the engine's per-file events cannot grey a row the engine
+already classified. The snapshot is dropped at the end of the rebuild
+(`FilePanel._on_scan_finished`) and whenever the folder changes: the keys are
+relative paths, so another base starts clean.
+
 The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
 offers `Open` — a **folder** navigates into it inside the panel (same as a
 double-click) while a **file** opens with the system default app — followed by

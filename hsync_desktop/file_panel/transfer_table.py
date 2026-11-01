@@ -10,6 +10,7 @@ import platform
 import shutil
 import subprocess
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path
 from time import localtime, strftime, time
 
@@ -1861,15 +1862,62 @@ class FileTransferTable(QTableView):
             direction_font=self._direction_font,
         )
 
-    def add_transfers_batch(self, transfers: list[FileTransfer]) -> None:
-        """Add multiple transfers efficiently."""
+    def status_snapshot(self) -> dict[str, FileTransfer]:
+        """Copies of the rows that carry a classification, keyed by path.
+
+        A local rescan rebuilds the tree from scratch and its rows are plain
+        ``LOCAL`` placeholders (``TransferStatus.LOCAL`` means "exists here,
+        status unknown"), so the classifications already known would be lost —
+        and they come back only with the next comparison. The caller keeps this
+        snapshot across the rebuild and hands it to ``add_transfers_batch``; a
+        ``LOCAL`` row carries nothing worth keeping.
+        """
+        with QMutexLocker(self._transfers_mutex):
+            return {
+                path: replace(transfer)
+                for path, transfer in self._transfers.items()
+                if transfer.status is not TransferStatus.LOCAL
+            }
+
+    def add_transfers_batch(
+        self,
+        transfers: list[FileTransfer],
+        *,
+        known: dict[str, FileTransfer] | None = None,
+    ) -> None:
+        """Add multiple transfers efficiently.
+
+        ``known`` carries the classifications a previous table generation held
+        for these paths (see ``status_snapshot``): a scanned row is a
+        placeholder, so it must never downgrade a row the engine already
+        classified — including one classified *while* the scan runs. The
+        scanned row still wins on what the filesystem says (size, mtime).
+        """
         if not transfers:
             return
         with QMutexLocker(self._transfers_mutex):
             for transfer in transfers:
-                self._transfers[transfer.filepath] = transfer
+                previous = self._classified_row(transfer.filepath, known)
+                self._transfers[transfer.filepath] = (
+                    replace(previous, size=transfer.size, mtime=transfer.mtime)
+                    if previous is not None
+                    else transfer
+                )
         self._cached_items = None  # Invalidate cache
         self._schedule_refresh()
+
+    def _classified_row(
+        self, filepath: str, known: dict[str, FileTransfer] | None
+    ) -> FileTransfer | None:
+        """The last classified row for ``filepath``, from this table or ``known``.
+
+        Called with the transfer lock held. A live row wins: it is the more
+        recent report (an event that landed while the scan was running).
+        """
+        for candidate in (self._transfers.get(filepath), (known or {}).get(filepath)):
+            if candidate is not None and candidate.status is not TransferStatus.LOCAL:
+                return candidate
+        return None
 
     def update_file_status(
         self,

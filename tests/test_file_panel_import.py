@@ -584,3 +584,24 @@ class TestPanelImport:
         assert messages == [
             (tr("dnd.import_cancelled").format(done=1, total=3), "warning"),
         ]
+
+    def test_the_import_reload_keeps_the_other_rows_classified(self, window, qtbot, tmp_path):
+        """Dropping a file must not turn the rest of the list "Local"."""
+        panel = self._panel(window)
+        base = tmp_path / "share"
+        base.mkdir()
+        (base / "already.txt").write_text("x")
+        panel.load_local_files(str(base))
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+        panel.update_file_status("already.txt", "synced")
+
+        src = tmp_path / "incoming.txt"
+        src.write_text("hi")
+        with qtbot.waitSignal(panel.import_finished, timeout=5000):
+            panel._on_files_dropped([str(src)], "", "copy")
+        qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
+
+        # The row the engine had classified survives the reload; the path the
+        # import just created is a placeholder until the next comparison.
+        assert panel._table._transfers["already.txt"].status is TransferStatus.SYNCED
+        assert panel._table._transfers["incoming.txt"].status is TransferStatus.LOCAL

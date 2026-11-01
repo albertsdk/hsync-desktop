@@ -109,6 +109,10 @@ class FilePanel(QWidget):
         super().__init__(parent)
         self._scan_thread: QThread | None = None
         self._scan_worker: DirectoryScanWorker | None = None
+        # Classifications the engine already reported for the folder being
+        # reloaded, kept across the scan that rebuilds the tree (see
+        # ``FileTransferTable.status_snapshot``).
+        self._status_snapshot: dict[str, FileTransfer] | None = None
         self._import_thread: QThread | None = None
         self._import_worker: ImportWorker | None = None
         self._importing: bool = False
@@ -313,6 +317,7 @@ class FilePanel(QWidget):
         self._stop_import()
         self._table.clear_transfers()
         self._detail.clear()
+        self._status_snapshot = None
 
     def set_connected(self, connected: bool) -> None:
         """Forward the connection state so "Local" rows use the default colour."""
@@ -329,9 +334,14 @@ class FilePanel(QWidget):
         *,
         restore_view: tuple[str, str | None] | None = None,
     ) -> None:
+        # Keep the classifications the engine already reported: the scan below
+        # rebuilds the tree with plain LOCAL placeholders. They belong to the
+        # folder being shown, so a reload of a different folder starts clean.
+        snapshot = self._table.status_snapshot() if directory == self._current_directory else {}
         self._stop_scan()
         self._consistency_timer.stop()
         self.clear()
+        self._status_snapshot = snapshot
         # A new scan invalidates the previous size until the first batch arrives.
         self._share_size_bytes = -1
         self.share_size_changed.emit(-1)
@@ -458,7 +468,7 @@ class FilePanel(QWidget):
             )
             for filepath, size, mtime in files
         ]
-        self._table.add_transfers_batch(transfers)
+        self._table.add_transfers_batch(transfers, known=self._status_snapshot)
 
     @Slot(object)
     def _on_scan_size(self, total_bytes: int) -> None:
@@ -472,6 +482,8 @@ class FilePanel(QWidget):
         self._join_thread(self._scan_thread)
         self._scan_thread = None
         self._scan_worker = None
+        # The rebuild is over: every path it was going to re-add has been seen.
+        self._status_snapshot = None
         self._sync_loading_overlay()
         self._table.refresh_view()
         if self._current_directory:
