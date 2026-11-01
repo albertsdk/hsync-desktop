@@ -61,6 +61,9 @@ _NAV_ICON_BOX_PX = 24
 # asks for a status refresh and the engine's own answer resolves the row. The
 # client ticks every 0.25 s while bytes move, so only real silence trips it.
 _IN_FLIGHT_STALE_SECONDS = 60.0
+# A stalled row is re-checked this often until it resolves: the first refresh can
+# itself fail (the link is down), and a row must never stay in flight forever.
+_STALL_REASK_SECONDS = 300.0
 
 # How long stopping a worker thread waits for it to leave its event loop before
 # the thread is parked (and released on its own ``finished``) instead of being
@@ -123,6 +126,7 @@ class FilePanel(QWidget):
         # In-flight rows already reported as stalled, so the periodic
         # consistency pass asks for one status refresh per stall.
         self._stall_reported: set[str] = set()
+        self._stall_asked_at: float = 0.0
         self._import_thread: QThread | None = None
         self._import_worker: ImportWorker | None = None
         self._importing: bool = False
@@ -857,19 +861,24 @@ class FilePanel(QWidget):
 
         The engine owns in-flight rows, so this is the safety net for a lost
         terminal event (or a wedged transfer): the refresh makes the engine
-        re-state the file's status, which resolves the row. Asked once per
-        stalled set — a fresh sample or a resolved row clears the record, so the
-        next stall asks again.
+        re-state the file's status, which resolves the row. Asked once per stall
+        and then again every ``_STALL_REASK_SECONDS`` while it lasts — the
+        refresh itself can fail (a link that is down), and the row must still not
+        stay in flight forever. A fresh sample (or a resolved row) clears the
+        record, so the next stall starts over.
         """
         stalled = set(
             self._table.stale_in_flight_paths(now=time(), timeout=_IN_FLIGHT_STALE_SECONDS)
         )
         if not stalled:
             self._stall_reported.clear()
+            self._stall_asked_at = 0.0
             return
-        if stalled == self._stall_reported:
+        now = time()
+        if stalled == self._stall_reported and now - self._stall_asked_at < _STALL_REASK_SECONDS:
             return
         self._stall_reported = stalled
+        self._stall_asked_at = now
         from hsync_desktop import debug_events
 
         debug_events.log("in_flight_stalled", files=sorted(stalled))

@@ -2728,6 +2728,29 @@ class TestLiveTransferProgress:
         assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
         assert _cell_text(table, 0, tt.COL_SPEED) == ""
 
+    def test_a_retried_transfer_clears_an_error_row(self, qtbot):
+        """The error is the last known outcome, not a permanent flag.
+
+        A transfer that fails and is then retried (or delivered by another
+        device) must close its row: the progress of the retry ends the error
+        state, and so does the terminal ``synced`` the client reports.
+        """
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("flaky.bin", 512, 1024, "upload")
+        table.mark_failed("flaky.bin")
+
+        # The retry reports progress again...
+        table.update_transfer_progress("flaky.bin", 1024, 1024, "upload")
+        assert table._transfers["flaky.bin"].status is TransferStatus.UPLOADING
+
+        # ...and its terminal status closes the row for good.
+        table.update_file_status("flaky.bin", "synced", size=1024)
+        assert table._transfers["flaky.bin"].status is TransferStatus.SYNCED
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+
     def test_stop_clears_in_flight_rows(self, qtbot, tmp_path):
         table = self._table(qtbot)
         (tmp_path / "kept.bin").write_bytes(b"abcd")
@@ -2821,6 +2844,27 @@ class TestStalledRowRefreshRequest:
         panel._request_status_for_stalled_rows()
 
         assert asked == ["asked"]
+
+    def test_a_continuing_stall_is_re_checked(self, qtbot, monkeypatch):
+        """The refresh can fail with the link down: the row is asked again."""
+        import hsync_desktop.file_panel.panel as panel_mod
+
+        panel = self._panel(qtbot)
+        panel._table.update_transfer_progress("out.bin", 1, 10, "upload")
+        panel._table._transfers["out.bin"].last_progress_at = 1000.0
+        monkeypatch.setattr(panel_mod, "time", lambda: 1100.0)
+        asked: list[str] = []
+        panel.scan_found_new_files.connect(lambda: asked.append("asked"))
+        panel._request_status_for_stalled_rows()
+
+        # Still stalled and still inside the re-check window: no second request.
+        panel._request_status_for_stalled_rows()
+        assert asked == ["asked"]
+
+        monkeypatch.setattr(panel_mod, "time", lambda: 1100.0 + 300.0)
+        panel._request_status_for_stalled_rows()
+
+        assert asked == ["asked", "asked"]
 
     def test_a_fresh_sample_lets_the_next_stall_ask_again(self, qtbot, monkeypatch):
         import hsync_desktop.file_panel.panel as panel_mod
