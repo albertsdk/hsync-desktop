@@ -437,9 +437,11 @@ The devices tab shows
 | `FileTransferModel` | `file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
 | `FileDetailPanel` | `file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
 | `ProgressBarDelegate` | `file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
-| `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay during scans |
+| `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
 | `_confirm_dialog` | `file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
 | `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
+| `ImportWorker` | `file_panel/workers.py::ImportWorker` | off-thread copy/move of the dropped sources, reporting per-item and per-file progress |
+| `count_tree` / `copy_tree` | `file_panel/import_ops.py::count_tree` / `file_panel/import_ops.py::copy_tree` | bounded metadata count and per-file copy behind the import progress |
 | `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
 The table is a **model/view pair** (`file_panel/transfer_table.py::FileTransferModel`
@@ -713,6 +715,41 @@ render at `file_panel/panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled
 SVGs); the root icon keeps a `file_panel/panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
 the WCAG 2.2 minimum. `file_panel/panel.py::FilePanel._refresh_breadcrumb_icon` is the only
 place that re-renders that icon, including after a theme change.
+
+### Drag & drop import
+
+Dropping OS files onto the table (`file_panel/transfer_table.py::FileTransferTable.dropEvent`)
+emits `files_dropped(sources, target_rel, action)`; the destination is the folder
+row under the cursor, else the folder being browsed
+(`file_panel/import_ops.py::target_rel_dir`). `file_panel/panel.py::FilePanel._on_files_dropped`
+validates the sources (`file_panel/import_ops.py::validate_sources`), confirms a
+move, resolves each name conflict (`Replace` / `Keep both` / `Skip`, with
+apply-to-all) and hands a list of `file_panel/import_ops.py::ImportItem` to
+`FilePanel._start_import`, which runs them in `file_panel/workers.py::ImportWorker`
+and refuses further drops meanwhile (`FileTransferTable.set_drop_enabled`).
+
+**The import is visible while it runs.** `ImportWorker` reports a
+`file_panel/import_ops.py::CopyProgress` per item and per file
+(`file_panel/import_ops.py::copy_tree` for a directory, so a dropped folder — a
+single item — still moves the bar), and the panel renders it in the shared
+`file_panel/overlay.py::LoadingOverlay` through `FilePanel._sync_loading_overlay`.
+That helper is the single owner of the overlay: the scan and the import both use
+it, so visibility is derived from `_importing`/`_overlay_scan_active` instead of
+paired show/hide calls — a scan ending mid-import must not hide the import's
+indicator, and the import wins when both are active. The bar is **determinate only
+when the totals are known**: a directory is counted first with
+`file_panel/import_ops.py::count_tree`, bounded by
+`file_panel/import_ops.py::COUNT_BUDGET_S`; an incomplete count (budget spent or
+cancelled) reports `files_total`/`bytes_total` as `None` and the overlay stays
+indeterminate with its file and byte counters, rather than promising a percentage
+it cannot keep. A move stays indeterminate: `shutil.move` is a rename while both
+sides share a filesystem, and it reports nothing either way.
+
+The overlay's Cancel button emits `LoadingOverlay.cancel_requested` →
+`FilePanel._cancel_import` → `ImportWorker.cancel`, which stops at the next item or
+file boundary. An item cut short mid-tree is neither imported nor failed, and
+`ImportWorker.finished(imported, failed, errors, cancelled)` reports the batch as
+cancelled, so the panel shows `dnd.import_cancelled` instead of a success.
 
 Models for the panel live in `file_panel/models.py` — see
 [data-models.md](../data-models.md).

@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "今天",
     "date.yesterday": "昨天",
     "loading.files": "正在加载文件…",
+    "loading.import_scan": "正在分析拖入的项目…",
+    "loading.import_copy": "正在复制到共享文件夹…",
+    "loading.import_move": "正在移动到共享文件夹…",
+    "loading.import_items": "{total} 个项目中的 {done} 个",
+    "loading.import_progress": "{files} 个文件 · {size}",
+    "loading.import_progress_total": "{total_files} 个文件中的 {files} 个 · {total_size} 中的 {size}",
     "detail.pending": "等待中",
     "detail.transferring": "传输中",
     "detail.completed": "已完成",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "已导入 {count} 个项目。",
     "dnd.import_partial": "已导入 {done} 个项目；{failed} 个失败。",
     "dnd.import_failed": "无法导入：{error}",
+    "dnd.import_cancelled": "导入已取消：已导入 {total} 个项目中的 {done} 个。",
     "dnd.error_no_folder": "未配置共享文件夹。",
     "dnd.error_invalid": "这些项目无法导入共享文件夹。",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "向上",
     "nav.root": "根目录",
     # Dialog buttons
+    "btn.cancel": "取消",
     "btn.yes": "是",
     "btn.no": "否",
     # Overwrite confirmation

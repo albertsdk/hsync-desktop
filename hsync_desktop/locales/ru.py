@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "сегодня",
     "date.yesterday": "вчера",
     "loading.files": "Загрузка файлов…",
+    "loading.import_scan": "Анализ перетащенных элементов…",
+    "loading.import_copy": "Копирование в общую папку…",
+    "loading.import_move": "Перемещение в общую папку…",
+    "loading.import_items": "{done} из {total} элементов",
+    "loading.import_progress": "{files} файлов · {size}",
+    "loading.import_progress_total": "{files} из {total_files} файлов · {size} из {total_size}",
     "detail.pending": "Ожидание",
     "detail.transferring": "Передача",
     "detail.completed": "Завершено",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "Импортировано {count} элемент(ов).",
     "dnd.import_partial": "Импортировано {done} элемент(ов); {failed} с ошибкой.",
     "dnd.import_failed": "Не удалось импортировать: {error}",
+    "dnd.import_cancelled": "Импорт отменён: импортировано {done} из {total} элемент(ов).",
     "dnd.error_no_folder": "Общая папка не настроена.",
     "dnd.error_invalid": "Эти элементы нельзя импортировать в общую папку.",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "Вверх",
     "nav.root": "Корень",
     # Dialog buttons
+    "btn.cancel": "Отмена",
     "btn.yes": "Да",
     "btn.no": "Нет",
     # Overwrite confirmation

@@ -91,6 +91,12 @@ translations: dict[str, str] = {
     "date.today": "aujourd'hui",
     "date.yesterday": "hier",
     "loading.files": "Chargement des fichiers…",
+    "loading.import_scan": "Analyse des éléments déposés…",
+    "loading.import_copy": "Copie dans le dossier partagé…",
+    "loading.import_move": "Déplacement vers le dossier partagé…",
+    "loading.import_items": "{done} sur {total} éléments",
+    "loading.import_progress": "{files} fichiers · {size}",
+    "loading.import_progress_total": "{files} sur {total_files} fichiers · {size} sur {total_size}",
     "detail.pending": "En attente",
     "detail.transferring": "En cours",
     "detail.completed": "Terminé",
@@ -560,6 +566,7 @@ translations: dict[str, str] = {
     "dnd.imported": "{count} élément(s) importé(s).",
     "dnd.import_partial": "{done} élément(s) importé(s) ; {failed} en échec.",
     "dnd.import_failed": "Importation impossible : {error}",
+    "dnd.import_cancelled": "Importation annulée : {done} élément(s) sur {total} importé(s).",
     "dnd.error_no_folder": "Aucun dossier partagé n'est configuré.",
     "dnd.error_invalid": "Ces éléments ne peuvent pas être importés dans le dossier partagé.",
     # Navigation de dossiers
@@ -576,6 +583,7 @@ translations: dict[str, str] = {
     "nav.up": "Parent",
     "nav.root": "Racine",
     # Boutons de dialogue
+    "btn.cancel": "Annuler",
     "btn.yes": "Oui",
     "btn.no": "Non",
     # Confirmation d'écrasement

@@ -91,6 +91,12 @@ translations: dict[str, str] = {
     "date.today": "heute",
     "date.yesterday": "gestern",
     "loading.files": "Dateien werden geladen…",
+    "loading.import_scan": "Die abgelegten Elemente werden analysiert…",
+    "loading.import_copy": "Kopieren in den freigegebenen Ordner…",
+    "loading.import_move": "Verschieben in den freigegebenen Ordner…",
+    "loading.import_items": "{done} von {total} Elementen",
+    "loading.import_progress": "{files} Dateien · {size}",
+    "loading.import_progress_total": "{files} von {total_files} Dateien · {size} von {total_size}",
     "detail.pending": "Ausstehend",
     "detail.transferring": "Übertragung",
     "detail.completed": "Abgeschlossen",
@@ -560,6 +566,7 @@ translations: dict[str, str] = {
     "dnd.imported": "{count} Element(e) importiert.",
     "dnd.import_partial": "{done} Element(e) importiert; {failed} fehlgeschlagen.",
     "dnd.import_failed": "Import nicht möglich: {error}",
+    "dnd.import_cancelled": "Import abgebrochen: {done} von {total} Element(en) wurden importiert.",
     "dnd.error_no_folder": "Es ist kein freigegebener Ordner konfiguriert.",
     "dnd.error_invalid": "Diese Elemente können nicht in den freigegebenen Ordner importiert werden.",
     # Ordnernavigation
@@ -576,6 +583,7 @@ translations: dict[str, str] = {
     "nav.up": "Nach oben",
     "nav.root": "Stammordner",
     # Dialog-Schaltflächen
+    "btn.cancel": "Abbrechen",
     "btn.yes": "Ja",
     "btn.no": "Nein",
     # Überschreiben-Bestätigung

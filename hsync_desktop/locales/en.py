@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "today",
     "date.yesterday": "yesterday",
     "loading.files": "Loading files…",
+    "loading.import_scan": "Analysing the dropped items…",
+    "loading.import_copy": "Copying into the shared folder…",
+    "loading.import_move": "Moving into the shared folder…",
+    "loading.import_items": "{done} of {total} items",
+    "loading.import_progress": "{files} files · {size}",
+    "loading.import_progress_total": "{files} of {total_files} files · {size} of {total_size}",
     "detail.pending": "Pending",
     "detail.transferring": "Transferring",
     "detail.completed": "Completed",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "Imported {count} item(s).",
     "dnd.import_partial": "Imported {done} item(s); {failed} failed.",
     "dnd.import_failed": "Could not import: {error}",
+    "dnd.import_cancelled": "Import cancelled: {done} of {total} item(s) were imported.",
     "dnd.error_no_folder": "No shared folder is configured.",
     "dnd.error_invalid": "These items cannot be imported into the shared folder.",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "Up",
     "nav.root": "Root",
     # Dialog buttons
+    "btn.cancel": "Cancel",
     "btn.yes": "Yes",
     "btn.no": "No",
     # Overwrite confirmation

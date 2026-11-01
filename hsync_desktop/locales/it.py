@@ -91,6 +91,12 @@ translations: dict[str, str] = {
     "date.today": "oggi",
     "date.yesterday": "ieri",
     "loading.files": "Caricamento file…",
+    "loading.import_scan": "Analisi degli elementi trascinati…",
+    "loading.import_copy": "Copia nella cartella condivisa…",
+    "loading.import_move": "Spostamento nella cartella condivisa…",
+    "loading.import_items": "{done} di {total} elementi",
+    "loading.import_progress": "{files} file · {size}",
+    "loading.import_progress_total": "{files} di {total_files} file · {size} di {total_size}",
     "detail.pending": "In attesa",
     "detail.transferring": "In trasferimento",
     "detail.completed": "Completato",
@@ -560,6 +566,7 @@ translations: dict[str, str] = {
     "dnd.imported": "Importati {count} elemento/i.",
     "dnd.import_partial": "Importati {done} elemento/i; {failed} non riusciti.",
     "dnd.import_failed": "Impossibile importare: {error}",
+    "dnd.import_cancelled": "Importazione annullata: importati {done} di {total} elemento/i.",
     "dnd.error_no_folder": "Nessuna cartella condivisa configurata.",
     "dnd.error_invalid": "Questi elementi non possono essere importati nella cartella condivisa.",
     # Navigazione cartelle
@@ -576,6 +583,7 @@ translations: dict[str, str] = {
     "nav.up": "Su",
     "nav.root": "Radice",
     # Bottoni dialog
+    "btn.cancel": "Annulla",
     "btn.yes": "Sì",
     "btn.no": "No",
     # Conferma sovrascrittura

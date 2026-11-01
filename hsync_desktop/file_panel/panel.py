@@ -31,7 +31,9 @@ from hsync_desktop.file_panel.detail_panel import FileDetailPanel
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import ignore_file_stamp, is_synced_entry
 from hsync_desktop.file_panel.import_ops import (
+    CopyProgress,
     ImportItem,
+    ImportPhase,
     destination_for,
     unique_name,
     validate_sources,
@@ -110,6 +112,11 @@ class FilePanel(QWidget):
         self._import_thread: QThread | None = None
         self._import_worker: ImportWorker | None = None
         self._importing: bool = False
+        # Last progress of the running import: the overlay is re-rendered from
+        # it when a scan ending mid-import must not hide the import indicator.
+        self._import_progress: CopyProgress | None = None
+        # True while a scan owns the overlay (the silent size refresh does not).
+        self._overlay_scan_active: bool = False
         # Worker threads a stop could not join in time, parked until they end
         # (see ``_join_thread``/``_detach_thread``).
         self._detached_threads: list[QThread] = []
@@ -206,6 +213,7 @@ class FilePanel(QWidget):
         self._btn_up.clicked.connect(self._table.navigate_up)
         self._table.path_changed.connect(self._update_nav_buttons)
         self._table.files_dropped.connect(self._on_files_dropped)
+        self._loading_overlay.cancel_requested.connect(self._cancel_import)
         self._update_breadcrumb()
 
     @Slot()
@@ -340,11 +348,16 @@ class FilePanel(QWidget):
         if restore_view is not None:
             # Keep the folder/row the user acted on after the reload clears them.
             self._table.restore_view(*restore_view)
-        self._show_loading()
         self._start_scan(directory, emit_rows=True)
 
     def _start_scan(self, directory: str, *, emit_rows: bool) -> None:
-        """Run a scan worker in its own thread (table rows and/or the size)."""
+        """Run a scan worker in its own thread (table rows and/or the size).
+
+        Only a row-emitting scan takes over the busy overlay: the silent size
+        refresh must not flash it over a table the user is reading.
+        """
+        self._overlay_scan_active = emit_rows
+        self._sync_loading_overlay()
         self._scan_thread = QThread()
         self._scan_worker = DirectoryScanWorker(directory, self._matcher, emit_rows=emit_rows)
         self._scan_worker.moveToThread(self._scan_thread)
@@ -381,7 +394,7 @@ class FilePanel(QWidget):
 
     def _stop_scan(self) -> None:
         """Cancel and join a running scan without ever destroying it alive."""
-        self._hide_loading()
+        self._overlay_scan_active = False
         worker = self._scan_worker
         if worker is not None:
             for signal_name in ("files_found", "progress", "size_progress", "finished"):
@@ -394,6 +407,7 @@ class FilePanel(QWidget):
         self._join_thread(self._scan_thread)
         self._scan_thread = None
         self._scan_worker = None
+        self._sync_loading_overlay()
 
     def _join_thread(self, thread: QThread | None) -> None:
         """Stop and join a worker thread, parking it if it cannot finish in time.
@@ -454,10 +468,11 @@ class FilePanel(QWidget):
 
     @Slot()
     def _on_scan_finished(self) -> None:
-        self._hide_loading()
+        self._overlay_scan_active = False
         self._join_thread(self._scan_thread)
         self._scan_thread = None
         self._scan_worker = None
+        self._sync_loading_overlay()
         self._table.refresh_view()
         if self._current_directory:
             self._consistency_timer.start(CONSISTENCY_CHECK_INTERVAL_MS)
@@ -560,29 +575,64 @@ class FilePanel(QWidget):
         """Run the copy/move plan in its own thread (drops paused meanwhile)."""
         self._importing = True
         self._table.set_drop_enabled(False)
+        # Seeded before the thread starts, so the busy indicator appears with the
+        # drop itself instead of waiting for the first worker report.
+        self._import_progress = CopyProgress(
+            phase=ImportPhase.SCAN,
+            items_done=0,
+            items_total=len(items),
+            files_done=0,
+            bytes_done=0,
+        )
+        self._loading_overlay.reset_cancel()
+        self._sync_loading_overlay()
         self._import_thread = QThread()
         self._import_worker = ImportWorker(items)
         self._import_worker.moveToThread(self._import_thread)
         self._import_thread.started.connect(self._import_worker.run)
+        self._import_worker.progress.connect(
+            self._on_import_progress, Qt.ConnectionType.QueuedConnection
+        )
         self._import_worker.finished.connect(
             self._on_import_finished, Qt.ConnectionType.QueuedConnection
         )
         self._import_thread.start()
 
-    @Slot(int, int, list)
-    def _on_import_finished(self, imported: int, failed: int, errors: list) -> None:
+    @Slot(object)
+    def _on_import_progress(self, progress: CopyProgress) -> None:
+        """Mirror the worker's advance in the busy overlay."""
+        self._import_progress = progress
+        self._sync_loading_overlay()
+
+    def _cancel_import(self) -> None:
+        """Ask the running import to stop at its next file boundary."""
+        worker = self._import_worker
+        if worker is not None:
+            worker.cancel()
+
+    @Slot(int, int, list, bool)
+    def _on_import_finished(
+        self, imported: int, failed: int, errors: list, cancelled: bool
+    ) -> None:
+        total = self._import_progress.items_total if self._import_progress else imported
         self._importing = False
+        self._import_progress = None
         self._table.set_drop_enabled(True)
         self._join_thread(self._import_thread)
         self._import_thread = None
         self._import_worker = None
+        self._sync_loading_overlay()
         if self._current_directory:
             # Reload the local tree (the dropped files are on disk now) while
             # keeping the user in the folder they were browsing.
             self.load_local_files(
                 self._current_directory, restore_view=(self._table.current_path, None)
             )
-        if failed and imported:
+        if cancelled:
+            self.import_finished.emit(
+                tr("dnd.import_cancelled").format(done=imported, total=total), "warning"
+            )
+        elif failed and imported:
             self.import_finished.emit(
                 tr("dnd.import_partial").format(done=imported, failed=failed), "warning"
             )
@@ -606,7 +656,9 @@ class FilePanel(QWidget):
         self._import_thread = None
         self._import_worker = None
         self._importing = False
+        self._import_progress = None
         self._table.set_drop_enabled(True)
+        self._sync_loading_overlay()
 
     def stop_background_work(self) -> None:
         """Cancel and join every background worker before the panel closes.
@@ -618,11 +670,22 @@ class FilePanel(QWidget):
         self._stop_scan()
         self._stop_import()
 
-    def _show_loading(self) -> None:
-        self._loading_overlay.setGeometry(self._table_container.rect())
-        self._loading_overlay.show_loading()
+    def _sync_loading_overlay(self) -> None:
+        """Show the busy overlay for the work in flight, or hide it.
 
-    def _hide_loading(self) -> None:
+        The overlay is shared by the folder scan and the drag & drop import, so
+        its state is derived from both: a scan ending while an import runs must
+        not hide the import's indicator (and the reverse). The import wins, being
+        the one the user is waiting on.
+        """
+        if self._importing and self._import_progress is not None:
+            self._loading_overlay.setGeometry(self._table_container.rect())
+            self._loading_overlay.show_import(self._import_progress)
+            return
+        if self._overlay_scan_active:
+            self._loading_overlay.setGeometry(self._table_container.rect())
+            self._loading_overlay.show_loading()
+            return
         self._loading_overlay.hide_loading()
 
     def eventFilter(self, watched: QObject, event) -> bool:

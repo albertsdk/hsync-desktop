@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "今日",
     "date.yesterday": "昨日",
     "loading.files": "ファイルを読み込み中…",
+    "loading.import_scan": "ドロップした項目を解析しています…",
+    "loading.import_copy": "共有フォルダーにコピーしています…",
+    "loading.import_move": "共有フォルダーに移動しています…",
+    "loading.import_items": "{total} 個中 {done} 個",
+    "loading.import_progress": "{files} ファイル · {size}",
+    "loading.import_progress_total": "{total_files} ファイル中 {files} ファイル · {total_size} 中 {size}",
     "detail.pending": "待機中",
     "detail.transferring": "転送中",
     "detail.completed": "完了",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "{count} 個の項目をインポートしました。",
     "dnd.import_partial": "{done} 個をインポートしました。{failed} 個が失敗しました。",
     "dnd.import_failed": "インポートできません: {error}",
+    "dnd.import_cancelled": "インポートをキャンセルしました: {total} 個中 {done} 個をインポートしました。",
     "dnd.error_no_folder": "共有フォルダーが設定されていません。",
     "dnd.error_invalid": "これらの項目は共有フォルダーへインポートできません。",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "上へ",
     "nav.root": "ルート",
     # Dialog buttons
+    "btn.cancel": "キャンセル",
     "btn.yes": "はい",
     "btn.no": "いいえ",
     # Overwrite confirmation

@@ -20,7 +20,13 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from hsync_desktop.config import FILE_BATCH_SIZE
 from hsync_desktop.file_panel.filter import is_synced_entry
-from hsync_desktop.file_panel.import_ops import ImportItem
+from hsync_desktop.file_panel.import_ops import (
+    CopyProgress,
+    ImportItem,
+    ImportPhase,
+    copy_tree,
+    count_tree,
+)
 
 # Minimum time between progress updates (seconds) to avoid flooding the UI
 _PROGRESS_THROTTLE_MS = 100
@@ -253,20 +259,39 @@ class ImportWorker(QObject):
     work, so it never touches a widget. Each item is isolated: one failure does
     not abort the rest, and a move never deletes a source the copy failed to
     write (``shutil.move`` handles that already).
+
+    Progress is reported per item *and* per file, because a dropped folder is a
+    single item: a directory is counted first (within a budget) so the bar can be
+    determinate when the totals are really known, and file-by-file counters keep
+    it moving when they are not.
     """
 
-    # Emits (done, total) after each item.
-    progress = Signal(int, int)
-    # Emits (imported, failed, errors) once the batch is over.
-    finished = Signal(int, int, list)
+    # Emits a CopyProgress carrying the advance of the whole batch.
+    progress = Signal(object)
+    # Emits (imported, failed, errors, cancelled) once the batch is over.
+    finished = Signal(int, int, list, bool)
 
     def __init__(self, items: list[ImportItem]) -> None:
         super().__init__()
         self._items = list(items)
         self._cancelled = False
+        self._phase = ImportPhase.SCAN
+        self._items_done = 0
+        self._files_done = 0
+        self._bytes_done = 0
+        self._files_total: int | None = None
+        self._bytes_total: int | None = None
+        # Counters of the tree being copied, to translate its own progress into
+        # the batch's (``copy_tree`` reports per tree).
+        self._tree_files = 0
+        self._tree_bytes = 0
+        # True when the item in flight was cut short by a cancellation: it is
+        # then neither imported nor failed.
+        self._interrupted = False
+        self._last_emit = 0.0
 
     def cancel(self) -> None:
-        """Stop before the next item."""
+        """Stop at the next item or file boundary."""
         self._cancelled = True
 
     @Slot()
@@ -279,29 +304,113 @@ class ImportWorker(QObject):
             for index, item in enumerate(self._items, start=1):
                 if self._cancelled:
                     break
+                self._items_done = index - 1
+                self._interrupted = False
+                self._files_total = None
+                self._bytes_total = None
+                self._emit_progress(force=True)
                 try:
                     self._perform(item)
-                    imported += 1
                 except Exception as exc:  # noqa: BLE001 - report and keep going
                     failed += 1
                     errors.append(f"{os.path.basename(item.src)}: {exc}")
-                self.progress.emit(index, total)
+                else:
+                    if self._interrupted:
+                        break
+                    imported += 1
+                # The finished item keeps its totals, so the bar stays full until
+                # the next item's count resets it.
+                self._items_done = index
+                self._emit_progress(force=True)
         except Exception:
             # Same guarantee as DirectoryScanWorker.run: never let an unhandled
             # error escape through the Qt boundary and strand the thread.
             traceback.print_exc()
         finally:
             # Guaranteed once per run: the caller joins the thread on this.
-            self.finished.emit(imported, failed, errors)
+            # "Cancelled" means the batch stopped short, not merely that a cancel
+            # arrived after the last item had already been imported.
+            self.finished.emit(
+                imported,
+                failed,
+                errors,
+                self._cancelled and self._items_done < total,
+            )
 
-    @staticmethod
-    def _perform(item: ImportItem) -> None:
+    def _perform(self, item: ImportItem) -> None:
         parent = os.path.dirname(item.dest)
         if parent:
             os.makedirs(parent, exist_ok=True)
         if item.move:
+            # ``shutil.move`` is a rename while both sides share a filesystem and
+            # a copy+delete otherwise, and it reports neither: the move stays an
+            # indeterminate phase.
+            self._set_phase(ImportPhase.MOVE)
             shutil.move(item.src, item.dest)
-        elif os.path.isdir(item.src):
-            shutil.copytree(item.src, item.dest)
-        else:
-            shutil.copy2(item.src, item.dest)
+            self._files_done += 1
+            return
+        if os.path.isdir(item.src):
+            self._copy_directory(item)
+            return
+        self._copy_file(item)
+
+    def _copy_file(self, item: ImportItem) -> None:
+        """Copy one dropped file, whose size is known up front."""
+        size = os.path.getsize(item.src)
+        self._files_total = 1
+        self._bytes_total = size
+        self._set_phase(ImportPhase.COPY)
+        shutil.copy2(item.src, item.dest)
+        self._files_done += 1
+        self._bytes_done += size
+        self._emit_progress(force=True)
+
+    def _copy_directory(self, item: ImportItem) -> None:
+        """Count a dropped folder within its budget, then copy it file by file."""
+        self._set_phase(ImportPhase.SCAN)
+        files, size, complete = count_tree(item.src, should_cancel=lambda: self._cancelled)
+        # An incomplete count leaves the totals unknown, so the bar stays busy
+        # instead of showing a percentage the worker cannot honour.
+        self._files_total = files if complete else None
+        self._bytes_total = size if complete else None
+        self._set_phase(ImportPhase.COPY)
+        self._tree_files = self._files_done
+        self._tree_bytes = self._bytes_done
+        _files, complete = copy_tree(
+            item.src,
+            item.dest,
+            on_file=self._on_tree_file,
+            should_cancel=lambda: self._cancelled,
+        )
+        if not complete:
+            self._interrupted = True
+        self._emit_progress(force=True)
+
+    def _on_tree_file(self, files_done: int, bytes_done: int) -> None:
+        """Translate one tree's counters into the batch's (throttled)."""
+        self._files_done = self._tree_files + files_done
+        self._bytes_done = self._tree_bytes + bytes_done
+        self._emit_progress()
+
+    def _set_phase(self, phase: ImportPhase) -> None:
+        """Switch phase and publish it at once, so the label never lags."""
+        self._phase = phase
+        self._emit_progress(force=True)
+
+    def _emit_progress(self, *, force: bool = False) -> None:
+        """Report the advance of the batch, throttled unless ``force``."""
+        now = time.monotonic()
+        if not force and now - self._last_emit < _PROGRESS_THROTTLE_MS / 1000:
+            return
+        self._last_emit = now
+        self.progress.emit(
+            CopyProgress(
+                phase=self._phase,
+                items_done=self._items_done,
+                items_total=len(self._items),
+                files_done=self._files_done,
+                bytes_done=self._bytes_done,
+                files_total=self._files_total,
+                bytes_total=self._bytes_total,
+            )
+        )

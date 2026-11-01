@@ -9,11 +9,12 @@ This module provides the file transfer panel functionality, split into:
 - panel: Top-level FilePanel (navigation bar, table, detail panel)
 - transfer_table: FileTransferTable (hierarchical transfer view)
 - detail_panel: FileDetailPanel
-- overlay: LoadingOverlay
+- overlay: LoadingOverlay (busy indicator for scans and imports)
 - delegates: ProgressBarDelegate
 - dialogs: shared confirmation dialog
 - filter: engine-aligned scan predicate and hidden-name view helper
-- workers: Background workers (DirectoryScanWorker)
+- import_ops: drag & drop import helpers (source validation, plan, tree count/copy)
+- workers: Background workers (DirectoryScanWorker, ImportWorker)
 - utils: Utility functions (formatting, classification)
 """
 

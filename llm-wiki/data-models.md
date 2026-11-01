@@ -43,6 +43,19 @@ Derived: `filename` (`file_panel/models.py::FileTransfer.filename`), `path` (`fi
 `remaining` (`file_panel/models.py::FileTransfer.remaining`), `eta_seconds`
 (`file_panel/models.py::FileTransfer.eta_seconds`, computed from the elapsed rate only while `DOWNLOADING`/`UPLOADING`).
 
+### ImportPhase / CopyProgress (`file_panel/import_ops.py::ImportPhase` / `file_panel/import_ops.py::CopyProgress`)
+
+What the drag & drop import is doing, reported by
+`file_panel/workers.py::ImportWorker` and rendered by
+`file_panel/overlay.py::LoadingOverlay`. `ImportPhase` is the state of the item in
+flight (`scan`, `copy`, `move`); `CopyProgress` carries the batch position
+(`items_done`/`items_total`), the cumulative counters (`files_done`/`bytes_done`)
+and the totals of the current item (`files_total`/`bytes_total`). Those two totals
+are `None` while unknown — the item is still being counted, or the bounded count
+gave up — which is what keeps the bar indeterminate instead of showing a
+percentage that cannot be kept. `ImportItem` (`file_panel/import_ops.py::ImportItem`)
+is the resolved plan: one source copied or moved to an absolute destination.
+
 ### PreviewStats / PreviewItem (`preview_summary_dialog.py::PreviewStats`)
 
 The plan one comparison produced, as the confirmation renders it: counters and

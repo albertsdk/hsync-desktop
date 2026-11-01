@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "vandaag",
     "date.yesterday": "gisteren",
     "loading.files": "Bestanden laden…",
+    "loading.import_scan": "De neergezette items worden geanalyseerd…",
+    "loading.import_copy": "Kopiëren naar de gedeelde map…",
+    "loading.import_move": "Verplaatsen naar de gedeelde map…",
+    "loading.import_items": "{done} van {total} items",
+    "loading.import_progress": "{files} bestanden · {size}",
+    "loading.import_progress_total": "{files} van {total_files} bestanden · {size} van {total_size}",
     "detail.pending": "In behandeling",
     "detail.transferring": "Overdragen",
     "detail.completed": "Voltooid",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "{count} item(s) geïmporteerd.",
     "dnd.import_partial": "{done} item(s) geïmporteerd; {failed} mislukt.",
     "dnd.import_failed": "Kan niet importeren: {error}",
+    "dnd.import_cancelled": "Import geannuleerd: {done} van {total} item(s) geïmporteerd.",
     "dnd.error_no_folder": "Er is geen gedeelde map geconfigureerd.",
     "dnd.error_invalid": "Deze items kunnen niet in de gedeelde map worden geïmporteerd.",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "Omhoog",
     "nav.root": "Hoofdmap",
     # Dialog buttons
+    "btn.cancel": "Annuleren",
     "btn.yes": "Ja",
     "btn.no": "Nee",
     # Overwrite confirmation

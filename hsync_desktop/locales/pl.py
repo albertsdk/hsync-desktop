@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "dzisiaj",
     "date.yesterday": "wczoraj",
     "loading.files": "Ładowanie plików…",
+    "loading.import_scan": "Analizowanie upuszczonych elementów…",
+    "loading.import_copy": "Kopiowanie do folderu współdzielonego…",
+    "loading.import_move": "Przenoszenie do folderu współdzielonego…",
+    "loading.import_items": "{done} z {total} elementów",
+    "loading.import_progress": "{files} plików · {size}",
+    "loading.import_progress_total": "{files} z {total_files} plików · {size} z {total_size}",
     "detail.pending": "Oczekujące",
     "detail.transferring": "Przesyłanie",
     "detail.completed": "Ukończono",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "Zaimportowano {count} element(y).",
     "dnd.import_partial": "Zaimportowano {done} element(y); {failed} nie powiodło się.",
     "dnd.import_failed": "Nie można zaimportować: {error}",
+    "dnd.import_cancelled": "Import anulowany: zaimportowano {done} z {total} element(ów).",
     "dnd.error_no_folder": "Nie skonfigurowano folderu udostępnionego.",
     "dnd.error_invalid": "Tych elementów nie można zaimportować do folderu udostępnionego.",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "W górę",
     "nav.root": "Katalog główny",
     # Dialog buttons
+    "btn.cancel": "Anuluj",
     "btn.yes": "Tak",
     "btn.no": "Nie",
     # Overwrite confirmation

@@ -90,6 +90,13 @@ file list:
   **Keep both** (the incoming file is saved as `name (1).ext`) or **Skip**, with
   an **Apply to all** checkbox when several files clash.
 
+While the copy runs, an indicator covers the file list and says what the app is
+doing: first *Analysing the dropped items…*, then *Copying into the shared
+folder…* with the number of files and the size already written. When the size can
+be measured the bar shows a real percentage; otherwise it stays a busy bar, so it
+never promises progress it cannot know. **Cancel** stops the copy at the next
+file — whatever was already written stays in the shared folder.
+
 The files are written into the shared folder and the sync engine picks them up
 automatically; a toast reports the outcome and the list refreshes. The shared
 folder's own engine files (`.hsyncfolder`, `.hsyncignore`, …) cannot be dropped

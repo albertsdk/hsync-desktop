@@ -99,6 +99,12 @@ translations: dict[str, str] = {
     "date.today": "hoje",
     "date.yesterday": "ontem",
     "loading.files": "Carregando arquivos…",
+    "loading.import_scan": "Analisando os itens soltos…",
+    "loading.import_copy": "Copiando para a pasta compartilhada…",
+    "loading.import_move": "Movendo para a pasta compartilhada…",
+    "loading.import_items": "{done} de {total} itens",
+    "loading.import_progress": "{files} arquivos · {size}",
+    "loading.import_progress_total": "{files} de {total_files} arquivos · {size} de {total_size}",
     "detail.pending": "Pendente",
     "detail.transferring": "Transferindo",
     "detail.completed": "Concluído",
@@ -583,6 +589,7 @@ translations: dict[str, str] = {
     "dnd.imported": "{count} item(ns) importado(s).",
     "dnd.import_partial": "{done} item(ns) importado(s); {failed} falharam.",
     "dnd.import_failed": "Não foi possível importar: {error}",
+    "dnd.import_cancelled": "Importação cancelada: {done} de {total} item(ns) importado(s).",
     "dnd.error_no_folder": "Nenhuma pasta compartilhada está configurada.",
     "dnd.error_invalid": "Estes itens não podem ser importados para a pasta compartilhada.",
     # Folder navigation
@@ -599,6 +606,7 @@ translations: dict[str, str] = {
     "nav.up": "Acima",
     "nav.root": "Raiz",
     # Dialog buttons
+    "btn.cancel": "Cancelar",
     "btn.yes": "Sim",
     "btn.no": "Não",
     # Overwrite confirmation

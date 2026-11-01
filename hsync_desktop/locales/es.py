@@ -91,6 +91,12 @@ translations: dict[str, str] = {
     "date.today": "hoy",
     "date.yesterday": "ayer",
     "loading.files": "Cargando archivos…",
+    "loading.import_scan": "Analizando los elementos soltados…",
+    "loading.import_copy": "Copiando en la carpeta compartida…",
+    "loading.import_move": "Moviendo a la carpeta compartida…",
+    "loading.import_items": "{done} de {total} elementos",
+    "loading.import_progress": "{files} archivos · {size}",
+    "loading.import_progress_total": "{files} de {total_files} archivos · {size} de {total_size}",
     "detail.pending": "Pendiente",
     "detail.transferring": "Transfiriendo",
     "detail.completed": "Completado",
@@ -560,6 +566,7 @@ translations: dict[str, str] = {
     "dnd.imported": "Se importaron {count} elemento(s).",
     "dnd.import_partial": "Se importaron {done} elemento(s); {failed} fallaron.",
     "dnd.import_failed": "No se pudo importar: {error}",
+    "dnd.import_cancelled": "Importación cancelada: se importaron {done} de {total} elemento(s).",
     "dnd.error_no_folder": "No hay ninguna carpeta compartida configurada.",
     "dnd.error_invalid": "Estos elementos no se pueden importar a la carpeta compartida.",
     # Navegación de carpetas
@@ -576,6 +583,7 @@ translations: dict[str, str] = {
     "nav.up": "Arriba",
     "nav.root": "Raíz",
     # Botones de diálogo
+    "btn.cancel": "Cancelar",
     "btn.yes": "Sí",
     "btn.no": "No",
     # Confirmación de sobrescritura
