@@ -3,7 +3,27 @@
 
 """Tests for hsync_desktop.i18n module."""
 
+import pytest
+
 import hsync_desktop.i18n as i18n
+
+
+def _fake_qlocale(monkeypatch, name: str):
+    """Replace ``QLocale`` with a stub reporting *name* as the system locale."""
+
+    class _FakeQ:
+        _locale_name = ""
+
+        @classmethod
+        def system(cls):
+            return cls
+
+        @classmethod
+        def name(cls):
+            return cls._locale_name
+
+    _FakeQ._locale_name = name
+    monkeypatch.setattr(i18n, "QLocale", _FakeQ)
 
 
 class TestConstants:
@@ -48,21 +68,15 @@ class TestConstants:
 class TestDetectSystemLanguage:
     """System-language detection resolves Qt first, Python's locale second."""
 
-    @staticmethod
-    def _fake_qlocale(monkeypatch, name: str):
-        class _FakeQ:
-            _locale_name = ""
+    @pytest.fixture(autouse=True)
+    def _process_locale(self, monkeypatch):
+        """Pin a process locale: these tests cover the process-level sources.
 
-            @classmethod
-            def system(cls):
-                return cls
-
-            @classmethod
-            def name(cls):
-                return cls._locale_name
-
-        _FakeQ._locale_name = name
-        monkeypatch.setattr(i18n, "QLocale", _FakeQ)
+        A locale variable present is what keeps the machine-wide fallback out of
+        the way (see ``TestSystemWideLocaleFallback``), so the assertions do not
+        depend on the locale of the machine running the suite.
+        """
+        monkeypatch.setenv("LANG", "it_IT.UTF-8")
 
     def test_region_qualified_qlocale_resolves_to_its_base_code(self, monkeypatch):
         for locale_name, expected in [
@@ -74,7 +88,7 @@ class TestDetectSystemLanguage:
             ("ja_JP", i18n.P2PG_JA),
             ("it_IT", i18n.P2PG_IT),
         ]:
-            self._fake_qlocale(monkeypatch, locale_name)
+            _fake_qlocale(monkeypatch, locale_name)
             monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
             assert i18n._detect_system_language() == expected
 
@@ -82,24 +96,145 @@ class TestDetectSystemLanguage:
         # glibc reports LANG=it / it_IT@euro / ISO-8859-1 locales as
         # ("C", "UTF-8") before setlocale: Qt still resolves the real locale,
         # and that must win instead of falling back to English.
-        self._fake_qlocale(monkeypatch, "it_IT")
+        _fake_qlocale(monkeypatch, "it_IT")
         monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
         assert i18n._detect_system_language() == i18n.P2PG_IT
 
     def test_unsupported_qlocale_falls_back_to_python_locale(self, monkeypatch):
-        self._fake_qlocale(monkeypatch, "gsw_CH")
+        _fake_qlocale(monkeypatch, "gsw_CH")
         monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("fr_FR", "UTF-8"))
         assert i18n._detect_system_language() == i18n.P2PG_FR
 
     def test_c_environment_falls_back_to_english(self, monkeypatch):
-        self._fake_qlocale(monkeypatch, "C")
+        _fake_qlocale(monkeypatch, "C")
         monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
         assert i18n._detect_system_language() == i18n.P2PG_EN
 
     def test_unsupported_system_language_falls_back_to_english(self, monkeypatch):
-        self._fake_qlocale(monkeypatch, "C")
+        _fake_qlocale(monkeypatch, "C")
         monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("xx_XX", "UTF-8"))
         assert i18n._detect_system_language() == i18n.P2PG_EN
+
+
+class TestSystemWideLocaleFallback:
+    """A process started without a locale variable still has the machine's.
+
+    ``sudo``, a service, a container or a launcher that drops the environment
+    leaves Qt and Python on ``C``. Reading the machine-wide configuration is what
+    keeps such a start in the user's language instead of silently falling back to
+    English (the shipped build showed an English wizard on an ``it_IT.UTF-8``
+    machine).
+    """
+
+    @staticmethod
+    def _no_process_locale(monkeypatch):
+        for name in i18n._LANGUAGE_ENV_VARS:
+            monkeypatch.delenv(name, raising=False)
+
+    @staticmethod
+    def _c_locale(monkeypatch):
+        """A stripped environment: both process-level sources report ``C``."""
+        _fake_qlocale(monkeypatch, "C")
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
+
+    @staticmethod
+    def _locale_files(monkeypatch, *contents: str, tmp_path):
+        """Point the machine-wide lookup at temp files, in order."""
+        paths = []
+        for index, content in enumerate(contents):
+            path = tmp_path / f"locale{index}.conf"
+            path.write_text(content, encoding="utf-8")
+            paths.append(str(path))
+        monkeypatch.setattr(i18n, "_SYSTEM_LOCALE_FILES", tuple(paths))
+
+    def test_no_locale_variable_uses_the_machine_wide_language(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, "LANG=it_IT.UTF-8\n", tmp_path=tmp_path)
+
+        assert i18n._detect_system_language() == i18n.P2PG_IT
+
+    def test_a_quoted_value_is_read(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, 'LANG="de_DE.UTF-8"\n', tmp_path=tmp_path)
+
+        assert i18n._detect_system_language() == i18n.P2PG_DE
+
+    def test_lc_all_decides_over_lang(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, "LANG=it_IT.UTF-8\nLC_ALL=fr_FR.UTF-8\n", tmp_path=tmp_path)
+
+        assert i18n._detect_system_language() == i18n.P2PG_FR
+
+    def test_an_empty_override_falls_through_to_the_next_key(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(
+            monkeypatch,
+            "LC_ALL=\nLC_MESSAGES=pt_BR.UTF-8\nLANG=it_IT.UTF-8\n",
+            tmp_path=tmp_path,
+        )
+
+        assert i18n._detect_system_language() == i18n.P2PG_PT
+
+    def test_the_first_file_with_a_locale_decides(self, monkeypatch, tmp_path):
+        # systemd's /etc/locale.conf comes before Debian's /etc/default/locale.
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(
+            monkeypatch, "LANG=de_DE.UTF-8\n", "LANG=it_IT.UTF-8\n", tmp_path=tmp_path
+        )
+
+        assert i18n._detect_system_language() == i18n.P2PG_DE
+
+    def test_a_missing_file_falls_through_to_the_next_one(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, "LANG=it_IT.UTF-8\n", tmp_path=tmp_path)
+        monkeypatch.setattr(
+            i18n,
+            "_SYSTEM_LOCALE_FILES",
+            (str(tmp_path / "absent.conf"), *i18n._SYSTEM_LOCALE_FILES),
+        )
+
+        assert i18n._detect_system_language() == i18n.P2PG_IT
+
+    def test_no_machine_wide_locale_at_all_falls_back_to_english(self, monkeypatch, tmp_path):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        monkeypatch.setattr(i18n, "_SYSTEM_LOCALE_FILES", (str(tmp_path / "absent.conf"),))
+
+        assert i18n._detect_system_language() == i18n.P2PG_EN
+
+    def test_an_unsupported_machine_wide_language_falls_back_to_english(
+        self, monkeypatch, tmp_path
+    ):
+        self._no_process_locale(monkeypatch)
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, "LANG=sv_SE.UTF-8\n", tmp_path=tmp_path)
+
+        assert i18n._detect_system_language() == i18n.P2PG_EN
+
+    def test_an_explicit_c_locale_is_not_replaced_by_the_machine_wide_one(
+        self, monkeypatch, tmp_path
+    ):
+        # ``LC_ALL=C`` is an explicit request for English and must never be
+        # overridden by the machine's default.
+        self._c_locale(monkeypatch)
+        self._locale_files(monkeypatch, "LANG=it_IT.UTF-8\n", tmp_path=tmp_path)
+        monkeypatch.setenv("LC_ALL", "C")
+
+        assert i18n._detect_system_language() == i18n.P2PG_EN
+
+    def test_a_process_locale_still_wins_over_the_machine_wide_one(self, monkeypatch, tmp_path):
+        _fake_qlocale(monkeypatch, "de_DE")
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("de_DE", "UTF-8"))
+        self._locale_files(monkeypatch, "LANG=it_IT.UTF-8\n", tmp_path=tmp_path)
+        monkeypatch.setenv("LANG", "de_DE.UTF-8")
+
+        assert i18n._detect_system_language() == i18n.P2PG_DE
 
 
 class TestTranslations:

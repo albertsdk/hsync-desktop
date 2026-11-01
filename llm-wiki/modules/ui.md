@@ -1129,6 +1129,34 @@ deliberately carries no stylesheet.
 | Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`) and delivered only when out of focus — errors/warnings are then covered by the in-app toast |
 | Single instance | `single_instance.py::SingleInstance` | reject a 2nd launch |
 | UI loading | `ui/loader.py::UiLoader`, `load_ui_widget` (`ui/loader.py::load_ui_widget`) | load `.ui` resources |
+| Interface language | `i18n.py` | `tr` (`i18n.py::tr`), `init_language` (`i18n.py::init_language`), `set_language` (`i18n.py::set_language`), `_detect_system_language` (`i18n.py::_detect_system_language`) — see *Interface language* below |
+
+### Interface language
+
+`main.py::main` calls `i18n.py::init_language` before any widget exists. The stored
+preference is `appearance/language`: `i18n.py::AUTO_LANGUAGE` (the default, and
+what an absent or unknown value falls back to) follows the system, any other
+supported code pins the language, and `i18n.py::set_language` stores the
+preference as given so `auto` stays dynamic on later launches.
+
+`i18n.py::_detect_system_language` resolves the system language in this order:
+
+1. `QLocale.system()` — resolves the desktop locale even when the C library
+   reports `("C", "UTF-8")` (glibc with `LANG=it` or `it_IT@euro`), and reads the
+   OS locale directly on Windows/macOS.
+2. Python's `locale.getlocale()`.
+3. `i18n.py::_system_wide_locale` — only when the process carries **no** locale
+   variable at all (`LC_ALL`, `LC_MESSAGES`, `LANG`, `LANGUAGE` all unset, i.e. a
+   stripped environment: `sudo`, a service, a container, a launcher that drops
+   the environment). It reads `i18n.py::_SYSTEM_LOCALE_FILES` (`/etc/locale.conf`,
+   `/etc/default/locale`) with the glibc precedence `LC_ALL` > `LC_MESSAGES` >
+   `LANG`. Without this step such a start silently came up in English on a machine
+   configured in another language.
+4. English.
+
+An explicit process locale always wins over step 3 — including `C`, which stays
+English. `i18n.py::_language_from_locale` maps a POSIX locale name
+(`it`, `it_IT`, `it_IT.UTF-8`, `it_IT@euro`) to its supported base code.
 
 ### Host fonts
 

@@ -12,6 +12,7 @@ Supported languages: English, Italian, German, French, Spanish, Portuguese
 from __future__ import annotations
 
 import locale
+import os
 from collections.abc import Callable
 
 from PySide6.QtCore import QLocale, QSettings
@@ -58,6 +59,62 @@ SUPPORTED_LANGUAGES = {
 _current_lang: str = P2PG_EN
 _translations: dict[str, dict[str, str]] = {}
 
+# Locale variables that speak for the *interface* language. glibc precedence is
+# ``LC_ALL`` > ``LC_MESSAGES`` > ``LANG`` (``LANGUAGE`` is GNU gettext's list).
+# When at least one is present the process was told its locale — including an
+# explicit ``C``, which must stay English — so the machine-wide configuration
+# below is not consulted.
+_LANGUAGE_ENV_VARS = ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE")
+
+# Machine-wide locale configuration, read only when the process carries no
+# locale variable at all (a stripped environment: ``sudo``, a service, a
+# container, a launcher that drops the environment). systemd keeps it in
+# ``/etc/locale.conf``, Debian/Ubuntu in ``/etc/default/locale``; both are
+# ``KEY=value`` files.
+_SYSTEM_LOCALE_FILES = ("/etc/locale.conf", "/etc/default/locale")
+_SYSTEM_LOCALE_KEYS = ("LC_ALL", "LC_MESSAGES", "LANG")
+
+
+def _language_from_locale(name: str) -> str | None:
+    """The supported language code of a POSIX locale name, if any.
+
+    ``it``, ``it_IT``, ``it_IT.UTF-8`` and ``it_IT@euro`` all resolve to ``it``.
+    """
+    language = name[:2].lower()
+    return language if language in SUPPORTED_LANGUAGES else None
+
+
+def _read_locale_entries(path: str) -> dict[str, str]:
+    """The ``KEY=value`` pairs of one machine-wide locale file (empty if unreadable)."""
+
+    entries: dict[str, str] = {}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                key, separator, value = line.partition("=")
+                if separator:
+                    entries[key.strip()] = value.strip().strip('"').strip("'")
+    except OSError:
+        return {}
+    return entries
+
+
+def _system_wide_locale() -> str | None:
+    """The interface language configured machine-wide, if any.
+
+    Consulted only when the process environment carries no locale variable: the
+    session locale is missing (``sudo``, a service, a container, a launcher that
+    drops the environment) while the machine still has its own default. Within a
+    file the glibc precedence applies, so ``LC_ALL`` decides when it is set.
+    """
+    for path in _SYSTEM_LOCALE_FILES:
+        entries = _read_locale_entries(path)
+        for key in _SYSTEM_LOCALE_KEYS:
+            value = entries.get(key, "")
+            if value:
+                return _language_from_locale(value)
+    return None
+
 
 def _detect_system_language() -> str:
     """Detect the OS language and return a matching supported language code.
@@ -66,21 +123,27 @@ def _detect_system_language() -> str:
     resolves the desktop locale even when the C library reports ``("C",
     "UTF-8")`` (e.g. ``LANG=it`` or ``it_IT@euro`` on glibc) and it reads the
     OS locale directly on Windows/macOS. It needs no ``QApplication``. The
-    ``locale`` module is the fallback, English the last resort.
+    ``locale`` module is the fallback, the machine-wide configuration the
+    fallback for a process started without any locale variable, and English the
+    last resort.
     """
+    if not any(os.environ.get(name) for name in _LANGUAGE_ENV_VARS):
+        machine_wide = _system_wide_locale()
+        if machine_wide is not None:
+            return machine_wide
     try:
         name = QLocale.system().name()
         if name and name != "C":
-            lang_prefix = name[:2].lower()
-            if lang_prefix in SUPPORTED_LANGUAGES:
-                return lang_prefix
+            language = _language_from_locale(name)
+            if language is not None:
+                return language
     except Exception:
         pass
     try:
         lang_code = locale.getlocale()[0] or ""
-        lang_prefix = lang_code[:2].lower()
-        if lang_prefix in SUPPORTED_LANGUAGES:
-            return lang_prefix
+        language = _language_from_locale(lang_code)
+        if language is not None:
+            return language
     except Exception:
         pass
     return P2PG_EN
