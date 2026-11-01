@@ -711,15 +711,37 @@ class StartMixin:
             self._notifier.user_stopped = True
 
     def _on_stop(self) -> None:
-        self._mark_user_stopped()
         # The Stop action is disabled once stopping, so a second request can only
         # come from a click queued before the repaint: ignore it.
-        if not self._engine.is_running or self._stop_requested:
+        if self._stop_requested:
+            return
+        # Only an actual run is worth a confirmation; the per-run bookkeeping
+        # below must happen either way (it also gates the "connection lost" and
+        # engine-warning suppressions for a stop with no process left to kill).
+        if self._engine.is_running and not self._confirm_stop_running():
+            return
+        self._mark_user_stopped()
+        if not self._engine.is_running:
             return
         self._enter_stopping_ui()
         # Non-blocking: the window stays responsive while the child unwinds; the
         # engine's grace/safety timers escalate and settle the state.
         self._engine.request_stop()
+
+    def _confirm_stop_running(self) -> bool:
+        """Ask before interrupting a run; ``True`` when the user confirms.
+
+        Stopping abandons the transfers in flight (a partial upload resumes on
+        the next run, a partial download is re-fetched), so the click must be
+        deliberate — the same rule the Quit action follows. A declined
+        confirmation changes nothing: the run keeps going.
+        """
+        return confirm(
+            self,
+            title=tr("menu.sync.confirm_stop_title"),
+            text=tr("menu.sync.confirm_stop"),
+            icon_name=QMessageBox.Icon.Question,
+        )
 
     def _enter_stopping_ui(self) -> None:
         """Show the stopping state at once, before the child has exited.

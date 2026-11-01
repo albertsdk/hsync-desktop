@@ -3877,7 +3877,26 @@ class TestCheckChangesAction:
 
 
 class TestStoppingFeedback:
-    """Stop is non-blocking and visible at once (no frozen window)."""
+    """Stop asks first, then reports the stopping state at once (no frozen window)."""
+
+    @staticmethod
+    def _answer_confirm(monkeypatch, *, accept: bool) -> list[dict]:
+        """Stand in for the Stop confirmation and record what it asked."""
+        import hsync_desktop.main_window.start as start_mod
+
+        seen: list[dict] = []
+
+        def _confirm(*_args, **kwargs):
+            seen.append(kwargs)
+            return accept
+
+        monkeypatch.setattr(start_mod, "confirm", _confirm)
+        return seen
+
+    @pytest.fixture(autouse=True)
+    def _confirm_stop(self, monkeypatch):
+        """Confirm by default: the tests that decline install their own answer."""
+        self._answer_confirm(monkeypatch, accept=True)
 
     @pytest.fixture(autouse=True)
     def _tray(self, window):
@@ -3937,6 +3956,30 @@ class TestStoppingFeedback:
         assert not window._btn_check_changes.isEnabled()
         assert not window._info_banner.isHidden()
         assert tr("status.stopping") in window._log_view.toPlainText()
+
+    def test_stop_asks_before_interrupting_a_run(self, window, monkeypatch):
+        requested = self._running(window, monkeypatch)
+        seen = self._answer_confirm(monkeypatch, accept=True)
+
+        window._on_stop()
+
+        assert seen and seen[0]["title"] == tr("menu.sync.confirm_stop_title")
+        assert seen[0]["text"] == tr("menu.sync.confirm_stop")
+        assert requested == [1]
+        assert window._status_label.text() == tr("status.stopping")
+
+    def test_a_declined_stop_leaves_the_run_alone(self, window, monkeypatch):
+        """``No`` changes nothing: the sync keeps running."""
+        requested = self._running(window, monkeypatch)
+        self._answer_confirm(monkeypatch, accept=False)
+
+        window._on_stop()
+
+        assert requested == []
+        assert window._stop_requested is False
+        assert window._user_stopped is False
+        assert window._status_label.text() != tr("status.stopping")
+        assert window._info_banner.isHidden()
 
     def test_a_second_stop_while_stopping_is_ignored(self, window, monkeypatch):
         requested = self._running(window, monkeypatch)

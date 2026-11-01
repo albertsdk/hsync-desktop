@@ -625,6 +625,8 @@ translations: dict[str, str] = {
     "menu.sync.quit": "退出",
     "menu.sync.confirm_quit": "同步正在进行中。确定要退出吗？",
     "menu.sync.confirm_quit_title": "确认退出",
+    "menu.sync.confirm_stop": "同步正在进行中。确定要停止吗？",
+    "menu.sync.confirm_stop_title": "确认停止",
     "menu.file": "&文件",
     "menu.file.open": "打开",
     "menu.file.open_with": "打开方式…",

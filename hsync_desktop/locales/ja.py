@@ -625,6 +625,8 @@ translations: dict[str, str] = {
     "menu.sync.quit": "終了",
     "menu.sync.confirm_quit": "同期が進行中です。本当に終了しますか？",
     "menu.sync.confirm_quit_title": "終了の確認",
+    "menu.sync.confirm_stop": "同期が進行中です。本当に停止しますか？",
+    "menu.sync.confirm_stop_title": "停止の確認",
     "menu.file": "&ファイル",
     "menu.file.open": "開く",
     "menu.file.open_with": "プログラムから開く…",

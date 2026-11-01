@@ -625,6 +625,8 @@ translations: dict[str, str] = {
     "menu.sync.quit": "Выход",
     "menu.sync.confirm_quit": "Синхронизация выполняется. Вы действительно хотите выйти?",
     "menu.sync.confirm_quit_title": "Подтвердить выход",
+    "menu.sync.confirm_stop": "Синхронизация выполняется. Вы действительно хотите остановить её?",
+    "menu.sync.confirm_stop_title": "Подтвердить остановку",
     "menu.file": "&Файл",
     "menu.file.open": "Открыть",
     "menu.file.open_with": "Открыть с помощью…",

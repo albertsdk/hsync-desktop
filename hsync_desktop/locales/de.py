@@ -602,6 +602,8 @@ translations: dict[str, str] = {
     "menu.sync.quit": "Beenden",
     "menu.sync.confirm_quit": "Die Synchronisation läuft noch. Möchten Sie wirklich beenden?",
     "menu.sync.confirm_quit_title": "Beenden bestätigen",
+    "menu.sync.confirm_stop": "Die Synchronisation läuft noch. Möchten Sie wirklich stoppen?",
+    "menu.sync.confirm_stop_title": "Stoppen bestätigen",
     "menu.file": "&Datei",
     "menu.file.open": "Öffnen",
     "menu.file.open_with": "Öffnen mit…",

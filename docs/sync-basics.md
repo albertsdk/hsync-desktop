@@ -35,7 +35,10 @@ splash appears only on the first launch.
    (no limit, no estimate — the number is never invented). If the plan would trip
    the mass-deletion guard, the dialog says those deletions will be paused.
    **Cancel** is the default button: only **Synchronize** applies the plan.
-3. The sync runs until you stop it.
+3. The sync runs until you stop it. **Stop** asks for confirmation while a run is
+   in progress: the transfers in flight are abandoned (a partial upload resumes on
+   the next run, a partial download is fetched again), so the click must be
+   deliberate. Choosing **No** leaves the run untouched.
 
 <img src="assets/screens/14-preview-summary.png" alt="The plan-confirmation dialog: a summary line, a deletion warning and the plan grouped with deletions first" width="620">
 

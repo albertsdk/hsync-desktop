@@ -180,7 +180,10 @@ class TestTrustDialogs:
         window._on_pairing_needed("master", "master-1", "10.0.0.2", "c" * 64)
         assert len(calls) == 2  # a changed fingerprint re-prompts
 
-    def test_stop_clears_the_dedupe(self, window):
+    def test_stop_clears_the_dedupe(self, window, monkeypatch):
+        import hsync_desktop.main_window.start as start_mod
+
+        monkeypatch.setattr(start_mod, "confirm", lambda *a, **k: True)
         window._should_prompt_trust("master", "master-1", "10.0.0.2", "b" * 64)
         assert window._trust_prompted
         window._on_stop()
