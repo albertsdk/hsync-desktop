@@ -131,7 +131,13 @@ its groups in one column capped at `_CONTENT_MAX_WIDTH` and centred in the page
 (`_scrollable_page`); the tab description uses the same wrapper
 (`_add_tab_description`). A wider window grows the empty margins, not the form,
 so controls keep a readable width and the caption-to-control distance stays
-bounded at any window size.
+bounded at any window size. The wrapper never resizes itself to its own size
+hint: its width belongs to the host — a parent layout stretches it, a scroll
+area sizes it to the viewport — so only the scroll-area host opts into the
+`LayoutRequest` re-apply (`reapply_size_on_layout_request`) that makes the
+scroll area pick up a content height change. A plain page item that re-applied
+its size hint collapsed to the label's hint as soon as its page was laid out at
+the full width, which broke the alignment with the groups below.
 
 **Standard vs advanced**: the General tab's `show_advanced` toggle
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)

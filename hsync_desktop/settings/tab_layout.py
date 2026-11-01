@@ -67,12 +67,23 @@ class _CenteredColumn(QWidget):
     to the spacers). This wrapper gives the child exactly
     ``min(width, max_width)``, so the settings page keeps one bounded reading
     column, centred when the window grows.
+
+    The width always belongs to the host: a parent layout stretches the wrapper,
+    a scroll area sizes it to its viewport. ``reapply_size_on_layout_request``
+    exists for the scroll-area host only (see ``event``).
     """
 
-    def __init__(self, child: QWidget, max_width: int) -> None:
+    def __init__(
+        self,
+        child: QWidget,
+        max_width: int,
+        *,
+        reapply_size_on_layout_request: bool = False,
+    ) -> None:
         super().__init__()
         self._child = child
         self._max_width = max_width
+        self._reapply_size_on_layout_request = reapply_size_on_layout_request
         child.setParent(self)
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
@@ -101,7 +112,10 @@ class _CenteredColumn(QWidget):
         # wrapper's minimum height, but the scroll area only re-sizes its widget
         # on a Resize event. Re-apply our own size so that event fires; otherwise
         # the page keeps the stale height and the form squeezes the new rows.
-        if event.type() == QEvent.Type.LayoutRequest:
+        # Only the scroll-area host may do this: resizing a plain page item to
+        # its size hint shrinks it below the width its parent layout gave it, so
+        # the tab description stopped matching the column of the groups below.
+        if self._reapply_size_on_layout_request and event.type() == QEvent.Type.LayoutRequest:
             self.adjustSize()
         return super().event(event)
 
@@ -146,7 +160,12 @@ def _scrollable_page(tab: QWidget) -> tuple[QVBoxLayout, QVBoxLayout]:
     inner = QVBoxLayout(content)
     inner.setContentsMargins(4, 4, 4, 4)
     inner.setSpacing(8)
-    outer.addWidget(_scroll_area(_CenteredColumn(content, _CONTENT_MAX_WIDTH)), 1)
+    outer.addWidget(
+        _scroll_area(
+            _CenteredColumn(content, _CONTENT_MAX_WIDTH, reapply_size_on_layout_request=True)
+        ),
+        1,
+    )
     return outer, inner
 
 

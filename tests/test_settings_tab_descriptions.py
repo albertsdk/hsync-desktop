@@ -74,6 +74,7 @@ class TestTabDescriptions:
 
         dialog.resize(1100, 700)
         dialog.show()
+        qtbot.waitExposed(dialog)
         qtbot.wait(1)
         for tab_index in _MODE_TABS:
             holder = dialog._tabs.widget(tab_index).layout().itemAt(0).widget()
@@ -82,6 +83,37 @@ class TestTabDescriptions:
             assert column is not None
             assert column.width() == _CONTENT_MAX_WIDTH
             assert abs(column.x() - (holder.width() - column.width()) // 2) <= 1
+
+    def test_the_description_keeps_the_column_when_its_page_is_laid_out(self, dialog, qtbot):
+        """Laying a mode page out at the full width must not collapse the line.
+
+        ``_CenteredColumn`` re-applied its size on every ``LayoutRequest``, which
+        shrank the description holder to the label's hint (240 px with the
+        English text) as soon as the page was stretched to the window width,
+        while the groups below kept the bounded column.
+        """
+
+        from PySide6.QtWidgets import QWidget
+
+        from hsync_desktop.settings.tab_layout import _CONTENT_MAX_WIDTH
+
+        dialog.resize(1100, 700)
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        # Opening a mode tab is what lays its page out at the full width.
+        dialog._tabs.setCurrentIndex(_P2P_TAB_INDEX)
+        qtbot.wait(1)
+
+        page = dialog._tabs.widget(_P2P_TAB_INDEX)
+        holder = page.layout().itemAt(0).widget()
+        assert holder is not None
+        column = holder.findChild(QWidget)
+        assert column is not None
+        # The page is wider than the cap, so the column must be capped, not
+        # collapsed to the label's hint.
+        assert page.width() > _CONTENT_MAX_WIDTH
+        assert column.width() == _CONTENT_MAX_WIDTH
+        assert abs(column.x() - (holder.width() - column.width()) // 2) <= 1
 
     def test_description_has_breathing_room(self, dialog):
         """The purpose line is inset from the tab edge and the first group."""
