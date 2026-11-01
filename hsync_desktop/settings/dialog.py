@@ -132,6 +132,7 @@ from hsync_desktop.settings.cli_args import (
     save_bandwidth_limits,
     secure_config_file,
 )
+from hsync_desktop.settings.credential_dialogs import GroupKeyDialog, resolve_group_key
 from hsync_desktop.settings.form_helpers import (
     _action_row,
     _insert_row_after,
@@ -378,6 +379,7 @@ class SettingsDialog(QDialog):
             (self.btn_test_rendezvous, "tip.test_rendezvous"),
             (self.p2p_upnp, "tip.p2p_upnp"),
             (self.p2p_key, "tip.p2p_key"),
+            (self.btn_show_group_key, "tip.show_group_key"),
             (self.p2p_port, "tip.p2p_port"),
             (self.rendezvous_timeout, "tip.rendezvous_timeout"),
             (self.ntp_hosts, "tip.ntp_hosts"),
@@ -722,6 +724,7 @@ class SettingsDialog(QDialog):
             self.p2p_rendezvous_trust,
             self.btn_manage_trusted_keys,
             self.btn_test_rendezvous,
+            self.btn_show_group_key,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,
@@ -736,6 +739,8 @@ class SettingsDialog(QDialog):
         ]
         for widget in p2p_sub_widgets:
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
+        # The Show-group-key action also needs a non-empty shared password.
+        self._refresh_group_key_button()
 
         # Also enable/disable the labels in the p2p tab (except p2p_mode label)
         self._set_tab_labels_enabled(_P2P_TAB_INDEX, checked, exclude=(self._lbl_p2p_mode,))
@@ -924,6 +929,40 @@ class SettingsDialog(QDialog):
             "rendezvous",
             lambda: self._rendezvous_probe_outcome(binary, endpoints),
         )
+
+    @Slot()
+    def _on_show_group_key(self) -> None:
+        """Reveal/copy the group key a protected discovery server expects.
+
+        The key is derived from the Shared password (Settings → p2p Mode) —
+        there is no token for the user to type. The dialog shows the 64-hex
+        value an operator needs in the server's ``bucket=<key>`` file.
+        """
+        secret = self.p2p_key.text().strip()
+        if not secret:
+            QMessageBox.warning(
+                self,
+                tr("settings.show_group_key_title"),
+                tr("settings.show_group_key_no_password"),
+            )
+            return
+        group_key = resolve_group_key(secret, self._effective_p2p_key_mode())
+        GroupKeyDialog(group_key, self.bucket.text().strip(), self).exec()
+
+    @Slot()
+    def _refresh_group_key_button(self) -> None:
+        """Gate the Show-group-key action on the same rules as the other p2p
+        controls, plus a non-empty Shared password (there is no key to reveal
+        without one)."""
+        if not hasattr(self, "btn_show_group_key"):
+            return
+        usable = (
+            self.p2p_mode.isChecked()
+            and bool(self.p2p_key.text().strip())
+            and not self._connection_active
+            and self.btn_show_group_key not in self._unsupported_widgets
+        )
+        self.btn_show_group_key.setEnabled(usable)
 
     # ── Connection probes (off the UI thread) ─────────────────────────────
 
@@ -1560,6 +1599,7 @@ class SettingsDialog(QDialog):
             self.p2p_rendezvous_trust,
             self.btn_manage_trusted_keys,
             self.btn_test_rendezvous,
+            self.btn_show_group_key,
             self.p2p_upnp,
             self.p2p_key,
             self.p2p_port,

@@ -50,15 +50,18 @@ that the password matches the key the operator configured on the server:
 
 - The password you enter here must be the **same one used when the server's key
   was created** (ideally the same password as the rest of the group).
+- To get the exact value to give the server operator, use **Settings →
+  p2p Mode → Show group key…**: it reveals (and copies) the derived key as the
+  `bucket=<key>` line the operator puts in the server's key file. There is no
+  terminal involved — the app computes the key from your Shared password.
 - The operator should create that key from the shared password with
-  `hsync derive-group-key` (the output is the 64-hex key that goes in the
-  server's `bucket=<key>` line) — see the
+  `hsync derive-group-key` (the output is the same 64-hex key) — see the
   [client's cross-network guide](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md).
 - If the operator instead generated a random raw key (for example with
   `openssl rand -hex 32`), the desktop's password field cannot be made to match
   it: the field always treats what you type as a shared password. Ask the
   operator to reconfigure the server with a key derived from the password your
-  devices use.
+  devices use (or use **Show group key…** to prove the password's key to them).
 
 If the password does not match, the app shows a warning that names
 `token_required` — see

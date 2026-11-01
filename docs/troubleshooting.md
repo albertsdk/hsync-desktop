@@ -101,8 +101,9 @@ To fix it:
 2. Enter the **same password** that was used to create the key on the server
    (ideally the password the rest of the group already uses).
 3. Start the sync again. If the warning returns, the server's key was not
-   derived from that password — ask the operator to create it with
-   `hsync derive-group-key` (see
+   derived from that password. To get the value to give the operator, use
+   **Settings → p2p Mode → Show group key…** — it reveals the derived key as
+   the `bucket=<key>` line to add to the server's key file (see
    [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password)).
 
 ## A device's fingerprint changed, or pairing is required

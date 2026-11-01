@@ -249,6 +249,13 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     # Inline eye toggle: the shared password is masked but the user must be able
     # to read it to type the same value on another device.
     dlg._p2p_key_reveal = add_reveal_toggle(dlg.p2p_key)
+    # Reveal/copy the derived group key for a protected discovery server. No
+    # token is typed anywhere: the app derives it from the shared password, so
+    # this is the only place a server operator gets the value to provision.
+    dlg.btn_show_group_key = QPushButton(dlg)
+    dlg.btn_show_group_key.setObjectName("btnShowGroupKey")
+    dlg.btn_show_group_key.clicked.connect(dlg._on_show_group_key)
+    dlg.p2p_key.textChanged.connect(dlg._refresh_group_key_button)
     dlg.p2p_port = dlg.findChild(QSpinBox, "p2pPort")
     dlg.rendezvous_timeout = dlg.findChild(QSpinBox, "rendezvousTimeout")
 

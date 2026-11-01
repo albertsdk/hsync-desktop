@@ -371,6 +371,9 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g1, dlg._lbl_p2p_mode, dlg.p2p_mode)
     add_row(g1, lbl_group, dlg.p2p_group)
     add_row(g1, lbl_key, dlg.p2p_key)
+    # Spanning action under the shared password: reveals the derived group key
+    # a protected discovery server needs (no separate token input).
+    g1.addRow("", dlg.btn_show_group_key)
     vbox.addWidget(dlg._grp_p2p_mode)
 
     # Group 2: cross-network rendezvous through a rendezvous

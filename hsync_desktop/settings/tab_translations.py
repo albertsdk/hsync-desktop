@@ -157,6 +157,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._populate_rendezvous_trust()
     dlg.btn_manage_trusted_keys.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
     dlg.btn_manage_trusted_keys_server.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
+    dlg.btn_show_group_key.setText(escape_mnemonics(tr("settings.show_group_key")))
     dlg.btn_test_rendezvous.setText(
         escape_mnemonics(
             tr("common.checking")
