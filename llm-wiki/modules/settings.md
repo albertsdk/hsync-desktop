@@ -46,6 +46,16 @@ emitted subcommand always agree.
 | `HsyncIgnoreEditorDialog` | `settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
 | reset sync state | `settings/dialog.py::SettingsDialog._on_reset_state` → `settings/reset_state_dialog.py::ResetStateDialog` → `SettingsDialog.reset_state_folder` → `main_window/start.py::StartMixin._reset_sync_state` | **Settings → Sync → Advanced options → "Reset sync state…"**: a custom dialog rather than `QMessageBox` — the Qt-owned details toggle has no bundled translation and the standard buttons carry no app icon — with a translated details toggle and themed Reset/Cancel icons. It only confirms and closes (setting `reset_state_folder`); the window runs `engine/cli.py::reset_sync_state` and logs the outcome. Cancel is the destructive default, so a stray Enter never resets. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
 
+The settings dialog is a **modal Apply/Cancel** pair: the primary button is
+labelled with `settings.apply` (not "Save" — it applies preferences, it does
+not store a document) via `tab_translations.py::apply_translations` →
+`icons.py::style_ok_cancel_button_box(accept_text_key="settings.apply")`. The
+same helper keeps **Save** for the credential prompts, the trusted-keys Add
+dialogs and the `.hsyncignore` editor, where persisting an entry is the
+operation. The dialog closes on Apply (the window re-applies live after
+`main_window/start.py::StartMixin._open_settings`); there is no stay-open
+Apply button.
+
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
 the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
 the p2p tab groups Mode & Group, Finding devices, Role & security, Advanced
@@ -525,6 +535,38 @@ it is stored as `passphrase`. That normalisation is the same one the engine
 applies at start, so a legacy short secret stored as `raw` is both repaired on
 the next save and accepted by the running engine.
 
+### Group key for a protected discovery server (p2p tab)
+
+A protected/private discovery server derives its bucket tokens from the group
+key, so the desktop derives it from the Shared password (`settings/credential_dialogs.py::resolve_group_key` →
+`hsync_common.protocol.rdv_tokens::derive_group_key`); there is no token to type.
+
+- **Show group key…** (`settings/dialog.py::SettingsDialog._on_show_group_key` /
+  `_open_group_key_dialog`) lives in the **Finding devices** group
+  (`settings/tab_layout.py::reorganize_p2p_tab`) and is shown **only when a
+  discovery server is configured** (`settings/dialog.py::SettingsDialog._refresh_group_key_button`,
+  driven by the `p2p_rendezvous` text). The `GroupKeyDialog`
+  (`settings/credential_dialogs.py::GroupKeyDialog`) shows the whole
+  `bucket=<key>` provisioning line as a **single masked secret** (read-only
+  `QLineEdit` + the usual reveal toggle), a static caption
+  (`group_key.caption`) that never carries the key, a Copy button for the line,
+  and the sensitivity warning.
+- **Changed-password reminder**: `load()` snapshots the derived key the dialog
+  opened with (`settings/dialog.py::SettingsDialog._group_key_loaded`). While a
+  discovery server is configured and the Shared-password field derives a
+  *different* key, an inline warning row appears under the password
+  (`settings/dialog.py::SettingsDialog._rdv_key_mismatch` /
+  `_refresh_rdv_key_warning`, key `settings.p2p_key_rdv_warning`), and
+  `_commit` asks once per session before saving
+  (`settings/dialog.py::SettingsDialog._confirm_rdv_key_update`): **Show group
+  key…** (opens the masked dialog with the new line, then continues), **Apply**
+  (continue) or **Cancel** (abort). The `P2PKeyDialog` credential prompt shows
+  the same informational reminder after saving a changed password when a
+  discovery server is configured (`settings/credential_dialogs.py::P2PKeyDialog._maybe_remind_rdv_key_update`),
+  and the setup wizard's success page offers the derived line too
+  (`wizard/pages/success.py::SuccessPage`, only for a draft with a rendezvous
+  server — see [wizard.md](wizard.md)).
+
 ## i18n.py — localization
 
 `tr` (`i18n.py::tr`) looks up keys across all locales (`SUPPORTED_LANGUAGES`, `i18n.py::SUPPORTED_LANGUAGES`,
@@ -533,7 +575,10 @@ the next save and accepted by the running engine.
 `appearance/language` preference may be `AUTO_LANGUAGE` (`i18n.py::AUTO_LANGUAGE` = `"auto"`, the
 default, shown as **System default** in the General tab): it follows the system locale at
 every launch; a supported code pins that language; an absent/unsupported value also
-follows the system locale. Every user-facing
+follows the system locale. `_detect_system_language` (`i18n.py::_detect_system_language`) resolves the
+OS locale **Qt-first** (`QLocale.system()`, which works without a `QApplication` and still
+resolves `LANG=it` / `it_IT@euro` / ISO-8859-1 values that glibc reports as `("C","UTF-8")`),
+falls back to Python's `locale`, then English. Every user-facing
 string **must** exist in all `hsync_desktop/locales/*.py`.
 
 ## Shared endpoint/probe helpers (Settings + wizard)

@@ -176,6 +176,7 @@ from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.dialogs import confirm
 from hsync_desktop.widgets.secret_reveal import refresh_reveal_tooltip
+from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 
@@ -197,6 +198,12 @@ class SettingsDialog(QDialog):
         # an edited user password from an untouched legacy raw key.
         self._p2p_key_loaded = ""
         self._p2p_key_mode_loaded = "raw"
+        # Derived discovery-server key the dialog opened with, for the inline
+        # warning and the apply-time reminder when the password changes.
+        self._group_key_loaded = ""
+        # Set once the user was shown the changed-password reminder in this
+        # session (via "Show group key…"), so a later save does not re-ask.
+        self._rdv_key_reminder_ack = False
         # Policy the dialog opened with: leaving ``keep`` is what needs a
         # confirmation, so the handler compares against this.
         self._deletion_policy_loaded = DEFAULT_DELETION_POLICY
@@ -214,6 +221,10 @@ class SettingsDialog(QDialog):
         self.load()  # Load saved values BEFORE connecting signals
         self._connect_signals()  # Connect signals AFTER loading to avoid spurious events
         self._apply_capabilities()  # Gate controls the binary does not support
+        # Initial visibility: the show-group-key row and the changed-password
+        # warning follow the loaded value, not just later edits.
+        self._refresh_group_key_button()
+        self._refresh_rdv_key_warning()
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 
@@ -556,6 +567,11 @@ class SettingsDialog(QDialog):
         self._tabs.currentChanged.connect(self._fit_current_tab)
         self._button_box.accepted.connect(self._on_accept)
         self._button_box.rejected.connect(self.reject)
+        # The changed-password / discovery-server reminder follows either field;
+        # the show-group-key row also depends on a configured discovery server.
+        self.p2p_key.textChanged.connect(self._refresh_rdv_key_warning)
+        self.p2p_rendezvous.textChanged.connect(self._refresh_rdv_key_warning)
+        self.p2p_rendezvous.textChanged.connect(self._refresh_group_key_button)
 
     def showEvent(self, event: QShowEvent) -> None:
         """Fit the first visible tab after the initial layout settles."""
@@ -739,8 +755,10 @@ class SettingsDialog(QDialog):
         ]
         for widget in p2p_sub_widgets:
             widget.setEnabled(checked and widget not in self._unsupported_widgets)
-        # The Show-group-key action also needs a non-empty shared password.
+        # The show-group-key action also needs a configured discovery server and
+        # a non-empty shared password; the changed-password warning follows too.
         self._refresh_group_key_button()
+        self._refresh_rdv_key_warning()
 
         # Also enable/disable the labels in the p2p tab (except p2p_mode label)
         self._set_tab_labels_enabled(_P2P_TAB_INDEX, checked, exclude=(self._lbl_p2p_mode,))
@@ -932,37 +950,107 @@ class SettingsDialog(QDialog):
 
     @Slot()
     def _on_show_group_key(self) -> None:
-        """Reveal/copy the group key a protected discovery server expects.
-
-        The key is derived from the Shared password (Settings → p2p Mode) —
-        there is no token for the user to type. The dialog shows the 64-hex
-        value an operator needs in the server's ``bucket=<key>`` file.
-        """
-        secret = self.p2p_key.text().strip()
-        if not secret:
+        """Reveal/copy the group key a protected discovery server expects."""
+        if not self.p2p_key.text().strip():
             QMessageBox.warning(
                 self,
                 tr("settings.show_group_key_title"),
                 tr("settings.show_group_key_no_password"),
             )
             return
+        self._open_group_key_dialog()
+
+    def _open_group_key_dialog(self) -> None:
+        """Open the masked group-key dialog for the current Shared password.
+
+        The key is derived from the Shared password (Settings → p2p Mode) —
+        there is no token for the user to type. The dialog shows the 64-hex
+        ``bucket=<key>`` line an operator needs in the server's key file.
+        """
+        secret = self.p2p_key.text().strip()
+        if not secret:
+            return
         group_key = resolve_group_key(secret, self._effective_p2p_key_mode())
         GroupKeyDialog(group_key, self.bucket.text().strip(), self).exec()
 
+    def _group_key_from_field(self) -> str:
+        """The derived key the current Shared-password field value would yield."""
+        secret = self.p2p_key.text().strip()
+        if not secret:
+            return ""
+        return resolve_group_key(secret, self._effective_p2p_key_mode())
+
+    def _rdv_key_mismatch(self) -> bool:
+        """True while a discovery server is set and the Shared password no
+        longer derives the key it was provisioned with."""
+        if not self.p2p_mode.isChecked():
+            return False
+        if not str(self.p2p_rendezvous.text()).strip():
+            return False
+        current = self._group_key_from_field()
+        return bool(current) and current != self._group_key_loaded
+
+    def _refresh_rdv_key_warning(self) -> None:
+        """Show the changed-password warning row exactly while the derived key
+        for the configured discovery server no longer matches."""
+        if not hasattr(self, "_lbl_p2p_key_rdv_warning"):
+            return
+        show = self._rdv_key_mismatch()
+        self._lbl_p2p_key_rdv_warning.setVisible(show)
+        group = getattr(self, "_grp_p2p_mode", None)
+        if isinstance(group, QGroupBox):
+            layout = group.layout()
+            if isinstance(layout, QFormLayout):
+                layout.setRowVisible(self._lbl_p2p_key_rdv_warning, show)
+
     @Slot()
     def _refresh_group_key_button(self) -> None:
-        """Gate the Show-group-key action on the same rules as the other p2p
-        controls, plus a non-empty Shared password (there is no key to reveal
-        without one)."""
+        """Show the Show-group-key action only when a discovery server is
+        configured (the derived key matters only there) and gate it on the same
+        rules as the other p2p controls, plus a non-empty Shared password."""
         if not hasattr(self, "btn_show_group_key"):
             return
+        visible = self.p2p_mode.isChecked() and bool(str(self.p2p_rendezvous.text()).strip())
+        rendezvous_group = getattr(self, "_grp_p2p_rendezvous", None)
+        if isinstance(rendezvous_group, QGroupBox):
+            layout = rendezvous_group.layout()
+            if isinstance(layout, QFormLayout):
+                layout.setRowVisible(self.btn_show_group_key, visible)
+        self.btn_show_group_key.setVisible(visible)
         usable = (
-            self.p2p_mode.isChecked()
+            visible
             and bool(self.p2p_key.text().strip())
             and not self._connection_active
             and self.btn_show_group_key not in self._unsupported_widgets
         )
         self.btn_show_group_key.setEnabled(usable)
+
+    def _confirm_rdv_key_update(self) -> bool:
+        """Ask before applying a password change that invalidates the key on
+        the configured discovery server.
+
+        Options: "Show group key…" (opens the masked dialog with the new line,
+        then continues and does not re-ask this session), "Apply" (continue)
+        and "Cancel" (abort the save). False aborts ``_commit``.
+        """
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(tr("warn.p2p_key_rdv_mismatch_title"))
+        box.setText(tr("warn.p2p_key_rdv_mismatch_msg"))
+        show_btn = box.addButton(
+            escape_mnemonics(tr("settings.show_group_key")),
+            QMessageBox.ButtonRole.ActionRole,
+        )
+        apply_btn = box.addButton(tr("settings.apply"), QMessageBox.ButtonRole.AcceptRole)
+        cancel_btn = box.addButton(tr("settings.cancel"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(apply_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is show_btn:
+            self._open_group_key_dialog()
+            self._rdv_key_reminder_ack = True
+            return True
+        return clicked is not cancel_btn and clicked is not None
 
     # ── Connection probes (off the UI thread) ─────────────────────────────
 
@@ -1161,7 +1249,7 @@ class SettingsDialog(QDialog):
     def _commit(self) -> bool:
         """Validate every field and persist; False when a check vetoes.
 
-        Shared by the OK button and the sync-state reset, so both leave the
+        Shared by the Apply button and the sync-state reset, so both leave the
         dialog through the same validated path: neither may close as Accepted
         (which makes the window re-apply the settings) without saving.
         """
@@ -1208,6 +1296,12 @@ class SettingsDialog(QDialog):
                         tr(f"p2pauth.error.{exc.code}"),
                     )
                     return False
+        # A changed Shared password invalidates the key the configured discovery
+        # server was provisioned with: the server would refuse the group, so ask
+        # once per session (unless the user already saw the new key).
+        if self._rdv_key_mismatch() and not self._rdv_key_reminder_ack:
+            if not self._confirm_rdv_key_update():
+                return False
         self.save()
         return True
 
@@ -1451,6 +1545,13 @@ class SettingsDialog(QDialog):
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
         self._p2p_key_loaded = self.p2p_key.text().strip()
         self._p2p_key_mode_loaded = str(s.value("p2p/key_mode", "raw", str)) or "raw"
+        # Snapshot of the derived discovery-server key: the inline warning and
+        # the apply-time reminder compare the current field against it.
+        self._group_key_loaded = (
+            resolve_group_key(self._p2p_key_loaded, self._p2p_key_mode_loaded)
+            if self._p2p_key_loaded
+            else ""
+        )
         self.p2p_port.setValue(cast(int, s.value("p2p/port", DEFAULT_P2P_PORT, int)))
         self.rendezvous_timeout.setValue(
             cast(int, s.value("p2p/rendezvous_timeout", DEFAULT_RENDEZVOUS_TIMEOUT, int))

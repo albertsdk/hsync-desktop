@@ -44,8 +44,27 @@ class TestConstants:
         }
         assert expected == i18n.SUPPORTED_LANGUAGES
 
-    def test_system_language_prefix_is_supported(self, monkeypatch):
-        """A region-qualified locale (e.g. pt_BR, zh_CN) resolves to its base code."""
+
+class TestDetectSystemLanguage:
+    """System-language detection resolves Qt first, Python's locale second."""
+
+    @staticmethod
+    def _fake_qlocale(monkeypatch, name: str):
+        class _FakeQ:
+            _locale_name = ""
+
+            @classmethod
+            def system(cls):
+                return cls
+
+            @classmethod
+            def name(cls):
+                return cls._locale_name
+
+        _FakeQ._locale_name = name
+        monkeypatch.setattr(i18n, "QLocale", _FakeQ)
+
+    def test_region_qualified_qlocale_resolves_to_its_base_code(self, monkeypatch):
         for locale_name, expected in [
             ("pt_BR", i18n.P2PG_PT),
             ("zh_CN", i18n.P2PG_ZH),
@@ -53,11 +72,32 @@ class TestConstants:
             ("nl_NL", i18n.P2PG_NL),
             ("pl_PL", i18n.P2PG_PL),
             ("ja_JP", i18n.P2PG_JA),
+            ("it_IT", i18n.P2PG_IT),
         ]:
-            monkeypatch.setattr(i18n.locale, "getlocale", lambda _n=locale_name: (_n, "UTF-8"))
+            self._fake_qlocale(monkeypatch, locale_name)
+            monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
             assert i18n._detect_system_language() == expected
 
+    def test_qt_locale_wins_over_the_c_locale(self, monkeypatch):
+        # glibc reports LANG=it / it_IT@euro / ISO-8859-1 locales as
+        # ("C", "UTF-8") before setlocale: Qt still resolves the real locale,
+        # and that must win instead of falling back to English.
+        self._fake_qlocale(monkeypatch, "it_IT")
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
+        assert i18n._detect_system_language() == i18n.P2PG_IT
+
+    def test_unsupported_qlocale_falls_back_to_python_locale(self, monkeypatch):
+        self._fake_qlocale(monkeypatch, "gsw_CH")
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("fr_FR", "UTF-8"))
+        assert i18n._detect_system_language() == i18n.P2PG_FR
+
+    def test_c_environment_falls_back_to_english(self, monkeypatch):
+        self._fake_qlocale(monkeypatch, "C")
+        monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("C", "UTF-8"))
+        assert i18n._detect_system_language() == i18n.P2PG_EN
+
     def test_unsupported_system_language_falls_back_to_english(self, monkeypatch):
+        self._fake_qlocale(monkeypatch, "C")
         monkeypatch.setattr(i18n.locale, "getlocale", lambda: ("xx_XX", "UTF-8"))
         assert i18n._detect_system_language() == i18n.P2PG_EN
 

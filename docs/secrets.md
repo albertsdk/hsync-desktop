@@ -51,9 +51,14 @@ that the password matches the key the operator configured on the server:
 - The password you enter here must be the **same one used when the server's key
   was created** (ideally the same password as the rest of the group).
 - To get the exact value to give the server operator, use **Settings →
-  p2p Mode → Show group key…**: it reveals (and copies) the derived key as the
-  `bucket=<key>` line the operator puts in the server's key file. There is no
-  terminal involved — the app computes the key from your Shared password.
+  p2p Mode → Finding devices → Show group key…** (the action only appears when
+  a discovery server is configured): it opens a dialog where the whole
+  `bucket=<key>` line stays **masked** until you reveal it with the eye icon,
+  and the Copy button puts that line on the clipboard. There is no terminal
+  involved — the app computes the key from your Shared password.
+- Changing the **Shared password** later derives a different key, so the
+  server's key file no longer matches: the app shows a warning under the
+  password field and asks before applying, offering to show the new line.
 - The operator should create that key from the shared password with
   `hsync derive-group-key` (the output is the same 64-hex key) — see the
   [client's cross-network guide](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md).

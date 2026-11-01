@@ -20,8 +20,9 @@ sections in the other tabs, so the standard view stays uncluttered. Controls for
 features your installed sync engine does not support are automatically disabled,
 with a tooltip explaining why. Settings are read when a sync starts: while one runs
 the connection-critical controls are disabled, and a change takes effect at the
-next start. On a fresh install (no saved settings yet) the app starts in
-**p2p Mode**.
+next start. **Apply** (with **Cancel**) saves the changes and closes the dialog —
+an editor or credential prompt keeps its **Save** label instead. On a fresh
+install (no saved settings yet) the app starts in **p2p Mode**.
 
 ## Sync
 
@@ -63,8 +64,8 @@ for when to use it.
 | Setting | Description |
 |---------|-------------|
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A legacy raw group key (32+ characters) already stored by an older version keeps being used as-is — see [Secrets](secrets.md). A **protected discovery server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password) |
-| Discovery servers (optional) | Endpoint of an optional discovery server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the p2p tab — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password) |
+| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A legacy raw group key (32+ characters) already stored by an older version keeps being used as-is — see [Secrets](secrets.md). A **protected discovery server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
+| Discovery servers (optional) | Endpoint of an optional discovery server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the p2p tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password) |
 | Discovery servers identity check | How the app checks the discovery server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
 | Manage trusted servers & devices | List, add and remove the discovery servers, server and device fingerprints the client actually uses |
 | Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |

@@ -220,6 +220,7 @@ class TestTerminologyConsistency:
     # Row labels that keep a colon because they sit next to a value
     # ("Size: 12 MB", "Devices: 2/3"). Every other string is a form caption or a
     # sentence and carries no trailing colon (see the settings/wizard layout).
+    # ``group_key.caption`` is the label above the masked provisioning line.
     KEY_VALUE_KEYS = {
         "detail.client_cid",
         "detail.client_ip",
@@ -228,6 +229,7 @@ class TestTerminologyConsistency:
         "detail.modified",
         "detail.size",
         "detail.status",
+        "group_key.caption",
         "label.bucket",
         "label.group",
         "label.peers",

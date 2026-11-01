@@ -166,6 +166,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         )
     )
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
+    dlg._lbl_p2p_key_rdv_warning.setText(tr("settings.p2p_key_rdv_warning"))
     lbl = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
     if lbl:
         lbl.setText(tr("settings.rendezvous_timeout"))
@@ -232,5 +233,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
     set_help_link_text(dlg._lbl_help_server, "help.server_setup")
     set_help_link_text(dlg._lbl_help_rendezvous, "help.rendezvous_setup")
 
-    # Button box
-    style_ok_cancel_button_box(dlg._button_box)
+    # Button box: the primary action applies the settings (the dialog stays a
+    # modal OK/Cancel pair; see the "Apply, not Save" desktop rule).
+    style_ok_cancel_button_box(dlg._button_box, accept_text_key="settings.apply")

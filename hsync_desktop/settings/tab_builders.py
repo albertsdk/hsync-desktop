@@ -249,6 +249,12 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     # Inline eye toggle: the shared password is masked but the user must be able
     # to read it to type the same value on another device.
     dlg._p2p_key_reveal = add_reveal_toggle(dlg.p2p_key)
+    # Inline warning shown while the shared password no longer derives the key a
+    # configured discovery server expects (see ``_refresh_rdv_key_warning``).
+    dlg._lbl_p2p_key_rdv_warning = QLabel(dlg)
+    dlg._lbl_p2p_key_rdv_warning.setObjectName("lblP2pKeyRdvWarning")
+    dlg._lbl_p2p_key_rdv_warning.setWordWrap(True)
+    dlg._lbl_p2p_key_rdv_warning.setVisible(False)
     # Reveal/copy the derived group key for a protected discovery server. No
     # token is typed anywhere: the app derives it from the shared password, so
     # this is the only place a server operator gets the value to provision.

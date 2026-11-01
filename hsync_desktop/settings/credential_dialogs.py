@@ -10,7 +10,7 @@ from hsync_common.protocol.rdv_tokens import (
     derive_group_key,
     validate_group_passphrase,
 )
-from PySide6.QtCore import QSettings, Qt, QTimer
+from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QDialog,
@@ -129,6 +129,7 @@ class P2PKeyDialog(QDialog):
         # Load current p2p key if any
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         current_key = decrypt_value(str(s.value("p2p/key", "", str)))
+        self._loaded_key = current_key
         self._p2p_key_edit.setText(current_key)
 
         # Buttons
@@ -166,7 +167,36 @@ class P2PKeyDialog(QDialog):
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         s.setValue("p2p/key", encrypt_value(p2p_key))
         s.setValue("p2p/key_mode", "passphrase")
+        # A changed password invalidates the key a configured discovery server
+        # was provisioned with; point the user at the new line before closing.
+        if p2p_key != self._loaded_key:
+            self._maybe_remind_rdv_key_update(p2p_key)
         self.accept()
+
+    def _maybe_remind_rdv_key_update(self, p2p_key: str) -> None:
+        """After a password change, remind about the discovery-server key.
+
+        Only when a discovery server is configured (otherwise there is no key
+        file to keep in sync). The reminder offers to open the masked
+        group-key dialog with the new ``bucket=<key>`` line.
+        """
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if not str(s.value("p2p/rendezvous_server_endpoints", "", str)).strip():
+            return
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(tr("p2pauth.rdv_key_update_title"))
+        box.setText(tr("p2pauth.rdv_key_update_msg"))
+        show_btn = box.addButton(
+            escape_mnemonics(tr("settings.show_group_key")),
+            QMessageBox.ButtonRole.ActionRole,
+        )
+        close_btn = box.addButton(tr("p2pauth.cancel"), QMessageBox.ButtonRole.AcceptRole)
+        box.setDefaultButton(close_btn)
+        box.exec()
+        if box.clickedButton() is show_btn:
+            bucket = str(s.value("sync/bucket", "", str)).strip()
+            GroupKeyDialog(resolve_group_key(p2p_key, "passphrase"), bucket, self).exec()
 
 
 def resolve_group_key(secret: str, key_mode: str) -> str:
@@ -190,14 +220,14 @@ class GroupKeyDialog(QDialog):
 
     There is no token for the user to type: the app derives the key from the
     Shared password (Settings → p2p Mode). This dialog shows the resulting
-    64-hex key as the exact ``bucket=<key>`` line for the server's key file,
-    so it can be handed to whoever operates the discovery server, and reminds
-    the user that it is every bit as sensitive as the password.
+    ``bucket=<key>`` line as a single masked secret — the exact line an
+    operator adds to the server's key file — with the same reveal toggle as
+    the password fields, and reminds that it is every bit as sensitive as the
+    password. The key never appears unmasked outside that one field.
     """
 
     def __init__(self, group_key: str, bucket: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._group_key = group_key
         self._bucket_line = f"{bucket}={group_key}" if bucket else f"<bucket>={group_key}"
         self._build_ui()
         self._apply_translations()
@@ -212,20 +242,21 @@ class GroupKeyDialog(QDialog):
         self._lbl_intro.setWordWrap(True)
         layout.addWidget(self._lbl_intro)
 
-        # Read-only, masked by default: the key is as sensitive as the password.
+        # Static caption: explains what to do with the secret without carrying
+        # it, so the key exists only inside the masked field below.
+        self._lbl_caption = QLabel(self)
+        self._lbl_caption.setWordWrap(True)
+        layout.addWidget(self._lbl_caption)
+
+        # The full provisioning line, masked by default: it is as sensitive as
+        # the password, so no part of it may render in clear at open time.
         self._key_edit = QLineEdit(self)
         self._key_edit.setReadOnly(True)
         self._key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._key_edit.setText(self._group_key)
+        self._key_edit.setText(self._bucket_line)
         self._key_edit.setFont(monospace_font())
         self._reveal = add_reveal_toggle(self._key_edit)
         layout.addWidget(self._key_edit)
-
-        # The exact line the server operator provisions (bucket=<key>).
-        self._lbl_bucket = QLabel(self)
-        self._lbl_bucket.setFont(monospace_font())
-        self._lbl_bucket.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addWidget(self._lbl_bucket)
 
         self._lbl_warning = QLabel(self)
         self._lbl_warning.setWordWrap(True)
@@ -260,6 +291,6 @@ class GroupKeyDialog(QDialog):
     def _apply_translations(self) -> None:
         self.setWindowTitle(tr("group_key.title"))
         self._lbl_intro.setText(tr("group_key.intro"))
-        self._lbl_bucket.setText(tr("group_key.bucket_hint").format(line=self._bucket_line))
+        self._lbl_caption.setText(tr("group_key.caption"))
         self._lbl_warning.setText(tr("group_key.warning"))
         self._btn_copy.setText(tr("group_key.copy"))

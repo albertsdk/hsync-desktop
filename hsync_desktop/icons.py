@@ -240,10 +240,12 @@ def style_ok_cancel_button_box(
 ) -> None:
     """Label and icon a standard OK/Cancel ``QDialogButtonBox`` with the app theme.
 
-    The accept button is presented as Save (or the label named by
+    The accept button is presented as Apply or Save (the label named by
     ``accept_text_key``) and Cancel with the translated labels, both using the
     bundled app-theme icons, so the buttons never fall back to the platform
-    theme's icons or the (untranslated) Qt standard labels.
+    theme's icons or the (untranslated) Qt standard labels. The settings dialog
+    passes ``accept_text_key="settings.apply"``; the credential prompts, the
+    trusted-keys Add dialogs and the ``.hsyncignore`` editor keep the default.
     """
     from hsync_desktop.i18n import tr
 

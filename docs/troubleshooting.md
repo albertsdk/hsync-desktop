@@ -131,9 +131,13 @@ To fix it:
    (ideally the password the rest of the group already uses).
 3. Start the sync again. If the warning returns, the server's key was not
    derived from that password. To get the value to give the operator, use
-   **Settings → p2p Mode → Show group key…** — it reveals the derived key as
-   the `bucket=<key>` line to add to the server's key file (see
+   **Settings → p2p Mode → Finding devices → Show group key…** (only shown
+   when a discovery server is configured) — it shows the `bucket=<key>` line
+   masked, with a reveal toggle and a Copy button, ready to add to the
+   server's key file (see
    [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password)).
+   If you already changed the Shared password in the settings, the app reminds
+   you about this same line before applying.
 
 ## A device's fingerprint changed, or pairing is required
 

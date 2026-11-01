@@ -668,6 +668,56 @@ class TestSuccessLayout:
         assert wizard.success_page._invite_title.text() == tr("wizard.success.invite")
 
 
+class TestSuccessRendezvousKeyHint:
+    """The success screen offers the derived discovery-server key only when
+    the draft configures a discovery server."""
+
+    def test_hidden_without_a_discovery_server(self, wizard):
+        wizard.success_page.load(WizardDraft(mode=WizardMode.LAN_SYNC, p2p_key="pw"))
+        assert wizard.success_page._rdv_key_hint.isHidden()
+        assert wizard.success_page._show_group_key.isHidden()
+
+    def test_visible_for_a_remote_sync_draft(self, wizard):
+        wizard.success_page.load(
+            WizardDraft(
+                mode=WizardMode.REMOTE_SYNC,
+                p2p_key="shared-password-1234",
+                rendezvous_server="rdv.example.net",
+                bucket="photos",
+            )
+        )
+        assert not wizard.success_page._rdv_key_hint.isHidden()
+        assert not wizard.success_page._show_group_key.isHidden()
+        assert wizard.success_page._draft is not None
+
+    def test_show_opens_the_masked_group_key_dialog(self, wizard, monkeypatch):
+        import hsync_desktop.wizard.pages.success as success_mod
+
+        opened: list[tuple[str, str]] = []
+
+        class _FakeGroupKeyDialog:
+            def __init__(self, group_key: str, bucket: str, parent=None):
+                opened.append((group_key, bucket))
+
+            def exec(self):
+                return None
+
+        monkeypatch.setattr(success_mod, "GroupKeyDialog", _FakeGroupKeyDialog)
+        wizard.success_page.load(
+            WizardDraft(
+                mode=WizardMode.REMOTE_SYNC,
+                p2p_key="shared-password-1234",
+                rendezvous_server="rdv.example.net",
+                bucket="photos",
+            )
+        )
+        wizard.success_page._on_show_group_key()
+
+        assert len(opened) == 1
+        assert len(opened[0][0]) == 64
+        assert opened[0][1] == "photos"
+
+
 class TestModeDocumentationLink:
     """The mode step links to the desktop choose-connection guide."""
 

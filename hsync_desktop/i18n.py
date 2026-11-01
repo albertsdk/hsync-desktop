@@ -14,7 +14,7 @@ from __future__ import annotations
 import locale
 from collections.abc import Callable
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QLocale, QSettings
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 
@@ -60,7 +60,22 @@ _translations: dict[str, dict[str, str]] = {}
 
 
 def _detect_system_language() -> str:
-    """Detect system language and return matching supported language code."""
+    """Detect the OS language and return a matching supported language code.
+
+    ``QLocale.system()`` is the primary source: unlike Python's ``locale``, it
+    resolves the desktop locale even when the C library reports ``("C",
+    "UTF-8")`` (e.g. ``LANG=it`` or ``it_IT@euro`` on glibc) and it reads the
+    OS locale directly on Windows/macOS. It needs no ``QApplication``. The
+    ``locale`` module is the fallback, English the last resort.
+    """
+    try:
+        name = QLocale.system().name()
+        if name and name != "C":
+            lang_prefix = name[:2].lower()
+            if lang_prefix in SUPPORTED_LANGUAGES:
+                return lang_prefix
+    except Exception:
+        pass
     try:
         lang_code = locale.getlocale()[0] or ""
         lang_prefix = lang_code[:2].lower()

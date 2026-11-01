@@ -17,7 +17,9 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.settings.credential_dialogs import GroupKeyDialog, resolve_group_key
 from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.wizard.model import WizardDraft, profile_for
 from hsync_desktop.wizard.pages.base import WizardPage
 from hsync_desktop.wizard.widgets import PrimaryButton
@@ -66,6 +68,14 @@ class SuccessPage(WizardPage):
         self._copy.clicked.connect(self._on_copy)
         layout.addWidget(self._copy)
 
+        # A discovery server identifies the group through a key derived from
+        # this password: point the operator at the new line while it is fresh.
+        self._rdv_key_hint = muted_label()
+        layout.addWidget(self._rdv_key_hint)
+        self._show_group_key = QPushButton()
+        self._show_group_key.clicked.connect(self._on_show_group_key)
+        layout.addWidget(self._show_group_key)
+
         self._what_next = muted_label()
         layout.addWidget(self._what_next)
         # Action bar anchored at the bottom, separated from the content.
@@ -86,6 +96,8 @@ class SuccessPage(WizardPage):
         self._desc.setText(tr("wizard.success.desc"))
         self._invite_title.setText(tr("wizard.success.invite"))
         self._copy.setText(tr("wizard.action.copy_invite"))
+        self._rdv_key_hint.setText(tr("wizard.success.rdv_key_hint"))
+        self._show_group_key.setText(escape_mnemonics(tr("settings.show_group_key")))
         self._what_next.setText(tr("wizard.success.what_next"))
         self.start.setText(tr("wizard.action.start_syncing"))
         self.dashboard.setText(tr("wizard.action.go_dashboard"))
@@ -96,6 +108,12 @@ class SuccessPage(WizardPage):
         self._invite_title.setVisible(is_p2p)
         self._invite_text.setVisible(is_p2p)
         self._copy.setVisible(is_p2p)
+        # The discovery-server key hint appears only when the draft actually
+        # configures a discovery server (the key matters nowhere else).
+        show_rdv_key = is_p2p and bool(draft.rendezvous_server.strip())
+        self._rdv_key_hint.setVisible(show_rdv_key)
+        self._show_group_key.setVisible(show_rdv_key)
+        self._draft = draft if show_rdv_key else None
         if is_p2p:
             # Reuse the Connection-step labels so the invite names each value
             # exactly as the wizard asked for it.
@@ -114,3 +132,11 @@ class SuccessPage(WizardPage):
         clipboard = QGuiApplication.clipboard()
         if clipboard is not None:
             clipboard.setText(self._invite_text.toPlainText())
+
+    def _on_show_group_key(self) -> None:
+        """Open the masked group-key dialog from the draft's password."""
+        draft = self._draft
+        if draft is None or not draft.p2p_key:
+            return
+        group_key = resolve_group_key(draft.p2p_key.strip(), "passphrase")
+        GroupKeyDialog(group_key, draft.bucket, self).exec()

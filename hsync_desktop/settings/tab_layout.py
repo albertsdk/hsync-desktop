@@ -371,9 +371,10 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g1, dlg._lbl_p2p_mode, dlg.p2p_mode)
     add_row(g1, lbl_group, dlg.p2p_group)
     add_row(g1, lbl_key, dlg.p2p_key)
-    # Spanning action under the shared password: reveals the derived group key
-    # a protected discovery server needs (no separate token input).
-    g1.addRow("", dlg.btn_show_group_key)
+    # Spanning warning: changing the shared password invalidates the key a
+    # discovery server derives from it. Hidden until that condition holds.
+    g1.addRow(dlg._lbl_p2p_key_rdv_warning)
+    dlg._lbl_p2p_key_rdv_warning.setVisible(False)
     vbox.addWidget(dlg._grp_p2p_mode)
 
     # Group 2: cross-network rendezvous through a rendezvous
@@ -384,6 +385,10 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     # Spanning row: the button pair cannot fit the field column once the captions
     # and the labels are localized (see ``_action_row``).
     g2.addRow(manage_container)
+    # The derived group key only matters for a discovery server, so the action
+    # lives with the other discovery-server controls; it is hidden until one is
+    # configured (see ``SettingsDialog._refresh_group_key_button``).
+    g2.addRow("", dlg.btn_show_group_key)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
     dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
     g2.addRow("", dlg._lbl_help_rendezvous)

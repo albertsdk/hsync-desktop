@@ -142,7 +142,12 @@ and the returned mode so the two can never disagree.
   action bar is anchored at the bottom of the screen. The invite labels come from
   `wizard.connection.share/group/password`, so it names each value exactly like
   the Connection step, and `wizard.success.invite_text` supplies the single
-  separator. The success screen is a destination, not a step: the subtitle and
+  separator. When the draft configures a **rendezvous server**, a hint
+  (`wizard.success.rdv_key_hint`) plus **Show group key…**
+  (`SuccessPage._on_show_group_key`, opens the masked `GroupKeyDialog` from
+  `wizard/pages/success.py::SuccessPage` with the derived password key) remind the
+  user to provision the server with the matching `bucket=<key>` line. The success
+  screen is a destination, not a step: the subtitle and
   the step index are hidden (`SetupWizard._set_step`).
 
 ## Modes, defaults and inference
