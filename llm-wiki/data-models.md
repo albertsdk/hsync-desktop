@@ -23,7 +23,12 @@ Dataclass for one row in the transfer table.
 It is a `slots=True` dataclass (the panel can hold one row per scanned file, so
 no per-instance `__dict__`), and its rate-sampling deque (backing `speed_bps` /
 `eta_seconds`) is allocated lazily on the first `note_progress` of a real
-transfer — a resting or never-transferred row carries none.
+transfer — a resting or never-transferred row carries none. `note_progress`
+re-anchors the measurement when a sample goes backwards (restart) or arrives
+after a gap longer than four rate windows (pause/resume or a resumed upload
+whose first sample jumps to the resumption offset): the fresh sample alone
+yields no speed until a second one exists, so a resumed transfer never shows a
+burst nor folds its idle time into the window.
 
 | Field | Notes |
 | ----- | ----- |

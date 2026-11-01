@@ -90,6 +90,12 @@ _NO_PROGRESS_STATUSES = {
 # still hides the per-chunk staircase of the limiter.
 SPEED_WINDOW_SECONDS = 1.0
 _SAMPLE_HISTORY = 64
+# A progress gap longer than this re-anchors the rate calculation. Progress
+# samples arrive every 0.25 s while bytes move, so a gap of a few seconds means
+# a pause/resume (or a resumed upload whose first sample jumps to the
+# resumption offset): the measurement restarts at the fresh sample instead of
+# folding the idle time into the window.
+_SAMPLE_GAP_RESET_SECONDS = SPEED_WINDOW_SECONDS * 4
 
 
 @dataclass(slots=True)
@@ -176,13 +182,20 @@ class FileTransfer:
         The rate is ``bytes moved / time elapsed`` across the samples of the
         last ``SPEED_WINDOW_SECONDS``: a since-start average would stay low
         after an idle pause and overshoot on a burst, and a per-sample rate
-        would flicker with the chunk granularity of the limiter.
+        would flicker with the chunk granularity of the limiter. A sample that
+        goes backwards (restart) or arrives after a gap longer than the window
+        (pause/resume) clears the history and anchors the measurement at the
+        new sample, so a resumed upload never folds its idle time into the rate.
         """
         ts = time() if now is None else now
         self.bytes_transferred = transferred
         samples = self._ensure_samples()
-        if samples and transferred < samples[-1][1]:
-            # Progress went backwards (restart/resume): drop the history.
+        if samples and (
+            transferred < samples[-1][1] or ts - samples[-1][0] > _SAMPLE_GAP_RESET_SECONDS
+        ):
+            # Progress went backwards (restart/resume) or the gap since the
+            # last sample is longer than the rate window: drop the history and
+            # anchor the measurement at this sample.
             samples.clear()
             self._speed_bps = 0.0
         samples.append((ts, transferred))

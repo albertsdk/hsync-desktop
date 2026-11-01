@@ -126,11 +126,11 @@ class TestFileTransfer:
         transfer = FileTransfer(filepath="test.txt", direction="↓", size=1000)
         transfer.start_transfer("↓", now=100.0)
         transfer.note_progress(0, now=100.0)
-        transfer.note_progress(50, now=110.0)  # 50 B over 10 s → 5 B/s
+        transfer.note_progress(50, now=100.5)  # 50 B over 0.5 s → 100 B/s
 
         eta = transfer.eta_seconds
         assert eta is not None
-        assert 150 <= eta <= 250  # 950 B left at 5 B/s
+        assert 8 <= eta <= 12  # 950 B left at 100 B/s
 
     def test_eta_seconds_none_when_inactive_or_no_progress(self):
         """ETA is None for a non-active status or before any progress."""
@@ -875,7 +875,7 @@ class TestOptionalColumns:
         transfer = FileTransfer(filepath="big.bin", direction="↑", size=1_000_000)
         transfer.start_transfer("↑", now=100.0)
         transfer.note_progress(0, now=100.0)
-        transfer.note_progress(500_000, now=110.0)
+        transfer.note_progress(500_000, now=101.0)
         table.add_transfer(transfer)
         assert transfer.eta_seconds is not None
 
@@ -2329,6 +2329,25 @@ class TestTransferRate:
         transfer.note_progress(100, now=11.5)  # resume restarted the counter
 
         assert transfer.speed_bps is None
+
+    def test_a_long_gap_re_anchors_the_rate(self):
+        """After a pause/resume the measurement restarts at the new sample.
+
+        A resumed upload's first sample jumps to the resumption offset; the
+        minutes of idle must not fold into the 1 s rate window. A sample
+        arriving after a gap longer than the window re-anchors: the rate stays
+        None until a second fresh sample exists.
+        """
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=20_000_000)
+        transfer.start_transfer("↑", now=100.0)
+        transfer.note_progress(11_000_000, now=100.0)  # resumed position
+        assert transfer.speed_bps is None
+
+        transfer.note_progress(11_524_288, now=104.5)  # 4.5 s gap → re-anchor
+        assert transfer.speed_bps is None
+
+        transfer.note_progress(12_048_576, now=104.75)  # fresh 0.25 s window
+        assert transfer.speed_bps == pytest.approx(2_097_152)
 
     def test_stop_transfer_returns_the_row_to_rest(self):
         transfer = FileTransfer(filepath="a.bin", direction="↓", size=1000)

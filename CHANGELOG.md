@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The transfer rate display re-anchors after a pause/resume: a progress sample
+  arriving after a gap longer than the rate window restarts the measurement,
+  so a resumed upload no longer shows a bogus burst speed for the bytes already
+  transferred.
 - The p2p invite shown after the setup wizard now includes the share name, so a
   second device can join the same share without guessing it.
 - Sync could not start in p2p mode with exit code 2: the engine now receives the
