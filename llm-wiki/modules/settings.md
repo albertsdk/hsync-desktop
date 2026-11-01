@@ -553,10 +553,11 @@ key, so the desktop derives it from the Shared password (`settings/credential_di
   `QLineEdit` + the usual reveal toggle), a static caption
   (`group_key.caption`) that never carries the key, a Copy button for the line,
   and the sensitivity warning.
-- **Changed-password reminder**: `load()` snapshots the derived key the dialog
-  opened with (`settings/dialog.py::SettingsDialog._group_key_loaded`). While a
-  discovery server is configured and the Shared-password field derives a
-  *different* key, an inline warning row appears under the password
+- **Changed-password reminder**: `load()`
+  (`settings/dialog.py::SettingsDialog.load`) snapshots the derived key the
+  dialog opened with into `_group_key_loaded`. While a discovery server is
+  configured and the Shared-password field derives a *different* key, an inline
+  warning row appears under the password
   (`settings/dialog.py::SettingsDialog._rdv_key_mismatch` /
   `_refresh_rdv_key_warning`, key `settings.p2p_key_rdv_warning`), and
   `_commit` asks once per session before saving
