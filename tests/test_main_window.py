@@ -3375,6 +3375,45 @@ class TestSyncState:
         assert window._sync_state[0] == "offline"
         assert window._sync_state_label.text() == tr("sync.state.offline")
 
+    def test_a_connection_failure_says_the_link_is_down(self, window):
+        """The client retries a comparison whose link dropped: the state must say
+        so instead of reading "checking" while nothing can progress."""
+        window._ever_connected = True
+        window._begin_comparison()
+        assert window._sync_state[0] == "checking"
+
+        window._on_engine_error("Preview failed: the peer is unreachable", "connection")
+
+        assert window._sync_state[0] == "offline"
+
+        # The retry the client runs on its own must not flip the label back.
+        window._begin_comparison()
+        assert window._sync_state[0] == "offline"
+
+        # A real link clears it, and the next comparison reads "checking" again.
+        window._on_status("connected")
+
+        assert window._link_down is False
+        window._begin_comparison()
+        assert window._sync_state[0] == "checking"
+
+    def test_an_engine_error_without_a_connection_reason_keeps_the_state(self, window):
+        window._ever_connected = True
+        window._begin_comparison()
+
+        window._on_engine_error("Upload rejected: quota exceeded", "permission")
+
+        assert window._link_down is False
+        assert window._sync_state[0] == "checking"
+
+    def test_a_connection_failure_never_claims_a_lost_link_it_never_had(self, window):
+        """A one-shot that never linked reads "idle", not "connection lost"."""
+        window._ever_connected = False
+
+        window._on_engine_error("Preview failed: the peer is unreachable", "connection")
+
+        assert window._sync_state[0] == "idle"
+
     def test_a_lost_link_clears_the_state(self, window):
         window._on_preview_started()
 

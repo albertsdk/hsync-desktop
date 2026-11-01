@@ -119,6 +119,9 @@ class EventsMixin:
     # Comparison window and its outcome (see MainWindow.__init__).
     _comparison_in_flight: bool
     _comparison_errored: bool
+    # The engine reported a connection failure: the link is down until the client
+    # says otherwise, so no "checking" may be claimed meanwhile.
+    _link_down: bool
     _last_check_at: QTime | None
     _peers_total: int
 
@@ -177,6 +180,7 @@ class EventsMixin:
                 self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
         elif status == "connected":
             self._ever_connected = True
+            self._link_down = False
             # The dry-run preview phase is over: the client is linked and no
             # further SYNC retry is needed (see _show_preview_summary).
             self._is_dry_run_preview = False
@@ -814,7 +818,8 @@ class EventsMixin:
         Both marker pairs open one — the preview this window requested and the
         pass a serving device runs on its own share — so the counters never
         accumulate across comparisons, and the waiting counts of a previous pass
-        cannot outlive it.
+        cannot outlive it. A comparison that runs with the link down (the client
+        retries it on its own) keeps saying so instead of reading "checking".
         """
         self._append_desktop_log("INFO", "--- Updating file status... ---")
         self._preview_stats.reset()
@@ -822,7 +827,8 @@ class EventsMixin:
         self._pending_inventory = None
         self._comparison_in_flight = True
         self._comparison_errored = False
-        self._set_sync_state("checking")
+        if not self._link_down:
+            self._set_sync_state("checking")
         self._update_menu_state()
 
     def _finish_comparison(self) -> None:

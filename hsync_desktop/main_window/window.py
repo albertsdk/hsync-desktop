@@ -173,6 +173,9 @@ class MainWindow(
         # The engine reported an error while that comparison ran: a failed preview
         # still emits its end marker, so only a clean one may claim a last check.
         self._comparison_errored = False
+        # The engine reported a connection failure: the link is down until the
+        # client says otherwise (see UiBuildMixin._on_engine_error).
+        self._link_down = False
         # Wall-clock time of the last comparison that actually answered, shown in
         # the action tooltip (the app also checks on its own on every connect).
         self._last_check_at: QTime | None = None

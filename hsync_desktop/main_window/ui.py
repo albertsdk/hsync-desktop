@@ -828,6 +828,12 @@ class UiBuildMixin:
         self._last_engine_error = message
         if message:
             self._append_desktop_log("ERROR", message)
+        if reason == "connection":
+            # The link is down and the client retries the comparison on its own:
+            # the state says so instead of reading "checking" while nothing can
+            # progress, and the per-file rows keep their last known value.
+            self._link_down = True
+            self._set_sync_state("offline" if self._ever_connected else "idle")
         if message and self._comparison_in_flight:
             # The preview/classification failed. Its end marker still arrives, so
             # record it here: a failed comparison is never a "last check". The

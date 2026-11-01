@@ -716,13 +716,15 @@ A row the engine stops reporting on never stays in flight forever. The periodic
 consistency pass asks for in-flight rows silent longer than
 `file_panel/panel.py::_IN_FLIGHT_STALE_SECONDS`
 (`file_panel/transfer_table.py::FileTransferTable.stale_in_flight_paths`, fed by
-`file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall**,
-requests a status refresh
+`file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall and
+again every `file_panel/panel.py::_STALL_REASK_SECONDS` while it lasts**, requests
+a status refresh
 (`file_panel/panel.py::FilePanel._request_status_for_stalled_rows` →
 `FilePanel.scan_found_new_files`), so the engine's own answer resolves the row —
-a lost terminal event or a wedged transfer cannot leave a frozen bar behind. A
-fresh sample (or a resolved row) clears the record, so the next stall asks
-again.
+a lost terminal event or a wedged transfer cannot leave a frozen bar behind. The
+re-check matters when the refresh itself fails (a link that is down): the row is
+asked again instead of staying in flight forever. A fresh sample (or a resolved
+row) clears the record, so the next stall asks again.
 
 Row changes that arrive in bursts are **coalesced**: the preview/status
 (`FileTransferTable.update_file_status`), live-progress and scan-batch paths
@@ -969,6 +971,16 @@ Per-file statuses are a **last known value**, not a live-only signal: dropping
 the link sets the summary to `offline` but never rewrites rows to "Local". Only a
 new preview/classification (or a fresh scan after an engine restart) changes
 them, so a synced file does not look unsynced just because the peer went away.
+
+An engine error whose `reason` is `connection` is the same situation seen from
+the comparison side: `main_window/ui.py::UiBuildMixin._on_engine_error` sets
+`main_window/events.py::EventsMixin._link_down` and moves the summary to the
+`offline` state (`idle` when nothing was ever linked), and
+`main_window/events.py::EventsMixin._begin_comparison` refuses to claim `checking`
+while it is set. The client retries a comparison whose link dropped on its own,
+so without this the state oscillated "Checking…" under a "Disconnected" badge;
+the flag clears on the next `connected` status. A non-connection error leaves the
+state alone.
 
 Every per-file status burst is bracketed by exactly one marker pair, and both
 pairs share one window (`EventsMixin._begin_comparison` … `EventsMixin._end_comparison`),

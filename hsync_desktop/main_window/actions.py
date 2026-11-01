@@ -112,6 +112,8 @@ class ActionsMixin:
     # Comparison window and its outcome (see MainWindow.__init__).
     _comparison_in_flight: bool
     _comparison_errored: bool
+    # The engine reported a connection failure (see EventsMixin._link_down).
+    _link_down: bool
     _last_check_at: QTime | None
     _peers_total: int
 

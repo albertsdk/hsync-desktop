@@ -94,7 +94,13 @@ being applied. In Simulation Mode the plan is only ever shown.
   with its percentage and rate, and shows its real size once complete. The same
   happens for the files this app **serves** when it is the device the others sync
   from: they show as sending, with their percentage, and turn **Synced** once the
-  peer has them.
+  peer has them. A row that stops reporting is re-checked on its own until it
+  resolves: it never stays in flight forever.
+- If the link drops, the summary says so — **Offline — last known state** — and the
+  file rows keep the last status they reached: the comparison is stale, not wrong,
+  so a synced file never looks unsynced. The app reconnects on its own and the
+  state returns to "Checking…" when the link is back; a run that cannot reach the
+  peer reports the cause once instead of repeating it on every attempt.
 - The bottom-right sent/received numbers are the **distinct files** moved this
   session (a file transferred or renamed more than once still counts once); the
   size in parentheses is the total bytes moved, repeats included.
