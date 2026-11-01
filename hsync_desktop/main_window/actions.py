@@ -153,31 +153,17 @@ class ActionsMixin:
     # ── File menu action wrappers ─────────────────────────────────────────
 
     def _get_selected_transfer(self):
-        """Return the currently selected transfer from the file panel, or None."""
+        """Return the currently selected transfer from the file panel, or None.
+
+        The table synthesizes a resting ``LOCAL`` entry for rows with no
+        ``FileTransfer`` of their own (aggregated folders), so the File menu
+        acts on a selection exactly like the row context menu does.
+        """
         table = self._file_panel._table
         row = table._last_selected_row
         if row < 0 or row >= table.model().rowCount():
             return None
-        transfer = table._get_transfer_at_row(row)
-        if not transfer:
-            # Synthesized folder — create a virtual transfer
-            from hsync_desktop.file_panel import FileTransfer, TransferStatus
-
-            display_name = table.model().display_name(row)
-            if display_name is None:
-                return None
-            folder_path = (
-                f"{table._current_path}/{display_name}/"
-                if table._current_path
-                else f"{display_name}/"
-            )
-            transfer = FileTransfer(
-                filepath=folder_path,
-                direction="—",
-                size=0,
-                status=TransferStatus.LOCAL,
-            )
-        return transfer
+        return table._transfer_for_row(row, synthesize=True)
 
     def _menu_file_open(self) -> None:
         t = self._get_selected_transfer()

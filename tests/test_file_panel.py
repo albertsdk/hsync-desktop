@@ -1637,6 +1637,77 @@ class TestContextMenuGating:
         assert "a.bin" not in table._transfers
 
 
+class TestVirtualRowSelection:
+    """Rows with no FileTransfer of their own select exactly like catalogued rows.
+
+    An aggregated folder (children on disk while the sync is off) has no
+    transfer of its own, yet the row context menu already builds from a
+    synthesized resting entry. The selection signal must do the same, or the
+    window File menu stays disabled while such a row is selected.
+    """
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/base")
+        # ``docs`` is a folder with children but no transfer of its own: the
+        # model renders it as an aggregated row whose transfer is ``None``.
+        table.add_transfer(
+            FileTransfer(filepath="docs/a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        return table
+
+    def test_the_aggregated_folder_has_no_transfer_of_its_own(self, qtbot):
+        table = self._table(qtbot)
+        row = table._row_index["docs"]
+
+        assert table._get_transfer_at_row(row) is None
+
+    def test_synthesis_returns_a_virtual_folder_entry(self, qtbot):
+        table = self._table(qtbot)
+        row = table._row_index["docs"]
+
+        transfer = table._transfer_for_row(row, synthesize=True)
+
+        assert transfer is not None
+        assert transfer.filepath == "docs/"
+        assert transfer.status == TransferStatus.LOCAL
+
+    def test_synthesis_keeps_the_real_transfer_when_present(self, qtbot):
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.SYNCED)
+        )
+        row = table._row_index["a.bin"]
+
+        assert table._transfer_for_row(row, synthesize=True) is table._transfers["a.bin"]
+
+    def test_synthesis_off_returns_none_for_a_virtual_row(self, qtbot):
+        table = self._table(qtbot)
+        row = table._row_index["docs"]
+
+        assert table._transfer_for_row(row) is None
+
+    def test_a_click_on_the_virtual_folder_emits_a_synthesized_selection(self, qtbot):
+        table = self._table(qtbot)
+        row = table._row_index["docs"]
+        emitted: list[FileTransfer] = []
+        table.row_selected.connect(emitted.append)
+
+        table._pending_click_row = row
+        table._last_selected_row = -1
+        table._on_single_click_confirmed()
+
+        assert len(emitted) == 1
+        transfer = emitted[0]
+        assert transfer.filepath == "docs/"
+        assert transfer.status == TransferStatus.LOCAL
+        assert table._last_selected_row == row
+
+
 class TestEmptyFolderStatus:
     """An empty folder shows its own status; a remote-created dir is SYNCED."""
 

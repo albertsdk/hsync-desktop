@@ -963,8 +963,12 @@ class FileTransferTable(QTableView):
         else:
             # New row clicked → keep it selected
             self._last_selected_row = row
-            # Notify that a new row was selected (used to update open panel)
-            transfer = self._get_transfer_at_row(row)
+            # Notify that a new row was selected (used to update open panel).
+            # Every row, including an aggregated folder with no FileTransfer of
+            # its own, is selected: synthesize a resting entry for these so the
+            # window File menu matches the row context menu (which already
+            # synthesizes one) instead of staying disabled on the selection.
+            transfer = self._transfer_for_row(row, synthesize=True)
             if transfer:
                 self.row_selected.emit(transfer)
 
@@ -1201,7 +1205,9 @@ class FileTransferTable(QTableView):
         self.selectRow(row)
         if row != self._sticky_applied_row:
             self._sticky_applied_row = row
-            transfer = self._get_transfer_at_row(row)
+            # Same synthesis as _on_single_click_confirmed: the restored row may
+            # be an aggregated folder with no FileTransfer of its own.
+            transfer = self._transfer_for_row(row, synthesize=True)
             if transfer:
                 self.row_selected.emit(transfer)
 
@@ -1369,6 +1375,29 @@ class FileTransferTable(QTableView):
         full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
         return self._transfers.get(full_path) or self._transfers.get(full_path + "/")
 
+    def _transfer_for_row(self, row: int, *, synthesize: bool = False) -> FileTransfer | None:
+        """Return the row's FileTransfer, synthesizing a virtual entry on demand.
+
+        A row whose display name has no ``FileTransfer`` of its own is an
+        aggregated folder (children on disk while the sync is stopped, or while
+        browsing before a run). ``synthesize`` gives it a resting ``LOCAL``
+        entry — the model renders these rows with the same ``LOCAL`` aggregate
+        status — so the selection-driven surfaces (the window File menu and the
+        row context menu) can act on the row exactly like on a catalogued one.
+        """
+        transfer = self._get_transfer_at_row(row)
+        if not synthesize or transfer is not None:
+            return transfer
+        display_name = self._model.display_name(row)
+        if display_name is None:
+            return None
+        folder_path = (
+            f"{self._current_path}/{display_name}/" if self._current_path else f"{display_name}/"
+        )
+        return FileTransfer(
+            filepath=folder_path, direction="—", size=0, status=TransferStatus.LOCAL
+        )
+
     def _absolute_path(self, transfer: FileTransfer) -> str:
         """Build the absolute path of a transfer's file."""
         return os.path.join(self._base_directory, transfer.filepath)
@@ -1467,17 +1496,9 @@ class FileTransferTable(QTableView):
         transfer = self._get_transfer_at_row(row)
 
         if not transfer:
-            display_name = self._model.display_name(row)
-            if display_name is None:
+            transfer = self._transfer_for_row(row, synthesize=True)
+            if transfer is None:
                 return None
-            folder_path = (
-                f"{self._current_path}/{display_name}/"
-                if self._current_path
-                else f"{display_name}/"
-            )
-            transfer = FileTransfer(
-                filepath=folder_path, direction="—", size=0, status=TransferStatus.LOCAL
-            )
 
         is_dir = transfer.filepath.endswith("/")
 

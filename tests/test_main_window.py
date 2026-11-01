@@ -819,6 +819,76 @@ class TestSelectionSyncMenu:
             engine_cls.is_running = original
 
 
+class TestFileMenuVirtualRow:
+    """Selecting a row with no FileTransfer enables the whole File menu.
+
+    An aggregated folder (children on disk while the sync is stopped) has no
+    transfer of its own. The row context menu synthesizes a resting entry for
+    it, so the File menu must do the same when the row is selected — otherwise
+    it stays disabled even though the context menu offers every action.
+    """
+
+    def test_clicking_a_virtual_folder_enables_the_file_menu(self, window):
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        # Only a child transfer: ``docs`` is an aggregated folder row.
+        table.add_transfer(
+            FileTransfer(filepath="docs/a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        row = table._row_index["docs"]
+        assert table._get_transfer_at_row(row) is None
+
+        table._pending_click_row = row
+        table._last_selected_row = -1
+        table._on_single_click_confirmed()
+
+        # Resting folder: every file action is usable, exactly as in the row
+        # context menu ("Open With" stays hidden for folders).
+        assert window._act_file_open.isEnabled()
+        assert window._act_file_open_containing.isEnabled()
+        assert not window._act_file_open_with.isEnabled()
+        assert window._act_file_copy_to.isEnabled()
+        assert window._act_file_copy_path.isEnabled()
+        assert window._act_file_copy_path_relative.isEnabled()
+        assert window._act_file_rename.isEnabled()
+        assert window._act_file_trash.isEnabled()
+        # Engine is stopped, so the one-shot Send/Receive are usable too.
+        assert window._act_file_send.isEnabled()
+        assert window._act_file_receive.isEnabled()
+        assert window._act_file_properties.isEnabled()
+
+    def test_send_and_receive_stay_disabled_for_a_virtual_row_while_running(self, window):
+        """While the sync runs, Send/Receive are off in the File menu too."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        table.add_transfer(
+            FileTransfer(filepath="docs/a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        row = table._row_index["docs"]
+
+        table._pending_click_row = row
+        table._last_selected_row = -1
+        table._on_single_click_confirmed()
+
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._update_menu_state()
+
+            assert not window._act_file_send.isEnabled()
+            assert not window._act_file_receive.isEnabled()
+            # Read-only actions on a resting row keep working while a sync runs.
+            assert window._act_file_open.isEnabled()
+            assert window._act_file_copy_path.isEnabled()
+        finally:
+            engine_cls.is_running = original
+
+
 class TestRemoteRenameMtime:
     """The rename event must not blank out the row's modified date."""
 
