@@ -341,11 +341,16 @@ class TestP2PKeyDialogRendezvousReminder:
 class TestDiscoveryServerTerminology:
     """User-facing strings say 'discovery server', never the internals' name."""
 
-    def test_the_settings_help_link_uses_user_terminology(self):
-        assert tr("help.rendezvous_setup") == "Discovery server setup guide"
+    def test_the_settings_help_link_uses_a_short_label(self):
+        # The link sits in the "Finding devices" section it documents, so the
+        # target is not repeated in the label (and the label stays on one line,
+        # which keeps the form row from clipping it).
+        assert tr("help.rendezvous_setup") == "Configuration guide"
 
     def test_no_new_key_leaks_the_internal_name(self):
         for module in ALL_MODULES:
             for key, value in module.translations.items():
-                if key.startswith(("group_key.", "settings.show_group_key", "tip.show_group_key")):
+                if key.startswith(
+                    ("group_key.", "settings.show_group_key", "tip.show_group_key", "help.")
+                ):
                     assert "rendezvous" not in value.lower(), f"{module.__name__}:{key}"

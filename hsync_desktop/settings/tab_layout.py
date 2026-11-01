@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
@@ -89,7 +89,21 @@ class _CenteredColumn(QWidget):
         return QSize(min(hint.width(), self._max_width), height)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt override)
-        return QSize(0, self._child.minimumSizeHint().height())
+        # The scroll area sizes this wrapper to its minimum height when the
+        # viewport is shorter, and the form layout then squeezes every row to
+        # fit — clipping wrapped labels and action buttons. Demand the height
+        # the content actually needs so the page scrolls instead of squashing;
+        # the width stays 0 so the column can still shrink horizontally.
+        return QSize(0, self._child.sizeHint().height())
+
+    def event(self, event) -> bool:
+        # A child layout change (a revealed row, a re-wrapped label) raises this
+        # wrapper's minimum height, but the scroll area only re-sizes its widget
+        # on a Resize event. Re-apply our own size so that event fires; otherwise
+        # the page keeps the stale height and the form squeezes the new rows.
+        if event.type() == QEvent.Type.LayoutRequest:
+            self.adjustSize()
+        return super().event(event)
 
 
 def _group_box(title_key: str) -> QGroupBox:

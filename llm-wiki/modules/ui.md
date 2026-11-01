@@ -126,9 +126,12 @@ targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 **Help → Documentation** always starts from the docs index.
 
 **Contextual documentation links**: the Server tab links to the hsync-server
-setup guide (`help.server_setup`), the p2p rendezvous group to the hsync-rendezvous
+guide (`help.server_setup`), the p2p "Finding devices" group to the hsync-rendezvous
 guide (`help.rendezvous_setup`), and the wizard's mode step plus its "Not sure?"
-dialog to the desktop choose-connection guide (`help.connection_modes`). They are
+dialog to the desktop choose-connection guide (`help.connection_modes`). The two
+Settings links are labelled **"Configuration guide"** (each sits in the section it
+documents, so the target is not repeated in the label); the wizard link keeps its
+mode-specific label. They are
 `QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in

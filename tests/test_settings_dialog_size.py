@@ -188,3 +188,60 @@ class TestActionRow:
         monkeypatch.setattr(type(row), "width", lambda self: pair_need + 200)
         row._apply_direction()
         assert row.layout().direction() == QBoxLayout.Direction.LeftToRight
+
+
+class TestPageNeverSqueezesRows:
+    """A page shorter than its content compresses every form row to fit.
+
+    That clipped the wrapped documentation link and the action buttons on the
+    p2p "Finding devices" section: entering a discovery server reveals the
+    group-key row, which makes the page taller than the height it had.
+    """
+
+    @staticmethod
+    def _dialog(qtbot, monkeypatch, tmp_path):
+        """A SettingsDialog on an isolated store (no discovery server yet)."""
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.settings import SettingsDialog
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: store)
+        dlg = SettingsDialog()
+        qtbot.addWidget(dlg)
+        return dlg
+
+    @classmethod
+    def _short_p2p_page(cls, qtbot, dialog):
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        qtbot.wait(10)
+        dialog.set_current_tab(_P2P_TAB_INDEX)
+        qtbot.wait(10)
+        # Force a viewport shorter than the content, so the scroll page is the
+        # one that must grow (a tall dialog would just fit everything).
+        dialog.resize(700, dialog.minimumHeight())
+        qtbot.wait(10)
+        scroll = dialog._tabs.widget(_P2P_TAB_INDEX).findChild(QScrollArea)
+        return scroll.widget()
+
+    def test_revealing_a_row_grows_the_page(self, qtbot, monkeypatch, tmp_path):
+        dialog = self._dialog(qtbot, monkeypatch, tmp_path)
+        content = self._short_p2p_page(qtbot, dialog)
+        before = content.sizeHint().height()
+
+        dialog.p2p_rendezvous.setText("rdv.example.net")
+        qtbot.wait(10)
+
+        assert content.sizeHint().height() > before
+        assert content.height() >= content.sizeHint().height()
+
+    def test_every_row_keeps_its_natural_height(self, qtbot, monkeypatch, tmp_path):
+        dialog = self._dialog(qtbot, monkeypatch, tmp_path)
+        self._short_p2p_page(qtbot, dialog)
+        dialog.p2p_rendezvous.setText("rdv.example.net")
+        qtbot.wait(10)
+
+        pair = dialog.btn_manage_trusted_keys.parent()
+        assert pair.height() >= pair.sizeHint().height()
+        link = dialog._lbl_help_rendezvous
+        assert link.height() >= link.heightForWidth(link.width())
