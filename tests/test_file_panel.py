@@ -987,6 +987,128 @@ class TestOptionalColumns:
         assert _cell_text(table, table._last_selected_row, tt.COL_NAME) == "a.txt"
 
 
+class TestColumnSorting:
+    """Header sorting orders by value, never by the rendered text."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    @staticmethod
+    def _names(table):
+        return [_cell_text(table, row, 0) for row in range(table.model().rowCount())]
+
+    def test_the_progress_column_sorts_by_value(self, qtbot):
+        """The bar is drawn from UserRole, so every display text is empty.
+
+        A text sort (the old behaviour) compared "" with "" and never reordered.
+        """
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="a.bin",
+                direction="↓",
+                size=100,
+                bytes_transferred=80,
+                status=TransferStatus.DOWNLOADING,
+            )
+        )
+        table.add_transfer(
+            FileTransfer(
+                filepath="b.bin",
+                direction="↓",
+                size=100,
+                bytes_transferred=20,
+                status=TransferStatus.DOWNLOADING,
+            )
+        )
+
+        table.sortByColumn(tt.COL_PROGRESS, Qt.SortOrder.AscendingOrder)
+        assert self._names(table) == ["b.bin", "a.bin"]
+
+        table.sortByColumn(tt.COL_PROGRESS, Qt.SortOrder.DescendingOrder)
+        assert self._names(table) == ["a.bin", "b.bin"]
+
+    def test_the_size_column_sorts_numerically(self, qtbot):
+        """``10.0MB`` must not sort before ``9.5MB`` just because '1' < '9'."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="big.bin",
+                direction="↑",
+                size=10 * 1024 * 1024,
+                status=TransferStatus.SYNCED,
+            )
+        )
+        table.add_transfer(
+            FileTransfer(
+                filepath="small.bin",
+                direction="↑",
+                size=int(9.5 * 1024 * 1024),
+                status=TransferStatus.SYNCED,
+            )
+        )
+
+        table.sortByColumn(tt.COL_SIZE, Qt.SortOrder.AscendingOrder)
+
+        assert self._names(table) == ["small.bin", "big.bin"]
+
+    def test_the_modified_column_sorts_chronologically(self, qtbot):
+        """The localized date string sorts alphabetically ("18 Feb" < "8 Feb")."""
+        from datetime import datetime
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        older = datetime(2024, 2, 8, 11, 0).timestamp()
+        newer = datetime(2024, 2, 18, 9, 0).timestamp()
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="a.bin",
+                direction="—",
+                size=1,
+                status=TransferStatus.SYNCED,
+                mtime=newer,
+            )
+        )
+        table.add_transfer(
+            FileTransfer(
+                filepath="b.bin",
+                direction="—",
+                size=1,
+                status=TransferStatus.SYNCED,
+                mtime=older,
+            )
+        )
+
+        table.sortByColumn(tt.COL_MODIFIED, Qt.SortOrder.AscendingOrder)
+
+        assert self._names(table) == ["b.bin", "a.bin"]
+
+    def test_text_columns_still_sort_as_text(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="zeta.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.add_transfer(
+            FileTransfer(filepath="alpha.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+
+        table.sortByColumn(tt.COL_NAME, Qt.SortOrder.AscendingOrder)
+
+        assert self._names(table) == ["alpha.bin", "zeta.bin"]
+
+
 class TestDirectionColumn:
     """Direction is empty at rest and its operative glyphs are bold."""
 

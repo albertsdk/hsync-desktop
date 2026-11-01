@@ -318,19 +318,46 @@ class FileTransferModel(QAbstractTableModel):
     # ── Rendering helpers ─────────────────────────────────────────────────
 
     def _sorted(self, rows: list[tuple[str, FileTransfer | None, dict]]):
-        """Apply the recorded sort (DisplayRole text, like QTableWidgetItem)."""
+        """Apply the recorded sort with a per-column key.
+
+        The key is the column's **value**, never its display text: a formatted
+        string sorts lexicographically ("9.5MB" > "10.0MB") and the progress
+        column has no display text at all (the bar is drawn from ``UserRole``),
+        so a text sort there is a no-op. Text columns keep the display string;
+        rows without a value sort first ascending.
+        """
         if self._sort_column is None:
             return rows
         column = self._sort_column
         reverse = self._sort_order == Qt.SortOrder.DescendingOrder
+        return sorted(rows, key=lambda item: self._sort_key(item, column), reverse=reverse)
 
-        def key(item: tuple[str, FileTransfer | None, dict]) -> str:
-            name, transfer, folder_data = item
-            is_folder = transfer is None or transfer.filepath.endswith("/")
-            value = self._display_value(name, transfer, folder_data, is_folder, column)
-            return "" if value is None else str(value)
-
-        return sorted(rows, key=key, reverse=reverse)
+    def _sort_key(
+        self, item: tuple[str, FileTransfer | None, dict], column: int
+    ) -> int | float | str:
+        """Comparable sort key for one row in ``column`` (numeric where it matters)."""
+        name, transfer, folder_data = item
+        is_folder = transfer is None or transfer.filepath.endswith("/")
+        if column == COL_PROGRESS:
+            return self._row_progress(transfer, folder_data, is_folder)
+        if column == COL_SIZE:
+            # A folder row shows its item count, not a byte size (``_display_value``).
+            if is_folder:
+                return folder_data.get("count", 0) if folder_data else 0
+            return transfer.size if transfer else 0
+        if column == COL_MODIFIED:
+            if folder_data:
+                return folder_data.get("mtime", 0.0)
+            return transfer.mtime if transfer else 0.0
+        if column == COL_ETA:
+            eta = transfer.eta_seconds if transfer else None
+            return eta if eta is not None else -1.0
+        if column == COL_SPEED:
+            if is_folder:
+                return (folder_data.get("speed") or 0.0) if folder_data else 0.0
+            return (transfer.speed_bps or 0.0) if transfer else 0.0
+        value = self._display_value(name, transfer, folder_data, is_folder, column)
+        return "" if value is None else str(value)
 
     def _display_value(
         self,

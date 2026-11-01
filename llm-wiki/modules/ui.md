@@ -447,6 +447,13 @@ Foreground, Font, ToolTip, UserRole for the progress bar), so no per-cell
 `QTableWidgetItem` is retained and the rows are virtualized. Column-header sorting
 is model-side (`FileTransferModel.sort`): it stays off until the user sorts, and a
 refresh re-applies the recorded sort, preserving the user's order across rebuilds.
+The sort key is the column's **value, not its display text**
+(`file_panel/transfer_table.py::FileTransferModel._sort_key`): a formatted string
+would sort lexicographically ("9.5MB" > "10.0MB", the localized date string is not
+chronological) and the progress column has no display text at all (the bar is
+drawn from `UserRole`), so a text sort there was a no-op. Progress, Size, Modified,
+ETA and Speed use numeric/epoch keys (a folder's Size key is its item count, what
+the cell shows); Name, Type, Status and Direction keep the display string.
 `FileTransferTable` keeps the navigation, context-menu, column-visibility/width
 and selection logic and exposes `_model` (and `model().display_name(row)`) to
 callers that need a row's transfer or display name.
