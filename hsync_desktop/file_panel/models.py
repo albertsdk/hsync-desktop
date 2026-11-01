@@ -83,6 +83,24 @@ _NO_PROGRESS_STATUSES = {
     TransferStatus.ERROR,
 }
 
+# An upload's progress counts the bytes handed to the transport, not the bytes
+# the peer has received: while the row is in flight the bar never reads as
+# finished, or a burst absorbed by the socket/relay buffers would look complete
+# long before the receiver commits the file. Downloads are unaffected — there
+# the bytes really arrived.
+_UPLOAD_MAX_PROGRESS = 99
+
+
+def clamp_upload_progress(percent: int, *, uploading: bool) -> int:
+    """Cap *percent* so an in-flight upload never claims a finished file.
+
+    ``percent`` is -1 when there is nothing measurable to show, which passes
+    through unchanged.
+    """
+    if uploading and percent > _UPLOAD_MAX_PROGRESS:
+        return _UPLOAD_MAX_PROGRESS
+    return percent
+
 
 # Transfer-rate window. Progress samples arrive every 0.25 s (the client's
 # PROGRESS_MIN_INTERVAL), so the displayed rate is the bytes moved over the last
@@ -96,6 +114,12 @@ _SAMPLE_HISTORY = 64
 # resumption offset): the measurement restarts at the fresh sample instead of
 # folding the idle time into the window.
 _SAMPLE_GAP_RESET_SECONDS = SPEED_WINDOW_SECONDS * 4
+# Shortest interval a rate may be measured over. The client ticks every 0.25 s
+# but flushes its final sample as soon as ``transferred >= total``, so the last
+# two samples of a burst can be milliseconds apart — dividing by such an
+# interval reported a transport burst at hundreds of MB/s. Below this the
+# previous measurement stands (and none is shown when there never was one).
+_RATE_MIN_INTERVAL = 0.1
 
 
 @dataclass(slots=True)
@@ -112,6 +136,10 @@ class FileTransfer:
     size: int = 0
     bytes_transferred: int = 0
     start_time: float = field(default_factory=time)
+    # Wall clock of the last progress sample (0 = none yet). A row in flight
+    # whose engine stopped reporting on it is stale: the panel asks for a status
+    # refresh instead of leaving a frozen bar forever.
+    last_progress_at: float = 0.0
     status: TransferStatus = TransferStatus.QUEUED
     mtime: float = 0.0  # Last modification time (epoch seconds)
     client_cid: str = ""
@@ -162,6 +190,7 @@ class FileTransfer:
         self.bytes_transferred = 0
         self.progress_total = 0
         self.start_time = ts
+        self.last_progress_at = ts
         self._speed_bps = 0.0
         if self._samples is not None:
             self._samples.clear()
@@ -172,6 +201,7 @@ class FileTransfer:
         self.direction = "—"
         self.bytes_transferred = 0
         self.progress_total = 0
+        self.last_progress_at = 0.0
         self._speed_bps = 0.0
         if self._samples is not None:
             self._samples.clear()
@@ -189,6 +219,7 @@ class FileTransfer:
         """
         ts = time() if now is None else now
         self.bytes_transferred = transferred
+        self.last_progress_at = ts
         samples = self._ensure_samples()
         if samples and (
             transferred < samples[-1][1] or ts - samples[-1][0] > _SAMPLE_GAP_RESET_SECONDS
@@ -208,8 +239,12 @@ class FileTransfer:
             samples.popleft()
         t0, b0 = samples[0]
         dt = ts - t0
-        if dt > 0:
-            self._speed_bps = max(0.0, (transferred - b0) / dt)
+        if dt < _RATE_MIN_INTERVAL:
+            # Too short an interval to be a measurement (the engine's final
+            # flush can land milliseconds after the previous sample): keep the
+            # last real rate instead of dividing a burst by a millisecond.
+            return
+        self._speed_bps = max(0.0, (transferred - b0) / dt)
 
     @property
     def speed_bps(self) -> float | None:

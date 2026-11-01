@@ -2535,6 +2535,33 @@ class TestTransferRate:
             transfer.note_progress(sent, now=1.0 + step * 0.25)
         assert transfer.speed_bps == pytest.approx(1_048_576, rel=0.01)
 
+    def test_a_burst_inside_one_tick_reports_no_rate(self):
+        """The engine flushes its final sample right after ``total`` is reached.
+
+        Two samples milliseconds apart are not a measurement: dividing a burst
+        by that interval reported hundreds of MB/s (and an ETA of zero).
+        """
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=40_000_000)
+        transfer.start_transfer("↑", now=1000.0)
+        transfer.note_progress(0, now=1000.0)
+        transfer.note_progress(40_000_000, now=1000.001)
+
+        assert transfer.speed_bps is None
+
+    def test_a_burst_does_not_block_the_next_real_measurement(self):
+        """After a burst absorbed inside one tick, the next window measures."""
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=20_000_000)
+        transfer.start_transfer("↑", now=1000.0)
+        transfer.note_progress(0, now=1000.0)
+        transfer.note_progress(10_000_000, now=1000.02)  # absorbed instantly
+        assert transfer.speed_bps is None
+
+        transfer.note_progress(20_000_000, now=1001.02)  # 10 MB over the next second
+
+        # The window re-anchors at the burst sample, so the measured second is
+        # the real one: 10 MB/s, not a burst divided by a millisecond.
+        assert transfer.speed_bps == pytest.approx(10_000_000, rel=0.01)
+
     def test_a_backwards_sample_restarts_the_measurement(self):
         transfer = FileTransfer(filepath="a.bin", direction="↓", size=1000)
         transfer.start_transfer("↓", now=10.0)
@@ -2623,7 +2650,56 @@ class TestLiveTransferProgress:
         assert table._transfers["big.bin"].size == 1_000_000  # the file
         assert table._transfers["big.bin"].total_bytes == 400_000  # the wire
         assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+        # The wire payload is fully handed over, but the peer has not confirmed
+        # it: an in-flight upload never reads as finished.
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == 99
+
+    def test_a_download_still_reaches_100(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("incoming.bin", 1_024_000, 1_024_000, "download")
+        table.refresh_view()
+
+        # The bytes are on disk, so the bar may say the transfer is done (the
+        # row itself still ends on the terminal event).
         assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == 100
+
+    def test_an_upload_reaches_100_only_when_the_row_ends(self, qtbot):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 1_024_000, 1_024_000, "upload")
+        table.refresh_view()
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == 99
+
+        table.update_file_status("out.bin", "synced", size=1_024_000)
+        table.refresh_view()
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+
+    def test_a_folder_still_uploading_a_child_is_never_finished(self, qtbot):
+        table = self._table(qtbot)
+        child = FileTransfer(filepath="sub/in.bin", direction="↑", size=1024)
+        child.start_transfer("↑")
+        child.note_progress(1024)
+
+        data = table._aggregate_folder([child])
+
+        assert data["progress"] == 99
+
+    def test_a_folder_of_downloads_reaches_100(self, qtbot):
+        table = self._table(qtbot)
+        child = FileTransfer(filepath="sub/in.bin", direction="↓", size=1024)
+        child.start_transfer("↓")
+        child.note_progress(1024)
+
+        data = table._aggregate_folder([child])
+
+        assert data["progress"] == 100
 
     def test_a_completed_download_shows_the_final_size(self, qtbot):
         from PySide6.QtCore import Qt
@@ -2674,6 +2750,98 @@ class TestLiveTransferProgress:
 
         table.update_file_status("up.bin", "synced", size=10)
         assert table._transfers["up.bin"].status is TransferStatus.SYNCED
+
+
+class TestStalledInFlightRows:
+    """An in-flight row the engine stopped reporting on is asked about once."""
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def test_a_fresh_in_flight_row_is_not_stale(self, qtbot):
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 1, 10, "upload")
+
+        assert table.stale_in_flight_paths(now=time(), timeout=60.0) == []
+
+    def test_a_row_silent_for_the_timeout_is_stale(self, qtbot):
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 1, 10, "upload")
+        table._transfers["out.bin"].last_progress_at = 1000.0
+
+        assert table.stale_in_flight_paths(now=1100.0, timeout=60.0) == ["out.bin"]
+
+    def test_a_row_that_left_flight_is_not_stale(self, qtbot):
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 1, 10, "upload")
+        table._transfers["out.bin"].last_progress_at = 1000.0
+        table.update_file_status("out.bin", "synced", size=10)
+
+        assert table.stale_in_flight_paths(now=1100.0, timeout=60.0) == []
+
+    def test_a_stopped_row_forgets_its_samples(self, qtbot, tmp_path):
+        table = self._table(qtbot)
+        (tmp_path / "out.bin").write_bytes(b"x")
+        table.update_transfer_progress("out.bin", 1, 10, "upload")
+        table._transfers["out.bin"].last_progress_at = 1000.0
+
+        table.clear_transient_progress(str(tmp_path))
+
+        assert table._transfers["out.bin"].status is TransferStatus.LOCAL
+        assert table._transfers["out.bin"].last_progress_at == 0.0
+
+
+class TestStalledRowRefreshRequest:
+    """The panel asks the engine once per stall, so a frozen bar always ends."""
+
+    @staticmethod
+    def _panel(qtbot):
+        from hsync_desktop.file_panel import FilePanel
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        return panel
+
+    def test_the_panel_asks_once_per_stall(self, qtbot, monkeypatch):
+        import hsync_desktop.file_panel.panel as panel_mod
+
+        panel = self._panel(qtbot)
+        panel._table.update_transfer_progress("out.bin", 1, 10, "upload")
+        panel._table._transfers["out.bin"].last_progress_at = 1000.0
+        monkeypatch.setattr(panel_mod, "time", lambda: 1100.0)
+        asked: list[str] = []
+        panel.scan_found_new_files.connect(lambda: asked.append("asked"))
+
+        panel._request_status_for_stalled_rows()
+        panel._request_status_for_stalled_rows()
+
+        assert asked == ["asked"]
+
+    def test_a_fresh_sample_lets_the_next_stall_ask_again(self, qtbot, monkeypatch):
+        import hsync_desktop.file_panel.panel as panel_mod
+
+        panel = self._panel(qtbot)
+        panel._table.update_transfer_progress("out.bin", 1, 10, "upload")
+        panel._table._transfers["out.bin"].last_progress_at = 1000.0
+        monkeypatch.setattr(panel_mod, "time", lambda: 1100.0)
+        asked: list[str] = []
+        panel.scan_found_new_files.connect(lambda: asked.append("asked"))
+        panel._request_status_for_stalled_rows()
+
+        # The engine reports again: the row is not stalled any more.
+        panel._table._transfers["out.bin"].last_progress_at = 1100.0
+        panel._request_status_for_stalled_rows()
+        # …and stalls again later.
+        panel._table._transfers["out.bin"].last_progress_at = 1200.0
+        monkeypatch.setattr(panel_mod, "time", lambda: 1300.0)
+        panel._request_status_for_stalled_rows()
+
+        assert asked == ["asked", "asked"]
 
 
 class TestReloadKeepsClassifications:

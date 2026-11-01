@@ -17,7 +17,7 @@ Each row shows the file's icon next to its name, then:
 | **Size** | The size on disk. |
 | **Type** | The kind of file (hidden until you enable it). |
 | **Modified** | The last modification date. |
-| **Progress** | A bar with the percentage while a transfer runs. |
+| **Progress** | A bar with the percentage while a transfer runs. A file you are sending reaches 100% only once the other device has received it. |
 | **Status** | The planned action ("To upload" / "To download" / …) or the result ("Syncing", "Synced"). |
 | **Estimated Time** | The estimated time left for a running transfer, once the rate is known (blank until the first samples arrive). |
 | **Speed** | The live transfer rate (hidden until you enable it). |

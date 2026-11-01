@@ -68,6 +68,7 @@ from hsync_desktop.file_panel.models import (
     STATUS_COLORS_DARK,
     FileTransfer,
     TransferStatus,
+    clamp_upload_progress,
 )
 from hsync_desktop.file_panel.utils import (
     _COLUMN_KEYS,
@@ -480,7 +481,8 @@ class FileTransferModel(QAbstractTableModel):
             return -1
         if transfer.total_bytes <= 0:
             return -1
-        return max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
+        percent = max(0, min(100, int(transfer.bytes_transferred / transfer.total_bytes * 100)))
+        return clamp_upload_progress(percent, uploading=transfer.status is TransferStatus.UPLOADING)
 
     def _row_status(
         self, transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
@@ -1298,6 +1300,7 @@ class FileTransferTable(QTableView):
         total_transferred = 0
         max_mtime = 0.0
         status_priority = 100
+        uploading = False
         ops = {
             TransferStatus.TO_UPLOAD: 0,
             TransferStatus.TO_DOWNLOAD: 0,
@@ -1312,11 +1315,16 @@ class FileTransferTable(QTableView):
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
+            if f.status is TransferStatus.UPLOADING:
+                uploading = True
             if f.status in ops:
                 ops[f.status] += 1
 
         status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
         progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
+        # The aggregate inherits the row rule: a folder still uploading a child
+        # is never shown as finished.
+        progress = clamp_upload_progress(progress, uploading=uploading)
         # Aggregate throughput of the folder's in-flight children
         # (speed_bps is None for anything not transferring).
         speed = sum(f.speed_bps or 0.0 for f in files)
@@ -2132,6 +2140,24 @@ class FileTransferTable(QTableView):
             t.note_progress(bytes_transferred)
         self._cached_items = None  # Invalidate cache
         self._schedule_refresh()
+
+    def stale_in_flight_paths(self, *, now: float, timeout: float) -> list[str]:
+        """Paths of in-flight rows the engine has stopped reporting on.
+
+        A row is stale when it is still ``DOWNLOADING``/``UPLOADING`` but its
+        last progress sample is older than *timeout*: the engine may have lost
+        the terminal event (or be wedged). The caller asks for a status refresh
+        so the row is resolved by the engine's own answer instead of staying in
+        flight forever.
+        """
+        with QMutexLocker(self._transfers_mutex):
+            return sorted(
+                path
+                for path, transfer in self._transfers.items()
+                if transfer.status in (TransferStatus.DOWNLOADING, TransferStatus.UPLOADING)
+                and transfer.last_progress_at > 0
+                and now - transfer.last_progress_at >= timeout
+            )
 
     def mark_failed(self, filepath: str) -> None:
         """Flag a row whose transfer gave up, so no stale progress bar remains."""

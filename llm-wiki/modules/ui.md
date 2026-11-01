@@ -695,8 +695,34 @@ The rate is the bytes moved over the last `SPEED_WINDOW_SECONDS` of progress
 samples (`file_panel/models.py::FileTransfer.note_progress`), not
 `bytes / (now - start_time)`: the column follows the real stream, drops back to
 the sustained rate within a second and hides the per-chunk pacing of the
-limiter. `progress_total` keeps the wire total (compressed upload size, delta
-payload) separate from the on-disk `size`.
+limiter. A sample pair closer than `_RATE_MIN_INTERVAL` measures nothing — the
+client flushes its closing sample as soon as the wire total is reached, so a
+burst absorbed by the transport would otherwise be reported at hundreds of MB/s
+with an ETA of zero — and the previous measurement stands. `progress_total` keeps
+the wire total (compressed upload size, delta payload) separate from the on-disk
+`size`.
+
+An in-flight **upload** never reads as finished:
+`file_panel/models.py::clamp_upload_progress` caps its percentage at
+`_UPLOAD_MAX_PROGRESS` (99), for the row
+(`file_panel/transfer_table.py::_TableModel._row_progress`) and for the folder
+aggregate (`file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
+The client counts the bytes handed to the transport, so a burst absorbed by the
+socket/relay buffers reaches the wire total long before the receiver commits the
+file; the bar closes with the row, on the terminal `transfer` event. A download
+is unaffected: its bytes really are on disk.
+
+A row the engine stops reporting on never stays in flight forever. The periodic
+consistency pass asks for in-flight rows silent longer than
+`file_panel/panel.py::_IN_FLIGHT_STALE_SECONDS`
+(`file_panel/transfer_table.py::FileTransferTable.stale_in_flight_paths`, fed by
+`file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall**,
+requests a status refresh
+(`file_panel/panel.py::FilePanel._request_status_for_stalled_rows` →
+`FilePanel.scan_found_new_files`), so the engine's own answer resolves the row —
+a lost terminal event or a wedged transfer cannot leave a frozen bar behind. A
+fresh sample (or a resolved row) clears the record, so the next stall asks
+again.
 
 Row changes that arrive in bursts are **coalesced**: the preview/status
 (`FileTransferTable.update_file_status`), live-progress and scan-batch paths

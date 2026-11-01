@@ -10,6 +10,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from time import time
 
 from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
@@ -54,6 +55,12 @@ _BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
 _NAV_ICON_PX = 20
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
+
+# A row still in flight with no progress sample for this long is stale: the
+# engine lost its terminal event or is wedged, so the periodic consistency pass
+# asks for a status refresh and the engine's own answer resolves the row. The
+# client ticks every 0.25 s while bytes move, so only real silence trips it.
+_IN_FLIGHT_STALE_SECONDS = 60.0
 
 # How long stopping a worker thread waits for it to leave its event loop before
 # the thread is parked (and released on its own ``finished``) instead of being
@@ -113,6 +120,9 @@ class FilePanel(QWidget):
         # reloaded, kept across the scan that rebuilds the tree (see
         # ``FileTransferTable.status_snapshot``).
         self._status_snapshot: dict[str, FileTransfer] | None = None
+        # In-flight rows already reported as stalled, so the periodic
+        # consistency pass asks for one status refresh per stall.
+        self._stall_reported: set[str] = set()
         self._import_thread: QThread | None = None
         self._import_worker: ImportWorker | None = None
         self._importing: bool = False
@@ -840,6 +850,30 @@ class FilePanel(QWidget):
             from hsync_desktop import debug_events
 
             debug_events.log("consistency", added=sorted(new_files), removed=removed)
+        self._request_status_for_stalled_rows()
+
+    def _request_status_for_stalled_rows(self) -> None:
+        """Ask for a status refresh when an in-flight row stopped reporting.
+
+        The engine owns in-flight rows, so this is the safety net for a lost
+        terminal event (or a wedged transfer): the refresh makes the engine
+        re-state the file's status, which resolves the row. Asked once per
+        stalled set — a fresh sample or a resolved row clears the record, so the
+        next stall asks again.
+        """
+        stalled = set(
+            self._table.stale_in_flight_paths(now=time(), timeout=_IN_FLIGHT_STALE_SECONDS)
+        )
+        if not stalled:
+            self._stall_reported.clear()
+            return
+        if stalled == self._stall_reported:
+            return
+        self._stall_reported = stalled
+        from hsync_desktop import debug_events
+
+        debug_events.log("in_flight_stalled", files=sorted(stalled))
+        self.scan_found_new_files.emit()
 
     def update_file_status(
         self,
