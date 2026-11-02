@@ -444,10 +444,16 @@ _expected_client_version() {
         'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)' 2>/dev/null || true
 }
 
-# Refuse to bundle a client binary whose major version differs from the shared
-# HSYNC_VERSION. The app also checks this at runtime but only warns, so a stale
-# or mismatched pairing must be caught here. A binary that cannot run on this
-# host (e.g. the cross-arch rpi client) is reported as unverifiable, not failed.
+# The bundled-engine gate (version parsing + exact-match rule) is shared with the
+# deb-all / rpm-all container scripts so every bundling path applies it.
+source "${SCRIPT_DIR}/packaging/client-version.sh"
+
+# Refuse to bundle a client binary whose version does not match the shared
+# HSYNC_VERSION exactly. The desktop ships the engine, so the packaged pairing is
+# immutable and must be the release the GUI was built against; the runtime check
+# (engine/cli.py::is_binary_version_compatible) is deliberately looser and only
+# warns. A binary that cannot run on this host (e.g. the cross-arch rpi client)
+# is reported as unverifiable, not failed.
 # $1 = client binary path
 _verify_client_compatible() {
     local client_binary="$1"
@@ -459,16 +465,15 @@ _verify_client_compatible() {
         return 0
     fi
 
-    reported="$("${client_binary}" --version 2>/dev/null |
-        grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || true
+    reported="$(_parse_client_version "${client_binary}")"
     if [[ -z "${reported}" ]]; then
         log_warn "Cannot run ${client_binary} here; skipping compatibility check"
         return 0
     fi
 
-    if [[ "${reported%%.*}" != "${expected%%.*}" ]]; then
-        log_error "hsync-client ${reported} is incompatible with this build" \
-            "(needs major ${expected%%.*}); refusing to bundle it"
+    if ! _client_version_matches "${reported}" "${expected}"; then
+        log_error "hsync-client ${reported} does not match the required" \
+            "${expected}; refusing to bundle it"
         exit 1
     fi
     log_ok "hsync-client ${reported} matches HSYNC_VERSION ${expected}"
@@ -1009,6 +1014,16 @@ build_deb_all() {
                 )
                 mkdir -p hsync_desktop/bin
                 cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
+                # Pin the bundled engine to the exact shared HSYNC_VERSION; the
+                # desktop ships it, so a drift must fail the build.
+                source /repo/hsync-desktop/packaging/client-version.sh
+                expected_engine=\$(/repo/hsync-client/.venv/bin/python -c 'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)')
+                reported_engine=\$(_parse_client_version hsync_desktop/bin/hsync)
+                _client_version_matches \"\${reported_engine}\" \"\${expected_engine}\" || {
+                    echo \"hsync-client \${reported_engine} does not match the required \${expected_engine}\" >&2
+                    exit 1
+                }
+                echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2
 
                 install_ok=0
                 for attempt in 1 2 3; do
@@ -1371,6 +1386,16 @@ build_rpm_all() {
                 )
                 mkdir -p hsync_desktop/bin
                 cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
+                # Pin the bundled engine to the exact shared HSYNC_VERSION; the
+                # desktop ships it, so a drift must fail the build.
+                source /repo/hsync-desktop/packaging/client-version.sh
+                expected_engine=\$(/repo/hsync-client/.venv/bin/python -c 'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)')
+                reported_engine=\$(_parse_client_version hsync_desktop/bin/hsync)
+                _client_version_matches \"\${reported_engine}\" \"\${expected_engine}\" || {
+                    echo \"hsync-client \${reported_engine} does not match the required \${expected_engine}\" >&2
+                    exit 1
+                }
+                echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2
 
                 install_ok=0
                 for attempt in 1 2 3; do

@@ -20,6 +20,9 @@ import subprocess
 from pathlib import Path
 
 COMPILE_SH = Path(__file__).resolve().parents[1] / "compile.sh"
+# Shared build-time gate (version parsing + exact-match rule), sourced by both
+# compile.sh (host) and the deb-all/rpm-all container scripts.
+CLIENT_VERSION_SH = COMPILE_SH.parent / "packaging" / "client-version.sh"
 
 # The historical regression: Poetry 2.x ignores `--with` next to `--only`.
 _BROKEN = "poetry install --only main --with build"
@@ -283,6 +286,7 @@ def _run_verify(
             'log_warn(){ echo "WARN: $*" >&2; }',
             'log_error(){ echo "ERR: $*" >&2; }',
             '_expected_client_version(){ printf "%s" "$EXPECTED"; }',
+            f'source "{CLIENT_VERSION_SH}"',
             _verify_client_compatible_body(),
             '_verify_client_compatible "$CLIENT"',
         ]
@@ -295,8 +299,24 @@ def _run_verify(
     )
 
 
-def test_verify_client_compatible_accepts_same_major(tmp_path: Path) -> None:
-    proc = _run_verify(tmp_path, "1.0.3", "1.9.9")
+def test_verify_client_compatible_accepts_the_exact_version(tmp_path: Path) -> None:
+    proc = _run_verify(tmp_path, "1.0.17", "1.0.17")
+    assert proc.returncode == 0, proc.stderr
+    assert "matches HSYNC_VERSION" in proc.stderr
+
+
+def test_verify_client_compatible_rejects_a_patch_mismatch(tmp_path: Path) -> None:
+    """Regression: a same-major but stale client (1.0.16 vs 1.0.17) must be
+    refused — the old check only compared the major and then logged a false
+    \"matches HSYNC_VERSION\"."""
+    proc = _run_verify(tmp_path, "1.0.17", "1.0.16")
+    assert proc.returncode != 0
+    assert "does not match the required" in proc.stderr
+
+
+def test_verify_client_compatible_pins_a_prerelease(tmp_path: Path) -> None:
+    """A prerelease desktop must pin its exact engine, not just the core X.Y.Z."""
+    proc = _run_verify(tmp_path, "1.2.0-alpha.1", "1.2.0-alpha.1")
     assert proc.returncode == 0, proc.stderr
     assert "matches HSYNC_VERSION" in proc.stderr
 
@@ -304,13 +324,26 @@ def test_verify_client_compatible_accepts_same_major(tmp_path: Path) -> None:
 def test_verify_client_compatible_rejects_different_major(tmp_path: Path) -> None:
     proc = _run_verify(tmp_path, "1.0.3", "2.0.0")
     assert proc.returncode != 0
-    assert "incompatible" in proc.stderr
+    assert "does not match the required" in proc.stderr
 
 
 def test_verify_client_compatible_skips_unrunnable_client(tmp_path: Path) -> None:
     proc = _run_verify(tmp_path, "1.0.3", None)
     assert proc.returncode == 0
     assert "skipping compatibility check" in proc.stderr
+
+
+def test_compile_sh_sources_the_shared_version_gate() -> None:
+    assert CLIENT_VERSION_SH.is_file()
+    assert 'source "${SCRIPT_DIR}/packaging/client-version.sh"' in _script()
+
+
+def test_deb_all_and_rpm_all_verify_the_in_container_client() -> None:
+    """The cross-arch targets build the client inside the container; they must
+    apply the same exact-version gate as the host by sourcing the shared rule."""
+    script = _script()
+    assert script.count("/repo/hsync-desktop/packaging/client-version.sh") >= 2
+    assert script.count("_client_version_matches") >= 2
 
 
 def test_bundling_verifies_the_client_and_skips_the_cross_arch_rpi() -> None:

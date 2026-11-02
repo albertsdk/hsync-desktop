@@ -170,11 +170,16 @@ disable unsupported controls) is realized in
 
 - **The client/desktop version pairing is gated at build time**: `compile.sh`
   `_add_data_args` runs the bundled `hsync-client` binary with `--version` and
-  refuses the build when its major version differs from
-  `hsync_common.constants.HSYNC_VERSION` — the same rule the app re-checks at
-  runtime (`engine/cli.py::is_binary_version_compatible`, which only warns). A binary
-  that cannot run on the host (cross-arch `rpi`) is reported as unverifiable and
-  skipped. Guarded by `tests/test_compile_script.py`.
+  refuses the build unless its version equals
+  `hsync_common.constants.HSYNC_VERSION` exactly (full SemVer, prerelease
+  included) — the desktop ships the engine, so the packaged pairing is immutable.
+  The rule lives in `packaging/client-version.sh`
+  (`_parse_client_version` / `_client_version_matches`), shared with the
+  `deb-all`/`rpm-all` container scripts so every bundling path enforces it; the
+  app's runtime check (`engine/cli.py::is_binary_version_compatible`) is
+  deliberately looser and only warns. A binary that cannot run on the host
+  (cross-arch `rpi`) is reported as unverifiable and skipped. Guarded by
+  `tests/test_compile_script.py`.
 
 - **Every package is self-contained (client bundled)**: the `deb`/`rpm` targets
   now bundle the `hsync` engine like `native`/`dmg`/`appimage`, so the packages
@@ -182,7 +187,8 @@ disable unsupported controls) is realized in
   package. Host `deb`/`rpm` bundle `CLIENT_BINARY` (verified against
   `HSYNC_VERSION`); `deb-all`/`rpm-all` compile the per-arch client **inside the
   same Docker container** as the GUI (same arch and distro → same glibc; the
-  client's `rpi` arm64 binary would not run on Rocky's older glibc) and stage it
+  client's `rpi` arm64 binary would not run on Rocky's older glibc), verify it
+  against `HSYNC_VERSION` with the same shared gate and stage it
   at `hsync_desktop/bin/hsync` (keeping the platform suffix, i.e. `hsync.exe` on
   Windows, so `find_hsync_binary` finds it). Every client-bundling target
   (`native`, `rpi`, `deb`, `rpm`, `appimage`, `dmg`) calls
