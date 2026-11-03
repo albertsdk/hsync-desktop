@@ -305,13 +305,18 @@ def test_verify_client_compatible_accepts_the_exact_version(tmp_path: Path) -> N
     assert "matches HSYNC_VERSION" in proc.stderr
 
 
-def test_verify_client_compatible_rejects_a_patch_mismatch(tmp_path: Path) -> None:
-    """Regression: a same-major but stale client (1.0.16 vs 1.0.17) must be
-    refused — the old check only compared the major and then logged a false
-    \"matches HSYNC_VERSION\"."""
+def test_verify_client_compatible_warns_on_a_patch_mismatch(tmp_path: Path) -> None:
+    """A client that differs only in the patch number is bundled with a warning
+    instead of failing the build."""
     proc = _run_verify(tmp_path, "1.0.17", "1.0.16")
+    assert proc.returncode == 0, proc.stderr
+    assert "only in the patch number" in proc.stderr
+
+
+def test_verify_client_compatible_rejects_a_minor_mismatch(tmp_path: Path) -> None:
+    proc = _run_verify(tmp_path, "1.0.17", "1.1.0")
     assert proc.returncode != 0
-    assert "does not match the required" in proc.stderr
+    assert "incompatible" in proc.stderr
 
 
 def test_verify_client_compatible_pins_a_prerelease(tmp_path: Path) -> None:
@@ -324,7 +329,7 @@ def test_verify_client_compatible_pins_a_prerelease(tmp_path: Path) -> None:
 def test_verify_client_compatible_rejects_different_major(tmp_path: Path) -> None:
     proc = _run_verify(tmp_path, "1.0.3", "2.0.0")
     assert proc.returncode != 0
-    assert "does not match the required" in proc.stderr
+    assert "incompatible" in proc.stderr
 
 
 def test_verify_client_compatible_skips_unrunnable_client(tmp_path: Path) -> None:
@@ -340,10 +345,10 @@ def test_compile_sh_sources_the_shared_version_gate() -> None:
 
 def test_deb_all_and_rpm_all_verify_the_in_container_client() -> None:
     """The cross-arch targets build the client inside the container; they must
-    apply the same exact-version gate as the host by sourcing the shared rule."""
+    apply the same shared rule as the host by sourcing the version gate."""
     script = _script()
     assert script.count("/repo/hsync-desktop/packaging/client-version.sh") >= 2
-    assert script.count("_client_version_matches") >= 2
+    assert script.count("_client_version_relation") >= 2
 
 
 def test_bundling_verifies_the_client_and_skips_the_cross_arch_rpi() -> None:

@@ -448,9 +448,9 @@ _expected_client_version() {
 # deb-all / rpm-all container scripts so every bundling path applies it.
 source "${SCRIPT_DIR}/packaging/client-version.sh"
 
-# Refuse to bundle a client binary whose version does not match the shared
-# HSYNC_VERSION exactly. The desktop ships the engine, so the packaged pairing is
-# immutable and must be the release the GUI was built against; the runtime check
+# Bundle the client binary, refusing a major/minor drift from the shared
+# HSYNC_VERSION but tolerating (with a warning) a drift confined to the patch
+# number. The desktop ships the engine, so the runtime check
 # (engine/cli.py::is_binary_version_compatible) is deliberately looser and only
 # warns. A binary that cannot run on this host (e.g. the cross-arch rpi client)
 # is reported as unverifiable, not failed.
@@ -471,12 +471,20 @@ _verify_client_compatible() {
         return 0
     fi
 
-    if ! _client_version_matches "${reported}" "${expected}"; then
-        log_error "hsync-client ${reported} does not match the required" \
-            "${expected}; refusing to bundle it"
-        exit 1
-    fi
-    log_ok "hsync-client ${reported} matches HSYNC_VERSION ${expected}"
+    case "$(_client_version_relation "${reported}" "${expected}")" in
+        match)
+            log_ok "hsync-client ${reported} matches HSYNC_VERSION ${expected}"
+            ;;
+        patch)
+            log_warn "hsync-client ${reported} differs from HSYNC_VERSION ${expected}" \
+                "only in the patch number; bundling it anyway"
+            ;;
+        *)
+            log_error "hsync-client ${reported} is incompatible with HSYNC_VERSION ${expected}" \
+                "(major/minor differ); refusing to bundle it"
+            exit 1
+            ;;
+    esac
 }
 
 # Emit the PyInstaller --add-data arguments shared by the native and rpi builds.
@@ -787,7 +795,7 @@ build_deb() {
 
     # Self-contained: bundle the host-arch hsync-client so the .deb does not
     # depend on a separate hsync-client package. The binary is checked against
-    # HSYNC_VERSION at build time (a mismatched major fails the build).
+    # HSYNC_VERSION at build time (a major/minor drift fails the build).
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
     _require_bundled_client
@@ -1014,16 +1022,16 @@ build_deb_all() {
                 )
                 mkdir -p hsync_desktop/bin
                 cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
-                # Pin the bundled engine to the exact shared HSYNC_VERSION; the
-                # desktop ships it, so a drift must fail the build.
+                # Pin the bundled engine to the shared HSYNC_VERSION: a major/minor
+                # drift fails the build, a patch-only drift is a warning.
                 source /repo/hsync-desktop/packaging/client-version.sh
                 expected_engine=\$(/repo/hsync-client/.venv/bin/python -c 'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)')
                 reported_engine=\$(_parse_client_version hsync_desktop/bin/hsync)
-                _client_version_matches \"\${reported_engine}\" \"\${expected_engine}\" || {
-                    echo \"hsync-client \${reported_engine} does not match the required \${expected_engine}\" >&2
-                    exit 1
-                }
-                echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2
+                case \"\$(_client_version_relation \"\${reported_engine}\" \"\${expected_engine}\")\" in
+                    match) echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2 ;;
+                    patch) echo \"WARNING: hsync-client \${reported_engine} differs from HSYNC_VERSION \${expected_engine} only in the patch number; bundling it anyway\" >&2 ;;
+                    *) echo \"ERROR: hsync-client \${reported_engine} is incompatible with HSYNC_VERSION \${expected_engine} (major/minor differ)\" >&2; exit 1 ;;
+                esac
 
                 install_ok=0
                 for attempt in 1 2 3; do
@@ -1386,16 +1394,16 @@ build_rpm_all() {
                 )
                 mkdir -p hsync_desktop/bin
                 cp \"/repo/hsync-client/dist/${client_platform}/hsync\" hsync_desktop/bin/hsync
-                # Pin the bundled engine to the exact shared HSYNC_VERSION; the
-                # desktop ships it, so a drift must fail the build.
+                # Pin the bundled engine to the shared HSYNC_VERSION: a major/minor
+                # drift fails the build, a patch-only drift is a warning.
                 source /repo/hsync-desktop/packaging/client-version.sh
                 expected_engine=\$(/repo/hsync-client/.venv/bin/python -c 'from hsync_common.constants import HSYNC_VERSION; print(HSYNC_VERSION)')
                 reported_engine=\$(_parse_client_version hsync_desktop/bin/hsync)
-                _client_version_matches \"\${reported_engine}\" \"\${expected_engine}\" || {
-                    echo \"hsync-client \${reported_engine} does not match the required \${expected_engine}\" >&2
-                    exit 1
-                }
-                echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2
+                case \"\$(_client_version_relation \"\${reported_engine}\" \"\${expected_engine}\")\" in
+                    match) echo \"hsync-client \${reported_engine} matches HSYNC_VERSION \${expected_engine}\" >&2 ;;
+                    patch) echo \"WARNING: hsync-client \${reported_engine} differs from HSYNC_VERSION \${expected_engine} only in the patch number; bundling it anyway\" >&2 ;;
+                    *) echo \"ERROR: hsync-client \${reported_engine} is incompatible with HSYNC_VERSION \${expected_engine} (major/minor differ)\" >&2; exit 1 ;;
+                esac
 
                 install_ok=0
                 for attempt in 1 2 3; do

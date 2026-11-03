@@ -170,11 +170,10 @@ disable unsupported controls) is realized in
 
 - **The client/desktop version pairing is gated at build time**: `compile.sh`
   `_add_data_args` runs the bundled `hsync-client` binary with `--version` and
-  refuses the build unless its version equals
-  `hsync_common.constants.HSYNC_VERSION` exactly (full SemVer, prerelease
-  included) — the desktop ships the engine, so the packaged pairing is immutable.
-  The rule lives in `packaging/client-version.sh`
-  (`_parse_client_version` / `_client_version_matches`), shared with the
+  refuses a major/minor drift from `hsync_common.constants::HSYNC_VERSION`, while
+  a drift confined to the patch number is tolerated with a warning (the desktop
+  ships the engine). The rule lives in `packaging/client-version.sh`
+  (`_parse_client_version` / `_client_version_relation`), shared with the
   `deb-all`/`rpm-all` container scripts so every bundling path enforces it; the
   app's runtime check (`engine/cli.py::is_binary_version_compatible`) is
   deliberately looser and only warns. A binary that cannot run on the host
