@@ -35,3 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sync could not start in p2p mode with exit code 2: the engine now receives the
   client's current `--peer-rendezvous-timeout` flag instead of the renamed
   `--rendezvous-timeout` (hsync-client 1.0.11).
+- A finished transfer no longer reopens or stays frozen: a trailing progress
+  sample cannot restart a row that already reached `Synced`, and a status
+  refresh now resolves a row whose terminal event was lost.
