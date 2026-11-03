@@ -342,7 +342,10 @@ def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
         args += ["--p2p-trust", trust if trust in _P2P_TRUST_POLICIES else DEFAULT_P2P_TRUST]
         if not s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool):
             args.append("--no-peer-download")
-        if s.value("p2p/no_mdns", DEFAULT_P2P_NO_MDNS, bool):
+        # The client refuses --no-mdns without a discovery server (nothing would
+        # be left to find peers with), so emit it only while one is configured.
+        rendezvous = str(s.value("p2p/rendezvous_server_endpoints", "", str)).strip()
+        if s.value("p2p/no_mdns", DEFAULT_P2P_NO_MDNS, bool) and rendezvous:
             args.append("--no-mdns")
 
 

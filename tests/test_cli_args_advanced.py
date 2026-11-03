@@ -148,14 +148,29 @@ class TestPeerDownload:
 
 class TestNoMdns:
     def test_no_mdns_on_emits_flag_in_p2p(self):
-        args = _build_args({"p2p/no_mdns": True}, p2p=True)
+        args = _build_args(
+            {"p2p/no_mdns": True, "p2p/rendezvous_server_endpoints": "rdv.example.net"},
+            p2p=True,
+        )
         assert "--no-mdns" in args
 
     def test_no_mdns_flag_absent_when_off(self):
-        assert "--no-mdns" not in _build_args({"p2p/no_mdns": False}, p2p=True)
+        args = _build_args(
+            {"p2p/no_mdns": False, "p2p/rendezvous_server_endpoints": "rdv.example.net"},
+            p2p=True,
+        )
+        assert "--no-mdns" not in args
 
     def test_no_mdns_flag_not_emitted_in_server_mode(self):
-        assert "--no-mdns" not in _build_args({"p2p/no_mdns": True}, p2p=False)
+        args = _build_args(
+            {"p2p/no_mdns": True, "p2p/rendezvous_server_endpoints": "rdv.example.net"},
+            p2p=False,
+        )
+        assert "--no-mdns" not in args
+
+    def test_no_mdns_flag_absent_without_a_discovery_server(self):
+        """The client refuses --no-mdns with no discovery server, so never emit it."""
+        assert "--no-mdns" not in _build_args({"p2p/no_mdns": True}, p2p=True)
 
 
 class TestBandwidthClamp:
