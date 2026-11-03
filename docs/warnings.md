@@ -13,7 +13,7 @@ not there.
 | **Toast** (bottom-right) | A transient message: searching for devices, connection result, "nothing to sync", a Send/Receive while a sync is running. | It auto-hides. |
 | **Warning / error banner** | Something you should read: a warning the sync keeps running through, or an error. An icon and a title make the severity recognisable without relying on colour. | You close it; it survives a new sync. |
 | **Desktop notification** | The same warning or error, shown by the operating system **only while the window is in the background**. | It follows your system notification settings. |
-| **Log panel** | Every message, including the ones shown as toasts. | Until you clear it. |
+| **Log panel** | Every message, including the ones shown as toasts. | Until you clear it (a new sync appends, it does not erase). |
 
 Errors and warnings always appear **in the app window**, whatever your
 notification preference; the preference only controls the operating-system

@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "このデバイスはファイルを削除しません（削除ポリシー：保持）。ここでは何も削除されず、他のデバイスの削除も適用されません。設定 → 同期 でオフにできます。",
     "simulation.window_title_suffix": " — シミュレーション",
     "simulation.log_start": "--- シミュレーション：変更は適用されません ---",
+    "sync.log_start": "--- 同期を開始しました ---",
     "tip.start": "同期を開始 — 先に確認用のプランを表示します",
     "tip.start_simulation": "シミュレーションモード：この実行はプレビューのみで、何も適用されません。",
     # Roles

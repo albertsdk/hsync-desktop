@@ -3058,28 +3058,92 @@ class TestSimulationIndicator:
         assert not window._simulation_badge.isHidden()
 
     def test_run_start_logs_the_simulation_delimiter(self, window, monkeypatch, tmp_path):
-        import hsync_desktop.main_window.actions as actions_module
+        import hsync_desktop.main_window.ui as ui_module
 
-        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: True)
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: True)
         folder = tmp_path / "shared"
         folder.mkdir()
         window._log_view.clear()
 
         window._prepare_engine_run(str(folder))
 
-        assert tr("simulation.log_start") in window._log_view.toPlainText()
+        text = window._log_view.toPlainText()
+        assert tr("simulation.log_start") in text
+        # Simulation Mode keeps its own notice as the run boundary: one marker.
+        assert tr("sync.log_start") not in text
 
-    def test_run_start_has_no_delimiter_when_the_mode_is_off(self, window, monkeypatch, tmp_path):
-        import hsync_desktop.main_window.actions as actions_module
+    def test_run_start_logs_the_sync_delimiter_when_the_mode_is_off(
+        self, window, monkeypatch, tmp_path
+    ):
+        import hsync_desktop.main_window.ui as ui_module
 
-        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: False)
         folder = tmp_path / "shared"
         folder.mkdir()
         window._log_view.clear()
 
         window._prepare_engine_run(str(folder))
 
-        assert tr("simulation.log_start") not in window._log_view.toPlainText()
+        text = window._log_view.toPlainText()
+        assert tr("sync.log_start") in text
+        assert tr("simulation.log_start") not in text
+
+
+class TestLogRetentionAcrossRuns:
+    """A restart appends to the log panel instead of wiping the previous run."""
+
+    @staticmethod
+    def _folder(tmp_path) -> str:
+        folder = tmp_path / "shared"
+        folder.mkdir()
+        return str(folder)
+
+    def test_a_restart_keeps_the_previous_run_lines(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window.ui as ui_module
+
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: False)
+        window._append_log("2026-10-21T14:48:07Z - [1] [N/A] INFO: previous run line")
+
+        window._prepare_engine_run(self._folder(tmp_path))
+
+        text = window._log_view.toPlainText()
+        assert "previous run line" in text
+        assert tr("sync.log_start") in text
+        # The boundary marker follows the previous run, so the order reads as one
+        # continuous log.
+        assert text.index("previous run line") < text.index(tr("sync.log_start"))
+
+    def test_a_restart_brings_the_tail_into_view(self, window, monkeypatch, tmp_path, qtbot):
+        import hsync_desktop.main_window.ui as ui_module
+
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: False)
+        window.resize(900, 600)
+        window.show()
+        for i in range(500):
+            window._append_log(f"line {i}")
+        qtbot.wait(20)
+        bar = window._log_view.verticalScrollBar()
+        bar.setValue(0)
+
+        window._prepare_engine_run(self._folder(tmp_path))
+        qtbot.wait(20)
+
+        assert bar.value() == bar.maximum()
+
+    def test_the_credential_retry_keeps_the_previous_run_lines(self, window, monkeypatch, tmp_path):
+        import hsync_desktop.main_window.ui as ui_module
+
+        monkeypatch.setattr(ui_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
+        monkeypatch.setattr(window, "_start_engine", lambda args: True)
+        window._local_path = str(tmp_path)
+        window._append_log("2026-10-21T14:48:07Z - [1] [N/A] INFO: before the retry")
+
+        window._retry_after_auth_fix()
+
+        text = window._log_view.toPlainText()
+        assert "before the retry" in text
+        assert tr("sync.log_start") in text
 
 
 class TestColoredLog:

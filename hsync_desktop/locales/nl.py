@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Dit apparaat verwijdert nooit bestanden (verwijderingsbeleid: bewaren): hier wordt niets verwijderd en verwijderingen van andere apparaten worden niet toegepast. Zet het uit in Instellingen → Synchronisatie.",
     "simulation.window_title_suffix": " — Simulatie",
     "simulation.log_start": "--- Simulatie: er worden geen wijzigingen toegepast ---",
+    "sync.log_start": "--- Synchronisatie gestart ---",
     "tip.start": "Synchroniseren starten — eerst verschijnt het plan ter bevestiging",
     "tip.start_simulation": "Simulatiemodus: deze run toont alleen een voorbeeld, er wordt niets toegepast.",
     # Roles

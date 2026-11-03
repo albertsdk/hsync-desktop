@@ -356,7 +356,7 @@ class TrustMixin:
         local_path = self._local_path
         if local_path:
             args = build_hsync_args(local_path, force_dry_run=True)
-            self._log_view.clear()
+            self._mark_new_run()
             self._file_panel.load_local_files(local_path)
             self._awaiting_preview_for_sync = True
             self._is_dry_run_preview = True

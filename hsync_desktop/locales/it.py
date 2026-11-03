@@ -24,6 +24,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Questo dispositivo non elimina mai file (politica di eliminazione: conserva): nulla viene rimosso qui e le eliminazioni degli altri dispositivi non vengono applicate. Disattivalo in Impostazioni → Sincronizzazione.",
     "simulation.window_title_suffix": " — Simulazione",
     "simulation.log_start": "--- Simulazione: nessuna modifica verrà applicata ---",
+    "sync.log_start": "--- Sincronizzazione avviata ---",
     "tip.start": "Avvia la sincronizzazione — prima viene mostrato il piano da confermare",
     "tip.start_simulation": "Esecuzione simulata: questa run mostra solo l'anteprima, nulla viene applicato.",
     "role.master": "Nodo primario",

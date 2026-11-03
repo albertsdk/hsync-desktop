@@ -805,6 +805,28 @@ class UiBuildMixin:
         """
         self._append_log(format_log_line(level, message, fields=("desktop",)))
 
+    def _mark_new_run(self) -> None:
+        """Open a new run in the log; the panel keeps the previous run's lines.
+
+        A restart appends to the panel instead of wiping it, so every run opens
+        with an explicit boundary marker and the view jumps to it (the earlier
+        lines stay above, reachable by scrolling). Simulation Mode keeps its own
+        notice as the boundary, so a run never opens with two markers.
+        """
+        self._append_desktop_log(
+            "INFO",
+            tr("simulation.log_start") if is_simulation_mode() else tr("sync.log_start"),
+        )
+        # The jump waits one event-loop turn: the scroll range is only final
+        # once Qt has laid the new block out, and a jump computed before that
+        # stops short of the tail.
+        QTimer.singleShot(0, self._scroll_log_to_end)
+
+    def _scroll_log_to_end(self) -> None:
+        """Bring the newest log line into view."""
+        bar = self._log_view.verticalScrollBar()
+        bar.setValue(bar.maximum())
+
     @Slot(str)
     def _on_engine_event_error(self, payload: str) -> None:
         """Record an engine event the desktop could not interpret.

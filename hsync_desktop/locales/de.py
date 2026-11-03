@@ -24,6 +24,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Dieses Gerät löscht nie Dateien (Löschungsrichtlinie: behalten): hier wird nichts entfernt und Löschungen anderer Geräte werden nicht angewendet. Änderbar unter Einstellungen → Synchronisierung.",
     "simulation.window_title_suffix": " — Testlauf",
     "simulation.log_start": "--- Testlauf: Es werden keine Änderungen angewendet ---",
+    "sync.log_start": "--- Synchronisierung gestartet ---",
     "tip.start": "Synchronisierung starten — zuerst wird der Plan zur Bestätigung angezeigt",
     "tip.start_simulation": "Testlauf: Dieser Start zeigt nur die Vorschau, es wird nichts übernommen.",
     "role.master": "Primärer Knoten",

@@ -68,9 +68,13 @@ runs, interleaved with the app's own status lines (the ones whose source is
 engine exiting). Both are written in the same
 `<timestamp> - [<pid>] [<source>] LEVEL: message` shape, in UTC, so a single
 reading covers the whole panel. You do not need it for normal use; it is the
-first place to look when something does not work. The labels are explained in
-[Log Labels](log-labels.md), and you can hide the panel from
-**Settings → General**.
+first place to look when something does not work.
+
+The panel **keeps the lines of previous runs**: a new sync opens with a
+`--- Sync started ---` marker and appends below it, so the history of the
+session stays readable. Right-click the panel and choose **Clear Log** to empty
+it. The labels are explained in [Log Labels](log-labels.md), and you can hide the
+panel from **Settings → General**.
 
 ## The status bar
 

@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "This device never deletes files (deletion policy: keep): nothing is removed here and deletions from other devices are not applied. Turn it off in Settings → Sync.",
     "simulation.window_title_suffix": " — Simulation",
     "simulation.log_start": "--- Simulation: no changes will be applied ---",
+    "sync.log_start": "--- Sync started ---",
     "tip.start": "Start syncing — a confirmation shows the plan first",
     "tip.start_simulation": "Simulation Mode: this run only previews, nothing is applied.",
     # Roles

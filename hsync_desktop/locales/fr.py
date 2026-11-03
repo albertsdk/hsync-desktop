@@ -24,6 +24,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Cet appareil ne supprime jamais de fichiers (politique de suppression : conserver) : rien n'est supprimé ici et les suppressions des autres appareils ne sont pas appliquées. Désactivez-le dans Paramètres → Synchronisation.",
     "simulation.window_title_suffix": " — Simulation",
     "simulation.log_start": "--- Simulation : aucune modification ne sera appliquée ---",
+    "sync.log_start": "--- Synchronisation démarrée ---",
     "tip.start": "Démarrer la synchronisation — le plan s'affiche d'abord pour confirmation",
     "tip.start_simulation": "Mode simulation : cette exécution n'affiche qu'un aperçu, rien n'est appliqué.",
     "role.master": "Nœud principal",

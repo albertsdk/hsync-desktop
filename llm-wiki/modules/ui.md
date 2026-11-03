@@ -211,8 +211,11 @@ hook). It drives:
 * the tray tooltip note (`system_tray.py::SystemTray.set_simulation`) and the Start
   button hint (`tip.start_simulation`).
 
-The run itself opens with `simulation.log_start` (`_prepare_engine_run`,
-`main_window/actions.py`) and the preview dialog swaps *Synchronize* for *Close*
+The run itself opens with a boundary marker (`_mark_new_run`,
+`main_window/ui.py::UiBuildMixin._mark_new_run`, called by `_prepare_engine_run`
+in `main_window/actions.py`): `simulation.log_start` in Simulation Mode,
+`sync.log_start` otherwise. The marker is appended without wiping the panel,
+which keeps the previous runs. The preview dialog swaps *Synchronize* for *Close*
 (`preview_summary_dialog.py::PreviewSummaryDialog`, `simulation=True`), so no
 control ever promises an application that cannot happen.
 
@@ -910,10 +913,18 @@ shape through `hsync_common.logger.format_log_line` with `desktop` in the
 correlation slot (no client session exists, so the app's own pid is rendered and
 `[desktop]` replaces the CID): `<timestamp> - [<pid>] [desktop] LEVEL: message`.
 Nothing writes to the panel with a hand-built prefix — the phase markers
-(`--- … ---`: comparison started/ended, stopping, preparing a plan, selection
-sync, process finished) are `INFO` lines through the same helper, and the
-engine's malformed-event diagnostic is an `ERROR` one (`event_error` →
+(`--- … ---`: run start, comparison started/ended, stopping, preparing a plan,
+selection sync, process finished) are `INFO` lines through the same helper, and
+the engine's malformed-event diagnostic is an `ERROR` one (`event_error` →
 `main_window/ui.py::UiBuildMixin._on_engine_event_error`).
+
+The panel **keeps its lines across runs**: `_mark_new_run`
+(`main_window/ui.py::UiBuildMixin._mark_new_run`) appends the run boundary
+(`sync.log_start`, or `simulation.log_start` in Simulation Mode) instead of
+clearing the document, and `_scroll_log_to_end`
+(`main_window/ui.py::UiBuildMixin._scroll_log_to_end`) jumps the view to it one
+event-loop turn later (the scroll range is final only after Qt lays the new block
+out). Only the context-menu **Clear Log** empties the panel.
 
 Both producers show the timestamp in the same gray: the engine's lines carry the
 client's `<dim>` SGR, and for the SGR-free desktop lines

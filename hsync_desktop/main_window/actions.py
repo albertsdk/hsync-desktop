@@ -278,7 +278,6 @@ class ActionsMixin:
     ) -> None:
         """Common pre-start bookkeeping shared by every engine (re)start."""
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("path/local", local_path)
-        self._log_view.clear()
         # A new run clears stale run-scoped toasts but keeps persistent
         # error/warning toasts the user has not dismissed yet.
         self._clear_run_toast(across_runs=True)
@@ -311,8 +310,7 @@ class ActionsMixin:
         self._render_share_size()
         if self._notifier:
             self._notifier.user_stopped = False
-        if is_simulation_mode():
-            self._append_desktop_log("INFO", tr("simulation.log_start"))
+        self._mark_new_run()
 
     def _sync_selection(self, filepath: str, direction: str) -> None:
         """Confirm and run a one-shot Send (upload-only) / Receive (download-only)

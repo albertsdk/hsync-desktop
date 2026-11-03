@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "To urządzenie nigdy nie usuwa plików (polityka usuwania: zachowaj): nic nie jest tutaj usuwane, a usunięcia z innych urządzeń nie są stosowane. Wyłącz to w Ustawienia → Synchronizacja.",
     "simulation.window_title_suffix": " — Symulacja",
     "simulation.log_start": "--- Symulacja: żadne zmiany nie zostaną zastosowane ---",
+    "sync.log_start": "--- Synchronizacja rozpoczęta ---",
     "tip.start": "Rozpocznij synchronizację — najpierw pojawia się plan do potwierdzenia",
     "tip.start_simulation": "Tryb symulacji: to uruchomienie tylko pokazuje podgląd, nic nie jest stosowane.",
     # Roles

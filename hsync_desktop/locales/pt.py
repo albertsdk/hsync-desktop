@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "Este dispositivo nunca exclui ficheiros (política de exclusão: manter): nada é removido aqui e as exclusões dos outros dispositivos não são aplicadas. Desative em Definições → Sincronização.",
     "simulation.window_title_suffix": " — Simulação",
     "simulation.log_start": "--- Simulação: nenhuma alteração será aplicada ---",
+    "sync.log_start": "--- Sincronização iniciada ---",
     "tip.start": "Iniciar a sincronização — o plano aparece primeiro para confirmação",
     "tip.start_simulation": "Modo de simulação: esta execução mostra apenas a pré-visualização, nada é aplicado.",
     # Roles

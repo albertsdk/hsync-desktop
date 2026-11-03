@@ -26,6 +26,7 @@ translations: dict[str, str] = {
     "deletion.tip": "本设备永不删除文件（删除策略：保留）：此处不会删除任何内容，其他设备的删除也不会应用。可在 设置 → 同步 中关闭。",
     "simulation.window_title_suffix": " — 模拟",
     "simulation.log_start": "--- 模拟：不会应用任何更改 ---",
+    "sync.log_start": "--- 同步已启动 ---",
     "tip.start": "开始同步 — 先显示计划供确认",
     "tip.start_simulation": "模拟模式：本次运行仅显示预览，不会应用任何内容。",
     # Roles
