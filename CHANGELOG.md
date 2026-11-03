@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The welcome splash — also the Help → About window — now shows the bundled sync
   engine's version next to the app version (`Engine 1.0.11`, localized), or an em
   dash when it cannot be determined.
+- The p2p settings tab gained an **Exclude the local network** toggle: it
+  disables mDNS discovery and finds devices only through the configured
+  discovery server(s) (`--no-mdns`). It is enabled only while a discovery server
+  is configured, since without one there would be no discovery channel at all.
 
 ### Changed
 

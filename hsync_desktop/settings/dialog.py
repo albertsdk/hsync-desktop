@@ -80,6 +80,7 @@ from hsync_desktop.config import (
     DEFAULT_NTP_HOSTS,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_KEY,
+    DEFAULT_P2P_NO_MDNS,
     DEFAULT_P2P_PEER_DOWNLOAD,
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
@@ -389,6 +390,7 @@ class SettingsDialog(QDialog):
             (self.btn_manage_trusted_keys, "tip.manage_trusted_keys"),
             (self.btn_test_rendezvous, "tip.test_rendezvous"),
             (self.p2p_upnp, "tip.p2p_upnp"),
+            (self.no_mdns, "tip.p2p_no_mdns"),
             (self.p2p_key, "tip.p2p_key"),
             (self.btn_show_group_key, "tip.show_group_key"),
             (self.p2p_port, "tip.p2p_port"),
@@ -462,6 +464,7 @@ class SettingsDialog(QDialog):
             ("--never-master", self.never_master, self._lbl_never_master),
             ("--p2p-trust", self.p2p_trust, self._lbl_p2p_trust),
             ("--map-data-port", self.p2p_upnp, self._lbl_p2p_upnp),
+            ("--no-mdns", self.no_mdns, self._lbl_no_mdns),
         ]
         for flag, widget, label in gated:
             if p2p_supported and supports_cli_option(doc, flag, subcommand="p2p"):
@@ -572,6 +575,9 @@ class SettingsDialog(QDialog):
         self.p2p_key.textChanged.connect(self._refresh_rdv_key_warning)
         self.p2p_rendezvous.textChanged.connect(self._refresh_rdv_key_warning)
         self.p2p_rendezvous.textChanged.connect(self._refresh_group_key_button)
+        # "Exclude the local network" only applies while a discovery server is
+        # configured, so it follows the rendezvous field.
+        self.p2p_rendezvous.textChanged.connect(self._refresh_no_mdns_enabled)
 
     def showEvent(self, event: QShowEvent) -> None:
         """Fit the first visible tab after the initial layout settles."""
@@ -742,6 +748,7 @@ class SettingsDialog(QDialog):
             self.btn_test_rendezvous,
             self.btn_show_group_key,
             self.p2p_upnp,
+            self.no_mdns,
             self.p2p_key,
             self.p2p_port,
             self.rendezvous_timeout,
@@ -758,6 +765,9 @@ class SettingsDialog(QDialog):
         # The show-group-key action also needs a configured discovery server and
         # a non-empty shared password; the changed-password warning follows too.
         self._refresh_group_key_button()
+        # "Exclude the local network" additionally needs a configured discovery
+        # server, so re-evaluate it after the mode-based enable pass.
+        self._refresh_no_mdns_enabled()
         self._refresh_rdv_key_warning()
 
         # Also enable/disable the labels in the p2p tab (except p2p_mode label)
@@ -1024,6 +1034,24 @@ class SettingsDialog(QDialog):
             and self.btn_show_group_key not in self._unsupported_widgets
         )
         self.btn_show_group_key.setEnabled(usable)
+
+    @Slot()
+    def _refresh_no_mdns_enabled(self) -> None:
+        """Enable "exclude the local network" only when it can apply.
+
+        The flag removes mDNS discovery, so it is only meaningful while a
+        discovery server is configured (otherwise there would be no discovery
+        channel at all). It also follows the p2p-mode gate and the capability
+        gate.
+        """
+        if not hasattr(self, "no_mdns"):
+            return
+        usable = (
+            self.p2p_mode.isChecked()
+            and bool(str(self.p2p_rendezvous.text()).strip())
+            and self.no_mdns not in self._unsupported_widgets
+        )
+        self.no_mdns.setEnabled(usable)
 
     def _confirm_rdv_key_update(self) -> bool:
         """Ask before applying a password change that invalidates the key on
@@ -1399,6 +1427,7 @@ class SettingsDialog(QDialog):
             self.p2p_rendezvous_trust.currentData() or DEFAULT_P2P_RENDEZVOUS_TRUST,
         )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
+        s.setValue("p2p/no_mdns", self.no_mdns.isChecked())
         s.setValue("p2p/key", encrypt_value(self.p2p_key.text().strip()))
         s.setValue("p2p/key_mode", self._effective_p2p_key_mode())
         s.setValue("p2p/port", self.p2p_port.value())
@@ -1542,6 +1571,7 @@ class SettingsDialog(QDialog):
         )
         self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
+        self.no_mdns.setChecked(bool(s.value("p2p/no_mdns", DEFAULT_P2P_NO_MDNS, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
         self._p2p_key_loaded = self.p2p_key.text().strip()
         self._p2p_key_mode_loaded = str(s.value("p2p/key_mode", "raw", str)) or "raw"
@@ -1702,6 +1732,7 @@ class SettingsDialog(QDialog):
             self.btn_test_rendezvous,
             self.btn_show_group_key,
             self.p2p_upnp,
+            self.no_mdns,
             self.p2p_key,
             self.p2p_port,
             self.rendezvous_timeout,

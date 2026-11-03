@@ -166,6 +166,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
         )
     )
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
+    dlg._lbl_no_mdns.setText(tr("settings.p2p_no_mdns"))
     dlg._lbl_p2p_key_rdv_warning.setText(tr("settings.p2p_key_rdv_warning"))
     lbl = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
     if lbl:

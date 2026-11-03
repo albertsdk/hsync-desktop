@@ -121,6 +121,10 @@ DEFAULT_P2P_RENDEZVOUS_TRUST = "ask"
 # HSYNC_MAP_DATA_PORT; the client treats it as on only with a discovery server by
 # default.
 DEFAULT_P2P_UPNP_ENABLED = True
+# Exclude the local network: discover peers only through the configured
+# discovery server(s), not mDNS. Passed via --no-mdns; only meaningful with a
+# discovery server configured (the toggle is disabled otherwise).
+DEFAULT_P2P_NO_MDNS = False
 # Comma-separated SNTP servers (ADR-0023) passed to hsync-client via the
 # HSYNC_NTP_HOSTS environment variable. Empty = client defaults
 # (pool.ntp.org, time.cloudflare.com, time.google.com); entries may carry a

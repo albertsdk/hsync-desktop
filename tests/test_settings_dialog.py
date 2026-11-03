@@ -119,6 +119,7 @@ class TestCapabilityGating:
                 "--p2p-trust",
                 "--rendezvous-server",
                 "--map-data-port",
+                "--no-mdns",
                 "--no-autotune",
                 "--max-concurrent-transfers",
                 "--no-delta",
@@ -145,7 +146,7 @@ class TestCapabilityGating:
         dlg = self._make_dialog(
             qtbot,
             monkeypatch,
-            p2p_flags=["--prefer-master", "--rendezvous-server", "--map-data-port"],
+            p2p_flags=["--prefer-master", "--rendezvous-server", "--map-data-port", "--no-mdns"],
         )
         dlg.p2p_mode.setChecked(True)
         assert dlg.p2p_rendezvous.isEnabled()
@@ -153,6 +154,32 @@ class TestCapabilityGating:
         dlg2.p2p_mode.setChecked(True)
         assert not dlg2.p2p_rendezvous.isEnabled()
         assert dlg2.p2p_rendezvous.toolTip() == tr("tip.capability_unsupported")
+
+    def test_no_mdns_enabled_only_with_a_discovery_server(self, qtbot, monkeypatch):
+        """``--no-mdns`` removes mDNS, so it is usable only with a discovery server."""
+        dlg = self._make_dialog(
+            qtbot,
+            monkeypatch,
+            p2p_flags=["--rendezvous-server", "--no-mdns"],
+        )
+        dlg.p2p_mode.setChecked(True)
+        # No discovery server configured: the toggle would leave no discovery
+        # channel at all, so it stays disabled.
+        dlg.p2p_rendezvous.setText("")
+        assert not dlg.no_mdns.isEnabled()
+        dlg.p2p_rendezvous.setText("rdv.example.net")
+        assert dlg.no_mdns.isEnabled()
+        # The p2p-mode gate still applies.
+        dlg.p2p_mode.setChecked(False)
+        assert not dlg.no_mdns.isEnabled()
+
+    def test_no_mdns_unsupported_disables_toggle(self, qtbot, monkeypatch):
+        """A binary without ``--no-mdns`` disables the toggle."""
+        dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--rendezvous-server"])
+        dlg.p2p_mode.setChecked(True)
+        dlg.p2p_rendezvous.setText("rdv.example.net")
+        assert not dlg.no_mdns.isEnabled()
+        assert dlg.no_mdns.toolTip() == tr("tip.capability_unsupported")
 
     def test_p2p_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_supported=False)

@@ -402,6 +402,7 @@ class TestClientCapabilitiesParity:
             "--subdir",
             "--sync-direction",
             "--map-data-port",
+            "--no-mdns",
             "--verbose",
         }
     )

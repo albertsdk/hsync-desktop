@@ -307,6 +307,15 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg._lbl_p2p_upnp = QLabel(dlg)
     _insert_row_after(manage_container, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
 
+    # "Exclude the local network": disable mDNS discovery and rely on the
+    # configured discovery server(s) only. Placed with the other discovery-scope
+    # controls; enabled only while a discovery server is configured (see
+    # ``SettingsDialog._refresh_no_mdns_enabled``).
+    dlg.no_mdns = ToggleSwitch(dlg)
+    dlg.no_mdns.setObjectName("noMdns")
+    dlg._lbl_no_mdns = QLabel(dlg)
+    _insert_row_after(dlg.p2p_upnp, dlg._lbl_no_mdns, dlg.no_mdns)
+
     # NTP hosts (ADR-0023) – comma-separated SNTP servers passed to
     # hsync-client via the HSYNC_NTP_HOSTS environment variable. Dynamic,
     # no .ui counterpart; inserted right after the rendezvous_timeout row.

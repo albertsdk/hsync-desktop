@@ -323,13 +323,16 @@ by `_populate_rendezvous_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
 opens `TrustedKeysDialog` on the rendezvouss tab) + `btn_test_rendezvous`
 (`QPushButton`, probes the rendezvous via `fetch_rendezvous_fingerprint` on
 `engine/async_probe.py::AsyncProbe`) +
-`p2p_upnp` (`ToggleSwitch`), saved/loaded under
-`p2p/rendezvous_server_endpoints` / `p2p/rendezvous_server_trust` / `p2p/upnp_enabled`; labels from
+`p2p_upnp` (`ToggleSwitch`) + `no_mdns` (`ToggleSwitch`, "Exclude the local
+network": enabled only with a discovery server set, `_refresh_no_mdns_enabled`),
+saved/loaded under
+`p2p/rendezvous_server_endpoints` / `p2p/rendezvous_server_trust` / `p2p/upnp_enabled` /
+`p2p/no_mdns`; labels from
 `settings.p2p_rendezvous` / `settings.manage_trusted_keys` /
 `settings.p2p_rendezvous_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
-`*_none` option labels) / `settings.p2p_upnp` (all locales); tips from
+`*_none` option labels) / `settings.p2p_upnp` / `settings.p2p_no_mdns` (all locales); tips from
 `tip.p2p_rendezvous` (what a rendezvous is/does) / `tip.p2p_rendezvous_trust` /
-`tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.test_rendezvous`, shown per the
+`tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.p2p_no_mdns` / `tip.test_rendezvous`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
 `QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
 (`settings.group.p2p_mode`), Finding devices (`settings.group.p2p_rendezvous`),

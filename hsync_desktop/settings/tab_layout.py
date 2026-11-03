@@ -423,6 +423,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     # configured (see ``SettingsDialog._refresh_group_key_button``).
     g2.addRow("", dlg.btn_show_group_key)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
+    add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
     dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
     g2.addRow("", dlg._lbl_help_rendezvous)
     vbox.addWidget(dlg._grp_p2p_rendezvous)

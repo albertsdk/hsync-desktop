@@ -146,6 +146,18 @@ class TestPeerDownload:
         assert "--no-peer-download" not in _build_args({"p2p/peer_download": False}, p2p=False)
 
 
+class TestNoMdns:
+    def test_no_mdns_on_emits_flag_in_p2p(self):
+        args = _build_args({"p2p/no_mdns": True}, p2p=True)
+        assert "--no-mdns" in args
+
+    def test_no_mdns_flag_absent_when_off(self):
+        assert "--no-mdns" not in _build_args({"p2p/no_mdns": False}, p2p=True)
+
+    def test_no_mdns_flag_not_emitted_in_server_mode(self):
+        assert "--no-mdns" not in _build_args({"p2p/no_mdns": True}, p2p=False)
+
+
 class TestBandwidthClamp:
     """Bandwidth limits are clamped to the client's [1 KB/s, 100 MB/s] range."""
 

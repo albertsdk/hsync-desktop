@@ -69,6 +69,7 @@ for when to use it.
 | Discovery servers identity check | How the app checks the discovery server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
 | Manage trusted servers & devices | List, add and remove the discovery servers, server and device fingerprints the client actually uses |
 | Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
+| Exclude the local network | Find devices only through the discovery servers, not mDNS, so the app ignores the local network. Useful on a shared network or when the local interface is a VPN; only takes effect with a discovery server set |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | New primary device | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
