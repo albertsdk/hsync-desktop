@@ -532,6 +532,17 @@ class EventsMixin:
     @Slot(str)
     def _on_directory_created(self, dirpath: str) -> None:
         """Handle a directory creation event from the engine."""
+        self._on_directory_status(dirpath, "synced")
+
+    @Slot(str, str)
+    def _on_directory_status(self, dirpath: str, status: str) -> None:
+        """Render the engine's verdict for a directory on its folder row.
+
+        An empty directory is synchronised as its internal ``.hsynckeep``
+        sentinel, which never becomes a file row, so the engine reports the
+        directory itself (``dir_status``): both for a directory it created
+        from a remote event and for one already in sync.
+        """
         base_path = self._local_path
         rel_path = dirpath
         if base_path and dirpath.startswith(base_path):
@@ -553,7 +564,7 @@ class EventsMixin:
         if dir_key:
             self._file_panel.update_file_status(
                 dir_key + "/",
-                "synced",
+                status,
                 size=0,
                 mtime=mtime,
                 client_cid=client_cid,

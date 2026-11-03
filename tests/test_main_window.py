@@ -1887,6 +1887,44 @@ class TestDirectoryCreatedStatus:
         assert captured["path"] == "newdir/"
 
 
+class TestDirectoryStatus:
+    """A directory's own verdict lands on its folder row (``dir_status``)."""
+
+    @staticmethod
+    def _capture_status(window, monkeypatch):
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(
+            window._file_panel,
+            "update_file_status",
+            lambda path, status, **kwargs: captured.update(path=path, status=status),
+        )
+        return captured
+
+    def test_a_bucket_relative_directory_uses_the_trailing_slash_key(self, window, monkeypatch):
+        window._local_path = "/share"
+        captured = self._capture_status(window, monkeypatch)
+
+        window._on_directory_status("docs/empty", "to_upload")
+
+        assert captured == {"path": "docs/empty/", "status": "to_upload"}
+
+    def test_an_absolute_directory_is_made_relative(self, window, tmp_path, monkeypatch):
+        window._local_path = str(tmp_path)
+        captured = self._capture_status(window, monkeypatch)
+
+        window._on_directory_status(str(tmp_path / "docs" / "empty"), "synced")
+
+        assert captured == {"path": "docs/empty/", "status": "synced"}
+
+    def test_an_empty_path_is_ignored(self, window, monkeypatch):
+        window._local_path = "/share"
+        captured = self._capture_status(window, monkeypatch)
+
+        window._on_directory_status("", "synced")
+
+        assert captured == {}
+
+
 class TestPeersLabel:
     def test_is_not_bold(self, window):
         assert window._peers_label.styleSheet() == ""

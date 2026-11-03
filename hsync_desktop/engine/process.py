@@ -283,6 +283,10 @@ class HsyncEngine(QObject):
     file_transferred = Signal(str, str, int)  # direction ("↓"|"↑"|"✕"), filename, size
     file_renamed = Signal(str, str)  # old_path, new_path
     directory_created = Signal(str)  # directory path
+    # An empty directory is synchronised as its internal ``.hsynckeep`` sentinel,
+    # which never becomes a file row: this carries the directory's own verdict
+    # (path, state) so the window settles the folder row it belongs to.
+    directory_status = Signal(str, str)  # directory path, state
     # filepath, transferred, total, op ("download"|"upload") — a download has
     # no local row yet, so the panel needs the direction to create one.
     file_progress = Signal(str, int, int, str)
@@ -961,6 +965,13 @@ class HsyncEngine(QObject):
         if not path.endswith(_HSYNCKEEP):
             self.directory_created.emit(path)
 
+    def _on_dir_status_event(self, event: UiEventDict) -> None:
+        """Report a directory's own verdict (an empty directory's folder row)."""
+        path = str(event.get("path", ""))
+        state = str(event.get("state", ""))
+        if path and state:
+            self.directory_status.emit(path, state)
+
     def _on_sync_complete_event(self, event: UiEventDict) -> None:
         self.sync_completed.emit(
             {
@@ -1133,6 +1144,7 @@ class HsyncEngine(QObject):
         UiEventName.rename_status: _on_rename_status_event,
         UiEventName.rename: _on_rename_event,
         UiEventName.dir_created: _on_dir_created_event,
+        UiEventName.dir_status: _on_dir_status_event,
         UiEventName.sync_complete: _on_sync_complete_event,
         UiEventName.folder_size: _on_folder_size_event,
         UiEventName.transfer_failed: _on_transfer_failed_event,
@@ -1183,10 +1195,19 @@ class HsyncEngine(QObject):
     def _handle_transfer(self, event: UiEventDict) -> None:
         """Update transfer stats and emit ``file_transferred`` for a transfer."""
         file = str(event.get("file", ""))
-        if file.endswith(_HSYNCKEEP):
-            return
         op = str(event.get("op", ""))
         size = int(event.get("size", 0))
+        if file.endswith(_HSYNCKEEP):
+            # The sentinel is the wire form of an empty directory: it is not
+            # user content, so it never becomes a file row. Its transfer does
+            # settle the directory it preserves, though, so report that under
+            # the directory's own path (a delete drops the row as any other).
+            if op in ("download", "upload"):
+                rel = self._relative_key(file)
+                directory = rel[: -len(_HSYNCKEEP)].rstrip("/")
+                if directory and rel.endswith("/" + _HSYNCKEEP):
+                    self.directory_status.emit(directory, "synced")
+            return
         if op == "download":
             self.stats.record_content("download", self._relative_key(file), size)
             self.file_transferred.emit("↓", file, size)

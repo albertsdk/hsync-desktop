@@ -107,6 +107,7 @@ command line:
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip |
 | `rendezvous` | `rendezvous_changed(plan, rendezvous)` — the active plan (mdns/rendezvous) at startup |
 | `transfer` / `rename` / `dir_created` | `file_transferred(direction, file, size)` / `file_renamed(old, new)` / `directory_created(path)` |
+| `dir_status` | `directory_status(path, state)` — an empty directory’s own verdict; its `.hsynckeep` sentinel never becomes a file row |
 | `progress` | `file_progress(file, transferred, total, op)` — `op` gives the direction of a file that has no local row yet |
 | `sync_complete` / `transfer_failed` / `sync_paused` | `sync_completed(dict)` (the cycle counters) / `transfer_failed` / `sync_paused` |
 | `security_rejected` | `security_rejected(op, path, message)` — unsafe remote path refused by the inbound guards |

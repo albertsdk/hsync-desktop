@@ -313,6 +313,7 @@ class MainWindow(
         e.file_progress.connect(self._on_file_progress)
         e.file_renamed.connect(self._on_file_renamed)
         e.directory_created.connect(self._on_directory_created)
+        e.directory_status.connect(self._on_directory_status)
         if self._notifier:
             notifier = self._notifier
             e.sync_completed.connect(lambda _counters: notifier.sync_complete())
