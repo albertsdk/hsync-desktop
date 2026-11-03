@@ -300,7 +300,7 @@ def _run_verify(
 
 
 def test_verify_client_compatible_accepts_the_exact_version(tmp_path: Path) -> None:
-    proc = _run_verify(tmp_path, "1.0.17", "1.0.17")
+    proc = _run_verify(tmp_path, "1.0.18", "1.0.18")
     assert proc.returncode == 0, proc.stderr
     assert "matches HSYNC_VERSION" in proc.stderr
 
@@ -308,13 +308,13 @@ def test_verify_client_compatible_accepts_the_exact_version(tmp_path: Path) -> N
 def test_verify_client_compatible_warns_on_a_patch_mismatch(tmp_path: Path) -> None:
     """A client that differs only in the patch number is bundled with a warning
     instead of failing the build."""
-    proc = _run_verify(tmp_path, "1.0.17", "1.0.16")
+    proc = _run_verify(tmp_path, "1.0.18", "1.0.17")
     assert proc.returncode == 0, proc.stderr
     assert "only in the patch number" in proc.stderr
 
 
 def test_verify_client_compatible_rejects_a_minor_mismatch(tmp_path: Path) -> None:
-    proc = _run_verify(tmp_path, "1.0.17", "1.1.0")
+    proc = _run_verify(tmp_path, "1.0.18", "1.1.0")
     assert proc.returncode != 0
     assert "incompatible" in proc.stderr
 
