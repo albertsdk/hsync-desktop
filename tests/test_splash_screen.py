@@ -5,6 +5,36 @@
 
 import re
 
+import pytest
+from PySide6.QtCore import QObject, Signal
+
+
+@pytest.fixture(autouse=True)
+def _no_bundled_binary(monkeypatch):
+    """Keep the engine-version probe off the real bundled binary.
+
+    ``SplashScreen`` starts a ``BinaryVersionProbe`` on construction; without
+    this the tests would spawn the real ``hsync`` executable and touch the
+    host's QSettings cache. The probe degrades to an empty version instead.
+    """
+    from hsync_desktop.engine import cli as engine_cli
+
+    monkeypatch.setattr(engine_cli, "find_hsync_binary", lambda: None)
+
+
+class _FakeProbe(QObject):
+    """Stand-in for ``BinaryVersionProbe`` that never spawns a process."""
+
+    finished = Signal(str)
+
+    def __init__(self, binary_path, parent=None):
+        super().__init__(parent)
+        self.binary_path = binary_path
+        self.started = False
+
+    def start(self):
+        self.started = True
+
 
 class TestSplashScreen:
     """Test SplashScreen class."""
@@ -183,3 +213,49 @@ class TestSplashFrame:
             return match.group(1).lower()
 
         assert border_color(themes._light_qss()) != border_color(themes._dark_qss())
+
+
+class TestSplashEngineVersion:
+    """The splash / About shows the bundled engine's version."""
+
+    def test_engine_version_label_exists(self, qtbot):
+        from hsync_desktop.splash_screen import SplashScreen
+
+        splash = SplashScreen()
+        qtbot.addWidget(splash)
+        assert splash._lbl_engine_version is not None
+
+    def test_engine_version_is_shown_with_its_label(self, qtbot):
+        from hsync_desktop.i18n import tr
+        from hsync_desktop.splash_screen import SplashScreen
+
+        splash = SplashScreen()
+        qtbot.addWidget(splash)
+        splash._apply_engine_version("9.9.9")
+        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
+            "{version}", "9.9.9"
+        )
+
+    def test_engine_version_falls_back_to_a_dash_when_unknown(self, qtbot):
+        from hsync_desktop.i18n import tr
+        from hsync_desktop.splash_screen import SplashScreen
+
+        splash = SplashScreen()
+        qtbot.addWidget(splash)
+        splash._apply_engine_version("")
+        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
+            "{version}", "—"
+        )
+
+    def test_probe_result_updates_the_label(self, qtbot, monkeypatch):
+        import hsync_desktop.splash_screen as splash_module
+        from hsync_desktop.i18n import tr
+
+        monkeypatch.setattr(splash_module, "BinaryVersionProbe", _FakeProbe)
+        splash = splash_module.SplashScreen()
+        qtbot.addWidget(splash)
+        assert splash._engine_probe.started
+        splash._engine_probe.finished.emit("9.8.7")
+        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
+            "{version}", "9.8.7"
+        )

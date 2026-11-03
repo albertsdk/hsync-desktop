@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   move). Name conflicts are resolved with a Replace / Keep both / Skip prompt
   (with an **Apply to all** option), the copy runs in the background, and the
   result is reported as a toast.
+- The welcome splash — also the Help → About window — now shows the bundled sync
+  engine's version next to the app version (`Engine 1.0.11`, localized), or an em
+  dash when it cannot be determined.
 
 ### Changed
 

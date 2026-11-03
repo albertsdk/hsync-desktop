@@ -4,20 +4,21 @@
 """
 Welcome splash screen shown at application startup.
 
-Shows the brand logo, the app name, the version, a short tagline and the
-copyright, and doubles as the "About" window. UI is loaded from
-ui/splash_screen.ui (Qt Designer).
+Shows the brand logo, the app name, the app and engine versions, a short
+tagline and the copyright, and doubles as the "About" window. UI is loaded
+from ui/splash_screen.ui (Qt Designer).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QWidget
 
 from hsync_desktop import __version__
+from hsync_desktop.engine import BinaryVersionProbe
 from hsync_desktop.i18n import tr
 from hsync_desktop.ui.loader import load_ui_widget
 
@@ -53,12 +54,14 @@ class SplashScreen(QWidget):
         self._lbl_logo: QLabel = self.findChild(QLabel, "lblLogo")  # type: ignore[assignment]
         self._lbl_app_name: QLabel = self.findChild(QLabel, "lblAppName")  # type: ignore[assignment]
         self._lbl_version: QLabel = self.findChild(QLabel, "lblVersion")  # type: ignore[assignment]
+        self._lbl_engine_version: QLabel = self.findChild(QLabel, "lblEngineVersion")  # type: ignore[assignment]
         self._lbl_tagline: QLabel = self.findChild(QLabel, "lblTagline")  # type: ignore[assignment]
         self._lbl_copyright: QLabel = self.findChild(QLabel, "lblCopyright")  # type: ignore[assignment]
         self._lbl_author: QLabel = self.findChild(QLabel, "lblAuthor")  # type: ignore[assignment]
 
         self._set_logo()
         self._apply_translations()
+        self._start_engine_version_probe()
 
     def _set_logo(self) -> None:
         """Show the horizontal brand logo above the app name."""
@@ -69,9 +72,28 @@ class SplashScreen(QWidget):
         """Apply i18n translations to UI elements."""
         self._lbl_app_name.setText(tr("app.name"))
         self._lbl_version.setText(__version__)
+        self._lbl_engine_version.setText(tr("about.engine_version").replace("{version}", "…"))
         self._lbl_tagline.setText(tr("app.tagline"))
         self._lbl_copyright.setText(tr("about.copyright"))
         self._lbl_author.setText(tr("about.author"))
+
+    def _start_engine_version_probe(self) -> None:
+        """Resolve the bundled engine's version without blocking startup.
+
+        The probe emits immediately on a cache hit and otherwise runs
+        ``hsync --version`` through a ``QProcess``, so the splash never delays
+        the window while the binary is queried.
+        """
+        self._engine_probe = BinaryVersionProbe(None, self)
+        self._engine_probe.finished.connect(self._apply_engine_version)
+        self._engine_probe.start()
+
+    @Slot(str)
+    def _apply_engine_version(self, version: str) -> None:
+        """Show the engine version, or an em dash when it cannot be determined."""
+        self._lbl_engine_version.setText(
+            tr("about.engine_version").replace("{version}", version or "—")
+        )
 
     def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""

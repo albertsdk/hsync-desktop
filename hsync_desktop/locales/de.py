@@ -8,6 +8,7 @@ translations: dict[str, str] = {
     "app.tagline": "Halte deine Geräte synchron",
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
+    "about.engine_version": "engine {version}",
     "common.checking": "Wird geprüft…",
     "app.loading": "Laden…",
     "status.connected": "Verbunden",

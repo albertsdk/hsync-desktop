@@ -1165,8 +1165,10 @@ doubles as the Help → About window. It is a fixed 420×330 frameless window wh
 vertical order is: the horizontal brand logo
 (`resources/icons/hsync-logo-horizontal.svg`, the same wordmark as the README top
 banner, drawn at 240 px wide) above the app name (`app.name`, bold at the default
-label size), the bare version (`__version__`, `lblVersion`), the tagline
-(`app.tagline`), then the copyright (`about.copyright`) and author
+label size), the bare app version (`__version__`, `lblVersion`), the engine
+version (`about.engine_version`, `lblEngineVersion`, resolved off the UI thread by
+`engine/cli.py::BinaryVersionProbe` and shown as an em dash when undeterminable),
+the tagline (`app.tagline`), then the copyright (`about.copyright`) and author
 (`about.author`) with space above. As the startup welcome it is a short,
 click-dismissible overlay (`main.py::SPLASH_MS`, 1500 ms): it is shown **only on
 the first launch** (`main.py::_should_show_splash`: `ui/splash_shown` absent and
