@@ -873,9 +873,12 @@ class TestOptionalColumns:
         """
         table = self._table(qtbot)
         transfer = FileTransfer(filepath="big.bin", direction="↑", size=1_000_000)
-        transfer.start_transfer("↑", now=100.0)
-        transfer.note_progress(0, now=100.0)
-        transfer.note_progress(500_000, now=101.0)
+        # Live timestamps: a row only tolerates a plan refresh while its last
+        # sample is recent, so a synthetic past clock would read as stale.
+        t0 = time()
+        transfer.start_transfer("↑", now=t0)
+        transfer.note_progress(0, now=t0)
+        transfer.note_progress(500_000, now=t0 + 1.0)
         table.add_transfer(transfer)
         assert transfer.eta_seconds is not None
 
@@ -2680,6 +2683,42 @@ class TestLiveTransferProgress:
         table.update_file_status("out.bin", "synced", size=1_024_000)
         table.refresh_view()
         assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+
+    def test_a_trailing_progress_sample_does_not_reopen_a_synced_upload(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 1_024_000, 1_024_000, "upload")
+        table.update_file_status("out.bin", "synced", size=1_024_000)
+        assert table._transfers["out.bin"].status is TransferStatus.SYNCED
+
+        # The peer echoes progress asynchronously from the upload commit, so a
+        # trailing sample can trail the terminal event: it must not restart the
+        # finished row (which would strand it at the upload cap).
+        table.update_transfer_progress("out.bin", 1_000_000, 1_024_000, "upload")
+        table.refresh_view()
+
+        assert table._transfers["out.bin"].status is TransferStatus.SYNCED
+        assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == -1
+
+    def test_a_preview_status_resolves_a_stale_in_flight_row(self, qtbot):
+        from hsync_desktop.file_panel.models import IN_FLIGHT_STALE_SECONDS
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("out.bin", 500, 1_000, "upload")
+        assert table._transfers["out.bin"].status is TransferStatus.UPLOADING
+
+        # While the transfer is live, a dry-run answer never overrides it.
+        table.update_file_status("out.bin", "synced", preview=True)
+        assert table._transfers["out.bin"].status is TransferStatus.UPLOADING
+
+        # Once its terminal event is lost and the row goes stale, the engine's
+        # status answer (a preview) resolves the frozen row.
+        table._transfers["out.bin"].last_progress_at -= IN_FLIGHT_STALE_SECONDS + 1
+        table.update_file_status("out.bin", "synced", preview=True)
+        table.refresh_view()
+
+        assert table._transfers["out.bin"].status is TransferStatus.SYNCED
 
     def test_a_folder_still_uploading_a_child_is_never_finished(self, qtbot):
         table = self._table(qtbot)

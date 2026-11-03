@@ -64,6 +64,7 @@ from hsync_desktop.file_panel.filter import has_dot_segment
 from hsync_desktop.file_panel.import_ops import validate_sources
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
+    IN_FLIGHT_STALE_SECONDS,
     STATUS_COLORS,
     STATUS_COLORS_DARK,
     FileTransfer,
@@ -127,6 +128,18 @@ _PLANNED_STATUSES = {
     TransferStatus.TO_UPLOAD,
     TransferStatus.TO_DELETE,
     TransferStatus.TO_RENAME,
+}
+# A row that already reached one of these holds the outcome of a finished
+# transfer. A progress sample that arrives afterwards (the peer echoes progress
+# asynchronously from the upload commit, over a relay it can trail the terminal
+# event) must not restart it into a new in-flight row and strand it at the
+# upload cap. A genuine re-transfer is preceded by a plan/status that moves the
+# row out of this set first. ``ERROR`` is deliberately absent: a retry's progress
+# must clear the row, as its own regression test requires.
+_SETTLED_STATUSES = {
+    TransferStatus.SYNCED,
+    TransferStatus.COMPLETED,
+    TransferStatus.DELETED,
 }
 # Per-file status label i18n keys, resolved with ``tr()`` per row so a live
 # language change is reflected without rebuilding the table.
@@ -1948,7 +1961,10 @@ class FileTransferTable(QTableView):
         (it must never hide the live progress of a transfer a reconnect-triggered
         preview would otherwise override), and any *planned* status
         (``_PLANNED_STATUSES``) is a comparison claim about a transfer that has
-        not necessarily finished. Only a terminal event ends a transferring row.
+        not necessarily finished. Only a terminal event ends a transferring row —
+        except when that row has gone stale (no progress for
+        ``IN_FLIGHT_STALE_SECONDS``): then its engine event was lost, so any
+        status answer, preview included, is allowed to resolve the frozen row.
         """
         status_mapping = {
             "synced": TransferStatus.SYNCED,
@@ -1973,10 +1989,16 @@ class FileTransferTable(QTableView):
         with QMutexLocker(self._transfers_mutex):
             if filepath in self._transfers:
                 t = self._transfers[filepath]
-                if t.status in (
+                in_flight = t.status in (
                     TransferStatus.DOWNLOADING,
                     TransferStatus.UPLOADING,
-                ) and (preview or transfer_status in _PLANNED_STATUSES):
+                )
+                stale = (
+                    in_flight
+                    and t.last_progress_at > 0
+                    and time() - t.last_progress_at >= IN_FLIGHT_STALE_SECONDS
+                )
+                if in_flight and not stale and (preview or transfer_status in _PLANNED_STATUSES):
                     return
                 t.status = transfer_status
                 t.direction = direction
@@ -2124,6 +2146,9 @@ class FileTransferTable(QTableView):
             if t is None:
                 t = FileTransfer(filepath=filepath, direction=direction)
                 self._transfers[filepath] = t
+            elif t.status in _SETTLED_STATUSES:
+                # The transfer already ended; a trailing sample must not reopen it.
+                return
             if op:
                 t.direction = direction
             elif t.direction not in ("↓", "↑"):

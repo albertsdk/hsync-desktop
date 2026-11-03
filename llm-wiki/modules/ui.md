@@ -684,13 +684,16 @@ that gives up is flagged `TransferStatus.ERROR`
 (`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
 (`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
-A status refresh must never downgrade an in-flight row:
+A status refresh must never downgrade a live in-flight row:
 `update_file_status` ignores a *planned* status (`TO_*` — the master's
 `master_status` re-emits every file on each pass) while the row is
 `DOWNLOADING`/`UPLOADING`, and any status at all when the update is a preview.
 Letting it through flipped the row to `TO_UPLOAD`, which hid the ETA (it needs an
 in-flight status, `FileTransfer.speed_bps`) while the progress bar kept
-rendering; only a terminal event ends an in-flight row.
+rendering; only a terminal event ends a live in-flight row. A row whose last
+sample is older than `file_panel/models.py::IN_FLIGHT_STALE_SECONDS` is stale, not
+live: it accepts any status, preview included, so the engine's answer can resolve
+it when its terminal event was lost.
 The rate is the bytes moved over the last `SPEED_WINDOW_SECONDS` of progress
 samples (`file_panel/models.py::FileTransfer.note_progress`), not
 `bytes / (now - start_time)`: the column follows the real stream, drops back to
@@ -710,11 +713,17 @@ aggregate (`file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
 The client counts the bytes handed to the transport, so a burst absorbed by the
 socket/relay buffers reaches the wire total long before the receiver commits the
 file; the bar closes with the row, on the terminal `transfer` event. A download
-is unaffected: its bytes really are on disk.
+is unaffected: its bytes really are on disk. The reverse also holds: a row that
+already reached a settled classification (`file_panel/transfer_table.py::_SETTLED_STATUSES`
+— `SYNCED`, `COMPLETED`, `DELETED`) is **not** restarted by a trailing progress
+sample (`FileTransferTable.update_transfer_progress` returns early). The peer
+echoes progress asynchronously from the upload commit, so over a relay a tail
+sample can arrive after the terminal event; restarting the finished row stranded
+it at the upload cap with no further terminal event to close it.
 
 A row the engine stops reporting on never stays in flight forever. The periodic
 consistency pass asks for in-flight rows silent longer than
-`file_panel/panel.py::_IN_FLIGHT_STALE_SECONDS`
+`file_panel/models.py::IN_FLIGHT_STALE_SECONDS`
 (`file_panel/transfer_table.py::FileTransferTable.stale_in_flight_paths`, fed by
 `file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall and
 again every `file_panel/panel.py::_STALL_REASK_SECONDS` while it lasts**, requests
@@ -722,6 +731,8 @@ a status refresh
 (`file_panel/panel.py::FilePanel._request_status_for_stalled_rows` →
 `FilePanel.scan_found_new_files`), so the engine's own answer resolves the row —
 a lost terminal event or a wedged transfer cannot leave a frozen bar behind. The
+same threshold relaxes `update_file_status`, so the preview answer that refresh
+triggers is accepted for a stale row (a live row still ignores it). The
 re-check matters when the refresh itself fails (a link that is down): the row is
 asked again instead of staying in flight forever. A fresh sample (or a resolved
 row) clears the record, so the next stall asks again.

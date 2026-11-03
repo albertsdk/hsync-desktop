@@ -90,6 +90,12 @@ _NO_PROGRESS_STATUSES = {
 # the bytes really arrived.
 _UPLOAD_MAX_PROGRESS = 99
 
+# Idle time after which an in-flight row's last progress sample counts as stale:
+# the engine's terminal event was lost or delayed, so a later status answer (even
+# a dry-run one) may resolve the row instead of leaving a frozen bar. Shared by
+# the stalled-row re-ask and the status-update guard.
+IN_FLIGHT_STALE_SECONDS = 60.0
+
 
 def clamp_upload_progress(percent: int, *, uploading: bool) -> int:
     """Cap *percent* so an in-flight upload never claims a finished file.

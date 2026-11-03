@@ -39,7 +39,11 @@ from hsync_desktop.file_panel.import_ops import (
     unique_name,
     validate_sources,
 )
-from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+from hsync_desktop.file_panel.models import (
+    IN_FLIGHT_STALE_SECONDS,
+    FileTransfer,
+    TransferStatus,
+)
 from hsync_desktop.file_panel.overlay import LoadingOverlay
 from hsync_desktop.file_panel.transfer_table import FileTransferTable
 from hsync_desktop.file_panel.workers import DirectoryScanWorker, ImportWorker
@@ -56,11 +60,6 @@ _NAV_ICON_PX = 20
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
 
-# A row still in flight with no progress sample for this long is stale: the
-# engine lost its terminal event or is wedged, so the periodic consistency pass
-# asks for a status refresh and the engine's own answer resolves the row. The
-# client ticks every 0.25 s while bytes move, so only real silence trips it.
-_IN_FLIGHT_STALE_SECONDS = 60.0
 # A stalled row is re-checked this often until it resolves: the first refresh can
 # itself fail (the link is down), and a row must never stay in flight forever.
 _STALL_REASK_SECONDS = 300.0
@@ -868,7 +867,7 @@ class FilePanel(QWidget):
         record, so the next stall starts over.
         """
         stalled = set(
-            self._table.stale_in_flight_paths(now=time(), timeout=_IN_FLIGHT_STALE_SECONDS)
+            self._table.stale_in_flight_paths(now=time(), timeout=IN_FLIGHT_STALE_SECONDS)
         )
         if not stalled:
             self._stall_reported.clear()
