@@ -568,15 +568,18 @@ class ActionsMixin:
             self._show_up_to_date(__version__)
 
     def _offer_update(self, latest: str, *, manual: bool) -> None:
-        """Offer the newer release: open the release page, never run an artifact.
+        """Offer the newer release: open its download page, never run an artifact.
 
         The app deliberately does not download or execute the update
         (ADR-0048): Snap refreshes itself, the Windows installer upgrades in
         place and ``.deb``/``.rpm`` belong to the system package manager, so the
-        dialog only routes the operator to the upgrade path they already use.
+        dialog only routes the operator to the upgrade path they already use —
+        the artifact for **this** installation when it can be named
+        (``release_assets.package_url``), otherwise the release's tag page, which
+        lists every asset (the releases index shows only the first ten).
         """
-        from hsync_desktop import __version__, updates
-        from hsync_desktop.docs_links import RELEASES, open_docs_link
+        from hsync_desktop import __version__, release_assets, updates
+        from hsync_desktop.docs_links import open_docs_link
 
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Information)
@@ -604,7 +607,7 @@ class ActionsMixin:
             if dismiss.isChecked():
                 updates.set_dismissed_version(latest)
         if box.clickedButton() is download:
-            open_docs_link(RELEASES)
+            open_docs_link(release_assets.package_url(latest))
 
     def _show_up_to_date(self, current: str) -> None:
         """Report that the running build is the newest release."""

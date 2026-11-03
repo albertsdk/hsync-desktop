@@ -12,7 +12,7 @@ when you prefer not to run a `curl | bash` installer.
 ## Install
 
 Download the archive for your platform from the
-[Releases page](https://github.com/albertsdk/hsync-desktop/releases):
+[latest release page](https://github.com/albertsdk/hsync-desktop/releases/latest):
 
 ```text
 hsync-desktop-VERSION-linux-amd64.tar.gz

@@ -1117,10 +1117,24 @@ from `main.py::main` and skipped when autostart launched the app into the tray,
 the second is the Help-menu `menu.help.updates` action. Both run the blocking
 call on `AsyncProbe` (`engine/async_probe.py::AsyncProbe`) and render it in
 `_on_update_checked`: a failure is reported only for the manual path, a newer
-release opens `_offer_update` (Download → `docs_links.RELEASES`, the dismissed
-version is stored per release), an up-to-date result opens `_show_up_to_date`.
-Both manual dialogs carry the "check at startup" switch, which is the only place
-the opt-in is toggled.
+release opens `_offer_update` (Download → the artifact of **this** installation,
+`release_assets.py::package_url`; the dismissed version is stored per release), an
+up-to-date result opens `_show_up_to_date`. Both manual dialogs carry the "check at
+startup" switch, which is the only place the opt-in is toggled.
+
+`release_assets.py` answers "which published file is mine?"
+(`release_assets.py::install_channel`): the snap (`SNAP`) and AppImage (`APPIMAGE`)
+markers are checked first, then the platform (`win32`, `darwin`) and the Linux
+family from `/etc/os-release` (`ID`/`ID_LIKE` → `.deb` for the Debian family, `.rpm`
+for the RPM one). `package_asset` maps that channel plus `platform.machine()` to the
+**fixed-name alias** every release publishes (RELEASES.md §5.8), and `package_url`
+builds `…/releases/download/v<version>/<alias>` — never the releases *index*, which
+renders only its first ten assets behind a "Show all N assets" toggle and hides the
+packages the operator is looking for. A channel with no single answer (a snap, which
+refreshes itself; an architecture with no build; an unknown distribution) falls back
+to the release's **tag** page, whose asset list is complete. ADR-0048 is unchanged:
+the button only opens the operator's browser, the app still never downloads or
+installs anything.
 
 ## splash_screen.py — Splash / About
 

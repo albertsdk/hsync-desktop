@@ -46,14 +46,21 @@ The application-menu entry starts "HSYNC"; the tray icon appears while it runs.
 
 ## Alternative: install a release asset offline
 
-The GitHub Release publishes the `.snap` files for both architectures. Install
-one without the store:
+The GitHub Release publishes the `.snap` files for both architectures — the
+stable URLs always point at the latest release:
+
+```bash
+curl -fLO "https://github.com/albertsdk/hsync-desktop/releases/latest/download/hsync-desktop-amd64.snap"
+```
+
+Install one without the store:
 
 ```bash
 sudo snap install --dangerous --classic ./hsync-desktop-amd64.snap
 ```
 
-Use `hsync-desktop-arm64.snap` on ARM. `--dangerous` skips store signature
+Use `hsync-desktop-arm64.snap` on ARM (same URL with `arm64` instead of `amd64`).
+`--dangerous` skips store signature
 verification, which is expected for a locally downloaded file checked against
 `SHA256SUMS`.
 

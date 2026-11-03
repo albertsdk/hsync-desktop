@@ -5,12 +5,16 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtCore import QSettings
 
-from hsync_desktop import updates
+from hsync_desktop import docs_links, release_assets, updates
 from hsync_desktop.engine.async_probe import ProbeOutcome
+from hsync_desktop.i18n import tr
 from hsync_desktop.main_window import actions
+from tests._helpers import _resolve_dialog
 
 NEWER = "99.0.0"
 
@@ -114,3 +118,50 @@ class TestStartupCheck:
         window.maybe_check_updates_on_startup()
 
         assert started == []
+
+
+class TestDownloadTarget:
+    """Download must land where this installation's package is actually listed."""
+
+    def test_the_button_opens_the_artifact_of_this_installation(
+        self, window, update_store, monkeypatch
+    ):
+        """A `.deb` host downloads the `.deb`, not the releases index.
+
+        The index renders only the first ten assets behind a "Show all N assets"
+        toggle, so the package the operator needs is invisible there.
+        """
+        monkeypatch.setattr(release_assets, "install_channel", lambda **_: "deb")
+        monkeypatch.setattr(release_assets.platform, "machine", lambda: "x86_64")
+        calls = _resolve_dialog(monkeypatch, tr("updates.download"))
+
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            window._offer_update(NEWER, manual=True)
+
+        assert calls  # the dialog was rendered
+        assert open_url.call_args.args[0].toString() == (
+            "https://github.com/albertsdk/hsync-desktop/releases/download/v99.0.0/"
+            "hsync-desktop-amd64.deb"
+        )
+
+    def test_an_unresolvable_channel_opens_the_release_tag_page(
+        self, window, update_store, monkeypatch
+    ):
+        """A snap refreshes itself: the tag page carries every asset instead."""
+        monkeypatch.setattr(release_assets, "install_channel", lambda **_: "snap")
+        _resolve_dialog(monkeypatch, tr("updates.download"))
+
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            window._offer_update(NEWER, manual=False)
+
+        assert open_url.call_args.args[0].toString() == (
+            "https://github.com/albertsdk/hsync-desktop/releases/tag/v99.0.0"
+        )
+
+    def test_dismissing_the_dialog_opens_nothing(self, window, update_store, monkeypatch):
+        _resolve_dialog(monkeypatch, tr("updates.later"))
+
+        with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
+            window._offer_update(NEWER, manual=False)
+
+        open_url.assert_not_called()
