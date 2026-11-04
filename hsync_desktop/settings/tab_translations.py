@@ -113,6 +113,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_compression_enabled.setText(tr("settings.compression_enabled"))
     dlg._lbl_dry_run.setText(tr("settings.dry_run"))
     dlg._lbl_auto_sync.setText(tr("settings.auto_sync"))
+    dlg._lbl_auto_apply.setText(tr("settings.auto_apply"))
     dlg._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
     dlg.btn_edit_hsyncignore.setText(escape_mnemonics(tr("settings.edit_hsyncignore")))
     dlg.btn_reset_state.setText(escape_mnemonics(tr("settings.reset_state.button")))

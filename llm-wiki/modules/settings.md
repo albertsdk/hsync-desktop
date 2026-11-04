@@ -458,7 +458,7 @@ available).
 | ------ | -------- | ---- |
 | `build_hsync_args` | `settings/cli_args.py::build_hsync_args` | core translator: QSettings → arg list |
 | `secure_config_file` | `settings/cli_args.py::secure_config_file` | restrict the on-disk settings file perms (0600) |
-| `get_saved_theme` / `get_theme_setting` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::get_theme_setting` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` | desktop-only prefs |
+| `get_saved_theme` / `get_theme_setting` / `are_notifications_enabled` / `is_log_panel_visible` / `is_auto_sync_enabled` / `is_auto_apply_enabled` | `settings/cli_args.py::get_saved_theme` / `settings/cli_args.py::get_theme_setting` / `settings/cli_args.py::are_notifications_enabled` / `settings/cli_args.py::is_log_panel_visible` / `settings/cli_args.py::is_auto_sync_enabled` / `settings/cli_args.py::is_auto_apply_enabled` | desktop-only prefs |
 | `get_bandwidth_limits` / `save_bandwidth_limits` | `settings/cli_args.py::get_bandwidth_limits` / `settings/cli_args.py::save_bandwidth_limits` | persisted bandwidth caps (bytes/s in, MB/s out) |
 
 **Bandwidth limits** have two entry points that share one set of values

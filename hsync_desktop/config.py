@@ -56,6 +56,8 @@ DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compr
 DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
+# Apply the plan without the confirmation dialog when it deletes nothing.
+DEFAULT_AUTO_APPLY = False
 # The release update check is opt-in: an installation that never asked about
 # updates makes no request outside the servers the operator configured
 # (ADR-0048).

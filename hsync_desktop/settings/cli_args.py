@@ -478,6 +478,16 @@ def is_auto_sync_enabled() -> bool:
     return bool(s.value("sync/auto_sync", False, bool))
 
 
+def is_auto_apply_enabled() -> bool:
+    """Return whether a plan is applied without confirmation (default: disabled).
+
+    Applies to the plan only: a plan that deletes anything still asks, so this
+    setting never removes the confirmation on a destructive run.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return bool(s.value("sync/auto_apply", False, bool))
+
+
 def is_simulation_mode() -> bool:
     """Return whether Simulation Mode is enabled (default: disabled).
 

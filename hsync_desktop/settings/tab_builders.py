@@ -145,6 +145,7 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     )
     dlg.dry_run, dlg._lbl_dry_run = _replace_checkbox_with_toggle(dlg, "dryRun")
     dlg.auto_sync, dlg._lbl_auto_sync = _replace_checkbox_with_toggle(dlg, "autoSync")
+    dlg.auto_apply, dlg._lbl_auto_apply = _replace_checkbox_with_toggle(dlg, "autoApply")
 
     # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
     dlg.ignore_patterns = QLineEdit(dlg)

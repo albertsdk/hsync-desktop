@@ -2838,6 +2838,64 @@ class TestAutomaticPlan:
         assert notified == [(tr("app.name"), expected, "sync")]
 
 
+class TestAutoApplySetting:
+    """*Sync without asking* skips the dialog only for a plan that deletes nothing."""
+
+    @staticmethod
+    def _stub(
+        window, monkeypatch, *, enabled: bool, to_delete: int, intent: str = "start"
+    ) -> tuple[list, list]:
+        import hsync_desktop.main_window.actions as actions_module
+        from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
+
+        monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
+        monkeypatch.setattr(actions_module, "is_auto_apply_enabled", lambda: enabled)
+        opened: list = []
+        monkeypatch.setattr(PreviewSummaryDialog, "exec", lambda self: opened.append(self) or 0)
+        sent: list[str] = []
+        monkeypatch.setattr(type(window._engine), "sync", lambda self: sent.append("sync"))
+        window._preview_stats.reset()
+        window._preview_stats.to_delete = to_delete
+        window._preview_stats.to_upload = 1
+        window._is_dry_run_preview = True
+        window._preview_intent = intent
+        # An interactive Start, not an unattended run.
+        window._dry_run_unattended = False
+        return opened, sent
+
+    def test_a_non_destructive_plan_is_applied_without_the_dialog(self, window, monkeypatch):
+        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=0)
+
+        window._show_preview_summary()
+
+        assert opened == []
+        assert sent == ["sync"]
+
+    def test_a_deletable_plan_still_opens_the_dialog(self, window, monkeypatch):
+        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=1)
+
+        window._show_preview_summary()
+
+        assert len(opened) == 1
+        assert sent == []
+
+    def test_an_explicit_preview_always_opens_the_dialog(self, window, monkeypatch):
+        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=0, intent="preview")
+
+        window._show_preview_summary()
+
+        assert len(opened) == 1
+        assert sent == []
+
+    def test_the_setting_off_keeps_the_dialog(self, window, monkeypatch):
+        opened, sent = self._stub(window, monkeypatch, enabled=False, to_delete=0)
+
+        window._show_preview_summary()
+
+        assert len(opened) == 1
+        assert sent == []
+
+
 class TestAuthRetryPlan:
     """A dry-run restarted after a credential prompt is watched again."""
 

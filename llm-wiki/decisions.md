@@ -267,7 +267,7 @@ disable unsupported controls) is realized in
   `notif.preparing_plan` marker) instead of a silent one. Restarting the engine
   on accept was rejected: it would re-handshake and could produce a plan
   different from the one the user confirmed. An unattended start never opens the
-  dialog (`ActionsMixin._apply_automatic_plan`): it applies a plan that deletes
+  dialog (`ActionsMixin._apply_plan_without_dialog`): it applies a plan that deletes
   nothing and otherwise stops with `notif.plan_needs_confirmation`. Whether a
   dry-run is unattended is `_dry_run_unattended`, recorded per dry-run, not the
   run's `_start_is_automatic`: `_retry_after_auth_fix` clears it after the

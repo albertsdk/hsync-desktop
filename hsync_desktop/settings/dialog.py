@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop import autostart
 from hsync_desktop.config import (
+    DEFAULT_AUTO_APPLY,
     DEFAULT_AUTO_SYNC,
     DEFAULT_AUTOTUNE,
     DEFAULT_BUCKET,
@@ -372,6 +373,7 @@ class SettingsDialog(QDialog):
             (self.compression_enabled, "tip.compression_enabled"),
             (self.dry_run, "tip.dry_run"),
             (self.auto_sync, "tip.auto_sync"),
+            (self.auto_apply, "tip.auto_apply"),
             (self.ignore_patterns, "tip.ignore_patterns"),
             (self.btn_edit_hsyncignore, "tip.edit_hsyncignore"),
             (self.btn_reset_state, "tip.reset_state"),
@@ -1405,6 +1407,7 @@ class SettingsDialog(QDialog):
         s.setValue("sync/compression_enabled", self.compression_enabled.isChecked())
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
+        s.setValue("sync/auto_apply", self.auto_apply.isChecked())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
         # Advanced tab (engine tuning)
         s.setValue("advanced/autotune", self.autotune.isChecked())
@@ -1516,6 +1519,7 @@ class SettingsDialog(QDialog):
             self.compression_enabled.setChecked(not legacy)
         self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
         self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
+        self.auto_apply.setChecked(bool(s.value("sync/auto_apply", DEFAULT_AUTO_APPLY, bool)))
         self.ignore_patterns.setText(
             str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
         )

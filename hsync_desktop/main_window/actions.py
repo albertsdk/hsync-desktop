@@ -75,6 +75,7 @@ from hsync_desktop.settings import (
     get_deletion_policy,
     get_saved_theme,
     get_sync_direction,
+    is_auto_apply_enabled,
     is_auto_sync_enabled,
     is_log_panel_visible,
     is_simulation_mode,
@@ -631,9 +632,11 @@ class ActionsMixin:
 
         Two intents reach this dialog. A ``start`` run keeps the confirm-before-
         apply path; a ``preview`` run exists to show the plan, so it applies only
-        on "Sync now" and ends on Close. An unattended run never opens the
+        on "Sync now" and ends on Close. A run nobody is watching never opens the
         dialog: it applies a plan that deletes nothing and otherwise stops and
-        asks for confirmation, so it can never block on a modal.
+        asks for confirmation, so it can never block on a modal. *Sync without
+        asking* extends that rule to an interactive Start, for a plan that
+        deletes nothing.
         """
         # The wait is over: the plan arrived or the comparison ended.
         self._exit_preparing_plan_ui()
@@ -645,7 +648,15 @@ class ActionsMixin:
         # The intent only decides a dry-run: a stdin preview of a running session
         # keeps the sync semantics of the run that started it.
         preview_intent = self._is_dry_run_preview and self._preview_intent == "preview"
-        automatic = self._dry_run_unattended and self._is_dry_run_preview
+        # A plan is applied without the dialog when nobody is watching it, or
+        # under *Sync without asking* when it deletes nothing. An explicit
+        # Preview never skips the dialog: showing the plan is its whole purpose.
+        quiet = (self._dry_run_unattended and self._is_dry_run_preview) or (
+            self._is_dry_run_preview
+            and not preview_intent
+            and is_auto_apply_enabled()
+            and not s.to_delete
+        )
 
         if not s.has_work():
             # Skip the dialog entirely. "Nothing to do" is only true when a peer
@@ -685,8 +696,8 @@ class ActionsMixin:
             self._report_result(message, success=False)
             return
 
-        if automatic and not selection and not simulation:
-            self._apply_automatic_plan(s)
+        if quiet and not selection and not simulation:
+            self._apply_plan_without_dialog(s)
             return
 
         if selection:
@@ -742,13 +753,14 @@ class ActionsMixin:
         self._is_dry_run_preview = False
         self._reset_ui_stopped()
 
-    def _apply_automatic_plan(self, stats: PreviewStats) -> None:
-        """Apply the plan of a run nobody is watching, without a modal.
+    def _apply_plan_without_dialog(self, stats: PreviewStats) -> None:
+        """Apply a plan that was not confirmed in the dialog.
 
-        Deletions are the one thing an unattended run must not decide alone: the
+        Deletions are the one thing a run must not decide alone: the
         settings-level gate already refused the destructive configurations, so a
         plan that still deletes files was introduced by this very plan and waits
-        for the user to review it.
+        for the user to review it. The caller routes a deletable plan here only
+        for an unattended run.
         """
         if stats.to_delete:
             self._stop_preview_run()

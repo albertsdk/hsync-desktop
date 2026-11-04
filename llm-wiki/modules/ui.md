@@ -24,7 +24,7 @@ window's attributes.
 | `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Preview-changes/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
 | `_on_preview_changes` / `_begin_start` | `main_window/start.py::StartMixin._on_preview_changes` / `main_window/start.py::StartMixin._begin_start` | the explicit **Preview changes** entry shares Start's gates; `_begin_start` records `_preview_intent` (`"start"` \| `"preview"`) so the two entry points cannot drift |
 | `_enter_preparing_plan_ui` / `_exit_preparing_plan_ui` | `main_window/start.py::StartMixin._enter_preparing_plan_ui` / `main_window/start.py::StartMixin._exit_preparing_plan_ui` | the **Preparing the plan…** state: progress toast + log marker, ended by the plan, a failed comparison, a stop or a teardown |
-| `_apply_automatic_plan` | `main_window/actions.py::ActionsMixin._apply_automatic_plan` | an unattended run never opens the dialog: it applies a plan with no deletions, otherwise `_report_plan_needs_confirmation` |
+| `_apply_plan_without_dialog` | `main_window/actions.py::ActionsMixin._apply_plan_without_dialog` | applies a plan the dialog did not confirm: one with no deletions is applied, a deletable one stops with `_report_plan_needs_confirmation` (the caller routes a deletable plan here only for an unattended run) |
 | `_report_plan_needs_confirmation` | `main_window/start.py::StartMixin._report_plan_needs_confirmation` | warns (log + notification) that an automatic plan with deletions waits for a manual Preview/Start |
 | `_stop_preview_run` | `main_window/actions.py::ActionsMixin._stop_preview_run` | Close/Cancel of a dry-run plan: `stop_and_wait` + the stopped UI, never a `SYNC` |
 | `_on_stop` / `_confirm_stop_running` / `_enter_stopping_ui` | `main_window/start.py::StartMixin._on_stop` / `main_window/start.py::StartMixin._confirm_stop_running` / `main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: a confirmation while the engine runs (declining changes nothing, `widgets/dialogs.py::confirm`), then the non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker). Every caller (button, menu, tray) funnels here |
@@ -131,7 +131,7 @@ asked to answer therefore never starts a destructive sync — and a tray-only
 is an explicit acknowledgement: `deletion_risk.is_acknowledged` (key
 `ui/deletion_risk_ack`) covers one folder and one posture, and a covered
 configuration lets the automatic run through to the dry-run preview — which
-cannot delete anything — while `ActionsMixin._apply_automatic_plan` still refuses
+cannot delete anything — while `ActionsMixin._apply_plan_without_dialog` still refuses
 to apply a plan that deletes. The same rule
 applies to the one-time disclaimer: `main_window/start.py::StartMixin._show_disclaimer`
 takes `interactive=False`, returns without a dialog and
@@ -139,7 +139,7 @@ takes `interactive=False`, returns without a dialog and
 user reviews the settings and presses Start, which prompts interactively as
 before.
 The confirmation *after* the run is covered by the same rule:
-`ActionsMixin._apply_automatic_plan` never opens the dialog and stops with
+`ActionsMixin._apply_plan_without_dialog` never opens the dialog and stops with
 `notif.plan_needs_confirmation` when the plan it computed deletes files (see
 *Preview changes — intent, preparing state, automatic runs*).
 `_on_auto_start` hands the origin over as `MainWindow._pending_start_automatic`
@@ -341,12 +341,16 @@ plan, a comparison error (`UiBuildMixin._on_engine_error`), a stop
 
 An unattended run (`_dry_run_unattended`, set by `_start_preview_run` from
 `_start_is_automatic`, see `_on_auto_start`) never shows the dialog:
-`ActionsMixin._apply_automatic_plan` applies the plan when
+`ActionsMixin._apply_plan_without_dialog` applies the plan when
 `PreviewStats.to_delete == 0` — reported through `_report_result`, so the apply
 also reaches the OS while the window is in the tray — and otherwise stops and
 calls `_report_plan_needs_confirmation` (category `sync`: a user who muted
-connection problems still learns that nothing was applied). The settings-level
-deletion gate (`_check_deletion_risk(interactive=False)`) already refused the
+connection problems still learns that nothing was applied). The *Sync without
+asking* setting (`settings/cli_args.py::is_auto_apply_enabled`, `sync/auto_apply`)
+extends the same rule to an interactive Start: a plan that deletes nothing is
+applied without the dialog, while a deletable plan and an explicit Preview always
+open it. The settings-level deletion gate
+(`_check_deletion_risk(interactive=False)`) already refused the
 destructive configurations, so this branch only covers deletions the plan itself
 introduces. `to_delete` already counts the deletions the mass-deletion guard will
 pause (the client emits the rows and only adds `preview_warning`), so
