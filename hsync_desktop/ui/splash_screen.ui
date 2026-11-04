@@ -85,17 +85,7 @@
    <item>
     <widget class="QLabel" name="lblVersion">
      <property name="text">
-      <string>1.0.0</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignmentFlag::AlignCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="lblEngineVersion">
-     <property name="text">
-      <string>Engine 1.0.0</string>
+      <string>version 1.0.0 (engine 1.0.0)</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>

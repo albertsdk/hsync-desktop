@@ -19,7 +19,7 @@ using the app — it is here to answer "what is that icon?".
 - **Setup wizard** — the guided setup for the common cases;
   see [Set up with the wizard](setup-wizard.md).
 - **Help** — this documentation, the project on GitHub, the license and **About**
-  (which shows the app version).
+  (which shows the app and engine versions).
 
 On macOS the same items live in the application menu, as usual on a Mac.
 

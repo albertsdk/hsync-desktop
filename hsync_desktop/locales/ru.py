@@ -9,7 +9,7 @@ translations: dict[str, str] = {
     "app.tagline": "Синхронизируйте свои устройства",
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
-    "about.engine_version": "Движок {version}",
+    "about.version": "версия {version} (Движок {engine})",
     "common.checking": "Проверка…",
     "app.loading": "Загрузка…",
     # Status

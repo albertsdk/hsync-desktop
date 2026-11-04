@@ -140,12 +140,21 @@ class TestSplashLayoutAndAbout:
         assert font.bold()
         assert font.pointSize() == splash._lbl_tagline.font().pointSize()
 
-    def test_version_is_a_bare_number(self, qtbot):
+    def test_version_line_shows_the_app_and_engine(self, qtbot):
         from hsync_desktop import __version__
+        from hsync_desktop.i18n import tr
 
         splash = self._make(qtbot)
-        assert splash._lbl_version.text() == __version__
-        assert "version" not in splash._lbl_version.text().lower()
+        # The engine probe runs off the UI thread: with no bundled binary it
+        # resolves to the unknown placeholder synchronously.
+        expected = tr("about.version").replace("{version}", __version__).replace("{engine}", "—")
+        assert splash._lbl_version.text() == expected
+
+    def test_there_is_no_separate_engine_version_label(self, qtbot):
+        from PySide6.QtWidgets import QLabel
+
+        splash = self._make(qtbot)
+        assert splash.findChild(QLabel, "lblEngineVersion") is None
 
     def test_tagline_copyright_and_author(self, qtbot):
         from hsync_desktop.i18n import tr
@@ -215,40 +224,36 @@ class TestSplashFrame:
         assert border_color(themes._light_qss()) != border_color(themes._dark_qss())
 
 
-class TestSplashEngineVersion:
-    """The splash / About shows the bundled engine's version."""
+class TestSplashVersionLine:
+    """The splash / About shows the app and engine versions on one line."""
 
-    def test_engine_version_label_exists(self, qtbot):
-        from hsync_desktop.splash_screen import SplashScreen
-
-        splash = SplashScreen()
-        qtbot.addWidget(splash)
-        assert splash._lbl_engine_version is not None
-
-    def test_engine_version_is_shown_with_its_label(self, qtbot):
+    def test_engine_version_fills_the_line(self, qtbot):
+        from hsync_desktop import __version__
         from hsync_desktop.i18n import tr
         from hsync_desktop.splash_screen import SplashScreen
 
         splash = SplashScreen()
         qtbot.addWidget(splash)
         splash._apply_engine_version("9.9.9")
-        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
-            "{version}", "9.9.9"
+        assert splash._lbl_version.text() == (
+            tr("about.version").replace("{version}", __version__).replace("{engine}", "9.9.9")
         )
 
-    def test_engine_version_falls_back_to_a_dash_when_unknown(self, qtbot):
+    def test_unknown_engine_falls_back_to_a_dash(self, qtbot):
+        from hsync_desktop import __version__
         from hsync_desktop.i18n import tr
         from hsync_desktop.splash_screen import SplashScreen
 
         splash = SplashScreen()
         qtbot.addWidget(splash)
         splash._apply_engine_version("")
-        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
-            "{version}", "—"
+        assert splash._lbl_version.text() == (
+            tr("about.version").replace("{version}", __version__).replace("{engine}", "—")
         )
 
-    def test_probe_result_updates_the_label(self, qtbot, monkeypatch):
+    def test_probe_result_updates_the_line(self, qtbot, monkeypatch):
         import hsync_desktop.splash_screen as splash_module
+        from hsync_desktop import __version__
         from hsync_desktop.i18n import tr
 
         monkeypatch.setattr(splash_module, "BinaryVersionProbe", _FakeProbe)
@@ -256,6 +261,6 @@ class TestSplashEngineVersion:
         qtbot.addWidget(splash)
         assert splash._engine_probe.started
         splash._engine_probe.finished.emit("9.8.7")
-        assert splash._lbl_engine_version.text() == tr("about.engine_version").replace(
-            "{version}", "9.8.7"
+        assert splash._lbl_version.text() == (
+            tr("about.version").replace("{version}", __version__).replace("{engine}", "9.8.7")
         )

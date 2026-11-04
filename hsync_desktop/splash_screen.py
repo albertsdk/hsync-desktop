@@ -4,7 +4,7 @@
 """
 Welcome splash screen shown at application startup.
 
-Shows the brand logo, the app name, the app and engine versions, a short
+Shows the brand logo, the app name, the version line (app and engine), a short
 tagline and the copyright, and doubles as the "About" window. UI is loaded
 from ui/splash_screen.ui (Qt Designer).
 """
@@ -25,6 +25,11 @@ from hsync_desktop.ui.loader import load_ui_widget
 # Horizontal wordmark shared with the README top banner (bundled, unthemed).
 _LOGO_PATH = Path(__file__).parent / "resources" / "icons" / "hsync-logo-horizontal.svg"
 _LOGO_WIDTH = 240
+
+
+def _version_text(version: str, engine: str) -> str:
+    """Render the app and engine versions on one line (``about.version``)."""
+    return tr("about.version").replace("{version}", version).replace("{engine}", engine)
 
 
 class SplashScreen(QWidget):
@@ -54,7 +59,6 @@ class SplashScreen(QWidget):
         self._lbl_logo: QLabel = self.findChild(QLabel, "lblLogo")  # type: ignore[assignment]
         self._lbl_app_name: QLabel = self.findChild(QLabel, "lblAppName")  # type: ignore[assignment]
         self._lbl_version: QLabel = self.findChild(QLabel, "lblVersion")  # type: ignore[assignment]
-        self._lbl_engine_version: QLabel = self.findChild(QLabel, "lblEngineVersion")  # type: ignore[assignment]
         self._lbl_tagline: QLabel = self.findChild(QLabel, "lblTagline")  # type: ignore[assignment]
         self._lbl_copyright: QLabel = self.findChild(QLabel, "lblCopyright")  # type: ignore[assignment]
         self._lbl_author: QLabel = self.findChild(QLabel, "lblAuthor")  # type: ignore[assignment]
@@ -71,8 +75,7 @@ class SplashScreen(QWidget):
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
         self._lbl_app_name.setText(tr("app.name"))
-        self._lbl_version.setText(__version__)
-        self._lbl_engine_version.setText(tr("about.engine_version").replace("{version}", "…"))
+        self._lbl_version.setText(_version_text(__version__, "…"))
         self._lbl_tagline.setText(tr("app.tagline"))
         self._lbl_copyright.setText(tr("about.copyright"))
         self._lbl_author.setText(tr("about.author"))
@@ -90,10 +93,8 @@ class SplashScreen(QWidget):
 
     @Slot(str)
     def _apply_engine_version(self, version: str) -> None:
-        """Show the engine version, or an em dash when it cannot be determined."""
-        self._lbl_engine_version.setText(
-            tr("about.engine_version").replace("{version}", version or "—")
-        )
+        """Fill the engine part of the version line, or an em dash when unknown."""
+        self._lbl_version.setText(_version_text(__version__, version or "—"))
 
     def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""

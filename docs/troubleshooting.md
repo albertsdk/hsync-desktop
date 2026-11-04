@@ -176,7 +176,7 @@ lines. The action labels are documented in [Log Labels](log-labels.md).
 
 - [Support](../SUPPORT.md) — where to ask and what to include.
 - [Open an issue](https://github.com/albertsdk/hsync-desktop/issues) with the log
-  excerpt, your OS and the app version (**Help → About**).
+  excerpt, your OS and the app and engine versions (**Help → About**).
 - The client's
   [troubleshooting guide](https://github.com/albertsdk/hsync-client/blob/main/docs/troubleshooting.md)
   covers the sync-engine behaviour behind the GUI.
