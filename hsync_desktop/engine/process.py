@@ -713,24 +713,28 @@ class HsyncEngine(QObject):
         from hsync_desktop import debug_events
 
         debug_enabled = debug_events.enabled()
-        for raw_line in data.splitlines():
-            line = raw_line.rstrip()
-            if line:
-                self.log_received.emit(line)
-                # Keep the level-bearing lines of the whole run: the startup
-                # tail is discarded at readiness and cannot explain a later
-                # fatal exit. The substring test avoids stripping the escapes
-                # on every line of a burst.
-                if "ERROR" in line or "CRITICAL" in line:
-                    parsed = LOG_LINE_RE.match(strip_sgr(line))
-                    if parsed is not None and parsed.group("level") in _RECENT_ERROR_LEVELS:
-                        self._recent_errors.append(parsed.group("message").strip())
-                if not self._ready:
-                    # Keep the startup output so a failure can show the client's
-                    # own reason instead of only the exit code.
-                    self._startup_tail.append(line)
-                if debug_enabled:
-                    debug_events.log("client_log", line=line)
+        lines = [line for line in (raw.rstrip() for raw in data.splitlines()) if line]
+        # One signal for the whole read, not one per line: a burst (a preview
+        # over thousands of files) would otherwise cost one document edit per
+        # line on the UI thread. The window splits the payload back and inserts
+        # the batch in a single edit block, so the layout, the block eviction and
+        # the scrollbar settle once.
+        if lines:
+            self.log_received.emit("\n".join(lines))
+        for line in lines:
+            # Keep the level-bearing lines of the whole run: the startup tail is
+            # discarded at readiness and cannot explain a later fatal exit. The
+            # substring test avoids stripping the escapes on every line of a burst.
+            if "ERROR" in line or "CRITICAL" in line:
+                parsed = LOG_LINE_RE.match(strip_sgr(line))
+                if parsed is not None and parsed.group("level") in _RECENT_ERROR_LEVELS:
+                    self._recent_errors.append(parsed.group("message").strip())
+            if not self._ready:
+                # Keep the startup output so a failure can show the client's own
+                # reason instead of only the exit code.
+                self._startup_tail.append(line)
+            if debug_enabled:
+                debug_events.log("client_log", line=line)
 
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:

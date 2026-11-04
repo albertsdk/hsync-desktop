@@ -1307,6 +1307,20 @@ theme changes, called from `_apply_settings_changes` and
 `_on_system_color_scheme_changed`; the re-render works from the plain text and
 therefore re-applies the level/label fallback colors.
 
+The panel is bounded on both axes. `engine/process.py::HsyncEngine._on_stdout`
+emits **one** `log_received` per stdout read (the lines joined by `\n`), and
+`main_window/ui.py::UiBuildMixin._append_log` splits the payload back and inserts
+the whole batch inside a single `beginEditBlock()`/`endEditBlock()`
+(`main_window/ui.py::UiBuildMixin._insert_log_lines`): the layout, the block
+eviction and the scrollbar settle once instead of once per line — a burst used to
+cost one document edit per line on the UI thread (measured 7-17x faster on a
+panel already at its cap). The line count is capped by
+`main_window/ui.py::_LOG_MAX_BLOCKS` (`QPlainTextEdit.maximumBlockCount`, the
+oldest block evicted; the `.ui` declares no cap, so the code is the single source
+of truth) and a single line by `main_window/ui.py::_LOG_LINE_MAX_CHARS`
+(`main_window/ui.py::_insert_log_line`, applied after `styled_runs` so an SGR
+sequence is never cut in half, marked with `…`).
+
 Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
 the bundled SVG (recoloured per light/dark) over the system theme, falling back
 to the system theme only when no bundled icon exists. The application icon

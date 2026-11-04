@@ -444,6 +444,36 @@ class TestFatalExitAfterReady:
         assert fatal == [(1, "second failure")]
 
 
+class TestStdoutBatching:
+    """A whole stdout read is one signal, so the window edits the panel once.
+
+    The engine used to emit one ``log_received`` per line; a burst (a preview
+    over thousands of files) then cost one document edit per line on the UI
+    thread. The payload is now the batch, joined by newlines.
+    """
+
+    @staticmethod
+    def _feed(engine: HsyncEngine, text: str) -> None:
+        engine._process = _StdoutProcess(text)  # type: ignore[assignment]
+        engine._on_stdout()
+
+    def test_a_multi_line_read_arrives_as_one_payload(self):
+        engine = HsyncEngine()
+        logs = _capture(engine.log_received)
+
+        self._feed(engine, "first\nsecond\n\nthird\n")
+
+        assert logs == [("first\nsecond\nthird",)]
+
+    def test_a_blank_read_emits_nothing(self):
+        engine = HsyncEngine()
+        logs = _capture(engine.log_received)
+
+        self._feed(engine, "\n   \n")
+
+        assert logs == []
+
+
 class _EnvFakeSettings:
     """Minimal QSettings stand-in for ``apply_settings_env`` (dict-backed)."""
 

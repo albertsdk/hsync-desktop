@@ -1556,6 +1556,47 @@ class TestLogViewScrolling:
         assert bar.value() == 5
 
 
+class TestLogPanelBounds:
+    """The panel is bounded in lines and in line length, and a burst is one edit."""
+
+    def test_a_burst_payload_appends_every_line(self, window):
+        window._append_log("first\nsecond\nthird")
+
+        assert window._log_view.toPlainText().splitlines()[-3:] == ["first", "second", "third"]
+
+    def test_the_panel_keeps_at_most_the_configured_number_of_lines(self, window):
+        from hsync_desktop.main_window.ui import _LOG_MAX_BLOCKS
+
+        count = _LOG_MAX_BLOCKS + 50
+        window._append_log("\n".join(f"line {i}" for i in range(count)))
+
+        assert window._log_view.document().blockCount() <= _LOG_MAX_BLOCKS
+        # The oldest lines are the ones evicted: the tail is what survives.
+        assert window._log_view.toPlainText().splitlines()[-1] == f"line {count - 1}"
+
+    def test_a_pathologically_long_line_is_truncated_and_marked(self, window):
+        from hsync_desktop.main_window.ui import _LOG_LINE_MAX_CHARS
+
+        window._append_log("x" * (_LOG_LINE_MAX_CHARS * 3))
+
+        assert window._log_view.toPlainText().splitlines()[-1] == "x" * _LOG_LINE_MAX_CHARS + " …"
+
+    def test_a_line_at_the_cap_is_not_marked(self, window):
+        from hsync_desktop.main_window.ui import _LOG_LINE_MAX_CHARS
+
+        window._append_log("x" * _LOG_LINE_MAX_CHARS)
+
+        assert window._log_view.toPlainText().splitlines()[-1] == "x" * _LOG_LINE_MAX_CHARS
+
+    def test_a_theme_change_re_renders_every_line(self, window):
+        window._append_log("first\nsecond\nthird")
+        before = window._log_view.toPlainText()
+
+        window._rerender_log()
+
+        assert window._log_view.toPlainText() == before
+
+
 class TestInitialReconcile:
     """The first connect after the initial sync runs one real catch-up cycle."""
 

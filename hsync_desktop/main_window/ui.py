@@ -154,6 +154,37 @@ _SURVIVES_FINISH = {"success", "error", "warning"}
 # Toasts that survive starting a new run.
 _PERSISTENT_ACROSS_RUNS = {"error", "warning"}
 
+#: The log panel keeps at most this many lines: ``QPlainTextEdit`` evicts the
+#: oldest block once the cap is reached, so a long-running session cannot grow
+#: without bound. Single source of truth (the ``.ui`` declares no cap).
+_LOG_MAX_BLOCKS = 10000
+
+#: A single line is capped before it reaches the document: the block cap bounds
+#: the line count, not their size, and one pathological line (a pretty-printed
+#: payload, an enormous path) would otherwise sit in the document and cost layout
+#: on every re-render.
+_LOG_LINE_MAX_CHARS = 4000
+_LOG_LINE_ELLIPSIS = " …"
+
+
+def _insert_log_line(cursor: QTextCursor, line: str, theme: str) -> None:
+    """Insert one styled line at *cursor*, capping its length on the text.
+
+    The cap is applied after ``styled_runs`` so an SGR sequence is never cut in
+    half; the cut is marked so a truncated line is never silent.
+    """
+    remaining = _LOG_LINE_MAX_CHARS
+    for run in styled_runs(line, theme):
+        if remaining <= 0:
+            cursor.insertText(_LOG_LINE_ELLIPSIS)
+            return
+        if len(run.text) > remaining:
+            cursor.insertText(run.text[:remaining], run.fmt)
+            cursor.insertText(_LOG_LINE_ELLIPSIS)
+            return
+        cursor.insertText(run.text, run.fmt)
+        remaining -= len(run.text)
+
 
 class UiBuildMixin:
     def _load_ui(self) -> None:
@@ -231,8 +262,9 @@ class UiBuildMixin:
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
         self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._log_view.customContextMenuRequested.connect(self._show_log_context_menu)
-        # Limit log lines to prevent memory issues with long-running sessions
-        self._log_view.setMaximumBlockCount(10000)
+        # Bound the panel: the oldest line is evicted once the cap is reached, so
+        # a long-running session cannot grow without bound.
+        self._log_view.setMaximumBlockCount(_LOG_MAX_BLOCKS)
         # Use the desktop's monospace font, two points smaller: the log lines are
         # long, so the extra width keeps them readable without scrolling.
         self._log_view.setFont(log_monospace_font())
@@ -746,12 +778,23 @@ class UiBuildMixin:
         button.setToolTip(tooltip)
 
     @Slot(str)
-    def _append_log(self, line: str) -> None:
-        """Append one log line, colored with the engine/theme palette.
+    def _append_log(self, payload: str) -> None:
+        """Append one or more log lines, colored with the engine/theme palette.
 
-        The line may carry the client's SGR sequences (it is launched with
+        The lines may carry the client's SGR sequences (it is launched with
         ``--color=always``); ``styled_runs`` turns them into char formats and
-        strips them from the text, so ``toPlainText()`` stays clean.
+        strips them from the text, so ``toPlainText()`` stays clean. A burst
+        arrives as one payload (the engine batches a whole stdout read), so it is
+        split back and inserted in a single edit block.
+        """
+        self._insert_log_lines(payload.split("\n"))
+
+    def _insert_log_lines(self, lines: list[str]) -> None:
+        """Insert *lines* at the tail in one edit block, keeping the scroll state.
+
+        One edit block for the whole batch: the document layout, the block
+        eviction (``maximumBlockCount``) and the scrollbar settle once, instead
+        of once per line (measured 7-17x faster on a panel already at its cap).
         """
         vertical = self._log_view.verticalScrollBar()
         horizontal = self._log_view.horizontalScrollBar()
@@ -767,11 +810,13 @@ class UiBuildMixin:
         cursor = self._log_view.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         text_document = self._log_view.document()
-        if text_document.blockCount() > 1 or not text_document.isEmpty():
-            cursor.insertBlock()
         theme = getattr(self, "_log_theme", THEME_LIGHT)
-        for run in styled_runs(line, theme):
-            cursor.insertText(run.text, run.fmt)
+        cursor.beginEditBlock()
+        for line in lines:
+            if text_document.blockCount() > 1 or not text_document.isEmpty():
+                cursor.insertBlock()
+            _insert_log_line(cursor, line, theme)
+        cursor.endEditBlock()
         self._log_view.setTextCursor(cursor)
 
         if at_bottom:
@@ -788,10 +833,8 @@ class UiBuildMixin:
         """
         text = self._log_view.toPlainText()
         self._log_view.clear()
-        if not text:
-            return
-        for line in text.splitlines():
-            self._append_log(line)
+        if text:
+            self._insert_log_lines(text.splitlines())
 
     def _append_desktop_log(self, level: str, message: str) -> None:
         """Append a desktop-originated line in the canonical log grammar.

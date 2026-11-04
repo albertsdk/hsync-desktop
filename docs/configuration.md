@@ -218,7 +218,10 @@ options** is enabled in General. Changes apply at the next sync start.
 **Log file** mirrors the same output to a file: the log panel keeps showing the
 live log, and the file is a rotated copy of it. The panel also shows the app's
 own lines (the ones with `[desktop]` where the engine puts its device id), which
-the file does not contain — they describe the window, not the sync.
+the file does not contain — they describe the window, not the sync. The panel
+itself is a bounded window — it keeps the last 10 000 lines and truncates a very
+long line — so a long session never grows without bound; the log file is where
+the full history lives.
 
 **Deletion protection.** When a cycle would delete more than the configured
 threshold (absolute count or percentage of local files), those deletions are
