@@ -47,7 +47,6 @@ from hsync_desktop.engine.probes import (
     probe_server_health,
 )
 from hsync_desktop.engine.process import (
-    _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
     apply_settings_env,

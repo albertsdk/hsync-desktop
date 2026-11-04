@@ -11,7 +11,6 @@ from PySide6.QtCore import QProcessEnvironment
 
 from hsync_desktop.engine import (
     _EXPECTED_VERSION,
-    _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
     add_peer_pin,
@@ -76,18 +75,6 @@ class TestFindHsyncBinary:
         monkeypatch.setattr(engine.shutil, "which", lambda _name: None)
 
         assert find_hsync_binary() == str(bundled)
-
-
-class TestHsyncKeepConstant:
-    """Test _HSYNCKEEP constant."""
-
-    def test_hsynckeep_is_string(self):
-        """Should be a string."""
-        assert isinstance(_HSYNCKEEP, str)
-
-    def test_hsynckeep_value(self):
-        """Should match expected value."""
-        assert _HSYNCKEEP == ".hsynckeep"
 
 
 class TestGetBinaryVersion:

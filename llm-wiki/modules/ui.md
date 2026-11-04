@@ -500,9 +500,9 @@ A folder row with no aggregated children (an empty directory) shows the folder's
 own status instead of defaulting to *Local*. Every verdict lands on the
 trailing-slash key through
 `main_window/events.py::EventsMixin._on_directory_status`: a directory the engine
-created from a remote event (`_on_directory_created`), an empty directory the
+created from a remote event (`_on_directory_created`) and an empty directory the
 comparison classified (`dir_status` — its `.hsynckeep` sentinel never becomes a
-file row) and a sentinel transfer all resolve there. The status itself is mapped
+file row) both resolve there. The status itself is mapped
 from the folder's own transfer by `_STATUS_PRIORITY` / `_FOLDER_STATUS_KEYS` in
 `file_panel/transfer_table.py`. A folder that does have children still takes the
 highest-priority child status.

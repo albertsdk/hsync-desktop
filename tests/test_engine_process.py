@@ -11,7 +11,6 @@ from PySide6.QtCore import QProcess, QProcessEnvironment
 
 from hsync_desktop.engine import (
     _EXPECTED_VERSION,
-    _HSYNCKEEP,
     HsyncEngine,
     TransferStats,
     add_peer_pin,
@@ -662,52 +661,6 @@ class TestHandleEvent:
         engine._handle_event(build_event(UiEventName.transfer, op="delete", file="f.txt"))
         assert out == [("✕", "f.txt", 0)]
 
-    def test_transfer_skips_hsynckeep(self, engine):
-        out = _capture(engine.file_transferred)
-        engine._handle_event(
-            build_event(UiEventName.transfer, op="download", file=f"dir/{_HSYNCKEEP}", size=1)
-        )
-        assert out == []
-        assert engine.stats.files_received == 0
-
-    def test_a_sentinel_transfer_settles_its_directory(self, engine):
-        """The sentinel is not a file row, but it does settle the folder row."""
-        transferred = _capture(engine.file_transferred)
-        dirs = _capture(engine.directory_status)
-
-        engine._handle_event(
-            build_event(UiEventName.transfer, op="upload", file=f"docs/empty/{_HSYNCKEEP}")
-        )
-        engine.local_root = "/bucket"
-        engine._handle_event(
-            build_event(UiEventName.transfer, op="download", file=f"/bucket/a/b/{_HSYNCKEEP}")
-        )
-
-        assert transferred == []
-        assert dirs == [("docs/empty", "synced"), ("a/b", "synced")]
-
-    def test_a_sentinel_delete_reports_no_directory(self, engine):
-        """A delete removes the row: there is nothing left to settle."""
-        dirs = _capture(engine.directory_status)
-        engine._handle_event(
-            build_event(UiEventName.transfer, op="delete", file=f"docs/empty/{_HSYNCKEEP}")
-        )
-        assert dirs == []
-
-    def test_the_root_sentinel_has_no_directory_row(self, engine):
-        """The bucket root is not a table row."""
-        dirs = _capture(engine.directory_status)
-        engine._handle_event(build_event(UiEventName.transfer, op="upload", file=_HSYNCKEEP))
-        assert dirs == []
-
-    def test_a_file_merely_ending_in_the_sentinel_name_is_not_a_directory(self, engine):
-        """Only a real ``.hsynckeep`` basename settles a directory."""
-        dirs = _capture(engine.directory_status)
-        engine._handle_event(
-            build_event(UiEventName.transfer, op="upload", file="docs/not.hsynckeep")
-        )
-        assert dirs == []
-
     def test_rename_event(self, engine):
         out = _capture(engine.file_renamed)
         engine._handle_event(build_event(UiEventName.rename, src="old.txt", dst="new.txt"))
@@ -740,10 +693,9 @@ class TestHandleEvent:
         )
         assert engine.stats.files_received == 1
 
-    def test_dir_created_event_and_skip(self, engine):
+    def test_dir_created_event(self, engine):
         out = _capture(engine.directory_created)
         engine._handle_event(build_event(UiEventName.dir_created, path="newdir/"))
-        engine._handle_event(build_event(UiEventName.dir_created, path=f"d/{_HSYNCKEEP}"))
         assert out == [("newdir/",)]
 
     def test_dir_status_event(self, engine):

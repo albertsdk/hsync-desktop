@@ -21,7 +21,6 @@ from dataclasses import dataclass, field
 from typing import ClassVar, cast
 from urllib.parse import urlparse
 
-from hsync_common.constants import HSYNCKEEP_FILENAME as _HSYNCKEEP
 from hsync_common.logger import LOG_LINE_RE
 from hsync_common.protocol.events import UiEventDict, UiEventName, parse_event_line
 from hsync_common.protocol.rdv_tokens import MIN_GROUP_KEY_CHARS
@@ -962,7 +961,7 @@ class HsyncEngine(QObject):
 
     def _on_dir_created_event(self, event: UiEventDict) -> None:
         path = str(event.get("path", ""))
-        if not path.endswith(_HSYNCKEEP):
+        if path:
             self.directory_created.emit(path)
 
     def _on_dir_status_event(self, event: UiEventDict) -> None:
@@ -1197,17 +1196,6 @@ class HsyncEngine(QObject):
         file = str(event.get("file", ""))
         op = str(event.get("op", ""))
         size = int(event.get("size", 0))
-        if file.endswith(_HSYNCKEEP):
-            # The sentinel is the wire form of an empty directory: it is not
-            # user content, so it never becomes a file row. Its transfer does
-            # settle the directory it preserves, though, so report that under
-            # the directory's own path (a delete drops the row as any other).
-            if op in ("download", "upload"):
-                rel = self._relative_key(file)
-                directory = rel[: -len(_HSYNCKEEP)].rstrip("/")
-                if directory and rel.endswith("/" + _HSYNCKEEP):
-                    self.directory_status.emit(directory, "synced")
-            return
         if op == "download":
             self.stats.record_content("download", self._relative_key(file), size)
             self.file_transferred.emit("↓", file, size)
