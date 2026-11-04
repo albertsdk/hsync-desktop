@@ -455,6 +455,12 @@ translations: dict[str, str] = {
     "notif.remedy_numbers": "This folder needs {needed} watches; the current limit is {limit}.",
     "notif.success": "Done",
     "notif.transfers_failed": "{count} transfer(s) failed",
+    # The conditions that currently hold, listed by the status-bar badge.
+    "problems.badge": "⚠ {count}",
+    "problems.failures": "{count} failed transfer(s)",
+    "problems.warnings": "{count} active warning(s)",
+    "problems.dismiss_all": "Dismiss all",
+    "problems.open_guide": "Open guide",
     "notif.sync_complete": "Sync Complete",
     "notif.sync_complete_msg": "All files in sync",
     "notif.peer_update": "Devices",

@@ -80,6 +80,7 @@ from hsync_desktop.main_window.trust import TrustMixin
 from hsync_desktop.main_window.ui import UiBuildMixin
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
+from hsync_desktop.problems import ProblemRegistry
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -193,7 +194,14 @@ class MainWindow(
         # Scoped Send/Receive state: a user-invoked one-shot is in flight.
         self._selection_sync_active = False  # True while a scoped op runs
         self._selection_sync_phase = ""  # "preview" | "confirm" | "run"
-        self._transfer_failure_count = 0  # failed per-file transfers this run
+        # The problems that currently hold: failed transfers (by path) and the
+        # conditions a subsystem reported (by source). The status-bar badge
+        # renders them and each one clears when its condition heals — a
+        # notification is a moment, a problem is a state.
+        self._problems = ProblemRegistry(self)
+        # Whether the cycle in flight paused deletions: the guard problem clears
+        # on the first cycle that completes without pausing.
+        self._guard_paused_this_cycle = False
         self._ever_connected = False  # engine reached "connected" this process
         self._p2p_enabled = False  # p2p mode for the current engine run
         self._initial_reconcile_done = False  # post-initial-sync catch-up ran
@@ -330,6 +338,7 @@ class MainWindow(
         # Non-fatal engine warnings (degraded watcher, unreachable rendezvous):
         # surfaced in-app and, when unfocused, as a system notification.
         e.warning_occurred.connect(self._on_engine_warning)
+        e.warning_cleared.connect(self._on_engine_warning_cleared)
         e.path_not_found.connect(self._on_path_not_found)
         e.auth_error_occurred.connect(self._on_auth_error)
         e.auth_required_occurred.connect(self._on_auth_error)

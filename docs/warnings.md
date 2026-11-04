@@ -10,14 +10,37 @@ not there.
 
 | Where | What it is | Stays until |
 | ----- | ---------- | ----------- |
-| **Toast** (bottom-right) | A transient message: searching for devices, connection result, "nothing to sync", a Send/Receive while a sync is running. | It auto-hides. |
-| **Warning / error banner** | Something you should read: a warning the sync keeps running through, or an error. An icon and a title make the severity recognisable without relying on colour. | You close it; it survives a new sync. |
+| **Toast** (bottom-right) | A transient message: searching for devices, connection result, "nothing to sync", a Send/Receive while a sync is running, and a warning or an error as it happens. | It auto-hides. |
+| **Problems badge** (status bar) | The conditions that still hold: a transfer that gave up (named by file), a degraded watcher, a share with no primary device, deletions paused by the deletion protection. | The condition heals — or you dismiss it. |
 | **Desktop notification** | The same warning or error, shown by the operating system **only while the window is in the background**. | It follows your system notification settings. |
 | **Log panel** | Every message, including the ones shown as toasts. | Until you clear it (a new sync appends, it does not erase). |
 
 Errors and warnings always appear **in the app window**, whatever your
 notification preference; the preference only controls the operating-system
 notifications.
+
+### The problems badge
+
+A notification is a moment; a problem is a state. A transfer that gave up, a
+watcher running in polling mode, a share nobody serves do not stop being true
+when the toast fades — so the window keeps them in one place, the **problems
+badge** at the right of the status bar. It is hidden while nothing is wrong.
+
+- It shows how many problems hold and takes the colour of the worst of them.
+- Its tooltip and its menu **name every one** — a failed transfer lists the file
+  and the reason, so you never have to guess which file it was.
+- Choosing a problem **selects the log line** that reported it.
+- When a problem carries a remedy (a kernel limit to raise, a setting to change),
+  the menu offers **Open guide**, so the advice is still there after the toast has
+  gone.
+- It **clears itself**: a file that transfers successfully leaves the list, a
+  cycle that reports nothing left to move empties it, a watcher restored to
+  inotify or a group that elects a primary removes its entry. What you see is
+  what is still true — never a warning about something that is already fixed.
+- **Dismiss all** drops the list when you have read it.
+
+The same rule holds for the log: it is the record of everything that happened,
+while the badge is what is wrong right now.
 
 ## Is everything in sync?
 

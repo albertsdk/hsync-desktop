@@ -284,7 +284,8 @@ class ActionsMixin:
         self._file_panel.load_local_files(local_path, restore_view=restore_view)
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
-        self._transfer_failure_count = 0  # reset per engine process
+        # The problems describe the run that reported them: a new one starts clean.
+        self._problems.clear_all()
         self._p2p_enabled = bool(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", False, bool)
         )

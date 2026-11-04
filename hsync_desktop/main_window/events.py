@@ -414,6 +414,9 @@ class EventsMixin:
     def _on_file_transferred(self, direction: str, filename: str, size: int) -> None:
         self._refresh_transfer_labels()
         rel_path = self._rel_path(filename)
+        # A success on this path settles whatever failed on it: the problem is a
+        # state, and the state no longer holds.
+        self._problems.resolve_failure(rel_path)
         # Read the current mtime (and the size, when the event omits it) from disk.
         mtime = 0.0
         if direction in ("↓", "↑") and self._local_path:
@@ -597,40 +600,58 @@ class EventsMixin:
             msg = (
                 tr("notif.master_takeover").replace("{cid}", peer_cid).replace("{ip}", peer_address)
             )
+            # The handover settles the contest: a conflict problem (if one was
+            # reported) no longer holds.
+            self._problems.clear_warning("master_conflict")
             self._append_desktop_log("INFO", msg)
             return
+        self._problems.record_warning("master_conflict", tr("notif.master_conflict_title"), msg)
         self._notify_warning(tr("notif.master_conflict_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
     @Slot(str, str, str)
     def _on_transfer_failed(self, op: str, filepath: str, message: str) -> None:
-        """Surface a per-file transfer that gave up after retries."""
+        """Surface a per-file transfer that gave up after retries.
+
+        A failure is a state, not a moment: it is recorded in the problems badge
+        by path — so the user can tell *which* file — and it clears itself when
+        that path transfers or when the cycle reports nothing left to move. The
+        toast only announces it, so it auto-hides instead of parking on screen.
+        """
         arrow = "↑" if op == "upload" else "↓"
         self._append_desktop_log("ERROR", f"{arrow} {filepath}: {message}")
         # The row would otherwise keep showing an in-flight progress bar.
-        self._file_panel.mark_failed(self._rel_path(filepath))
-        # Per-file failures are aggregated into one in-app error toast (updated
-        # in place, so a burst cannot flood the window); the OS notification
-        # stays per file. Continuous runs never reach _on_process_finished, so
-        # surfacing it here is what makes the failure visible in the window.
-        self._transfer_failure_count += 1
+        rel_path = self._rel_path(filepath)
+        self._file_panel.mark_failed(rel_path)
+        # One system notification per burst: a failing cycle can give up on many
+        # files at once, and the badge and the toast already carry the count and
+        # the names.
+        first_of_burst = self._problems.failure_count == 0
+        self._problems.record_failure(rel_path, message)
         if not self._selection_sync_active:
             self._show_info_banner(
-                tr("notif.transfers_failed").replace("{count}", str(self._transfer_failure_count)),
+                tr("notif.transfers_failed").replace("{count}", str(self._problems.failure_count)),
                 kind="error",
                 title=tr("notif.error"),
             )
-        if self._notifier:
-            self._notifier.error(tr("notif.error"), message)
+        if self._notifier and first_of_burst:
+            self._notifier.error(tr("notif.error"), f"{rel_path}: {message}")
 
     @Slot(str, int, int)
     def _on_sync_paused(self, reason: str, deletes: int, _local: int) -> None:
-        """Surface the mass-deletion guard pausing the delete phase."""
+        """Surface the mass-deletion guard pausing the delete phase.
+
+        The pause is a state that repeats every cycle until the limits change, so
+        it is recorded as a problem (and clears itself on the first cycle that
+        completes without pausing) instead of only flashing a toast.
+        """
         msg = (
             tr("notif.sync_paused_msg")
             .replace("{deletes}", str(deletes))
             .replace("{reason}", reason)
         )
+        self._guard_paused_this_cycle = True
+        self._problems.record_warning("deletion_guard", tr("notif.sync_paused_title"), msg)
         self._notify_warning(tr("notif.sync_paused_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
@@ -644,8 +665,14 @@ class EventsMixin:
 
     @Slot(str)
     def _on_no_master_warning(self, _detail: str) -> None:
-        """Handle the [NO MASTER] warning (no node will serve files)."""
+        """Handle the [NO MASTER] warning (no node will serve files).
+
+        The share has no device to serve it: a state that repeats while it holds,
+        so it is recorded as a problem and the client retracts it (with
+        ``warning_cleared``) as soon as an election gives the group a primary.
+        """
         msg = tr("notif.no_master_msg")
+        self._problems.record_warning("master", tr("notif.no_master_title"), msg)
         self._notify_warning(tr("notif.no_master_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
@@ -682,6 +709,15 @@ class EventsMixin:
         The engine is the single source of truth for what the cycle did: use its
         per-action counters instead of inferring the result from the event stream.
         """
+        # A cycle that reports nothing failed leaves no failing transfer behind:
+        # the engine's counters are the authoritative end-of-cycle verdict.
+        if int((counters or {}).get("failed", 0) or 0) == 0:
+            self._problems.clear_failures()
+        # The deletion guard is a per-cycle verdict: the problem clears on the
+        # first cycle that completes without pausing.
+        if not self._guard_paused_this_cycle:
+            self._problems.clear_warning("deletion_guard")
+        self._guard_paused_this_cycle = False
         was_scoped = self._selection_sync_active
         if was_scoped and self._selection_sync_phase == "run":
             outcome, applied = _scoped_outcome(counters or {})
@@ -726,9 +762,18 @@ class EventsMixin:
 
     @Slot(str, str)
     def _on_duplicate_identity(self, peer_cid: str, peer_address: str) -> None:
-        """Handle a duplicated device identity (cloned HSYNC_DEVICE_DIR)."""
+        """Handle a duplicated device identity (cloned HSYNC_DEVICE_DIR).
+
+        A cloned device identity keeps colliding until the user fixes the copy,
+        and the client cannot observe that: the entry stays in the badge until
+        the run ends (or the user dismisses it), which is what a problem needing
+        action should do.
+        """
         peer = peer_address or "?"
         msg = tr("notif.duplicate_identity_msg").replace("{cid}", peer_cid).replace("{ip}", peer)
+        self._problems.record_warning(
+            "duplicate_identity", tr("notif.duplicate_identity_title"), msg
+        )
         self._notify_warning(tr("notif.duplicate_identity_title"), msg)
         self._append_desktop_log("WARNING", msg)
 
@@ -1025,8 +1070,8 @@ class EventsMixin:
         self._btn_stop.setEnabled(False)
         if self._tray:
             self._tray.set_running(False)
-        # Keep result/error toasts visible after the process exits; clear only
-        # run-scoped progress/info toasts.
+        # The run is over: its outcome stays on screen until its own auto-hide,
+        # and the problems it left are cleared — they described that run.
         self._clear_run_toast()
         self._apply_button_styles()
         self._update_menu_state()
@@ -1040,14 +1085,15 @@ class EventsMixin:
                 tr("notif.error"),
                 tr("notif.process_crashed").replace("{code}", str(code)),
             )
-        elif not was_scoped and not self._user_stopped and self._transfer_failure_count > 0:
-            # Consolidate per-file failures into one toast at the end of a run.
+        elif not was_scoped and not self._user_stopped and self._problems.failure_count > 0:
+            # The run ended with transfers still failing: one toast, whose count
+            # the badge keeps reporting until the user acts on it.
             self._show_info_banner(
-                tr("notif.transfers_failed").replace("{count}", str(self._transfer_failure_count)),
+                tr("notif.transfers_failed").replace("{count}", str(self._problems.failure_count)),
                 kind="error",
                 title=tr("notif.error"),
             )
-        self._transfer_failure_count = 0
+        self._problems.clear_all()
 
     @Slot(str)
     def _on_path_not_found(self, path: str) -> None:

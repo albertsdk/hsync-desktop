@@ -300,6 +300,18 @@ QLabel#simulationBadge {{
     border-radius: 4px;
     padding: 1px 8px;
 }}
+QToolButton#problemsBadge {{
+    background-color: {problems_warning_bg};
+    color: {problems_warning_fg};
+    border: 1px solid {problems_warning_border};
+    border-radius: 4px;
+    padding: 1px 8px;
+}}
+QToolButton#problemsBadge[severity="error"] {{
+    background-color: {problems_error_bg};
+    color: {problems_error_fg};
+    border: 1px solid {problems_error_border};
+}}
 QStatusBar {{
     border-top: 1px solid {border};
 }}
@@ -399,6 +411,14 @@ def _light_qss() -> str:
         simulation_bg="#FFF3CD",
         simulation_fg="#856404",
         simulation_border="#FFC107",
+        # Problems badge: the same warning tone while only conditions hold, and
+        # the error tone the toasts use once a transfer is failing.
+        problems_warning_bg="#FFF3CD",
+        problems_warning_fg="#856404",
+        problems_warning_border="#FFC107",
+        problems_error_bg="#F8D7DA",
+        problems_error_fg="#842029",
+        problems_error_border="#DC3545",
     )
 
 
@@ -426,6 +446,12 @@ def _dark_qss() -> str:
         simulation_bg="#3A3000",
         simulation_fg="#FFD866",
         simulation_border="#8A6D00",
+        problems_warning_bg="#3A3000",
+        problems_warning_fg="#FFD866",
+        problems_warning_border="#8A6D00",
+        problems_error_bg="#3A1418",
+        problems_error_fg="#FFB3B8",
+        problems_error_border="#8A2A32",
     )
 
 

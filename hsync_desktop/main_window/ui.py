@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSplitter,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -49,7 +50,7 @@ from hsync_desktop.config import (
     DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
-from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
+from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS, open_docs_link
 from hsync_desktop.engine import (
     HsyncEngine,
     add_peer_pin,
@@ -71,6 +72,7 @@ from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.log_style import styled_runs
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
+from hsync_desktop.problems import FAILURE, WARNING, Problem
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -149,10 +151,10 @@ _SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "notice": "⚠", "success": 
 # White matches the message text; the underline (added with the colour) keeps the
 # link recognisable without relying on hue alone.
 _TOAST_LINK_COLOR = "#FFFFFF"
-# Toasts that survive the engine process finishing.
+# Toasts that survive the engine process finishing: the run's outcome stays on
+# screen until its own auto-hide runs out. Nothing survives a *new* run — the
+# state it described lives in the problems badge, which is reset with the run.
 _SURVIVES_FINISH = {"success", "error", "warning"}
-# Toasts that survive starting a new run.
-_PERSISTENT_ACROSS_RUNS = {"error", "warning"}
 
 #: The log panel keeps at most this many lines: ``QPlainTextEdit`` evicts the
 #: oldest block once the cap is reached, so a long-running session cannot grow
@@ -274,6 +276,13 @@ class UiBuildMixin:
         self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
         self._simulation_badge: QLabel = self.findChild(QLabel, "simulationBadge")  # type: ignore[assignment]
         self._deletion_badge: QLabel = self.findChild(QLabel, "deletionBadge")  # type: ignore[assignment]
+        # The status-bar surface for the problems that currently hold: hidden
+        # while there are none, and its menu lists every one of them.
+        self._problems_badge: QToolButton = self.findChild(QToolButton, "problemsBadge")  # type: ignore[assignment]
+        self._problems_menu = QMenu(self._problems_badge)
+        self._problems_badge.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._problems_badge.setMenu(self._problems_menu)
+        self._problems.changed.connect(self._refresh_problems_badge)
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
         # Add role icon before roleLabel in the bottom bar layout
         self._role_icon = QLabel()
@@ -442,6 +451,103 @@ class UiBuildMixin:
         # Simulation Mode and backup-policy badges follow the language too.
         self._refresh_simulation_state()
         self._refresh_deletion_badge()
+        self._refresh_problems_badge()
+
+    def _refresh_problems_badge(self) -> None:
+        """Render the active problems on the status-bar badge.
+
+        The badge is the window's statement of what is wrong *right now*: hidden
+        while nothing holds, and otherwise a count with a severity tone (an error
+        while a transfer is failing, a warning while only a condition is
+        reported) and a menu that names every problem, so the user can tell which
+        ones and reach the log line that explains them. It clears itself: each
+        entry leaves the registry when its condition heals.
+        """
+        problems = self._problems.problems
+        self._problems_menu.clear()
+        if not problems:
+            self._problems_badge.hide()
+            return
+        self._problems_badge.setText(tr("problems.badge").replace("{count}", str(len(problems))))
+        self._problems_badge.setToolTip(self._problems_tooltip(problems))
+        self._problems_badge.setProperty(
+            "severity", "error" if self._problems.failure_count else "warning"
+        )
+        style = self._problems_badge.style()
+        style.unpolish(self._problems_badge)
+        style.polish(self._problems_badge)
+        for problem in problems:
+            action = self._problems_menu.addAction(self._problem_label(problem))
+            action.triggered.connect(lambda _=False, key=problem.key: self._reveal_log_line(key))
+        # The remedy the toast used to carry must stay reachable: the entry
+        # outlives the toast, so its guide link does too. One action serves the
+        # whole list, opening the first guide it finds — the targets are the
+        # watcher-limits page and the troubleshooting page, and in practice one
+        # actionable condition is standing at a time.
+        guide = next((problem.help_url for problem in problems if problem.help_url), None)
+        if guide:
+            self._problems_menu.addSeparator()
+            open_guide = self._problems_menu.addAction(tr("problems.open_guide"))
+            open_guide.triggered.connect(lambda _=False, url=guide: open_docs_link(url))
+        self._problems_menu.addSeparator()
+        dismiss = self._problems_menu.addAction(tr("problems.dismiss_all"))
+        dismiss.triggered.connect(self._dismiss_problems)
+        self._problems_badge.show()
+
+    @staticmethod
+    def _problem_label(problem: Problem) -> str:
+        """The one-line menu label: the identity, with the reason when there is one.
+
+        A warning's title already carries the whole condition, so only a failure
+        (whose title is the bare path) is given its reason.
+        """
+        if problem.kind == FAILURE and problem.detail:
+            return f"{problem.title} — {problem.detail}"
+        return problem.title
+
+    @staticmethod
+    def _problems_tooltip(problems: list[Problem]) -> str:
+        """The badge tooltip: every problem on its own line, under its kind.
+
+        The detail is appended here — the tooltip is where the remedy fits
+        without turning the menu entries into paragraphs.
+        """
+        lines: list[str] = []
+        failures = [problem for problem in problems if problem.kind == FAILURE]
+        warnings = [problem for problem in problems if problem.kind == WARNING]
+        if failures:
+            lines.append(tr("problems.failures").replace("{count}", str(len(failures))))
+            lines.extend(UiBuildMixin._problem_line(problem) for problem in failures)
+        if warnings:
+            lines.append(tr("problems.warnings").replace("{count}", str(len(warnings))))
+            lines.extend(UiBuildMixin._problem_line(problem) for problem in warnings)
+        return "\n".join(lines)
+
+    @staticmethod
+    def _problem_line(problem: Problem) -> str:
+        """One tooltip line: the identity, then its detail when it has one."""
+        return f"  {problem.title} — {problem.detail}" if problem.detail else f"  {problem.title}"
+
+    def _dismiss_problems(self) -> None:
+        """Drop every active problem: the user acknowledged them."""
+        self._problems.clear_all()
+
+    def _reveal_log_line(self, needle: str) -> None:
+        """Select and scroll to the last log line mentioning *needle*.
+
+        The problems badge says *what* is wrong; the log line that reported it
+        says *why*. The line may already have been evicted by the panel's cap, in
+        which case there is nothing to reveal.
+        """
+        text = self._log_view.toPlainText()
+        index = text.rfind(needle)
+        if index < 0:
+            return
+        cursor = self._log_view.textCursor()
+        cursor.setPosition(index)
+        cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
+        self._log_view.setTextCursor(cursor)
+        self._log_view.ensureCursorVisible()
 
     def _refresh_deletion_badge(self) -> None:
         """Show the backup-policy badge while this device keeps deletions.
@@ -1070,14 +1176,13 @@ class UiBuildMixin:
     ) -> None:
         """Show the overlay toast.
 
-        ``kind`` is ``progress``, ``info``, ``success``, ``warning`` or
-        ``error``. ``error``/``warning`` stay visible until dismissed and
-        survive the engine process finishing and a new run; ``success``
-        survives the process finishing; ``progress``/``info`` auto-hide.
-        ``auto_hide_ms`` overrides the per-kind default (``<= 0`` keeps it
-        visible until ``_hide_info_banner``). ``help_url`` reveals the guide
-        link inside the toast (an actionable warning); every other toast hides
-        it.
+        ``kind`` is ``progress``, ``info``, ``success``, ``warning``, ``notice``
+        or ``error``. Every kind auto-hides: a toast is a notification, and the
+        problems that still hold are listed by the status-bar badge instead of
+        parked on screen. An outcome lingers a little longer than a status line.
+        ``auto_hide_ms`` overrides the default (``<= 0`` keeps it visible until
+        ``_hide_info_banner``). ``help_url`` reveals the guide link inside the
+        toast (an actionable warning); every other toast hides it.
         """
         severity = _SEVERITY_BY_KIND.get(kind, "info")
         self._info_banner_kind = kind
@@ -1097,7 +1202,10 @@ class UiBuildMixin:
         self._position_info_banner()
         self._info_banner.raise_()
         if auto_hide_ms is None:
-            auto_hide_ms = 0 if kind in ("error", "warning") else 15000
+            # Every kind auto-hides: a toast is a notification, not a state, and
+            # what still holds lives in the problems badge. An outcome lingers a
+            # little longer than a status line.
+            auto_hide_ms = 20000 if kind in ("error", "warning") else 15000
         if auto_hide_ms > 0:
             self._info_timer.start(auto_hide_ms)
         else:
@@ -1154,10 +1262,14 @@ class UiBuildMixin:
         ``transient`` marks a condition that heals itself (dropped real-time
         events, a file that kept changing, unreadable files recovered by the next
         scan): it shows an auto-hiding toast and never a system notification,
-        because the user cannot act on it. A persistent warning (a degraded
-        watcher, an unreachable rendezvous, a stalled safety net, a missing shared
-        folder, low disk space) stays in the window and reaches the OS while the
-        window is in the background.
+        because the user cannot act on it.
+
+        A persistent warning (a degraded watcher, an unreachable rendezvous, a
+        stalled safety net, a missing shared folder, low disk space) is a *state*:
+        it is recorded in the problems badge, which names it and outlives the
+        toast, and it raises a notification that auto-hides. The client retracts
+        it with ``warning_cleared`` when the condition heals, so the badge never
+        reports a problem that is gone.
 
         A persistent warning also carries the remediation the client's ``reason``
         and numbers imply (a host kernel limit the user must raise) plus a link
@@ -1179,16 +1291,18 @@ class UiBuildMixin:
         if transient:
             self._show_info_banner(text, kind="notice", title=tr("notif.warning"))
             return
-        self._notify_warning(
-            tr("notif.warning"),
-            text,
-            category="warnings",
-            # The host-remedy guide is only useful for the watcher causes that
-            # carry the commands; every other persistent warning (including the
-            # rendezvous token refusal, whose remedy points at Settings) keeps
-            # the desktop symptom guide.
-            help_url=WATCHER_LIMITS if source == "watcher" and remedy else TROUBLESHOOTING,
-        )
+        # The host-remedy guide is only useful for the watcher causes that carry
+        # the commands; every other persistent warning (including the rendezvous
+        # token refusal, whose remedy points at Settings) keeps the desktop
+        # symptom guide.
+        help_url = WATCHER_LIMITS if source == "watcher" and remedy else TROUBLESHOOTING
+        self._problems.record_warning(source, message, remedy, help_url)
+        self._notify_warning(tr("notif.warning"), text, category="warnings", help_url=help_url)
+
+    @Slot(str)
+    def _on_engine_warning_cleared(self, source: str) -> None:
+        """The condition *source* reported no longer holds: drop it from the badge."""
+        self._problems.clear_warning(source)
 
     def _hide_info_banner(self) -> None:
         """Hide the toast and stop its auto-hide timer."""
@@ -1197,13 +1311,14 @@ class UiBuildMixin:
         self._info_banner_kind = None
 
     def _clear_run_toast(self, *, across_runs: bool = False) -> None:
-        """Hide the toast on a run boundary unless it must persist.
+        """Hide the toast on a run boundary.
 
-        Persistent kinds (``error``/``warning``) survive the engine process
-        finishing and, with ``across_runs``, also the start of a new run.
+        A finished process keeps its outcome on screen until the toast's own
+        auto-hide runs out. A new run clears whatever the previous one left: the
+        state it described was the previous run's problems, and those were reset
+        with it.
         """
-        keep = _PERSISTENT_ACROSS_RUNS if across_runs else _SURVIVES_FINISH
-        if self._info_banner_kind not in keep:
+        if across_runs or self._info_banner_kind not in _SURVIVES_FINISH:
             self._hide_info_banner()
 
     def _apply_button_styles(self) -> None:

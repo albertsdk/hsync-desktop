@@ -38,7 +38,8 @@ window's attributes.
 Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
 `event_error→_on_engine_event_error` (`main_window/ui.py::UiBuildMixin._on_engine_event_error`, which logs it as the desktop's own `[EVENT ERROR]` line),
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
-`transfer_failed→_on_transfer_failed`, `sync_paused→_on_sync_paused`,
+`transfer_failed→_on_transfer_failed`, `warning_cleared→_on_engine_warning_cleared`,
+`sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`, `folder_size_changed→_on_folder_size`,
 `file_panel.share_size_changed→_on_share_size_changed`,
 `pairing_needed→_on_pairing_needed` / `fingerprint_changed→_on_fingerprint_changed`,
@@ -64,7 +65,54 @@ the `notice` kind: same warning tone, auto-hidden, never a system
 notification and never a remedy, because a self-healing condition (dropped
 events, an unreadable file recovered by the next scan) is not actionable. The
 client already deduplicates that stream per `(source, message)` window, and a
-warning arriving after an operator stop is logged but not notified.
+warning arriving after an operator stop is logged but not notified. A
+*persistent* warning is a state: it is recorded in the problems registry (see
+*Problems badge*) and the client retracts it with `warning_cleared` when the
+condition heals, so no surface ever reports a problem that is gone.
+
+### Problems badge
+
+`problems.py::ProblemRegistry` holds the conditions that still hold, and
+`main_window/ui.py::UiBuildMixin._refresh_problems_badge` renders them on the
+status-bar `QToolButton` (`ui/main_window.ui::problemsBadge`): hidden while the
+registry is empty, otherwise a count coloured by the worst kind, a tooltip that
+names every entry and a menu whose actions select the log line that reported one
+(`UiBuildMixin._reveal_log_line`), plus `problems.dismiss_all`
+(`UiBuildMixin._dismiss_problems`). It is wired to the registry's `changed`
+signal, so every record/resolve repaints it, and `_apply_translations` re-renders
+it on a language change.
+
+A problem is keyed by identity, so a repeat updates the entry instead of stacking
+it: a failure by bucket-relative path, a warning by the subsystem that reported
+it (`source`). Each one carries its own lifetime —
+`EventsMixin._on_transfer_failed` records a failure and `_on_file_transferred`
+resolves it for the same path, `EventsMixin._on_sync_completed` drops them all
+when the engine's `failed` counter is zero (the authoritative end-of-cycle
+verdict), `_on_sync_paused` records the deletion guard for the cycle that
+tripped it, `_on_no_master_warning` records the missing primary,
+`_on_master_conflict` records a prefer-master contest (retracted on the
+`takeover` that settles it), `_on_duplicate_identity` records a cloned device
+identity (nothing heals it but the user, so it stays until the run ends), and
+`UiBuildMixin._on_engine_warning`/`_on_engine_warning_cleared` record and retract
+a subsystem condition. A run boundary
+(`ActionsMixin._prepare_engine_run`, `EventsMixin._on_process_finished`) clears
+the registry: the state described that run.
+
+An entry renders in two places: the menu label is the identity
+(`UiBuildMixin._problem_label`: the path plus the error for a failure, the
+condition for a warning) and the tooltip adds the detail
+(`UiBuildMixin._problem_line`), which is where the localized remedy
+(`warnings.py::remedy_text`) fits without turning the menu into paragraphs. A
+problem carrying a `help_url` also puts `problems.open_guide` in the menu
+(`docs_links.py::open_docs_link`), so the advice outlives the toast that used to
+carry it.
+
+Every toast auto-hides (`UiBuildMixin._show_info_banner`: 20 s for
+`error`/`warning`, 15 s otherwise), because a toast is a notification and the
+state lives in the badge; `_clear_run_toast` keeps the finished run's outcome on
+screen until its own timer and clears it when a new run starts. The per-file
+failure notification to the OS is sent once per burst (`_on_transfer_failed`
+checks the registry was empty), not once per file.
 File-action menu slots: open/open-with/copy-to/rename/trash/
 properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
 

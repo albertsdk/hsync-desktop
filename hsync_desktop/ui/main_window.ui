@@ -198,6 +198,19 @@
        </widget>
       </item>
       <item>
+       <widget class="QToolButton" name="problemsBadge">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Problems</string>
+        </property>
+        <property name="toolButtonStyle">
+         <enum>Qt::ToolButtonTextOnly</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="statusSpacer1">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>

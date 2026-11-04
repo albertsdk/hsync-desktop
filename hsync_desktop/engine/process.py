@@ -305,6 +305,7 @@ class HsyncEngine(QObject):
     # to name a remedy: ``reason`` (case class) plus ``needed``/``limit`` when the
     # engine measured a bounded resource.
     warning_occurred = Signal(str, str, bool, dict)
+    warning_cleared = Signal(str)  # the condition a warning reported no longer holds
     auth_error_occurred = Signal(str)  # authentication error (invalid/missing API key)
     auth_required_occurred = Signal(str)  # a shared key is required but missing
     security_rejected = Signal(str, str, str)  # unsafe remote path rejected (op, path, message)
@@ -1027,6 +1028,9 @@ class HsyncEngine(QObject):
             details,
         )
 
+    def _on_warning_cleared_event(self, event: UiEventDict) -> None:
+        self.warning_cleared.emit(str(event.get("source", "")))
+
     def _on_sync_paused_event(self, event: UiEventDict) -> None:
         self.sync_paused.emit(
             str(event.get("reason", "")),
@@ -1154,6 +1158,7 @@ class HsyncEngine(QObject):
         UiEventName.conflict_resolved: _on_conflict_resolved_event,
         UiEventName.error: _on_error_event,
         UiEventName.warning: _on_warning_event,
+        UiEventName.warning_cleared: _on_warning_cleared_event,
         UiEventName.sync_paused: _on_sync_paused_event,
         UiEventName.security_rejected: _on_security_rejected_event,
         UiEventName.peers: _on_peers_event,

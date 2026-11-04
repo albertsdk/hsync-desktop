@@ -174,6 +174,22 @@ class TestCommonQSS:
         """The font comes from the desktop (see hsync_desktop/fonts.py)."""
         assert "font-family" not in themes._COMMON_QSS
 
+    def test_the_problems_badge_has_a_rule_for_both_severities(self):
+        """The badge's ``severity`` property must actually paint something.
+
+        ``UiBuildMixin._refresh_problems_badge`` sets the dynamic property and
+        repolishes the button; without a matching selector the error and warning
+        states would look identical.
+        """
+        assert "QToolButton#problemsBadge {" in themes._COMMON_QSS
+        assert 'QToolButton#problemsBadge[severity="error"] {' in themes._COMMON_QSS
+
+    def test_each_theme_paints_the_problems_badge(self):
+        """Both palettes provide the badge's colours (the format would raise)."""
+        for qss in (themes._light_qss(), themes._dark_qss()):
+            assert "QToolButton#problemsBadge" in qss
+            assert "{problems_" not in qss  # every placeholder was substituted
+
 
 class TestSystemThemeDetection:
     """Qt's scheme first; the Linux desktop settings when Qt reports Unknown."""

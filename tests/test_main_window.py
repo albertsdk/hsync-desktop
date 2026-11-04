@@ -1423,13 +1423,13 @@ class TestInfoToast:
         assert "rgba(25, 135, 84, 0.85)" in window._info_banner.styleSheet()
         assert window._info_timer.isActive()
 
-    def test_error_is_persistent_until_dismissed(self, window):
+    def test_an_error_auto_hides(self, window):
         window._notify_error(tr("notif.error"), "boom")
 
-        assert not window._info_timer.isActive()
+        assert window._info_timer.isActive()
         assert not window._info_banner.isHidden()
 
-    def test_error_and_warning_survive_finish_and_new_run(self, window, monkeypatch, tmp_path):
+    def test_an_error_survives_finish_and_a_new_run_clears_it(self, window, monkeypatch, tmp_path):
         window._notify_error(tr("notif.error"), "boom")
 
         window._on_process_finished(0, "normal")
@@ -1438,8 +1438,7 @@ class TestInfoToast:
 
         monkeypatch.setattr(window._file_panel, "load_local_files", lambda *a, **k: None)
         window._prepare_engine_run(str(tmp_path))
-        assert window._info_banner_kind == "error"
-        assert not window._info_banner.isHidden()
+        assert window._info_banner.isHidden()
 
     def test_engine_error_shows_in_app_even_when_notifications_disabled(self, window):
         from unittest.mock import MagicMock
@@ -1458,8 +1457,9 @@ class TestInfoToast:
         assert window._info_banner_kind == "error"
         assert not window._info_banner.isHidden()
 
-    def test_aggregated_transfer_failures_surface_one_error_toast(self, window):
-        window._transfer_failure_count = 2
+    def test_aggregated_transfer_failures_surface_one_error_toast(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+        window._on_transfer_failed("download", str(tmp_path / "b.bin"), "boom")
 
         window._on_process_finished(0, "normal")
 
@@ -1467,8 +1467,9 @@ class TestInfoToast:
         expected = tr("notif.transfers_failed").replace("{count}", "2")
         assert expected in window._info_banner_label.text()
 
-    def test_aggregated_transfer_failures_skipped_after_user_stop(self, window):
-        window._transfer_failure_count = 2
+    def test_a_user_stop_does_not_aggregate_failures(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+        window._hide_info_banner()
         window._user_stopped = True
 
         window._on_process_finished(0, "stopped")
@@ -1491,6 +1492,152 @@ class TestInfoToast:
         assert (
             tr("notif.transfers_failed").replace("{count}", "2") in window._info_banner_label.text()
         )
+
+
+class TestProblemsBadge:
+    """The status bar names the problems that hold, and they clear themselves."""
+
+    def test_the_badge_is_hidden_while_nothing_holds(self, window):
+        assert window._problems_badge.isHidden()
+
+    def test_the_badge_shows_its_text(self, window):
+        """A ``QToolButton`` defaults to IconOnly, which would hide the count."""
+        from PySide6.QtCore import Qt
+
+        assert window._problems_badge.toolButtonStyle() is Qt.ToolButtonStyle.ToolButtonTextOnly
+
+    def test_a_failed_transfer_is_named_on_the_badge(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+
+        assert not window._problems_badge.isHidden()
+        assert window._problems_badge.property("severity") == "error"
+        labels = [action.text() for action in window._problems_menu.actions()]
+        assert any("a.bin" in label and "boom" in label for label in labels)
+
+    def test_a_success_on_the_same_path_clears_the_problem(self, window, tmp_path):
+        path = str(tmp_path / "a.bin")
+        window._on_transfer_failed("download", path, "boom")
+
+        window._on_file_transferred("↓", path, 10)
+
+        assert window._problems_badge.isHidden()
+
+    def test_a_clean_cycle_clears_the_failures(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+
+        window._on_sync_completed({"failed": 0})
+
+        assert window._problems_badge.isHidden()
+
+    def test_a_cycle_that_still_fails_keeps_the_problem(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+
+        window._on_sync_completed({"failed": 1})
+
+        assert not window._problems_badge.isHidden()
+
+    def test_a_warning_uses_the_warning_severity(self, window, monkeypatch):
+        monkeypatch.setattr(window, "_notify_warning", lambda *a, **k: None, raising=False)
+        window._user_stopped = False
+
+        window._on_engine_warning("File watcher degraded to polling", "watcher")
+
+        assert not window._problems_badge.isHidden()
+        assert window._problems_badge.property("severity") == "warning"
+
+    def test_a_cleared_warning_leaves_the_badge(self, window, monkeypatch):
+        monkeypatch.setattr(window, "_notify_warning", lambda *a, **k: None, raising=False)
+        window._user_stopped = False
+        window._on_engine_warning("File watcher degraded to polling", "watcher")
+
+        window._on_engine_warning_cleared("watcher")
+
+        assert window._problems_badge.isHidden()
+
+    def test_dismiss_all_drops_every_problem(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+
+        window._dismiss_problems()
+
+        assert window._problems_badge.isHidden()
+
+    def test_the_menu_lists_every_problem_and_the_dismiss(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+        window._on_transfer_failed("download", str(tmp_path / "b.bin"), "boom")
+
+        labels = [action.text() for action in window._problems_menu.actions()]
+
+        assert any("a.bin" in label for label in labels)
+        assert any("b.bin" in label for label in labels)
+        assert tr("problems.dismiss_all") in labels
+
+    def test_a_problem_reveals_its_log_line(self, window, tmp_path):
+        path = str(tmp_path / "a.bin")
+        window._on_transfer_failed("download", path, "boom")
+
+        window._reveal_log_line(path)
+
+        assert path in window._log_view.textCursor().selectedText()
+
+    def test_the_tooltip_names_the_reason(self, window, tmp_path):
+        window._on_transfer_failed("download", str(tmp_path / "a.bin"), "boom")
+
+        tooltip = window._problems_badge.toolTip()
+
+        assert "a.bin" in tooltip
+        assert "boom" in tooltip
+
+    def test_a_warning_keeps_its_guide_reachable(self, window, monkeypatch):
+        """The remedy must outlive the toast that used to carry it."""
+        monkeypatch.setattr(window, "_notify_warning", lambda *a, **k: None, raising=False)
+        window._user_stopped = False
+        opened: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.ui.open_docs_link", lambda url: opened.append(url)
+        )
+        window._on_engine_warning("File watcher degraded to polling", "watcher")
+
+        guide = next(
+            action
+            for action in window._problems_menu.actions()
+            if action.text() == tr("problems.open_guide")
+        )
+        guide.trigger()
+
+        assert opened == [TROUBLESHOOTING]
+
+    def test_a_master_conflict_holds_until_a_takeover(self, window):
+        window._on_master_conflict("conflict_lost", "peer-cid", "10.0.0.9")
+
+        assert not window._problems_badge.isHidden()
+        assert window._problems.warning_count == 1
+
+        window._on_master_conflict("takeover", "peer-cid", "10.0.0.9")
+
+        assert window._problems_badge.isHidden()
+
+    def test_a_duplicate_identity_is_a_problem(self, window):
+        window._on_duplicate_identity("peer-cid", "10.0.0.9")
+
+        assert not window._problems_badge.isHidden()
+        assert window._problems.warning_count == 1
+
+    def test_the_deletion_guard_clears_on_a_quiet_cycle(self, window):
+        window._on_sync_paused("absolute", 5, 100)
+        window._on_sync_completed({"failed": 0})  # the cycle that paused ends
+
+        assert window._problems.warning_count == 1
+
+        window._on_sync_completed({"failed": 0})  # the next, quiet cycle
+
+        assert window._problems_badge.isHidden()
+
+    def test_a_cycle_that_paused_keeps_the_guard_problem(self, window):
+        window._on_sync_paused("absolute", 5, 100)
+
+        window._on_sync_completed({"failed": 0})  # the end of the cycle that paused
+
+        assert window._problems.warning_count == 1
 
 
 class TestInFlightRowsSurviveStatusFlap:
@@ -1701,12 +1848,15 @@ class TestPostSyncStatusRefresh:
         from unittest.mock import MagicMock
 
         from hsync_desktop.main_window.events import EventsMixin
+        from hsync_desktop.problems import ProblemRegistry
 
         stub = SimpleNamespace(
             _selection_sync_active=False,
             _selection_sync_phase="run",
             _engine=MagicMock(is_running=True),
             _file_panel=MagicMock(),
+            _problems=ProblemRegistry(),
+            _guard_paused_this_cycle=False,
         )
 
         EventsMixin._on_sync_completed(stub, {})

@@ -246,6 +246,15 @@ class TestStartupPhase:
         ]
         assert errors == []
 
+    def test_a_cleared_warning_is_reported_with_its_source(self):
+        """A condition that healed is retracted, so a front-end drops its entry."""
+        engine = HsyncEngine()
+        cleared = _capture(engine.warning_cleared)
+
+        engine._handle_event(build_event(UiEventName.warning_cleared, source="watcher"))
+
+        assert cleared == [("watcher",)]
+
     def test_a_transient_warning_is_flagged_for_an_ephemeral_toast(self):
         engine = HsyncEngine()
         warnings = _capture(engine.warning_occurred)
