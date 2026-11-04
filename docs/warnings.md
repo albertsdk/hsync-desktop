@@ -150,6 +150,20 @@ Accepting a fingerprint pins it in the client's trust store, so the app and the
 - **Deletions kept** — the **Keep deleted files** policy is active.
 - **— Simulation** in the title bar while Simulation Mode is on.
 
+## When the connection is lost
+
+A link that was up and then drops — the server or a p2p device becomes
+unreachable — raises a **Disconnected** notification (a toast in the window, and
+a system notification while it is in the background) and the status dot reads
+**Waiting…**. Recovery is automatic: the client keeps retrying and, as soon as
+the network is back, the link is re-established and the dot returns to
+**Connected** — no restart needed. A drop is reported **once**, and a device that
+never connected (a primary waiting for its first peer) is not a lost connection
+and stays silent.
+
+This notification follows the **Connection problems** switch in
+*Settings → General → Notifications*.
+
 ## Controlling notifications
 
 In **Settings → General → Notifications** you can switch system notifications off

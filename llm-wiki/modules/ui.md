@@ -104,8 +104,7 @@ condition for a warning) and the tooltip adds the detail
 (`UiBuildMixin._problem_line`), which is where the localized remedy
 (`warnings.py::remedy_text`) fits without turning the menu into paragraphs. A
 problem carrying a `help_url` also puts `problems.open_guide` in the menu
-(`docs_links.py::open_docs_link`), so the advice outlives the toast that used to
-carry it.
+(`docs_links.py::open_docs_link`), so the advice outlives the toast.
 
 Every toast auto-hides (`UiBuildMixin._show_info_banner`: 20 s for
 `error`/`warning`, 15 s otherwise), because a toast is a notification and the
@@ -901,9 +900,16 @@ lifecycle so its result is surfaced exactly once:
   `sync_completed → _on_sync_completed`, `process_finished → _on_process_finished`
   and `stop_timeout → _on_stop_timeout` finalize. `_on_file_transferred` counts real
   transfers during the `run` phase.
-- `_ever_connected` (`main_window/window.py::MainWindow`) is set on the first
-  `connected` and reset per engine process, so a one-shot that never linked does
-  not claim a lost connection (`_on_status`, `main_window/events.py::EventsMixin._on_status`).
+- A lost connection raises the `notif.connection_lost` notification from
+  `_on_status` (`main_window/events.py::EventsMixin._on_status`) on the first
+  non-connected link status (`waiting` in server mode and p2p, `disconnected`
+  when the process ends) after a link existed. `_ever_connected`
+  (`main_window/window.py::MainWindow`) is set on the first `connected` and reset
+  per engine process, so a one-shot that never linked does not claim a lost
+  connection; `_link_lost_notified` (`main_window/window.py::MainWindow`),
+  re-armed on every `connected`, keeps one drop from raising the toast twice
+  (`waiting` then the terminal `disconnected`). The engine's own `connecting`
+  (pre-start, credential retry) is not a link loss and never notifies.
 - Stopping is visible at once: `_on_stop` (`main_window/start.py::StartMixin._on_stop`)
   marks the run user-stopped and calls `HsyncEngine.request_stop` (non-blocking, so
   the window never freezes), and `_enter_stopping_ui`
@@ -1026,7 +1032,8 @@ inflate the counts nor keep a device that has left. The label is **live during a
 transfer**: `EventsMixin._note_transfer_progress` (called from
 `EventsMixin._on_file_transferred`) retires one plan item per completed
 download/upload and settles to `in_sync`/`pending_other` when nothing is left,
-so the counts no longer freeze at the plan for the whole transfer. A transfer
+so the counts follow the transfer instead of staying at the plan for its whole
+duration. A transfer
 observed while the label still reads `checking` — a comparison that left no
 verdict (the peer publishes its inventory through the serving pass) — re-derives
 the counts from the plan rows the table shows
@@ -1143,8 +1150,7 @@ every file, so the total is an integer sum with no extra I/O
 `file_panel/panel.py::FilePanel.share_size_changed` →
 `main_window/ui.py::UiBuildMixin._on_share_size_changed`). All three legs carry
 the total as an arbitrary-size Python `int` (`Signal(object)`), so a share
-above 2 GiB crosses the Qt marshalling intact (the old 32-bit `Signal(int)`
-overflowed). Scan teardown parks (never destroys) a still-running thread
+above 2 GiB crosses the Qt marshalling intact. Scan teardown parks (never destroys) a still-running thread
 (`FilePanel._join_thread`) and the worker always emits `finished` exactly once.
 **Total** is the
 `folder_size` event's sync-set union (see the client wiki): the remote/master
@@ -1360,9 +1366,8 @@ emits **one** `log_received` per stdout read (the lines joined by `\n`), and
 `main_window/ui.py::UiBuildMixin._append_log` splits the payload back and inserts
 the whole batch inside a single `beginEditBlock()`/`endEditBlock()`
 (`main_window/ui.py::UiBuildMixin._insert_log_lines`): the layout, the block
-eviction and the scrollbar settle once instead of once per line — a burst used to
-cost one document edit per line on the UI thread (measured 7-17x faster on a
-panel already at its cap). The line count is capped by
+eviction and the scrollbar settle once for the whole burst instead of once per
+line. The line count is capped by
 `main_window/ui.py::_LOG_MAX_BLOCKS` (`QPlainTextEdit.maximumBlockCount`, the
 oldest block evicted; the `.ui` declares no cap, so the code is the single source
 of truth) and a single line by `main_window/ui.py::_LOG_LINE_MAX_CHARS`

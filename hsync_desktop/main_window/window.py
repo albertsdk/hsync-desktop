@@ -203,6 +203,10 @@ class MainWindow(
         # on the first cycle that completes without pausing.
         self._guard_paused_this_cycle = False
         self._ever_connected = False  # engine reached "connected" this process
+        # A lost connection is notified once per loss: the latch re-arms on the
+        # next "connected" so the drop cannot raise the toast twice (a "waiting"
+        # followed by the terminal "disconnected").
+        self._link_lost_notified = False
         self._p2p_enabled = False  # p2p mode for the current engine run
         self._initial_reconcile_done = False  # post-initial-sync catch-up ran
         # A catch-up requested but not yet answered: the one-shot is credited

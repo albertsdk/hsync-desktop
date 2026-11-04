@@ -494,6 +494,78 @@ class TestPeerCountLifecycle:
         assert window._peers_label.text() == "–"
 
 
+class TestConnectionLostNotification:
+    """An established link that drops raises one "connection lost" toast.
+
+    The client reports a drop as "waiting" (server mode, p2p) or, when the
+    process ends, as "disconnected"; the notification must fire on the loss,
+    once, and only when a link actually existed.
+    """
+
+    @staticmethod
+    def _spy(monkeypatch, window) -> list[tuple]:
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+        )
+        window._user_stopped = False
+        return calls
+
+    def test_waiting_after_a_connection_notifies(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+
+        window._on_status("waiting")
+
+        assert len(calls) == 1
+        assert calls[0][0][0] == tr("notif.connection_lost")
+
+    def test_a_drop_notifies_only_once(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+
+        window._on_status("waiting")
+        window._on_status("disconnected")
+
+        assert len(calls) == 1
+
+    def test_waiting_without_a_connection_stays_silent(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+
+        window._on_status("waiting")
+
+        assert calls == []
+
+    def test_a_reconnect_rearms_the_notification(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+
+        window._on_status("connected")
+        window._on_status("waiting")
+        window._on_status("connected")
+        window._on_status("waiting")
+
+        assert len(calls) == 2
+
+    def test_a_user_stop_does_not_notify(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+
+        window._user_stopped = True
+        window._on_status("waiting")
+
+        assert calls == []
+
+    def test_connecting_after_a_connection_stays_silent(self, window, monkeypatch):
+        # "connecting" is the engine's own pre-start/auth-retry status, not a
+        # link loss: it must not raise the notification.
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+
+        window._on_status("connecting")
+
+        assert calls == []
+
+
 class TestPeerLabelSemantics:
     """The title says what the counter counts: devices (p2p) or members (server)."""
 

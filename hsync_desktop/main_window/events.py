@@ -122,6 +122,8 @@ class EventsMixin:
     # The engine reported a connection failure: the link is down until the client
     # says otherwise, so no "checking" may be claimed meanwhile.
     _link_down: bool
+    # A lost connection already raised its notification: re-armed on "connected".
+    _link_lost_notified: bool
     _last_check_at: QTime | None
     _peers_total: int
 
@@ -174,12 +176,18 @@ class EventsMixin:
             # does not make a synced file local.
             self._peers_label.setText("–")
             self._set_sync_state("offline" if self._ever_connected else "idle")
-            # "Connection lost" only makes sense after a real connection: a
-            # one-shot that never linked must not claim a lost connection.
-            if status == "disconnected" and self._ever_connected and not self._user_stopped:
+            # An established link that is now down is a lost connection. The
+            # client names that state "waiting" (server mode and p2p) rather than
+            # "disconnected", which only the engine reports when the process ends,
+            # so both must notify. A run that never linked stays silent (a one-shot
+            # must not claim a lost connection), and the latch keeps a following
+            # terminal "disconnected" from repeating the toast.
+            if self._ever_connected and not self._link_lost_notified and not self._user_stopped:
+                self._link_lost_notified = True
                 self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
         elif status == "connected":
             self._ever_connected = True
+            self._link_lost_notified = False
             self._link_down = False
             # The dry-run preview phase is over: the client is linked and no
             # further SYNC retry is needed (see _show_preview_summary).
@@ -1044,6 +1052,7 @@ class EventsMixin:
         self._role_known = False
         self._is_master = None
         self._connected = False
+        self._link_lost_notified = False
         # A dead process cannot finish its comparison: close the window so the
         # manual check is not left disabled for the next run.
         self._comparison_in_flight = False
