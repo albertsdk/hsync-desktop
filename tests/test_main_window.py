@@ -99,7 +99,7 @@ class TestRemoteIcon:
         names = self._run_and_record(window, monkeypatch)
         assert "network-p2p" in names
         assert "network-cloud" not in names
-        assert window._remote_label.text() == "p2p"
+        assert window._remote_label.text() == "my-group"  # unset key: the CLI default group
 
     def test_server_mode_uses_cloud_icon(self, window, monkeypatch, tmp_path):
         """Server mode always shows the cloud icon."""
@@ -112,6 +112,74 @@ class TestRemoteIcon:
         names = self._run_and_record(window, monkeypatch)
         assert "network-cloud" in names
         assert window._remote_label.text() == "srv.example.com"
+
+    @pytest.mark.parametrize(
+        ("group_value", "expected_label", "expected_tip_key"),
+        [
+            pytest.param(
+                None,
+                "my-group",
+                "label.remote_p2p_tip",
+                id="unset-key-default-group",
+            ),
+            pytest.param(
+                "",
+                "no-group",
+                "label.remote_p2p_no_group_tip",
+                id="cleared-group-ungrouped",
+            ),
+            pytest.param(
+                "engineering",
+                "engineering",
+                "label.remote_p2p_tip",
+                id="configured-group",
+            ),
+        ],
+    )
+    def test_p2p_remote_label_mirrors_group_resolution(
+        self,
+        window,
+        monkeypatch,
+        tmp_path,
+        group_value,
+        expected_label,
+        expected_tip_key,
+    ):
+        "The p2p remote label reflects the CLI --group resolution."
+
+        s = _settings(tmp_path)
+        if group_value is not None:
+            s.setValue("p2p/group", group_value)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        self._run_and_record(window, monkeypatch)
+        if expected_label == "no-group":
+            label = tr("label.remote_p2p_no_group")
+        else:
+            label = expected_label
+        assert window._remote_label.text() == label
+        assert window._remote_label.toolTip() == tr(expected_tip_key)
+
+    @pytest.mark.parametrize(
+        ("detected", "expected"),
+        [
+            pytest.param("engineering", "engineering", id="reported-group"),
+            pytest.param("", "no-group", id="no-group-reported"),
+        ],
+    )
+    def test_group_detected_sets_the_remote_label(
+        self, window, monkeypatch, tmp_path, detected, expected
+    ):
+        "A detected group names the remote; an empty report uses the no-group label."
+
+        s = _settings(tmp_path)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._on_group_detected(detected)
+        if expected == "no-group":
+            label = tr("label.remote_p2p_no_group")
+        else:
+            label = expected
+        assert window._remote_label.text() == label
 
 
 class TestShutdown:

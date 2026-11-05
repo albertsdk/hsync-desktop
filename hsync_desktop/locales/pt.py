@@ -44,6 +44,8 @@ translations: dict[str, str] = {
     "label.path_placeholder_tip": "Clique para abrir as configurações e selecionar a pasta compartilhada",
     "label.remote_server": "Servidor HSYNC",
     "label.remote_server_tip": "Sincronizando com servidor remoto",
+    "label.remote_p2p_no_group": "Sem grupo",
+    "label.remote_p2p_no_group_tip": "Sem grupo — sincroniza apenas com outros dispositivos sem grupo.",
     "label.remote_p2p_tip": "Sincronização direta entre dispositivos (p2p)",
     "label.sent": "↑ Enviados:",
     "label.received": "↓ Recebidos:",

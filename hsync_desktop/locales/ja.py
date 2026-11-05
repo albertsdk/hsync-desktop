@@ -44,6 +44,8 @@ translations: dict[str, str] = {
     "label.path_placeholder_tip": "クリックして設定を開き、共有フォルダーを選択します",
     "label.remote_server": "HSYNC サーバー",
     "label.remote_server_tip": "リモートサーバーと同期中",
+    "label.remote_p2p_no_group": "グループなし",
+    "label.remote_p2p_no_group_tip": "グループなし：グループのない他のデバイスのみ同期",
     "label.remote_p2p_tip": "デバイス間で直接同期中（p2p）",
     "label.sent": "↑ 送信：",
     "label.received": "↓ 受信：",

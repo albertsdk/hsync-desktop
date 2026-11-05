@@ -351,12 +351,15 @@ class EventsMixin:
 
     @Slot(str)
     def _on_group_detected(self, group: str) -> None:
-        """Update the group label in the bottom bar and the p2p label in the top bar."""
+        """Update the group label in the bottom bar and the remote label in the top bar."""
         self._group_label.setText(group)
         # Also update the remote label if p2p mode is active
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         if bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)):
-            self._remote_label.setText(f"p2p ({group})" if group else "p2p")
+            if group:
+                self._remote_label.setText(group)
+            else:
+                self._remote_label.setText(tr("label.remote_p2p_no_group"))
             self._group_label.hide()
 
     def _refresh_transfer_labels(self) -> None:

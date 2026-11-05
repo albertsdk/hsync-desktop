@@ -385,7 +385,12 @@ vs banner + tray policy stays in one place.
 
 `hsync_desktop/main_window/start.py::StartMixin._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
-always `network-p2p` (the rendezvous does not change the icon). The role
+always `network-p2p` (the rendezvous does not change the icon). The remote label
+carries the other side's identity: in p2p the group name — the CLI default
+(`hsync_desktop/config.py::DEFAULT_GROUP`) when the setting is unset, the translated
+`No group` label (`label.remote_p2p_no_group`) when the user cleared it — the client's
+ungrouped partition — and in server mode the hostname, or `label.remote_server` when
+none is configured. The role
 indicator is p2p-only: `_apply_role_visibility`
 (`hsync_desktop/main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
 once the election has decided the role (`_role_known`) and hides it entirely in

@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
+    DEFAULT_GROUP,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_SERVER_TRUST,
@@ -233,11 +234,17 @@ class StartMixin:
             # ── Remote endpoint icon + label ──────────────────────────
             if p2p_enabled:
                 self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
-                group = str(s.value("p2p/group", "", str))
-                self._remote_label.setText(f"p2p ({group})" if group else "p2p")
-                self._remote_icon.setToolTip(tr("label.remote_p2p_tip"))
-                self._remote_label.setToolTip(tr("label.remote_p2p_tip"))
-                # Group name shown next to the p2p label — hide from bottom bar
+                group = str(s.value("p2p/group", DEFAULT_GROUP, str)).strip()
+                if group:
+                    self._remote_label.setText(group)
+                    tip_key = "label.remote_p2p_tip"
+                else:
+                    # An empty group is the client's ungrouped partition.
+                    self._remote_label.setText(tr("label.remote_p2p_no_group"))
+                    tip_key = "label.remote_p2p_no_group_tip"
+                self._remote_icon.setToolTip(tr(tip_key))
+                self._remote_label.setToolTip(tr(tip_key))
+                # The group is the remote label; hide the bottom-bar twin in p2p
                 self._group_label.hide()
             else:
                 self._remote_icon.setPixmap(get_icon("network-cloud").pixmap(24, 24))

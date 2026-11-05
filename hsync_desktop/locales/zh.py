@@ -44,6 +44,8 @@ translations: dict[str, str] = {
     "label.path_placeholder_tip": "点击打开设置并选择共享文件夹",
     "label.remote_server": "HSYNC 服务器",
     "label.remote_server_tip": "正在与远程服务器同步",
+    "label.remote_p2p_no_group": "无分组",
+    "label.remote_p2p_no_group_tip": "无分组：仅与同样无分组的设备同步",
     "label.remote_p2p_tip": "在设备之间直接同步（p2p）",
     "label.sent": "↑ 已发送：",
     "label.received": "↓ 已接收：",

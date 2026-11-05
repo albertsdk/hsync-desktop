@@ -44,6 +44,8 @@ translations: dict[str, str] = {
     "label.path_placeholder_tip": "Нажмите, чтобы открыть настройки и выбрать общую папку",
     "label.remote_server": "Сервер HSYNC",
     "label.remote_server_tip": "Синхронизация с удалённым сервером",
+    "label.remote_p2p_no_group": "Без группы",
+    "label.remote_p2p_no_group_tip": "Без группы — синхронизация только с устройствами без группы.",
     "label.remote_p2p_tip": "Прямая синхронизация между устройствами (p2p)",
     "label.sent": "↑ Отправлено:",
     "label.received": "↓ Получено:",

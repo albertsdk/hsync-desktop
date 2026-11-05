@@ -44,8 +44,10 @@ The path bar tells you **what** you are looking at and **where it goes**:
 - the **folder icon** with the **share name** (here `my-share`) opens the shared
   folder in your file manager when you click it; the tooltip shows the folder's
   full path on this computer;
-- the **⇄** and the remote icon with the connection (here `p2p (my-group)`) name
+- the **⇄** and the remote icon with the connection (here `my-group`) name
   the other side: a peer group in **p2p Mode**, or the server in **Server Mode**.
+  If you left the group name empty, the bar shows `No group`: the peer set is
+  every other device that also has no group.
 
 The **←**, **→** and **↑** arrows below the toolbar move through sub-folders, and
 the folder button returns to the shared folder's root.

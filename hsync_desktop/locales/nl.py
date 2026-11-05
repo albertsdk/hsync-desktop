@@ -44,6 +44,8 @@ translations: dict[str, str] = {
     "label.path_placeholder_tip": "Klik om instellingen te openen en de gedeelde map te selecteren",
     "label.remote_server": "HSYNC-server",
     "label.remote_server_tip": "Synchroniseren met externe server",
+    "label.remote_p2p_no_group": "Geen groep",
+    "label.remote_p2p_no_group_tip": "Geen groep — synchroniseert alleen met andere apparaten zonder groep.",
     "label.remote_p2p_tip": "Rechtstreeks tussen apparaten synchroniseren (p2p)",
     "label.sent": "↑ Verzonden:",
     "label.received": "↓ Ontvangen:",
