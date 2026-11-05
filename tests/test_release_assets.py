@@ -10,9 +10,9 @@ import pytest
 from hsync_desktop import release_assets
 from hsync_desktop.docs_links import RELEASES, is_allowed_docs_url
 
-VERSION = "1.0.20"
-DOWNLOAD = "https://github.com/albertsdk/hsync-desktop/releases/download/v1.0.20/"
-TAG_PAGE = "https://github.com/albertsdk/hsync-desktop/releases/tag/v1.0.20"
+VERSION = "1.1.0"
+DOWNLOAD = "https://github.com/albertsdk/hsync-desktop/releases/download/v1.1.0/"
+TAG_PAGE = "https://github.com/albertsdk/hsync-desktop/releases/tag/v1.1.0"
 
 
 class TestInstallChannel:
