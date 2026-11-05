@@ -1115,6 +1115,53 @@ class TestLinkStyling:
         assert "text-decoration:underline" in label.text()
         assert f"color:{colour}" in label.text()
 
+    def test_detail_panel_shows_device_coverage(self, window):
+        from hsync_desktop.file_panel import FileTransfer, TransferStatus
+
+        detail = window._file_panel._detail
+        for holders, devices, expected in (
+            (2, 3, "2/3"),
+            (3, 3, "3/3"),
+            (-1, -1, "—"),
+        ):
+            detail.show_transfer(
+                FileTransfer(
+                    filepath="sub/f.txt",
+                    direction="—",
+                    size=1,
+                    status=TransferStatus.SYNCED,
+                    holders=holders,
+                    devices=devices,
+                )
+            )
+            assert detail._lbl_devices.text() == expected
+        assert detail._lbl_devices.toolTip() == tr("detail.devices_tip")
+
+    def test_detail_panel_last_synced(self, window):
+        import time
+
+        from hsync_desktop.file_panel import FileTransfer, TransferStatus
+
+        detail = window._file_panel._detail
+        row = FileTransfer(
+            filepath="sub/f.txt",
+            direction="—",
+            size=1,
+            status=TransferStatus.SYNCED,
+        )
+        detail.show_transfer(row)
+        assert detail._lbl_last_synced.text() == "—"
+        row.last_synced_at = time.time()
+        detail.show_transfer(row)
+        assert detail._lbl_last_synced.text() != "—"
+
+    def test_synced_verdict_stamps_last_synced(self, window):
+        table = window._file_panel._table
+        table.update_file_status("a.txt", "synced", size=1)
+        assert table._transfers["a.txt"].last_synced_at > 0
+        table.update_file_status("b.txt", "to_upload", size=1)
+        assert table._transfers["b.txt"].last_synced_at == 0
+
     def test_breadcrumb_escapes_folder_names(self, window):
         window._file_panel._table._current_path = 'a<b>&"c'
 

@@ -222,9 +222,9 @@ class TestTerminologyConsistency:
     # sentence and carries no trailing colon (see the settings/wizard layout).
     # ``group_key.caption`` is the label above the masked provisioning line.
     KEY_VALUE_KEYS = {
-        "detail.client_cid",
-        "detail.client_ip",
+        "detail.devices",
         "detail.filename",
+        "detail.last_synced",
         "detail.filepath",
         "detail.modified",
         "detail.size",

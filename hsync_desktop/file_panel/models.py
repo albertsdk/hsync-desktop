@@ -30,8 +30,8 @@ class TransferStatus(Enum):
     UPLOADING = "uploading"  # File is being uploaded
     TO_RENAME = "to_rename"  # File will be renamed (same content, different path)
     DELETED = "deleted"  # File was deleted (shown briefly before removal)
-    QUEUED = "queued"  # Legacy: file is queued for transfer
-    TRANSFERRING = "transferring"  # Legacy: file is being transferred
+    QUEUED = "queued"  # File is queued for transfer
+    TRANSFERRING = "transferring"  # File is being transferred
     COMPLETED = "completed"  # File transfer completed
     ERROR = "error"
 
@@ -148,12 +148,13 @@ class FileTransfer:
     last_progress_at: float = 0.0
     status: TransferStatus = TransferStatus.QUEUED
     mtime: float = 0.0  # Last modification time (epoch seconds)
-    client_cid: str = ""
-    client_ip: str = ""
     # Device coverage of a serving classification: how many live devices hold
     # this identity out of how many were compared (-1 = unknown).
     holders: int = -1
     devices: int = -1
+    # Wall clock of the last SYNCED verdict (0 = none this session): the detail
+    # pane's Last synced row reads it.
+    last_synced_at: float = 0.0
     # Bytes actually crossing the wire (compressed upload size, delta payload
     # size) driving the progress bar; ``size`` keeps the on-disk size for the
     # Size column. 0 means "same as size".

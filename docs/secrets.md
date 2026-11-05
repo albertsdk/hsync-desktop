@@ -25,7 +25,7 @@ device yields the same group key, so **every device in the group must use the ex
 same string**.
 
 - A **shared password** must be at least **12 characters**.
-- A **raw group key** (only if you already used one) must be at least
+- A **raw group key** must be at least
   **32 characters**.
 
 To generate a strong one on the command line (the one case where a terminal

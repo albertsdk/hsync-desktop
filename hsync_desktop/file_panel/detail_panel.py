@@ -35,8 +35,8 @@ class FileDetailPanel:
         self._lbl_size: QLabel = frame.findChild(QLabel, "valSize")  # type: ignore[assignment]
         self._lbl_modified: QLabel = frame.findChild(QLabel, "valModified")  # type: ignore[assignment]
         self._lbl_status: QLabel = frame.findChild(QLabel, "valStatus")  # type: ignore[assignment]
-        self._lbl_cid: QLabel = frame.findChild(QLabel, "valCid")  # type: ignore[assignment]
-        self._lbl_ip: QLabel = frame.findChild(QLabel, "valIp")  # type: ignore[assignment]
+        self._lbl_devices: QLabel = frame.findChild(QLabel, "valDevices")  # type: ignore[assignment]
+        self._lbl_last_synced: QLabel = frame.findChild(QLabel, "valLastSynced")  # type: ignore[assignment]
 
         # Label widgets for translation
         self._lbl_filepath_label: QLabel = frame.findChild(QLabel, "lblFilepath")  # type: ignore[assignment]
@@ -44,8 +44,8 @@ class FileDetailPanel:
         self._lbl_size_label: QLabel = frame.findChild(QLabel, "lblSize")  # type: ignore[assignment]
         self._lbl_modified_label: QLabel = frame.findChild(QLabel, "lblModified")  # type: ignore[assignment]
         self._lbl_status_label: QLabel = frame.findChild(QLabel, "lblStatus")  # type: ignore[assignment]
-        self._lbl_cid_label: QLabel = frame.findChild(QLabel, "lblCid")  # type: ignore[assignment]
-        self._lbl_ip_label: QLabel = frame.findChild(QLabel, "lblIp")  # type: ignore[assignment]
+        self._lbl_devices_label: QLabel = frame.findChild(QLabel, "lblDevices")  # type: ignore[assignment]
+        self._lbl_last_synced_label: QLabel = frame.findChild(QLabel, "lblLastSynced")  # type: ignore[assignment]
 
         # Make filepath label clickable via <a href> + linkActivated signal
         self._lbl_filepath.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
@@ -68,8 +68,10 @@ class FileDetailPanel:
         self._lbl_size_label.setText(tr("detail.size"))
         self._lbl_modified_label.setText(tr("detail.modified"))
         self._lbl_status_label.setText(tr("detail.status"))
-        self._lbl_cid_label.setText(tr("detail.client_cid"))
-        self._lbl_ip_label.setText(tr("detail.client_ip"))
+        self._lbl_devices_label.setText(tr("detail.devices"))
+        self._lbl_devices.setToolTip(tr("detail.devices_tip"))
+        self._lbl_devices_label.setToolTip(tr("detail.devices_tip"))
+        self._lbl_last_synced_label.setText(tr("detail.last_synced"))
 
     def set_base_directory(self, directory: str) -> None:
         """Set the base directory for resolving absolute file paths."""
@@ -109,8 +111,11 @@ class FileDetailPanel:
             TransferStatus.ERROR: "status.error",
         }
         self._lbl_status.setText(tr(status_map.get(transfer.status, "status.unknown")))
-        self._lbl_cid.setText(transfer.client_cid or "—")
-        self._lbl_ip.setText(transfer.client_ip or "—")
+        if transfer.devices > 0 and 0 <= transfer.holders <= transfer.devices:
+            self._lbl_devices.setText(f"{transfer.holders}/{transfer.devices}")
+        else:
+            self._lbl_devices.setText("—")
+        self._lbl_last_synced.setText(format_mtime(transfer.last_synced_at))
         self._frame.show()
 
     def _render_filepath_link(self) -> None:

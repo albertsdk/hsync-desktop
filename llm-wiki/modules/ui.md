@@ -494,7 +494,7 @@ The devices tab shows
 | `FilePanel` | `hsync_desktop/file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
 | `FileTransferTable` | `hsync_desktop/file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
 | `FileTransferModel` | `hsync_desktop/file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
-| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
+| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | metadata pane for the selected file (path, name, size, modified, status, device coverage, last synced) |
 | `ProgressBarDelegate` | `hsync_desktop/file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
 | `LoadingOverlay` | `hsync_desktop/file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
 | `_confirm_dialog` | `hsync_desktop/file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
@@ -621,8 +621,8 @@ enabled only with a selection and a stopped engine.
 
 Destructive acts (`Rename` / `Trash`) add a **per-row** gate on top:
 `FileTransferTable._entry_is_busy` returns True while the engine owns the path —
-planned (`TO_*`), in-flight (`DOWNLOADING`/`UPLOADING`), legacy
-(`QUEUED`/`TRANSFERRING`) or `DELETED` rows — or, for a folder, while any row
+planned (`TO_*`), in-flight (`DOWNLOADING`/`UPLOADING`),
+`QUEUED`/`TRANSFERRING` or `DELETED` rows — or, for a folder, while any row
 below it is busy (`_subtree_is_busy`, a prefix scan over the flat transfer
 map, because a folder's aggregate status can look resting while a child
 transfers). `Copy to…` is additionally gated by `_copy_enabled` — the source

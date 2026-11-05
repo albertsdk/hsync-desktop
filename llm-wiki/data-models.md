@@ -34,10 +34,11 @@ burst nor folds its idle time into the window.
 | ----- | ----- |
 | `filepath` / `direction` | path + `"↓"`/`"↑"` |
 | `size` / `bytes_transferred` | progress inputs |
-| `holders` / `devices` | device coverage of the last serving pass: how many live devices hold the identity out of how many were compared (`-1` = unknown, e.g. a requester-side preview); drives the `Synced · 2/3` suffix |
+| `holders` / `devices` | device coverage of the last serving pass: how many live devices hold the identity out of how many were compared (`-1` = unknown, e.g. a requester-side preview); drives the `Synced · 2/3` suffix and the detail-pane Devices row |
 | `start_time` | for ETA |
 | `status` | a `TransferStatus` |
-| `mtime` / `client_cid` / `client_ip` | metadata for detail pane |
+| `mtime` | last-modified time for the detail pane |
+| `last_synced_at` | wall clock of the last SYNCED verdict (0 = none this session); feeds the detail-pane Last synced row |
 
 Derived: `filename` (`hsync_desktop/file_panel/models.py::FileTransfer.filename`), `path` (`hsync_desktop/file_panel/models.py::FileTransfer.path`),
 `remaining` (`hsync_desktop/file_panel/models.py::FileTransfer.remaining`), `eta_seconds`

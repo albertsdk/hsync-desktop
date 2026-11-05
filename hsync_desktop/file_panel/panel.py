@@ -889,8 +889,6 @@ class FilePanel(QWidget):
         status: str,
         size: int = 0,
         mtime: float = 0.0,
-        client_cid: str = "",
-        client_ip: str = "",
         *,
         holders: int = -1,
         devices: int = -1,
@@ -901,8 +899,6 @@ class FilePanel(QWidget):
             status,
             size,
             mtime,
-            client_cid,
-            client_ip,
             holders=holders,
             devices=devices,
             preview=preview,
@@ -916,10 +912,8 @@ class FilePanel(QWidget):
         old_path: str,
         new_path: str,
         mtime: float = 0.0,
-        client_cid: str = "",
-        client_ip: str = "",
     ) -> None:
-        self._table.rename_file(old_path, new_path, mtime, client_cid, client_ip)
+        self._table.rename_file(old_path, new_path, mtime)
 
     def update_transfer_progress(
         self, filepath: str, bytes_transferred: int, total_bytes: int, op: str = ""

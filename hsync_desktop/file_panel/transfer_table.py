@@ -1946,8 +1946,6 @@ class FileTransferTable(QTableView):
         status: str,
         size: int = 0,
         mtime: float = 0.0,
-        client_cid: str = "",
-        client_ip: str = "",
         *,
         holders: int = -1,
         devices: int = -1,
@@ -2006,10 +2004,6 @@ class FileTransferTable(QTableView):
                     t.size = size
                 if mtime:
                     t.mtime = mtime
-                if client_cid:
-                    t.client_cid = client_cid
-                if client_ip:
-                    t.client_ip = client_ip
                 t.holders = holders
                 t.devices = devices
             else:
@@ -2019,12 +2013,12 @@ class FileTransferTable(QTableView):
                     size=size,
                     status=transfer_status,
                     mtime=mtime,
-                    client_cid=client_cid,
-                    client_ip=client_ip,
                     holders=holders,
                     devices=devices,
                 )
                 self._transfers[filepath] = t
+            if transfer_status is TransferStatus.SYNCED:
+                t.last_synced_at = time()
         self._cached_items = None  # Invalidate cache
         # Preview/status events arrive one per file; together with the O(rows)
         # rebuild this was quadratic (one full refresh per file). Coalesce them
@@ -2062,8 +2056,6 @@ class FileTransferTable(QTableView):
         old_path: str,
         new_path: str,
         mtime: float = 0.0,
-        client_cid: str = "",
-        client_ip: str = "",
     ) -> None:
         """Handle a file rename."""
         old_size = 0
@@ -2085,10 +2077,6 @@ class FileTransferTable(QTableView):
                     # Preserve the previous mtime when the filesystem read
                     # failed (a rename does not change it).
                     t.mtime = old_mtime
-                if client_cid:
-                    t.client_cid = client_cid
-                if client_ip:
-                    t.client_ip = client_ip
             else:
                 t = FileTransfer(
                     filepath=new_path,
@@ -2096,8 +2084,6 @@ class FileTransferTable(QTableView):
                     size=old_size,
                     status=TransferStatus.SYNCED,
                     mtime=mtime or old_mtime,
-                    client_cid=client_cid,
-                    client_ip=client_ip,
                 )
                 self._transfers[new_path] = t
         self._cached_items = None  # Invalidate cache

@@ -438,9 +438,6 @@ class EventsMixin:
                     size = st.st_size
             except OSError:
                 pass
-        # Gather CID and server IP for detail panel
-        client_cid = self._engine.cid
-        client_ip = self._engine.server_ip
         # Update file panel with actual transfer
         if direction == "↓":
             if self._notifier:
@@ -450,8 +447,6 @@ class EventsMixin:
                 "synced",
                 size=size,
                 mtime=mtime,
-                client_cid=client_cid,
-                client_ip=client_ip,
             )
         elif direction == "↑":
             self._file_panel.update_file_status(
@@ -459,8 +454,6 @@ class EventsMixin:
                 "synced",
                 size=size,
                 mtime=mtime,
-                client_cid=client_cid,
-                client_ip=client_ip,
             )
         elif direction == "✕":
             # File was deleted - show briefly then remove
@@ -521,15 +514,10 @@ class EventsMixin:
                     break
                 except OSError:
                     continue
-        # Gather CID and server IP
-        client_cid = self._engine.cid
-        client_ip = self._engine.server_ip
         self._file_panel.rename_file(
             old_rel,
             new_rel,
             mtime=mtime,
-            client_cid=client_cid,
-            client_ip=client_ip,
         )
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(new_rel)
@@ -569,9 +557,6 @@ class EventsMixin:
                 mtime = os.stat(full).st_mtime
             except OSError:
                 pass
-        # Gather CID and server IP
-        client_cid = self._engine.cid
-        client_ip = self._engine.server_ip
         # Folder entries use a trailing slash as their key; normalize so the
         # sync status updates the same row instead of creating a file-like key.
         dir_key = rel_path.strip("/\\").replace("\\", "/")
@@ -581,8 +566,6 @@ class EventsMixin:
                 status,
                 size=0,
                 mtime=mtime,
-                client_cid=client_cid,
-                client_ip=client_ip,
             )
 
     @Slot(str, str, str)

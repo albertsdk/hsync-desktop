@@ -552,7 +552,7 @@ an edited field is a password, an untouched one keeps its stored mode normalised
 by `hsync_desktop/engine/process.py::p2p_secret_mode` — a secret shorter than
 `hsync_common.protocol.rdv_tokens::MIN_GROUP_KEY_CHARS` cannot be a raw key, so
 it is stored as `passphrase`. That normalisation is the same one the engine
-applies at start, so a legacy short secret stored as `raw` is both repaired on
+applies at start, so a short secret stored as `raw` is repaired on
 the next save and accepted by the running engine.
 
 ### Group key for a protected discovery server (p2p tab)
