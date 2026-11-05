@@ -76,7 +76,8 @@ and the returned mode so the two can never disagree.
   under the result. Editing a test's fields clears its result and captured
   fingerprint (`_on_server_edited`/`_on_rendezvous_server_edited`) so a stale trust pin is
   never applied. A transport combo (`wizard/pages/connection.py::ConnectionPage`,
-  `rendezvous_transport` — `auto`/`quic`/`tcp`, RFC 8305 race with QUIC preferred)
+  `rendezvous_transport` — `auto`/`quic`/`tcp`, RFC 8305 race with QUIC/UDP preferred
+  and TLS/TCP as the fallback)
   selects how the client reaches the server(s); it is stored in the draft
   (`WizardDraft.rendezvous_transport`) and persisted to `p2p/rendezvous_transport`, so
   the Settings dialog, the wizard and `--rendezvous-transport` agree.

@@ -321,8 +321,8 @@ découverte`, … — `settings.p2p_rendezvous`):
 group row via `_insert_row_after`) + `p2p_rendezvous_trust` (`QComboBox`, filled
 by `_populate_rendezvous_trust`) + `p2p_rendezvous_transport` (`QComboBox`,
 filled by `_populate_rendezvous_transport` — `auto`/`quic`/`tcp`, the shared
-`hsync_common.constants.RDV_TRANSPORTS` vocabulary; RFC 8305 race with QUIC
-preferred for `auto`) + `btn_manage_trusted_keys` (`QPushButton`,
+`hsync_common.constants.RDV_TRANSPORTS` vocabulary; RFC 8305 race with QUIC/UDP
+preferred and TLS/TCP as the fallback for `auto`) + `btn_manage_trusted_keys` (`QPushButton`,
 opens `TrustedKeysDialog` on the rendezvouss tab) + `btn_test_rendezvous`
 (`QPushButton`, probes the rendezvous via `fetch_rendezvous_fingerprint` on
 `engine/async_probe.py::AsyncProbe`) +

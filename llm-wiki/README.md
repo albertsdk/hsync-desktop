@@ -10,6 +10,12 @@ is the agent map; start here, then drill into the linked files.
 > End-user docs live in [`../docs/`](../docs/README.md) — keep them in sync with
 > any user-facing change (Dual-Docs rule).
 
+**Source references.** Local paths are relative to this repository root and use
+`path/to/file.ext::Symbol`. Cross-repo references are relative to the `hsync/`
+workspace root and start with the sibling repo directory (`hsync-common/…`,
+`hsync-client/…`, `hsync-server/…`, `hsync-rendezvous/…`, `hsync-desktop/…`);
+they are code spans, not hyperlinks.
+
 ## Map
 
 | Doc | Scope |
