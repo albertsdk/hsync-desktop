@@ -7,12 +7,12 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 
 | Layer | Code | Responsibility |
 | ----- | ---- | -------------- |
-| Entry | `main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux (the GTK3 theme crashes against the bundled GLib), host font resolution (`fonts.py::apply_system_fonts`, applied right after the `QApplication`), app identity (`main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), `--minimized` start-in-tray (`main.py::_should_start_minimized`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
-| Window | `main_window/window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
-| File panel | `file_panel/panel.py::FilePanel`, `file_panel/transfer_table.py::FileTransferModel` + `file_panel/transfer_table.py::FileTransferTable` | live transfer table (model/view), detail pane, file actions |
-| Engine | `engine/process.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
-| Settings | `settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
-| Args | `settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
+| Entry | `hsync_desktop/main.py::main` | early `--version`/`--help` without Qt, `QT_QPA_PLATFORMTHEME=generic` harden on Linux (the GTK3 theme crashes against the bundled GLib), host font resolution (`hsync_desktop/fonts.py::apply_system_fonts`, applied right after the `QApplication`), app identity (`hsync_desktop/main.py::_configure_app`: `setDesktopFileName("hsync-desktop")` + window icon so the taskbar binds to the `.desktop`), `--minimized` start-in-tray (`hsync_desktop/main.py::_should_start_minimized`), single-instance guard, theme, i18n, build `MainWindow`, install the SIGINT handler (`hsync_desktop/main.py::_install_sigint_handler`, Ctrl+C → clean quit), run Qt loop |
+| Window | `hsync_desktop/main_window/window.py::MainWindow` | menus/toolbar, log view, file panel; wires engine signals → slots |
+| File panel | `hsync_desktop/file_panel/panel.py::FilePanel`, `hsync_desktop/file_panel/transfer_table.py::FileTransferModel` + `hsync_desktop/file_panel/transfer_table.py::FileTransferTable` | live transfer table (model/view), detail pane, file actions |
+| Engine | `hsync_desktop/engine/process.py::HsyncEngine` | spawn/stop the binary, bridge its event stream to Qt signals |
+| Settings | `hsync_desktop/settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
+| Args | `hsync_desktop/settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `fonts.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, host fonts, localization, tray, OS notifications |
 | Startup | `autostart.py` | launch-at-login entry (XDG / LaunchAgent / Windows `Run`), toggled from the General tab |
 
@@ -27,25 +27,25 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
         │                            │  secrets via --api-key-fd/--p2p-key-fd pipes
         │                            │  events via --events-json-fd (JSON-Lines)
         ▼                            ▼
-   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (engine/process.py::HsyncEngine._handle_event)
+   Qt slots  ◄── Signals ◄── _handle_event(UiEventDict)  (hsync_desktop/engine/process.py::HsyncEngine._handle_event)
 ```
 
-1. **Discover binary**: `find_hsync_binary` (`engine/cli.py::find_hsync_binary`), version via
-   `get_binary_version` (`engine/cli.py::get_binary_version`), compatibility via
-   `is_binary_version_compatible` (`engine/cli.py::is_binary_version_compatible`); at startup the version is resolved
-   asynchronously by `BinaryVersionProbe` (`engine/cli.py::BinaryVersionProbe`) and cached in QSettings.
-2. **Probe capabilities**: `get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) →
+1. **Discover binary**: `find_hsync_binary` (`hsync_desktop/engine/cli.py::find_hsync_binary`), version via
+   `get_binary_version` (`hsync_desktop/engine/cli.py::get_binary_version`), compatibility via
+   `is_binary_version_compatible` (`hsync_desktop/engine/cli.py::is_binary_version_compatible`); at startup the version is resolved
+   asynchronously by `BinaryVersionProbe` (`hsync_desktop/engine/cli.py::BinaryVersionProbe`) and cached in QSettings.
+2. **Probe capabilities**: `get_binary_capabilities` (`hsync_desktop/engine/cli.py::get_binary_capabilities`) →
    `parse_capabilities`; `SettingsDialog` disables unsupported controls (§8).
-3. **Build args**: `build_hsync_args` (`settings/cli_args.py::build_hsync_args`) maps every persisted
+3. **Build args**: `build_hsync_args` (`hsync_desktop/settings/cli_args.py::build_hsync_args`) maps every persisted
    setting to the `p2p`/`server` subcommand plus its flags (`--p2p-trust`,
    `--allow-deletions`, …).
-4. **Spawn**: `HsyncEngine.start` (`engine/process.py::HsyncEngine.start`) opens pipes, writes secrets,
+4. **Spawn**: `HsyncEngine.start` (`hsync_desktop/engine/process.py::HsyncEngine.start`) opens pipes, writes secrets,
    launches `QProcess`, and attaches a `QSocketNotifier` to the events FD.
 5. **Bridge events**: each JSON-Lines `UiEventName` is mapped to a typed Qt
-   `Signal` in `_handle_event` (`engine/process.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
-   (`main_window/window.py::MainWindow._connect_signals`) binds them to UI updates.
+   `Signal` in `_handle_event` (`hsync_desktop/engine/process.py::HsyncEngine._handle_event`); `MainWindow._connect_signals`
+   (`hsync_desktop/main_window/window.py::MainWindow._connect_signals`) binds them to UI updates.
 6. **Control**: start/stop/sync/preview + live commands (set direction,
-   bandwidth) sent over the process stdin via `_send_command` (`engine/process.py::HsyncEngine._send_command`).
+   bandwidth) sent over the process stdin via `_send_command` (`hsync_desktop/engine/process.py::HsyncEngine._send_command`).
 
 ## Boundaries
 
@@ -54,7 +54,7 @@ MainWindow ──start──► build_hsync_args(local_path) ──► HsyncEngi
   (`UiEventName`, `CapabilitiesDoc`, protocol versions) is imported from
   `hsync_common.protocol.*` — the SSOT, not desktop-local definitions.
 - **Threading**: heavy work (directory scans) runs in `QObject` workers
-  (`file_panel/workers.py::DirectoryScanWorker`); UI mutations stay on the
+  (`hsync_desktop/file_panel/workers.py::DirectoryScanWorker`); UI mutations stay on the
   Qt main thread, fed by signals.
 
 See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
@@ -131,7 +131,7 @@ See [modules/engine.md](modules/engine.md) for the subprocess + event bridge,
   those bases changed in earlier majors, and `tests/test_snap_packaging.py`
   guards them. Publishing goes to the Snap Store `edge` (manual promotion,
   gated by the one-time classic review) and the `.snap` files are attached to the
-  GitHub release. `autostart.py::_snap_launch_command` writes
+  GitHub release. `hsync_desktop/autostart.py::_snap_launch_command` writes
   `snap run hsync-desktop` so the login entry survives snap refreshes.
 - `clean_artifacts` (`compile.sh::clean_artifacts`) removes the whole `dist/` tree (all
   platform outputs including `dist/rpi`), `build` and the spec file.

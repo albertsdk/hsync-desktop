@@ -15,28 +15,28 @@ window's attributes.
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `MainWindow` | `main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
-| `_load_ui` | `main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/direction/file ops/help) |
-| `_connect_signals` | `main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
-| `_apply_translations` | `main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
-| `_update_peers_label_title` | `main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
-| `_update_menu_state` | `main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Preview-changes/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
-| `_on_preview_changes` / `_begin_start` | `main_window/start.py::StartMixin._on_preview_changes` / `main_window/start.py::StartMixin._begin_start` | the explicit **Preview changes** entry shares Start's gates; `_begin_start` records `_preview_intent` (`"start"` \| `"preview"`) so the two entry points cannot drift |
-| `_enter_preparing_plan_ui` / `_exit_preparing_plan_ui` | `main_window/start.py::StartMixin._enter_preparing_plan_ui` / `main_window/start.py::StartMixin._exit_preparing_plan_ui` | the **Preparing the plan…** state: progress toast + log marker, ended by the plan, a failed comparison, a stop or a teardown |
-| `_apply_plan_without_dialog` | `main_window/actions.py::ActionsMixin._apply_plan_without_dialog` | applies a plan the dialog did not confirm: one with no deletions is applied, a deletable one stops with `_report_plan_needs_confirmation` (the caller routes a deletable plan here only for an unattended run) |
-| `_report_plan_needs_confirmation` | `main_window/start.py::StartMixin._report_plan_needs_confirmation` | warns (log + notification) that an automatic plan with deletions waits for a manual Preview/Start |
-| `_stop_preview_run` | `main_window/actions.py::ActionsMixin._stop_preview_run` | Close/Cancel of a dry-run plan: `stop_and_wait` + the stopped UI, never a `SYNC` |
-| `_on_stop` / `_confirm_stop_running` / `_enter_stopping_ui` | `main_window/start.py::StartMixin._on_stop` / `main_window/start.py::StartMixin._confirm_stop_running` / `main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: a confirmation while the engine runs (declining changes nothing, `widgets/dialogs.py::confirm`), then the non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker). Every caller (button, menu, tray) funnels here |
-| `_on_stop_timeout` | `main_window/start.py::StartMixin._on_stop_timeout` | `HsyncEngine.stop_timeout`: leave `Stopping…`, restore the stopped UI and warn (`notif.stop_timeout`) |
-| `_fit_table_width` | `main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
-| `_check_auto_sync` | `main_window/start.py::StartMixin._check_auto_sync` | queued at startup only when `settings/cli_args.py::is_auto_sync_enabled` (`sync/auto_sync`) is on |
-| `_on_auto_start` | `main_window/start.py::StartMixin._on_auto_start` | runs `_on_start` with `_start_is_automatic` set, so failures and prompts avoid modals on a tray-only window |
-| `_quit` | `main_window/lifecycle.py::LifecycleMixin._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
-| `_shutdown` | `main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
+| `MainWindow` | `hsync_desktop/main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
+| `_load_ui` | `hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
+| `_create_menu_bar` | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/direction/file ops/help) |
+| `_connect_signals` | `hsync_desktop/main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
+| `_apply_translations` | `hsync_desktop/main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
+| `_update_peers_label_title` | `hsync_desktop/main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in p2p, **Connected users** in Server Mode |
+| `_update_menu_state` | `hsync_desktop/main_window/ui.py::UiBuildMixin._update_menu_state` | enable/disable actions by run state; a stop in flight (`_stop_requested`) keeps Start/Preview-changes/Stop/Check-changes disabled, and the check action (button, `F5`, tray) comes from `StartMixin._can_check_changes` |
+| `_on_preview_changes` / `_begin_start` | `hsync_desktop/main_window/start.py::StartMixin._on_preview_changes` / `hsync_desktop/main_window/start.py::StartMixin._begin_start` | the explicit **Preview changes** entry shares Start's gates; `_begin_start` records `_preview_intent` (`"start"` \| `"preview"`) so the two entry points cannot drift |
+| `_enter_preparing_plan_ui` / `_exit_preparing_plan_ui` | `hsync_desktop/main_window/start.py::StartMixin._enter_preparing_plan_ui` / `hsync_desktop/main_window/start.py::StartMixin._exit_preparing_plan_ui` | the **Preparing the plan…** state: progress toast + log marker, ended by the plan, a failed comparison, a stop or a teardown |
+| `_apply_plan_without_dialog` | `hsync_desktop/main_window/actions.py::ActionsMixin._apply_plan_without_dialog` | applies a plan the dialog did not confirm: one with no deletions is applied, a deletable one stops with `_report_plan_needs_confirmation` (the caller routes a deletable plan here only for an unattended run) |
+| `_report_plan_needs_confirmation` | `hsync_desktop/main_window/start.py::StartMixin._report_plan_needs_confirmation` | warns (log + notification) that an automatic plan with deletions waits for a manual Preview/Start |
+| `_stop_preview_run` | `hsync_desktop/main_window/actions.py::ActionsMixin._stop_preview_run` | Close/Cancel of a dry-run plan: `stop_and_wait` + the stopped UI, never a `SYNC` |
+| `_on_stop` / `_confirm_stop_running` / `_enter_stopping_ui` | `hsync_desktop/main_window/start.py::StartMixin._on_stop` / `hsync_desktop/main_window/start.py::StartMixin._confirm_stop_running` / `hsync_desktop/main_window/start.py::StartMixin._enter_stopping_ui` | user Stop: a confirmation while the engine runs (declining changes nothing, `hsync_desktop/widgets/dialogs.py::confirm`), then the non-blocking `HsyncEngine.request_stop` plus the immediate `Stopping…` state (badge, disabled actions, progress toast, log marker). Every caller (button, menu, tray) funnels here |
+| `_on_stop_timeout` | `hsync_desktop/main_window/start.py::StartMixin._on_stop_timeout` | `HsyncEngine.stop_timeout`: leave `Stopping…`, restore the stopped UI and warn (`notif.stop_timeout`) |
+| `_fit_table_width` | `hsync_desktop/main_window/window.py::MainWindow._fit_table_width` | one-shot startup growth so the file table stays readable (see *Columns*) |
+| `_check_auto_sync` | `hsync_desktop/main_window/start.py::StartMixin._check_auto_sync` | queued at startup only when `hsync_desktop/settings/cli_args.py::is_auto_sync_enabled` (`sync/auto_sync`) is on |
+| `_on_auto_start` | `hsync_desktop/main_window/start.py::StartMixin._on_auto_start` | runs `_on_start` with `_start_is_automatic` set, so failures and prompts avoid modals on a tray-only window |
+| `_quit` | `hsync_desktop/main_window/lifecycle.py::LifecycleMixin._quit` | tray "Quit": confirm while a sync runs, then `_shutdown` |
+| `_shutdown` | `hsync_desktop/main_window/lifecycle.py::LifecycleMixin._shutdown` | prompt-free close (stop engine, save geometry, hide tray, quit); shared by the SIGINT handler |
 
-Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
-`event_error→_on_engine_event_error` (`main_window/ui.py::UiBuildMixin._on_engine_event_error`, which logs it as the desktop's own `[EVENT ERROR]` line),
+Engine→slot wiring (in `_connect_signals`, `hsync_desktop/main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
+`event_error→_on_engine_event_error` (`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_event_error`, which logs it as the desktop's own `[EVENT ERROR]` line),
 `status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
 `transfer_failed→_on_transfer_failed`, `warning_cleared→_on_engine_warning_cleared`,
 `sync_paused→_on_sync_paused`,
@@ -46,19 +46,19 @@ Engine→slot wiring (in `_connect_signals`, `main_window/window.py::MainWindow.
 and the two comparison marker pairs (`preview_started`/`preview_ended`,
 `status_pass_started`/`status_pass_ended`) → `_on_preview_started` /
 `_on_status_pass_started` and `_on_preview_ended` / `_on_status_pass_ended`.
-`error_occurred` is always routed to `_on_engine_error` (`main_window/ui.py::UiBuildMixin._on_engine_error`),
+`error_occurred` is always routed to `_on_engine_error` (`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_error`),
 which stores the message, mirrors it into the log panel and raises an in-app
 error toast through `_notify_error` (an OS notification is sent too, only when a
 notifier exists and the window is out of focus). Its non-fatal counterpart is
-`warning_occurred → _on_engine_warning` (`main_window/ui.py::UiBuildMixin._on_engine_warning`):
+`warning_occurred → _on_engine_warning` (`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_warning`):
 the same pipeline (log panel + banner + OS notification when unfocused) with
 `kind="warning"` and the dedicated `warnings` notification category, never the
 error path — the run continues. The signal's fourth argument carries the
 machine-readable detail the engine emitted (`reason`, plus `needed`/`limit` when
-it measured a bounded resource); `warnings.py::remedy_text` turns
+it measured a bounded resource); `hsync_desktop/warnings.py::remedy_text` turns
 the actionable causes into localized advice and it is appended to the message, so
 the banner and the notification both say what to change. A persistent warning
-also exposes the guide link inside the toast (`docs_links.py::TROUBLESHOOTING`,
+also exposes the guide link inside the toast (`hsync_desktop/docs_links.py::TROUBLESHOOTING`,
 `notif.open_guide`): a system notification is not clickable, so the remedy has to
 stay visible in the window. The event's `reason="transient"` instead selects
 the `notice` kind: same warning tone, auto-hidden, never a system
@@ -72,8 +72,8 @@ condition heals, so no surface ever reports a problem that is gone.
 
 ### Problems badge
 
-`problems.py::ProblemRegistry` holds the conditions that still hold, and
-`main_window/ui.py::UiBuildMixin._refresh_problems_badge` renders them on the
+`hsync_desktop/problems.py::ProblemRegistry` holds the conditions that still hold, and
+`hsync_desktop/main_window/ui.py::UiBuildMixin._refresh_problems_badge` renders them on the
 status-bar `QToolButton` (`ui/main_window.ui::problemsBadge`): hidden while the
 registry is empty, otherwise a count coloured by the worst kind, a tooltip that
 names every entry and a menu whose actions select the log line that reported one
@@ -102,9 +102,9 @@ An entry renders in two places: the menu label is the identity
 (`UiBuildMixin._problem_label`: the path plus the error for a failure, the
 condition for a warning) and the tooltip adds the detail
 (`UiBuildMixin._problem_line`), which is where the localized remedy
-(`warnings.py::remedy_text`) fits without turning the menu into paragraphs. A
+(`hsync_desktop/warnings.py::remedy_text`) fits without turning the menu into paragraphs. A
 problem carrying a `help_url` also puts `problems.open_guide` in the menu
-(`docs_links.py::open_docs_link`), so the advice outlives the toast.
+(`hsync_desktop/docs_links.py::open_docs_link`), so the advice outlives the toast.
 
 Every toast auto-hides (`UiBuildMixin._show_info_banner`: 20 s for
 `error`/`warning`, 15 s otherwise), because a toast is a notification and the
@@ -113,17 +113,17 @@ screen until its own timer and clears it when a new run starts. The per-file
 failure notification to the OS is sent once per burst (`_on_transfer_failed`
 checks the registry was empty), not once per file.
 File-action menu slots: open/open-with/copy-to/rename/trash/
-properties (`main_window/ui.py::UiBuildMixin._create_menu_bar`).
+properties (`hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar`).
 
 **Startup run** (`sync/auto_sync`, the Sync-tab *Auto-sync on startup* switch) is
-opt-in: the wizard draft starts from `config.py::DEFAULT_AUTO_SYNC`
-(`wizard/model.py::WizardDraft.auto_sync`) and Settings writes the same key, so
+opt-in: the wizard draft starts from `hsync_desktop/config.py::DEFAULT_AUTO_SYNC`
+(`hsync_desktop/wizard/model.py::WizardDraft.auto_sync`) and Settings writes the same key, so
 `MainWindow.__init__` queues `_check_auto_sync` only when
-`settings/cli_args.py::is_auto_sync_enabled` is true. The automatic run follows
+`hsync_desktop/settings/cli_args.py::is_auto_sync_enabled` is true. The automatic run follows
 the manual path (disclaimer → pre-flight gates), except for the file-deletion
-confirmation: `main_window/start.py::StartMixin._check_deletion_risk` is called
+confirmation: `hsync_desktop/main_window/start.py::StartMixin._check_deletion_risk` is called
 with `interactive=False`, which reports the risk instead of prompting, and
-`main_window/start.py::StartMixin._report_deletion_risk_needed` surfaces
+`hsync_desktop/main_window/start.py::StartMixin._report_deletion_risk_needed` surfaces
 `notif.deletion_risk_manual` through `_notify_warning` (in-app toast + OS
 notification when out of focus) and drops the run. A confirmation nobody was
 asked to answer therefore never starts a destructive sync — and a tray-only
@@ -133,7 +133,7 @@ is an explicit acknowledgement: `deletion_risk.is_acknowledged` (key
 configuration lets the automatic run through to the dry-run preview — which
 cannot delete anything — while `ActionsMixin._apply_plan_without_dialog` still refuses
 to apply a plan that deletes. The same rule
-applies to the one-time disclaimer: `main_window/start.py::StartMixin._show_disclaimer`
+applies to the one-time disclaimer: `hsync_desktop/main_window/start.py::StartMixin._show_disclaimer`
 takes `interactive=False`, returns without a dialog and
 `StartMixin._report_disclaimer_needed` surfaces `notif.disclaimer_manual`. The
 user reviews the settings and presses Start, which prompts interactively as
@@ -161,10 +161,10 @@ changes, `QKeySequence.StandardKey.Preferences` settings and `.Quit` quit (Cmd
 instead of Ctrl on macOS), `F1` documentation; the log menu shows
 `StandardKey.SelectAll` / `.Copy` and lets the view handle them.
 
-Help menu (`main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
+Help menu (`hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
 first (Documentation, Project on GitHub), then a separator and the local
-app-info dialogs — **License** (`main_window/actions.py::ActionsMixin._show_license`
-→ `license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
+app-info dialogs — **License** (`hsync_desktop/main_window/actions.py::ActionsMixin._show_license`
+→ `hsync_desktop/license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
 `LICENSE`) and **About** last, the conventional position. The two external
 targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 `docs_links.open_docs_link`, which only allows the project HTTPS pages.
@@ -179,52 +179,52 @@ dialog to the desktop choose-connection guide (`help.connection_modes`). The two
 Settings links are labelled **"Configuration guide"** (each sits in the section it
 documents, so the target is not repeated in the label); the wizard link keeps its
 mode-specific label. They are
-`QLabel#helpLink` anchors built by `widgets/links.py::help_link`, keyboard
+`QLabel#helpLink` anchors built by `hsync_desktop/widgets/links.py::help_link`, keyboard
 accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
 Settings dialog re-applies the translated text in
-`settings/tab_translations.py::apply_translations`. The toast's guide link is the
-same widget retargeted at runtime (`widgets/links.py::set_help_link_url`): a
-persistent engine warning points it at `docs_links.py::WATCHER_LIMITS` (the client
+`hsync_desktop/settings/tab_translations.py::apply_translations`. The toast's guide link is the
+same widget retargeted at runtime (`hsync_desktop/widgets/links.py::set_help_link_url`): a
+persistent engine warning points it at `hsync_desktop/docs_links.py::WATCHER_LIMITS` (the client
 guide's file-watcher/inotify section, where the copy-paste host commands are) when
-`warnings.py::remedy_text` produced a remedy, otherwise at
-`docs_links.py::TROUBLESHOOTING` (the desktop symptom guide, which links the client
+`hsync_desktop/warnings.py::remedy_text` produced a remedy, otherwise at
+`hsync_desktop/docs_links.py::TROUBLESHOOTING` (the desktop symptom guide, which links the client
 section for the watcher case). Both targets share the `notif.open_guide` label.
 Link colours are themed
 through `QPalette.Link`/`LinkVisited` in `themes.py`. The labels are
-`widgets/links.py::_HelpLinkLabel`, whose `sizeHint` reports the wrapped height
+`hsync_desktop/widgets/links.py::_HelpLinkLabel`, whose `sizeHint` reports the wrapped height
 at the width the label really has: a word-wrapped rich-text `QLabel` otherwise
 claims the height of its document's ideal (very narrow) width — three lines for
 one line of text — and the form row keeps that dead space.
 
 ### Startup disclaimer
 
-`main_window/start.py::StartMixin._show_disclaimer` gates the first start of a
-sync. `main_window/start.py::StartMixin._build_disclaimer_dialog` offers two
+`hsync_desktop/main_window/start.py::StartMixin._show_disclaimer` gates the first start of a
+sync. `hsync_desktop/main_window/start.py::StartMixin._build_disclaimer_dialog` offers two
 explicit actions with the app icons: **I understand**
 (`disclaimer.acknowledge`, default) and **Not now** (`disclaimer.not_now`,
 escape button). Closing the window or pressing Esc defers and never
 acknowledges, so only the acknowledge button starts the sync. The "don't show
 again" checkbox stores `ui/disclaimer_version` =
-`main_window/start.py::DISCLAIMER_VERSION`; the previous bare boolean
+`hsync_desktop/main_window/start.py::DISCLAIMER_VERSION`; the previous bare boolean
 (`ui/disclaimer_accepted`) counts as version 1 through
-`main_window/start.py::_accepted_disclaimer_version`, so a later wording change
+`hsync_desktop/main_window/start.py::_accepted_disclaimer_version`, so a later wording change
 prompts again.
 
 ### Pre-flight gates
 
 Before a run starts, `_continue_start_after_disclaimer`
-(`main_window/start.py::StartMixin._continue_start_after_disclaimer`) chains the
+(`hsync_desktop/main_window/start.py::StartMixin._continue_start_after_disclaimer`) chains the
 gates in this order: `_check_deletion_risk`, `_check_keyless_p2p`,
-`_check_disk_space`, then `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`);
+`_check_disk_space`, then `_ensure_trust` (`hsync_desktop/main_window/trust.py::TrustMixin._ensure_trust`);
 the scoped
 Send/Receive path (`main_window/actions.py`) reuses the same checks. The
 deletion-risk confirmation (`notif.deletion_risk`) guards the only posture that
 can remove a local file, **Receive only** (`sync/direction` = `download-only`;
 the client's `_check_deletion_risk` applies the same rule, and a bidirectional
 run uploads the local-only files instead), so `_check_deletion_risk`
-(`main_window/start.py::StartMixin._check_deletion_risk`) returns early for every
+(`hsync_desktop/main_window/start.py::StartMixin._check_deletion_risk`) returns early for every
 other direction and when **Simulation Mode** (`sync/dry_run`) is on or when the
-deletion policy is `keep` (`settings/cli_args.py::get_deletion_policy`): none of
+deletion policy is `keep` (`hsync_desktop/settings/cli_args.py::get_deletion_policy`): none of
 them can remove a local file, and an automatic startup run must not be dropped
 for a risk that cannot materialise. `deletion_risk.folder_has_user_content`
 skips the entries the engine ignores (`is_hidden_file` / `is_hidden_dir` /
@@ -246,27 +246,27 @@ one-shot process finish.
 
 While `sync/dry_run` is on the window says so everywhere, because the mode is a
 setting the user would otherwise have to remember. `_refresh_simulation_state`
-(`main_window/ui.py::UiBuildMixin._refresh_simulation_state`) is the single refresh point, called from `_apply_translations`
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._refresh_simulation_state`) is the single refresh point, called from `_apply_translations`
 (so a language change re-reads it), from `MainWindow.__init__` and from
-`_apply_settings_changes` (`main_window/start.py::StartMixin._apply_settings_changes`, the shared post-settings/wizard
+`_apply_settings_changes` (`hsync_desktop/main_window/start.py::StartMixin._apply_settings_changes`, the shared post-settings/wizard
 hook). It drives:
 * `QLabel#simulationBadge` in the bottom bar (`ui/main_window.ui`, `simulation.badge`,
   themed by `QLabel#simulationBadge` in `themes.py`), with the `simulation.tip` tooltip;
 * the window title suffix (`simulation.window_title_suffix`) via
-  `main_window/ui.py::UiBuildMixin._update_window_title`, also used by
+  `hsync_desktop/main_window/ui.py::UiBuildMixin._update_window_title`, also used by
   `_on_bucket_detected`;
-* the tray tooltip note (`system_tray.py::SystemTray.set_simulation`) and the Start
+* the tray tooltip note (`hsync_desktop/system_tray.py::SystemTray.set_simulation`) and the Start
   button hint (`tip.start_simulation`).
 
 The run itself opens with a boundary marker (`_mark_new_run`,
-`main_window/ui.py::UiBuildMixin._mark_new_run`, called by `_prepare_engine_run`
+`hsync_desktop/main_window/ui.py::UiBuildMixin._mark_new_run`, called by `_prepare_engine_run`
 in `main_window/actions.py`): `simulation.log_start` in Simulation Mode,
 `sync.log_start` otherwise. The marker is appended without wiping the panel,
 which keeps the previous runs. The preview dialog swaps *Synchronize* for *Close*
-(`preview_summary_dialog.py::PreviewSummaryDialog`, `simulation=True`), so no
+(`hsync_desktop/preview_summary_dialog.py::PreviewSummaryDialog`, `simulation=True`), so no
 control ever promises an application that cannot happen.
 
-### Preview confirmation — `preview_summary_dialog.py::PreviewSummaryDialog`
+### Preview confirmation — `hsync_desktop/preview_summary_dialog.py::PreviewSummaryDialog`
 
 The dialog is the point where a plan is accepted, so it states the outcome first
 and the destructive part in the open:
@@ -278,7 +278,7 @@ and the destructive part in the open:
   transfer volume, from `PreviewStats.action_count` / `transfer_size`.
 * **Context line** (`lblContext`, hidden when empty): the scoped path for a
   Send/Receive (`context_scope`), the direction when it is not bidirectional
-  (`settings/cli_args.py::get_sync_direction` + the existing
+  (`hsync_desktop/settings/cli_args.py::get_sync_direction` + the existing
   `menu.sync.direction.*` labels), the Simulation notice, and
   `skipped_deletions` when the policy dropped planned deletions.
 * **Warning line** (`lblWarning`, hidden when empty, red with a ``glyph`` for a
@@ -292,7 +292,7 @@ and the destructive part in the open:
   lists do not name (`DETAIL_CAP` deletions/renames, `LARGEST_CAP` transfers).
   Counts and totals are always exact.
 * **Estimate**: `estimate` ("≈ {time} at {rate}/s") is computed per direction
-  from `settings/cli_args.py::get_bandwidth_limits`; with no limit there is no
+  from `hsync_desktop/settings/cli_args.py::get_bandwidth_limits`; with no limit there is no
   number, and the value is approximate by construction (delta transfer can move
   fewer bytes than the plan's sizes).
 * **Footnote** (`lblFootnote`): `preview_summary.synced` when some files are
@@ -346,7 +346,7 @@ An unattended run (`_dry_run_unattended`, set by `_start_preview_run` from
 also reaches the OS while the window is in the tray — and otherwise stops and
 calls `_report_plan_needs_confirmation` (category `sync`: a user who muted
 connection problems still learns that nothing was applied). The *Sync without
-asking* setting (`settings/cli_args.py::is_auto_apply_enabled`, `sync/auto_apply`)
+asking* setting (`hsync_desktop/settings/cli_args.py::is_auto_apply_enabled`, `sync/auto_apply`)
 extends the same rule to an interactive Start: a plan that deletes nothing is
 applied without the dialog, while a deletable plan and an explicit Preview always
 open it. The settings-level deletion gate
@@ -363,10 +363,10 @@ restarted dry-run needs to avoid a silent wait.
 
 ### Engine start failure feedback
 
-`_start_engine` (`main_window/start.py::StartMixin._start_engine`) wraps
+`_start_engine` (`hsync_desktop/main_window/start.py::StartMixin._start_engine`) wraps
 `HsyncEngine.start`: on failure it records the reason emitted through
 `error_occurred` and calls `_report_engine_start_failure`
-(`main_window/start.py::StartMixin._report_engine_start_failure`), which raises a
+(`hsync_desktop/main_window/start.py::StartMixin._report_engine_start_failure`), which raises a
 critical `QMessageBox` (title `notif.error`, body `notif.engine_start_failed`,
 the engine reason as informative text). Both start sites use it —
 `_continue_start_after_disclaimer` and `_retry_after_auth_fix` — so a start that
@@ -374,7 +374,7 @@ cannot launch (missing/incompatible binary, spawn failure) surfaces the dialog
 instead of a silent no-op; the caller resets the UI via `_reset_ui_stopped`.
 
 A fatal exit that happens *after* the engine started (`fatal_exit`) is reported by
-`_on_fatal_exit` (`main_window/events.py::EventsMixin._on_fatal_exit`) through
+`_on_fatal_exit` (`hsync_desktop/main_window/events.py::EventsMixin._on_fatal_exit`) through
 `_report_engine_stop_failure`, which reuses the same presentation with the body
 `notif.engine_stopped` (exit code included) and skips a run the user stopped, a
 scoped Send/Receive, and any failure the client already reported through
@@ -383,60 +383,60 @@ vs banner + tray policy stays in one place.
 
 ### Remote endpoint icon (`_update_path_display`)
 
-`main_window/start.py::StartMixin._update_path_display` picks the remote icon from
+`hsync_desktop/main_window/start.py::StartMixin._update_path_display` picks the remote icon from
 `QSettings`: server mode (`p2p/enabled` false) → `network-cloud`; p2p mode →
 always `network-p2p` (the rendezvous does not change the icon). The role
 indicator is p2p-only: `_apply_role_visibility`
-(`main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._apply_role_visibility`) shows it in p2p mode
 once the election has decided the role (`_role_known`) and hides it entirely in
 Server Mode and before the election — no placeholder glyph. `_retranslate_role`
 renders the primary icon with the theme accent
 (`themed_icon("role-master", <Highlight>)`; the SVG uses `currentColor`) and the
 secondary icon in the theme text colour; the **Nodo primario/secondario** text
 appears only when connected and the role is known
-(`main_window/events.py::EventsMixin._on_master` + `_on_status`), and the state
+(`hsync_desktop/main_window/events.py::EventsMixin._on_master` + `_on_status`), and the state
 resets per engine process (`_prepare_engine_run`).
 
 ### Share name next to the folder icon
 
 The active share (bucket) is the user-facing identity, so it labels the local
 folder in the action bar — next to the folder icon — as a clickable link
-(`main_window/start.py::StartMixin._update_path_display`; the name comes from
-`main_window/start.py::StartMixin._share_display_name`: detected bucket →
+(`hsync_desktop/main_window/start.py::StartMixin._update_path_display`; the name comes from
+`hsync_desktop/main_window/start.py::StartMixin._share_display_name`: detected bucket →
 `sync/bucket` → folder name). Clicking it opens the local folder
-(`main_window/start.py::StartMixin._on_path_clicked`); the full local path is the
+(`hsync_desktop/main_window/start.py::StartMixin._on_path_clicked`); the full local path is the
 label's tooltip. That tooltip is **intentionally exempt** from the "Show tooltips"
 preference (`appearance/tooltips`), which only governs the settings fields. The
-window title stays the bare app name (`main_window/events.py::EventsMixin._on_bucket_detected`).
+window title stays the bare app name (`hsync_desktop/main_window/events.py::EventsMixin._on_bucket_detected`).
 The share name is seeded from `sync/bucket` and updated on the client's `bucket`
-event (signal `engine/process.py::HsyncEngine.bucket_detected`).
+event (signal `hsync_desktop/engine/process.py::HsyncEngine.bucket_detected`).
 
 ### Trust refusal dialogs (SSH-style, no terminal)
 
 `MainWindow` answers the client's trust refusals with dialogs instead of a
 terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
-- `_on_pairing_needed` / `_on_fingerprint_changed` (`main_window/trust.py::TrustMixin._on_pairing_needed` / `main_window/trust.py::TrustMixin._on_fingerprint_changed`)
-  build their box through `_trust_prompt` (`main_window/trust.py::TrustMixin._trust_prompt`),
+- `_on_pairing_needed` / `_on_fingerprint_changed` (`hsync_desktop/main_window/trust.py::TrustMixin._on_pairing_needed` / `hsync_desktop/main_window/trust.py::TrustMixin._on_fingerprint_changed`)
+  build their box through `_trust_prompt` (`hsync_desktop/main_window/trust.py::TrustMixin._trust_prompt`),
   the single warning-box construction (translated title/body, reject as default,
   returns the clicked button *role*), then
   route by `scope`: `master` → `add_peer_pin`/`remove_peer_pin`; `rendezvous`/`server`
-  → the helpers returned by `_host_trust_actions` (`main_window/trust.py::TrustMixin._host_trust_actions`) (`add_rendezvous_trust`/
+  → the helpers returned by `_host_trust_actions` (`hsync_desktop/main_window/trust.py::TrustMixin._host_trust_actions`) (`add_rendezvous_trust`/
   `remove_rendezvous_trust` or `add_server_trust`/`remove_server_trust`). Dedupe is
-  `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`main_window/window.py::MainWindow`) via
-  `_should_prompt_trust` (`main_window/trust.py::TrustMixin._should_prompt_trust`), cleared on start/stop (`main_window/window.py::MainWindow`): a
+  `_trust_prompted` `dict[(scope, identity)] → last fingerprint` (`hsync_desktop/main_window/window.py::MainWindow`) via
+  `_should_prompt_trust` (`hsync_desktop/main_window/trust.py::TrustMixin._should_prompt_trust`), cleared on start/stop (`hsync_desktop/main_window/window.py::MainWindow`): a
   repeated refusal for the same fingerprint reuses no dialog, a changed one
   re-prompts. A dismissed or ignored dialog never touches the stored pin (the
   host branch acts only on the explicit Trust/Forget buttons).
-- `_maybe_offer_restart` (`main_window/trust.py::TrustMixin._maybe_offer_restart`) offers to restart a stopped sync after a
+- `_maybe_offer_restart` (`hsync_desktop/main_window/trust.py::TrustMixin._maybe_offer_restart`) offers to restart a stopped sync after a
   rendezvous/server pin change (those failures are fatal; mDNS refusals are not).
-- `_ensure_trust` (`main_window/trust.py::TrustMixin._ensure_trust`) is the start
+- `_ensure_trust` (`hsync_desktop/main_window/trust.py::TrustMixin._ensure_trust`) is the start
   pre-flight for both hosts: `_pending_trust_checks` collects the
-  `_TrustCheck` (`main_window/trust.py::_TrustCheck`) entries that still need an
+  `_TrustCheck` (`hsync_desktop/main_window/trust.py::_TrustCheck`) entries that still need an
   operator decision (mode/policy/URL apply and the known-hosts store does not yet
   hold `host:port`), then `_run_next_trust_check` probes them one at a time on
-  `engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
-  (`main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
+  `hsync_desktop/engine/async_probe.py::AsyncProbe` and `_on_trust_probe_done`
+  (`hsync_desktop/main_window/trust.py::TrustMixin._on_trust_probe_done`) confirms and pins.
   The run starts only from the `on_ready` continuation, so a refused host
   abandons it — except for an **unreachable discovery servers**: `_TrustCheck.kind`
   distinguishes the two, and a rendezvous whose fingerprint cannot be read only
@@ -448,21 +448,21 @@ terminal (the client keeps retrying on the mDNS path, so the handlers dedupe):
 
 ## trusted_keys.py — TrustedKeysDialog
 
-`TrustedKeysDialog` (`trusted_keys.py::TrustedKeysDialog`) lists and edits all three stores via
+`TrustedKeysDialog` (`hsync_desktop/trusted_keys.py::TrustedKeysDialog`) lists and edits all three stores via
 the `engine` subprocess helpers (never the store files directly): three tabs
 (rendezvouss / servers / devices), each a `QTableWidget` + Add/Remove/Refresh. The
 `initial_tab` keyword (`rendezvouss` default, or `servers`) selects the opening
 tab; the settings dialog passes the tab matching the panel that launched it.
 Tabs are filtered by the active mode
-(`trusted_keys.py::TrustedKeysDialog._apply_mode_tab_visibility`, reading
+(`hsync_desktop/trusted_keys.py::TrustedKeysDialog._apply_mode_tab_visibility`, reading
 `p2p/enabled`): p2p shows **Discovery servers** + **Devices** and hides the server
 store; Server Mode shows only **Server HSYNC** and hides the p2p stores. When
 `initial_tab` is hidden, the dialog falls back to the first visible page. The
 server tab is labelled **Server HSYNC** (`trusted_keys.tabs_servers`). The
 rendezvous/server tabs share `_HostAddDialog` and `_build_host_tab` (host:port
 stores); *Add* supports "read from server" or manual entry. *Read from server*
-(`trusted_keys.py::_HostAddDialog._read_from_node`) runs the fingerprint probe on
-`engine/async_probe.py::AsyncProbe` and labels the button `common.checking`
+(`hsync_desktop/trusted_keys.py::_HostAddDialog._read_from_node`) runs the fingerprint probe on
+`hsync_desktop/engine/async_probe.py::AsyncProbe` and labels the button `common.checking`
 meanwhile. Device *Add* pre-fills
 the bucket from `sync/bucket`. The tab/column labels are localized in every
 locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
@@ -471,7 +471,7 @@ locale (`trusted_keys.tabs_peers` = Devices, `trusted_keys.peer` = Device,
 The rendezvous/server tabs show host, fingerprint, **source** and **added** date.
 The raw client `source` (`cli` / `tofu` / `prompt` / `flag`, from
 `hsync-client/hsync_client/known_hosts.py::TRUST_SOURCES`) is humanized by
-`trusted_keys.py::_source_label` (`trusted_keys.source_cli` …), and the
+`hsync_desktop/trusted_keys.py::_source_label` (`trusted_keys.source_cli` …), and the
 `first_seen` column is labelled **Added on** (`trusted_keys.first_seen`), not the
 SSH jargon "first seen". The devices tab shows device, fingerprint and the
 **Added on** date: the client's peer pin store (`hsync-client/hsync_client/pinning.py::PinStore`)
@@ -486,19 +486,19 @@ The devices tab shows
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `FilePanel` | `file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
-| `FileTransferTable` | `file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
-| `FileTransferModel` | `file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
-| `FileDetailPanel` | `file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
-| `ProgressBarDelegate` | `file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
-| `LoadingOverlay` | `file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
-| `_confirm_dialog` | `file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
-| `DirectoryScanWorker` | `file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
-| `ImportWorker` | `file_panel/workers.py::ImportWorker` | off-thread copy/move of the dropped sources, reporting per-item and per-file progress |
-| `count_tree` / `copy_tree` | `file_panel/import_ops.py::count_tree` / `file_panel/import_ops.py::copy_tree` | bounded metadata count and per-file copy behind the import progress |
-| `_classify_file` / `format_mtime` | `file_panel/utils.py::_classify_file` / `file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
+| `FilePanel` | `hsync_desktop/file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
+| `FileTransferTable` | `hsync_desktop/file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
+| `FileTransferModel` | `hsync_desktop/file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
+| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | selected-file metadata pane |
+| `ProgressBarDelegate` | `hsync_desktop/file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
+| `LoadingOverlay` | `hsync_desktop/file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
+| `_confirm_dialog` | `hsync_desktop/file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
+| `DirectoryScanWorker` | `hsync_desktop/file_panel/workers.py::DirectoryScanWorker` | off-thread local tree scan |
+| `ImportWorker` | `hsync_desktop/file_panel/workers.py::ImportWorker` | off-thread copy/move of the dropped sources, reporting per-item and per-file progress |
+| `count_tree` / `copy_tree` | `hsync_desktop/file_panel/import_ops.py::count_tree` / `hsync_desktop/file_panel/import_ops.py::copy_tree` | bounded metadata count and per-file copy behind the import progress |
+| `_classify_file` / `format_mtime` | `hsync_desktop/file_panel/utils.py::_classify_file` / `hsync_desktop/file_panel/utils.py::format_mtime` | type/icon + mtime formatting |
 
-The table is a **model/view pair** (`file_panel/transfer_table.py::FileTransferModel`
+The table is a **model/view pair** (`hsync_desktop/file_panel/transfer_table.py::FileTransferModel`
 + `FileTransferTable`): the view computes one `(display_name, transfer,
 folder_data)` row per visible folder/file and hands the list to `FileTransferModel.set_rows`;
 cells are produced through `QAbstractTableModel.data` roles (Display, Decoration,
@@ -507,7 +507,7 @@ Foreground, Font, ToolTip, UserRole for the progress bar), so no per-cell
 is model-side (`FileTransferModel.sort`): it stays off until the user sorts, and a
 refresh re-applies the recorded sort, preserving the user's order across rebuilds.
 The sort key is the column's **value, not its display text**
-(`file_panel/transfer_table.py::FileTransferModel._sort_key`): a formatted string
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferModel._sort_key`): a formatted string
 would sort lexicographically ("9.5MB" > "10.0MB", the localized date string is not
 chronological) and the progress column has no display text at all (the bar is
 drawn from `UserRole`), so a text sort there was a no-op. Progress, Size, Modified,
@@ -519,12 +519,12 @@ callers that need a row's transfer or display name.
 
 The panel lists exactly what the engine synchronises: the local scan, the
 consistency pass and the status-bar size share
-`file_panel/filter.py::is_synced_entry`, built on the engine's
+`hsync_desktop/file_panel/filter.py::is_synced_entry`, built on the engine's
 `hsync_common.ignore.IgnoreMatcher` (so `.hsyncignore`, the built-in default
 patterns, internal names and `*.part` artifacts are excluded) plus an explicit
 `.hsynckeep` exclusion — the sentinel is synced by the engine but stays internal
 to the UI, and the client's folder-size totals exclude it too. `.hsyncignore` is
-re-read when its `(mtime_ns, size)` changes (`file_panel/filter.py::ignore_file_stamp`).
+re-read when its `(mtime_ns, size)` changes (`hsync_desktop/file_panel/filter.py::ignore_file_stamp`).
 
 Dot-prefixed names are only a **view** option: `ui/show_hidden_files`
 (`FileTransferTable._SHOW_HIDDEN_SETTINGS_KEY`) hides an item when its own name
@@ -534,14 +534,14 @@ to the column toggles (`FileTransferTable.set_show_hidden`). It changes neither
 view-hidden stays listed, with counts from its visible children only. The
 default is off (hidden).
 
-Renaming a row (`file_panel/transfer_table.py::FileTransferTable.rename_file`)
+Renaming a row (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.rename_file`)
 keeps its modification date: the new row inherits the previous row's mtime when
 the filesystem read returns nothing (the rename event may arrive before the local
-rename lands — `main_window/events.py::EventsMixin._on_file_renamed` reads the
+rename lands — `hsync_desktop/main_window/events.py::EventsMixin._on_file_renamed` reads the
 destination, falling back to the source).
 
-`FileTransferTable.set_connected` (`file_panel/transfer_table.py::FileTransferTable.set_connected`,
-driven from `main_window/events.py::EventsMixin._on_status`) greys **Local** rows
+`FileTransferTable.set_connected` (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.set_connected`,
+driven from `hsync_desktop/main_window/events.py::EventsMixin._on_status`) greys **Local** rows
 (`TransferStatus.LOCAL` → `STATUS_COLORS`) only while a connection is active.
 When the link is disconnected/connecting/waiting the rows keep the default text
 colour, because "Local" is the resting state rather than a comparison result;
@@ -550,7 +550,7 @@ real transfer states keep their own colours.
 A folder row with no aggregated children (an empty directory) shows the folder's
 own status instead of defaulting to *Local*. Every verdict lands on the
 trailing-slash key through
-`main_window/events.py::EventsMixin._on_directory_status`: a directory the engine
+`hsync_desktop/main_window/events.py::EventsMixin._on_directory_status`: a directory the engine
 created from a remote event (`_on_directory_created`) and an empty directory the
 comparison classified (`dir_status` — its `.hsynckeep` sentinel never becomes a
 file row) both resolve there. The status itself is mapped
@@ -559,7 +559,7 @@ from the folder's own transfer by `_STATUS_PRIORITY` / `_FOLDER_STATUS_KEYS` in
 highest-priority child status.
 
 A **"Synced" row is a claim about the remote copy**, so it is asserted only while a
-link exists: `file_panel/transfer_table.py::FileTransferModel._row_status` swaps
+link exists: `hsync_desktop/file_panel/transfer_table.py::FileTransferModel._row_status` swaps
 the label for `detail.synced_stale` (and `_foreground` uses the same muted grey as
 *Local*) whenever `FileTransferTable.set_connected(False)` has cleared the link.
 The timestamp of the last full comparison (`FileTransferTable.mark_verified`,
@@ -576,42 +576,42 @@ forwards the folder and row captured before the reload to
 acted-on row selected instead of jumping to the root. The row is applied as a
 sticky selection (`_apply_sticky_selection`) across the asynchronous scan's
 refreshes and is cleared on user navigation, a new click, or a panel clear
-(`main_window/actions.py::ActionsMixin._selection_display_name` maps a nested
+(`hsync_desktop/main_window/actions.py::ActionsMixin._selection_display_name` maps a nested
 target to the first path segment below the current folder).
 
 The reload **keeps the per-file classifications**:
-`file_panel/transfer_table.py::FileTransferTable.clear_transfers` drops every row
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.clear_transfers` drops every row
 and the scan that follows re-emits plain `LOCAL` placeholders
 (`TransferStatus.LOCAL` means "exists here, status unknown"), so
 `FilePanel.load_local_files` captures
-`file_panel/transfer_table.py::FileTransferTable.status_snapshot` — copies of the
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.status_snapshot` — copies of the
 rows that carry a classification — and hands it to
 `FileTransferTable.add_transfers_batch(..., known=...)`, which merges it back:
 `status`, device coverage and client attribution survive, while `size`/`mtime`
 come from the fresh scan. A classification that lands *while* the scan runs wins
-as well (`file_panel/transfer_table.py::FileTransferTable._classified_row`
+as well (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._classified_row`
 consults the live row first), so the race between the
 scan's batches and the engine's per-file events cannot grey a row the engine
 already classified. The snapshot is dropped at the end of the rebuild
 (`FilePanel._on_scan_finished`) and whenever the folder changes: the keys are
 relative paths, so another base starts clean.
 
-The row context menu (`file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
+The row context menu (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._show_file_context_menu`)
 offers `Open` — a **folder** navigates into it inside the panel (same as a
 double-click) while a **file** opens with the system default app — followed by
 `Open containing folder` (reveals the entry in the OS file manager:
 `FileTransferTable._ctx_open_containing`), then **Send now** / **Receive now** —
 one-shot upload-only / download-only of the selected subtree (`signals
 FileTransferTable.send_selection_requested` / `receive_selection_requested` →
-`main_window/actions.py::ActionsMixin._sync_selection`, scoped through
-`settings/cli_args.py::build_selection_args`) — Open With / Copy To / Rename /
+`hsync_desktop/main_window/actions.py::ActionsMixin._sync_selection`, scoped through
+`hsync_desktop/settings/cli_args.py::build_selection_args`) — Open With / Copy To / Rename /
 Trash / Properties. Send/Receive first run a scoped dry-run preview whose summary
 dialog confirms the actions; on accept the real one-shot starts from
 `MainWindow._start_selection_run` (the pending selection is carried by
 `MainWindow._pending_selection_sync`, consumed by `MainWindow._show_preview_summary`).
 The entries are disabled while a sync is running
 (`FileTransferTable.set_sync_active`); the File menu hosts the same two actions
-(`main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
+(`hsync_desktop/main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
 enabled only with a selection and a stopped engine.
 
 Destructive acts (`Rename` / `Trash`) add a **per-row** gate on top:
@@ -645,23 +645,23 @@ the two clipboard commands `Copy path` / `Copy relative path`
 path inside the shared folder, both through `os.path.normpath` because the wire
 keys use `/` and a folder key ends with `/` (a host would otherwise get mixed
 separators and a trailing one). The same two commands are in the **File** menu
-(`main_window/actions.py::ActionsMixin._menu_file_copy_path` /
+(`hsync_desktop/main_window/actions.py::ActionsMixin._menu_file_copy_path` /
 `_menu_file_copy_path_relative`), which is the keyboard-reachable surface, with
 `Ctrl+Shift+C` on the absolute form (the conventional "copy as path" chord) and
 no shortcut on the relative one; `Copy to…` moved to `Ctrl+Alt+C` to free it.
 
 The table re-localizes its **column headers** on a live language change
-(`file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
-`file_panel/panel.py::FilePanel.retranslate_columns` from
-`main_window/ui.py::UiBuildMixin._apply_translations`). The same path (and
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.retranslate`, called through
+`hsync_desktop/file_panel/panel.py::FilePanel.retranslate_columns` from
+`hsync_desktop/main_window/ui.py::UiBuildMixin._apply_translations`). The same path (and
 `refresh_fonts`, the restored layout and `_toggle_column` when a hidden column is
 shown again) runs
-`file_panel/transfer_table.py::FileTransferTable._ensure_readable_headers`: a
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._ensure_readable_headers`: a
 section narrower than its own header hint is widened, because the header is
 centred and would otherwise clip the label on both sides (the `Estimated time`
 column started at the 100 px style default).
 
-**Columns**: the default order is `file_panel/utils.py::_COLUMN_KEYS` — Name,
+**Columns**: the default order is `hsync_desktop/file_panel/utils.py::_COLUMN_KEYS` — Name,
 Direction, Size, Type, Modified, Progress, Status, Estimated Time, Speed. The row
 icon is a **decoration of the Name cell** (`FileTableModel.data` `DecorationRole`,
 no icon column), so identity leads; Direction follows the name because it is the
@@ -712,7 +712,7 @@ visible sections need with `FileTransferTable.name_floor()` reserved for Name �
 profile has never saved a layout (`FileTransferTable.has_saved_layout`,
 captured at construction because the header persists its initial section sizes
 on the first layout pass) — and the one-shot
-startup fit (`main_window/window.py::MainWindow._fit_table_width`, re-scheduled
+startup fit (`hsync_desktop/main_window/window.py::MainWindow._fit_table_width`, re-scheduled
 from `MainWindow.showEvent` and the model's `rowsInserted` through
 `MainWindow._schedule_table_fit`) grows the window by that deficit, clamped to
 `QScreen.availableGeometry`. The default and minimum window size live in
@@ -720,7 +720,7 @@ from `MainWindow.showEvent` and the model's `rowsInserted` through
 them. The fit is consumed only after a valid measurement
 (rows present, window visible) and never fights a later manual resize
 (`MainWindow._table_width_fitted`). `FileTransfer.speed_bps`
-(`file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
+(`hsync_desktop/file_panel/models.py::FileTransfer.speed_bps`) also backs the ETA, so the two
 stay consistent. A folder keeps the neutral aggregate status (`folder.status.to_sync`)
 because it can mix operations; its tooltip spells out the planned actions
 (`folder.ops_item`, e.g. "To upload: 3, To download: 1") while files keep the
@@ -728,19 +728,19 @@ precise per-action label (`detail.to_upload`, `detail.to_download`, …).
 
 **Live progress**: a received file does not exist on disk before it completes, so
 its row cannot come from the scan. `update_transfer_progress`
-(`file_panel/transfer_table.py::FileTransferTable.update_transfer_progress`)
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.update_transfer_progress`)
 creates the row on the first `progress` event (direction taken from the event's
 `op`, `size` from the event's total) and the completion handler writes the final
-size (`file_panel/models.py::FileTransfer`), so a receive shows its percentage
+size (`hsync_desktop/file_panel/models.py::FileTransfer`), so a receive shows its percentage
 and rate while it happens and its real size afterwards. The same events arrive
 when this app is the device the others sync from (the p2p master): the client
 reports the files it serves (`op=upload`) and the pushes it receives
 (`op=download`), so the panel shows activity in both roles — the contract lives
 in the client wiki (`hsync-client/llm-wiki/modules/sync-core.md`). A transfer
 that gives up is flagged `TransferStatus.ERROR`
-(`file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
-(`file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
 A status refresh must never downgrade a live in-flight row:
 `update_file_status` ignores a *planned* status (`TO_*` — the master's
 `master_status` re-emits every file on each pass) while the row is
@@ -748,11 +748,11 @@ A status refresh must never downgrade a live in-flight row:
 Letting it through flipped the row to `TO_UPLOAD`, which hid the ETA (it needs an
 in-flight status, `FileTransfer.speed_bps`) while the progress bar kept
 rendering; only a terminal event ends a live in-flight row. A row whose last
-sample is older than `file_panel/models.py::IN_FLIGHT_STALE_SECONDS` is stale, not
+sample is older than `hsync_desktop/file_panel/models.py::IN_FLIGHT_STALE_SECONDS` is stale, not
 live: it accepts any status, preview included, so the engine's answer can resolve
 it when its terminal event was lost.
 The rate is the bytes moved over the last `SPEED_WINDOW_SECONDS` of progress
-samples (`file_panel/models.py::FileTransfer.note_progress`), not
+samples (`hsync_desktop/file_panel/models.py::FileTransfer.note_progress`), not
 `bytes / (now - start_time)`: the column follows the real stream, drops back to
 the sustained rate within a second and hides the per-chunk pacing of the
 limiter. A sample pair closer than `_RATE_MIN_INTERVAL` measures nothing — the
@@ -763,15 +763,15 @@ the wire total (compressed upload size, delta payload) separate from the on-disk
 `size`.
 
 An in-flight **upload** never reads as finished:
-`file_panel/models.py::clamp_upload_progress` caps its percentage at
+`hsync_desktop/file_panel/models.py::clamp_upload_progress` caps its percentage at
 `_UPLOAD_MAX_PROGRESS` (99), for the row
-(`file_panel/transfer_table.py::_TableModel._row_progress`) and for the folder
-aggregate (`file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
+(`hsync_desktop/file_panel/transfer_table.py::_TableModel._row_progress`) and for the folder
+aggregate (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
 The client counts the bytes handed to the transport, so a burst absorbed by the
 socket/relay buffers reaches the wire total long before the receiver commits the
 file; the bar closes with the row, on the terminal `transfer` event. A download
 is unaffected: its bytes really are on disk. The reverse also holds: a row that
-already reached a settled classification (`file_panel/transfer_table.py::_SETTLED_STATUSES`
+already reached a settled classification (`hsync_desktop/file_panel/transfer_table.py::_SETTLED_STATUSES`
 — `SYNCED`, `COMPLETED`, `DELETED`) is **not** restarted by a trailing progress
 sample (`FileTransferTable.update_transfer_progress` returns early). The peer
 echoes progress asynchronously from the upload commit, so over a relay a tail
@@ -780,12 +780,12 @@ it at the upload cap with no further terminal event to close it.
 
 A row the engine stops reporting on never stays in flight forever. The periodic
 consistency pass asks for in-flight rows silent longer than
-`file_panel/models.py::IN_FLIGHT_STALE_SECONDS`
-(`file_panel/transfer_table.py::FileTransferTable.stale_in_flight_paths`, fed by
-`file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall and
-again every `file_panel/panel.py::_STALL_REASK_SECONDS` while it lasts**, requests
+`hsync_desktop/file_panel/models.py::IN_FLIGHT_STALE_SECONDS`
+(`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.stale_in_flight_paths`, fed by
+`hsync_desktop/file_panel/models.py::FileTransfer.last_progress_at`) and, **once per stall and
+again every `hsync_desktop/file_panel/panel.py::_STALL_REASK_SECONDS` while it lasts**, requests
 a status refresh
-(`file_panel/panel.py::FilePanel._request_status_for_stalled_rows` →
+(`hsync_desktop/file_panel/panel.py::FilePanel._request_status_for_stalled_rows` →
 `FilePanel.scan_found_new_files`), so the engine's own answer resolves the row —
 a lost terminal event or a wedged transfer cannot leave a frozen bar behind. The
 same threshold relaxes `update_file_status`, so the preview answer that refresh
@@ -804,7 +804,7 @@ Tests that assert rendered cells right after such a call must flush the debounce
 with `FileTransferTable.refresh_view()`.
 
 The consistency pass walks with an iterative `os.scandir` and derives each
-relative key by slicing the prefix `file_panel/panel.py::_scandir_child_prefix`
+relative key by slicing the prefix `hsync_desktop/file_panel/panel.py::_scandir_child_prefix`
 builds, matching `os.scandir`'s own `base`/`name` join (a separator is appended
 only when the share path does not already end with one, alt separator included).
 It recurses only into real directories and, like `os.walk(onerror=None)`, skips a
@@ -820,39 +820,39 @@ inert when the list already shows the root, so a click never targets the folder
 already displayed.
 
 **Breadcrumb notation**: segments are joined by
-`file_panel/panel.py::_breadcrumb_separator` — `" / "` (GNOME Files, and every
+`hsync_desktop/file_panel/panel.py::_breadcrumb_separator` — `" / "` (GNOME Files, and every
 textual path on macOS) or `" > "` on Windows (Explorer) — and the breadcrumb
 never starts with a separator: the root icon is the first segment, so a leading
 `/` would read as an absolute path. The navigation buttons and the root icon
-render at `file_panel/panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled 24×24
-SVGs); the root icon keeps a `file_panel/panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
-the WCAG 2.2 minimum. `file_panel/panel.py::FilePanel._refresh_breadcrumb_icon` is the only
+render at `hsync_desktop/file_panel/panel.py::_NAV_ICON_PX` (20 px, a downscale of the bundled 24×24
+SVGs); the root icon keeps a `hsync_desktop/file_panel/panel.py::_NAV_ICON_BOX_PX` (24 px) click target,
+the WCAG 2.2 minimum. `hsync_desktop/file_panel/panel.py::FilePanel._refresh_breadcrumb_icon` is the only
 place that re-renders that icon, including after a theme change.
 
 ### Drag & drop import
 
-Dropping OS files onto the table (`file_panel/transfer_table.py::FileTransferTable.dropEvent`)
+Dropping OS files onto the table (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.dropEvent`)
 emits `files_dropped(sources, target_rel, action)`; the destination is the folder
 row under the cursor, else the folder being browsed
-(`file_panel/import_ops.py::target_rel_dir`). `file_panel/panel.py::FilePanel._on_files_dropped`
-validates the sources (`file_panel/import_ops.py::validate_sources`), confirms a
+(`hsync_desktop/file_panel/import_ops.py::target_rel_dir`). `hsync_desktop/file_panel/panel.py::FilePanel._on_files_dropped`
+validates the sources (`hsync_desktop/file_panel/import_ops.py::validate_sources`), confirms a
 move, resolves each name conflict (`Replace` / `Keep both` / `Skip`, with
-apply-to-all) and hands a list of `file_panel/import_ops.py::ImportItem` to
-`FilePanel._start_import`, which runs them in `file_panel/workers.py::ImportWorker`
+apply-to-all) and hands a list of `hsync_desktop/file_panel/import_ops.py::ImportItem` to
+`FilePanel._start_import`, which runs them in `hsync_desktop/file_panel/workers.py::ImportWorker`
 and refuses further drops meanwhile (`FileTransferTable.set_drop_enabled`).
 
 **The import is visible while it runs.** `ImportWorker` reports a
-`file_panel/import_ops.py::CopyProgress` per item and per file
-(`file_panel/import_ops.py::copy_tree` for a directory, so a dropped folder — a
+`hsync_desktop/file_panel/import_ops.py::CopyProgress` per item and per file
+(`hsync_desktop/file_panel/import_ops.py::copy_tree` for a directory, so a dropped folder — a
 single item — still moves the bar), and the panel renders it in the shared
-`file_panel/overlay.py::LoadingOverlay` through `FilePanel._sync_loading_overlay`.
+`hsync_desktop/file_panel/overlay.py::LoadingOverlay` through `FilePanel._sync_loading_overlay`.
 That helper is the single owner of the overlay: the scan and the import both use
 it, so visibility is derived from `_importing`/`_overlay_scan_active` instead of
 paired show/hide calls — a scan ending mid-import must not hide the import's
 indicator, and the import wins when both are active. The bar is **determinate only
 when the totals are known**: a directory is counted first with
-`file_panel/import_ops.py::count_tree`, bounded by
-`file_panel/import_ops.py::COUNT_BUDGET_S`; an incomplete count (budget spent or
+`hsync_desktop/file_panel/import_ops.py::count_tree`, bounded by
+`hsync_desktop/file_panel/import_ops.py::COUNT_BUDGET_S`; an incomplete count (budget spent or
 cancelled) reports `files_total`/`bytes_total` as `None` and the overlay stays
 indeterminate with its file and byte counters, rather than promising a percentage
 it cannot keep. A move stays indeterminate: `shutil.move` is a rename while both
@@ -874,20 +874,20 @@ lifecycle so its result is surfaced exactly once:
 
 - State: `MainWindow._selection_sync_active`, `_selection_sync_phase`
   (`"preview"` | `"confirm"` | `"run"`) and `_pending_selection_sync`
-  (`(subdir, direction)`) — `main_window/window.py::MainWindow`.
+  (`(subdir, direction)`) — `hsync_desktop/main_window/window.py::MainWindow`.
   `_begin_selection_sync` arms them and shows a persistent progress toast
   (`_show_info_banner(..., auto_hide_ms=0, kind="progress")`); `_finish_selection_sync`
-  (`main_window/actions.py::ActionsMixin._finish_selection_sync`) clears them and is
+  (`hsync_desktop/main_window/actions.py::ActionsMixin._finish_selection_sync`) clears them and is
   **idempotent**, so a later engine event never re-surfaces the same result.
-- Outcome: `main_window/events.py::_scoped_outcome` derives it from the counters
+- Outcome: `hsync_desktop/main_window/events.py::_scoped_outcome` derives it from the counters
   on `sync_complete` (the engine's `SyncCycleResult`): `done` when any of
   `downloaded`/`uploaded`/`deleted`/`renamed` is non-zero, `already_synced` when
   the cycle applied nothing, `failed` on failures. Counting `file_transferred`
   events was wrong for renames and deletes, which move no bytes.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
-  (server); `_on_peers` (`main_window/events.py::EventsMixin._on_peers`) adds the
+  (server); `_on_peers` (`hsync_desktop/main_window/events.py::EventsMixin._on_peers`) adds the
   other-device count (`sync.sel_peers_fmt`) while the op is active.
-- Outcome: `_surface_selection_outcome` (`main_window/actions.py::ActionsMixin._surface_selection_outcome`)
+- Outcome: `_surface_selection_outcome` (`hsync_desktop/main_window/actions.py::ActionsMixin._surface_selection_outcome`)
   routes an *important* result (no devices, server unreachable, failed) through
   `_important_selection_outcome` — a modal dialog when the window is in the
   foreground, otherwise a warning notification (`_notify_warning`, which also
@@ -897,7 +897,7 @@ lifecycle so its result is surfaced exactly once:
   plan that was applied, plus an info notification suppressed while the window
   is focused, so exactly one surface shows).
 - Wiring (in `_connect_signals`): `error_occurred → _on_engine_error`
-  (`main_window/ui.py::UiBuildMixin._on_engine_error`, `reason="connection"` in
+  (`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_error`, `reason="connection"` in
   server mode → *server unreachable*; a launch failure is skipped and reported by
   `_start_engine`), `no_peers_warning → _on_no_peers`,
   `sync_pending → _on_sync_pending`,
@@ -905,30 +905,30 @@ lifecycle so its result is surfaced exactly once:
   and `stop_timeout → _on_stop_timeout` finalize. `_on_file_transferred` counts real
   transfers during the `run` phase.
 - A lost connection raises the `notif.connection_lost` notification from
-  `_on_status` (`main_window/events.py::EventsMixin._on_status`) on the first
+  `_on_status` (`hsync_desktop/main_window/events.py::EventsMixin._on_status`) on the first
   non-connected link status (`waiting` in server mode and p2p, `disconnected`
   when the process ends) after a link existed. `_ever_connected`
-  (`main_window/window.py::MainWindow`) is set on the first `connected` and reset
+  (`hsync_desktop/main_window/window.py::MainWindow`) is set on the first `connected` and reset
   per engine process, so a one-shot that never linked does not claim a lost
-  connection; `_link_lost_notified` (`main_window/window.py::MainWindow`),
+  connection; `_link_lost_notified` (`hsync_desktop/main_window/window.py::MainWindow`),
   re-armed on every `connected`, keeps one drop from raising the toast twice
   (`waiting` then the terminal `disconnected`). The engine's own `connecting`
   (pre-start, credential retry) is not a link loss and never notifies.
-- Stopping is visible at once: `_on_stop` (`main_window/start.py::StartMixin._on_stop`)
+- Stopping is visible at once: `_on_stop` (`hsync_desktop/main_window/start.py::StartMixin._on_stop`)
   marks the run user-stopped and calls `HsyncEngine.request_stop` (non-blocking, so
   the window never freezes), and `_enter_stopping_ui`
-  (`main_window/start.py::StartMixin._enter_stopping_ui`) sets `_stop_requested`, the
-  `Stopping…` badge (`_set_status_label`, `main_window/events.py::EventsMixin._set_status_label`),
-  disables Start/Stop/Check-changes (tray too, `system_tray.py::SystemTray.set_stopping`)
+  (`hsync_desktop/main_window/start.py::StartMixin._enter_stopping_ui`) sets `_stop_requested`, the
+  `Stopping…` badge (`_set_status_label`, `hsync_desktop/main_window/events.py::EventsMixin._set_status_label`),
+  disables Start/Stop/Check-changes (tray too, `hsync_desktop/system_tray.py::SystemTray.set_stopping`)
   and shows a `progress` toast plus a log marker. `_on_process_finished`
-  (`main_window/events.py::EventsMixin._on_process_finished`) clears `_stop_requested`
+  (`hsync_desktop/main_window/events.py::EventsMixin._on_process_finished`) clears `_stop_requested`
   and restores the stopped state; if the engine never confirms the exit,
   `stop_timeout → _on_stop_timeout` restores it with the `notif.stop_timeout` warning.
 
 ### Transient feedback (overlay toast)
 
 `MainWindow._info_banner` is an **overlay child of `centralWidget()`**, never in
-`rootLayout` (`main_window/ui.py::UiBuildMixin._create_info_banner`), so
+`rootLayout` (`hsync_desktop/main_window/ui.py::UiBuildMixin._create_info_banner`), so
 showing/hiding it cannot reflow the splitter. `_show_info_banner(message,
 auto_hide_ms, kind, title, help_url)` places it bottom-right above the bottom bar
 (`_position_info_banner`, kept anchored on `resizeEvent`) and maps `kind`
@@ -936,8 +936,8 @@ auto_hide_ms, kind, title, help_url)` places it bottom-right above the bottom ba
 dynamic `severity` QSS property; `error`/`warning`/`success` also prefix a
 severity glyph and the given title, so the severity is recognisable without
 relying on colour. `help_url` reveals the `_info_banner_link` affordance — a
-`widgets/links.py::help_link` retargeted through
-`widgets/links.py::set_help_link_url`, the only way to offer a click during a
+`hsync_desktop/widgets/links.py::help_link` retargeted through
+`hsync_desktop/widgets/links.py::set_help_link_url`, the only way to offer a click during a
 toast, since the banner is an overlay whose text cannot be selected. That link is
 built with an explicit `color=#FFFFFF` (`help_link(..., color=...)` → an inline
 anchor style plus underline): a rich-text anchor ignores the label's QSS `color`,
@@ -950,8 +950,8 @@ process finishing, `progress`/`info` auto-hide (`_clear_run_toast` with
 `_SURVIVES_FINISH`/`_PERSISTENT_ACROSS_RUNS`). Errors and warnings are surfaced
 in-app regardless of the notifications preference:
 
-- `_notify_error` (`main_window/ui.py::UiBuildMixin._notify_error`) and
-  `_notify_warning` (`main_window/ui.py::UiBuildMixin._notify_warning`) always show
+- `_notify_error` (`hsync_desktop/main_window/ui.py::UiBuildMixin._notify_error`) and
+  `_notify_warning` (`hsync_desktop/main_window/ui.py::UiBuildMixin._notify_warning`) always show
   the in-app toast and, when the window is out of focus, the OS notification.
 - Per-file transfer failures are consolidated into a single error toast at the end
   of a non-scoped run (`_on_transfer_failed` increments `_transfer_failure_count`,
@@ -969,7 +969,7 @@ grammar of ADR 0046: `<timestamp> - [<pid>] [<correlation field>] LEVEL: message
 UTC with milliseconds, levels from `hsync_common.logger.LEVEL_STYLES`. Client
 lines arrive verbatim (`[<pid>] [<client_id>]`). Desktop-originated events use
 `_append_desktop_log(level, message)`
-(`main_window/ui.py::UiBuildMixin._append_desktop_log`), which renders the same
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._append_desktop_log`), which renders the same
 shape through `hsync_common.logger.format_log_line` with `desktop` in the
 correlation slot (no client session exists, so the app's own pid is rendered and
 `[desktop]` replaces the CID): `<timestamp> - [<pid>] [desktop] LEVEL: message`.
@@ -977,25 +977,25 @@ Nothing writes to the panel with a hand-built prefix — the phase markers
 (`--- … ---`: run start, comparison started/ended, stopping, preparing a plan,
 selection sync, process finished) are `INFO` lines through the same helper, and
 the engine's malformed-event diagnostic is an `ERROR` one (`event_error` →
-`main_window/ui.py::UiBuildMixin._on_engine_event_error`).
+`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_event_error`).
 
 The panel **keeps its lines across runs**: `_mark_new_run`
-(`main_window/ui.py::UiBuildMixin._mark_new_run`) appends the run boundary
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._mark_new_run`) appends the run boundary
 (`sync.log_start`, or `simulation.log_start` in Simulation Mode) instead of
 clearing the document, and `_scroll_log_to_end`
-(`main_window/ui.py::UiBuildMixin._scroll_log_to_end`) jumps the view to it one
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._scroll_log_to_end`) jumps the view to it one
 event-loop turn later (the scroll range is final only after Qt lays the new block
 out). Only the context-menu **Clear Log** empties the panel.
 
 Both producers show the timestamp in the same gray: the engine's lines carry the
 client's `<dim>` SGR, and for the SGR-free desktop lines
-`log_style.py::_fallback_runs` dims the `timestamp` group of `LOG_LINE_RE` with
+`hsync_desktop/log_style.py::_fallback_runs` dims the `timestamp` group of `LOG_LINE_RE` with
 the `dim` palette entry, so the two never read as two panels.
 
 Events surfaced to the user (Send/Receive busy, nothing to sync, connection
 results) additionally raise a toast, so their outcome is visible without the log
 panel. Master role changes (`_on_master_conflict`,
-`main_window/events.py::EventsMixin._on_master_conflict`) are informational: a
+`hsync_desktop/main_window/events.py::EventsMixin._on_master_conflict`) are informational: a
 takeover by a peer that prefers the primary role is logged only (the role
 indicator updates), while a genuine two-prefer_master conflict raises a warning.
 
@@ -1003,8 +1003,8 @@ indicator updates), while a genuine two-prefer_master conflict raises a warning.
 
 The status dot answers "is a device reachable"; it never says whether the file
 sets match. A second muted label sits in the bottom bar (built in
-`main_window/ui.py::UiBuildMixin._load_ui`, right of the share size) and is
-rendered by `main_window/events.py::EventsMixin._render_sync_state` from the
+`hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui`, right of the share size) and is
+rendered by `hsync_desktop/main_window/events.py::EventsMixin._render_sync_state` from the
 state remembered in `EventsMixin._set_sync_state`:
 
 | State | When | Key |
@@ -1048,7 +1048,7 @@ language change from `_apply_translations`; its tooltip
 device as `cccccccc  ↓ pending_here · ↑ pending_there`, plus the published/expected
 inventory counts while the waiting state lasts. Per-file rows carry the same
 coverage: `file_status` carries `holders`/`devices`, and
-`file_panel/transfer_table.py::FileTransferModel._row_status` renders
+`hsync_desktop/file_panel/transfer_table.py::FileTransferModel._row_status` renders
 `Synced · 2/3` when some device still lacks the content.
 
 Per-file statuses are a **last known value**, not a live-only signal: dropping
@@ -1057,10 +1057,10 @@ new preview/classification (or a fresh scan after an engine restart) changes
 them, so a synced file does not look unsynced just because the peer went away.
 
 An engine error whose `reason` is `connection` is the same situation seen from
-the comparison side: `main_window/ui.py::UiBuildMixin._on_engine_error` sets
-`main_window/events.py::EventsMixin._link_down` and moves the summary to the
+the comparison side: `hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_error` sets
+`hsync_desktop/main_window/events.py::EventsMixin._link_down` and moves the summary to the
 `offline` state (`idle` when nothing was ever linked), and
-`main_window/events.py::EventsMixin._begin_comparison` refuses to claim `checking`
+`hsync_desktop/main_window/events.py::EventsMixin._begin_comparison` refuses to claim `checking`
 while it is set. The client retries a comparison whose link dropped on its own,
 so without this the state oscillated "Checking…" under a "Disconnected" badge;
 the flag clears on the next `connected` status. A non-connection error leaves the
@@ -1072,7 +1072,7 @@ so the window never infers the end of a burst and the manual check stays disable
 for exactly one comparison:
 
 * `preview_start`/`preview_end` — the preview **this window** requested through
-  `engine/process.py::HsyncEngine.preview`. Only its end may confirm a pending
+  `hsync_desktop/engine/process.py::HsyncEngine.preview`. Only its end may confirm a pending
   sync: `EventsMixin._on_preview_ended` credits `_pending_initial_reconcile` (only
   when no engine error hit the comparison) and opens
   `ActionsMixin._show_preview_summary` (skipped on failure: the error already
@@ -1087,7 +1087,7 @@ for exactly one comparison:
 Keeping the pairs distinct is what protects the confirmation one-shot: a
 background pass can never consume the preview the window is waiting for.
 
-**Check for changes** (`main_window/start.py::StartMixin._on_check_changes`) writes
+**Check for changes** (`hsync_desktop/main_window/start.py::StartMixin._on_check_changes`) writes
 `PREVIEW` on the client's stdin and leaves the rest to the role: a secondary node
 answers with the preview cycle (the summary then offers the sync), a primary node
 with its classification pass. `_awaiting_preview_for_sync` is therefore armed only
@@ -1119,7 +1119,7 @@ lengthens a transient message.
 `preview.no_actions` when `_sync_state` is `no_devices`, so a lone device never
 looks in sync.
 
-The action bar button is **icon-only** (`main_window/ui.py::UiBuildMixin._load_ui`
+The action bar button is **icon-only** (`hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui`
 clears its text) and uses the bundled `view-refresh` icon (a magnifier reads as
 "search"), so the tooltip is the control's only text and describes the comparison
 instead of restating a verb; its name is `menu.sync.check_changes`, shared with the
@@ -1144,15 +1144,15 @@ toast to a single message.
 ### Share size
 
 The status bar (right side, before Peers) shows a muted `QLabel`, rendered by
-`main_window/ui.py::UiBuildMixin._render_share_size` from the single key
+`hsync_desktop/main_window/ui.py::UiBuildMixin._render_share_size` from the single key
 `label.share_size_fmt` ("Shared: X / Y"; `Condivisi: X / Y` in Italian). **X** is
 the local size and **Y** the whole-share size; when the total is unknown the
 label reads "X / —", and it is a bare `—` before the first value arrives.
 **Local** reuses the existing `DirectoryScanWorker` scan: it already `stat`s
 every file, so the total is an integer sum with no extra I/O
-(`file_panel/workers.py::DirectoryScanWorker.size_progress` →
-`file_panel/panel.py::FilePanel.share_size_changed` →
-`main_window/ui.py::UiBuildMixin._on_share_size_changed`). All three legs carry
+(`hsync_desktop/file_panel/workers.py::DirectoryScanWorker.size_progress` →
+`hsync_desktop/file_panel/panel.py::FilePanel.share_size_changed` →
+`hsync_desktop/main_window/ui.py::UiBuildMixin._on_share_size_changed`). All three legs carry
 the total as an arbitrary-size Python `int` (`Signal(object)`), so a share
 above 2 GiB crosses the Qt marshalling intact. Scan teardown parks (never destroys) a still-running thread
 (`FilePanel._join_thread`) and the worker always emits `finished` exactly once.
@@ -1165,12 +1165,12 @@ clears it for the new session.
 
 The client emits `folder_size` once per cycle, *before* that cycle's transfers,
 so the value it leaves behind describes the folder as of the cycle start.
-`FilePanel.refresh_share_size` (`file_panel/panel.py::FilePanel.refresh_share_size`)
+`FilePanel.refresh_share_size` (`hsync_desktop/file_panel/panel.py::FilePanel.refresh_share_size`)
 therefore re-runs the walk in size-only mode
-(`file_panel/workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
+(`hsync_desktop/file_panel/workers.py::DirectoryScanWorker` with `emit_rows=False`: one pass, no counting
 pass, no `files_found`/`progress`) when a cycle completes
-(`main_window/events.py::EventsMixin._on_sync_completed`) and when the process
-ends (`main_window/events.py::EventsMixin._on_process_finished`), without
+(`hsync_desktop/main_window/events.py::EventsMixin._on_sync_completed`) and when the process
+ends (`hsync_desktop/main_window/events.py::EventsMixin._on_process_finished`), without
 reloading the file table. It is skipped while a full scan is already running.
 Sizes use `hsync_common.format.format_bytes`.
 
@@ -1178,35 +1178,35 @@ Sizes use `hsync_common.format.format_bytes`.
 
 `updates.py` answers one question — is a newer release published? — and never
 downloads or runs anything. `fetch_latest_version`
-(`updates.py::fetch_latest_version`) issues a `HEAD` to the pinned
+(`hsync_desktop/updates.py::fetch_latest_version`) issues a `HEAD` to the pinned
 `releases/latest` redirect (`docs_links.LATEST_RELEASE`, guarded by
 `docs_links.is_allowed_docs_url`) and reads the tag from the final URL, so no
 GitHub API and no token are involved. `parse_version`/`is_newer`
-(`updates.py::parse_version`, `updates.py::is_newer`) compare dotted integers and
+(`hsync_desktop/updates.py::parse_version`, `hsync_desktop/updates.py::is_newer`) compare dotted integers and
 drop `-rc`/`+build` suffixes; unparseable input is never reported as an update.
 
 State lives in `QSettings`: `updates/check_enabled` (opt-in, default
 `config.DEFAULT_UPDATE_CHECK` = off), `updates/last_check`,
 `updates/latest_version` and `updates/dismissed_version`. `should_check`
-(`updates.py::should_check`) gates the startup path on the flag and a 24 h
-interval; `record_check` (`updates.py::record_check`) writes the attempt time
+(`hsync_desktop/updates.py::should_check`) gates the startup path on the flag and a 24 h
+interval; `record_check` (`hsync_desktop/updates.py::record_check`) writes the attempt time
 even when the request failed, so an offline machine retries tomorrow rather than
 on every launch.
 
 The UI wiring is `ActionsMixin` (`main_window/actions.py::
 ActionsMixin.maybe_check_updates_on_startup` and
-`main_window/actions.py::ActionsMixin._check_for_updates`): the first is called
-from `main.py::main` and skipped when autostart launched the app into the tray,
+`hsync_desktop/main_window/actions.py::ActionsMixin._check_for_updates`): the first is called
+from `hsync_desktop/main.py::main` and skipped when autostart launched the app into the tray,
 the second is the Help-menu `menu.help.updates` action. Both run the blocking
-call on `AsyncProbe` (`engine/async_probe.py::AsyncProbe`) and render it in
+call on `AsyncProbe` (`hsync_desktop/engine/async_probe.py::AsyncProbe`) and render it in
 `_on_update_checked`: a failure is reported only for the manual path, a newer
 release opens `_offer_update` (Download → the artifact of **this** installation,
-`release_assets.py::package_url`; the dismissed version is stored per release), an
+`hsync_desktop/release_assets.py::package_url`; the dismissed version is stored per release), an
 up-to-date result opens `_show_up_to_date`. Both manual dialogs carry the "check at
 startup" switch, which is the only place the opt-in is toggled.
 
 `release_assets.py` answers "which published file is mine?"
-(`release_assets.py::install_channel`): the snap (`SNAP`) and AppImage (`APPIMAGE`)
+(`hsync_desktop/release_assets.py::install_channel`): the snap (`SNAP`) and AppImage (`APPIMAGE`)
 markers are checked first, then the platform (`win32`, `darwin`) and the Linux
 family from `/etc/os-release` (`ID`/`ID_LIKE` → `.deb` for the Debian family, `.rpm`
 for the RPM one). `package_asset` maps that channel plus `platform.machine()` to the
@@ -1221,31 +1221,31 @@ installs anything.
 
 ## splash_screen.py — Splash / About
 
-`SplashScreen` (`splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and
+`SplashScreen` (`hsync_desktop/splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and
 doubles as the Help → About window. It is a fixed 420×330 frameless window whose
 vertical order is: the horizontal brand logo
 (`resources/icons/hsync-logo-horizontal.svg`, the same wordmark as the README top
 banner, drawn at 240 px wide) above the app name (`app.name`, bold at the default
 label size), the version line (`about.version`, `lblVersion`) — the app version
 (`__version__`) and the engine version on one line, the latter resolved off the
-UI thread by `engine/cli.py::BinaryVersionProbe` and shown as an em dash when
+UI thread by `hsync_desktop/engine/cli.py::BinaryVersionProbe` and shown as an em dash when
 undeterminable — the tagline (`app.tagline`), then the copyright (`about.copyright`) and author
 (`about.author`) with space above. As the startup welcome it is a short,
-click-dismissible overlay (`main.py::SPLASH_MS`, 1500 ms): it is shown **only on
-the first launch** (`main.py::_should_show_splash`: `ui/splash_shown` absent and
+click-dismissible overlay (`hsync_desktop/main.py::SPLASH_MS`, 1500 ms): it is shown **only on
+the first launch** (`hsync_desktop/main.py::_should_show_splash`: `ui/splash_shown` absent and
 `path/local` empty, so an upgraded install with a configured folder never sees it
-again) and **never delays** the main window — `main.py::main` calls
+again) and **never delays** the main window — `hsync_desktop/main.py::main` calls
 `activate_window()` first, then shows the overlay, and connects its `finished` to
 the setup-wizard hook. On later launches the window is revealed immediately with
 no overlay. `show_as_about`
-(`splash_screen.py::SplashScreen.show_as_about`) keeps it open.
+(`hsync_desktop/splash_screen.py::SplashScreen.show_as_about`) keeps it open.
 A click anywhere dismisses it: for the splash it emits `finished`
 (`main.py` connects it to the setup-wizard hook), for the About it just closes.
 The Help → About menu entry is the short `menu.help.about` label ("About" /
 "Informazioni"), without the app name.
 
 **Frame.** Being frameless, the window draws a 1 px border from the theme's
-`QWidget#SplashScreen` rule (`themes.py::_COMMON_QSS`, colours `window_bg` /
+`QWidget#SplashScreen` rule (`hsync_desktop/themes.py::_COMMON_QSS`, colours `window_bg` /
 `window_border`), so it follows light/dark like the rest of the app. A plain
 `QWidget` ignores its stylesheet background/border unless `WA_StyledBackground`
 is set, so `SplashScreen.__init__` opts into it; `ui/splash_screen.ui`
@@ -1257,42 +1257,42 @@ deliberately carries no stylesheet.
 
 | Concern | Code | Notes |
 | ------- | ---- | ----- |
-| Theme | `themes.py` | `detect_system_theme` (`themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`themes.py::_build_light_palette`/`themes.py::_build_dark_palette`), `apply_theme` (`themes.py::apply_theme`). KDE/GTK INI reads (`kdeglobals`, `settings.ini`) go through `kde.py` (`kde.py::read_ini`, `kde.py::config_home`) |
-| Confirmations | `widgets/dialogs.py` | `confirm` (`widgets/dialogs.py::confirm`) / `build_confirm_box` (`widgets/dialogs.py::build_confirm_box`) — one localized Yes/No box (safe `No` default, optional app icons) used by every hand-built confirmation in the main window and the Settings dialog |
-| Form rows | `widgets/forms.py` | `add_row` (`widgets/forms.py::add_row`) — the labelled `QFormLayout` row shared by the Settings dialog and the setup wizard: caption in the label column, control in the field column, `setBuddy` for focus/mnemonics, alignment left to the platform style hints |
-| Fonts | `fonts.py` | `resolve_system_fonts` (`fonts.py::resolve_system_fonts`), `apply_system_fonts` (`fonts.py::apply_system_fonts`), `ui_font` (`fonts.py::ui_font`), `monospace_font` (`fonts.py::monospace_font`), `table_font` (`fonts.py::table_font`), `small_monospace_font` (`fonts.py::small_monospace_font`), `log_monospace_font` (`fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
-| Icons | `icons.py` | themed SVG load `_load_themed_svg` (`icons.py::_load_themed_svg`), `icon` (`icons.py::icon`)/`themed_icon` (`icons.py::themed_icon`), cache `clear_icon_cache` (`icons.py::clear_icon_cache`) |
-| Tray | `system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`system_tray.py::_make_icon`) |
-| Notifications | `notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`) and delivered only when out of focus — errors/warnings are then covered by the in-app toast |
-| Single instance | `single_instance.py::SingleInstance` | reject a 2nd launch |
-| UI loading | `ui/loader.py::UiLoader`, `load_ui_widget` (`ui/loader.py::load_ui_widget`) | load `.ui` resources |
-| Interface language | `i18n.py` | `tr` (`i18n.py::tr`), `init_language` (`i18n.py::init_language`), `set_language` (`i18n.py::set_language`), `_detect_system_language` (`i18n.py::_detect_system_language`) — see *Interface language* below |
+| Theme | `themes.py` | `detect_system_theme` (`hsync_desktop/themes.py::detect_system_theme`), palettes `_build_light_palette`/`_build_dark_palette` (`hsync_desktop/themes.py::_build_light_palette`/`hsync_desktop/themes.py::_build_dark_palette`), `apply_theme` (`hsync_desktop/themes.py::apply_theme`). KDE/GTK INI reads (`kdeglobals`, `settings.ini`) go through `kde.py` (`hsync_desktop/kde.py::read_ini`, `hsync_desktop/kde.py::config_home`) |
+| Confirmations | `widgets/dialogs.py` | `confirm` (`hsync_desktop/widgets/dialogs.py::confirm`) / `build_confirm_box` (`hsync_desktop/widgets/dialogs.py::build_confirm_box`) — one localized Yes/No box (safe `No` default, optional app icons) used by every hand-built confirmation in the main window and the Settings dialog |
+| Form rows | `widgets/forms.py` | `add_row` (`hsync_desktop/widgets/forms.py::add_row`) — the labelled `QFormLayout` row shared by the Settings dialog and the setup wizard: caption in the label column, control in the field column, `setBuddy` for focus/mnemonics, alignment left to the platform style hints |
+| Fonts | `fonts.py` | `resolve_system_fonts` (`hsync_desktop/fonts.py::resolve_system_fonts`), `apply_system_fonts` (`hsync_desktop/fonts.py::apply_system_fonts`), `ui_font` (`hsync_desktop/fonts.py::ui_font`), `monospace_font` (`hsync_desktop/fonts.py::monospace_font`), `table_font` (`hsync_desktop/fonts.py::table_font`), `small_monospace_font` (`hsync_desktop/fonts.py::small_monospace_font`), `log_monospace_font` (`hsync_desktop/fonts.py::log_monospace_font`) — desktop UI/monospace fonts + text scaling |
+| Icons | `icons.py` | themed SVG load `_load_themed_svg` (`hsync_desktop/icons.py::_load_themed_svg`), `icon` (`hsync_desktop/icons.py::icon`)/`themed_icon` (`hsync_desktop/icons.py::themed_icon`), cache `clear_icon_cache` (`hsync_desktop/icons.py::clear_icon_cache`) |
+| Tray | `hsync_desktop/system_tray.py::SystemTray` | tray icon/menu; `_make_icon` (`hsync_desktop/system_tray.py::_make_icon`) |
+| Notifications | `hsync_desktop/notifications.py::NotificationManager` | OS notifications gated by the notifications pref and the tray being visible; suppressed while the main window is in the foreground (`is_foreground` callback wired in `main.py`) and delivered only when out of focus — errors/warnings are then covered by the in-app toast |
+| Single instance | `hsync_desktop/single_instance.py::SingleInstance` | reject a 2nd launch |
+| UI loading | `hsync_desktop/ui/loader.py::UiLoader`, `load_ui_widget` (`hsync_desktop/ui/loader.py::load_ui_widget`) | load `.ui` resources |
+| Interface language | `i18n.py` | `tr` (`hsync_desktop/i18n.py::tr`), `init_language` (`hsync_desktop/i18n.py::init_language`), `set_language` (`hsync_desktop/i18n.py::set_language`), `_detect_system_language` (`hsync_desktop/i18n.py::_detect_system_language`) — see *Interface language* below |
 
 ### Interface language
 
-`main.py::main` calls `i18n.py::init_language` before any widget exists. The stored
-preference is `appearance/language`: `i18n.py::AUTO_LANGUAGE` (the default, and
+`hsync_desktop/main.py::main` calls `hsync_desktop/i18n.py::init_language` before any widget exists. The stored
+preference is `appearance/language`: `hsync_desktop/i18n.py::AUTO_LANGUAGE` (the default, and
 what an absent or unknown value falls back to) follows the system, any other
-supported code pins the language, and `i18n.py::set_language` stores the
+supported code pins the language, and `hsync_desktop/i18n.py::set_language` stores the
 preference as given so `auto` stays dynamic on later launches.
 
-`i18n.py::_detect_system_language` resolves the system language in this order:
+`hsync_desktop/i18n.py::_detect_system_language` resolves the system language in this order:
 
 1. `QLocale.system()` — resolves the desktop locale even when the C library
    reports `("C", "UTF-8")` (glibc with `LANG=it` or `it_IT@euro`), and reads the
    OS locale directly on Windows/macOS.
 2. Python's `locale.getlocale()`.
-3. `i18n.py::_system_wide_locale` — only when the process carries **no** locale
+3. `hsync_desktop/i18n.py::_system_wide_locale` — only when the process carries **no** locale
    variable at all (`LC_ALL`, `LC_MESSAGES`, `LANG`, `LANGUAGE` all unset, i.e. a
    stripped environment: `sudo`, a service, a container, a launcher that drops
-   the environment). It reads `i18n.py::_SYSTEM_LOCALE_FILES` (`/etc/locale.conf`,
+   the environment). It reads `hsync_desktop/i18n.py::_SYSTEM_LOCALE_FILES` (`/etc/locale.conf`,
    `/etc/default/locale`) with the glibc precedence `LC_ALL` > `LC_MESSAGES` >
    `LANG`. Without this step such a start silently came up in English on a machine
    configured in another language.
 4. English.
 
 An explicit process locale always wins over step 3 — including `C`, which stays
-English. `i18n.py::_language_from_locale` maps a POSIX locale name
+English. `hsync_desktop/i18n.py::_language_from_locale` maps a POSIX locale name
 (`it`, `it_IT`, `it_IT.UTF-8`, `it_IT@euro`) to its supported base code.
 
 ### Host fonts
@@ -1309,27 +1309,27 @@ native app) so the configured size is preserved; only a failed probe or an
 unknown desktop falls back to `QFontDatabase.systemFont`. The `gsettings`
 subprocess runs with
 `LD_LIBRARY_PATH`/`PYTHONHOME`/`PYTHONPATH`/`GI_TYPELIB_PATH`/
-`GDK_PIXBUF_MODULE_FILE` removed (`fonts.py::_host_env`) so the host binary does
+`GDK_PIXBUF_MODULE_FILE` removed (`hsync_desktop/fonts.py::_host_env`) so the host binary does
 not load the bundled GLib. No fonts are bundled. All three sizes derive from the
-same cached monospace font (`fonts.py::_point_smaller_monospace`): the license
-dialog uses `small_monospace_font` (`fonts.py::small_monospace_font`, one point
+same cached monospace font (`hsync_desktop/fonts.py::_point_smaller_monospace`): the license
+dialog uses `small_monospace_font` (`hsync_desktop/fonts.py::small_monospace_font`, one point
 smaller, floor 8 pt) and the log viewer uses `log_monospace_font`
-(`fonts.py::log_monospace_font`, two points smaller, floor 7 pt) because its lines
+(`hsync_desktop/fonts.py::log_monospace_font`, two points smaller, floor 7 pt) because its lines
 are long — at a 9 pt desktop monospace that is 13 visible lines and ~22% more
 characters per line than the 8 pt size. `appearance/font_scale` (`standard`
 default / `compact`) scales the resolved UI and monospace bases in
-`fonts.py::resolve_system_fonts` (`compact` = one point smaller, floor 8 pt), so
+`hsync_desktop/fonts.py::resolve_system_fonts` (`compact` = one point smaller, floor 8 pt), so
 every derived font follows. The file table uses `table_font`
-(`fonts.py::table_font`), the cached UI font with no extra delta: desktop size
+(`hsync_desktop/fonts.py::table_font`), the cached UI font with no extra delta: desktop size
 with `standard`, one point smaller with `compact` (UI labels `Standard` /
 `Slightly reduced`, `locales/en.py` keys `settings.font_size_standard` /
 `settings.font_size_compact`). `table_row_height`
-(`fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
-`file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
-`main_window/start.py::StartMixin._apply_settings_changes` calls when the preference changes.
+(`hsync_desktop/fonts.py::table_row_height`, WCAG 2.2 target size) is applied in
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.refresh_fonts`, which
+`hsync_desktop/main_window/start.py::StartMixin._apply_settings_changes` calls when the preference changes.
 A live scale change re-resolves the whole window:
-`main_window/start.py::StartMixin._apply_settings_changes` applies the new
-application font and then calls `fonts.py::reset_widget_fonts`, which clears the
+`hsync_desktop/main_window/start.py::StartMixin._apply_settings_changes` applies the new
+application font and then calls `hsync_desktop/fonts.py::reset_widget_fonts`, which clears the
 font of every widget in the tree. That step is mandatory because the stylesheet
 resolves each widget's font at polish time and Qt then treats it as explicitly
 set, so `QApplication.setFont` alone leaves the status bar and the share/mode
@@ -1337,8 +1337,8 @@ labels at the previous size (only the widgets that receive an explicit
 `setFont` — file table, log view, menus — followed). Those explicit fonts are
 re-applied right after the reset.
 The fonts are set programmatically
-(`main_window/ui.py::UiBuildMixin._load_ui`, `license_dialog.py::LicenseDialog`);
-the QSS pins no `font-family`/`font-size` (`themes.py::_COMMON_QSS`) but
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui`, `hsync_desktop/license_dialog.py::LicenseDialog`);
+the QSS pins no `font-family`/`font-size` (`hsync_desktop/themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
 guards it).
@@ -1349,46 +1349,46 @@ guards it).
 `--color=always` (the client's `--color` contract, `hsync_common.runtime.ColorMode`),
 so the raw stdout feed carries the SGR sequences loguru builds from
 `hsync_common.logger.LEVEL_STYLES` and `hsync_common.labels.LABEL_STYLES`.
-`ansi.py::parse_sgr` splits each line into `ansi.py::AnsiRun`s (foreground index,
-bold, dim) and `log_style.py::styled_runs` turns them into `QTextCharFormat`s via
+`hsync_desktop/ansi.py::parse_sgr` splits each line into `hsync_desktop/ansi.py::AnsiRun`s (foreground index,
+bold, dim) and `hsync_desktop/log_style.py::styled_runs` turns them into `QTextCharFormat`s via
 `LOG_COLORS` (`log_style.py`, per theme). Lines without SGR — the Desktop's own
 `[<pid>] [desktop] LEVEL:` lines, plain logs — fall back to the same two shared
 mappings, matched by `hsync_common.logger.LOG_LINE_RE` (the level, at its grammar
-position) and `log_style.py::_LABEL_RE` (labels longest-first so
+position) and `hsync_desktop/log_style.py::_LABEL_RE` (labels longest-first so
 `[REMOTE DOWNLOAD]` never collapses into `[DOWNLOAD]`).
 
-`main_window/ui.py::UiBuildMixin._append_log` inserts the runs with a `QTextCursor` (never
+`hsync_desktop/main_window/ui.py::UiBuildMixin._append_log` inserts the runs with a `QTextCursor` (never
 `appendPlainText` for styled lines), so the escape sequences are stripped from
 `toPlainText()` (copy, tests, `maximumBlockCount` unchanged). Colors are baked
-into the formats, so `_rerender_log` (`main_window/ui.py::UiBuildMixin._rerender_log`) re-renders the document when the
+into the formats, so `_rerender_log` (`hsync_desktop/main_window/ui.py::UiBuildMixin._rerender_log`) re-renders the document when the
 theme changes, called from `_apply_settings_changes` and
 `_on_system_color_scheme_changed`; the re-render works from the plain text and
 therefore re-applies the level/label fallback colors.
 
-The panel is bounded on both axes. `engine/process.py::HsyncEngine._on_stdout`
+The panel is bounded on both axes. `hsync_desktop/engine/process.py::HsyncEngine._on_stdout`
 emits **one** `log_received` per stdout read (the lines joined by `\n`), and
-`main_window/ui.py::UiBuildMixin._append_log` splits the payload back and inserts
+`hsync_desktop/main_window/ui.py::UiBuildMixin._append_log` splits the payload back and inserts
 the whole batch inside a single `beginEditBlock()`/`endEditBlock()`
-(`main_window/ui.py::UiBuildMixin._insert_log_lines`): the layout, the block
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._insert_log_lines`): the layout, the block
 eviction and the scrollbar settle once for the whole burst instead of once per
 line. The line count is capped by
-`main_window/ui.py::_LOG_MAX_BLOCKS` (`QPlainTextEdit.maximumBlockCount`, the
+`hsync_desktop/main_window/ui.py::_LOG_MAX_BLOCKS` (`QPlainTextEdit.maximumBlockCount`, the
 oldest block evicted; the `.ui` declares no cap, so the code is the single source
-of truth) and a single line by `main_window/ui.py::_LOG_LINE_MAX_CHARS`
-(`main_window/ui.py::_insert_log_line`, applied after `styled_runs` so an SGR
+of truth) and a single line by `hsync_desktop/main_window/ui.py::_LOG_LINE_MAX_CHARS`
+(`hsync_desktop/main_window/ui.py::_insert_log_line`, applied after `styled_runs` so an SGR
 sequence is never cut in half, marked with `…`).
 
 Dialog buttons use the **bundled (app-theme)** icons: `icon(name)` always prefers
 the bundled SVG (recoloured per light/dark) over the system theme, falling back
 to the system theme only when no bundled icon exists. The application icon
 `hsync-desktop` is bundled in `resources/icons/` and applied in
-`main.py::_configure_app` together with `setDesktopFileName("hsync-desktop")`, so
+`hsync_desktop/main.py::_configure_app` together with `setDesktopFileName("hsync-desktop")`, so
 the running window's WM_CLASS/app_id matches `hsync-desktop.desktop` and the
 taskbar shows the app icon. The app-icon SVG keeps `<svg` at the very top of the
 file (no long leading comment): gdk-pixbuf/GNOME only recognizes an SVG when the
 root element is within the first bytes, otherwise the icon renders blank. The
 dialog accept button's icon **follows the action**
-(`icons.py::style_ok_cancel_button_box`): an **Apply** caller passes
+(`hsync_desktop/icons.py::style_ok_cancel_button_box`): an **Apply** caller passes
 `accept_icon_key="dialog-ok"` (the confirm check — the Settings dialog and the
 bandwidth dialog do), while a **Save** caller keeps the default `document-save`
 (the floppy, which means *write to disk* — the credential prompts, the
@@ -1404,7 +1404,7 @@ label (translated in every locale).
 > mnemonic marker and underline the character after it, so prose such as
 > "Share & Path" or "Save & Retry" renders as "Share_Path" / "Save_Retry"
 > unless the sink escapes it. Those sinks must receive
-> `widgets/text.py::escape_mnemonics` output; menus keep
+> `hsync_desktop/widgets/text.py::escape_mnemonics` output; menus keep
 > the single `&`, which there *is* the Alt shortcut. A `QLabel` without a buddy,
 > the combo-box items, window titles and message boxes already show the
 > ampersand and take the raw string. `tests/test_mnemonic_escaping.py` scans
@@ -1414,15 +1414,15 @@ label (translated in every locale).
 
 Two independent indicators sit next to the status label of
 `ui/main_window.ui` (both hidden by default, both refreshed by
-`main_window/ui.py::UiBuildMixin` on build, on language change and after the
+`hsync_desktop/main_window/ui.py::UiBuildMixin` on build, on language change and after the
 settings are applied):
 
-- `simulationBadge` — `main_window/ui.py::UiBuildMixin._refresh_simulation_state`, driven by
-  `settings/cli_args.py::is_simulation_mode` (window title suffix and tray
+- `simulationBadge` — `hsync_desktop/main_window/ui.py::UiBuildMixin._refresh_simulation_state`, driven by
+  `hsync_desktop/settings/cli_args.py::is_simulation_mode` (window title suffix and tray
   tooltip change with it).
-- `deletionBadge` — `main_window/ui.py::UiBuildMixin._refresh_deletion_badge`, driven by
-  `settings/cli_args.py::get_deletion_policy`: visible only while the deletion
+- `deletionBadge` — `hsync_desktop/main_window/ui.py::UiBuildMixin._refresh_deletion_badge`, driven by
+  `hsync_desktop/settings/cli_args.py::get_deletion_policy`: visible only while the deletion
   policy is `keep`, so a device that silently never deletes always says so.
   `get_deletion_policy` is the single read of `sync/deletion_policy`, also used
-  by `settings/cli_args.py::build_hsync_args`, so the badge cannot disagree
+  by `hsync_desktop/settings/cli_args.py::build_hsync_args`, so the badge cannot disagree
   with the flag the engine receives.

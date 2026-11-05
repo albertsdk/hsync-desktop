@@ -9,17 +9,17 @@ Ecosystem ADRs are SSOT in `hsync-common`
 
 | ADR | Desktop implementation |
 | --- | ---------------------- |
-| [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine/` package: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`engine/process.py::HsyncEngine._handle_event`), stdin commands (`engine/process.py::HsyncEngine._send_command`) |
-| [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`engine/cli.py::is_binary_version_compatible`) + `BinaryVersionProbe` (`engine/cli.py::BinaryVersionProbe`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
+| [0004 desktop-subprocess-contract](../../hsync-common/docs/internal/adr/0004-desktop-subprocess-contract.md) | the whole `engine/` package: CLI args (`cli_args.build_hsync_args`), `--events-json-fd` JSON-Lines stream → Qt signals (`hsync_desktop/engine/process.py::HsyncEngine._handle_event`), stdin commands (`hsync_desktop/engine/process.py::HsyncEngine._send_command`) |
+| [0005 protocol-versioning](../../hsync-common/docs/internal/adr/0005-protocol-versioning.md) | `is_binary_version_compatible` (`hsync_desktop/engine/cli.py::is_binary_version_compatible`) + `BinaryVersionProbe` (`hsync_desktop/engine/cli.py::BinaryVersionProbe`) gate the UI on the binary's protocol/app version (resolved asynchronously, cached in QSettings) |
 | [0001 server-vs-p2p-modes](../../hsync-common/docs/internal/adr/0001-server-vs-p2p-modes.md) | p2p block in the settings dialog + `p2p`/`server` subcommand selection and master flags in `settings/cli_args.py` |
-| [0041 serving-side-status-pass-events](../../hsync-common/docs/internal/adr/0041-serving-side-status-pass-events.md) | `status_pass_started`/`status_pass_ended` signals (`engine/process.py::HsyncEngine`) → `EventsMixin._on_status_pass_started`/`_on_status_pass_ended`, distinct from the preview pair that confirms a sync ([ui.md](modules/ui.md)) |
+| [0041 serving-side-status-pass-events](../../hsync-common/docs/internal/adr/0041-serving-side-status-pass-events.md) | `status_pass_started`/`status_pass_ended` signals (`hsync_desktop/engine/process.py::HsyncEngine`) → `EventsMixin._on_status_pass_started`/`_on_status_pass_ended`, distinct from the preview pair that confirms a sync ([ui.md](modules/ui.md)) |
 | [0042 per-device-serving-status](../../hsync-common/docs/internal/adr/0042-per-device-serving-status.md) | `device_status` → `EventsMixin._on_device_status` + `EventsMixin._serving_sync_state` (worst device, never a union), per-file `holders`/`devices` → `FileTransferModel._row_status` ([ui.md](modules/ui.md)) |
 | [0043 preview-confirmation-contract](../../hsync-common/docs/internal/adr/0043-preview-confirmation-contract.md) | `preview_skipped`/`preview_warning` → `PreviewStats.skipped_deletes`/`guard_deletes`; the dialog renders the plan, the estimates come from `get_bandwidth_limits` ([ui.md](modules/ui.md)) |
-| [0046 one-log-line-grammar](../../hsync-common/docs/internal/adr/0046-one-log-line-grammar.md) | the panel writes one shape for both producers: `_append_desktop_log` (`main_window/ui.py::UiBuildMixin._append_desktop_log`) renders `hsync_common.logger.format_log_line`, `log_style.py::_fallback_runs` locates the level with `LOG_LINE_RE`, `engine/process.py::HsyncEngine._on_stdout` harvests client errors with it ([ui.md](modules/ui.md)) |
+| [0046 one-log-line-grammar](../../hsync-common/docs/internal/adr/0046-one-log-line-grammar.md) | the panel writes one shape for both producers: `_append_desktop_log` (`hsync_desktop/main_window/ui.py::UiBuildMixin._append_desktop_log`) renders `hsync_common.logger.format_log_line`, `hsync_desktop/log_style.py::_fallback_runs` locates the level with `LOG_LINE_RE`, `hsync_desktop/engine/process.py::HsyncEngine._on_stdout` harvests client errors with it ([ui.md](modules/ui.md)) |
 
 §8 capabilities gating (`--capabilities-json` → `parse_capabilities` →
 disable unsupported controls) is realized in
-`engine.get_binary_capabilities` (`engine/cli.py::get_binary_capabilities`) + `SettingsDialog`
+`engine.get_binary_capabilities` (`hsync_desktop/engine/cli.py::get_binary_capabilities`) + `SettingsDialog`
 ([settings.md](modules/settings.md)).
 | [0048 desktop-update-check](../../hsync-common/docs/internal/adr/0048-desktop-update-check.md) | `updates.py` resolves the newest tag from the pinned `releases/latest` redirect (never a download or an install); opt-in via `updates/check_enabled`, driven by `ActionsMixin.maybe_check_updates_on_startup`/`_check_for_updates` on `AsyncProbe` ([ui.md](modules/ui.md)) |
 
@@ -28,10 +28,10 @@ disable unsupported controls) is realized in
 - **Sync-state reset is a client operation the GUI only requests**: the
   per-folder state DB is client-owned and guarded by the per-directory
   `InstanceLock`, so the Settings button
-  (`settings/dialog.py::SettingsDialog._on_reset_state`) never touches it — it
+  (`hsync_desktop/settings/dialog.py::SettingsDialog._on_reset_state`) never touches it — it
   confirms, sets `reset_state_folder` and closes; `StartMixin._reset_sync_state`
   runs `hsync state reset --folder … --json`
-  (`engine/cli.py::reset_sync_state`). Gated on
+  (`hsync_desktop/engine/cli.py::reset_sync_state`). Gated on
   `supports_subcommand(doc, "state")` and disabled while the sync runs. Rationale
   (and the rejected alternative of deleting the DB from the GUI): the GUI cannot
   see a CLI/service sync on the same folder, so a file-level delete would reset
@@ -41,18 +41,18 @@ disable unsupported controls) is realized in
   capabilities land in the client (and `hsync-common` vocabulary) first; the
   desktop only *consumes* them.
 - **Secrets never on argv**: API/p2p keys travel through inherited pipe FDs
-  (`--api-key-fd`/`--p2p-key-fd`, `engine/process.py::HsyncEngine.start`) and are Fernet-encrypted at
+  (`--api-key-fd`/`--p2p-key-fd`, `hsync_desktop/engine/process.py::HsyncEngine.start`) and are Fernet-encrypted at
   rest (`crypto.py`). The settings file is permission-restricted
-  (`cli_args.secure_config_file`, `settings/cli_args.py::secure_config_file`).
+  (`cli_args.secure_config_file`, `hsync_desktop/settings/cli_args.py::secure_config_file`).
 - **UI thread discipline**: only signals mutate widgets; long scans run in
-  `QObject` workers (`file_panel/workers.py::DirectoryScanWorker`). Size signals
+  `QObject` workers (`hsync_desktop/file_panel/workers.py::DirectoryScanWorker`). Size signals
   carry an arbitrary-size Python `int` (`Signal(object)`): a share exceeds the
   2 GiB ceiling of a 32-bit `int` signal, and the old `Signal(int)` overflowed
   on large folders. Workers always emit `finished` exactly once (their `run`
   catches unexpected errors, logs them, and finishes in a bare `try/finally`),
   and the panel never destroys a still-running `QThread`: stopping parks it in
-  `FilePanel._detached_threads` (`file_panel/panel.py::FilePanel._join_thread`)
-  until it ends (`main_window/lifecycle.py::LifecycleMixin._shutdown` calls
+  `FilePanel._detached_threads` (`hsync_desktop/file_panel/panel.py::FilePanel._join_thread`)
+  until it ends (`hsync_desktop/main_window/lifecycle.py::LifecycleMixin._shutdown` calls
   `FilePanel.stop_background_work` so a live scan cannot outlive the window).
 - **Setup wizard is a Settings subset**: the four-mode wizard
   (`wizard/`, [wizard.md](modules/wizard.md)) writes only the keys it owns and
@@ -62,12 +62,12 @@ disable unsupported controls) is realized in
   trust model is TOFU + pin (policy `ask`), never `strict`/`accept-new`.
 - **Host fonts, not a bundled typeface**: the GUI follows the desktop's
   configured UI/monospace fonts and text scale
-  (`fonts.py::apply_system_fonts`; GNOME `gsettings`, KDE `kdeglobals`,
+  (`hsync_desktop/fonts.py::apply_system_fonts`; GNOME `gsettings`, KDE `kdeglobals`,
   `QFontDatabase` fallback). No font is bundled: a package is built once and
   host fonts vary, and proprietary system fonts cannot be redistributed. The
   Linux `QT_QPA_PLATFORMTHEME=generic` harden stays (the GTK3 theme aborts
   against the bundled GLib); the host `gsettings` probe drops `LD_LIBRARY_PATH`
-  and the other bundled-library overrides (`fonts.py::_host_env`) so it loads
+  and the other bundled-library overrides (`hsync_desktop/fonts.py::_host_env`) so it loads
   the host GLib. The global **Font size** preference (`appearance/font_scale`,
   `standard` default / `compact`) scales the resolved UI and monospace bases
   once, so every derived font follows; the file table has no separate size knob.
@@ -96,12 +96,12 @@ disable unsupported controls) is realized in
 - **Capability-gated, not version-sniffing**: prefer the capabilities doc over
   parsing `--help`/version strings to decide which controls to show (§8).
 - **Non-blocking startup probes**: the bundled binary's version is resolved
-  asynchronously (`BinaryVersionProbe`, `engine/cli.py::BinaryVersionProbe`) and both probes are
+  asynchronously (`BinaryVersionProbe`, `hsync_desktop/engine/cli.py::BinaryVersionProbe`) and both probes are
   cached in `QSettings` keyed by the binary `(path, size, mtime_ns)`; a probe
   must never block the GUI startup path.
 - **Every blocking probe runs off the UI thread**: the client fingerprint
   subprocesses and the server `/health` calls are slow by nature (seconds to the
-  configured timeout), so they run on `engine/async_probe.py::AsyncProbe` and the
+  configured timeout), so they run on `hsync_desktop/engine/async_probe.py::AsyncProbe` and the
   UI shows a busy state (`common.checking`). Run on the UI thread they freeze the
   window until the timeout, and the desktop environment reports the app as
   unresponsive.
@@ -162,7 +162,7 @@ disable unsupported controls) is realized in
   (`ask`/`accept-new`/`strict`/`none`), forwarded as `HSYNC_RENDEZVOUS_SERVER_TRUST`
   (default `ask`). The pin lives in the client's known-hosts store, not a GUI
   env var: the GUI resolves policy `ask` in its start pre-flight
-  (`main_window/trust.py::TrustMixin._ensure_trust`) by writing `hsync trust rendezvous-server add`, and both
+  (`hsync_desktop/main_window/trust.py::TrustMixin._ensure_trust`) by writing `hsync trust rendezvous-server add`, and both
   trust stores are editable through the "Manage trusted keys" dialog
   (`trusted_keys.py`). The GUI cannot answer the client's terminal prompt, so it
   always sends an explicit policy; the client's SSH-style prompt is terminal-only
@@ -171,7 +171,7 @@ disable unsupported controls) is realized in
 - **Rendezvous transport is a selector (`--rendezvous-transport auto|quic|tcp`)**: a
   `p2p_rendezvous_transport` combo (settings dialog + wizard connection page) is
   stored under `p2p/rendezvous_transport` and emitted by
-  `settings/cli_args.py::_append_p2p_args` as the client's `--rendezvous-transport`
+  `hsync_desktop/settings/cli_args.py::_append_p2p_args` as the client's `--rendezvous-transport`
   flag (default `auto`, the shared `hsync_common.constants.RDV_TRANSPORT_DEFAULT`).
   It rides the argument vector, not the env block, because `--rendezvous-transport`
   is a `p2p` subcommand flag (unlike the endpoint/trust settings, which are
@@ -185,7 +185,7 @@ disable unsupported controls) is realized in
   ships the engine). The rule lives in `packaging/client-version.sh`
   (`_parse_client_version` / `_client_version_relation`), shared with the
   `deb-all`/`rpm-all` container scripts so every bundling path enforces it; the
-  app's runtime check (`engine/cli.py::is_binary_version_compatible`) is
+  app's runtime check (`hsync_desktop/engine/cli.py::is_binary_version_compatible`) is
   deliberately looser and only warns. A binary that cannot run on the host
   (cross-arch `rpi`) is reported as unverifiable and skipped. Guarded by
   `tests/test_compile_script.py`.
@@ -202,7 +202,7 @@ disable unsupported controls) is realized in
   Windows, so `find_hsync_binary` finds it). Every client-bundling target
   (`native`, `rpi`, `deb`, `rpm`, `appimage`, `dmg`) calls
   `_require_bundled_client`, which fails the build if no client was staged.
-  `find_hsync_binary` (`engine/cli.py::find_hsync_binary`) resolves the bundled
+  `find_hsync_binary` (`hsync_desktop/engine/cli.py::find_hsync_binary`) resolves the bundled
   binary against the **package root** (`hsync_desktop/bin`), so it stays correct
   from the `engine/` subpackage and in a frozen onefile/onedir bundle. The `.deb`
   `Depends:` is computed from the payload
@@ -220,13 +220,13 @@ disable unsupported controls) is realized in
   `almalinux:10` (glibc 2.39, hence `el10`). The aarch64 packages therefore
   require glibc ≥ 2.39 while the amd64 ones keep their older-distro reach.
 - **Settings options are plain form rows; the page keeps one bounded column**:
-  every option is a `QFormLayout` row (`widgets/forms.py::add_row`): caption in
+  every option is a `QFormLayout` row (`hsync_desktop/widgets/forms.py::add_row`): caption in
   the label column, control in the field column, label alignment and field growth
   left to the Qt style hints, so the dialog follows the host OS instead of
   copying one desktop's chrome. The previous right-aligned `switch_row`
   container could leave a short caption hundreds of pixels from its switch, and
   the GNOME-style card ("switch on the row's trailing edge") was rejected as
-  DE-specific for a Linux/Windows/macOS app. `settings/tab_layout.py::_CenteredColumn`
+  DE-specific for a Linux/Windows/macOS app. `hsync_desktop/settings/tab_layout.py::_CenteredColumn`
   caps and centres the content, so a wider window grows the margins, not the
   form. Captions carry no trailing colon (the label column separates them; only
   key/value rows such as the detail panel or the status bar keep one), matching
@@ -238,26 +238,26 @@ disable unsupported controls) is realized in
   so clicking Stop gave no
   feedback until the child had already exited and the user could think nothing was
   happening. The engine now exposes `request_stop`
-  (`engine/process.py::HsyncEngine.request_stop`: `SIGTERM` at once, `kill()` after
+  (`hsync_desktop/engine/process.py::HsyncEngine.request_stop`: `SIGTERM` at once, `kill()` after
   a 5 s grace, `stop_timeout` if the child never reports `finished`) for the user
   action, and keeps the blocking `stop_and_wait`
-  (`engine/process.py::HsyncEngine.stop_and_wait`) for the callers that need the
+  (`hsync_desktop/engine/process.py::HsyncEngine.stop_and_wait`) for the callers that need the
   process gone before continuing (app quit, retry after an auth error, setup
   wizard). The window shows a `Stopping…` badge, disables Start/Stop/Check-changes
   (tray too) and raises a progress toast at once
-  (`main_window/start.py::StartMixin._on_stop`,
-  `main_window/start.py::StartMixin._enter_stopping_ui`), settled by
+  (`hsync_desktop/main_window/start.py::StartMixin._on_stop`,
+  `hsync_desktop/main_window/start.py::StartMixin._enter_stopping_ui`), settled by
   `process_finished` or, on the engine's `stop_timeout`, by
-  `main_window/start.py::StartMixin._on_stop_timeout` with the `notif.stop_timeout`
+  `hsync_desktop/main_window/start.py::StartMixin._on_stop_timeout` with the `notif.stop_timeout`
   warning. Guarded by `tests/test_engine_process.py` and `tests/test_main_window.py`.
 - **A warning with a host remedy deep-links to the page that carries the
   commands**: the persistent-warning banner used one link (`TROUBLESHOOTING` →
   `docs/troubleshooting.md`) for every engine warning, but the desktop symptom
   guide never documented the file-watcher/inotify limit, whose per-platform
-  commands live in the client guide. `docs_links.py::WATCHER_LIMITS` now points at
+  commands live in the client guide. `hsync_desktop/docs_links.py::WATCHER_LIMITS` now points at
   `hsync-client/docs/troubleshooting.md#the-file-watcher-degrades-to-polling-inotify-limits`
-  and `main_window/ui.py::UiBuildMixin._on_engine_warning` selects it exactly when
-  `warnings.py::remedy_text` produced a remedy (a watcher reason), keeping
+  and `hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_warning` selects it exactly when
+  `hsync_desktop/warnings.py::remedy_text` produced a remedy (a watcher reason), keeping
   `TROUBLESHOOTING` otherwise; both share the `notif.open_guide` label, so no new
   locale key. The desktop `docs/troubleshooting.md` also gained a watcher section
   that links the client one. Rejected: one link for all warnings (leaves the
@@ -268,8 +268,8 @@ disable unsupported controls) is realized in
   not an offline comparison — the client cannot plan against an inventory
   without a session — so the action runs the same `--dry-run` as Start and a
   confirmation applies with the same `SYNC` on the already-running process
-  (`main_window/start.py::StartMixin._begin_start`,
-  `main_window/actions.py::ActionsMixin._show_preview_summary`). Only
+  (`hsync_desktop/main_window/start.py::StartMixin._begin_start`,
+  `hsync_desktop/main_window/actions.py::ActionsMixin._show_preview_summary`). Only
   `_preview_intent` differs: a `start` run keeps *Cancel*/*Synchronize* and the
   empty-plan `SYNC`, a `preview` run offers *Close*/*Sync now* (Close default),
   never applies an empty plan and never sends `SYNC` from that branch. The wait

@@ -8,10 +8,10 @@ the full reference and the only place for advanced options.
 
 | Entry | Code |
 | ----- | ---- |
-| Menu bar "Setup wizard" | `main_window/ui.py::UiBuildMixin._create_menu_bar` (after Settings) |
-| Tray menu "Setup wizard…" | `system_tray.py::SystemTray` (`wizard_requested`) |
-| Unconfigured-folder placeholder | `main_window/start.py::StartMixin._on_path_clicked` (empty `_local_path`) |
-| First run (once) | `main_window/start.py::StartMixin.maybe_show_setup_wizard`, called by `main.py::main` after the first-launch welcome overlay (`splash.finished`) or directly when the overlay is skipped |
+| Menu bar "Setup wizard" | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` (after Settings) |
+| Tray menu "Setup wizard…" | `hsync_desktop/system_tray.py::SystemTray` (`wizard_requested`) |
+| Unconfigured-folder placeholder | `hsync_desktop/main_window/start.py::StartMixin._on_path_clicked` (empty `_local_path`) |
+| First run (once) | `hsync_desktop/main_window/start.py::StartMixin.maybe_show_setup_wizard`, called by `hsync_desktop/main.py::main` after the first-launch welcome overlay (`splash.finished`) or directly when the overlay is skipped |
 
 `StartMixin._open_setup_wizard` stops a running sync (with a prompt) before
 opening, keeps a single instance, and after an applied run calls
@@ -22,27 +22,27 @@ is a themed confirmation whose Yes/No labels are translated and carry the app
 
 ## Shell and pages
 
-`wizard/dialog.py::SetupWizard` is a custom `QDialog` + `QStackedWidget` with a
-`wizard/stepper.py::StepIndicator` ("Step N of 4"). Pages implement
-`wizard/pages/base.py::WizardPage` (`load`/`store`/`apply_translations`/
+`hsync_desktop/wizard/dialog.py::SetupWizard` is a custom `QDialog` + `QStackedWidget` with a
+`hsync_desktop/wizard/stepper.py::StepIndicator` ("Step N of 4"). Pages implement
+`hsync_desktop/wizard/pages/base.py::WizardPage` (`load`/`store`/`apply_translations`/
 `field_error_targets`); the dialog owns validation, the draft and the result
 (`applied`, `start_requested`).
 
 The footer (`SetupWizard._update_footer`) shows **Do this later** only while the
-app is unconfigured (`wizard/model.py::is_configured` — the same `path/local`
+app is unconfigured (`hsync_desktop/wizard/model.py::is_configured` — the same `path/local`
 predicate as the first-run prompt), **Skip** only on the Connection step (its
 tooltip names what it keeps: `wizard.action.skip_defaults_tip`), Back above the
 first step, and Continue/Finish elsewhere.
 
 | Step | Page | Content |
 | ---- | ---- | ------- |
-| 1 Purpose | `wizard/pages/mode.py::ModePage` | four radio cards (one `QButtonGroup`, single choice) + "Help me choose" |
-| 2 Folder | `wizard/pages/folder.py::FolderPage` | path, browse, localized suggestions, free space |
-| 3 Connection | `wizard/pages/connection.py::ConnectionPage` | mode-specific fields, in-line probe buttons, automation block |
-| 4 Review | `wizard/pages/review.py::ReviewPage` | scrollable summary with uniform Edit buttons |
-| Success | `wizard/pages/success.py::SuccessPage` | confirmation, invite, start/dashboard |
+| 1 Purpose | `hsync_desktop/wizard/pages/mode.py::ModePage` | four radio cards (one `QButtonGroup`, single choice) + "Help me choose" |
+| 2 Folder | `hsync_desktop/wizard/pages/folder.py::FolderPage` | path, browse, localized suggestions, free space |
+| 3 Connection | `hsync_desktop/wizard/pages/connection.py::ConnectionPage` | mode-specific fields, in-line probe buttons, automation block |
+| 4 Review | `hsync_desktop/wizard/pages/review.py::ReviewPage` | scrollable summary with uniform Edit buttons |
+| Success | `hsync_desktop/wizard/pages/success.py::SuccessPage` | confirmation, invite, start/dashboard |
 
-"Help me choose" opens `wizard/pages/mode.py::HelpChoiceDialog`: three explicit
+"Help me choose" opens `hsync_desktop/wizard/pages/mode.py::HelpChoiceDialog`: three explicit
 questions, each with its own `QButtonGroup` and all labels via `tr()`. The first
 ("sharing with a team?") resolves `team_share`; otherwise the "Only a copy" /
 "Edits from both sides" answer resolves `backup` (a server copy never needs the
@@ -51,13 +51,13 @@ network) or, for edits, the same-network question separates `lan_sync` from
 are disabled, with a short explanation (`wizard.help.note_*`); the theme grays
 the disabled radio labels too (`QRadioButton:disabled`). Confirm stays disabled
 until the active path is answered, so all four modes are reachable. The mapping
-is `wizard/model.py::resolve_mode` (Qt-free, unit-tested; answers as
-`wizard/model.py::ChoiceAnswers`/`ChoiceAudience`), shared by the Confirm gating
+is `hsync_desktop/wizard/model.py::resolve_mode` (Qt-free, unit-tested; answers as
+`hsync_desktop/wizard/model.py::ChoiceAnswers`/`ChoiceAudience`), shared by the Confirm gating
 and the returned mode so the two can never disagree.
 
 ## Interaction details
 
-- **Folder suggestions** (`wizard/defaults.py::suggested_folders`) resolve the
+- **Folder suggestions** (`hsync_desktop/wizard/defaults.py::suggested_folders`) resolve the
   localized user directories through `QStandardPaths`
   (Documents/Pictures/Music/Videos/Home); each suggestion carries its own icon
   (`x-office-document`, `image-x-generic`, `audio-x-generic`,
@@ -75,7 +75,7 @@ and the returned mode so the two can never disagree.
   QSS `#statusOk`/`#statusError`), and the rendezvous-server trust buttons appear
   under the result. Editing a test's fields clears its result and captured
   fingerprint (`_on_server_edited`/`_on_rendezvous_server_edited`) so a stale trust pin is
-  never applied. A transport combo (`wizard/pages/connection.py::ConnectionPage`,
+  never applied. A transport combo (`hsync_desktop/wizard/pages/connection.py::ConnectionPage`,
   `rendezvous_transport` — `auto`/`quic`/`tcp`, RFC 8305 race with QUIC/UDP preferred
   and TLS/TCP as the fallback)
   selects how the client reaches the server(s); it is stored in the draft
@@ -85,31 +85,31 @@ and the returned mode so the two can never disagree.
   has a short explanation (`wizard.tip.*`) without changing the visible labels;
   the text fields show language-neutral example placeholders. The rendezvous-server
   field is labelled "Discovery servers address".
-- **Controls**: on/off options use the Settings `widgets/toggle_switch.py::ToggleSwitch`
-  as plain `QFormLayout` fields (`widgets/forms.py::add_row`), so the automation
+- **Controls**: on/off options use the Settings `hsync_desktop/widgets/toggle_switch.py::ToggleSwitch`
+  as plain `QFormLayout` fields (`hsync_desktop/widgets/forms.py::add_row`), so the automation
   block shares the same two columns and caption/control distance as the fields
   above it (switches in the field column, one line per option); secrets
   show/hide through an icon toggle (`view-visible`/`view-hidden` + tooltip).
-  Helper paragraphs use the shared `widgets/labels.py::muted_label`
+  Helper paragraphs use the shared `hsync_desktop/widgets/labels.py::muted_label`
   (`QLabel#mutedHint`), the same widget the Settings tab descriptions use.
-- **Input restriction**: `wizard/widgets.py::char_class_validator` blocks
+- **Input restriction**: `hsync_desktop/wizard/widgets.py::char_class_validator` blocks
   disallowed characters on the share name and group; structural rules stay in the
   on-Continue validation.
 - **Automation defaults**: the wizard only *recommends* the continuous behaviour.
-  `WizardDraft.auto_sync` starts from `config.py::DEFAULT_AUTO_SYNC` and neither
+  `WizardDraft.auto_sync` starts from `hsync_desktop/config.py::DEFAULT_AUTO_SYNC` and neither
   `SetupWizard._apply_mode_defaults` nor `SetupWizard._on_skip_defaults` turns it
   on: a startup run begins with no user action, so it stays an explicit choice
   (see the *Startup run* note in [ui.md](ui.md)).
 
 ## Layout
 
-- **Progress**: `wizard/stepper.py::StepIndicator` shows numbered badges (done =
+- **Progress**: `hsync_desktop/wizard/stepper.py::StepIndicator` shows numbered badges (done =
   check, current = accent, todo = muted) with labels elided to the available
   width; it carries the accessible "Step N of M" name. Labels keep a **uniform
   weight** — step state is carried by the badge and by muting future steps,
   while the bold page title is the single heading emphasis. The dialog adds a
   consistent 24/20/16 margin rhythm.
-- **Mode cards**: `wizard/widgets.py::RadioCard` shows a per-mode icon and a
+- **Mode cards**: `hsync_desktop/wizard/widgets.py::RadioCard` shows a per-mode icon and a
   `selected` dynamic property; `themes.py` draws the border/background state
   (`QFrame#radioCard`, `#radioCard[selected="true"]`) so selection is visible
   without relying on the radio dot alone. Icons: `backup` (cloud + up arrow),
@@ -150,21 +150,21 @@ and the returned mode so the two can never disagree.
   separator. When the draft configures a **rendezvous server**, a hint
   (`wizard.success.rdv_key_hint`) plus **Show group key…**
   (`SuccessPage._on_show_group_key`, opens the masked `GroupKeyDialog` from
-  `wizard/pages/success.py::SuccessPage` with the derived password key) remind the
+  `hsync_desktop/wizard/pages/success.py::SuccessPage` with the derived password key) remind the
   user to provision the server with the matching `bucket=<key>` line. The success
   screen is a destination, not a step: the subtitle and
   the step index are hidden (`SetupWizard._set_step`).
 
 ## Modes, defaults and inference
 
-`wizard/model.py::WizardMode` (StrEnum) + `wizard/model.py::profile_for` hold the
+`hsync_desktop/wizard/model.py::WizardMode` (StrEnum) + `hsync_desktop/wizard/model.py::profile_for` hold the
 per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, rendezvous
-server, server trust, rendezvous transport). `wizard/model.py::infer_mode_from_settings` preselects a mode on
+server, server trust, rendezvous transport). `hsync_desktop/wizard/model.py::infer_mode_from_settings` preselects a mode on
 re-run from the distinctive traits (p2p on/off, `sync/direction`,
 `p2p/rendezvous_server_endpoints`); the transport is prefilled from
 `p2p/rendezvous_transport` (default `RDV_TRANSPORT_DEFAULT`).
 
-Derived names (`wizard/defaults.py::default_share_name`,
+Derived names (`hsync_desktop/wizard/defaults.py::default_share_name`,
 `generate_group_name`, `generate_password`) are sanitized so they always pass the
 client's bucket/group grammars.
 
@@ -178,20 +178,20 @@ bump discards a stale draft. On finish the draft is cleared and
 ## Validation, probes and apply
 
 - `wizard/validation.py` returns `Issue(level, code, field)`; the dialog maps
-  codes through `wizard/messages.py::issue_message` to `wizard.error|warn.<code>`.
-- `engine/async_probe.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
-  `file_panel/workers.py::DirectoryScanWorker`) with a generation counter; the
+  codes through `hsync_desktop/wizard/messages.py::issue_message` to `wizard.error|warn.<code>`.
+- `hsync_desktop/engine/async_probe.py::AsyncProbe` runs blocking probes on a `QThread` (mirrors
+  `hsync_desktop/file_panel/workers.py::DirectoryScanWorker`) with a generation counter; the
   wizard, the Settings probes, the trusted-keys read and the MainWindow trust
   pre-flight share it.
 - `engine/endpoints.py` normalizes the server/rendezvous-server fields; `engine/probes.py`
   performs `GET /health` and `GET /api/v1/buckets/{bucket}` (the latter is
   mode-aware: a 404 is benign for a fresh backup share — auto-created on first
   upload — and blocks Finish for a team share).
-- `wizard/apply.py::apply_draft` writes only the wizard's keys (see the plan's
+- `hsync_desktop/wizard/apply.py::apply_draft` writes only the wizard's keys (see the plan's
   mapping) and pins a confirmed certificate through
-  `engine/cli.py::add_rendezvous_trust` / `add_server_trust`; a failed pin blocks
+  `hsync_desktop/engine/cli.py::add_rendezvous_trust` / `add_server_trust`; a failed pin blocks
   Finish unless the user skips it. Both pins run through
-  `_pin_endpoint` (`wizard/apply.py::_pin_endpoint`): resolve the endpoint, fetch
+  `_pin_endpoint` (`hsync_desktop/wizard/apply.py::_pin_endpoint`): resolve the endpoint, fetch
   the fingerprint when the user left it empty, pin, and report `""`/`failed` —
   the server and rendezvous-server paths differ only in those three callables.
 
