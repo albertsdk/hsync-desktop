@@ -51,14 +51,14 @@ def test_a_release_tag_page_is_built_from_the_version():
     The releases index renders only the first ten assets behind a "Show all N
     assets" toggle, so a `.deb`/`.rpm`/`.snap` looks missing there.
     """
-    url = docs_links.release_tag_url("1.0.18")
+    url = docs_links.release_tag_url("1.0.19")
 
-    assert url == "https://github.com/albertsdk/hsync-desktop/releases/tag/v1.0.18"
+    assert url == "https://github.com/albertsdk/hsync-desktop/releases/tag/v1.0.19"
     assert docs_links.is_allowed_docs_url(url)
 
 
 @pytest.mark.parametrize(
-    "version", ["", "nightly", "1", "1.0", "v1.0.18", "1.0.18-rc1", "1.0.18+build", "1.0.18/../.."]
+    "version", ["", "nightly", "1", "1.0", "v1.0.19", "1.0.19-rc1", "1.0.19+build", "1.0.19/../.."]
 )
 def test_an_unusable_version_falls_back_to_the_releases_index(version):
     """Nothing unvalidated reaches a URL: the index is the safe landing."""
@@ -70,10 +70,10 @@ def test_an_unusable_version_falls_back_to_the_releases_index(version):
 
 def test_a_direct_asset_url_is_built_from_the_alias():
     """The fixed-name alias keeps the file name stable while the version is pinned."""
-    url = docs_links.release_download_url("1.0.18", "hsync-desktop-x86_64.rpm")
+    url = docs_links.release_download_url("1.0.19", "hsync-desktop-x86_64.rpm")
 
     assert url == (
-        "https://github.com/albertsdk/hsync-desktop/releases/download/v1.0.18/"
+        "https://github.com/albertsdk/hsync-desktop/releases/download/v1.0.19/"
         "hsync-desktop-x86_64.rpm"
     )
     assert docs_links.is_allowed_docs_url(url)
@@ -84,7 +84,7 @@ def test_a_direct_asset_url_is_built_from_the_alias():
 )
 def test_an_asset_name_that_is_a_path_is_rejected(asset):
     """A file name, never a path: a traversal cannot leave the release."""
-    assert docs_links.release_download_url("1.0.18", asset) == docs_links.RELEASES
+    assert docs_links.release_download_url("1.0.19", asset) == docs_links.RELEASES
 
 
 @pytest.mark.parametrize(
