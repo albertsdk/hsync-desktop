@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disables mDNS discovery and finds devices only through the configured
   discovery server(s) (`--no-mdns`). It is enabled only while a discovery server
   is configured, since without one there would be no discovery channel at all.
+- The p2p settings tab gained a **Reach the discovery server via** selector:
+  the app now reaches the rendezvous server over **TLS/TCP** as well as
+  QUIC/UDP — **Auto** (races both, QUIC/UDP preferred), **QUIC/UDP only** or
+  **TLS/TCP only** — for networks that filter UDP.
 
 ### Changed
 
