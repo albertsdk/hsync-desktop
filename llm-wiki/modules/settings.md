@@ -319,19 +319,24 @@ locale — `Server di individuazione`, `Erkennungsserver`, `Serveur de
 découverte`, … — `settings.p2p_rendezvous`):
 `p2p_rendezvous` (dynamic `QLineEdit` injected right after the
 group row via `_insert_row_after`) + `p2p_rendezvous_trust` (`QComboBox`, filled
-by `_populate_rendezvous_trust`) + `btn_manage_trusted_keys` (`QPushButton`,
+by `_populate_rendezvous_trust`) + `p2p_rendezvous_transport` (`QComboBox`,
+filled by `_populate_rendezvous_transport` — `auto`/`quic`/`tcp`, the shared
+`hsync_common.constants.RDV_TRANSPORTS` vocabulary; RFC 8305 race with QUIC
+preferred for `auto`) + `btn_manage_trusted_keys` (`QPushButton`,
 opens `TrustedKeysDialog` on the rendezvouss tab) + `btn_test_rendezvous`
 (`QPushButton`, probes the rendezvous via `fetch_rendezvous_fingerprint` on
 `engine/async_probe.py::AsyncProbe`) +
 `p2p_upnp` (`ToggleSwitch`) + `no_mdns` (`ToggleSwitch`, "Exclude the local
 network": enabled only with a discovery server set, `_refresh_no_mdns_enabled`),
 saved/loaded under
-`p2p/rendezvous_server_endpoints` / `p2p/rendezvous_server_trust` / `p2p/upnp_enabled` /
+`p2p/rendezvous_server_endpoints` / `p2p/rendezvous_server_trust` / `p2p/rendezvous_transport` / `p2p/upnp_enabled` /
 `p2p/no_mdns`; labels from
 `settings.p2p_rendezvous` / `settings.manage_trusted_keys` /
 `settings.p2p_rendezvous_trust` (+ the four `*_ask`/`*_accept_new`/`*_strict`/
-`*_none` option labels) / `settings.p2p_upnp` / `settings.p2p_no_mdns` (all locales); tips from
+`*_none` option labels) / `settings.p2p_rendezvous_transport` (+ the three
+`*_auto`/`*_quic`/`*_tcp` option labels) / `settings.p2p_upnp` / `settings.p2p_no_mdns` (all locales); tips from
 `tip.p2p_rendezvous` (what a rendezvous is/does) / `tip.p2p_rendezvous_trust` /
+`tip.p2p_rendezvous_transport` /
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.p2p_no_mdns` / `tip.test_rendezvous`, shown per the
 `tooltips` preference. The tab is grouped (like the sync tab) into four
 `QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
@@ -344,7 +349,11 @@ equivalent needing no argument plumbing): `apply_settings_env` inserts
 `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` (a `HOST[:PORT]` endpoint: `host`, `host:port`, `[IPv6]`,
 `[IPv6]:port`), `HSYNC_MAP_DATA_PORT` (the user's explicit choice),
 and — when a rendezvous is set — `HSYNC_RENDEZVOUS_SERVER_TRUST` (`ask` / `accept-new` /
-`strict` / `none`) for the ADR-0035 trust policy. The rendezvous pin itself is not
+`strict` / `none`) for the ADR-0035 trust policy. The transport selector travels
+as the **`--rendezvous-transport` CLI flag** (`settings/cli_args.py::_append_p2p_args`,
+`auto`/`quic`/`tcp` from the shared `RDV_TRANSPORTS` vocabulary; `p2p/rendezvous_transport`
+QSettings key) — the client reads it that way and there is nothing to interpolate
+into the env block. The rendezvous pin itself is not
 a GUI setting: it lives in the client's known-hosts store, edited through the
 `TrustedKeysDialog` (`trusted_keys.py`) or the pre-flight in
 `main_window/trust.py::TrustMixin._ensure_trust` (using the

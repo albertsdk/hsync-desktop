@@ -26,6 +26,8 @@ can be switched later; a given setup uses one or the other.
   carries or stores your files. If the server is protected, it also checks the
   group's shared password (no separate token) — see
   [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password).
+  On a network that filters UDP, pick **TLS/TCP only** in the discovery section:
+  the rendezvous also speaks `rdv/1` over TLS/TCP, with the same certificate.
 - **Not sure yet** → in the [Setup wizard](setup-wizard.md), press **Help me
   choose**: it asks a few short questions and preselects the matching mode for
   you.

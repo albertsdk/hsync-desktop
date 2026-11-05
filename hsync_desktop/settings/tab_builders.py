@@ -287,6 +287,20 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg._populate_rendezvous_trust()
     _insert_row_after(dlg.p2p_rendezvous, dlg._lbl_p2p_rendezvous_trust, trust_container)
 
+    # Transport selector (RFC 8305): how the client reaches the discovery
+    # server(s) — auto races QUIC/UDP (preferred) and TLS/TCP, quic/tcp use one
+    # transport only. Own form row, under the trust policy.
+    dlg.p2p_rendezvous_transport = QComboBox(dlg)
+    dlg.p2p_rendezvous_transport.setObjectName("p2pRendezvousTransport")
+    dlg._lbl_p2p_rendezvous_transport = QLabel(dlg)
+    transport_container = QWidget(dlg)
+    hl_transport = QHBoxLayout(transport_container)
+    hl_transport.setContentsMargins(0, 0, 0, 0)
+    hl_transport.addWidget(dlg.p2p_rendezvous_transport)
+    hl_transport.addStretch()
+    dlg._populate_rendezvous_transport()
+    _insert_row_after(trust_container, dlg._lbl_p2p_rendezvous_transport, transport_container)
+
     # Manage trusted keys (ADR-0035): opens the known-hosts / known-peers
     # dialog that edits the shared stores via the hsync CLI.
     dlg.btn_manage_trusted_keys = QPushButton(dlg)
@@ -300,7 +314,7 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.btn_test_rendezvous.clicked.connect(dlg._on_test_rendezvous)
 
     manage_container = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_rendezvous)
-    _insert_row_after(trust_container, QLabel(""), manage_container)
+    _insert_row_after(transport_container, QLabel(""), manage_container)
 
     # UPnP toggle for the master TCP port (only effective with a rendezvous).
     dlg.p2p_upnp = ToggleSwitch(dlg)

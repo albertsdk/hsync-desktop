@@ -152,6 +152,7 @@ def apply_draft(
         s.setValue("p2p/enabled", False)
         # Clear a stale discovery servers so it cannot leak HSYNC_RENDEZVOUS_SERVER_ENDPOINTS into a server run.
         s.setValue("p2p/rendezvous_server_endpoints", "")
+        s.setValue("p2p/rendezvous_transport", "")
         s.setValue("connection/server_url", normalize_server_endpoint(draft.server_url) or "")
         s.setValue("connection/api_key", encrypt_value(draft.api_key) if draft.api_key else "")
         if draft.accept_server_cert:
@@ -168,6 +169,7 @@ def apply_draft(
             else ""
         )
         s.setValue("p2p/rendezvous_server_endpoints", rendezvous_server or "")
+        s.setValue("p2p/rendezvous_transport", draft.rendezvous_transport or "auto")
 
     s.setValue("appearance/start_at_login", draft.start_at_login)
     if autostart.is_supported():

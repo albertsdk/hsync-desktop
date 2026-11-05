@@ -156,6 +156,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_p2p_rendezvous.setText(tr("settings.p2p_rendezvous"))
     dlg._lbl_p2p_rendezvous_trust.setText(tr("settings.p2p_rendezvous_trust"))
     dlg._populate_rendezvous_trust()
+    dlg._lbl_p2p_rendezvous_transport.setText(tr("settings.p2p_rendezvous_transport"))
+    dlg._populate_rendezvous_transport()
     dlg.btn_manage_trusted_keys.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
     dlg.btn_manage_trusted_keys_server.setText(escape_mnemonics(tr("settings.manage_trusted_keys")))
     dlg.btn_show_group_key.setText(escape_mnemonics(tr("settings.show_group_key")))

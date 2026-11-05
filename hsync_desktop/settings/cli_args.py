@@ -43,6 +43,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_NO_MDNS,
     DEFAULT_P2P_PEER_DOWNLOAD,
+    DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
     DEFAULT_P2P_TRUST,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
@@ -314,6 +315,14 @@ def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
     """Append the p2p flags; a no-op in server mode."""
     # p2p
     if p2p_enabled:
+        from hsync_common.constants import RDV_TRANSPORTS
+
+        # Transport selector (RFC 8305): how the client reaches every discovery
+        # server. The shared vocabulary bounds a hand-edited settings value.
+        transport = str(s.value("p2p/rendezvous_transport", DEFAULT_P2P_RENDEZVOUS_TRANSPORT, str))
+        if transport not in RDV_TRANSPORTS:
+            transport = DEFAULT_P2P_RENDEZVOUS_TRANSPORT
+        args += ["--rendezvous-transport", transport]
         port = cast(int, s.value("p2p/port", 0, int))
         port = max(0, min(port, 65535))  # Valid port range
         if port:

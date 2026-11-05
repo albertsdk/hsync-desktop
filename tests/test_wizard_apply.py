@@ -102,6 +102,43 @@ class TestP2pModeMapping:
         )
         apply_draft(store, draft)
         assert store.value("p2p/rendezvous_server_endpoints") == "[::1]:8443"
+        # The transport travel too (the wizard label defaults to auto).
+        assert store.value("p2p/rendezvous_transport") == "auto"
+
+    def test_remote_persists_the_chosen_transport(self, store):
+        draft = WizardDraft(
+            mode=WizardMode.REMOTE_SYNC,
+            bucket="data",
+            p2p_group="grp",
+            p2p_key="pw",
+            rendezvous_server="rdv.example.net",
+            rendezvous_transport="tcp",
+        )
+        apply_draft(store, draft)
+        assert store.value("p2p/rendezvous_transport") == "tcp"
+
+    def test_lan_keeps_the_default_transport(self, store):
+        """A LAN run applies the p2p draft's transport (auto by default)."""
+        store.setValue("p2p/rendezvous_transport", "tcp")
+        draft = WizardDraft(
+            mode=WizardMode.LAN_SYNC,
+            bucket="data",
+            p2p_group="grp",
+            p2p_key="pw",
+        )
+        apply_draft(store, draft)
+        assert store.value("p2p/rendezvous_transport") == "auto"
+
+    def test_server_clears_a_stale_transport(self, store):
+        """A server run must not leak the previous p2p transport into HSYNC_RENDEZVOUS_TRANSPORT."""
+        store.setValue("p2p/rendezvous_transport", "tcp")
+        draft = WizardDraft(
+            mode=WizardMode.TEAM_SHARE,
+            bucket="data",
+            server_url="https://example.net",
+        )
+        apply_draft(store, draft)
+        assert store.value("p2p/rendezvous_transport", "auto", str) == ""
 
 
 class TestTrustPinning:

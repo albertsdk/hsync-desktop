@@ -20,6 +20,7 @@ from hsync_desktop.config import (
     DEFAULT_AUTO_SYNC,
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_RENDEZVOUS,
+    DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
     DEFAULT_SYNC_DIRECTION,
     SETTINGS_APP,
     SETTINGS_ORG,
@@ -168,6 +169,7 @@ class WizardDraft:
     p2p_group: str = ""
     p2p_key: str = ""
     rendezvous_server: str = ""
+    rendezvous_transport: str = DEFAULT_P2P_RENDEZVOUS_TRANSPORT
     direction: str = "bidirectional"
     deletion_policy: str = "propagate"
     continuous: bool = True

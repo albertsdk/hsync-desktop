@@ -15,12 +15,8 @@ import ssl
 from pathlib import Path
 
 from hsync_common.constants import SERVER_DEFAULT_PORT
-from hsync_common.endpoint import (
-    build_https_url,
-    normalize_endpoint_list,
-    parse_host_port,
-    parse_https_url,
-)
+from hsync_common.endpoint import normalize_endpoint_list, normalize_server_url
+from hsync_common.tls_context import unverified_ssl_context as _unverified_ssl_context
 
 __all__ = [
     "SERVER_DEFAULT_PORT",
@@ -42,17 +38,11 @@ _FINGERPRINT_POLICIES = frozenset({"ask", "accept-new", "strict"})
 def normalize_server_endpoint(raw: str) -> str | None:
     """Canonicalize the server field; raise ``ValueError`` on invalid input.
 
-    Accepts the same forms as ``HSYNC_SERVER_URL`` (bare ``host``/``host:port``/
-    ``[IPv6]``/``[IPv6]:port`` or a full ``https://…`` URL) and returns the
-    canonical HTTPS URL so ``urlsplit``-based trust handling keeps working.
-    Empty input yields ``None``.
+    Delegates to the shared grammar (``hsync_common.endpoint.normalize_server_url``)
+    so the GUI field and the client's ``HSYNC_SERVER_URL`` cannot normalize
+    differently. Empty input yields ``None``.
     """
-    value = (raw or "").strip()
-    if not value:
-        return None
-    if value.lower().startswith("https://"):
-        return parse_https_url(value)
-    return build_https_url(parse_host_port(value), SERVER_DEFAULT_PORT)
+    return normalize_server_url(raw, default_port=SERVER_DEFAULT_PORT)
 
 
 def normalize_rendezvous_server_endpoints(raw: str) -> str | None:
@@ -68,11 +58,12 @@ def normalize_rendezvous_server_endpoints(raw: str) -> str | None:
 
 
 def unverified_ssl_context() -> ssl.SSLContext:
-    """An SSLContext that skips chain/hostname verification (fingerprint mode)."""
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    return context
+    """An SSLContext that skips chain/hostname verification (fingerprint mode).
+
+    Delegates to ``hsync_common.ssl_utils.unverified_ssl_context`` so the
+    "trust is established elsewhere" rule has one definition.
+    """
+    return _unverified_ssl_context()
 
 
 def build_probe_ssl_context(

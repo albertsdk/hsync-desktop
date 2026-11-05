@@ -27,6 +27,7 @@ from hsync_desktop.config import (
     DEFAULT_DELETION_POLICY,
     DEFAULT_GROUP,
     DEFAULT_MIN_FREE_DISK_SPACE,
+    DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
     DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
     DELETION_POLICIES,
@@ -190,6 +191,9 @@ class SetupWizard(QDialog):
         d.p2p_group = str(s.value("p2p/group", DEFAULT_GROUP, str))
         d.p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
         d.rendezvous_server = str(s.value("p2p/rendezvous_server_endpoints", "", str))
+        d.rendezvous_transport = str(
+            s.value("p2p/rendezvous_transport", DEFAULT_P2P_RENDEZVOUS_TRANSPORT, str)
+        )
         d.direction = str(s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str))
         stored_policy = str(s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str))
         # An unreadable stored value must not leak into the review labels.

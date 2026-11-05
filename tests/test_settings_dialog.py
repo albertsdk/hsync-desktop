@@ -261,6 +261,33 @@ class TestRendezvousTrustPolicy:
         assert trust_row == rendezvous_row + 1
 
 
+class TestRendezvousTransport:
+    """The rendezvous transport is a combo over the shared auto|quic|tcp vocabulary."""
+
+    def test_combo_offers_the_three_transports_and_defaults_to_auto(self, dialog):
+        combo = dialog.p2p_rendezvous_transport
+        assert [combo.itemData(i) for i in range(combo.count())] == ["auto", "quic", "tcp"]
+        assert combo.currentData() == "auto"
+
+    def test_label_sits_directly_under_the_trust_row(self, dialog):
+        """The transport label is the caption of the row right under the trust combo."""
+        form = dialog.p2p_rendezvous.parentWidget().layout()
+        assert isinstance(form, QFormLayout)
+        trust_row = transport_row = None
+        for row in range(form.rowCount()):
+            label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            if label_item is not None and label_item.widget() is dialog._lbl_p2p_rendezvous_trust:
+                trust_row = row
+            if (
+                label_item is not None
+                and label_item.widget() is dialog._lbl_p2p_rendezvous_transport
+            ):
+                transport_row = row
+        assert trust_row is not None and transport_row is not None
+        assert transport_row == trust_row + 1
+
+
 class TestTrustedKeysUi:
     """The fingerprint field is gone; the store is managed via the dialog."""
 
@@ -345,18 +372,22 @@ class TestP2pPanelGating:
     def test_trust_controls_disabled_when_p2p_is_off(self, dialog):
         dialog.p2p_mode.setChecked(True)
         assert dialog.p2p_rendezvous_trust.isEnabled()
+        assert dialog.p2p_rendezvous_transport.isEnabled()
         assert dialog.btn_manage_trusted_keys.isEnabled()
         dialog.p2p_mode.setChecked(False)
         assert not dialog.p2p_rendezvous_trust.isEnabled()
+        assert not dialog.p2p_rendezvous_transport.isEnabled()
         assert not dialog.btn_manage_trusted_keys.isEnabled()
 
     def test_trust_controls_disabled_while_a_sync_is_active(self, dialog):
         dialog.p2p_mode.setChecked(True)
         dialog.set_connection_active(True)
         assert not dialog.p2p_rendezvous_trust.isEnabled()
+        assert not dialog.p2p_rendezvous_transport.isEnabled()
         assert not dialog.btn_manage_trusted_keys.isEnabled()
         dialog.set_connection_active(False)
         assert dialog.p2p_rendezvous_trust.isEnabled()
+        assert dialog.p2p_rendezvous_transport.isEnabled()
         assert dialog.btn_manage_trusted_keys.isEnabled()
 
 

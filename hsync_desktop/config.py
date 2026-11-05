@@ -11,7 +11,11 @@ to avoid hardcoding and ensure consistency.
 from __future__ import annotations
 
 from hsync_common import defaults
-from hsync_common.constants import DELTA_MIN_FILE_SIZE, DELTA_MIN_FILE_SIZE_P2P
+from hsync_common.constants import (
+    DELTA_MIN_FILE_SIZE,
+    DELTA_MIN_FILE_SIZE_P2P,
+    RDV_TRANSPORT_DEFAULT,
+)
 from hsync_common.disk import BYTES_PER_MB
 
 # QSettings organization and application name
@@ -119,6 +123,10 @@ DEFAULT_P2P_RENDEZVOUS = ""
 # Rendezvous TLS trust policy (ADR-0035): ask | accept-new | strict | none.
 # Passed via HSYNC_RENDEZVOUS_TRUST.
 DEFAULT_P2P_RENDEZVOUS_TRUST = "ask"
+# Rendezvous transport selector: auto (race QUIC/UDP and TLS/TCP, QUIC
+# preferred) | quic | tcp. Passed via --rendezvous-transport. The default is the
+# shared ``hsync_common.constants.RDV_TRANSPORT_DEFAULT`` (SSOT).
+DEFAULT_P2P_RENDEZVOUS_TRANSPORT = RDV_TRANSPORT_DEFAULT
 # Map the master TCP port with UPnP when a rendezvous is used. Passed via
 # HSYNC_MAP_DATA_PORT; the client treats it as on only with a discovery server by
 # default.

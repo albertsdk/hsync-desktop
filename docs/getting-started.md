@@ -35,6 +35,10 @@ methods are ordered from the simplest and most immediate to the most involved.
 - **Server Mode** needs an HSYNC Server with an account token (the share itself is
   created on the first upload); **p2p Mode** needs no server — see the
   [server getting started](https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md)
+- Cross-network **p2p** uses a discovery server over **QUIC/UDP or TLS/TCP** (the
+  client races both by default and remembers which one works; a network that
+  filters UDP can pin **TLS/TCP only** in Settings → p2p → *Reach the discovery
+  server via*)
 - One folder per installation: **Settings → Sync → Local folder** holds the folder
   this device keeps in sync
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)

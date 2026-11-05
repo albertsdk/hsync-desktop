@@ -416,6 +416,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     g2 = QFormLayout(dlg._grp_p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous_trust, dlg.p2p_rendezvous_trust)
+    add_row(g2, dlg._lbl_p2p_rendezvous_transport, dlg.p2p_rendezvous_transport)
     # Spanning row: the button pair cannot fit the field column once the captions
     # and the labels are localized (see ``_action_row``).
     g2.addRow(manage_container)

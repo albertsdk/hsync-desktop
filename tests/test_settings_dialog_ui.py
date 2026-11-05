@@ -99,6 +99,7 @@ class TestP2pTooltips:
     _KEYS = {
         "p2p_rendezvous": "tip.p2p_rendezvous",
         "p2p_rendezvous_trust": "tip.p2p_rendezvous_trust",
+        "p2p_rendezvous_transport": "tip.p2p_rendezvous_transport",
         "btn_manage_trusted_keys": "tip.manage_trusted_keys",
         "p2p_upnp": "tip.p2p_upnp",
     }
@@ -352,6 +353,7 @@ class TestP2pPanelSections:
         assert dialog.p2p_key.parent() is mode
         assert dialog.p2p_rendezvous.parent() is rendezvous
         assert dialog.p2p_rendezvous_trust.parent() is rendezvous
+        assert dialog.p2p_rendezvous_transport.parent() is rendezvous
         assert dialog.prefer_master.parent() is role
         assert dialog.p2p_trust.parent() is role
         assert dialog.p2p_port.parent() is advanced
@@ -467,6 +469,27 @@ class TestTabOrderAndDefaultMode:
         dlg = dialog_mod.SettingsDialog()
         qtbot.addWidget(dlg)
         assert dlg.p2p_mode.isChecked()
+        # The transport selector defaults to the shared RFC 8305 default.
+        assert dlg.p2p_rendezvous_transport.currentData() == "auto"
+
+    def test_transport_selector_is_persisted(self, qtbot, monkeypatch, tmp_path):
+        """The chosen transport survives a save/reopen round-trip via QSettings."""
+        from PySide6.QtCore import QSettings
+
+        import hsync_desktop.settings.dialog as dialog_mod
+
+        s = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: s)
+        dlg = dialog_mod.SettingsDialog()
+        qtbot.addWidget(dlg)
+        idx = dlg.p2p_rendezvous_transport.findData("tcp")
+        dlg.p2p_rendezvous_transport.setCurrentIndex(idx if idx >= 0 else 0)
+        dlg.save()
+        assert s.value("p2p/rendezvous_transport") == "tcp"
+
+        dlg2 = dialog_mod.SettingsDialog()
+        qtbot.addWidget(dlg2)
+        assert dlg2.p2p_rendezvous_transport.currentData() == "tcp"
 
 
 class TestActionButtonRows:

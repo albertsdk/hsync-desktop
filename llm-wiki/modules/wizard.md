@@ -75,7 +75,11 @@ and the returned mode so the two can never disagree.
   QSS `#statusOk`/`#statusError`), and the rendezvous-server trust buttons appear
   under the result. Editing a test's fields clears its result and captured
   fingerprint (`_on_server_edited`/`_on_rendezvous_server_edited`) so a stale trust pin is
-  never applied.
+  never applied. A transport combo (`wizard/pages/connection.py::ConnectionPage`,
+  `rendezvous_transport` — `auto`/`quic`/`tcp`, RFC 8305 race with QUIC preferred)
+  selects how the client reaches the server(s); it is stored in the draft
+  (`WizardDraft.rendezvous_transport`) and persisted to `p2p/rendezvous_transport`, so
+  the Settings dialog, the wizard and `--rendezvous-transport` agree.
 - **Tooltips and placeholders**: every connection field and automation switch
   has a short explanation (`wizard.tip.*`) without changing the visible labels;
   the text fields show language-neutral example placeholders. The rendezvous-server
@@ -154,9 +158,10 @@ and the returned mode so the two can never disagree.
 
 `wizard/model.py::WizardMode` (StrEnum) + `wizard/model.py::profile_for` hold the
 per-mode defaults (p2p on/off, direction, keep-deleted, launch-at-login, rendezvous
-server, server trust). `wizard/model.py::infer_mode_from_settings` preselects a mode on
+server, server trust, rendezvous transport). `wizard/model.py::infer_mode_from_settings` preselects a mode on
 re-run from the distinctive traits (p2p on/off, `sync/direction`,
-`p2p/rendezvous_server_endpoints`).
+`p2p/rendezvous_server_endpoints`); the transport is prefilled from
+`p2p/rendezvous_transport` (default `RDV_TRANSPORT_DEFAULT`).
 
 Derived names (`wizard/defaults.py::default_share_name`,
 `generate_group_name`, `generate_password`) are sanitized so they always pass the

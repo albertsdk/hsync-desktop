@@ -51,6 +51,8 @@ from hsync_desktop.wizard.widgets import (
 __all__ = ["ConnectionPage"]
 
 _DIRECTIONS = ("bidirectional", "upload-only", "download-only")
+# Rendezvous transport values, in combo order (RFC 8305 default first).
+_TRANSPORTS = ("auto", "quic", "tcp")
 
 _STATUS_OBJECT_NAMES = {"working": "mutedHint", "ok": "statusOk", "error": "statusError"}
 
@@ -171,6 +173,21 @@ class ConnectionPage(WizardPage):
         network_form.addRow(
             *self._row(
                 "rendezvous_server", "wizard.connection.rendezvous_server", self.rendezvous_server
+            )
+        )
+
+        # Transport selector (RFC 8305): how the client reaches the server.
+        # The item labels are set in ``apply_translations``; only the values
+        # are fixed here (the translations own the visible text).
+        self.rendezvous_transport = QComboBox()
+        for value in _TRANSPORTS:
+            self.rendezvous_transport.addItem("", value)
+        self.rendezvous_transport.currentIndexChanged.connect(self._on_edit)
+        network_form.addRow(
+            *self._row(
+                "rendezvous_transport",
+                "wizard.connection.rendezvous_transport",
+                self.rendezvous_transport,
             )
         )
 
@@ -521,6 +538,9 @@ class ConnectionPage(WizardPage):
         self.direction.setItemText(0, tr("settings.sync_direction.bidirectional"))
         self.direction.setItemText(1, tr("settings.sync_direction.upload_only"))
         self.direction.setItemText(2, tr("settings.sync_direction.download_only"))
+        self.rendezvous_transport.setItemText(0, tr("wizard.connection.rendezvous_transport_auto"))
+        self.rendezvous_transport.setItemText(1, tr("wizard.connection.rendezvous_transport_quic"))
+        self.rendezvous_transport.setItemText(2, tr("wizard.connection.rendezvous_transport_tcp"))
         self._automation.setTitle(escape_mnemonics(tr("wizard.automation.title")))
         for label, switch, key in self._automation_rows:
             text = tr(key)
@@ -569,6 +589,12 @@ class ConnectionPage(WizardPage):
         self.password.setText(draft.p2p_key)
         self.receive_only.setChecked(draft.direction == "download-only")
         self.rendezvous_server.setText(draft.rendezvous_server)
+        index = (
+            _TRANSPORTS.index(draft.rendezvous_transport)
+            if draft.rendezvous_transport in _TRANSPORTS
+            else 0
+        )
+        self.rendezvous_transport.setCurrentIndex(index)
         index = _DIRECTIONS.index(draft.direction) if draft.direction in _DIRECTIONS else 0
         self.direction.setCurrentIndex(index)
         self.continuous.setChecked(draft.continuous)
@@ -592,6 +618,7 @@ class ConnectionPage(WizardPage):
         draft.p2p_group = self.group.text().strip()
         draft.p2p_key = self.password.text().strip()
         draft.rendezvous_server = self.rendezvous_server.text().strip()
+        draft.rendezvous_transport = str(self.rendezvous_transport.currentData()) or "auto"
         draft.direction = self._current_direction()
         draft.continuous = self.continuous.isChecked()
         draft.auto_sync = self.auto_sync.isChecked()

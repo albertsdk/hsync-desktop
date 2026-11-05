@@ -233,6 +233,37 @@ class TestP2PTrustFlag:
         assert "--p2p-trust" not in args
 
 
+class TestRendezvousTransportFlag:
+    """Coverage for --rendezvous-transport (RFC 8305 dual-transport selector)."""
+
+    def test_default_emits_auto(self):
+        """With p2p enabled and no stored value the shared default (auto) is sent."""
+        args = _build_args({"p2p/enabled": True})
+
+        assert args[args.index("--rendezvous-transport") + 1] == "auto"
+
+    def test_explicit_transports_are_emitted(self):
+        """Each supported transport is forwarded exactly once, unchanged."""
+        for transport in ("auto", "quic", "tcp"):
+            args = _build_args({"p2p/enabled": True, "p2p/rendezvous_transport": transport})
+
+            assert args.count("--rendezvous-transport") == 1
+            assert args[args.index("--rendezvous-transport") + 1] == transport
+
+    def test_unknown_stored_value_falls_back_to_default(self):
+        """A hand-edited value outside the shared vocabulary is never forwarded."""
+        args = _build_args({"p2p/enabled": True, "p2p/rendezvous_transport": "sctp"})
+
+        assert args[args.index("--rendezvous-transport") + 1] == "auto"
+
+    def test_flag_not_emitted_when_p2p_disabled(self):
+        """p2p disabled: the transport is skipped with the rest of the block."""
+        args = _build_args({"p2p/enabled": False, "p2p/rendezvous_transport": "tcp"})
+
+        assert args[0] == "server"
+        assert "--rendezvous-transport" not in args
+
+
 class TestIgnorePatterns:
     """Coverage for --ignore-pattern emission."""
 
@@ -359,6 +390,7 @@ class TestClientCapabilitiesParity:
             "--rendezvous-server-fingerprint",
             "--rendezvous-server-tofu",
             "--rendezvous-server-trust",
+            "--rendezvous-transport",
             "--bucket",
             "--ca-cert",
             "--delta-min-file-size",

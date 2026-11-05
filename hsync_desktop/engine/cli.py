@@ -25,34 +25,15 @@ from hsync_common.protocol.capabilities import (
     parse_capabilities,
     supports_subcommand,
 )
+from hsync_common.runtime import platform_tag
 from PySide6.QtCore import QObject, QProcess, QSettings, QTimer, Signal, Slot
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 
 
 def _platform_tag() -> str:
-    """Return the platform tag used by both compile scripts (e.g. 'linux-amd64')."""
-    import platform as _platform
-
-    system = _platform.system().lower()
-    if system.startswith(("mingw", "cygwin", "msys")):
-        system = "windows"
-    elif system not in ("linux", "darwin", "windows"):
-        pass  # keep as-is
-
-    machine = _platform.machine().lower()
-    arch_map = {
-        "x86_64": "amd64",
-        "amd64": "amd64",
-        "aarch64": "arm64",
-        "arm64": "arm64",
-        "armv7l": "armv7",
-        "armv7": "armv7",
-        "i386": "x86",
-        "i686": "x86",
-    }
-    arch = arch_map.get(machine, machine)
-    return f"{system}-{arch}"
+    """Platform tag used by both compile scripts (SSOT: hsync_common.runtime)."""
+    return platform_tag()
 
 
 def _run_hsync_capture(

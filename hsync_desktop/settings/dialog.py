@@ -87,6 +87,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_PEER_SOURCES_MAX,
     DEFAULT_P2P_PORT,
     DEFAULT_P2P_RENDEZVOUS,
+    DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
     DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_P2P_TRUST,
     DEFAULT_P2P_UPNP_ENABLED,
@@ -265,6 +266,25 @@ class SettingsDialog(QDialog):
         index = self.p2p_rendezvous_trust.findData(current)
         self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
 
+    def _populate_rendezvous_transport(self) -> None:
+        """Fill the rendezvous transport combo (auto|quic|tcp), preserving selection.
+
+        ``auto`` (default) races QUIC/UDP (preferred) and TLS/TCP per endpoint
+        (RFC 8305); ``quic``/``tcp`` use one transport only. The vocabulary is
+        the shared ``hsync_common.constants.RDV_TRANSPORTS``, so the desktop can
+        never drift from the client's accepted values.
+        """
+        current = self.p2p_rendezvous_transport.currentData()
+        self.p2p_rendezvous_transport.clear()
+        for value, key in (
+            ("auto", "settings.p2p_rendezvous_transport_auto"),
+            ("quic", "settings.p2p_rendezvous_transport_quic"),
+            ("tcp", "settings.p2p_rendezvous_transport_tcp"),
+        ):
+            self.p2p_rendezvous_transport.addItem(tr(key), value)
+        index = self.p2p_rendezvous_transport.findData(current)
+        self.p2p_rendezvous_transport.setCurrentIndex(index if index >= 0 else 0)
+
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         """Re-align the tab purpose lines: their wrap depends on the width."""
 
@@ -389,6 +409,7 @@ class SettingsDialog(QDialog):
             (self.p2p_group, "tip.p2p_group"),
             (self.p2p_rendezvous, "tip.p2p_rendezvous"),
             (self.p2p_rendezvous_trust, "tip.p2p_rendezvous_trust"),
+            (self.p2p_rendezvous_transport, "tip.p2p_rendezvous_transport"),
             (self.btn_manage_trusted_keys, "tip.manage_trusted_keys"),
             (self.btn_test_rendezvous, "tip.test_rendezvous"),
             (self.p2p_upnp, "tip.p2p_upnp"),
@@ -746,6 +767,7 @@ class SettingsDialog(QDialog):
             self.p2p_group,
             self.p2p_rendezvous,
             self.p2p_rendezvous_trust,
+            self.p2p_rendezvous_transport,
             self.btn_manage_trusted_keys,
             self.btn_test_rendezvous,
             self.btn_show_group_key,
@@ -1429,6 +1451,10 @@ class SettingsDialog(QDialog):
             "p2p/rendezvous_server_trust",
             self.p2p_rendezvous_trust.currentData() or DEFAULT_P2P_RENDEZVOUS_TRUST,
         )
+        s.setValue(
+            "p2p/rendezvous_transport",
+            self.p2p_rendezvous_transport.currentData() or DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
+        )
         s.setValue("p2p/upnp_enabled", self.p2p_upnp.isChecked())
         s.setValue("p2p/no_mdns", self.no_mdns.isChecked())
         s.setValue("p2p/key", encrypt_value(self.p2p_key.text().strip()))
@@ -1574,6 +1600,10 @@ class SettingsDialog(QDialog):
             str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str))
         )
         self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
+        index = self.p2p_rendezvous_transport.findData(
+            str(s.value("p2p/rendezvous_transport", DEFAULT_P2P_RENDEZVOUS_TRANSPORT, str))
+        )
+        self.p2p_rendezvous_transport.setCurrentIndex(index if index >= 0 else 0)
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
         self.no_mdns.setChecked(bool(s.value("p2p/no_mdns", DEFAULT_P2P_NO_MDNS, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
@@ -1732,6 +1762,7 @@ class SettingsDialog(QDialog):
             self.p2p_group,
             self.p2p_rendezvous,
             self.p2p_rendezvous_trust,
+            self.p2p_rendezvous_transport,
             self.btn_manage_trusted_keys,
             self.btn_test_rendezvous,
             self.btn_show_group_key,

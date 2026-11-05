@@ -168,6 +168,16 @@ disable unsupported controls) is realized in
   always sends an explicit policy; the client's SSH-style prompt is terminal-only
   and fails closed without a tty.
 
+- **Rendezvous transport is a selector (`--rendezvous-transport auto|quic|tcp`)**: a
+  `p2p_rendezvous_transport` combo (settings dialog + wizard connection page) is
+  stored under `p2p/rendezvous_transport` and emitted by
+  `settings/cli_args.py::_append_p2p_args` as the client's `--rendezvous-transport`
+  flag (default `auto`, the shared `hsync_common.constants.RDV_TRANSPORT_DEFAULT`).
+  It rides the argument vector, not the env block, because `--rendezvous-transport`
+  is a `p2p` subcommand flag (unlike the endpoint/trust settings, which are
+  documented env equivalents); the vocabulary is the shared `RDV_TRANSPORTS`, so a
+  hand-edited settings value falls back to `auto` instead of being forwarded.
+
 - **The client/desktop version pairing is gated at build time**: `compile.sh`
   `_add_data_args` runs the bundled `hsync-client` binary with `--version` and
   refuses a major/minor drift from `hsync_common.constants::HSYNC_VERSION`, while

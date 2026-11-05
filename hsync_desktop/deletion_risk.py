@@ -23,9 +23,7 @@ from __future__ import annotations
 import hashlib
 import os
 
-from hsync_common.constants import HSYNCKEEP_FILENAME
-from hsync_common.models.dir import is_hidden_dir
-from hsync_common.models.file import is_hidden_file
+from hsync_common.listing import folder_has_user_content as _folder_has_user_content
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import (
@@ -44,19 +42,11 @@ REASON_DOWNLOAD_ONLY = "download-only"
 def folder_has_user_content(local_path: str) -> bool:
     """True when the folder holds user data a deletion could remove.
 
-    Entries the engine ignores - the built-in patterns, the ``.hsyncignore``
-    rules, the engine's own files and the ``.hsynckeep`` sentinel - are not user
-    content. The walk mirrors the client's guard, so the window and the engine
-    agree on what "the folder is not empty" means; dotfiles are synchronised
-    normally, so they count. A folder that cannot be read reports no content, and
-    the plan confirmation still catches the deletions a run really contains.
+    Delegates to the shared rule
+    (``hsync_common.listing.folder_has_user_content``), so the window and the
+    client's deletion guard cannot drift on what "the folder is not empty" means.
     """
-    for _root, dirs, files in os.walk(local_path):
-        dirs[:] = [name for name in dirs if not is_hidden_dir(name)]
-        for name in files:
-            if name != HSYNCKEEP_FILENAME and not is_hidden_file(name):
-                return True
-    return False
+    return _folder_has_user_content(local_path)
 
 
 def acknowledgement(settings: QSettings, local_path: str, reason: str) -> str:

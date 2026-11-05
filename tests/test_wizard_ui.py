@@ -315,6 +315,23 @@ class TestSwitches:
         assert draft.accept_server_cert is True
         assert draft.direction == "download-only"
 
+    def test_rendezvous_transport_round_trips_through_the_draft(self, wizard):
+        """The wizard's transport selector survives the load/store cycle."""
+        page = wizard.connection_page
+        draft = WizardDraft(mode=WizardMode.REMOTE_SYNC)
+        page.load(draft)
+        # Default: the shared RFC 8305 default (auto).
+        assert draft.rendezvous_transport == "auto"
+        assert page.rendezvous_transport.currentData() == "auto"
+        # A stored choice is loaded and a UI choice is stored.
+        page.load(WizardDraft(mode=WizardMode.REMOTE_SYNC, rendezvous_transport="tcp"))
+        assert page.rendezvous_transport.currentData() == "tcp"
+        idx = page.rendezvous_transport.findData("quic")
+        page.rendezvous_transport.setCurrentIndex(idx if idx >= 0 else 0)
+        out = WizardDraft(mode=WizardMode.REMOTE_SYNC)
+        page.store(out)
+        assert out.rendezvous_transport == "quic"
+
     def test_auto_sync_stays_off_by_default(self, wizard):
         """A startup run begins on its own, so the wizard must not opt in."""
         from hsync_desktop.config import DEFAULT_AUTO_SYNC
