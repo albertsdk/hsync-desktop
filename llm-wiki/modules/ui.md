@@ -816,13 +816,15 @@ It recurses only into real directories and, like `os.walk(onerror=None)`, skips 
 nested unreadable or vanished directory instead of aborting the whole pass; an
 unreadable share root aborts the pass rather than diffing an empty set.
 
-**Clickable links**: the share name, the ancestor breadcrumb segments and the
+**Clickable links**: the share name, every breadcrumb segment and the
 detail-panel file path use the default text colour with
 `text-decoration: underline` instead of the palette link colour, so they read as
 normal text; the hand cursor and the `linkActivated` handlers still mark them as
-clickable. The current breadcrumb segment is plain text, and the root icon is
-inert when the list already shows the root, so a click never targets the folder
-already displayed.
+clickable. In the breadcrumb a parent segment navigates to its folder, while the
+current segment — the folder the list already shows — re-scans it instead of
+performing a dead navigation (`hsync_desktop/file_panel/panel.py::FilePanel._on_breadcrumb_clicked`),
+so a click never navigates to the folder already displayed; the root icon stays
+inert when the list already shows the root.
 
 **Breadcrumb notation**: segments are joined by
 `hsync_desktop/file_panel/panel.py::_breadcrumb_separator` — `" / "` (GNOME Files, and every

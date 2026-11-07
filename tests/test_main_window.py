@@ -1172,18 +1172,18 @@ class TestLinkStyling:
         assert "&lt;" in text
         assert "&quot;" in text
 
-    def test_current_breadcrumb_segment_is_not_a_link(self, window):
-        """The folder already shown must not look clickable."""
+    def test_current_breadcrumb_segment_is_a_link(self, window):
+        """The current folder is a link too; its click refreshes, it never navigates."""
         window._file_panel._table._current_path = "sub/dir"
 
         window._file_panel._update_breadcrumb()
 
         text = window._file_panel._breadcrumb_label.text()
-        assert 'href="nav:sub/dir"' not in text
+        assert 'href="nav:sub/dir"' in text
         assert 'href="nav:sub"' in text
-        assert '<span style="color:' in text
+        assert "text-decoration:underline" in text
 
-    def test_single_segment_breadcrumb_has_no_link(self, window):
+    def test_single_segment_breadcrumb_is_a_link(self, window):
         from PySide6.QtCore import Qt
 
         window._file_panel._table._current_path = "dir"
@@ -1191,8 +1191,33 @@ class TestLinkStyling:
         window._file_panel._update_breadcrumb()
 
         label = window._file_panel._breadcrumb_label
-        assert "<a " not in label.text()
+        assert '<a href="nav:dir"' in label.text()
         assert label.cursor().shape() == Qt.CursorShape.ArrowCursor
+
+    def test_breadcrumb_click_on_current_folder_refreshes_without_navigating(
+        self, window, monkeypatch
+    ):
+        panel = window._file_panel
+        panel._table._current_path = "sub/dir"
+        refreshed: list[int] = []
+        monkeypatch.setattr(panel, "_check_directory_consistency", lambda: refreshed.append(1))
+        navigated: list[str] = []
+        monkeypatch.setattr(panel._table, "navigate_to", lambda path: navigated.append(path))
+
+        panel._on_breadcrumb_clicked("nav:sub/dir")
+
+        assert refreshed == [1]
+        assert navigated == []
+
+    def test_breadcrumb_click_on_an_ancestor_navigates(self, window, monkeypatch):
+        panel = window._file_panel
+        panel._table._current_path = "sub/dir"
+        navigated: list[str] = []
+        monkeypatch.setattr(panel._table, "navigate_to", lambda path: navigated.append(path))
+
+        panel._on_breadcrumb_clicked("nav:sub")
+
+        assert navigated == ["sub"]
 
     def test_root_icon_is_inert_at_root(self, window):
         from PySide6.QtCore import Qt

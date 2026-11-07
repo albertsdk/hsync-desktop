@@ -292,29 +292,32 @@ class FilePanel(QWidget):
         parts = []
         segments = current_folder.split("/")
         path_so_far = ""
-        for index, seg in enumerate(segments):
+        for seg in segments:
             path_so_far = f"{path_so_far}/{seg}" if path_so_far else seg
             safe_seg = html.escape(seg, quote=True)
-            if index == len(segments) - 1:
-                # The current folder is what the list already shows: plain
-                # text, never a link that would do nothing when clicked.
-                parts.append(f'<span style="color:{text_color};">{safe_seg}</span>')
-            else:
-                safe_path = html.escape(path_so_far, quote=True)
-                parts.append(
-                    f'<a href="nav:{safe_path}" '
-                    f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
-                )
+            safe_path = html.escape(path_so_far, quote=True)
+            # Every folder is a link, the current one included: a parent
+            # navigates up, the current folder refreshes its listing instead
+            # of performing a dead navigation (see ``_on_breadcrumb_clicked``).
+            parts.append(
+                f'<a href="nav:{safe_path}" '
+                f'style="color:{text_color}; text-decoration:underline;">{safe_seg}</a>'
+            )
         breadcrumb = _breadcrumb_separator().join(parts)
         self._breadcrumb_label.setText(breadcrumb)
-        # QLabel shows the hand over the links and the arrow over the plain
-        # current segment, so leave the cursor to it.
+        # QLabel shows the hand over every link; keep the widget cursor neutral.
         self._breadcrumb_label.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _on_breadcrumb_clicked(self, link: str) -> None:
-        if link.startswith("nav:"):
-            folder_path = link[4:]
-            self._table.navigate_to(folder_path)
+        if not link.startswith("nav:"):
+            return
+        folder_path = link[4:]
+        if folder_path == self._table.current_path:
+            # The list already shows this folder; navigating would do nothing.
+            # Re-scan it so the click refreshes on-disk changes instead.
+            self._check_directory_consistency()
+            return
+        self._table.navigate_to(folder_path)
 
     # ── Public API ────────────────────────────────────────────────────────
 

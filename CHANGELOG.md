@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and all locales use the same wording. Internal identifiers, wizard-draft
   fields and i18n keys follow the same terminology; a wizard draft saved by an
   older version is discarded (draft schema v3).
+- The file list breadcrumb now renders every folder as a clickable link: a
+  parent folder navigates to it, and the current folder refreshes its listing
+  on click instead of doing nothing.
 
 ### Fixed
 
