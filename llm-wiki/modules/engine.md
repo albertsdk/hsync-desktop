@@ -50,11 +50,12 @@ to gate controls at first paint.
 | ------ | -------- | ---- |
 | `HsyncEngine` | `hsync_desktop/engine/process.py::HsyncEngine` | `QObject` wrapper around the process |
 | `start` | `hsync_desktop/engine/process.py::HsyncEngine.start` | open pipes, write secrets, launch `QProcess`, attach notifier |
-| `request_stop` | `hsync_desktop/engine/process.py::HsyncEngine.request_stop` | user-facing, **non-blocking** stop: `SIGTERM` at once, `kill()` after the grace, `stop_timeout` if the child still never reports `finished`. The GUI never freezes on it |
-| `stop_and_wait` | `hsync_desktop/engine/process.py::HsyncEngine.stop_and_wait` | blocking stop for the callers that need the child gone first (quit, restart after an auth error, setup wizard): `SIGTERM`, `kill()` after 5 s, bounded wait |
+| `request_stop` | `hsync_desktop/engine/process.py::HsyncEngine.request_stop` | user-facing, **non-blocking** stop: `SIGTERM` to the **whole process tree** at once, `kill()` after the grace, `stop_timeout` if the child still never reports `finished`. The GUI never freezes on it |
+| `stop_and_wait` | `hsync_desktop/engine/process.py::HsyncEngine.stop_and_wait` | blocking stop for the callers that need the child gone first (quit, restart after an auth error, setup wizard): `SIGTERM` to the tree, `kill()` to the tree after 5 s, bounded wait |
 | `sync` / `preview` | `hsync_desktop/engine/process.py::HsyncEngine.sync` / `hsync_desktop/engine/process.py::HsyncEngine.preview` | trigger a cycle / dry-run via stdin command |
 | `set_sync_direction` / `set_bandwidth` | `hsync_desktop/engine/process.py::HsyncEngine.set_sync_direction` / `hsync_desktop/engine/process.py::HsyncEngine.set_bandwidth` | live runtime commands |
 | `_send_command` | `hsync_desktop/engine/process.py::HsyncEngine._send_command` | write a JSON command to the process stdin |
+| `_kill_process_tree` | `hsync_desktop/engine/process.py::HsyncEngine._kill_process_tree` | `SIGKILL` the QProcess child and every descendant (falls back to `QProcess.kill()` without a pid); used by the grace and safety timers and by `stop_and_wait` |
 | `_on_stdout` | `hsync_desktop/engine/process.py::HsyncEngine._on_stdout` | forward raw log lines (`log_received`) and harvest the run's last `ERROR`/`CRITICAL` messages with the shared grammar (`hsync_common.logger.LOG_LINE_RE`) into `_recent_errors` |
 | `_on_finished` / `_on_error` | `hsync_desktop/engine/process.py::HsyncEngine._on_finished` / `hsync_desktop/engine/process.py::HsyncEngine._on_error` | exit + QProcess error mapping; also clears the stop escalation timers. The `desc` passed to `process_finished` follows **operator intent** first: a run ended by `request_stop`/`stop_and_wait` reports `stopped` even when it exits `0` normally, and only an exit nobody asked for reports `normal`/`crashed` |
 | `_set_status` | `hsync_desktop/engine/process.py::HsyncEngine._set_status` | debounced `status_changed` emit |
@@ -66,11 +67,24 @@ State accessors: `is_running` (`hsync_desktop/engine/process.py::HsyncEngine.is_
 Stop escalation: `request_stop` (`hsync_desktop/engine/process.py::HsyncEngine.request_stop`) sends
 `SIGTERM` and returns immediately, so the window stays responsive; the client unwinds
 on `SIGTERM` like `Ctrl+C` (stops its servers, flushes and closes the log sinks), so a
-stop normally ends with a normal exit. `_stop_grace_timer` escalates to `kill()` and
-`_stop_safety_timer` (`hsync_desktop/engine/process.py::HsyncEngine._on_stop_safety_elapsed`)
+stop normally ends with a normal exit. The signal goes to the **whole process tree**
+(`_signal_process_tree`, `hsync_desktop/engine/process.py::_signal_process_tree`), not
+just the `QProcess` child: the bundled client is a PyInstaller one-file executable,
+whose bootloader is what `QProcess` tracks while the forked payload under it owns the
+instance lock, so a stop that touched only the bootloader would leave a live lock
+holder and the next Start would be refused with "already syncing". `_read_process_parents`
+(`hsync_desktop/engine/process.py::_read_process_parents`) reads the `pid → ppid` table
+(`/proc` here, `ps` elsewhere; Windows uses `taskkill /T` instead, see
+`_taskkill_tree`, `hsync_desktop/engine/process.py::_taskkill_tree`), and
+`list_process_descendants`
+(`hsync_desktop/engine/process.py::list_process_descendants`) returns the descendants
+deepest-first so a leaf shuts down before its parent. `_stop_grace_timer` escalates to
+`_kill_process_tree` and `_stop_safety_timer`
+(`hsync_desktop/engine/process.py::HsyncEngine._on_stop_safety_elapsed`)
 declares the run stopped and emits `stop_timeout`
 (`hsync_desktop/engine/process.py::HsyncEngine.stop_timeout`) when the child never reports
-`finished` — the only path that ends a run without it. `_on_finished` clears both
+`finished` — the only path that ends a run without it, and it repeats the tree kill so
+a straggler cannot keep the instance lock. `_on_finished` clears both
 timers; `stop_and_wait` is the blocking variant (same escalation, bounded wait).
 
 ## Secrets & event channel (pipe FDs, never argv)

@@ -18,6 +18,7 @@ import signal
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import ClassVar, cast
 from urllib.parse import urlparse
 
@@ -76,6 +77,130 @@ _RECENT_ERROR_LEVELS = ("ERROR", "CRITICAL")
 # never reports ``finished`` (see ``HsyncEngine.stop_timeout``).
 _STOP_GRACE_MS = 5000
 _STOP_SAFETY_MS = 3000
+
+
+def _read_process_parents() -> dict[int, int]:
+    """Return the current ``pid -> ppid`` table (best-effort).
+
+    Read from ``/proc`` on Linux; macOS/BSD have no ``/proc`` for other
+    processes, so ``ps -eo pid=,ppid=`` is the fallback. Windows returns an
+    empty table: there the tree is terminated atomically with ``taskkill /T``
+    (``_taskkill_tree``) instead of per-PID signalling.
+    """
+    table: dict[int, int] = {}
+    if os.name == "nt":
+        # Windows has no ``ps`` with this syntax; tree signalling stays off and
+        # the engine stops only the QProcess child, as before.
+        return table
+    proc_dir = Path("/proc")
+    if proc_dir.is_dir():
+        for entry in os.listdir(proc_dir):
+            if not entry.isdigit():
+                continue
+            try:
+                stat = (proc_dir / entry / "stat").read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            # ``stat`` is ``pid (comm) state ppid ...``; ``comm`` may contain
+            # spaces but never a closing paren, so everything after the last
+            # ``)`` is the positional fields from ``state`` onward.
+            try:
+                rest = stat[stat.rfind(")") + 2 :].split()
+                table[int(entry)] = int(rest[1])
+            except (ValueError, IndexError):
+                continue
+        return table
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["ps", "-eo", "pid=,ppid="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    for line in out.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            try:
+                table[int(parts[0])] = int(parts[1])
+            except ValueError:
+                continue
+    return table
+
+
+def list_process_descendants(pid: int) -> list[int]:
+    """Return the live descendants of *pid*, deepest first (``[]`` when none).
+
+    Bottom-up ordering lets a stop signal reach a leaf (the resource tracker
+    or a worker) before its parent, so the payload that owns the instance lock
+    shuts down cleanly before the bootloader waiting on it exits. ``pid``
+    itself is never included.
+    """
+    children: dict[int, list[int]] = {}
+    for child, parent in _read_process_parents().items():
+        children.setdefault(parent, []).append(child)
+    result: list[int] = []
+    seen: set[int] = {pid}
+    stack: list[tuple[int, bool]] = [(pid, False)]
+    while stack:
+        node, expanded = stack.pop()
+        if expanded:
+            if node != pid:
+                result.append(node)
+            continue
+        stack.append((node, True))
+        for child in children.get(node, ()):
+            if child not in seen:
+                seen.add(child)
+                stack.append((child, False))
+    return result
+
+
+def _signal_process_tree(pid: int, signum: int) -> None:
+    """Send *signum* to *pid* and every descendant, deepest first (best-effort).
+
+    The QProcess child of a PyInstaller one-file binary is the bootloader; the
+    real client (and the instance-lock holder) is a forked payload underneath
+    it, invisible to ``QProcess``. A stop that touches only the bootloader
+    leaves that payload running and the directory locked, so the next start is
+    refused. A per-PID ``os.kill`` failure (the process already exited) leaves
+    the rest of the tree untouched. Windows is handled by ``_taskkill_tree``.
+    """
+    for target in (*list_process_descendants(pid), pid):
+        try:
+            os.kill(target, signum)
+        except (OSError, ValueError):
+            pass
+
+
+def _taskkill_tree(pid: int, *, force: bool) -> None:
+    """End *pid* and its descendants with ``taskkill /T`` (Windows only).
+
+    ``taskkill`` walks the real process tree, so the PyInstaller payload that
+    owns the instance lock dies with the bootloader. ``force`` maps to ``/F``:
+    the graceful pass is best-effort (a console child may refuse it), the
+    escalation always forces. A non-zero exit (process already gone) is not an
+    error here. ``CREATE_NO_WINDOW`` keeps the tool's own console hidden.
+    """
+    import subprocess
+
+    cmd = ["taskkill", "/PID", str(pid), "/T"]
+    if force:
+        cmd.append("/F")
+    try:
+        subprocess.run(
+            cmd,
+            capture_output=True,
+            check=False,
+            timeout=5,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
 
 
 def write_secret_pipe(secret: str) -> int:
@@ -557,14 +682,14 @@ class HsyncEngine(QObject):
         return True
 
     def request_stop(self) -> None:
-        """Ask the running child to stop without blocking the caller.
+        """Ask the running child and its process tree to stop without blocking.
 
-        Sends SIGTERM (``terminate()`` on Windows) and returns immediately, so a
-        GUI action never freezes on the child. The grace timer escalates to
-        ``kill()`` if the child ignores it and, if the child still never reports
-        ``finished``, ``stop_timeout`` is emitted with the engine state reset.
-        Callers that must have the process gone before they continue use
-        ``stop_and_wait`` instead.
+        Sends SIGTERM to the whole tree (``terminate()`` on Windows) and returns
+        immediately, so a GUI action never freezes on the child. The grace timer
+        escalates to a tree-wide ``SIGKILL`` if the child ignores it and, if the
+        child still never reports ``finished``, ``stop_timeout`` is emitted with
+        the engine state reset. Callers that must have the process gone before
+        they continue use ``stop_and_wait`` instead.
         """
         if self._process is None or not self._running or self._stopping:
             return
@@ -587,30 +712,54 @@ class HsyncEngine(QObject):
         # caller is already blocked on the child.
         self._stop_grace_timer.stop()
         if not self._process.waitForFinished(_STOP_GRACE_MS):
-            self._process.kill()
+            self._kill_process_tree()
             self._process.waitForFinished(_STOP_SAFETY_MS)
         self._stop_safety_timer.stop()
 
     def _send_stop_signal(self) -> None:
-        """Ask the child to exit: SIGTERM on Unix, ``terminate()`` elsewhere."""
+        """Ask the child process tree to exit: SIGTERM (``taskkill /T`` on Windows)."""
         if self._process is None:
             return
         pid = self._process.processId()
-        if pid and hasattr(signal, "SIGTERM"):
-            try:
-                os.kill(pid, signal.SIGTERM)
-                return
-            except OSError:
-                pass
+        if not pid:
+            self._process.terminate()
+            return
+        if os.name == "nt":
+            _taskkill_tree(pid, force=False)
+            return
+        if hasattr(signal, "SIGTERM"):
+            _signal_process_tree(pid, signal.SIGTERM)
+            return
         self._process.terminate()
+
+    def _kill_process_tree(self) -> None:
+        """SIGKILL the QProcess child and every descendant; ``kill()`` as fallback.
+
+        The grace timer escalates here when SIGTERM was ignored; the safety
+        timer repeats it, because a descendant that survived the first pass
+        (e.g. one forked during the enumeration) would otherwise keep the
+        instance lock. On Windows this is ``taskkill /PID <pid> /T /F``.
+        """
+        if self._process is None:
+            return
+        pid = self._process.processId()
+        if not pid:
+            self._process.kill()
+            return
+        if os.name == "nt":
+            _taskkill_tree(pid, force=True)
+            return
+        if hasattr(signal, "SIGKILL"):
+            _signal_process_tree(pid, signal.SIGKILL)
+            return
+        self._process.kill()
 
     @Slot()
     def _on_stop_grace_elapsed(self) -> None:
-        """The child ignored SIGTERM: force it down and watch for the safety."""
+        """The child ignored SIGTERM: force the whole tree down and watch for the safety."""
         if not self._running:
             return
-        if self._process is not None:
-            self._process.kill()
+        self._kill_process_tree()
         self._stop_safety_timer.start()
 
     @Slot()
@@ -625,6 +774,10 @@ class HsyncEngine(QObject):
             return
         self._stop_grace_timer.stop()
         self._stop_safety_timer.stop()
+        # Final escalation: whatever descendant survived the grace-pass kill
+        # (or was forked meanwhile) must not keep the instance lock after the
+        # window lets the user start again.
+        self._kill_process_tree()
         self._close_events_channel()
         abandoned = self._process
         self._process = None

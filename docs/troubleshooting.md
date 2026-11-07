@@ -9,11 +9,41 @@ sync runs are explained in
 When the engine cannot start — or stops with a fatal error instead of syncing —
 the app shows an error dialog with the reason the engine reported and writes the
 same message to the log panel, instead of failing silently. One frequent reason is
-the folder's instance lock: another `hsync` process is already syncing the same
-folder (a terminal run, a scheduled job, an older process still running), and the
-engine refuses to work beside it. Stop that process, or choose another folder.
-Read the log line first; the labels it can contain are in
-[Log Labels](log-labels.md).
+the folder's instance lock: the engine refuses to work beside another live `hsync`
+process on the same folder, because two processes would corrupt each other's sync
+state. The message "Another hsync process is already syncing …" names that process
+(the pid in parentheses) and means it is *still running* — the lock is released as
+soon as that process exits.
+
+If the message appears right after you pressed Stop, the leftover is a process
+this app no longer tracks. The bundled engine is a self-extracting executable:
+a startup wrapper spawns the real engine underneath it, and an older build ended
+only the wrapper, orphaning the engine and the folder lock with it. Recent
+versions stop the whole process tree, so keep the app up to date. To unblock a
+stale run right away, quit the app, then end the leftover process — replace `PID`
+with the pid from the message:
+
+```bash
+kill PID
+```
+
+If the pid in the message no longer exists (the process died while you were
+looking at it), the lock freed itself — just start again. If the process refuses
+to exit within a few seconds, force it:
+
+```bash
+kill -9 PID
+```
+
+On Linux and macOS, to sweep every leftover engine in one go when several runs
+left one behind:
+
+```bash
+pkill -f 'hsync (server|p2p) -p '
+```
+
+On Windows, end the process from Task Manager → Details instead. Read the log
+line first; the labels it can contain are in [Log Labels](log-labels.md).
 
 Every line in the panel has the same shape —
 `<timestamp> - [<pid>] [<source>] LEVEL: message` — where `<source>` is the

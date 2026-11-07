@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.0-alpha.1]
 
 ### Added
 
@@ -49,3 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A finished transfer no longer reopens or stays frozen: a trailing progress
   sample cannot restart a row that already reached `Synced`, and a status
   refresh now resolves a row whose terminal event was lost.
+- Stopping a sync now ends the whole engine process tree: a bundled one-file
+  engine left its payload running (and the folder instance-locked), so the
+  next Start was refused with "Another hsync process is already syncing".

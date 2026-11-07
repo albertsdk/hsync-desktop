@@ -27,6 +27,23 @@ def _patch_all(monkeypatch, name: str, value) -> None:
             monkeypatch.setattr(module, name, value)
 
 
+def _patch_settings_qsettings(monkeypatch, settings) -> None:
+    """Isolate QSettings in every ``hsync_desktop.settings`` submodule.
+
+    The settings UI opens ``QSettings(SETTINGS_ORG, SETTINGS_APP)`` directly;
+    without isolation a host's saved values (e.g. ``p2p/rendezvous_transport``)
+    leak into the dialog tests and make them depend on the machine they run on.
+    """
+    import pkgutil
+
+    import hsync_desktop.settings as settings_pkg
+
+    for info in pkgutil.iter_modules(settings_pkg.__path__):
+        module = importlib.import_module(f"{settings_pkg.__name__}.{info.name}")
+        if hasattr(module, "QSettings"):
+            monkeypatch.setattr(module, "QSettings", lambda *a, **k: settings)
+
+
 def _settings(tmp_path) -> QSettings:
     s = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
     s.setValue("p2p/enabled", True)

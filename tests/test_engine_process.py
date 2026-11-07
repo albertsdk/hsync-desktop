@@ -4,6 +4,8 @@
 """Tests for hsync_desktop.engine module."""
 
 import os
+import signal
+import subprocess
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
@@ -34,7 +36,13 @@ from hsync_desktop.engine import (
     supports_peer_trust,
     write_secret_pipe,
 )
-from hsync_desktop.engine.process import _STOP_GRACE_MS, _STOP_SAFETY_MS
+from hsync_desktop.engine import process as process_module
+from hsync_desktop.engine.process import (
+    _STOP_GRACE_MS,
+    _STOP_SAFETY_MS,
+    _signal_process_tree,
+    list_process_descendants,
+)
 from tests._helpers import _capture, _FakeCompleted
 
 
@@ -999,6 +1007,165 @@ class _FakeProcess:
         return self._finishes
 
 
+class TestProcessTreeSignalling:
+    """Stop escalation must reach the whole process tree, not just the QProcess child.
+
+    A PyInstaller one-file client is a bootloader whose forked payload owns the
+    instance lock; signalling only the bootloader would orphan a live lock
+    holder and make the next start fail with "already syncing".
+    """
+
+    @staticmethod
+    def _parent_table() -> dict[int, int]:
+        # 1 -> 2, 3 ; 2 -> 4 ; 4 -> 5 ; plus an unrelated subtree 7 -> 8
+        return {2: 1, 3: 1, 4: 2, 5: 4, 8: 7}
+
+    def test_descendants_are_deepest_first_and_exclude_the_root(self, monkeypatch):
+        monkeypatch.setattr(process_module, "_read_process_parents", self._parent_table)
+
+        result = list_process_descendants(1)
+
+        assert set(result) == {2, 3, 4, 5}
+        assert 1 not in result
+        positions = {pid: i for i, pid in enumerate(result)}
+        for parent, child in ((2, 4), (4, 5)):
+            assert positions[child] < positions[parent]
+
+    def test_descendants_ignore_unrelated_processes(self, monkeypatch):
+        monkeypatch.setattr(process_module, "_read_process_parents", self._parent_table)
+
+        assert list_process_descendants(7) == [8]
+        assert list_process_descendants(99) == []
+        assert list_process_descendants(5) == []
+
+    def test_parent_table_is_empty_on_windows(self, monkeypatch):
+        monkeypatch.setattr(process_module.os, "name", "nt")
+
+        assert process_module._read_process_parents() == {}
+
+    def test_signal_tree_reaches_leaves_first_and_skips_missing_pids(self, monkeypatch):
+        killed: list[int] = []
+        monkeypatch.setattr(process_module, "_read_process_parents", self._parent_table)
+
+        def fake_kill(target: int, signum: int) -> None:
+            if target == 4:  # already exited mid-escalation
+                raise ProcessLookupError
+            killed.append(target)
+
+        monkeypatch.setattr(process_module.os, "kill", fake_kill)
+
+        _signal_process_tree(1, signal.SIGTERM)
+
+        assert 4 not in killed
+        assert set(killed) == {1, 2, 3, 5}
+        positions = {pid: i for i, pid in enumerate(killed)}
+        for parent, child in ((1, 2), (1, 3), (2, 5)):
+            assert positions[child] < positions[parent]
+
+    def test_send_stop_signal_covers_the_child_and_its_tree(self, monkeypatch):
+        fake = _FakeProcess(pid=4242)
+        engine = HsyncEngine()
+        engine._process = fake
+        signalled: list[tuple[int, int]] = []
+        monkeypatch.setattr(
+            process_module,
+            "_signal_process_tree",
+            lambda pid, signum: signalled.append((pid, signum)),
+        )
+
+        engine._send_stop_signal()
+
+        assert signalled == [(4242, signal.SIGTERM)]
+        assert fake.terminated == 0
+
+    def test_send_stop_signal_falls_back_to_terminate_without_a_pid(self, monkeypatch):
+        fake = _FakeProcess(pid=0)
+        engine = HsyncEngine()
+        engine._process = fake
+        monkeypatch.setattr(
+            process_module,
+            "_signal_process_tree",
+            lambda pid, signum: pytest.fail("tree kill attempted without a pid"),
+        )
+
+        engine._send_stop_signal()
+
+        assert fake.terminated == 1
+
+    def test_kill_process_tree_signals_the_child_and_its_descendants(self, monkeypatch):
+        fake = _FakeProcess(pid=4242)
+        engine = HsyncEngine()
+        engine._process = fake
+        signalled: list[tuple[int, int]] = []
+        monkeypatch.setattr(
+            process_module,
+            "_signal_process_tree",
+            lambda pid, signum: signalled.append((pid, signum)),
+        )
+
+        engine._kill_process_tree()
+
+        assert signalled == [(4242, signal.SIGKILL)]
+        assert fake.killed == 0  # the OS-level kill replaces QProcess.kill()
+
+    def test_kill_process_tree_falls_back_to_kill_without_a_pid(self):
+        fake = _FakeProcess(pid=0)
+        engine = HsyncEngine()
+        engine._process = fake
+
+        engine._kill_process_tree()
+
+        assert fake.killed == 1
+
+    def test_send_stop_signal_uses_taskkill_on_windows(self, monkeypatch):
+        fake = _FakeProcess(pid=4242)
+        engine = HsyncEngine()
+        engine._process = fake
+        calls: list[tuple[int, bool]] = []
+        monkeypatch.setattr(
+            process_module,
+            "_taskkill_tree",
+            lambda pid, force: calls.append((pid, force)),
+        )
+        monkeypatch.setattr(process_module.os, "name", "nt")
+
+        engine._send_stop_signal()
+
+        assert calls == [(4242, False)]
+
+    def test_kill_process_tree_forces_taskkill_on_windows(self, monkeypatch):
+        fake = _FakeProcess(pid=4242)
+        engine = HsyncEngine()
+        engine._process = fake
+        calls: list[tuple[int, bool]] = []
+        monkeypatch.setattr(
+            process_module,
+            "_taskkill_tree",
+            lambda pid, force: calls.append((pid, force)),
+        )
+        monkeypatch.setattr(process_module.os, "name", "nt")
+
+        engine._kill_process_tree()
+
+        assert calls == [(4242, True)]
+
+    def test_taskkill_tree_builds_the_command(self, monkeypatch):
+        run_calls: list[list[str]] = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda cmd, *a, **k: run_calls.append(list(cmd)),
+        )
+
+        process_module._taskkill_tree(4242, force=False)
+        process_module._taskkill_tree(4242, force=True)
+
+        assert run_calls == [
+            ["taskkill", "/PID", "4242", "/T"],
+            ["taskkill", "/PID", "4242", "/T", "/F"],
+        ]
+
+
 class TestStopEscalation:
     """``request_stop`` never blocks; the timers escalate and settle the run."""
 
@@ -1033,20 +1200,25 @@ class TestStopEscalation:
 
         assert signaled == [1]
 
-    def test_grace_elapsed_kills_and_arms_the_safety(self):
+    def test_grace_elapsed_kills_and_arms_the_safety(self, monkeypatch):
         fake = _FakeProcess()
         engine = self._engine_with(fake)
         engine._stopping = True
+        killed: list[int] = []
+        monkeypatch.setattr(engine, "_kill_process_tree", lambda: killed.append(1))
 
         engine._on_stop_grace_elapsed()
 
-        assert fake.killed == 1
+        assert killed == [1]
         assert engine._stop_safety_timer.isActive()
 
-    def test_safety_elapsed_declares_the_run_stopped(self):
+    def test_safety_elapsed_declares_the_run_stopped(self, monkeypatch):
         fake = _FakeProcess()
         engine = self._engine_with(fake)
         engine._stopping = True
+        # The safety path ends the run with a final tree kill: a unit test must
+        # never signal a real pid.
+        monkeypatch.setattr(process_module, "_signal_process_tree", lambda pid, signum: None)
         timed_out = _capture(engine.stop_timeout)
 
         engine._on_stop_safety_elapsed()
@@ -1076,10 +1248,12 @@ class TestStopEscalation:
         fake = _FakeProcess(finishes=False)
         engine = self._engine_with(fake)
         monkeypatch.setattr(engine, "_send_stop_signal", lambda: None)
+        killed: list[int] = []
+        monkeypatch.setattr(engine, "_kill_process_tree", lambda: killed.append(1))
 
         engine.stop_and_wait()
 
-        assert fake.killed == 1
+        assert killed == [1]
         assert fake.wait_calls == [_STOP_GRACE_MS, _STOP_SAFETY_MS]
 
     def test_stop_and_wait_returns_once_the_child_exits(self, monkeypatch):

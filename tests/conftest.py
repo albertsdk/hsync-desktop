@@ -13,14 +13,19 @@ from collections.abc import Generator
 
 import pytest
 
-from tests._helpers import _patch_all, _settings
+from tests._helpers import _patch_all, _patch_settings_qsettings, _settings
 
 
 @pytest.fixture
-def dialog(qtbot):
-    """A SettingsDialog registered with qtbot."""
+def dialog(qtbot, monkeypatch, settings):
+    """A SettingsDialog with isolated QSettings, registered with qtbot.
+
+    Without isolation a host's saved values (e.g. ``p2p/rendezvous_transport``)
+    would make the dialog tests depend on the machine they run on.
+    """
     from hsync_desktop.settings import SettingsDialog
 
+    _patch_settings_qsettings(monkeypatch, settings)
     dlg = SettingsDialog()
     qtbot.addWidget(dlg)
     return dlg
@@ -39,12 +44,10 @@ def window(qtbot, monkeypatch, settings):
     from hsync_desktop.main_window import MainWindow
 
     _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
-    # Settings readers that live in settings/cli_args (e.g. is_simulation_mode,
-    # build_hsync_args) open their own QSettings: isolate those too, or a host
-    # setting would leak into the test expectations.
-    import hsync_desktop.settings.cli_args as cli_args_module
-
-    monkeypatch.setattr(cli_args_module, "QSettings", lambda *a, **k: settings)
+    # The window's own settings readers (settings/cli_args, dialog, ...) open
+    # their own QSettings: isolate those too, or a host setting would leak
+    # into the test expectations.
+    _patch_settings_qsettings(monkeypatch, settings)
     _patch_all(monkeypatch, "find_hsync_binary", lambda: "/fake/hsync")
     engine = HsyncEngine(binary_path="/fake/hsync")
     win = MainWindow(engine)
