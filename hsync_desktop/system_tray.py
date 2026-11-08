@@ -5,7 +5,7 @@
 System tray integration for HSYNC Desktop.
 
 Provides a tray icon with context menu for quick access to
-Show/Hide, Start/Stop, Check for changes, Settings and Quit.
+Show/Hide, Start/Stop, Preview changes, Settings and Quit.
 """
 
 from __future__ import annotations
@@ -55,7 +55,6 @@ class SystemTray(QSystemTrayIcon):
     start_requested = Signal()
     preview_changes_requested = Signal()
     stop_requested = Signal()
-    check_changes_requested = Signal()
     settings_requested = Signal()
     wizard_requested = Signal()
     quit_requested = Signal()
@@ -97,12 +96,6 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.triggered.connect(self.stop_requested.emit)
         self._act_stop.setEnabled(False)
         menu.addAction(self._act_stop)
-
-        self._act_check_changes = QAction(tr("tray.check_changes"), menu)
-        self._act_check_changes.setToolTip(tr("tip.check_changes"))
-        self._act_check_changes.triggered.connect(self.check_changes_requested.emit)
-        self._act_check_changes.setEnabled(False)
-        menu.addAction(self._act_check_changes)
 
         menu.addSeparator()
         self._act_settings = QAction(tr("tray.settings"), menu)
@@ -160,18 +153,26 @@ class SystemTray(QSystemTrayIcon):
         self.setToolTip(text)
 
     def set_running(self, running: bool) -> None:
-        """Update the run actions; the check entry is set by the window.
+        """Update the run actions; the comparison entry is set by the window.
 
-        ``set_check_changes_enabled`` carries the window's own rule (a comparison
-        in flight disables it), so this method must not re-enable it on its own.
+        ``set_preview_changes_enabled`` carries the window's own rule (a
+        comparison in flight disables it), so this method must not touch it: the
+        comparison answers while a sync runs too.
         """
         self._act_start.setEnabled(not running)
-        self._act_preview_changes.setEnabled(not running)
         self._act_stop.setEnabled(running)
 
-    def set_check_changes_enabled(self, enabled: bool) -> None:
+    def set_preview_changes_enabled(self, enabled: bool) -> None:
         """Mirror the window's "can compare now" rule for the tray entry."""
-        self._act_check_changes.setEnabled(enabled)
+        self._act_preview_changes.setEnabled(enabled)
+
+    def set_preview_changes_tooltip(self, text: str) -> None:
+        """Show the window's state-dependent wording on the comparison entry.
+
+        The entry means the same in both engine states, but *how* it answers
+        changes with the state, and only the window knows which one holds.
+        """
+        self._act_preview_changes.setToolTip(text)
 
     def set_stopping(self) -> None:
         """Disable the run actions while a stop is in flight.
@@ -182,7 +183,6 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.setEnabled(False)
         self._act_preview_changes.setEnabled(False)
         self._act_stop.setEnabled(False)
-        self._act_check_changes.setEnabled(False)
 
     def set_window_visible(self, visible: bool) -> None:
         """Update the Show/Minimize action text based on window visibility."""
@@ -190,13 +190,12 @@ class SystemTray(QSystemTrayIcon):
         self._act_show.setText(tr("tray.minimize") if visible else tr("tray.show"))
 
     def set_start_enabled(self, enabled: bool) -> None:
-        """Enable or disable the start-or-preview entries in the tray menu.
+        """Enable or disable the Start entry in the tray menu.
 
-        Preview changes shares Start's rule (both need a stopped engine and a
-        configured folder), so one call keeps them from drifting apart.
+        The comparison entry has its own rule (it answers while a sync runs too),
+        set by ``set_preview_changes_enabled``.
         """
         self._act_start.setEnabled(enabled)
-        self._act_preview_changes.setEnabled(enabled)
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to menu items."""
@@ -204,10 +203,10 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.setText(tr("tray.start"))
         self._act_start.setToolTip(tr("tip.start"))
         self._act_preview_changes.setText(tr("tray.preview_changes"))
+        # Default wording only: the window overwrites it with the state-dependent
+        # text (``set_preview_changes_tooltip``).
         self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_stop.setText(tr("tray.stop"))
-        self._act_check_changes.setText(tr("tray.check_changes"))
-        self._act_check_changes.setToolTip(tr("tip.check_changes"))
         self._act_settings.setText(tr("tray.settings"))
         self._act_setup_wizard.setText(tr("tray.setup_wizard"))
         self._act_quit.setText(tr("tray.quit"))

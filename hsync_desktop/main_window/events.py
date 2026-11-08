@@ -165,9 +165,9 @@ class EventsMixin:
         # The role text appears only once connected (icon is always shown in p2p).
         self._connected = status == "connected"
         self._apply_role_visibility()
-        # The check action explains itself: "compare now" once linked, "waiting
-        # for a connection" (or the last check time) otherwise.
-        self._update_check_changes_tooltip()
+        # The comparison action explains itself: "compare now" once linked, the
+        # state-dependent wording (or the last check time) otherwise.
+        self._update_preview_changes_tooltip()
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
@@ -265,7 +265,16 @@ class EventsMixin:
         else:
             text = tr(f"sync.state.{state}")
         label.setText(text)
-        label.setToolTip(self._sync_state_tooltip())
+        # The bar is also the comparison's entry point: a state that names pending
+        # work invites the click that shows the plan (see ``eventFilter``).
+        clickable = state in ("pending", "pending_other") and self._can_preview_changes()
+        label.setCursor(
+            Qt.CursorShape.PointingHandCursor if clickable else Qt.CursorShape.ArrowCursor
+        )
+        tooltip = self._sync_state_tooltip()
+        if clickable:
+            tooltip = f"{tooltip}\n{tr('tip.sync_state_click')}"
+        label.setToolTip(tooltip)
 
     def _sync_state_tooltip(self) -> str:
         """Explain the state, with one line per device on a serving pass.

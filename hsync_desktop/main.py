@@ -207,7 +207,6 @@ def main(argv: list[str] | None = None) -> int:
     tray.start_requested.connect(window._on_start)
     tray.preview_changes_requested.connect(window._on_preview_changes)
     tray.stop_requested.connect(window._on_stop)
-    tray.check_changes_requested.connect(window._on_check_changes)
     tray.settings_requested.connect(window._open_settings)
     tray.wizard_requested.connect(window._open_setup_wizard)
     tray.quit_requested.connect(window._quit)
@@ -219,6 +218,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     window._notifier.enabled = are_notifications_enabled()
     window._notifier.categories = get_enabled_notification_categories()
+    # The window built its actions with no tray attached, so its enablement rules
+    # never reached the tray menu: hand the real state over now, or the tray
+    # advertises entries the window would refuse.
+    window._update_menu_state()
 
     # Ctrl+C must shut down cleanly rather than interrupt a random slot.
     _install_sigint_handler(window)

@@ -358,11 +358,10 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "HSYNC サーバーのホスト名、IP、または host:port。https:// とポート 9753 は省略できます。p2p のみの場合は空欄にします。",
     "tip.share_size": "このデバイスの共有フォルダーが使用する容量と、共有の合計サイズ（リモートサーバー上のファイル + 未アップロードのローカルファイル）。",
-    "tip.check_changes": "フォルダーを他のデバイスと比較し、保留中の変更を一覧表示して、ファイル一覧と同期状態を更新します（F5）。",
-    "tip.check_changes_waiting": "同期が実行中でデバイスに接続できると、自動でチェックします。F5 で不足している内容を確認できます。",
-    "tip.check_changes_last": "最終チェック: {time}",
-    "tip.preview_changes": "同期をプレビューとして実行します。プランを表示し、「今すぐ同期」を選ぶまで何も適用しません。同期が停止しているときのみ利用できます。",
-    "tip.check_changes_preview_hint": "同期を開始する前にプランを確認するには、「同期 → 変更をプレビュー」を使用します。",
+    "tip.compare_waiting": "同期が実行中でデバイスに接続できると、自動でチェックします。F5 で不足している内容を確認できます。",
+    "tip.compare_last": "最終チェック: {time}",
+    "tip.preview_changes": "同期で行われる内容を表示します。同期が停止しているときはプレビューとして実行し、「今すぐ同期」を選ぶまで適用しません。同期中はフォルダーを他のデバイスと比較します（F5）。",
+    "tip.sync_state_click": "保留中の変更の計画を表示するにはクリックします。",
     "tip.sync_state": "共有フォルダーが他のデバイスと一致しているかを示します。比較対象なし、確認中、すべて同期済み、または未転送の変更です。複数のデバイスがある場合、状態は最も遅れているデバイスのものとなり、以下の行に各デバイスの保留中の変更が表示されます。",
     "tip.api_key": "サーバー認証用の API キー",
     "tip.insecure": "サーバー証明書を検証しません（安全性が低下）。",
@@ -448,7 +447,6 @@ translations: dict[str, str] = {
     "tray.start": "開始",
     "tray.preview_changes": "変更をプレビュー",
     "tray.stop": "停止",
-    "tray.check_changes": "変更を確認",
     "tray.settings": "設定…",
     "tray.quit": "終了",
     # Notifications
@@ -510,7 +508,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} が両側で変更されました。リモートバージョンが保持され、ローカルバージョンは {conflict_copy} として保存されました。",
     # Preview
     "preview.no_actions": "実行する操作はありません — すべて同期済みです。",
-    "check_changes.no_devices": "接続できる他のデバイスがないため、まだ比較する内容はありません。デバイスが参加すると自動でチェックします。",
+    "compare.no_devices": "接続できる他のデバイスがないため、まだ比較する内容はありません。デバイスが参加すると自動でチェックします。",
     "preview.simulation_no_changes": "シミュレーションモード：変更は適用されていません。実際に実行するには「設定 → 同期」でオフにしてください。",
     # Disclaimer
     "disclaimer.title": "免責事項",
@@ -636,7 +634,6 @@ translations: dict[str, str] = {
     "menu.sync.start": "開始",
     "menu.sync.preview": "変更をプレビュー",
     "menu.sync.stop": "停止",
-    "menu.sync.check_changes": "変更を確認",
     "menu.sync.direction": "同期の種類",
     "menu.sync.direction.bidirectional": "整合を保つ",
     "menu.sync.direction.upload_only": "送信のみ",

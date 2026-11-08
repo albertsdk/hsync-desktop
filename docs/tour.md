@@ -10,8 +10,8 @@ using the app — it is here to answer "what is that icon?".
 
 <img src="assets/screens/03-menu-bar.png" alt="The menu bar: Sync, File, Settings, Setup wizard, Help" width="720">
 
-- **Sync** — start and stop a sync, preview the changes a sync would apply
-  without starting one, check for changes, choose the sync direction.
+- **Sync** — start and stop a sync, preview the changes a sync would apply (also
+  while one runs), choose the sync direction.
 - **File** — actions on the file or folder you selected (open, copy, rename,
   send/receive now, …).
 - **Settings** — the configuration dialog; see the
@@ -31,11 +31,11 @@ The three buttons on the left are the everyday controls:
 | ------ | ------------ |
 | ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. To see that plan without starting a sync, use **Sync → Preview changes**. |
 | ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
-| 🔄 **Check for changes** | Re-compares your folder with the other devices and updates the list. It is disabled while a comparison runs; before a connection exists it explains that the check starts on its own. |
+| 🔄 **Preview changes** | Shows what a sync would do: it compares your folder with the other devices and updates the list, whether or not a sync is running. While a comparison runs it is disabled; before a connection exists it explains that the comparison starts on its own. |
 
-The check compares inside the running sync, because the plan is computed against
-the other devices over the connection. To see a plan while no sync is running,
-use **Sync → Preview changes** (`Ctrl+Shift+P`).
+**Preview changes** is the one way to ask *what would be synced?* With the sync
+stopped it runs a preview and offers **Sync now**; with the sync running it compares
+over the live connection. `F5` and `Ctrl+Shift+P` both reach it.
 
 ## The path bar
 
@@ -101,7 +101,7 @@ labels.
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: Show, Start, Preview changes, Stop, Check for changes, Settings, Setup wizard and Quit" width="200">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: Show, Start, Preview changes, Stop, Settings, Setup wizard and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
 the system-tray icon. Use the tray menu to bring the window back (**Show**) or to

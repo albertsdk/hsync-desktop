@@ -358,11 +358,10 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Nazwa hosta, adres IP lub host:port serwera HSYNC; https:// i port 9753 są domyślne. Pozostaw puste, aby używać tylko p2p.",
     "tip.share_size": "Miejsce zajmowane przez udostępniony folder na tym urządzeniu i łączny rozmiar udostępnienia (pliki na zdalnym serwerze + lokalne pliki jeszcze nieprzesłane).",
-    "tip.check_changes": "Porównuje folder z innymi urządzeniami: pokazuje oczekujące zmiany i odświeża listę plików oraz stan synchronizacji (F5).",
-    "tip.check_changes_waiting": "Sprawdzanie rozpoczyna się automatycznie, gdy synchronizacja działa i urządzenie jest osiągalne. Naciśnij F5, aby zobaczyć, czego brakuje.",
-    "tip.check_changes_last": "Ostatnie sprawdzenie: {time}",
-    "tip.preview_changes": "Uruchamia synchronizację w podglądzie: plan jest wyświetlany, a nic nie zostaje zastosowane, dopóki nie wybierzesz „Synchronizuj teraz”. Dostępne, gdy synchronizacja nie działa.",
-    "tip.check_changes_preview_hint": "Aby zobaczyć plan przed rozpoczęciem synchronizacji, użyj Synchronizacja → Podgląd zmian.",
+    "tip.compare_waiting": "Sprawdzanie rozpoczyna się automatycznie, gdy synchronizacja działa i urządzenie jest osiągalne. Naciśnij F5, aby zobaczyć, czego brakuje.",
+    "tip.compare_last": "Ostatnie sprawdzenie: {time}",
+    "tip.preview_changes": "Pokazuje, co zrobiłaby synchronizacja: przy zatrzymanej synchronizacji uruchamia podgląd i stosuje plan tylko po wybraniu „Synchronizuj teraz”; przy działającej porównuje folder z innymi urządzeniami (F5).",
+    "tip.sync_state_click": "Kliknij, aby zobaczyć plan oczekujących zmian.",
     "tip.sync_state": "Wskazuje, czy udostępniony folder jest zgodny z innymi urządzeniami: brak urządzenia do porównania, sprawdzanie, wszystko zsynchronizowane albo zmiany do przesłania. Przy wielu urządzeniach stan dotyczy urządzenia najbardziej opóźnionego, a poniższe wiersze pokazują oczekujące zmiany każdego z nich.",
     "tip.api_key": "Klucz API do uwierzytelniania na serwerze",
     "tip.insecure": "Nie weryfikuj certyfikatu serwera (mniej bezpieczne).",
@@ -448,7 +447,6 @@ translations: dict[str, str] = {
     "tray.start": "Uruchom",
     "tray.preview_changes": "Podgląd zmian",
     "tray.stop": "Zatrzymaj",
-    "tray.check_changes": "Sprawdź zmiany",
     "tray.settings": "Ustawienia…",
     "tray.quit": "Zakończ",
     # Notifications
@@ -510,7 +508,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} został zmodyfikowany po obu stronach. Zachowano wersję zdalną; Twoja wersja lokalna została zapisana jako {conflict_copy}.",
     # Preview
     "preview.no_actions": "Brak działań do wykonania — wszystko jest zsynchronizowane.",
-    "check_changes.no_devices": "Żadne inne urządzenie nie jest osiągalne, więc nie ma jeszcze czego porównywać. Sprawdzanie uruchomi się automatycznie, gdy dołączy urządzenie.",
+    "compare.no_devices": "Żadne inne urządzenie nie jest osiągalne, więc nie ma jeszcze czego porównywać. Sprawdzanie uruchomi się automatycznie, gdy dołączy urządzenie.",
     "preview.simulation_no_changes": "Tryb symulacji: nie zastosowano żadnych zmian. Wyłącz go w Ustawienia → Synchronizacja, aby wykonać naprawdę.",
     # Disclaimer
     "disclaimer.title": "Zastrzeżenie",
@@ -636,7 +634,6 @@ translations: dict[str, str] = {
     "menu.sync.start": "Uruchom",
     "menu.sync.preview": "Podgląd zmian",
     "menu.sync.stop": "Zatrzymaj",
-    "menu.sync.check_changes": "Sprawdź zmiany",
     "menu.sync.direction": "Typ synchronizacji",
     "menu.sync.direction.bidirectional": "Utrzymuj zgodność",
     "menu.sync.direction.upload_only": "Tylko wysyłanie",

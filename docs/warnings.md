@@ -61,6 +61,9 @@ behind**, so `All files in sync` means every device is aligned. Its tooltip list
 each device with what it still has to receive (`↓`) or send (`↑`), and its file
 list shows `Synced · 2/3` for a file that only some devices have.
 
+While it reports pending work the text is clickable: the click opens
+[Preview changes](sync-basics.md#preview-changes), the plan behind those counts.
+
 ## Warnings during a sync
 
 A **warning** is something the sync keeps running through, for example:
@@ -127,7 +130,7 @@ what to do:
   nothing is applied and the app says so (under **Synchronisation events** in
   *Settings → General → Notifications*). Open the window and use
   **Preview changes** or **Start** to review that plan and confirm it. See
-  [Preview changes without starting a sync](sync-basics.md#preview-changes-without-starting-a-sync).
+  [Preview changes](sync-basics.md#preview-changes).
 
 ## Trust prompts while running
 

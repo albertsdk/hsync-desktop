@@ -62,12 +62,12 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="btnCheckChanges">
+       <widget class="QPushButton" name="btnPreviewChanges">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Check for changes</string>
+         <string>Preview changes</string>
         </property>
        </widget>
       </item>

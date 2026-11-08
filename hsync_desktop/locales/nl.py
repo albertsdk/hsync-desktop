@@ -358,11 +358,10 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Hostnaam, IP of host:poort van de HSYNC-server; https:// en poort 9753 zijn impliciet. Laat leeg voor alleen p2p.",
     "tip.share_size": "Ruimte van de gedeelde map op dit apparaat en de totale grootte van de share (bestanden op de externe server + nog niet geüploade lokale bestanden).",
-    "tip.check_changes": "Vergelijkt de map met de andere apparaten: toont de nog openstaande wijzigingen en werkt de bestandenlijst en de synchronisatiestatus bij (F5).",
-    "tip.check_changes_waiting": "De controle start automatisch zodra de synchronisatie loopt en een apparaat bereikbaar is. Druk op F5 om te zien wat er nog ontbreekt.",
-    "tip.check_changes_last": "Laatste controle: {time}",
-    "tip.preview_changes": "Voert een synchronisatie als voorbeeld uit: het plan verschijnt en er wordt niets toegepast tot u 'Nu synchroniseren' kiest. Beschikbaar als er geen synchronisatie loopt.",
-    "tip.check_changes_preview_hint": "Gebruik Synchronisatie → Wijzigingen bekijken om het plan te zien voordat u een synchronisatie start.",
+    "tip.compare_waiting": "De controle start automatisch zodra de synchronisatie loopt en een apparaat bereikbaar is. Druk op F5 om te zien wat er nog ontbreekt.",
+    "tip.compare_last": "Laatste controle: {time}",
+    "tip.preview_changes": "Toont wat een synchronisatie zou doen: gestopt voert het een voorbeeld uit en past het plan pas toe als u 'Nu synchroniseren' kiest; actief vergelijkt het de map met de andere apparaten (F5).",
+    "tip.sync_state_click": "Klik om het plan van de openstaande wijzigingen te zien.",
     "tip.sync_state": "Geeft aan of de gedeelde map overeenkomt met de andere apparaten: niets om te vergelijken, bezig met controleren, alles gesynchroniseerd of de nog te verzenden wijzigingen. Bij meerdere apparaten geldt het apparaat dat het verst achterloopt en de regels hieronder tonen de openstaande wijzigingen per apparaat.",
     "tip.api_key": "API-sleutel voor serverauthenticatie",
     "tip.insecure": "Het servercertificaat niet verifiëren (minder veilig).",
@@ -448,7 +447,6 @@ translations: dict[str, str] = {
     "tray.start": "Starten",
     "tray.preview_changes": "Wijzigingen bekijken",
     "tray.stop": "Stoppen",
-    "tray.check_changes": "Wijzigingen controleren",
     "tray.settings": "Instellingen…",
     "tray.quit": "Afsluiten",
     # Notifications
@@ -510,7 +508,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} is aan beide zijden gewijzigd. De externe versie is behouden; uw lokale versie is opgeslagen als {conflict_copy}.",
     # Preview
     "preview.no_actions": "Geen acties uit te voeren — alles is gesynchroniseerd.",
-    "check_changes.no_devices": "Er is geen ander apparaat bereikbaar, dus er valt nog niets te vergelijken. De controle start automatisch zodra er een apparaat bijkomt.",
+    "compare.no_devices": "Er is geen ander apparaat bereikbaar, dus er valt nog niets te vergelijken. De controle start automatisch zodra er een apparaat bijkomt.",
     "preview.simulation_no_changes": "Simulatiemodus: er is niets toegepast. Schakel hem uit in Instellingen → Synchronisatie om echt uit te voeren.",
     # Disclaimer
     "disclaimer.title": "Vrijwaring",
@@ -636,7 +634,6 @@ translations: dict[str, str] = {
     "menu.sync.start": "Starten",
     "menu.sync.preview": "Wijzigingen bekijken",
     "menu.sync.stop": "Stoppen",
-    "menu.sync.check_changes": "Wijzigingen controleren",
     "menu.sync.direction": "Synchronisatietype",
     "menu.sync.direction.bidirectional": "Uitgelijnd houden",
     "menu.sync.direction.upload_only": "Alleen verzenden",

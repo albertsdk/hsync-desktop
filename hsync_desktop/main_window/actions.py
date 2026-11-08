@@ -267,8 +267,9 @@ class ActionsMixin:
         if self._tray:
             self._tray.set_running(True)
         self._apply_button_styles()
-        # ``_update_menu_state`` derives the check action from ``_can_check_changes``
-        # (single rule for button, F5 menu action and tray): never enable it here.
+        # ``_update_menu_state`` derives the comparison action from
+        # ``_can_preview_changes`` (single rule for button, menu action and tray):
+        # never enable it here.
         self._update_menu_state()
 
     def _prepare_engine_run(
@@ -663,7 +664,7 @@ class ActionsMixin:
             # answered: a lone device has nothing to compare yet, and saying
             # "everything is in sync" would claim an answer that never came.
             message = (
-                tr("check_changes.no_devices")
+                tr("compare.no_devices")
                 if not selection and self._sync_state[0] == "no_devices"
                 else tr("preview.no_actions")
             )

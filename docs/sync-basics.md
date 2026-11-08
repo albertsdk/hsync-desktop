@@ -64,11 +64,14 @@ shows a **Deletions kept** badge for as long as the policy is active. Click the
 badge (or open Settings) to switch to **Apply deletions**; the change is confirmed
 first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 
-## Preview changes without starting a sync
+## Preview changes
 
-To see what a sync would do without committing to one, choose **Menu bar →
-Sync → Preview changes** (`Ctrl+Shift+P`, or the same entry in the tray menu)
-while no sync is running:
+**Preview changes** is the app's one way to ask *what would be synced?* It answers
+whether or not a sync is running: **F5**, `Ctrl+Shift+P`, the refresh button in the
+action bar, `Sync → Preview changes` in the menu bar, the tray entry, or a click on
+the pending-changes text in the status bar.
+
+**While no sync is running** the app starts a preview run:
 
 1. The window shows **Preparing the plan…** with a progress toast and a matching
    line in the log, so the wait is never silent.
@@ -82,6 +85,23 @@ Preview changes goes through the same checks as Start (disclaimer, deletion
 risk, keyless p2p warning, free disk space, server/device trust): those protect
 the connection, not the decision to apply. **Start** itself is unchanged — it
 still shows the plan and asks for **Synchronize** first; its tooltip says so.
+
+**While a sync is running** the same action compares the folder with the other
+devices over the live connection:
+
+- On a **secondary** device it lists the changes still pending and asks whether to
+  sync them.
+- On the **primary** device it only re-reads what the connected devices hold — the
+  primary is the source, so it has nothing to pull — and updates the file list and
+  the *are the files in sync?* label.
+
+The app also compares on its own when it connects and when devices or files
+change, so the action is a fallback: its tooltip shows how the click answers in the
+current state and when the folder was last compared. While a comparison runs the
+control is disabled — one full scan at a time, and the tooltip reads **Checking…**.
+Pressing it before a connection exists scans nothing: the window says that the
+comparison starts automatically as soon as a device is reachable, and a run with no
+other device reports **No devices** instead of claiming that everything is in sync.
 
 An **automatic** start (auto-sync on startup or launch at login) never opens a
 dialog: it applies the plan when the plan deletes nothing — reported in the log
@@ -120,32 +140,6 @@ in [Warnings and notifications](warnings.md#is-everything-in-sync).
 The file list itself is described in [The file list](file-list.md), including how
 to import files by dragging them into it.
 
-## Check for changes
-
-**Check for changes** (`F5`, or the refresh button in the action bar) re-compares
-the folder with the other devices.
-
-- On a **secondary** device it lists the changes still pending and asks whether to
-  sync them.
-- On the **primary** device it only re-reads what the connected devices hold — the
-  primary is the source, so it has nothing to pull — and updates the file list and
-  the *are the files in sync?* label.
-- While a comparison is running the button is disabled, so one full scan runs at a
-  time and the tooltip reads **Checking…**.
-
-The check compares *inside* the sync: the plan is computed by the client against
-the other devices over a live connection, so it cannot run while the app is
-stopped. To see a plan without starting a sync, use
-[Preview changes](#preview-changes-without-starting-a-sync) — the same dialog,
-with **Close** as the default and nothing applied.
-
-The app also compares on its own when it connects and when devices or files
-change, so the button is a fallback: its tooltip shows when the folder was last
-checked. Pressing it before a connection exists scans nothing — the window says
-that the check starts automatically as soon as a device is reachable, and a run
-with no other device reports **No devices** instead of claiming that everything is
-in sync.
-
 ## Sync one folder on demand
 
 To sync a single folder without a full run, right-click it (or use the **File**
@@ -177,9 +171,8 @@ nothing is lost; the log names the file. The rules behind it are the client's
 | `Alt+Enter` | Properties |
 | `Ctrl+Shift+C` | Copy path |
 | `Ctrl+Alt+C` | Copy to a folder |
-| `F5` | Check for changes: refresh the file list and the sync state |
+| `F5`, `Ctrl+Shift+P` | Preview changes: show what a sync would do, without applying it |
 | `Ctrl+Shift+S` | Start |
-| `Ctrl+Shift+P` | Preview changes: show the plan without starting a sync |
 | `Ctrl+,` | Settings |
 | `F1` | Documentation |
 | `Ctrl+Q` | Quit |

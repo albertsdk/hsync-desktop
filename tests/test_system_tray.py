@@ -28,50 +28,42 @@ class TestSimulationNote:
             tray.hide()
 
 
-class TestCheckChangesEntry:
-    """The tray entry mirrors the window's rule: running alone is not enough."""
-
-    def test_running_does_not_enable_the_check_entry(self, qapp):
-        tray = SystemTray()
-        try:
-            tray.set_running(True)
-            assert not tray._act_check_changes.isEnabled()
-
-            tray.set_check_changes_enabled(True)
-            assert tray._act_check_changes.isEnabled()
-
-            tray.set_check_changes_enabled(False)
-            assert not tray._act_check_changes.isEnabled()
-        finally:
-            tray.hide()
-
-
 class TestPreviewChangesEntry:
-    """The explicit "Preview changes" entry follows Start's enablement rule."""
+    """The tray entry answers in both states: only the window's rule disables it."""
 
-    def test_the_entry_explains_what_it_will_not_do(self, qapp):
-        """The tray has no other text, so the tooltip has to separate the entry
-        from Start, and the menu has to be told to show it."""
+    def test_the_entry_shows_the_windows_wording(self, qapp):
+        """The tray has no other text, so the window pushes the sentence.
+
+        The same entry answers differently in the two engine states; the window
+        owns that choice (``set_preview_changes_tooltip``), and the menu has to be
+        told to show it.
+        """
         tray = SystemTray()
         try:
             assert tray._act_preview_changes.toolTip() == tr("tip.preview_changes")
             menu = tray.contextMenu()
             assert menu is not None
             assert menu.toolTipsVisible()
+
+            tray.set_preview_changes_tooltip(tr("tip.compare_waiting"))
+            assert tray._act_preview_changes.toolTip() == tr("tip.compare_waiting")
         finally:
             tray.hide()
 
-    def test_it_mirrors_start_and_emits_its_signal(self, qapp):
+    def test_it_emits_its_signal_with_its_own_rule(self, qapp):
         tray = SystemTray()
         try:
             emitted: list[int] = []
             tray.preview_changes_requested.connect(lambda: emitted.append(1))
 
+            # Start's rule no longer applies to it: it answers while running.
             tray.set_start_enabled(False)
+            assert tray._act_preview_changes.isEnabled()
+
+            tray.set_preview_changes_enabled(False)
             assert not tray._act_preview_changes.isEnabled()
 
-            tray.set_start_enabled(True)
-            assert tray._act_preview_changes.isEnabled()
+            tray.set_preview_changes_enabled(True)
             assert tray._act_preview_changes.text() == tr("tray.preview_changes")
 
             tray._act_preview_changes.trigger()
@@ -79,11 +71,11 @@ class TestPreviewChangesEntry:
         finally:
             tray.hide()
 
-    def test_running_and_stopping_disable_it(self, qapp):
+    def test_only_a_stop_disables_it(self, qapp):
         tray = SystemTray()
         try:
             tray.set_running(True)
-            assert not tray._act_preview_changes.isEnabled()
+            assert tray._act_preview_changes.isEnabled()
 
             tray.set_running(False)
             assert tray._act_preview_changes.isEnabled()
@@ -110,6 +102,6 @@ class TestStoppingState:
 
             assert not tray._act_start.isEnabled()
             assert not tray._act_stop.isEnabled()
-            assert not tray._act_check_changes.isEnabled()
+            assert not tray._act_preview_changes.isEnabled()
         finally:
             tray.hide()

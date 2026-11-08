@@ -493,12 +493,18 @@ class StartMixin:
         self._begin_start(preview=False)
 
     def _on_preview_changes(self) -> None:
-        """Show what a sync would do, without framing the run as a sync.
+        """Show what a sync would do, whichever state the engine is in.
 
-        Same gates and same dry-run as Start; the confirmation that follows
-        applies the plan only on an explicit "Sync now".
+        One entry point for both states, the model the comparison-first tools
+        use (FreeFileSync/GoodSync *Compare*, ``rsync --dry-run``): with the
+        engine stopped it starts the dry-run whose plan offers "Sync now", with
+        the engine running it asks that engine for a fresh comparison. A
+        continuous sync therefore never hides the plan behind a disabled entry.
         """
-        self._begin_start(preview=True)
+        if self._engine.is_running:
+            self._compare_running_engine()
+        else:
+            self._begin_start(preview=True)
 
     def _begin_start(self, *, preview: bool) -> None:
         """Shared prologue of Start and Preview changes.
@@ -785,27 +791,26 @@ class StartMixin:
         self._append_desktop_log("WARNING", tr("notif.stop_timeout"))
         self._show_info_banner(tr("notif.stop_timeout"), kind="warning", title=tr("notif.warning"))
 
-    def _can_check_changes(self) -> bool:
-        """Whether the manual comparison can run in the current state.
+    def _can_preview_changes(self) -> bool:
+        """Whether the comparison entry point can answer right now.
 
-        One predicate for the action-bar button, the ``F5`` menu action and the
-        tray entry, so the three never disagree. A missing link does **not**
-        disable the action: the click then explains that the check waits for a
-        connection, instead of writing a ``PREVIEW`` the client can only fail.
+        One predicate for the menu action, the action-bar button and the tray
+        entry, so the three never disagree. The run state is deliberately not
+        part of it: the action answers in both (``_on_preview_changes``), so only
+        a missing folder, a stop in flight, a comparison already running or a
+        scoped Send/Receive can disable it.
         """
         return (
-            self._engine.is_running
+            bool(self._local_path)
             and not self._stop_requested
             and not self._comparison_in_flight
             and not self._selection_sync_active
-            # Simulation Mode *is* a preview: a second one would race the one-shot.
-            and not is_simulation_mode()
         )
 
-    def _on_check_changes(self) -> None:
+    def _compare_running_engine(self) -> None:
         """Ask the running engine for a fresh comparison of the share.
 
-        Sends a ``PREVIEW`` command over stdin and lets the role decide the
+        Writes ``PREVIEW`` on the client's stdin and lets the role decide the
         answer: a **secondary** node replies with the preview cycle this window
         confirms (``preview_start``/``preview_end``), so the summary dialog can
         offer the sync, while a **primary** node serves the share and replies with
@@ -813,13 +818,15 @@ class StartMixin:
         which re-renders the rows and the file-set state — there is nothing for the
         serving device to pull.
 
-        The guards keep the click honest: no comparison with a dead engine, none
-        queued behind a running one, none while Simulation Mode (the whole run is
-        already a preview) and none before a link exists — the client's preview
-        would fail and still report an end marker, which reads as "everything in
-        sync". The app itself compares on every connect, so nothing is lost.
+        The guards keep the click honest: no comparison queued behind a running
+        one, none while Simulation Mode (the whole run is already a preview) and
+        none before a link exists — the client's preview would fail and still
+        report an end marker, which reads as "everything in sync". The app itself
+        compares on every connect, so nothing is lost.
         """
         if not self._engine.is_running:
+            # The caller dispatches on the run state; a click queued before the
+            # child exited still lands here.
             self._append_desktop_log("WARNING", "Please start synchronization first.")
             return
         if self._comparison_in_flight:
@@ -830,12 +837,12 @@ class StartMixin:
             self._show_info_banner(tr("simulation.tip"), kind="info")
             return
         if not self._connected:
-            self._append_desktop_log("INFO", tr("tip.check_changes_waiting"))
-            self._show_info_banner(tr("tip.check_changes_waiting"), kind="info")
+            self._append_desktop_log("INFO", tr("tip.compare_waiting"))
+            self._show_info_banner(tr("tip.compare_waiting"), kind="info")
             return
         # The action name is the menu entry: one vocabulary for the tooltip,
         # the menu, the tray and the log line this click writes.
-        self._append_desktop_log("INFO", f"--- {tr('menu.sync.check_changes')} ---")
+        self._append_desktop_log("INFO", f"--- {tr('menu.sync.preview')} ---")
         # Only the requester-side preview cycle may confirm a sync: a serving
         # device answers with a classification, whose markers own the rendering.
         self._awaiting_preview_for_sync = not (self._p2p_enabled and self._is_master)

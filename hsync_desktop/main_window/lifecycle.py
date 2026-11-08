@@ -89,7 +89,7 @@ from hsync_desktop.widgets.dialogs import confirm
 
 class LifecycleMixin:
     def eventFilter(self, obj, event) -> bool:  # type: ignore[no-untyped-def]
-        """Event filter to handle clicks on bandwidth labels."""
+        """Event filter for the clickable status-bar labels."""
         from PySide6.QtCore import QEvent
 
         if (
@@ -105,6 +105,16 @@ class LifecycleMixin:
             ]
             if obj in bandwidth_labels:
                 self._show_bandwidth_dialog()
+                return True
+            # The sync state names the pending work, so its click shows the plan
+            # that would apply it instead of sending the user to the menu. Any
+            # other state keeps the label inert.
+            if obj is getattr(self, "_sync_state_label", None):
+                if (
+                    self._sync_state[0] in ("pending", "pending_other")
+                    and self._can_preview_changes()
+                ):
+                    self._on_preview_changes()
                 return True
         return super().eventFilter(obj, event)
 

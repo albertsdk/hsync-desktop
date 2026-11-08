@@ -358,11 +358,10 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "HSYNC 服务器的主机名、IP 或 host:port；默认使用 https:// 和端口 9753。仅使用 p2p 时留空。",
     "tip.share_size": "此设备上共享文件夹占用的空间，以及共享总大小（远程服务器上的文件 + 尚未上传的本地文件）。",
-    "tip.check_changes": "将文件夹与其他设备进行比较：列出仍待处理的变化，并更新文件列表和同步状态（F5）。",
-    "tip.check_changes_waiting": "同步运行且可连接设备后会自动检查。按 F5 查看仍缺少的内容。",
-    "tip.check_changes_last": "上次检查：{time}",
-    "tip.preview_changes": "以预览方式运行同步：显示计划，只有选择“立即同步”才会应用。仅在同步停止时可用。",
-    "tip.check_changes_preview_hint": "要在启动同步前查看计划，请使用“同步 → 预览更改”。",
+    "tip.compare_waiting": "同步运行且可连接设备后会自动检查。按 F5 查看仍缺少的内容。",
+    "tip.compare_last": "上次检查：{time}",
+    "tip.preview_changes": "显示同步将执行的操作：同步停止时以预览方式运行，只有选择“立即同步”才会应用计划；同步运行时则将文件夹与其他设备比较（F5）。",
+    "tip.sync_state_click": "点击查看待处理更改的计划。",
     "tip.sync_state": "指示共享文件夹是否与其他设备一致：没有可比较的设备、正在检查、全部已同步，或仍有待传输的更改。连接多个设备时，状态取最落后的设备，下面的各行列出每个设备的待处理更改。",
     "tip.api_key": "用于服务器身份验证的 API 密钥",
     "tip.insecure": "不验证服务器证书（安全性较低）。",
@@ -448,7 +447,6 @@ translations: dict[str, str] = {
     "tray.start": "启动",
     "tray.preview_changes": "预览更改",
     "tray.stop": "停止",
-    "tray.check_changes": "检查更改",
     "tray.settings": "设置…",
     "tray.quit": "退出",
     # Notifications
@@ -510,7 +508,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} 在两端都被修改。保留了远程版本；您的本地版本已保存为 {conflict_copy}。",
     # Preview
     "preview.no_actions": "没有要执行的操作 — 一切已同步。",
-    "check_changes.no_devices": "没有其他可连接的设备，因此暂时没有可比较的内容。有设备加入后会自动检查。",
+    "compare.no_devices": "没有其他可连接的设备，因此暂时没有可比较的内容。有设备加入后会自动检查。",
     "preview.simulation_no_changes": "模拟模式：未应用任何更改。在“设置 → 同步”中关闭它即可实际执行。",
     # Disclaimer
     "disclaimer.title": "免责声明",
@@ -636,7 +634,6 @@ translations: dict[str, str] = {
     "menu.sync.start": "启动",
     "menu.sync.preview": "预览更改",
     "menu.sync.stop": "停止",
-    "menu.sync.check_changes": "检查更改",
     "menu.sync.direction": "同步类型",
     "menu.sync.direction.bidirectional": "保持一致",
     "menu.sync.direction.upload_only": "仅发送",

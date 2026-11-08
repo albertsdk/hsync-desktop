@@ -358,11 +358,10 @@ translations: dict[str, str] = {
     # Tooltips
     "tip.server_url": "Hostname, IP or host:port of the HSYNC server; https:// and port 9753 are implied. Leave empty for p2p only.",
     "tip.share_size": "Space used by the shared folder on this device, and the total share size (remote/server files plus local files not yet uploaded).",
-    "tip.check_changes": "Compare the folder with the other devices: it lists the changes still pending and updates the file list and the sync state (F5).",
-    "tip.check_changes_waiting": "The check starts automatically once the sync is running and a device is reachable. Press F5 to be told what is still missing.",
-    "tip.check_changes_last": "Last check: {time}",
-    "tip.preview_changes": "Run a sync in preview: the plan is shown and nothing is applied unless you choose Sync now. Available while no sync is running.",
-    "tip.check_changes_preview_hint": "To see the plan before starting a sync, use Sync → Preview changes.",
+    "tip.compare_waiting": "The comparison starts automatically once the sync is running and a device is reachable. Press F5 to be told what is still missing.",
+    "tip.compare_last": "Last comparison: {time}",
+    "tip.preview_changes": "Show what a sync would do: stopped, it runs a preview and applies the plan only if you choose Sync now; running, it compares the folder with the other devices (F5).",
+    "tip.sync_state_click": "Click to see the plan for the pending changes.",
     "tip.sync_state": "Whether the shared folder matches the other devices: nothing to compare, checking, every device in sync, or the changes still to transfer. With more than one device the state is the one furthest behind, and the lines below list each device's pending changes.",
     "tip.api_key": "API key for server authentication",
     "tip.insecure": "Do not verify the server certificate (less secure).",
@@ -448,7 +447,6 @@ translations: dict[str, str] = {
     "tray.start": "Start",
     "tray.preview_changes": "Preview changes",
     "tray.stop": "Stop",
-    "tray.check_changes": "Check for changes",
     "tray.settings": "Settings…",
     "tray.quit": "Quit",
     # Notifications
@@ -511,7 +509,7 @@ translations: dict[str, str] = {
     "notif.conflict_resolved_msg": "{file} was modified on both sides. The remote version was kept; your local version was saved as {conflict_copy}.",
     # Preview
     "preview.no_actions": "No actions to perform — everything is in sync.",
-    "check_changes.no_devices": "No other device is reachable, so there is nothing to compare yet. The check runs automatically when one joins.",
+    "compare.no_devices": "No other device is reachable, so there is nothing to compare yet. The comparison runs automatically when one joins.",
     "preview.simulation_no_changes": "Simulation Mode: nothing was applied. Turn it off in Settings → Sync to run for real.",
     # Disclaimer
     "disclaimer.title": "Disclaimer",
@@ -637,7 +635,6 @@ translations: dict[str, str] = {
     "menu.sync.start": "Start",
     "menu.sync.preview": "Preview changes",
     "menu.sync.stop": "Stop",
-    "menu.sync.check_changes": "Check for changes",
     "menu.sync.direction": "Sync Type",
     "menu.sync.direction.bidirectional": "Keep aligned",
     "menu.sync.direction.upload_only": "Send only",

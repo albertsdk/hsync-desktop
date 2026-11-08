@@ -125,7 +125,7 @@ _BTN_STOP_ACTIVE = (
     "QPushButton:hover { background-color: #b71d28; }"
     "QPushButton:pressed { background-color: #a01822; }"
 )
-_BTN_CHECK_CHANGES_ACTIVE = (
+_BTN_PREVIEW_ACTIVE = (
     f"QPushButton {{ background-color: #0969DA; color: #FFFFFF;"
     f" border: none; {_BTN_PAD} }}"
     "QPushButton:hover { background-color: #0860CA; }"
@@ -197,7 +197,7 @@ class UiBuildMixin:
         # Get widget references from .ui file
         self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
-        self._btn_check_changes: QPushButton = self.findChild(QPushButton, "btnCheckChanges")  # type: ignore[assignment]
+        self._btn_preview_changes: QPushButton = self.findChild(QPushButton, "btnPreviewChanges")  # type: ignore[assignment]
         # Set icons for action buttons (icon-only, no text)
         from PySide6.QtCore import QSize
 
@@ -207,7 +207,7 @@ class UiBuildMixin:
         for btn, ico_name in (
             (self._btn_start, "media-playback-start"),
             (self._btn_stop, "media-playback-stop"),
-            (self._btn_check_changes, "view-refresh"),
+            (self._btn_preview_changes, "view-refresh"),
         ):
             btn.setIcon(get_icon(ico_name))
             btn.setIconSize(icon_size)
@@ -323,6 +323,11 @@ class UiBuildMixin:
                 bottom_layout.addWidget(self._share_size_label)
                 bottom_layout.addWidget(self._sync_state_label)
 
+        # Clicking the state opens the comparison while it reports pending work
+        # (``EventsMixin._render_sync_state`` turns the cursor on and
+        # ``MainWindow.eventFilter`` handles the click).
+        self._sync_state_label.installEventFilter(self)
+
         # Make bandwidth labels clickable (both the label header and value)
         self._lbl_sent.setCursor(Qt.CursorShape.PointingHandCursor)
         self._lbl_sent.setToolTip(tr("bandwidth.click_to_edit"))
@@ -388,7 +393,7 @@ class UiBuildMixin:
         """Apply i18n translations to UI elements."""
         self._btn_start.setToolTip(tr("tip.start"))
         self._btn_stop.setToolTip(tr("btn.stop"))
-        self._update_check_changes_tooltip()
+        self._update_preview_changes_tooltip()
         self._update_path_display()
         self._status_label.setText(tr("status.disconnected"))
         # Seed the active share name from the configured share; the window title
@@ -416,12 +421,10 @@ class UiBuildMixin:
             self._act_start.setText(tr("menu.sync.start"))
             self._act_preview_changes.setText(tr("menu.sync.preview"))
             self._act_stop.setText(tr("menu.sync.stop"))
-            self._act_check_changes.setText(tr("menu.sync.check_changes"))
             # The menu shows these, so a language change must re-translate them
-            # like the labels above.
+            # like the labels above. The preview wording is state-dependent and
+            # owned by ``_update_preview_changes_tooltip``.
             self._act_start.setToolTip(tr("tip.start"))
-            self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
-            self._act_check_changes.setToolTip(tr("tip.check_changes"))
             self._menu_direction.setTitle(tr("menu.sync.direction"))
             self._act_dir_bidi.setText(tr("menu.sync.direction.bidirectional"))
             self._act_dir_upload.setText(tr("menu.sync.direction.upload_only"))
@@ -612,7 +615,7 @@ class UiBuildMixin:
 
         # ── Sync menu ─────────────────────────────────────────────────
         self._menu_sync = menubar.addMenu(tr("menu.sync"))
-        # Only Start, Preview changes and Check for changes carry a tooltip; a menu
+        # Only Start and Preview changes carry a tooltip; a menu
         # shows them only when asked (QMenu defaults to off), and those labels
         # alone do not explain when an action can be used or what it will not do.
         self._menu_sync.setToolTipsVisible(True)
@@ -624,7 +627,10 @@ class UiBuildMixin:
         self._menu_sync.addAction(self._act_start)
 
         self._act_preview_changes = QAction(tr("menu.sync.preview"), self)
-        self._act_preview_changes.setShortcut("Ctrl+Shift+P")
+        # Comparison first, like the analog tools (FreeFileSync compares on F5):
+        # one action that answers whether the engine runs or not, with the older
+        # preview-only chord kept as a second shortcut.
+        self._act_preview_changes.setShortcuts([QKeySequence("F5"), QKeySequence("Ctrl+Shift+P")])
         self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_preview_changes.triggered.connect(self._on_preview_changes)
         self._menu_sync.addAction(self._act_preview_changes)
@@ -633,13 +639,6 @@ class UiBuildMixin:
         self._act_stop.setEnabled(False)
         self._act_stop.triggered.connect(self._on_stop)
         self._menu_sync.addAction(self._act_stop)
-
-        self._act_check_changes = QAction(tr("menu.sync.check_changes"), self)
-        self._act_check_changes.setShortcut("F5")
-        self._act_check_changes.setToolTip(tr("tip.check_changes"))
-        self._act_check_changes.setEnabled(False)
-        self._act_check_changes.triggered.connect(self._on_check_changes)
-        self._menu_sync.addAction(self._act_check_changes)
 
         # ── Sync direction submenu ──────────────────────────────────
         self._menu_direction = self._menu_sync.addMenu(tr("menu.sync.direction"))
@@ -814,10 +813,12 @@ class UiBuildMixin:
     def _update_menu_state(self) -> None:
         """Update menu/button/tray enabled state based on app state.
 
-        The check action is derived here from ``StartMixin._can_check_changes``
-        for the action-bar button, the ``F5`` menu action and the tray entry: one
-        rule, so the three can never disagree (and a comparison in flight greys
-        the control instead of queueing a second scan).
+        The comparison action is derived here from
+        ``StartMixin._can_preview_changes`` for the action-bar button, the menu
+        action and the tray entry: one rule, so the three can never disagree (and
+        a comparison in flight greys the control instead of queueing a second
+        scan). It stays available while a sync runs, because it is the app's only
+        answer to "what would be synced".
         """
         if not hasattr(self, "_act_start"):
             return  # Menu bar not yet created
@@ -829,59 +830,57 @@ class UiBuildMixin:
 
         can_start = not is_running and has_path and not is_stopping
         self._act_start.setEnabled(can_start)
-        self._act_preview_changes.setEnabled(can_start)
         self._btn_start.setEnabled(can_start)
         if self._tray:
             self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running and not is_stopping)
-        can_check = self._can_check_changes()
-        self._btn_check_changes.setEnabled(can_check)
-        self._act_check_changes.setEnabled(can_check)
+        can_preview = self._can_preview_changes()
+        self._act_preview_changes.setEnabled(can_preview)
+        self._btn_preview_changes.setEnabled(can_preview)
         if self._tray:
-            self._tray.set_check_changes_enabled(can_check)
+            self._tray.set_preview_changes_enabled(can_preview)
         # Send/Receive of a selection are one-shot commands: only while stopped.
         idle = not is_running and not is_stopping
         self._act_file_send.setEnabled(idle and self._has_file_selection())
         self._act_file_receive.setEnabled(idle and self._has_file_selection())
         self._file_panel._table.set_sync_active(is_running and not is_stopping)
         self._apply_button_styles()
-        self._update_check_changes_tooltip()
+        self._update_preview_changes_tooltip()
 
-    def _update_check_changes_tooltip(self) -> None:
-        """Explain the check action in its current state.
+    def _update_preview_changes_tooltip(self) -> None:
+        """Explain the comparison entry point in its current state.
 
-        The action-bar button is icon-only, so this tooltip is the control's only
-        text: it says why the action is off when it is (a comparison running or
-        Simulation Mode), why a click cannot compare yet (no link) and when the
-        folder was last compared — the app also checks on its own on every
-        connect, so the recency is what most often saves the click. While the app
-        is stopped with no link it also names the action that *does* show a plan,
-        so a user who only wants to look is not left starting a sync.
+        One text for the menu action, the icon-only action-bar button and the
+        tray entry, so the click never needs a second guess: the merged action
+        answers in both engine states, and the tooltip says which answer this
+        state produces, why the control is off (a comparison in flight,
+        Simulation Mode) and when the folder was last compared — the app also
+        compares on its own on every connect, so the recency is what most often
+        saves the click.
         """
-        button = getattr(self, "_btn_check_changes", None)
+        button = getattr(self, "_btn_preview_changes", None)
         if button is None:
             return
         if self._comparison_in_flight:
-            button.setToolTip(tr("sync.state.checking"))
-            return
-        if is_simulation_mode():
-            button.setToolTip(tr("simulation.tip"))
-            return
-        if not self._connected:
-            tooltip = tr("tip.check_changes_waiting")
-            if not self._engine.is_running:
-                # Stopped: this is the state where a user looks for a plan and
-                # the check cannot produce one. Point at the action that can;
-                # while a run is starting, that action is disabled, so the hint
-                # would advertise something the menu greys out.
-                tooltip = f"{tooltip} {tr('tip.check_changes_preview_hint')}"
-            button.setToolTip(tooltip)
-            return
-        tooltip = tr("tip.check_changes")
-        if self._last_check_at is not None:
-            stamp = QLocale().toString(self._last_check_at, QLocale.FormatType.ShortFormat)
-            tooltip = f"{tooltip} · {tr('tip.check_changes_last').replace('{time}', stamp)}"
+            tooltip = tr("sync.state.checking")
+        elif self._engine.is_running and is_simulation_mode():
+            tooltip = tr("simulation.tip")
+        elif self._engine.is_running and not self._connected:
+            tooltip = tr("tip.compare_waiting")
+        else:
+            tooltip = tr("tip.preview_changes")
+            if self._last_check_at is not None:
+                # A comparison is a moment, not a run: the stamp outlives the
+                # engine and saves a click that would answer the same.
+                stamp = QLocale().toString(self._last_check_at, QLocale.FormatType.ShortFormat)
+                tooltip = f"{tooltip} · {tr('tip.compare_last').replace('{time}', stamp)}"
         button.setToolTip(tooltip)
+        # The menu is built after this helper's first run (see ``_load_ui``).
+        act = getattr(self, "_act_preview_changes", None)
+        if act is not None:
+            act.setToolTip(tooltip)
+        if self._tray:
+            self._tray.set_preview_changes_tooltip(tooltip)
 
     @Slot(str)
     def _append_log(self, payload: str) -> None:
@@ -1339,12 +1338,12 @@ class UiBuildMixin:
         stop_icon_color = "#FFFFFF" if self._btn_stop.isEnabled() else "#424242"
         self._btn_stop.setIcon(themed_icon("media-playback-stop", stop_icon_color))
 
-        self._btn_check_changes.setStyleSheet(
-            _BTN_CHECK_CHANGES_ACTIVE if self._btn_check_changes.isEnabled() else _BTN_IDLE
+        self._btn_preview_changes.setStyleSheet(
+            _BTN_PREVIEW_ACTIVE if self._btn_preview_changes.isEnabled() else _BTN_IDLE
         )
         # Check-for-changes icon: white when enabled, dark when disabled
-        check_changes_icon_color = "#FFFFFF" if self._btn_check_changes.isEnabled() else "#424242"
-        self._btn_check_changes.setIcon(themed_icon("view-refresh", check_changes_icon_color))
+        preview_icon_color = "#FFFFFF" if self._btn_preview_changes.isEnabled() else "#424242"
+        self._btn_preview_changes.setIcon(themed_icon("view-refresh", preview_icon_color))
 
     # ── Actions ──────────────────────────────────────────────────────────
 

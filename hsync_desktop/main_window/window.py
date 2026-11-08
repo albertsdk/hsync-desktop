@@ -305,7 +305,7 @@ class MainWindow(
         # Button signals
         self._btn_start.clicked.connect(self._on_start)
         self._btn_stop.clicked.connect(self._on_stop)
-        self._btn_check_changes.clicked.connect(self._on_check_changes)
+        self._btn_preview_changes.clicked.connect(self._on_preview_changes)
 
         # Engine signals
         e = self._engine

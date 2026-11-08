@@ -24,7 +24,7 @@ account ids, keys or passwords).
 | `01-main-window.png` | The main window during a sync: toolbar, path bar, file list, log panel, status bar. |
 | `02-status-bar.png` | Close-up of the status bar: role, `Shared: X / Y`, download/send counts, `Sent`/`Received`. |
 | `03-menu-bar.png` | The menu bar: **Sync**, **File**, **Settings**, **Setup wizard**, **Help**. |
-| `04-tray-menu.png` | The tray icon menu (Show, Start, Stop, Check for changes, Settings, Setup wizard, Quit). |
+| `04-tray-menu.png` | The tray icon menu (Show, Start, Preview changes, Stop, Settings, Setup wizard, Quit). |
 | `05-settings-sync.png` | **Settings → Sync**. |
 | `06-settings-p2p.png` | **Settings → p2p Mode**. |
 | `07-settings-server.png` | **Settings → Server Mode** (shown while p2p mode is active). |

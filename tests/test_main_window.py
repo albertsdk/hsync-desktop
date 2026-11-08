@@ -11,8 +11,8 @@ from contextlib import contextmanager
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
-from PySide6.QtCore import QSettings
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QEvent, QPointF, QSettings, Qt
+from PySide6.QtGui import QFont, QMouseEvent
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
 
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
@@ -216,7 +216,10 @@ class TestShutdown:
             def set_window_visible(self, _visible: bool) -> None:
                 pass
 
-            def set_check_changes_enabled(self, _enabled: bool) -> None:
+            def set_preview_changes_enabled(self, _enabled: bool) -> None:
+                pass
+
+            def set_preview_changes_tooltip(self, _text: str) -> None:
                 pass
 
         tray = _Tray()
@@ -2729,7 +2732,7 @@ class TestSimulationModePreview:
 
 
 class TestPreviewChanges:
-    """Explicit "Preview changes": show the plan, apply only when asked."""
+    """Preview changes: one entry point, in both engine states."""
 
     @staticmethod
     def _answer(monkeypatch, *, accepted: bool) -> list[str]:
@@ -2760,7 +2763,8 @@ class TestPreviewChanges:
         )
         return sent, stops
 
-    def test_the_action_follows_start_when_stopped_with_a_folder(self, window, tmp_path):
+    def test_the_action_needs_only_a_folder(self, window, tmp_path):
+        """The run state is not part of the rule: the action answers in both."""
         window._local_path = ""
         window._update_menu_state()
         assert not window._act_preview_changes.isEnabled()
@@ -2769,34 +2773,67 @@ class TestPreviewChanges:
         window._update_menu_state()
         assert window._act_preview_changes.isEnabled()
 
-        # A running or stopping engine disables it exactly like Start.
+        # A running engine keeps it available: that is what shows the plan.
         engine_cls = type(window._engine)
         original = engine_cls.is_running
         engine_cls.is_running = property(lambda self: True)
         try:
             window._update_menu_state()
-            assert not window._act_preview_changes.isEnabled()
+            assert window._act_preview_changes.isEnabled()
         finally:
             engine_cls.is_running = original
 
+        # A stop in flight, a comparison already running or a scoped Send/Receive
+        # are the only states that disable it.
         window._stop_requested = True
         window._update_menu_state()
         assert not window._act_preview_changes.isEnabled()
         window._stop_requested = False
+
+        window._comparison_in_flight = True
+        window._update_menu_state()
+        assert not window._act_preview_changes.isEnabled()
+        window._comparison_in_flight = False
+
+        window._selection_sync_active = True
+        window._update_menu_state()
+        assert not window._act_preview_changes.isEnabled()
+        window._selection_sync_active = False
+
+    def test_a_click_dispatches_on_the_run_state(self, window, monkeypatch):
+        """Stopped starts the dry-run; running asks the live engine."""
+        calls: list[str] = []
+        monkeypatch.setattr(
+            window, "_begin_start", lambda *, preview: calls.append(f"dry:{preview}")
+        )
+        monkeypatch.setattr(window, "_compare_running_engine", lambda: calls.append("compare"))
+
+        window._on_preview_changes()
+        assert calls == ["dry:True"]
+
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._on_preview_changes()
+        finally:
+            engine_cls.is_running = original
+        assert calls == ["dry:True", "compare"]
 
     def test_the_action_sits_next_to_start_in_the_sync_menu(self, window):
         texts = [act.text() for act in window._menu_sync.actions() if not act.isSeparator()]
 
         assert texts.index(tr("menu.sync.preview")) == texts.index(tr("menu.sync.start")) + 1
 
-    def test_the_action_carries_a_shortcut_and_a_tooltip(self, window):
-        """The menu names the action; the tooltip says what it will not do.
+    def test_the_action_carries_its_shortcuts_and_a_tooltip(self, window):
+        """The menu names the action; the tooltip says which answer it gives.
 
         Without it "Preview changes" sits one row below "Start" with no visible
         difference, and the dialog it opens looks like the one a Start shows.
         QMenu hides tooltips by default, so the menu has to ask for them.
         """
-        assert window._act_preview_changes.shortcut().toString() == "Ctrl+Shift+P"
+        shortcuts = [seq.toString() for seq in window._act_preview_changes.shortcuts()]
+        assert shortcuts == ["F5", "Ctrl+Shift+P"]
         assert window._act_preview_changes.toolTip() == tr("tip.preview_changes")
         assert window._menu_sync.toolTipsVisible()
 
@@ -3866,6 +3903,35 @@ class TestSyncState:
         expected = tr("sync.state.pending_other").replace("{count}", "3")
         assert window._sync_state_label.text() == expected
 
+    def test_pending_work_invites_the_click(self, window, tmp_path, monkeypatch):
+        """The bar is the second entry point: pending work is clickable."""
+        window._local_path = str(tmp_path)
+        calls: list[str] = []
+        monkeypatch.setattr(window, "_on_preview_changes", lambda: calls.append("preview"))
+        press = QMouseEvent(
+            QEvent.Type.MouseButtonPress,
+            QPointF(1, 1),
+            QPointF(1, 1),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+
+        window._set_sync_state("pending", 2, 1, 0)
+        assert window._sync_state_label.cursor().shape() == Qt.CursorShape.PointingHandCursor
+        assert tr("tip.sync_state_click") in window._sync_state_label.toolTip()
+
+        window.eventFilter(window._sync_state_label, press)
+        assert calls == ["preview"]
+
+        # A converged state keeps the label inert.
+        window._set_sync_state("in_sync")
+        assert window._sync_state_label.cursor().shape() == Qt.CursorShape.ArrowCursor
+        assert tr("tip.sync_state_click") not in window._sync_state_label.toolTip()
+
+        window.eventFilter(window._sync_state_label, press)
+        assert calls == ["preview"]
+
     def test_a_lone_device_has_nothing_to_compare(self, window):
         window._p2p_enabled = True
 
@@ -4281,8 +4347,8 @@ class TestPerDeviceSyncState:
         assert text == tr("detail.synced")
 
 
-class TestCheckChangesAction:
-    """Refresh asks the engine for a comparison, in both roles."""
+class TestPreviewActionWhileRunning:
+    """The comparison answers the running engine, in both roles."""
 
     @staticmethod
     @contextmanager
@@ -4301,17 +4367,21 @@ class TestCheckChangesAction:
         ):
             yield spy
 
-    def test_the_action_is_available_while_the_engine_runs(self, window):
+    def test_the_action_is_available_in_both_run_states(self, window, tmp_path):
+        """One action: a running sync cannot hide the plan behind a grey entry."""
+        window._local_path = str(tmp_path)
+
         with self._running_engine(window):
             window._enter_running_ui()
 
-            assert window._btn_check_changes.isEnabled()
-            assert window._act_check_changes.isEnabled()
+            assert window._btn_preview_changes.isEnabled()
+            assert window._act_preview_changes.isEnabled()
 
         window._reset_ui_stopped()
 
-        assert not window._btn_check_changes.isEnabled()
-        assert not window._act_check_changes.isEnabled()
+        # Stopped with a folder: still the way to see a plan.
+        assert window._btn_preview_changes.isEnabled()
+        assert window._act_preview_changes.isEnabled()
 
     def test_a_serving_device_refresh_asks_for_a_classification(self, window):
         window._p2p_enabled = True
@@ -4320,7 +4390,7 @@ class TestCheckChangesAction:
         window._awaiting_preview_for_sync = False
 
         with self._running_engine(window) as preview:
-            window._on_check_changes()
+            window._compare_running_engine()
 
             assert preview.call_count == 1
             # No summary dialog: there is nothing for the serving device to pull.
@@ -4332,7 +4402,7 @@ class TestCheckChangesAction:
         window._connected = True
 
         with self._running_engine(window) as preview:
-            window._on_check_changes()
+            window._compare_running_engine()
 
             assert preview.call_count == 1
             assert window._awaiting_preview_for_sync is True
@@ -4343,7 +4413,7 @@ class TestCheckChangesAction:
         preview = MagicMock()
         monkeypatch.setattr(window._engine, "preview", preview)
 
-        window._on_check_changes()
+        window._compare_running_engine()
 
         assert preview.call_count == 0
 
@@ -4354,44 +4424,47 @@ class TestCheckChangesAction:
         window._awaiting_preview_for_sync = False
 
         with self._running_engine(window) as preview:
-            window._on_check_changes()
+            window._compare_running_engine()
 
             assert preview.call_count == 0
             assert window._awaiting_preview_for_sync is False
             assert window._info_banner.isHidden() is False
-            assert tr("tip.check_changes_waiting") in window._log_view.toPlainText()
+            assert tr("tip.compare_waiting") in window._log_view.toPlainText()
 
-    def test_a_comparison_in_flight_disables_the_action(self, window):
+    def test_a_comparison_in_flight_disables_the_action(self, window, tmp_path):
         """A click must not queue a second full scan behind the running one."""
+        window._local_path = str(tmp_path)
         with self._running_engine(window):
             window._enter_running_ui()
             window._on_preview_started()
 
-            assert not window._btn_check_changes.isEnabled()
-            assert not window._act_check_changes.isEnabled()
+            assert not window._btn_preview_changes.isEnabled()
+            assert not window._act_preview_changes.isEnabled()
 
             window._on_preview_ended()
 
-            assert window._btn_check_changes.isEnabled()
-            assert window._act_check_changes.isEnabled()
+            assert window._btn_preview_changes.isEnabled()
+            assert window._act_preview_changes.isEnabled()
 
         window._reset_ui_stopped()
 
-    def test_a_serving_pass_disables_and_re_enables_the_action(self, window):
+    def test_a_serving_pass_disables_and_re_enables_the_action(self, window, tmp_path):
         """The serving-side pair owns the same window as a requester preview."""
+        window._local_path = str(tmp_path)
         with self._running_engine(window):
             window._enter_running_ui()
             window._on_status_pass_started()
 
-            assert not window._btn_check_changes.isEnabled()
+            assert not window._btn_preview_changes.isEnabled()
 
             window._on_status_pass_ended()
 
-            assert window._btn_check_changes.isEnabled()
+            assert window._btn_preview_changes.isEnabled()
 
         window._reset_ui_stopped()
 
-    def test_a_dead_engine_cannot_leave_the_action_disabled(self, window):
+    def test_a_dead_engine_cannot_leave_the_action_disabled(self, window, tmp_path):
+        window._local_path = str(tmp_path)
         with self._running_engine(window):
             window._enter_running_ui()
             window._on_preview_started()
@@ -4399,7 +4472,7 @@ class TestCheckChangesAction:
         window._on_process_finished(0, "stopped")
 
         assert not window._comparison_in_flight
-        assert not window._btn_check_changes.isEnabled()
+        assert window._btn_preview_changes.isEnabled()
 
     def test_the_tooltip_names_the_last_check(self, window):
         window._connected = True
@@ -4407,8 +4480,8 @@ class TestCheckChangesAction:
         window._on_preview_ended()
 
         assert window._last_check_at is not None
-        last = tr("tip.check_changes_last").split("{time}")[0]
-        assert last in window._btn_check_changes.toolTip()
+        last = tr("tip.compare_last").split("{time}")[0]
+        assert last in window._btn_preview_changes.toolTip()
 
     def test_a_failed_comparison_is_not_a_last_check(self, window):
         window._connected = True
@@ -4427,7 +4500,7 @@ class TestCheckChangesAction:
 
         window._show_preview_summary()
 
-        assert window._info_banner_label.text() == tr("check_changes.no_devices")
+        assert window._info_banner_label.text() == tr("compare.no_devices")
 
     def test_a_failed_preview_opens_no_summary(self, window, monkeypatch):
         """The error already surfaced: a plan that was never computed is not offered."""
@@ -4448,14 +4521,13 @@ class TestCheckChangesAction:
         assert window._last_check_at is None
 
     def test_the_button_is_icon_only_with_an_explanatory_tooltip(self, window):
-        """The action-bar button is icon-only, so the tooltip has to explain the action."""
-        assert window._btn_check_changes.text() == ""
-        assert not window._btn_check_changes.icon().isNull()
-        # Idle: the tooltip says when the check can run, names the shortcut and
-        # points at the action that shows a plan while the app is stopped.
-        tooltip = window._btn_check_changes.toolTip()
-        assert tooltip.startswith(tr("tip.check_changes_waiting"))
-        assert tr("tip.check_changes_preview_hint") in tooltip
+        """The action-bar button is icon-only, so the tooltip has to explain it."""
+        assert window._btn_preview_changes.text() == ""
+        assert not window._btn_preview_changes.icon().isNull()
+        # Idle: one sentence covers both engine states and names the shortcut,
+        # so the icon-only control is never a guess.
+        tooltip = window._btn_preview_changes.toolTip()
+        assert tooltip == tr("tip.preview_changes")
         assert "F5" in tooltip
 
     def test_the_waiting_hint_stays_out_of_the_click_toast(self, window):
@@ -4463,19 +4535,28 @@ class TestCheckChangesAction:
         window._connected = False
 
         with self._running_engine(window):
-            window._on_check_changes()
+            window._compare_running_engine()
 
-        assert window._info_banner_label.text() == tr("tip.check_changes_waiting")
+        assert window._info_banner_label.text() == tr("tip.compare_waiting")
 
-    def test_the_stopped_hint_is_not_offered_while_a_run_starts(self, window):
-        """While starting, Preview changes is greyed out: do not advertise it."""
-        window._connected = False
+    def test_the_tooltip_follows_the_state(self, window):
+        """One wording, three consumers: stopped, waiting for a link, checking."""
+        assert window._btn_preview_changes.toolTip() == tr("tip.preview_changes")
 
         with self._running_engine(window):
-            window._update_check_changes_tooltip()
+            window._connected = False
+            window._update_preview_changes_tooltip()
 
-            tooltip = window._btn_check_changes.toolTip()
-            assert tr("tip.check_changes_preview_hint") not in tooltip
+            assert window._btn_preview_changes.toolTip() == tr("tip.compare_waiting")
+            assert window._act_preview_changes.toolTip() == tr("tip.compare_waiting")
+
+            window._on_preview_started()
+
+            assert window._btn_preview_changes.toolTip() == tr("sync.state.checking")
+
+            window._on_preview_ended()
+
+        window._reset_ui_stopped()
 
 
 class TestStoppingFeedback:
@@ -4531,7 +4612,10 @@ class TestStoppingFeedback:
             def set_start_enabled(self, _enabled: bool) -> None:
                 pass
 
-            def set_check_changes_enabled(self, _enabled: bool) -> None:
+            def set_preview_changes_enabled(self, _enabled: bool) -> None:
+                pass
+
+            def set_preview_changes_tooltip(self, _text: str) -> None:
                 pass
 
         tray = _Tray()
@@ -4555,7 +4639,7 @@ class TestStoppingFeedback:
         assert window._status_label.text() == tr("status.stopping")
         assert not window._btn_stop.isEnabled()
         assert not window._btn_start.isEnabled()
-        assert not window._btn_check_changes.isEnabled()
+        assert not window._btn_preview_changes.isEnabled()
         assert not window._info_banner.isHidden()
         assert tr("status.stopping") in window._log_view.toPlainText()
 

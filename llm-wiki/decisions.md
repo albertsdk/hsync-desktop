@@ -284,6 +284,28 @@ disable unsupported controls) is realized in
   credential prompt, so a retried plan is confirmed like a manual one. The apply
   is reported through `_report_result` (toast + OS notification once the window
   is out of focus) and the waiting-plan warning uses the `sync` notification
-  category. The action lives in the Sync menu and the tray only — no action-bar
-  button, no new icon. Guarded by `tests/test_preview_summary_dialog.py`,
+  category. The action adds no new icon: it reuses the action-bar `view-refresh`
+  button. Guarded by `tests/test_preview_summary_dialog.py`,
   `tests/test_main_window.py` and `tests/test_system_tray.py`.
+- **One comparison entry point, available in both run states**: the desktop used
+  to expose two actions for the same question — *Preview changes* (stopped only,
+  it starts the dry-run) and *Check for changes* (`F5`, running only, it writes
+  `PREVIEW` on stdin) — with complementary availability. Under a continuous p2p or
+  watch run the engine is almost always started, so the entry a user looks for was
+  greyed out most of the time. Both are now one action
+  (`hsync_desktop/main_window/start.py::StartMixin._on_preview_changes`) that
+  dispatches on `HsyncEngine.is_running`; `StartMixin._can_preview_changes` no
+  longer reads the run state, and the menu action owns `F5` plus `Ctrl+Shift+P`.
+  The model is the comparison-first one the analog tools use (FreeFileSync/GoodSync
+  *Compare*, `rsync --dry-run`), where "what would happen" is the entry point and
+  applying it is the second step; the continuous-sync tools (Syncthing) solve the
+  same need by keeping the pending set always visible instead. The status bar is the
+  second entry point: a `pending`/`pending_other` state makes the sync-state label
+  clickable (`EventsMixin._render_sync_state` + `LifecycleMixin.eventFilter`).
+  Rejected: keeping the two actions with cross-referencing tooltips (the confusion
+  survives), and a preview that compares without an engine (the client cannot plan
+  against an inventory without a session). The discrete wording of the merged
+  action lives in `UiBuildMixin._update_preview_changes_tooltip`, which pushes one
+  string to the menu, the icon-only button and
+  `hsync_desktop/system_tray.py::SystemTray.set_preview_changes_tooltip`. Guarded
+  by `tests/test_main_window.py` and `tests/test_system_tray.py`.
