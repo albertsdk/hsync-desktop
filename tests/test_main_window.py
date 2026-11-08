@@ -15,6 +15,7 @@ from PySide6.QtCore import QEvent, QPointF, QSettings, Qt
 from PySide6.QtGui import QFont, QMouseEvent
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
 
+from hsync_desktop.busy import SPINNER_FRAMES
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.fonts import ui_font
 from hsync_desktop.i18n import tr
@@ -2002,6 +2003,10 @@ class TestInitialReconcile:
         stub._stamp_last_check = EventsMixin._stamp_last_check.__get__(stub)
         stub._end_comparison = EventsMixin._end_comparison.__get__(stub)
         stub._flush_verdicts = EventsMixin._flush_verdicts.__get__(stub)
+        # ``_end_comparison`` re-renders the state after clearing the flag; this
+        # stub has no label/tooltip machinery, and the assertions here are about
+        # the catch-up credit, so the render is a no-op.
+        stub._render_sync_state = lambda: None
         return stub
 
     def test_first_connect_runs_preview_then_sync(self):
@@ -4388,6 +4393,71 @@ class TestDeferredVerdicts:
 
         assert window._pending_verdicts == {}
         assert window._comparison_in_flight is False
+
+
+class TestBusyIndicator:
+    """The comparison shows a glyph only while it really runs, and only if slow."""
+
+    def test_checking_without_a_comparison_never_animates(self, window):
+        """``checking`` also means "waiting for an answer"; that is not work."""
+        window._on_status("connected")
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+        assert window._sync_busy.is_animating is False
+
+    def test_a_slow_comparison_shows_the_glyph(self, window):
+        window._on_preview_started()
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+        window._sync_busy._begin()
+        assert window._sync_state_label.text()[-1] in SPINNER_FRAMES
+
+    def test_the_end_of_the_comparison_drops_the_glyph(self, window):
+        window._on_preview_started()
+        window._sync_busy._begin()
+
+        window._on_preview_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.in_sync")
+        assert window._sync_busy.is_animating is False
+
+    def test_a_waiting_state_after_the_pass_does_not_keep_animating(self, window):
+        """A pass that classified nothing leaves ``checking``; work is over."""
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+
+        window._on_preview_started()
+        window._sync_busy._begin()
+        window._on_preview_ended()
+
+        assert window._sync_state_label.text() == tr("sync.state.checking")
+        assert window._sync_busy.is_animating is False
+
+    def test_a_process_end_stops_the_animation(self, window):
+        window._on_preview_started()
+        window._sync_busy._begin()
+
+        window._on_process_finished(0, 0)
+
+        assert window._sync_busy.is_animating is False
+
+    def test_the_glyph_does_not_widen_the_window(self, window):
+        """The busy glyph replaces the ellipsis, so the layout never grows."""
+        window._on_preview_started()
+        window._sync_state_label.adjustSize()
+        plain = window._sync_state_label.sizeHint().width()
+
+        window._sync_busy._begin()
+        window._sync_state_label.adjustSize()
+
+        # Same cell count as the ellipsis: the width may differ by the glyph's
+        # advance, but the label (and the window) must never get wider.
+        assert window._sync_state_label.sizeHint().width() <= plain
 
 
 class TestPerDeviceSyncState:

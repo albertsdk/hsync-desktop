@@ -596,6 +596,9 @@ class StartMixin:
         """
         self._preparing_plan = True
         self._append_desktop_log("INFO", f"--- {tr('notif.preparing_plan')} ---")
+        # Shown at once: it acknowledges the click. The toast already carries the
+        # indeterminate bar, which is the shared "busy" language, so no glyph is
+        # added here (it would duplicate the signal).
         self._show_info_banner(tr("notif.preparing_plan"), kind="progress")
 
     def _exit_preparing_plan_ui(self) -> None:

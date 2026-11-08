@@ -29,15 +29,48 @@ def _progress(**overrides) -> CopyProgress:
 
 class TestScanMode:
     def test_scan_shows_a_determinate_bar_without_cancel(self, qtbot):
-        overlay = LoadingOverlay()
+        # ``delay_ms=0`` runs the shared busy delay out immediately; production
+        # waits ``BUSY_DELAY_MS`` so a fast folder never flashes the overlay.
+        overlay = LoadingOverlay(delay_ms=0)
         qtbot.addWidget(overlay)
         overlay.show_loading()
+        qtbot.wait(50)
         assert not overlay.isHidden()
         assert overlay._cancel_button.isHidden()
         assert overlay._detail.isHidden()
         overlay.set_progress(3, 10)
         assert (overlay._progress.value(), overlay._progress.maximum()) == (3, 10)
         assert "(3/10)" in overlay._label.text()
+
+    def test_the_scan_waits_before_showing_the_overlay(self, qtbot):
+        """A scan shorter than the delay never shows the overlay."""
+        overlay = LoadingOverlay(delay_ms=300)
+        qtbot.addWidget(overlay)
+        overlay.show_loading()
+        assert overlay.isHidden()
+        overlay.hide_loading()
+        qtbot.wait(400)
+        assert overlay.isHidden()
+
+    def test_the_scan_overlay_appears_after_the_delay(self, qtbot):
+        overlay = LoadingOverlay(delay_ms=100)
+        qtbot.addWidget(overlay)
+        overlay.show_loading()
+        assert overlay.isHidden()
+        qtbot.wait(250)
+        assert not overlay.isHidden()
+        assert overlay._scan_busy.is_animating
+        overlay.hide_loading()
+
+    def test_hide_loading_hides_the_overlay_at_once(self, qtbot):
+        overlay = LoadingOverlay(delay_ms=0)
+        qtbot.addWidget(overlay)
+        overlay.show_loading()
+        qtbot.wait(50)
+        assert not overlay.isHidden()
+        overlay.hide_loading()
+        assert overlay.isHidden()
+        assert not overlay._scan_busy.is_animating
 
 
 class TestImportMode:
@@ -104,16 +137,18 @@ class TestImportMode:
         assert overlay._cancel_button.isEnabled()
 
     def test_the_scan_takes_the_widget_back_from_the_import(self, qtbot):
-        overlay = LoadingOverlay()
+        overlay = LoadingOverlay(delay_ms=0)
         qtbot.addWidget(overlay)
         overlay.show_import(_progress(files_total=2, bytes_total=4))
         overlay.show_loading()
+        qtbot.wait(50)
         assert overlay._cancel_button.isHidden()
         assert overlay._detail.isHidden()
-        assert overlay._label.text() == tr("loading.files")
+        # The scan label may carry the busy glyph by now.
+        assert overlay._label.text().startswith(tr("loading.files")[:5])
 
     def test_hide_loading_hides_the_widget(self, qtbot):
-        overlay = LoadingOverlay()
+        overlay = LoadingOverlay(delay_ms=0)
         qtbot.addWidget(overlay)
         overlay.show_import(_progress())
         overlay.hide_loading()

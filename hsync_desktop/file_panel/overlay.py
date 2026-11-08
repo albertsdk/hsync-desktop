@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from hsync_common.format import format_bytes
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QLabel,
     QProgressBar,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.busy import BUSY_DELAY_MS, BusyText
 from hsync_desktop.file_panel.import_ops import CopyProgress, ImportPhase
 from hsync_desktop.i18n import tr
 
@@ -42,8 +43,13 @@ class LoadingOverlay(QWidget):
     # Emitted when the user asks to stop the running import.
     cancel_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, delay_ms: int | None = None) -> None:
         super().__init__(parent)
+        # A scan indicator waits before appearing (``BUSY_DELAY_MS`` by default):
+        # most folders are scanned in a few milliseconds, and an overlay that
+        # flashes over the table is worse than none at all. ``delay_ms`` lets a
+        # test drive the behaviour without waiting for the real threshold.
+        self._scan_delay_ms = delay_ms
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setAutoFillBackground(True)
 
@@ -71,6 +77,8 @@ class LoadingOverlay(QWidget):
         font.setPointSize(12)
         self._label.setFont(font)
         container_layout.addWidget(self._label)
+        self._scan_busy = BusyText(self._label, delay_ms=delay_ms)
+        self._scan_busy.set_text(tr("loading.files"))
 
         # Progress bar
         self._progress = QProgressBar()
@@ -102,18 +110,56 @@ class LoadingOverlay(QWidget):
         """Update progress bar."""
         self._progress.setMaximum(total)
         self._progress.setValue(current)
-        # Update label with count
-        self._label.setText(f"{tr('loading.files')} ({current}/{total})")
+        # Update label with count; a progress update must not re-arm the delay, so
+        # it goes through the busy text (which keeps the animation if running).
+        self._scan_busy.set_text(f"{tr('loading.files')} ({current}/{total})")
 
     def show_loading(self) -> None:
-        """Show the scan indicator (determinate, without a cancel affordance)."""
+        """Show the scan indicator after the busy delay (determinate, no cancel).
+
+        The widget itself is revealed only once the delay elapses, so a folder
+        that scans instantly never flashes an overlay over the table. The caller
+        may re-issue this on every resize; the delay is armed only once.
+        """
         self._cancel_button.hide()
         self._detail.hide()
         self._progress.setFormat(_SCAN_BAR_FORMAT)
         self._progress.setRange(0, 100)
         self._progress.setValue(0)
-        self._label.setText(tr("loading.files"))
+        self._scan_busy.set_text(tr("loading.files"))
+        if self._scan_busy.is_animating:
+            # Already past the delay: keep it on screen (this is re-issued on
+            # every resize).
+            self._show_raised()
+            return
+        timer = self._reveal_timer()
+        if timer.isActive():
+            return
+        timer.start(self._delay_ms())
+
+    def _delay_ms(self) -> int:
+        """The configured delay, falling back to the shared threshold."""
+        return BUSY_DELAY_MS if self._scan_delay_ms is None else self._scan_delay_ms
+
+    def _reveal_timer(self) -> QTimer:
+        """The one-shot timer that reveals the overlay when the delay elapses."""
+        timer = self.__dict__.get("_reveal_timer_obj")
+        if timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(self._reveal)
+            self._reveal_timer_obj = timer
+        return timer
+
+    def _reveal(self) -> None:
+        """Reveal the overlay with its spinner.
+
+        The timer only fires while the scan still owns the overlay:
+        ``hide_loading`` cancels it, so a scan that finished during the delay
+        never shows anything.
+        """
         self._show_raised()
+        self._scan_busy.start(0)
 
     def show_import(self, progress: CopyProgress) -> None:
         """Show, or refresh, the import indicator for ``progress``.
@@ -123,7 +169,13 @@ class LoadingOverlay(QWidget):
         or after that count gave up: a percentage that cannot be kept would be a
         worse answer than an honest busy bar.
         """
-        self._label.setText(tr(_IMPORT_LABELS[progress.phase]))
+        # An import is an explicit, cancellable action: it appears at once, so it
+        # must also own the label without the scan's spinner. The label text goes
+        # through ``BusyText`` (after stopping it), or ``stop`` would restore the
+        # scan wording over the import one.
+        self._scan_busy.stop()
+        self._cancel_reveal()
+        self._scan_busy.set_text(tr(_IMPORT_LABELS[progress.phase]))
         self._detail.setText(self._import_detail(progress))
         self._detail.show()
         self._cancel_button.show()
@@ -139,8 +191,16 @@ class LoadingOverlay(QWidget):
         self._show_raised()
 
     def hide_loading(self) -> None:
-        """Hide the overlay."""
+        """Hide the overlay immediately and cancel a pending scan indicator."""
+        self._scan_busy.stop()
+        self._cancel_reveal()
         self.hide()
+
+    def _cancel_reveal(self) -> None:
+        """Cancel the pending reveal, if any (never rescheduled by ``start``)."""
+        timer = self.__dict__.get("_reveal_timer_obj")
+        if timer is not None:
+            timer.stop()
 
     def reset_cancel(self) -> None:
         """Re-arm Cancel for a new import batch.

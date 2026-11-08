@@ -580,6 +580,31 @@ tree. A verdict that arrives outside a comparison (a live `dir_status`, a stalle
 row refresh) is applied at once, and a process that dies mid-comparison drops its
 buffer.
 
+**Busy feedback is delayed and shared.** An indicator appears only after
+`hsync_desktop/busy.py::BUSY_DELAY_MS` (2 s), so a fast task never flashes
+something; below the threshold nothing is shown at all. Three surfaces use the
+same single-cell braille glyph (`SPINNER_FRAMES`) so the layout can never jump:
+
+- **comparison** — the sync-state label swaps its trailing ellipsis for the glyph
+  (`busy_text`), driven by `hsync_desktop/main_window/events.py::EventsMixin._render_sync_state`.
+  It is keyed on `_comparison_in_flight`, **not** on the `checking` state: that
+  state is also the resting "waiting for a file-set answer" (a link that just came
+  up, an inventory not published yet), which is not work happening now. For the
+  same reason `_end_comparison` re-renders after clearing the flag — a pass that
+  classified nothing leaves `checking` and must not keep the glyph spinning;
+- **folder scan** — `hsync_desktop/file_panel/overlay.py::LoadingOverlay` reveals
+  the overlay (determinate, `current/total`) after the same delay and cancels the
+  pending reveal in `hide_loading`; a scan shorter than the threshold shows
+  nothing;
+- **plan preparation** — the `kind="progress"` toast stays immediate (it
+  acknowledges the click) and keeps its indeterminate bar, which already is the
+  busy language; no glyph is added there.
+
+The glyph never widens a label (it replaces the ellipsis, or is prefixed when the
+text has none), the accessible name stays the plain text so a screen reader is
+not read a glyph changing eight times a second, and `start()` is idempotent
+because the busy label is re-rendered on every state change.
+
 A **"Synced" row is a claim about the remote copy**, so it is asserted only while a
 link exists: `hsync_desktop/file_panel/transfer_table.py::FileTransferModel._row_status` swaps
 the label for `detail.synced_stale` (and `_foreground` uses the same muted grey as

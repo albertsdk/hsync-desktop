@@ -43,6 +43,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.bandwidth_dialog import BandwidthDialog
+from hsync_desktop.busy import BusyText
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
     DEFAULT_P2P_RENDEZVOUS_TRUST,
@@ -312,6 +313,9 @@ class UiBuildMixin:
         self._sync_state_label = QLabel(self.centralWidget())
         self._sync_state = ("idle", 0, 0, 0)
         self._sync_state_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
+        # Busy feedback for this label, created here so the first
+        # ``_render_sync_state`` (from ``_apply_translations``) already finds it.
+        self._sync_busy = BusyText(self._sync_state_label)
         if bottom_layout:
             peers_idx = bottom_layout.indexOf(self._lbl_peers)
             if peers_idx >= 0:

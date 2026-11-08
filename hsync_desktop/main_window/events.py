@@ -271,7 +271,19 @@ class EventsMixin:
             text = tr("sync.state.pending_other").replace("{count}", str(others))
         else:
             text = tr(f"sync.state.{state}")
-        label.setText(text)
+        # The busy glyph tracks the *comparison*, not the ``checking`` state:
+        # that state is also the resting "waiting for a file-set answer" (a link
+        # that came up, an inventory still missing), which is not work happening
+        # now. Buffered through ``BusyText`` so a fast comparison never flickers.
+        busy = getattr(self, "_sync_busy", None)
+        if busy is not None:
+            busy.set_text(text)
+            if self._comparison_in_flight and state == "checking":
+                busy.start()
+            else:
+                busy.stop()
+        else:
+            label.setText(text)
         # The bar is also the comparison's entry point: a state that names pending
         # work invites the click that shows the plan (see ``eventFilter``).
         clickable = state in ("pending", "pending_other") and self._can_preview_changes()
@@ -931,6 +943,13 @@ class EventsMixin:
         """
         self._flush_verdicts()
         self._comparison_in_flight = False
+        # A pass that classified nothing leaves the label at ``checking`` while
+        # the inventory is still missing: that is a wait, not work, and the glyph
+        # must stop here instead of animating for the whole wait. Any other state
+        # was already rendered by ``_set_sync_state``, so this is the only case
+        # that needs a second pass.
+        if self._sync_state[0] == "checking":
+            self._render_sync_state()
         self._update_menu_state()
 
     def _flush_verdicts(self) -> None:
@@ -1127,6 +1146,11 @@ class EventsMixin:
         self._comparison_errored = False
         # Its buffered verdicts belong to a run that no longer exists.
         self._pending_verdicts.clear()
+        # Nor does its busy animation: stop it before the window shows the
+        # disconnected state.
+        busy = getattr(self, "_sync_busy", None)
+        if busy is not None:
+            busy.stop()
         # Nor can it produce the plan it was preparing.
         self._preparing_plan = False
         self._peers_total = 0
