@@ -118,17 +118,40 @@ class LifecycleMixin:
                 return True
         return super().eventFilter(obj, event)
 
+    def _bring_to_front(self) -> None:
+        """Show, restore and focus the window (a notification or tray click).
+
+        ``showNormal`` also clears a minimised state, ``raise_`` moves the window
+        above the others and ``activateWindow`` gives it the keyboard focus: a
+        single call so every entry point behaves the same. A window that is
+        already on screen and focused is left as it is (no flicker).
+        """
+        if self.isMinimized():
+            self.showNormal()
+        elif not self.isVisible():
+            self.show()
+        self.raise_()
+        self.activateWindow()
+        if self._tray:
+            self._tray.set_window_visible(True)
+
+    def _on_notification_clicked(self) -> None:
+        """A system notification was clicked: bring the app forward.
+
+        The notification is only raised while the window is hidden, minimised or
+        behind another application, so this is the user asking for the app.
+        """
+        self._bring_to_front()
+
     def _toggle_visibility(self) -> None:
         """Toggle window visibility (show/hide)."""
         if self.isVisible():
             self.hide()
+            # Update tray menu text after visibility change
+            if self._tray:
+                self._tray.set_window_visible(False)
         else:
-            self.show()
-            self.raise_()
-            self.activateWindow()
-        # Update tray menu text after visibility change
-        if self._tray:
-            self._tray.set_window_visible(self.isVisible())
+            self._bring_to_front()
 
     def _quit(self) -> None:
         """Quit the application, confirming first while a sync is running."""

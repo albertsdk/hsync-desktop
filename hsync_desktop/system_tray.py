@@ -58,6 +58,11 @@ class SystemTray(QSystemTrayIcon):
     settings_requested = Signal()
     wizard_requested = Signal()
     quit_requested = Signal()
+    # A system notification raised by this icon was clicked: the window must come
+    # forward. Qt forwards the platform event (a balloon/notification-centre
+    # click) through ``messageClicked``; this signal spells out what the window
+    # should do with it.
+    notification_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -113,6 +118,7 @@ class SystemTray(QSystemTrayIcon):
 
         self.setContextMenu(menu)
         self.activated.connect(self._on_activated)
+        self.messageClicked.connect(self.notification_clicked.emit)
 
         # Track current status for tooltip updates
         self._current_status = "disconnected"

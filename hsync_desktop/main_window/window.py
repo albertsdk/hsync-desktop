@@ -71,6 +71,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.foreground import app_in_foreground
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.main_window.actions import ActionsMixin
 from hsync_desktop.main_window.events import EventsMixin
@@ -121,7 +122,14 @@ class MainWindow(
 
         self._engine = engine
         self._tray = tray
-        self._notifier = NotificationManager(tray) if tray else None  # type: ignore[arg-type]
+        # The foreground policy is the shared one, so a tray passed in here
+        # behaves exactly like the one main() builds (a notifier that never
+        # suppresses would duplicate every toast while the window is in front).
+        self._notifier = (
+            NotificationManager(tray, is_foreground=lambda: app_in_foreground(self))
+            if tray
+            else None
+        )
         if self._notifier:
             self._notifier.enabled = are_notifications_enabled()
             self._notifier.categories = get_enabled_notification_categories()

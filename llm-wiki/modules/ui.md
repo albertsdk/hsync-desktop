@@ -68,6 +68,28 @@ client already deduplicates that stream per `(source, message)` window, and a
 warning arriving after an operator stop is logged but not notified. A
 *persistent* warning is a state: it is recorded in the problems registry (see
 *Problems badge*) and the client retracts it with `warning_cleared` when the
+
+**"In front" means the app owns the focused window, dialogs included.** The
+notification policy (`hsync_desktop/notifications.py::NotificationManager.notify`)
+suppresses the OS notification while the app is in front, because the in-app
+toast already carries the message; `hsync_desktop/foreground.py::app_in_foreground`
+is the single definition, shared with
+`hsync_desktop/main_window/actions.py::ActionsMixin._is_window_foreground` (which
+decides dialog vs notification for an important result). A modal dialog holds the
+focus while it is open, so testing only `window.isActiveWindow()` made the app
+look backgrounded and pushed a duplicate notification for something already on
+screen; the check walks the `QObject` parent chain instead of
+`isAncestorOf` (which reports `False` for a top-level dialog), and a minimised
+window is never "in front".
+
+Clicking a notification brings the app forward: `QSystemTrayIcon.messageClicked`
+is forwarded as `hsync_desktop/system_tray.py::SystemTray.notification_clicked`
+and handled by `hsync_desktop/main_window/lifecycle.py::LifecycleMixin._on_notification_clicked`,
+which restores a minimised window, shows a hidden one and raises/activates it.
+The same `_bring_to_front` backs the tray Show/Hide entry, so both entries behave
+identically. Notification-click reporting depends on the platform: Windows
+balloons and macOS notification centre forward it, while some Linux
+notification daemons handle the click themselves and never tell the app.
 condition heals, so no surface ever reports a problem that is gone.
 
 ### Problems badge

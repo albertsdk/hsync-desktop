@@ -59,6 +59,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.foreground import app_in_foreground
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
@@ -377,8 +378,14 @@ class ActionsMixin:
     # ── Scoped Send/Receive outcome helpers ──────────────────────────────
 
     def _is_window_foreground(self) -> bool:
-        """True when the main window is visible and focused."""
-        return self.isVisible() and self.isActiveWindow()
+        """True when the app owns the focused window (the main window or a dialog).
+
+        One definition shared with the notification policy
+        (``hsync_desktop.foreground.app_in_foreground``): a modal dialog holds
+        the focus while it is open, and treating that as "backgrounded" would
+        push an OS notification for a message the app is already showing.
+        """
+        return app_in_foreground(self)
 
     def _selection_phase_text(self) -> str:
         """Progress-banner text at the start of a scoped operation."""

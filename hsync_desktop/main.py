@@ -140,6 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     from hsync_desktop import __version__
     from hsync_desktop.engine import BinaryVersionProbe, HsyncEngine, is_binary_version_compatible
     from hsync_desktop.fonts import apply_system_fonts
+    from hsync_desktop.foreground import app_in_foreground
     from hsync_desktop.i18n import init_language, tr
     from hsync_desktop.main_window import MainWindow
     from hsync_desktop.notifications import NotificationManager
@@ -204,6 +205,9 @@ def main(argv: list[str] | None = None) -> int:
     # Now update window with tray and connect tray signals
     window._tray = tray
     tray.toggle_window.connect(window._toggle_visibility)
+    # A click on a system notification brings the app forward: the notification
+    # only exists while the window is hidden, minimised or in the background.
+    tray.notification_clicked.connect(window._on_notification_clicked)
     tray.start_requested.connect(window._on_start)
     tray.preview_changes_requested.connect(window._on_preview_changes)
     tray.stop_requested.connect(window._on_stop)
@@ -214,7 +218,11 @@ def main(argv: list[str] | None = None) -> int:
     # suppressed while the main window is in the foreground.
     window._notifier = NotificationManager(
         tray,
-        is_foreground=lambda: window.isVisible() and window.isActiveWindow(),
+        # The app counts as "in front" while one of its own dialogs holds the
+        # focus, not only when the main window is the active one: otherwise a
+        # modal (preview summary, settings, a warning box) made the window look
+        # backgrounded and the same message was also pushed to the system tray.
+        is_foreground=lambda: app_in_foreground(window),
     )
     window._notifier.enabled = are_notifications_enabled()
     window._notifier.categories = get_enabled_notification_categories()
