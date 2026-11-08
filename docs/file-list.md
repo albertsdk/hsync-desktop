@@ -29,7 +29,10 @@ visible columns are remembered across runs; **Reset columns** in the header menu
 restores the default layout.
 
 Files show their precise planned action, while a folder shows a neutral aggregate
-("To sync") whose tooltip breaks down the mixed operations.
+("To sync") whose tooltip breaks down the mixed operations. A folder with no files
+at all cannot aggregate anything, so it reports its own state instead: **Synced**
+once every device holds it, **To upload** / **To download** while one side is
+still missing it.
 
 ## Hidden files
 

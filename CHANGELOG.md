@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A newly created empty folder no longer stays "To sync" on the device that
+  created it (and "Local" on the replica): the bundled engine now keeps the
+  empty-directory sentinel on the serving side and reports the folder's verdict
+  from both creation paths.
 - The transfer rate display re-anchors after a pause/resume: a progress sample
   arriving after a gap longer than the rate window restarts the measurement,
   so a resumed upload no longer shows a bogus burst speed for the bytes already
