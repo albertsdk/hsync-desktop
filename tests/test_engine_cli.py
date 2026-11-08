@@ -3,6 +3,7 @@
 
 """Tests for hsync_desktop.engine module."""
 
+import json
 import os
 
 import pytest
@@ -97,6 +98,26 @@ class TestGetBinaryVersion:
             engine.subprocess, "run", lambda *a, **k: _FakeCompleted(stderr="hsync 2.0.5")
         )
         assert get_binary_version("/fake/hsync") == "2.0.5"
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            ("hsync 1.2.3", "1.2.3"),
+            ("hsync 1.1.0-alpha.2", "1.1.0-alpha.2"),
+            ("hsync 1.1.0-rc.1", "1.1.0-rc.1"),
+            ("hsync 1.2.3+build.7", "1.2.3+build.7"),
+            ("no version here", None),
+        ],
+    )
+    def test_keeps_the_prerelease_suffix(self, output, expected):
+        """The engine version is the one the binary reports, suffix included.
+
+        Dropping the suffix made the About window show `1.1.0` for an engine
+        built as `1.1.0-alpha.2`, i.e. a version different from the app's.
+        """
+        from hsync_desktop.engine import cli as engine
+
+        assert engine._parse_version(output) == expected
 
     def test_unparseable_returns_none(self, monkeypatch):
         """Output without a version returns None."""
@@ -212,6 +233,36 @@ class TestBinaryProbeCache:
         assert engine.get_binary_version_cached(path) is None
         assert engine.get_binary_version_cached(path) is None
         assert calls["n"] == 2
+
+    def test_a_cached_value_from_an_older_schema_is_ignored(self, tmp_path, monkeypatch):
+        """A same-binary entry written by an older parser is not trusted."""
+        from hsync_desktop.engine import cli as engine
+
+        self._patch_settings(tmp_path, monkeypatch)
+        path = self._make_binary(tmp_path)
+        calls = {"n": 0}
+
+        def fake_version(_p):
+            calls["n"] += 1
+            return "1.1.0-alpha.2"
+
+        monkeypatch.setattr(engine, "get_binary_version", fake_version)
+        stat = os.stat(path)
+        settings = engine._probe_settings()
+        settings.setValue(
+            engine._VERSION_CACHE_KEY,
+            json.dumps(
+                {
+                    "path": path,
+                    "size": stat.st_size,
+                    "mtime_ns": stat.st_mtime_ns,
+                    "value": "1.1.0",
+                }
+            ),
+        )
+
+        assert engine.get_binary_version_cached(path) == "1.1.0-alpha.2"
+        assert calls["n"] == 1
 
     def test_capabilities_cache_hit_skips_probe(self, tmp_path, monkeypatch):
         """A parsed capabilities document is cached; a hit skips the subprocess."""

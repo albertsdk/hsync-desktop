@@ -255,8 +255,14 @@ def find_hsync_binary() -> str | None:
 
 
 def _parse_version(output: str) -> str | None:
-    """Extract the ``X.Y.Z`` version from ``--version`` output, or None."""
-    match = re.search(r"(\d+\.\d+\.\d+)", output)
+    """Extract the full SemVer from ``--version`` output, or None.
+
+    The prerelease/build suffix is part of the version an installation actually
+    reports: ``hsync 1.1.0-alpha.2`` must display ``1.1.0-alpha.2``, not the bare
+    core, or the About window shows an engine version that differs from the app
+    version it was built and shipped with.
+    """
+    match = re.search(r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", output)
     return match.group(1) if match else None
 
 
@@ -320,6 +326,11 @@ def is_binary_version_compatible(binary_version: str) -> bool:
 
 _VERSION_CACHE_KEY = "binary/version_cache"
 _CAPABILITIES_CACHE_KEY = "binary/capabilities_cache"
+# Payload generation of the probe cache. A cached entry from an older generation
+# is ignored (and rewritten on the next probe) instead of being trusted: the
+# value's meaning can change with the parser, and a same-binary entry would
+# otherwise keep serving the old meaning forever.
+_PROBE_CACHE_SCHEMA = 2
 
 
 def _probe_settings() -> QSettings:
@@ -341,7 +352,8 @@ def _read_probe_cache(key: str, path: str) -> str | None:
 
     The entry is considered fresh only while the on-disk binary's
     ``(size, mtime_ns)`` match the values captured at caching time, so a
-    replaced bundled binary can never be served a stale probe result.
+    replaced bundled binary can never be served a stale probe result; an entry
+    written by an older cache generation is ignored as well.
     """
     stat = _binary_stat(path)
     if stat is None:
@@ -355,6 +367,7 @@ def _read_probe_cache(key: str, path: str) -> str | None:
         return None
     if (
         isinstance(payload, dict)
+        and payload.get("schema") == _PROBE_CACHE_SCHEMA
         and payload.get("path") == path
         and payload.get("size") == size
         and payload.get("mtime_ns") == mtime_ns
@@ -372,7 +385,15 @@ def _write_probe_cache(key: str, path: str, value: str) -> None:
     size, mtime_ns = stat
     _probe_settings().setValue(
         key,
-        json.dumps({"path": path, "size": size, "mtime_ns": mtime_ns, "value": value}),
+        json.dumps(
+            {
+                "schema": _PROBE_CACHE_SCHEMA,
+                "path": path,
+                "size": size,
+                "mtime_ns": mtime_ns,
+                "value": value,
+            }
+        ),
     )
 
 
