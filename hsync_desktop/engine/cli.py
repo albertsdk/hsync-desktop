@@ -258,7 +258,7 @@ def _parse_version(output: str) -> str | None:
     """Extract the full SemVer from ``--version`` output, or None.
 
     The prerelease/build suffix is part of the version an installation actually
-    reports: ``hsync 1.1.0-alpha.2`` must display ``1.1.0-alpha.2``, not the bare
+    reports: ``hsync 1.1.0-beta.1`` must display ``1.1.0-beta.1``, not the bare
     core, or the About window shows an engine version that differs from the app
     version it was built and shipped with.
     """

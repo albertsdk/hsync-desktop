@@ -300,7 +300,7 @@ def _run_verify(
 
 
 def test_verify_client_compatible_accepts_the_exact_version(tmp_path: Path) -> None:
-    proc = _run_verify(tmp_path, "1.1.0-alpha.1", "1.1.0-alpha.1")
+    proc = _run_verify(tmp_path, "1.1.0-beta.1", "1.1.0-beta.1")
     assert proc.returncode == 0, proc.stderr
     assert "matches HSYNC_VERSION" in proc.stderr
 

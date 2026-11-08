@@ -103,7 +103,7 @@ class TestGetBinaryVersion:
         ("output", "expected"),
         [
             ("hsync 1.2.3", "1.2.3"),
-            ("hsync 1.1.0-alpha.2", "1.1.0-alpha.2"),
+            ("hsync 1.1.0-beta.1", "1.1.0-beta.1"),
             ("hsync 1.1.0-rc.1", "1.1.0-rc.1"),
             ("hsync 1.2.3+build.7", "1.2.3+build.7"),
             ("no version here", None),
@@ -113,7 +113,7 @@ class TestGetBinaryVersion:
         """The engine version is the one the binary reports, suffix included.
 
         Dropping the suffix made the About window show `1.1.0` for an engine
-        built as `1.1.0-alpha.2`, i.e. a version different from the app's.
+        built as `1.1.0-beta.1`, i.e. a version different from the app's.
         """
         from hsync_desktop.engine import cli as engine
 
@@ -244,7 +244,7 @@ class TestBinaryProbeCache:
 
         def fake_version(_p):
             calls["n"] += 1
-            return "1.1.0-alpha.2"
+            return "1.1.0-beta.1"
 
         monkeypatch.setattr(engine, "get_binary_version", fake_version)
         stat = os.stat(path)
@@ -261,7 +261,7 @@ class TestBinaryProbeCache:
             ),
         )
 
-        assert engine.get_binary_version_cached(path) == "1.1.0-alpha.2"
+        assert engine.get_binary_version_cached(path) == "1.1.0-beta.1"
         assert calls["n"] == 1
 
     def test_capabilities_cache_hit_skips_probe(self, tmp_path, monkeypatch):
