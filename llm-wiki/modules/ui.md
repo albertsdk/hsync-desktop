@@ -337,9 +337,18 @@ already-running process (`ActionsMixin._show_preview_summary`).
 | Case | `"start"` | `"preview"` |
 | ---- | --------- | ----------- |
 | empty plan | sends `SYNC` (keeps the dry-run phase armed) | `_stop_preview_run`, reports `preview.no_actions`, never `SYNC` |
-| plan accepted | `HsyncEngine.sync()` | `HsyncEngine.sync()` |
+| plan accepted | `HsyncEngine.sync()`, run keeps going | `HsyncEngine.sync()`, then the run **stops** after that cycle |
 | plan declined | `_stop_preview_run` | `_stop_preview_run` |
 | Simulation Mode | preview only, never `SYNC` | preview only, never `SYNC` |
+
+**A preview run is one-shot.** Accepting a `"preview"` plan sets
+`_preview_run_to_stop` (`hsync_desktop/main_window/actions.py::ActionsMixin._show_preview_summary`)
+and `_on_sync_completed` (`hsync_desktop/main_window/events.py`) ends the run with
+`_stop_preview_run` once that cycle reports, instead of leaving a daemon the user
+never started: "Preview changes" asks a question, and the window returns to the
+stopped state (with the applied-item count reported). An explicit *Start* keeps
+the documented continuous behaviour, and an empty plan already stopped the run —
+the two outcomes were previously inconsistent.
 
 The intent is read only while `_is_dry_run_preview` is set, so the `PREVIEW` a
 running session answers keeps the sync semantics of the run that started it.

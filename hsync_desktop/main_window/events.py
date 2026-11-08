@@ -768,6 +768,27 @@ class EventsMixin:
         # The cycle just moved files: recompute the local size instead of keeping
         # the value the client reported before its transfers.
         self._file_panel.refresh_share_size()
+        if not was_scoped and self._preview_run_to_stop:
+            # An accepted "Preview changes" plan was applied: the run existed to
+            # answer that question, so it returns to the stopped state instead of
+            # staying up as a daemon (which would also change how the next
+            # Preview/Start behaves, without the user asking for it).
+            self._preview_run_to_stop = False
+            outcome, applied = _scoped_outcome(counters or {})
+            self._stop_preview_run()
+            # Same wording a scoped Send/Receive uses for the same verdict, so
+            # "applied N items" / "already up to date" reads identically.
+            if outcome == "failed":
+                self._append_desktop_log("WARNING", tr("sync.sel_failed_msg"))
+                self._report_result(tr("sync.sel_failed_msg"), success=False)
+            elif outcome == "done":
+                message = tr("preview_summary.summary_changes").format(count=applied)
+                self._append_desktop_log("INFO", message)
+                self._report_result(message)
+            else:
+                self._append_desktop_log("INFO", tr("preview.no_actions"))
+                self._report_result(tr("preview.no_actions"), success=False)
+            return
         if not was_scoped and self._engine.is_running:
             self._file_panel.mark_verified()
             # The cycle may have reconciled a path whose live rename/add event
@@ -1164,6 +1185,9 @@ class EventsMixin:
             busy.stop()
         # Nor can it produce the plan it was preparing.
         self._preparing_plan = False
+        # Nor apply a plan: a run that ended without its cycle must not make the
+        # next one stop after the first pass.
+        self._preview_run_to_stop = False
         self._peers_total = 0
         # The sync-set total belongs to the engine session; keep the scan local.
         self._share_total_bytes = -1

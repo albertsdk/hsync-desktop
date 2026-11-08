@@ -301,6 +301,8 @@ class ActionsMixin:
         self._comparison_in_flight = False
         self._comparison_errored = False
         self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
+        # No plan is pending application in a fresh process.
+        self._preview_run_to_stop = False
         # No plan is being prepared: only _start_preview_run enters that state.
         self._preparing_plan = False
         # A new dry-run decides again whether anyone is watching it.
@@ -746,6 +748,11 @@ class ActionsMixin:
                 # Send SYNC command — the running process will perform
                 # the actual sync without needing a restart.
                 self._engine.sync()
+                # A "Preview changes" run was started to answer a question, not
+                # to leave a daemon running: the plan it just applied ends the
+                # run (see ``_on_sync_completed``). An explicit Start keeps the
+                # documented continuous behaviour.
+                self._preview_run_to_stop = self._preview_intent == "preview"
             self._is_dry_run_preview = False
         else:
             if selection:

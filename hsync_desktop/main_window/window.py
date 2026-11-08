@@ -164,6 +164,10 @@ class MainWindow(
         # "preview" (show the plan, apply only on "Sync now"). See
         # StartMixin._begin_start and ActionsMixin._show_preview_summary.
         self._preview_intent = "start"
+        # True between an accepted "Preview changes" plan and its cycle: the
+        # run exists only to apply that plan, so it stops as soon as the cycle
+        # completes instead of staying up as a daemon nobody asked for.
+        self._preview_run_to_stop = False
         # Whether nobody is watching the dry-run in flight. A per-dry-run value,
         # not the run's origin: an auth retry after a credential prompt is
         # watched again, so its plan must be confirmed (see

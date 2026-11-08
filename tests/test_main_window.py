@@ -1991,6 +1991,7 @@ class TestInitialReconcile:
             _comparison_in_flight=False,
             _comparison_errored=False,
             _pending_verdicts={},
+            _preview_run_to_stop=False,
             _preparing_plan=False,
             _exit_preparing_plan_ui=lambda: None,
             _last_check_at=None,
@@ -2075,6 +2076,7 @@ class TestPostSyncStatusRefresh:
         stub = SimpleNamespace(
             _selection_sync_active=False,
             _selection_sync_phase="run",
+            _preview_run_to_stop=False,
             _engine=MagicMock(is_running=True),
             _file_panel=MagicMock(),
             _problems=ProblemRegistry(),
@@ -2826,6 +2828,82 @@ class TestPreviewChanges:
         finally:
             engine_cls.is_running = original
         assert calls == ["dry:True", "compare"]
+
+    def test_an_accepted_preview_run_stops_once_the_plan_is_applied(self, window, monkeypatch):
+        """A "Preview changes" run answers a question; it must not stay up.
+
+        Accepting the plan sent SYNC and left the process running as a daemon:
+        the window stayed on "sync in progress", and the next Preview behaved
+        differently because a live engine was found. The run ends with the cycle
+        it applied, exactly like an empty plan already did.
+        """
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from hsync_desktop.main_window.events import EventsMixin
+        from hsync_desktop.problems import ProblemRegistry
+
+        sent, stops = self._spy_engine(window, monkeypatch)
+        self._answer(monkeypatch, accepted=True)
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 2
+        window._is_dry_run_preview = True
+        window._preview_intent = "preview"
+
+        window._show_preview_summary()
+
+        assert sent == ["sync"]
+        assert window._preview_run_to_stop is True
+
+        stub = SimpleNamespace(
+            _selection_sync_active=False,
+            _selection_sync_phase="run",
+            _preview_run_to_stop=True,
+            _engine=MagicMock(is_running=True),
+            _file_panel=MagicMock(),
+            _problems=ProblemRegistry(),
+            _guard_paused_this_cycle=False,
+            _stop_preview_run=lambda: stops.append("stop"),
+            _append_desktop_log=lambda *_a, **_k: None,
+            _report_result=lambda *_a, **_k: None,
+        )
+        EventsMixin._on_sync_completed(stub, {"uploaded": 2})
+
+        assert stops == ["stop"]
+        assert stub._preview_run_to_stop is False
+
+    def test_a_start_run_keeps_running_after_the_plan(self, window, monkeypatch):
+        """An explicit Start is the documented continuous mode: it must not stop."""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from hsync_desktop.main_window.events import EventsMixin
+        from hsync_desktop.problems import ProblemRegistry
+
+        _sent, stops = self._spy_engine(window, monkeypatch)
+        self._answer(monkeypatch, accepted=True)
+        window._preview_stats.reset()
+        window._preview_stats.to_upload = 1
+        window._is_dry_run_preview = True
+        window._preview_intent = "start"
+
+        window._show_preview_summary()
+
+        assert window._preview_run_to_stop is False
+
+        stub = SimpleNamespace(
+            _selection_sync_active=False,
+            _selection_sync_phase="run",
+            _preview_run_to_stop=False,
+            _engine=MagicMock(is_running=True),
+            _file_panel=MagicMock(),
+            _problems=ProblemRegistry(),
+            _guard_paused_this_cycle=False,
+            _stop_preview_run=lambda: stops.append("stop"),
+        )
+        EventsMixin._on_sync_completed(stub, {"uploaded": 1})
+
+        assert stops == []
 
     def test_the_action_sits_next_to_start_in_the_sync_menu(self, window):
         texts = [act.text() for act in window._menu_sync.actions() if not act.isSeparator()]
