@@ -838,6 +838,12 @@ class UiBuildMixin:
         if self._tray:
             self._tray.set_start_enabled(can_start)
         self._act_stop.setEnabled(is_running and not is_stopping)
+        # The toolbar Stop button follows the same rule as the menu action. It is
+        # not cosmetic: ``_reset_ui_stopped`` disables it, and if the engine is
+        # still running (a scoped op finalized early, a continuous run) nothing
+        # else re-enabled it — leaving a live run with neither Start nor Stop
+        # clickable until the app was restarted.
+        self._btn_stop.setEnabled(is_running and not is_stopping)
         can_preview = self._can_preview_changes()
         self._act_preview_changes.setEnabled(can_preview)
         self._btn_preview_changes.setEnabled(can_preview)

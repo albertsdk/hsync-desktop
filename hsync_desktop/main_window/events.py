@@ -725,7 +725,18 @@ class EventsMixin:
             self._set_sync_state("waiting_inventory")
             return
         self._set_sync_state("no_devices")
-        if self._selection_sync_active:
+        # A device that just started elects itself before discovery answers, so
+        # this state is *transient* at the beginning of a run. A scoped Send/
+        # Receive reports its own outcome (the preview verdict, then
+        # ``sync_complete``/``process_finished``); aborting it here turned a
+        # second of "alone so far" into a fake "no device found" and left the
+        # engine running with the selection already closed. Only a run that is
+        # really over may be finalized by this state.
+        if (
+            self._selection_sync_active
+            and self._selection_sync_phase != "confirm"
+            and not self._engine.is_running
+        ):
             self._finish_selection_sync("no_devices")
 
     def _on_no_peers(self, _message: str) -> None:

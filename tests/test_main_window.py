@@ -4460,6 +4460,65 @@ class TestBusyIndicator:
         assert window._sync_state_label.sizeHint().width() <= plain
 
 
+class TestScopedOpSurvivesAStartupNoDevice:
+    """A scoped Send/Receive must not be aborted by a transient "alone so far".
+
+    A device elects itself before discovery answers, so the master emits
+    ``sync_pending(no_device)`` at the start of a run. Treating that as the
+    scoped op's outcome closed the op while its engine kept running: the user got
+    a fake "no device found", the plan result then arrived down the non-scoped
+    path, and the toolbar was left with Start and Stop both disabled.
+    """
+
+    @staticmethod
+    def _arm(window, *, running: bool) -> None:
+        window._selection_sync_active = True
+        window._selection_sync_phase = "preview"
+        window._pending_selection_sync = ("media", "upload-only")
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: running)
+        # Restored by the caller-side fixture teardown assertion below.
+        window._test_engine_is_running = (engine_cls, original)
+
+    def _restore(self, window) -> None:
+        engine_cls, original = window._test_engine_is_running
+        engine_cls.is_running = original
+
+    def test_a_running_scoped_op_is_not_finalized(self, window):
+        self._arm(window, running=True)
+        try:
+            window._on_sync_pending("no_device")
+
+            assert window._selection_sync_active is True
+            assert window._pending_selection_sync == ("media", "upload-only")
+        finally:
+            self._restore(window)
+
+    def test_a_finished_run_is_still_finalized(self, window):
+        self._arm(window, running=False)
+        try:
+            window._on_sync_pending("no_device")
+
+            assert window._selection_sync_active is False
+            assert window._pending_selection_sync is None
+        finally:
+            self._restore(window)
+
+    def test_the_stop_button_follows_a_running_engine(self, window):
+        """A reset while the engine runs must leave Stop clickable, not both off."""
+        engine_cls = type(window._engine)
+        original = engine_cls.is_running
+        engine_cls.is_running = property(lambda self: True)
+        try:
+            window._reset_ui_stopped()
+
+            assert window._btn_stop.isEnabled()
+            assert not window._btn_start.isEnabled()
+        finally:
+            engine_cls.is_running = original
+
+
 class TestPerDeviceSyncState:
     """The bar reports the device furthest behind, never a set union."""
 

@@ -933,6 +933,16 @@ lifecycle so its result is surfaced exactly once:
   `downloaded`/`uploaded`/`deleted`/`renamed` is non-zero, `already_synced` when
   the cycle applied nothing, `failed` on failures. Counting `file_transferred`
   events was wrong for renames and deletes, which move no bytes.
+- **A transient "alone so far" never ends a scoped op.** `sync_pending(reason=
+  "no_device")` (`EventsMixin._on_sync_pending`) also describes the moment a
+  device has just elected itself, before discovery answers, so it finalizes the
+  op only when the run is already over (`not engine.is_running`). A running
+  scoped run is one-shot (`--once`) and reports its own verdict. Finalizing on
+  the transient state produced a fake "no device found", delivered the real
+  result down the non-scoped path, and — because `_reset_ui_stopped` disables the
+  toolbar while the engine kept running — left Start and Stop both unclickable
+  until the app was restarted. `no_peers` (the one-shot abort before exit) still
+  finalizes immediately.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
   (server); `_on_peers` (`hsync_desktop/main_window/events.py::EventsMixin._on_peers`) adds the
   other-device count (`sync.sel_peers_fmt`) while the op is active.
