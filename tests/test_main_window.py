@@ -1989,6 +1989,7 @@ class TestInitialReconcile:
             _pending_inventory=None,
             _comparison_in_flight=False,
             _comparison_errored=False,
+            _pending_verdicts={},
             _preparing_plan=False,
             _exit_preparing_plan_ui=lambda: None,
             _last_check_at=None,
@@ -2000,6 +2001,7 @@ class TestInitialReconcile:
         stub._finish_comparison = EventsMixin._finish_comparison.__get__(stub)
         stub._stamp_last_check = EventsMixin._stamp_last_check.__get__(stub)
         stub._end_comparison = EventsMixin._end_comparison.__get__(stub)
+        stub._flush_verdicts = EventsMixin._flush_verdicts.__get__(stub)
         return stub
 
     def test_first_connect_runs_preview_then_sync(self):
@@ -4283,6 +4285,109 @@ class TestServingSideClassification:
         window._on_status_pass_ended()
 
         assert window._sync_state_label.text() == tr("sync.state.no_devices")
+
+
+class TestDeferredVerdicts:
+    """A comparison's verdicts reach the rows only when the pass ends.
+
+    Applying them per event made a folder row flip ``synced`` → ``to sync`` →
+    ``synced`` (with its Modified time jumping forward and back) for as long as
+    the classification ran, because a folder aggregates its children and each
+    per-file verdict re-aggregated it.
+    """
+
+    @staticmethod
+    def _rows(window) -> dict:
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        window._local_path = "/share"
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        table.add_transfer(
+            FileTransfer(filepath="dir/a.bin", direction="—", size=4, status=TransferStatus.SYNCED)
+        )
+        return table._transfers
+
+    def test_a_verdict_does_not_move_a_row_while_the_pass_runs(self, window):
+        rows = self._rows(window)
+
+        window._on_status_pass_started()
+        window._on_file_status("to_upload", "/share/dir/a.bin", 4)
+
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        assert rows["dir/a.bin"].status is TransferStatus.SYNCED
+
+    def test_the_end_of_the_pass_applies_the_buffered_verdict(self, window):
+        rows = self._rows(window)
+
+        window._on_status_pass_started()
+        window._on_file_status("to_upload", "/share/dir/a.bin", 4)
+        window._on_status_pass_ended()
+
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        assert rows["dir/a.bin"].status is TransferStatus.TO_UPLOAD
+
+    def test_one_row_update_per_path_the_last_verdict_wins(self, window):
+        rows = self._rows(window)
+
+        window._on_status_pass_started()
+        window._on_file_status("to_upload", "/share/dir/a.bin", 4)
+        window._on_file_status("synced", "/share/dir/a.bin", 4)
+
+        assert window._pending_verdicts == {"dir/a.bin": ("synced", 4, -1, -1)}
+
+        window._on_status_pass_ended()
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        assert rows["dir/a.bin"].status is TransferStatus.SYNCED
+
+    def test_a_verdict_outside_a_pass_is_applied_at_once(self, window):
+        rows = self._rows(window)
+
+        window._on_file_status("to_upload", "/share/dir/a.bin", 4)
+
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        assert rows["dir/a.bin"].status is TransferStatus.TO_UPLOAD
+        assert window._pending_verdicts == {}
+
+    def test_a_directory_verdict_is_buffered_with_the_mtime_read_at_flush(self, window, tmp_path):
+        import os
+        import time
+
+        rows = self._rows(window)
+        folder = tmp_path / "dir"
+        folder.mkdir()
+        (folder / "a.bin").write_bytes(b"1234")
+        old = time.time() - 3600
+        os.utime(folder, (old, old))
+        window._local_path = str(tmp_path)
+
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+        from hsync_desktop.file_panel.transfer_table import FileTransferTable
+
+        assert isinstance(window._file_panel.table, FileTransferTable)
+        window._file_panel.update_file_status("dir/", "synced", size=0, mtime=old)
+
+        window._on_status_pass_started()
+        window._on_directory_status(str(folder), "to_upload")
+        assert rows["dir/a.bin"].status is TransferStatus.SYNCED
+
+        window._on_status_pass_ended()
+        assert rows["dir/"].status is TransferStatus.TO_UPLOAD
+        assert abs(rows["dir/"].mtime - old) < 2
+
+    def test_the_buffer_is_dropped_with_the_process(self, window):
+        self._rows(window)
+        window._on_status_pass_started()
+        window._on_file_status("to_upload", "/share/dir/a.bin", 4)
+
+        window._on_process_finished(0, 0)
+
+        assert window._pending_verdicts == {}
+        assert window._comparison_in_flight is False
 
 
 class TestPerDeviceSyncState:

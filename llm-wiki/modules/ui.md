@@ -565,6 +565,21 @@ from the folder's own transfer by `_STATUS_PRIORITY` / `_FOLDER_STATUS_KEYS` in
 `file_panel/transfer_table.py`. A folder that does have children still takes the
 highest-priority child status.
 
+**Verdicts land at the end of a comparison, not per event.** `preview_started` /
+`status_pass_started` open a buffer
+(`hsync_desktop/main_window/events.py::EventsMixin._pending_verdicts`); the
+per-file, per-directory and per-rename verdicts are collected there (the last
+one per path wins) and `_flush_verdicts` applies them once, from
+`EventsMixin._end_comparison`. Plan counters are still recorded immediately,
+because they populate the summary dialog rather than a row. Two consequences:
+a folder row no longer flips `synced` → `to sync` → `synced` (with its Modified
+time jumping forward and back) while the classification is still computing, and
+the tree is rebuilt once per comparison instead of once per verdict. A directory
+verdict stores no timestamp: its mtime is read at flush time, against the settled
+tree. A verdict that arrives outside a comparison (a live `dir_status`, a stalled
+row refresh) is applied at once, and a process that dies mid-comparison drops its
+buffer.
+
 A **"Synced" row is a claim about the remote copy**, so it is asserted only while a
 link exists: `hsync_desktop/file_panel/transfer_table.py::FileTransferModel._row_status` swaps
 the label for `detail.synced_stale` (and `_foreground` uses the same muted grey as

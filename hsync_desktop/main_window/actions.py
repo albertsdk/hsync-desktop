@@ -299,6 +299,7 @@ class ActionsMixin:
         # A fresh process starts with no comparison behind it and no presence yet.
         self._comparison_in_flight = False
         self._comparison_errored = False
+        self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
         # No plan is being prepared: only _start_preview_run enters that state.
         self._preparing_plan = False
         # A new dry-run decides again whether anyone is watching it.

@@ -119,6 +119,13 @@ class EventsMixin:
     # Comparison window and its outcome (see MainWindow.__init__).
     _comparison_in_flight: bool
     _comparison_errored: bool
+    # Verdicts of the comparison in flight, keyed by row path. They are applied
+    # once, when the pass ends: applying them per event made a folder row flip
+    # "synced" → "to sync" → "synced" (and its Modified time jump forward and
+    # back) while the plan was still being computed. The last verdict per path
+    # wins; a directory verdict stores the status only and re-reads the mtime at
+    # flush time, so the timestamp reflects the settled tree.
+    _pending_verdicts: dict[str, tuple[str, int, int, int]]
     # The engine reported a connection failure: the link is down until the client
     # says otherwise, so no "checking" may be claimed meanwhile.
     _link_down: bool
@@ -553,11 +560,25 @@ class EventsMixin:
         sentinel, which never becomes a file row, so the engine reports the
         directory itself (``dir_status``): both for a directory it created
         from a remote event and for one already in sync.
+
+        During a comparison the verdict is buffered with the per-file ones, so a
+        passing classification cannot make the row flicker; the live event that
+        creates a directory outside a pass is applied at once.
         """
         base_path = self._local_path
         rel_path = dirpath
         if base_path and dirpath.startswith(base_path):
             rel_path = dirpath[len(base_path) :].lstrip("/\\")
+        # Folder entries use a trailing slash as their key; normalize so the
+        # sync status updates the same row instead of creating a file-like key.
+        dir_key = rel_path.strip("/\\").replace("\\", "/")
+        if not dir_key:
+            return
+        if self._comparison_in_flight:
+            # The mtime is read when the buffer is flushed (``_flush_verdicts``),
+            # against the settled tree, not mid-classification.
+            self._pending_verdicts[dir_key + "/"] = (status, 0, -1, -1)
+            return
         # Read directory metadata from filesystem
         mtime = 0.0
         if base_path:
@@ -566,16 +587,12 @@ class EventsMixin:
                 mtime = os.stat(full).st_mtime
             except OSError:
                 pass
-        # Folder entries use a trailing slash as their key; normalize so the
-        # sync status updates the same row instead of creating a file-like key.
-        dir_key = rel_path.strip("/\\").replace("\\", "/")
-        if dir_key:
-            self._file_panel.update_file_status(
-                dir_key + "/",
-                status,
-                size=0,
-                mtime=mtime,
-            )
+        self._file_panel.update_file_status(
+            dir_key + "/",
+            status,
+            size=0,
+            mtime=mtime,
+        )
 
     @Slot(str, str, str)
     def _on_master_conflict(self, conflict_type: str, peer_cid: str, peer_address: str) -> None:
@@ -884,6 +901,7 @@ class EventsMixin:
         self._preview_stats.reset()
         self._device_stats.clear()
         self._pending_inventory = None
+        self._pending_verdicts.clear()
         self._comparison_in_flight = True
         self._comparison_errored = False
         if not self._link_down:
@@ -907,9 +925,49 @@ class EventsMixin:
 
         Both marker pairs share it, so the manual check is never left disabled
         after a serving pass and never re-enabled while another one still runs.
+        The buffered verdicts are applied here, once, so the rows move straight
+        from their previous state to the plan's outcome instead of flickering
+        through it while the classification is still running.
         """
+        self._flush_verdicts()
         self._comparison_in_flight = False
         self._update_menu_state()
+
+    def _flush_verdicts(self) -> None:
+        """Apply the verdicts buffered during the comparison that just ended.
+
+        One update per path (the last verdict wins), directories last so their
+        mtime is read from the settled tree. The buffer is always drained, even
+        when the pass reported an error: a partially computed plan is still what
+        the device answered, and leaving the rows untouched would keep a previous
+        comparison's claim on screen.
+        """
+        if not self._pending_verdicts:
+            return
+        pending = self._pending_verdicts
+        self._pending_verdicts = {}
+        for rel_path, (status, size, holders, devices) in pending.items():
+            if not rel_path.endswith("/"):
+                self._file_panel.update_file_status(
+                    rel_path, status, size, holders=holders, devices=devices, preview=True
+                )
+        for rel_path, (status, size, holders, devices) in pending.items():
+            if rel_path.endswith("/"):
+                key = rel_path.rstrip("/")
+                mtime = 0.0
+                if self._local_path:
+                    try:
+                        mtime = os.stat(os.path.join(self._local_path, key)).st_mtime
+                    except OSError:
+                        pass
+                self._file_panel.update_file_status(
+                    rel_path,
+                    status,
+                    size=size,
+                    mtime=mtime,
+                    holders=holders,
+                    devices=devices,
+                )
 
     def _preview_path(self, path: str) -> str:
         """User-facing path: relative to the selected folder when it is below it."""
@@ -922,12 +980,21 @@ class EventsMixin:
     def _on_file_status(
         self, status: str, filepath: str, size: int, holders: int = -1, devices: int = -1
     ) -> None:
-        """Handle a per-file status, with its device coverage when known."""
+        """Handle a per-file status, with its device coverage when known.
+
+        The plan counters are recorded immediately (they are the summary's data
+        and are not shown on a row), while the row verdict is buffered until the
+        pass ends: a per-event update made the containing folder flip between
+        "synced" and "to sync" for as long as the classification ran.
+        """
         rel_path = self._preview_path(filepath)
         base_path = self._local_path
-        self._file_panel.update_file_status(
-            rel_path, status, size, holders=holders, devices=devices, preview=True
-        )
+        if self._comparison_in_flight:
+            self._pending_verdicts[rel_path] = (status, size, holders, devices)
+        else:
+            self._file_panel.update_file_status(
+                rel_path, status, size, holders=holders, devices=devices, preview=True
+            )
         if debug_events.enabled():
             row = self._file_panel.table._transfers.get(rel_path)
             debug_events.log(
@@ -937,6 +1004,9 @@ class EventsMixin:
                 base=base_path,
                 status=status,
                 size=size,
+                # While a comparison runs the row keeps its previous state until
+                # the pass ends, so the trace says which of the two it is.
+                deferred=self._comparison_in_flight,
                 row_status=row.status.value if row else None,
             )
         # Accumulate the plan: counts, sizes and the rows the confirmation lists.
@@ -953,7 +1023,10 @@ class EventsMixin:
     def _on_file_rename_status(self, src: str, dst: str, size: int) -> None:
         """Handle a planned rename: the row keeps the current path, the plan both."""
         rel_src = self._preview_path(src)
-        self._file_panel.update_file_status(rel_src, "to_rename", size, preview=True)
+        if self._comparison_in_flight:
+            self._pending_verdicts[rel_src] = ("to_rename", size, -1, -1)
+        else:
+            self._file_panel.update_file_status(rel_src, "to_rename", size, preview=True)
         self._preview_stats.record_rename(rel_src, self._preview_path(dst))
 
     @Slot(str, int, int)
@@ -1052,6 +1125,8 @@ class EventsMixin:
         # manual check is not left disabled for the next run.
         self._comparison_in_flight = False
         self._comparison_errored = False
+        # Its buffered verdicts belong to a run that no longer exists.
+        self._pending_verdicts.clear()
         # Nor can it produce the plan it was preparing.
         self._preparing_plan = False
         self._peers_total = 0

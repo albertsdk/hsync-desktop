@@ -174,6 +174,7 @@ class MainWindow(
         # The engine reported an error while that comparison ran: a failed preview
         # still emits its end marker, so only a clean one may claim a last check.
         self._comparison_errored = False
+        self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
         # The engine reported a connection failure: the link is down until the
         # client says otherwise (see UiBuildMixin._on_engine_error).
         self._link_down = False
