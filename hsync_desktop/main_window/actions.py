@@ -59,6 +59,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel
+from hsync_desktop.file_panel.transfer_table import selection_subdir
 from hsync_desktop.foreground import app_in_foreground
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
@@ -134,27 +135,52 @@ class ActionsMixin:
         self._update_path_display()
 
     @Slot(object)
-    def _on_file_selection_changed(self, transfer) -> None:
-        """Handle file selection change from the file panel table.
+    def _on_file_selection_changed(self, _selection=None) -> None:
+        """Recompute the File menu from the table's current selection.
 
-        Rename/trash are disabled for rows the engine still owns (planned or
-        in-flight transfer) and Copy to for entries not materialized on disk;
-        the row's status can change while the menu is open, so the table's
-        ``_ctx_*`` guards remain the backstop.
+        Driven by the selection as a whole, not by one row: with a
+        multi-selection every action either applies to all entries or is
+        disabled. Rename/trash are disabled while the engine still owns any
+        selected path (planned or in-flight transfer) and Copy to for entries
+        not materialized on disk; the table's ``_ctx_*`` guards remain the
+        backstop while the menu is open.
         """
-        has_selection = transfer is not None
-        self._set_file_menu_enabled(has_selection)
-        # Hide "Open With" for folders
-        if has_selection and hasattr(transfer, "filepath"):
-            is_dir = transfer.filepath.endswith("/")
-            self._act_file_open_with.setEnabled(not is_dir)
-            table = self._file_panel._table
-            busy = table._entry_is_busy(transfer)
-            self._act_file_rename.setEnabled(not busy)
-            self._act_file_trash.setEnabled(not busy)
-            self._act_file_copy_to.setEnabled(table._copy_enabled(transfer))
+        self._refresh_file_actions()
+
+    def _refresh_file_actions(self) -> None:
+        """Enable each File action for the current yes/no/partial selection."""
+        table = self._file_panel._table
+        transfers = table.selected_transfers()
+        if not transfers:
+            self._set_file_menu_enabled(False)
+            return
+        self._set_file_menu_enabled(True)
+        single = len(transfers) == 1
+        any_busy = any(table._entry_is_busy(transfer) for transfer in transfers)
+        all_copyable = all(table._copy_enabled(transfer) for transfer in transfers)
+        # One scoped run covers one folder, so Send/Receive are offered only when
+        # the whole selection resolves to the same ``--subdir``.
+        same_scope = len({selection_subdir(transfer.filepath) for transfer in transfers}) == 1
+        is_dir = transfers[0].filepath.endswith("/")
+
+        self._act_file_open.setEnabled(single)
+        self._act_file_open_containing.setEnabled(single)
+        self._act_file_open_with.setEnabled(single and not is_dir)
+        self._act_file_copy_to.setEnabled(all_copyable)
+        self._act_file_copy_path.setEnabled(True)
+        self._act_file_copy_path_relative.setEnabled(True)
+        self._act_file_rename.setEnabled(single and not any_busy)
+        self._act_file_trash.setEnabled(not any_busy)
+        self._act_file_properties.setEnabled(single)
+        selection_sync = not self._engine.is_running and same_scope
+        self._act_file_send.setEnabled(selection_sync)
+        self._act_file_receive.setEnabled(selection_sync)
 
     # ── File menu action wrappers ─────────────────────────────────────────
+
+    def _get_selected_transfers(self) -> list:
+        """Every transfer selected in the file panel (empty when none)."""
+        return self._file_panel._table.selected_transfers()
 
     def _get_selected_transfer(self):
         """Return the currently selected transfer from the file panel, or None.
@@ -180,9 +206,9 @@ class ActionsMixin:
             self._file_panel._table._ctx_open_with(t)
 
     def _menu_file_copy_to(self) -> None:
-        t = self._get_selected_transfer()
-        if t:
-            self._file_panel._table._ctx_copy_to(t)
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._file_panel._table._copy_to_many(transfers)
 
     def _menu_file_open_containing(self) -> None:
         """Reveal the selected entry in the OS file manager."""
@@ -191,16 +217,16 @@ class ActionsMixin:
             self._file_panel._table._ctx_open_containing(t)
 
     def _menu_file_copy_path(self) -> None:
-        """Copy the selected entry's absolute path (host-native form)."""
-        t = self._get_selected_transfer()
-        if t:
-            self._file_panel._table.copy_path(t)
+        """Copy the selected paths (host-native form), one per line."""
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._file_panel._table.copy_paths(transfers)
 
     def _menu_file_copy_path_relative(self) -> None:
-        """Copy the selected entry's path inside the shared folder."""
-        t = self._get_selected_transfer()
-        if t:
-            self._file_panel._table.copy_path(t, relative=True)
+        """Copy the selected paths inside the shared folder, one per line."""
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._file_panel._table.copy_paths(transfers, relative=True)
 
     def _menu_file_rename(self) -> None:
         t = self._get_selected_transfer()
@@ -208,40 +234,33 @@ class ActionsMixin:
             self._file_panel._table._ctx_rename(t)
 
     def _menu_file_trash(self) -> None:
-        t = self._get_selected_transfer()
-        if t:
-            self._file_panel._table._ctx_trash(t)
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._file_panel._table._trash_many(transfers)
 
     def _menu_file_properties(self) -> None:
         t = self._get_selected_transfer()
         if t:
             self._file_panel._table._ctx_properties(t)
 
-    def _has_file_selection(self) -> bool:
-        """Return whether a file/folder row is selected in the file panel."""
-        return self._get_selected_transfer() is not None
-
     def _menu_file_send(self) -> None:
-        transfer = self._get_selected_transfer()
-        if transfer:
-            self._sync_selection(transfer.filepath, "upload-only")
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._sync_selection(transfers[0].filepath, "upload-only")
 
     def _menu_file_receive(self) -> None:
-        transfer = self._get_selected_transfer()
-        if transfer:
-            self._sync_selection(transfer.filepath, "download-only")
+        transfers = self._get_selected_transfers()
+        if transfers:
+            self._sync_selection(transfers[0].filepath, "download-only")
 
     @staticmethod
     def _selection_subdir(filepath: str) -> str:
         """Bucket-relative subdirectory a selection sync is scoped to.
 
-        A folder maps to itself; a file maps to its containing folder (per-file
-        sync is not supported by the engine). A root-level entry yields "".
+        Delegates to the shared definition so the table (which decides whether a
+        multi-selection is homogeneous) and the run builder cannot disagree.
         """
-        path = filepath.strip("/")
-        if filepath.endswith("/"):
-            return path
-        return os.path.dirname(path)
+        return selection_subdir(filepath)
 
     @staticmethod
     def _selection_display_name(filepath: str, current_path: str) -> str | None:

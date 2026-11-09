@@ -4306,9 +4306,10 @@ class TestFileMenuCopyPath:
         table.add_transfer(
             FileTransfer(filepath="report.bin", direction="—", size=1, status=TransferStatus.LOCAL)
         )
-        table._last_selected_row = 0
+        # The selection model is the source of truth for the File menu now.
+        table.selectRow(0)
+        window._refresh_file_actions()
 
-        window._set_file_menu_enabled(True)
         assert window._act_file_copy_path.isEnabled()
         assert window._act_file_copy_path_relative.isEnabled()
         assert window._act_file_open_containing.isEnabled()
@@ -5015,3 +5016,79 @@ class TestStoppingFeedback:
         assert not window._btn_stop.isEnabled()
         assert not window._info_banner.isHidden()
         assert tr("notif.stop_timeout") in window._log_view.toPlainText()
+
+
+class TestFileMenuMultiSelection:
+    """The File menu follows the whole selection, not just the last row."""
+
+    @staticmethod
+    def _setup(window, *filepaths):
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        for filepath in filepaths:
+            table.add_transfer(
+                FileTransfer(
+                    filepath=filepath,
+                    direction="—",
+                    size=1,
+                    status=TransferStatus.LOCAL,
+                )
+            )
+        return table
+
+    @staticmethod
+    def _select(table, *rows):
+        from PySide6.QtCore import QItemSelectionModel
+
+        flags = QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows
+        for row in rows:
+            table.selectionModel().select(table.model().index(row, 0), flags)
+
+    def test_two_files_enable_multi_actions_and_disable_single_ones(self, window):
+        table = self._setup(window, "a.bin", "b.bin")
+
+        self._select(table, 0, 1)
+
+        assert window._act_file_trash.isEnabled()
+        assert window._act_file_copy_to.isEnabled()
+        assert window._act_file_copy_path.isEnabled()
+        assert window._act_file_send.isEnabled()
+        assert window._act_file_receive.isEnabled()
+        # Inherently single-target.
+        assert not window._act_file_rename.isEnabled()
+        assert not window._act_file_properties.isEnabled()
+        assert not window._act_file_open.isEnabled()
+        assert not window._act_file_open_with.isEnabled()
+
+    def test_folders_from_different_subfolders_disable_send_receive(self, window):
+        table = self._setup(window, "dir1/a.bin", "dir2/b.bin")
+
+        self._select(table, 0, 1)
+
+        assert window._act_file_trash.isEnabled()
+        assert not window._act_file_send.isEnabled()
+        assert not window._act_file_receive.isEnabled()
+
+    def test_an_empty_selection_disables_the_whole_menu(self, window):
+        table = self._setup(window, "a.bin")
+
+        table.clearSelection()
+
+        assert not window._act_file_trash.isEnabled()
+        assert not window._act_file_copy_path.isEnabled()
+        assert not window._act_file_send.isEnabled()
+
+    def test_copy_path_copies_every_selected_path(self, window):
+        from PySide6.QtGui import QGuiApplication
+
+        table = self._setup(window, "a.bin", "b.bin")
+        self._select(table, 0, 1)
+
+        window._menu_file_copy_path()
+
+        assert set(QGuiApplication.clipboard().text().splitlines()) == {
+            os.path.normpath("/share/a.bin"),
+            os.path.normpath("/share/b.bin"),
+        }

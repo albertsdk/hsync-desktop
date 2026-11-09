@@ -3041,3 +3041,182 @@ class TestReloadKeepsClassifications:
         qtbot.waitUntil(lambda: panel._scan_thread is None, timeout=5000)
 
         assert panel._table._transfers["a.txt"].status is TransferStatus.LOCAL
+
+
+class TestMultiSelection:
+    """More than one row can be selected, and the actions follow the selection.
+
+    Every action either applies to the whole selection or is disabled, so a
+    mis-click can never silently act on a row the user did not mean to touch.
+    """
+
+    @staticmethod
+    def _table(qtbot, *filepaths, base="/share"):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory(base)
+        for filepath in filepaths:
+            table.add_transfer(
+                FileTransfer(
+                    filepath=filepath,
+                    direction="—",
+                    size=1,
+                    status=TransferStatus.LOCAL,
+                )
+            )
+        table.resize(400, 300)
+        table.show()
+        qtbot.wait(1)
+        return table
+
+    @staticmethod
+    def _action(menu, key):
+        from hsync_desktop.i18n import tr
+
+        return next(a for a in menu.actions() if not a.isSeparator() and a.text() == tr(key))
+
+    @staticmethod
+    def _select(table, *rows):
+        from PySide6.QtCore import QItemSelectionModel
+
+        model = table.selectionModel()
+        flags = QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows
+        for row in rows:
+            model.select(table.model().index(row, 0), flags)
+
+    def test_the_table_supports_extended_selection(self, qtbot):
+        from PySide6.QtWidgets import QAbstractItemView
+
+        table = self._table(qtbot, "a.bin", "b.bin")
+
+        assert table.selectionMode() == QAbstractItemView.SelectionMode.ExtendedSelection
+
+    def test_every_selected_row_is_returned(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin", "c.bin")
+
+        self._select(table, 0, 2)
+
+        assert {transfer.filepath for transfer in table.selected_transfers()} == {
+            "a.bin",
+            "c.bin",
+        }
+        assert table.selection_count() == 2
+
+    def test_a_selection_change_is_published(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin")
+        seen: list[list[str]] = []
+        table.selected_rows_changed.connect(
+            lambda transfers: seen.append([t.filepath for t in transfers])
+        )
+
+        table.selectRow(0)
+
+        assert seen == [["a.bin"]]
+
+    def test_the_selection_survives_a_refresh(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin", "c.bin")
+        table.restore_view("", ["a.bin", "c.bin"])
+
+        table.refresh_view()
+
+        assert {transfer.filepath for transfer in table.selected_transfers()} == {
+            "a.bin",
+            "c.bin",
+        }
+
+    def test_a_restored_row_that_disappeared_is_dropped(self, qtbot):
+        table = self._table(qtbot, "a.bin")
+
+        table.restore_view("", ["gone.bin", "a.bin"])
+
+        assert {transfer.filepath for transfer in table.selected_transfers()} == {"a.bin"}
+
+    def test_the_context_menu_acts_on_every_selected_row(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin")
+        self._select(table, 0, 1)
+
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(0, 0)).center())
+
+        assert menu is not None
+        assert self._action(menu, "ctx.trash").isEnabled()
+        # Rename is inherently single-target.
+        assert not self._action(menu, "ctx.rename").isEnabled()
+        assert not self._action(menu, "ctx.open_with").isEnabled()
+
+    def test_right_clicking_outside_the_selection_targets_that_row(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin")
+        self._select(table, 0)
+
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(1, 0)).center())
+
+        assert menu is not None
+        assert self._action(menu, "ctx.rename").isEnabled()
+
+    def test_send_receive_are_disabled_across_folders(self, qtbot):
+        table = self._table(qtbot, "dir1/a.bin", "dir2/b.bin")
+        self._select(table, 0, 1)
+
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(0, 0)).center())
+
+        assert menu is not None
+        from hsync_desktop.i18n import tr
+
+        send = self._action(menu, "action.send_now")
+        assert not send.isEnabled()
+        assert send.toolTip() == tr("tip.send_receive_same_folder")
+
+    def test_send_receive_are_enabled_for_files_in_one_folder(self, qtbot):
+        table = self._table(qtbot, "a.bin", "b.bin")
+        self._select(table, 0, 1)
+
+        menu = table._build_file_context_menu(table.visualRect(table.model().index(0, 0)).center())
+
+        assert menu is not None
+        assert self._action(menu, "action.send_now").isEnabled()
+        assert self._action(menu, "action.receive_now").isEnabled()
+
+    def test_trash_many_confirms_once_and_removes_every_entry(self, qtbot, monkeypatch):
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        table = self._table(qtbot, "a.bin", "b.bin")
+        calls: list[list[str]] = []
+        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
+        monkeypatch.setattr(tt.subprocess, "run", lambda args, **kw: calls.append(list(args)))
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+
+        table._trash_many(list(table.selected_transfers()) or [])
+
+        # The selection is empty (nothing clicked), so nothing happened.
+        assert calls == []
+
+        self._select(table, 0, 1)
+        table._trash_many(table.selected_transfers())
+
+        assert len(calls) == 1
+        assert calls[0][:2] == ["gio", "trash"]
+        assert len(calls[0]) == 4
+        assert table.model().rowCount() == 0
+
+    def test_copy_many_copies_every_entry(self, qtbot, tmp_path, monkeypatch):
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        base = tmp_path / "share"
+        base.mkdir()
+        (base / "a.bin").write_bytes(b"a")
+        (base / "b.bin").write_bytes(b"b")
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        table = self._table(qtbot, "a.bin", "b.bin", base=str(base))
+        monkeypatch.setattr(tt.QFileDialog, "getExistingDirectory", lambda *a, **k: str(dest))
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+        shown: list[str] = []
+        monkeypatch.setattr(tt.QMessageBox, "information", lambda *a, **k: shown.append("info"))
+
+        self._select(table, 0, 1)
+        table._copy_to_many(table.selected_transfers())
+
+        assert (dest / "a.bin").read_bytes() == b"a"
+        assert (dest / "b.bin").read_bytes() == b"b"
+        assert shown == ["info"]

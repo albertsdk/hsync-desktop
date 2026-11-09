@@ -388,8 +388,10 @@ class MainWindow(
         e.file_status.connect(self._on_file_status)
         e.file_rename_status.connect(self._on_file_rename_status)
 
-        # File panel selection signals for menu state
-        self._file_panel._table.row_selected.connect(self._on_file_selection_changed)
+        # File panel selection signals for menu state. The selection-driven
+        # signal carries every selected row, so the File menu can decide per
+        # action; ``row_deselected`` keeps the single-row deselect path working.
+        self._file_panel._table.selected_rows_changed.connect(self._on_file_selection_changed)
         self._file_panel._table.row_deselected.connect(lambda: self._set_file_menu_enabled(False))
         self._file_panel._table.send_selection_requested.connect(
             lambda filepath: self._sync_selection(filepath, "upload-only")

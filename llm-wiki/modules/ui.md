@@ -692,6 +692,29 @@ The entries are disabled while a sync is running
 (`hsync_desktop/main_window/actions.py::ActionsMixin._menu_file_send` / `_menu_file_receive`),
 enabled only with a selection and a stopped engine.
 
+**Several rows can be selected** (`QAbstractItemView::ExtendedSelection`: Ctrl
+click toggles one row, Shift click extends a range). The selection is the source
+of truth for the menu, published by
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.selected_rows_changed`
+and read through `FileTransferTable.selected_transfers` (aggregated folder rows
+are synthesized exactly as for a single row). Right-clicking a row that is inside
+the selection acts on the whole selection; right-clicking outside it acts on that
+row alone, the standard desktop behaviour.
+
+| Action | With more than one row selected |
+| ------ | ------------------------------- |
+| Trash, Copy To…, Copy Path / Relative Path | applies to the whole selection |
+| Send now / Receive now | only when every entry resolves to the same `--subdir` (`selection_subdir`, the shared scope rule); differently-scoped folders disable it with `tip.send_receive_same_folder` |
+| Open, Open With…, Open Containing Folder, Rename, Properties | disabled (inherently single-target) |
+
+`FileTransferTable._trash_many` asks one confirmation for the batch (the count,
+not one prompt per item) and moves everything with a single `gio trash` call on
+Linux; macOS/Windows iterate and report the failures in one warning.
+`_copy_to_many` picks one destination, asks one confirmation and one overwrite
+question for the whole batch, then copies every entry. A partial failure never
+stops the rest: the summary reports how many succeeded. `_remove_files` drops
+several rows with one refresh, so the tree is not rebuilt once per entry.
+
 Destructive acts (`Rename` / `Trash`) add a **per-row** gate on top:
 `FileTransferTable._entry_is_busy` returns True while the engine owns the path —
 planned (`TO_*`), in-flight (`DOWNLOADING`/`UPLOADING`),
@@ -704,7 +727,8 @@ DELETED row is gone) and a folder must not be busy below it (the copy would
 sweep the engine's `.part` staging files), while a busy *file* row stays
 copyable — so the menu never offers an action that would race the transfer or
 fail on a missing file. The same helpers drive the window File menu at selection
-time (`_on_file_selection_changed`) and are re-checked
+time (`hsync_desktop/main_window/actions.py::ActionsMixin._refresh_file_actions`,
+fed by `selected_rows_changed`) and are re-checked
 inside `_ctx_rename` / `_ctx_trash` / `_ctx_copy_to`, whose enabled state can
 lag a transfer that only just started; Open / Copy path / Properties stay
 available because they are read-only. The rename submission is guarded too

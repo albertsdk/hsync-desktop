@@ -851,8 +851,10 @@ class UiBuildMixin:
             self._tray.set_preview_changes_enabled(can_preview)
         # Send/Receive of a selection are one-shot commands: only while stopped.
         idle = not is_running and not is_stopping
-        self._act_file_send.setEnabled(idle and self._has_file_selection())
-        self._act_file_receive.setEnabled(idle and self._has_file_selection())
+        # The File menu follows the whole selection (see
+        # ActionsMixin._refresh_file_actions): with a multi-selection an action
+        # is enabled only when it applies to every selected entry.
+        self._refresh_file_actions()
         self._file_panel._table.set_sync_active(is_running and not is_stopping)
         self._apply_button_styles()
         self._update_preview_changes_tooltip()

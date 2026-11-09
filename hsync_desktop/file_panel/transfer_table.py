@@ -9,7 +9,7 @@ import os
 import platform
 import shutil
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from pathlib import Path
 from time import localtime, strftime, time
@@ -18,6 +18,7 @@ from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QAbstractTableModel,
     QByteArray,
+    QItemSelectionModel,
     QModelIndex,
     QMutex,
     QMutexLocker,
@@ -206,6 +207,20 @@ _STATE_SAVE_DELAY_MS = 300
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
+
+
+def selection_subdir(filepath: str) -> str:
+    """Bucket-relative folder a scoped Send/Receive on *filepath* covers.
+
+    A folder maps to itself, a file to its containing folder (the engine scopes a
+    one-shot run with ``--subdir``, never a single file). Kept here so the table
+    (which decides whether a multi-selection is homogeneous) and the window
+    (which builds the run) cannot disagree.
+    """
+    path = filepath.strip("/")
+    if filepath.endswith("/"):
+        return path
+    return os.path.dirname(path)
 
 
 class FileTransferModel(QAbstractTableModel):
@@ -562,6 +577,9 @@ class FileTransferTable(QTableView):
     path_changed = Signal(str)  # Emitted when current navigation path changes
     send_selection_requested = Signal(str)  # Send the selected subtree (filepath)
     receive_selection_requested = Signal(str)  # Receive the selected subtree (filepath)
+    # The full selection (0..N entries), emitted on every change so the window
+    # can enable the File menu from the selection instead of one row at a time.
+    selected_rows_changed = Signal(list)
     # Emitted when files are dropped from the OS file manager: the accepted
     # absolute source paths, the destination folder relative to the share root,
     # and the requested action ("copy" or "move").
@@ -585,9 +603,14 @@ class FileTransferTable(QTableView):
         self._row_index: dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         # Restored across a file-panel reload (scoped Send/Receive): keeps the
-        # user's row selected while the fresh scan fills the table.
-        self._sticky_selection: str | None = None
+        # user's rows selected while the fresh scan fills the table. A tuple,
+        # because a multi-selection must survive the refreshes a running sync
+        # triggers, not only a single restored row.
+        self._sticky_selection: tuple[str, ...] | None = None
         self._sticky_applied_row: int = -1
+        # True while a selection is rebuilt programmatically (sticky restore): the
+        # transient empty state Qt reports must not reach the window.
+        self._restoring_selection: bool = False
         self._base_directory: str = ""
         self._sync_active: bool = False  # A sync is running: Send/Receive disabled
         self._connected: bool = False  # A connection is active: "Local" rows are grey
@@ -622,6 +645,10 @@ class FileTransferTable(QTableView):
         self._click_timer.setInterval(QApplication.doubleClickInterval())
         self._click_timer.timeout.connect(self._on_single_click_confirmed)
         self._pending_click_row: int = -1
+        # Modifiers held during the click that armed ``_click_timer``: the
+        # click-to-deselect toggle only applies to a plain click, never to a
+        # Ctrl/Shift click that extends the selection.
+        self._pending_click_modifiers = Qt.KeyboardModifier.NoModifier
 
         # Debounce timer for refresh_view during batch loading
         self._refresh_timer = QTimer(self)
@@ -688,7 +715,7 @@ class FileTransferTable(QTableView):
 
     def _setup_table(self) -> None:
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
@@ -736,6 +763,10 @@ class FileTransferTable(QTableView):
         # QModelIndex-based ones to the row/column handlers.
         self.clicked.connect(self._on_index_clicked)
         self.doubleClicked.connect(self._on_index_double_clicked)
+        # The selection model owns the change signal (``QTableView`` exposes no
+        # ``itemSelectionChanged`` in the PySide6 stubs); ``setModel`` already ran
+        # in ``__init__``, so the model exists here.
+        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
         # Header-click sorting, but keep the natural folders-first order until
         # the user actually sorts: ``setSortingEnabled`` immediately sorts by the
@@ -983,6 +1014,9 @@ class FileTransferTable(QTableView):
 
     def _on_index_clicked(self, index: QModelIndex) -> None:
         if index.isValid():
+            # Captured now: by the time the click timer fires the modifier may
+            # already be released, and the toggle decision depends on it.
+            self._pending_click_modifiers = QApplication.keyboardModifiers()
             self._on_cell_clicked(index.row(), index.column())
 
     def _on_index_double_clicked(self, index: QModelIndex) -> None:
@@ -995,25 +1029,67 @@ class FileTransferTable(QTableView):
         self._click_timer.start()
 
     def _on_single_click_confirmed(self) -> None:
-        """Handle confirmed single click: toggle selection on re-click."""
+        """Handle a confirmed plain click on a row.
+
+        A second plain click on the only selected row deselects it. The toggle
+        applies **only** to a plain click: a Ctrl/Shift click extends or toggles
+        the selection through Qt, and re-running the arbitrary toggle there would
+        undo it (a Ctrl+click on an already selected row would clear everything).
+        """
         self._clear_sticky_selection()
         row = self._pending_click_row
-        if row == self._last_selected_row:
-            # Re-click on same row → deselect
+        plain_click = not (
+            self._pending_click_modifiers
+            & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+        )
+        only_row = row == self._last_selected_row and self.selection_count() <= 1
+        if plain_click and only_row:
             self._last_selected_row = -1
             self.clearSelection()
             self.row_deselected.emit()
-        else:
-            # New row clicked → keep it selected
-            self._last_selected_row = row
-            # Notify that a new row was selected (used to update open panel).
-            # Every row, including an aggregated folder with no FileTransfer of
-            # its own, is selected: synthesize a resting entry for these so the
-            # window File menu matches the row context menu (which already
-            # synthesizes one) instead of staying disabled on the selection.
+            return
+        # Keep the row as the primary selection: the detail panel and the
+        # single-target actions read it while a multi-selection is active.
+        self._last_selected_row = row
+        if plain_click and self.selection_count() == 0:
+            # A plain click normally selected the row already; select it here when
+            # the click arrived without one (keyboard focus, programmatic path) so
+            # the primary row and the selection model never disagree.
+            self.selectRow(row)
+        transfer = self._transfer_for_row(row, synthesize=True)
+        if transfer:
+            self.row_selected.emit(transfer)
+
+    def selection_count(self) -> int:
+        """Number of selected rows (0 when the selection is empty)."""
+        return len(self.selectionModel().selectedRows())
+
+    def selected_transfers(self) -> list[FileTransfer]:
+        """Every selected row as a ``FileTransfer``, in display order.
+
+        Aggregated folders are synthesized exactly like the context menu and the
+        window File menu do, so a selection never silently drops a row that has
+        children on disk but no ``FileTransfer`` of its own.
+        """
+        rows = sorted({index.row() for index in self.selectionModel().selectedRows()})
+        transfers: list[FileTransfer] = []
+        for row in rows:
             transfer = self._transfer_for_row(row, synthesize=True)
-            if transfer:
-                self.row_selected.emit(transfer)
+            if transfer is not None:
+                transfers.append(transfer)
+        return transfers
+
+    def _on_selection_changed(self, *_args) -> None:
+        """Publish the new selection so the window can enable its actions.
+
+        Suppressed while ``_apply_sticky_selection`` rebuilds a selection after a
+        refresh: the model reset momentarily reports an empty selection, and the
+        window would disable its File menu for that instant on every periodic
+        status refresh during a sync.
+        """
+        if self._restoring_selection:
+            return
+        self.selected_rows_changed.emit(self.selected_transfers())
 
     def _on_cell_double_clicked(self, row: int, _col: int) -> None:
         """Handle double-click: navigate into folder or open file."""
@@ -1212,17 +1288,25 @@ class FileTransferTable(QTableView):
             parent = str(Path(self._current_path).parent)
             self.navigate_to("" if parent == "." else parent)
 
-    def restore_view(self, path: str, selected: str | None) -> None:
+    def restore_view(self, path: str, selected: str | Sequence[str] | None) -> None:
         """Reopen ``path`` and select ``selected`` after a panel reload.
 
         ``Send now`` / ``Receive now`` reload the local tree before starting the
         one-shot; this puts the user back where they were instead of jumping to
-        the root. The selection stays applied across the asynchronous scan's
-        refreshes until the user navigates or selects another row.
+        the root. A string is accepted for the single-row callers and a sequence
+        restores a multi-selection. The selection stays applied across the
+        asynchronous scan's refreshes until the user navigates or selects
+        another row.
         """
         if path and path != self._current_path:
             self.navigate_to(path)  # clears any previous sticky selection
-        self._sticky_selection = selected
+        if selected is None:
+            names: tuple[str, ...] = ()
+        elif isinstance(selected, str):
+            names = (selected,)
+        else:
+            names = tuple(selected)
+        self._sticky_selection = names or None
         self._sticky_applied_row = -1
         self.refresh_view()
 
@@ -1231,26 +1315,36 @@ class FileTransferTable(QTableView):
         self._sticky_applied_row = -1
 
     def _apply_sticky_selection(self) -> None:
-        """Re-select the restored row once it is present at the current level."""
-        if self._sticky_selection is None:
+        """Re-select every restored row present at the current level."""
+        if not self._sticky_selection:
             return
+        wanted = set(self._sticky_selection)
         # Resolve from the visible rows (model order), not _row_index: the map is
         # rebuilt with the rows, but the display name is the stable key the user
-        # restored.
-        row = None
-        for candidate in range(self._model.rowCount()):
-            if self._model.display_name(candidate) == self._sticky_selection:
-                row = candidate
-                break
-        if row is None:
+        # restored. A row that disappeared is dropped silently.
+        rows = [
+            row for row in range(self._model.rowCount()) if self._model.display_name(row) in wanted
+        ]
+        if not rows:
             return
-        self._last_selected_row = row
-        self.selectRow(row)
-        if row != self._sticky_applied_row:
-            self._sticky_applied_row = row
+        selection = self.selectionModel()
+        self._restoring_selection = True
+        try:
+            selection.clearSelection()
+            flags = (
+                QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows
+            )
+            for row in rows:
+                selection.select(self._model.index(row, 0), flags)
+        finally:
+            self._restoring_selection = False
+        self._last_selected_row = rows[0]
+        primary = rows[0]
+        if primary != self._sticky_applied_row:
+            self._sticky_applied_row = primary
             # Same synthesis as _on_single_click_confirmed: the restored row may
             # be an aggregated folder with no FileTransfer of its own.
-            transfer = self._transfer_for_row(row, synthesize=True)
+            transfer = self._transfer_for_row(primary, synthesize=True)
             if transfer:
                 self.row_selected.emit(transfer)
 
@@ -1397,24 +1491,32 @@ class FileTransferTable(QTableView):
         dark = self.palette().color(QPalette.ColorRole.Window).lightness() < 128
         status_palette = STATUS_COLORS_DARK if dark else STATUS_COLORS
 
-        self._model.set_rows(
-            items,
-            connected=self._connected,
-            default_text_color=default_text_color,
-            status_palette=status_palette,
-            direction_font=self._direction_font,
-            verified_at=self._last_verified_at,
-        )
-        # Rebuild the display-key index from the model's final (possibly sorted)
-        # row order so it never disagrees with what is on screen.
-        self._row_index = {
-            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
-        }
-        self._last_selected_row = -1
+        # The model reset drops the selection momentarily: the window would then
+        # disable its File menu on every refresh and re-enable it a line later.
+        # Suppress the intermediate notifications and publish the final state once.
+        self._restoring_selection = True
+        try:
+            self._model.set_rows(
+                items,
+                connected=self._connected,
+                default_text_color=default_text_color,
+                status_palette=status_palette,
+                direction_font=self._direction_font,
+                verified_at=self._last_verified_at,
+            )
+            # Rebuild the display-key index from the model's final (possibly
+            # sorted) row order so it never disagrees with what is on screen.
+            self._row_index = {
+                name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
+            }
+            self._last_selected_row = -1
 
-        # Fit the columns to their content once, before any user resizing.
-        self._size_columns_to_contents()
-        self._apply_sticky_selection()
+            # Fit the columns to their content once, before any user resizing.
+            self._size_columns_to_contents()
+            self._apply_sticky_selection()
+        finally:
+            self._restoring_selection = False
+        self.selected_rows_changed.emit(self.selected_transfers())
 
     def _get_transfer_at_row(self, row: int) -> FileTransfer | None:
         """Return the FileTransfer for the given row."""
@@ -1463,7 +1565,20 @@ class FileTransferTable(QTableView):
         Used by the context menu and by the window's File menu
         (``main_window/actions.py::ActionsMixin._menu_file_copy_path``).
         """
-        text = os.path.normpath(transfer.filepath if relative else self._absolute_path(transfer))
+        return self.copy_paths([transfer], relative=relative)
+
+    def copy_paths(self, transfers: Sequence[FileTransfer], *, relative: bool = False) -> str:
+        """Copy several paths to the clipboard, one per line, and return them.
+
+        Same normalization as :meth:`copy_path`. A multi-selection copies every
+        selected entry, so pasting it into a shell or a dialog yields the whole
+        list instead of silently only the first row.
+        """
+        lines = [
+            os.path.normpath(transfer.filepath if relative else self._absolute_path(transfer))
+            for transfer in transfers
+        ]
+        text = "\n".join(lines)
         QGuiApplication.clipboard().setText(text)
         return text
 
@@ -1542,45 +1657,70 @@ class FileTransferTable(QTableView):
         if not index.isValid():
             return None
         row = index.row()
-        transfer = self._get_transfer_at_row(row)
+        primary = self._transfer_for_row(row, synthesize=True)
+        if primary is None:
+            return None
 
-        if not transfer:
-            transfer = self._transfer_for_row(row, synthesize=True)
-            if transfer is None:
-                return None
-
-        is_dir = transfer.filepath.endswith("/")
+        # Right-clicking inside the selection acts on all of it; right-clicking a
+        # row outside the selection acts on that row alone (standard desktop
+        # behaviour: the click replaces the selection).
+        selected_rows = {item.row() for item in self.selectionModel().selectedRows()}
+        targets = self.selected_transfers() if row in selected_rows else []
+        if not targets:
+            targets = [primary]
+        single = len(targets) == 1
+        is_dir = primary.filepath.endswith("/")
+        any_busy = any(self._entry_is_busy(transfer) for transfer in targets)
+        # A scoped run covers one folder: a selection of files in the current
+        # folder qualifies, two different subfolders do not.
+        same_scope = len({selection_subdir(transfer.filepath) for transfer in targets}) == 1
 
         menu = QMenu(self)
-        menu.addAction(tr("ctx.open"), lambda: self._ctx_open(transfer))
-        menu.addAction(tr("ctx.open_containing"), lambda: self._ctx_open_containing(transfer))
+        for text, handler in (
+            (tr("ctx.open"), lambda: self._ctx_open(primary)),
+            (tr("ctx.open_containing"), lambda: self._ctx_open_containing(primary)),
+        ):
+            action = menu.addAction(text, handler)
+            action.setEnabled(single)
         if not is_dir:
-            menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(transfer))
+            action = menu.addAction(tr("ctx.open_with"), lambda: self._ctx_open_with(primary))
+            action.setEnabled(single)
         menu.addSeparator()
         send_action = menu.addAction(
-            tr("action.send_now"), lambda: self.send_selection_requested.emit(transfer.filepath)
+            tr("action.send_now"),
+            lambda: self.send_selection_requested.emit(primary.filepath),
         )
         receive_action = menu.addAction(
             tr("action.receive_now"),
-            lambda: self.receive_selection_requested.emit(transfer.filepath),
+            lambda: self.receive_selection_requested.emit(primary.filepath),
         )
-        send_action.setEnabled(not self._sync_active)
-        receive_action.setEnabled(not self._sync_active)
+        send_enabled = not self._sync_active and same_scope
+        send_action.setEnabled(send_enabled)
+        receive_action.setEnabled(send_enabled)
+        if not same_scope:
+            # Explain the refusal instead of leaving a mute grey row.
+            send_action.setToolTip(tr("tip.send_receive_same_folder"))
+            receive_action.setToolTip(tr("tip.send_receive_same_folder"))
         menu.addSeparator()
-        entry_busy = self._entry_is_busy(transfer)
-        copy_to_action = menu.addAction(tr("ctx.copy_to"), lambda: self._ctx_copy_to(transfer))
-        copy_to_action.setEnabled(self._copy_enabled(transfer))
-        menu.addAction(tr("ctx.copy_path"), lambda: self.copy_path(transfer))
+        copy_to_action = menu.addAction(tr("ctx.copy_to"), lambda: self._copy_to_many(targets))
+        # ``_copy_enabled`` already refuses only the cases a snapshot cannot be
+        # taken from (missing entry, folder with busy children); a busy single
+        # file stays copyable, so this must not add an "any busy" veto.
+        copy_to_action.setEnabled(all(self._copy_enabled(transfer) for transfer in targets))
+        menu.addAction(tr("ctx.copy_path"), lambda: self.copy_paths(targets))
         menu.addAction(
-            tr("ctx.copy_path_relative"), lambda: self.copy_path(transfer, relative=True)
+            tr("ctx.copy_path_relative"), lambda: self.copy_paths(targets, relative=True)
         )
-        rename_action = menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(transfer))
-        rename_action.setEnabled(not entry_busy)
+        rename_action = menu.addAction(tr("ctx.rename"), lambda: self._ctx_rename(primary))
+        rename_action.setEnabled(single and not any_busy)
         menu.addSeparator()
-        trash_action = menu.addAction(tr("ctx.trash"), lambda: self._ctx_trash(transfer))
-        trash_action.setEnabled(not entry_busy)
+        trash_action = menu.addAction(tr("ctx.trash"), lambda: self._trash_many(targets))
+        trash_action.setEnabled(not any_busy)
         menu.addSeparator()
-        menu.addAction(tr("ctx.properties"), lambda: self._ctx_properties(transfer))
+        properties_action = menu.addAction(
+            tr("ctx.properties"), lambda: self._ctx_properties(primary)
+        )
+        properties_action.setEnabled(single)
         return menu
 
     def _ctx_open(self, transfer: FileTransfer) -> None:
@@ -1660,60 +1800,84 @@ class FileTransferTable(QTableView):
             raise RuntimeError(reply.errorMessage())
 
     def _ctx_copy_to(self, transfer: FileTransfer) -> None:
-        """Copy the file or directory to a user-chosen directory.
+        """Copy one entry to a user-chosen directory (single-row caller)."""
+        self._copy_to_many([transfer])
+
+    def _copy_to_many(self, transfers: Sequence[FileTransfer]) -> None:
+        """Copy every entry to one user-chosen directory.
 
         Guarded like the context menu (``_copy_enabled``): the window File menu
         also lands here, whose enabled state can lag a transfer that only just
         started, so the snapshot is never taken off a missing or incomplete
-        entry.
+        entry. One directory picker and one confirmation cover the whole batch;
+        a failed item never stops the others, and the summary reports the count.
         """
-        if not self._copy_enabled(transfer):
+        allowed = [transfer for transfer in transfers if self._copy_enabled(transfer)]
+        if not allowed:
             return
-        abs_path = self._absolute_path(transfer)
+        first_abs = self._absolute_path(allowed[0])
         dest_dir = QFileDialog.getExistingDirectory(
-            self, tr("ctx.copy_dialog_title"), os.path.dirname(abs_path)
+            self, tr("ctx.copy_dialog_title"), os.path.dirname(first_abs)
         )
         if not dest_dir:
             return
 
-        display_name = transfer.filepath.rstrip("/")
-        if not _confirm_dialog(
-            self,
-            tr("ctx.confirm_copy_title"),
-            tr("ctx.confirm_copy").format(name=display_name, dest=dest_dir),
-        ):
+        if len(allowed) == 1:
+            message = tr("ctx.confirm_copy").format(
+                name=allowed[0].filepath.rstrip("/"), dest=dest_dir
+            )
+        else:
+            message = tr("ctx.confirm_copy_many").format(count=len(allowed), dest=dest_dir)
+        if not _confirm_dialog(self, tr("ctx.confirm_copy_title"), message):
             return
 
-        is_dir = os.path.isdir(abs_path)
-        item_name = os.path.basename(abs_path.rstrip("/"))
-        dest_path = os.path.join(dest_dir, item_name)
-
-        if os.path.exists(dest_path):
-            if not _confirm_dialog(
-                self,
-                tr("ctx.confirm_overwrite_title"),
-                tr("ctx.confirm_overwrite").format(name=item_name, dest=dest_dir),
-            ):
-                return
-            try:
-                if os.path.isdir(dest_path):
-                    shutil.rmtree(dest_path)
-                else:
-                    os.remove(dest_path)
-            except Exception as exc:
-                QMessageBox.warning(
-                    self, tr("ctx.error_title"), tr("ctx.error_copy").format(error=str(exc))
-                )
-                return
-
-        try:
-            if is_dir:
-                shutil.copytree(abs_path, dest_path)
+        # Resolve every destination first: the overwrite question is asked once,
+        # for the whole batch, before anything is deleted.
+        plan: list[tuple[FileTransfer, str, str, bool]] = []
+        clashes: list[str] = []
+        for transfer in allowed:
+            abs_path = self._absolute_path(transfer)
+            item_name = os.path.basename(abs_path.rstrip("/"))
+            dest_path = os.path.join(dest_dir, item_name)
+            exists = os.path.exists(dest_path)
+            if exists:
+                clashes.append(item_name)
+            plan.append((transfer, abs_path, dest_path, exists))
+        if clashes:
+            if len(clashes) == 1:
+                message = tr("ctx.confirm_overwrite").format(name=clashes[0], dest=dest_dir)
             else:
-                shutil.copy2(abs_path, dest_dir)
-        except Exception as exc:
-            QMessageBox.warning(
-                self, tr("ctx.error_title"), tr("ctx.error_copy").format(error=str(exc))
+                message = tr("ctx.confirm_overwrite_many").format(count=len(clashes), dest=dest_dir)
+            if not _confirm_dialog(self, tr("ctx.confirm_overwrite_title"), message):
+                return
+
+        copied = 0
+        failures: list[str] = []
+        for _transfer, abs_path, dest_path, exists in plan:
+            try:
+                if exists:
+                    if os.path.isdir(dest_path) and not os.path.islink(dest_path):
+                        shutil.rmtree(dest_path)
+                    else:
+                        os.remove(dest_path)
+                if os.path.isdir(abs_path):
+                    shutil.copytree(abs_path, dest_path)
+                else:
+                    shutil.copy2(abs_path, dest_dir)
+            except Exception as exc:
+                failures.append(str(exc))
+            else:
+                copied += 1
+
+        if failures:
+            if len(allowed) == 1:
+                message = tr("ctx.error_copy").format(error=failures[0])
+            else:
+                message = tr("ctx.copy_many_failed").format(count=len(failures))
+            QMessageBox.warning(self, tr("ctx.error_title"), message)
+        elif copied > 1:
+            QMessageBox.information(
+                self, tr("ctx.copy_dialog_title"), tr("ctx.copy_many_done").format(count=copied)
             )
 
     def _ctx_rename(self, transfer: FileTransfer) -> None:
@@ -1803,56 +1967,91 @@ class FileTransferTable(QTableView):
             )
 
     def _ctx_trash(self, transfer: FileTransfer) -> None:
-        """Move the file to the system trash.
+        """Move one entry to the system trash (single-row caller)."""
+        self._trash_many([transfer])
 
-        No-op while the engine owns the path: trashing a file with a transfer
-        in flight resurrects it at the next commit, and deleting a folder with
-        transfers inside would orphan the in-flight rows.
+    def _trash_many(self, transfers: Sequence[FileTransfer]) -> None:
+        """Move every entry to the system trash behind ONE confirmation.
+
+        No-op for the entries the engine owns: trashing a file with a transfer in
+        flight resurrects it at the next commit, and deleting a folder with
+        transfers inside would orphan the in-flight rows. The busy ones are
+        skipped, and the confirmation states how many entries are actually moved
+        so the user is never asked to confirm more than will happen.
         """
-        if self._entry_is_busy(transfer):
+        allowed = [transfer for transfer in transfers if not self._entry_is_busy(transfer)]
+        if not allowed:
             return
-        display_name = transfer.filepath.rstrip("/")
-        if not _confirm_dialog(
-            self, tr("ctx.confirm_trash_title"), tr("ctx.confirm_trash").format(name=display_name)
-        ):
+        if len(allowed) == 1:
+            message = tr("ctx.confirm_trash").format(name=allowed[0].filepath.rstrip("/"))
+        else:
+            message = tr("ctx.confirm_trash_many").format(count=len(allowed))
+        if not _confirm_dialog(self, tr("ctx.confirm_trash_title"), message):
             return
 
-        abs_path = self._absolute_path(transfer)
         system = platform.system()
-        try:
-            if system == "Linux":
+        trashed: list[FileTransfer] = []
+        failures: list[str] = []
+        if system == "Linux":
+            # One invocation: ``gio trash`` accepts several paths and fails as a
+            # whole, which is the honest outcome (a partial move would be
+            # indistinguishable from a success).
+            paths = [self._absolute_path(transfer) for transfer in allowed]
+            try:
                 subprocess.run(
-                    ["gio", "trash", abs_path],
+                    ["gio", "trash", *paths],
                     check=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                 )
-            elif system == "Darwin":
-                subprocess.run(
-                    [
-                        "osascript",
-                        "-e",
-                        f'tell application "Finder" to delete (POSIX file "{abs_path}" as alias)',
-                    ],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
-            elif system == "Windows":
-                ps_cmd = f'Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile("{abs_path}", "OnlyErrorDialogs", "SendToRecycleBin")'
-                subprocess.run(
-                    ["powershell", "-Command", ps_cmd],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
+            except Exception as exc:
+                failures = [str(exc)]
             else:
-                raise OSError("Unsupported platform for trash operation")
-            self._remove_file(transfer.filepath)
-        except Exception as exc:
-            QMessageBox.warning(
-                self, tr("ctx.error_title"), tr("ctx.error_trash").format(error=str(exc))
+                trashed = allowed
+        else:
+            for transfer in allowed:
+                try:
+                    self._trash_platform(self._absolute_path(transfer), system)
+                except Exception as exc:
+                    failures.append(str(exc))
+                else:
+                    trashed.append(transfer)
+
+        if trashed:
+            self._remove_files([transfer.filepath for transfer in trashed])
+        if failures:
+            detail = failures[0]
+            if len(allowed) == 1:
+                message = tr("ctx.error_trash").format(error=detail)
+            else:
+                message = tr("ctx.trash_many_failed").format(count=len(failures))
+            QMessageBox.warning(self, tr("ctx.error_title"), message)
+
+    @staticmethod
+    def _trash_platform(abs_path: str, system: str) -> None:
+        """Move one path to the trash on macOS/Windows (Linux uses ``gio``)."""
+        if system == "Darwin":
+            subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    f'tell application "Finder" to delete (POSIX file "{abs_path}" as alias)',
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
             )
+            return
+        if system == "Windows":
+            ps_cmd = f'Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile("{abs_path}", "OnlyErrorDialogs", "SendToRecycleBin")'
+            subprocess.run(
+                ["powershell", "-Command", ps_cmd],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            return
+        raise OSError("Unsupported platform for trash operation")
 
     def _ctx_properties(self, transfer: FileTransfer) -> None:
         """Open the properties panel."""
@@ -2043,11 +2242,22 @@ class FileTransferTable(QTableView):
         timer.start(3000)
 
     def _remove_file(self, filepath: str) -> None:
-        """Remove a file from the table."""
+        """Remove one file from the table."""
+        self._remove_files([filepath])
+
+    def _remove_files(self, filepaths: Sequence[str]) -> None:
+        """Remove several files from the table with a single refresh.
+
+        A multi-selection trash/copy removes N rows at once: refreshing per row
+        would rebuild the whole tree N times and drop the selection between them.
+        """
+        removed = False
         with QMutexLocker(self._transfers_mutex):
-            if filepath not in self._transfers:
-                return
-            del self._transfers[filepath]
+            for filepath in filepaths:
+                if self._transfers.pop(filepath, None) is not None:
+                    removed = True
+        if not removed:
+            return
         self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
