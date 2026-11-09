@@ -682,6 +682,7 @@ translations: dict[str, str] = {
     "sync.sel_failed_msg": "De verzend-/ontvangstbewerking kon niet worden voltooid. Zie het logboek voor details.",
     "sync.sel_already_synced": "Al up-to-date — niets te verzenden.",
     "sync.sel_sent_fmt": "{count} item(s) verzonden.",
+    "sync.sel_sent_report_fmt": "Verzonden: {count} · ontvangen door {accepted} apparaat/apparaten · {ignored} in alleen verzenden ontvangen niets",
     "sync.sel_received_fmt": "{count} item(s) ontvangen.",
     "menu.settings": "&Instellingen",
     "menu.help": "&Help",

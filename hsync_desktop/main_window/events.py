@@ -834,7 +834,14 @@ class EventsMixin:
         was_scoped = self._selection_sync_active
         if was_scoped and self._selection_sync_phase == "run":
             outcome, applied = _scoped_outcome(counters or {})
-            self._finish_selection_sync(outcome, applied=applied)
+            payload = counters or {}
+            send_report = None
+            if "send_accepted" in payload or "send_ignored" in payload:
+                send_report = (
+                    int(payload.get("send_accepted", 0) or 0),
+                    int(payload.get("send_ignored", 0) or 0),
+                )
+            self._finish_selection_sync(outcome, applied=applied, send_report=send_report)
         # The cycle just moved files: recompute the local size instead of keeping
         # the value the client reported before its transfers.
         self._file_panel.refresh_share_size()

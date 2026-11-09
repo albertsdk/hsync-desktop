@@ -1130,20 +1130,25 @@ class HsyncEngine(QObject):
             self.directory_status.emit(path, state)
 
     def _on_sync_complete_event(self, event: UiEventDict) -> None:
-        self.sync_completed.emit(
-            {
-                key: max(int(event.get(key, 0) or 0), 0)
-                for key in (
-                    "downloaded",
-                    "uploaded",
-                    "deleted",
-                    "renamed",
-                    "skipped",
-                    "failed",
-                    "conflicts",
-                )
-            }
-        )
+        counters = {
+            key: max(int(event.get(key, 0) or 0), 0)
+            for key in (
+                "downloaded",
+                "uploaded",
+                "deleted",
+                "renamed",
+                "skipped",
+                "failed",
+                "conflicts",
+            )
+        }
+        # An upload-only p2p cycle also reports how many devices will receive the
+        # files and how many ignore them; absent otherwise, so the window never
+        # sees a fake zero.
+        for key in ("send_accepted", "send_ignored"):
+            if key in event:
+                counters[key] = max(int(event.get(key, 0) or 0), 0)
+        self.sync_completed.emit(counters)
 
     def _on_folder_size_event(self, event: UiEventDict) -> None:
         self.folder_size_changed.emit(

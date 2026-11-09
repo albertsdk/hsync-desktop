@@ -1019,6 +1019,14 @@ lifecycle so its result is surfaced exactly once:
   toolbar while the engine kept running — left Start and Stop both unclickable
   until the app was restarted. `no_peers` (the one-shot abort before exit) still
   finalizes immediately.
+- **A send says who really receives the file.** An upload-only cycle can be a
+  no-op for peers that are themselves upload-only (they ignore remote-origin
+  events), so the engine adds `send_accepted`/`send_ignored` to `sync_complete`.
+  `_on_sync_completed` forwards them and `_surface_selection_outcome` replaces
+  the plain `sync.sel_sent_fmt` with `sync.sel_sent_report_fmt`
+  ("Inviato: N · ricevuto su X dispositivi · Y in sola invio non lo ricevono")
+  when `ignored > 0`, for an upload only. A receive never uses that wording.
+  Verified contract: `hsync-client/llm-wiki/modules/p2p-mode.md`.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
   (server); `_on_peers` (`hsync_desktop/main_window/events.py::EventsMixin._on_peers`) adds the
   other-device count (`sync.sel_peers_fmt`) while the op is active.

@@ -682,6 +682,7 @@ translations: dict[str, str] = {
     "sync.sel_failed_msg": "发送/接收操作未能完成。请查看日志了解详情。",
     "sync.sel_already_synced": "已是最新 — 没有需要发送的内容。",
     "sync.sel_sent_fmt": "已发送 {count} 项。",
+    "sync.sel_sent_report_fmt": "已发送：{count} · {accepted} 台已接收 · {ignored} 台仅发送，不会接收",
     "sync.sel_received_fmt": "已接收 {count} 项。",
     "menu.settings": "设置(&S)",
     "menu.help": "帮助(&H)",

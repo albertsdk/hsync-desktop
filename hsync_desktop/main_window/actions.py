@@ -424,7 +424,9 @@ class ActionsMixin:
         self._pending_selection_sync = (subdir, direction)
         self._show_info_banner(self._selection_phase_text(), auto_hide_ms=0, kind="progress")
 
-    def _finish_selection_sync(self, outcome: str, *, applied: int = 0) -> bool:
+    def _finish_selection_sync(
+        self, outcome: str, *, applied: int = 0, send_report: tuple[int, int] | None = None
+    ) -> bool:
         """Finalize a scoped Send/Receive and surface its outcome (idempotent).
 
         ``applied`` is the action count the engine reported for the run (transfers,
@@ -443,10 +445,19 @@ class ActionsMixin:
         self._pending_selection_sync = None
         self._selection_sync_view = None
         self._reset_ui_stopped()  # hides the banner, resets buttons/menus
-        self._surface_selection_outcome(outcome, direction=direction, count=count)
+        self._surface_selection_outcome(
+            outcome, direction=direction, count=count, send_report=send_report
+        )
         return True
 
-    def _surface_selection_outcome(self, outcome: str, *, direction: str, count: int) -> None:
+    def _surface_selection_outcome(
+        self,
+        outcome: str,
+        *,
+        direction: str,
+        count: int,
+        send_report: tuple[int, int] | None = None,
+    ) -> None:
         """Show the scoped-op result (dialog in the foreground, else a notification)."""
         if outcome == "no_devices":
             self._important_selection_outcome(
@@ -464,7 +475,20 @@ class ActionsMixin:
             self._report_result(tr("sync.sel_already_synced"), success=False)
         elif outcome == "done":
             key = "sync.sel_sent_fmt" if direction == "upload-only" else "sync.sel_received_fmt"
-            self._report_result(tr(key).replace("{count}", str(count)))
+            message = tr(key).replace("{count}", str(count))
+            accepted, ignored = send_report if send_report is not None else (0, 0)
+            # The report describes an upload; a receive has no such split.
+            if direction == "upload-only" and ignored > 0:
+                # "Sent" alone would claim delivery to devices that ignore
+                # incoming files (they are upload-only themselves): name the
+                # split so the sender knows who really got the file.
+                message = (
+                    tr("sync.sel_sent_report_fmt")
+                    .replace("{count}", str(count))
+                    .replace("{accepted}", str(accepted))
+                    .replace("{ignored}", str(ignored))
+                )
+            self._report_result(message)
         # "cancelled" / "stopped": nothing to show.
 
     def _important_selection_outcome(self, title: str, message: str) -> None:

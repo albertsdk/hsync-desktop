@@ -5215,3 +5215,77 @@ class TestStatusBarDuringTransfer:
         window._on_status("waiting")
 
         assert fired == [tr("notif.connection_lost")]
+
+
+class TestSendReport:
+    """An upload-only send says who really receives the file.
+
+    A device that is itself upload-only ignores incoming files, so "sent" alone
+    would claim a delivery that never happens on those devices.
+    """
+
+    def test_the_report_names_the_devices_that_ignore_the_files(self, window):
+        messages: list[str] = []
+        window._report_result = lambda message, **_kw: messages.append(message)
+
+        window._surface_selection_outcome(
+            "done", direction="upload-only", count=3, send_report=(2, 1)
+        )
+
+        assert messages
+        assert "2" in messages[0] and "1" in messages[0]
+        assert tr("sync.sel_sent_report_fmt").split("{")[0] in messages[0]
+
+    def test_without_ignoring_devices_the_plain_sent_message_is_kept(self, window):
+        messages: list[str] = []
+        window._report_result = lambda message, **_kw: messages.append(message)
+
+        window._surface_selection_outcome(
+            "done", direction="upload-only", count=3, send_report=(3, 0)
+        )
+
+        assert messages == [tr("sync.sel_sent_fmt").replace("{count}", "3")]
+
+    def test_a_receive_never_uses_the_send_report(self, window):
+        messages: list[str] = []
+        window._report_result = lambda message, **_kw: messages.append(message)
+
+        window._surface_selection_outcome(
+            "done", direction="download-only", count=2, send_report=(2, 1)
+        )
+
+        assert messages == [tr("sync.sel_received_fmt").replace("{count}", "2")]
+
+    def test_the_counters_are_forwarded_from_the_engine_event(self, window):
+        """The engine payload carries the two keys; the window must not lose them."""
+        seen: list[tuple[int, int] | None] = []
+        window._selection_sync_active = True
+        window._selection_sync_phase = "run"
+        window._pending_selection_sync = ("dir", "upload-only")
+        window._finish_selection_sync = lambda outcome, *, applied=0, send_report=None: seen.append(
+            send_report
+        )
+
+        window._on_sync_completed(
+            {
+                "uploaded": 2,
+                "failed": 0,
+                "send_accepted": 2,
+                "send_ignored": 1,
+            }
+        )
+
+        assert seen == [(2, 1)]
+
+    def test_a_payload_without_the_keys_reports_nothing(self, window):
+        seen: list[tuple[int, int] | None] = []
+        window._selection_sync_active = True
+        window._selection_sync_phase = "run"
+        window._pending_selection_sync = ("dir", "upload-only")
+        window._finish_selection_sync = lambda outcome, *, applied=0, send_report=None: seen.append(
+            send_report
+        )
+
+        window._on_sync_completed({"uploaded": 1, "failed": 0})
+
+        assert seen == [None]

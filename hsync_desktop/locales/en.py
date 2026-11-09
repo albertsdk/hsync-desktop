@@ -683,6 +683,7 @@ translations: dict[str, str] = {
     "sync.sel_failed_msg": "The Send/Receive operation could not be completed. Check the log for details.",
     "sync.sel_already_synced": "Already up to date — nothing to send.",
     "sync.sel_sent_fmt": "Sent {count} item(s).",
+    "sync.sel_sent_report_fmt": "Sent: {count} · received by {accepted} device(s) · {ignored} accept no incoming files (send-only)",
     "sync.sel_received_fmt": "Received {count} item(s).",
     "menu.settings": "S&ettings",
     "menu.help": "&Help",

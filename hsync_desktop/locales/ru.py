@@ -682,6 +682,7 @@ translations: dict[str, str] = {
     "sync.sel_failed_msg": "Не удалось завершить операцию отправки/получения. Подробности см. в журнале.",
     "sync.sel_already_synced": "Уже актуально — отправлять нечего.",
     "sync.sel_sent_fmt": "Отправлено элементов: {count}.",
+    "sync.sel_sent_report_fmt": "Отправлено: {count} · получено на {accepted} устр. · {ignored} в режиме только отправки не получат",
     "sync.sel_received_fmt": "Получено элементов: {count}.",
     "menu.settings": "&Настройки",
     "menu.help": "&Справка",

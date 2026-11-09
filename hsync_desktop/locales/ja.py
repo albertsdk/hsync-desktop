@@ -682,6 +682,7 @@ translations: dict[str, str] = {
     "sync.sel_failed_msg": "送受信操作を完了できませんでした。詳細はログを確認してください。",
     "sync.sel_already_synced": "最新の状態です — 送信するものはありません。",
     "sync.sel_sent_fmt": "{count} 件を送信しました。",
+    "sync.sel_sent_report_fmt": "送信: {count} · {accepted} 台が受信 · 送信専用の {ignored} 台は受信しません",
     "sync.sel_received_fmt": "{count} 件を受信しました。",
     "menu.settings": "&設定",
     "menu.help": "&ヘルプ",
