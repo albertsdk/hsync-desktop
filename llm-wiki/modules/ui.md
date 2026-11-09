@@ -1355,9 +1355,22 @@ downloads or runs anything. `fetch_latest_version`
 (`hsync_desktop/updates.py::fetch_latest_version`) issues a `HEAD` to the pinned
 `releases/latest` redirect (`docs_links.LATEST_RELEASE`, guarded by
 `docs_links.is_allowed_docs_url`) and reads the tag from the final URL, so no
-GitHub API and no token are involved. `parse_version`/`is_newer`
-(`hsync_desktop/updates.py::parse_version`, `hsync_desktop/updates.py::is_newer`) compare dotted integers and
-drop `-rc`/`+build` suffixes; unparseable input is never reported as an update.
+GitHub API and no token are involved. **Only stable releases are considered**, and
+structurally so: the release workflow marks a tag containing `-` as a
+prerelease and never as `latest` (`make_latest` / `prerelease` in
+`release.yml`), and `releases/latest` resolves to the newest non-prerelease, so
+no alpha/beta/rc can reach the dialog. There is no channel selector, and adding
+one would mean consulting the releases *index* and filtering it, which
+`release_assets.py` deliberately avoids.
+
+`parse_version` (`hsync_desktop/updates.py::parse_version`) returns the dotted
+core (used to normalise the tag); `is_newer`
+(`hsync_desktop/updates.py::is_newer`) applies full SemVer §11 precedence over
+the prerelease identifiers: a final release outranks its own prereleases
+(`1.1.0 > 1.1.0-beta.1`) and `beta.2 > beta.1`, while build metadata is ignored.
+That ordering is what lets a machine running a prerelease be offered the final
+release it is waiting for; comparing cores alone made them equal and silently
+withheld it. Unparseable input is never reported as an update.
 
 State lives in `QSettings`: `updates/check_enabled` (opt-in, default
 `config.DEFAULT_UPDATE_CHECK` = off), `updates/last_check`,
@@ -1377,7 +1390,14 @@ call on `AsyncProbe` (`hsync_desktop/engine/async_probe.py::AsyncProbe`) and ren
 release opens `_offer_update` (Download → the artifact of **this** installation,
 `hsync_desktop/release_assets.py::package_url`; the dismissed version is stored per release), an
 up-to-date result opens `_show_up_to_date`. Both manual dialogs carry the "check at
-startup" switch, which is the only place the opt-in is toggled.
+startup" switch, and the same preference is also editable in **Settings →
+General → Window & Startup** (`hsync_desktop/settings/tab_builders.py::build_general_tab`
+builds `update_check`, `hsync_desktop/settings/dialog.py::SettingsDialog.load`/`save`
+read and write it). There is one stored value (`updates/check_enabled`), reached
+through `updates.is_enabled`/`updates.set_enabled` from both surfaces, so the
+Help dialog and the Settings tab cannot diverge on either the value or its
+location; its tooltip states that prereleases are never offered and that nothing
+is downloaded.
 
 `release_assets.py` answers "which published file is mine?"
 (`hsync_desktop/release_assets.py::install_channel`): the snap (`SNAP`) and AppImage (`APPIMAGE`)

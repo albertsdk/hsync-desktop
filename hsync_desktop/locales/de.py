@@ -489,6 +489,7 @@ translations: dict[str, str] = {
     "tip.notifications": "Systembenachrichtigungen für Sync-Ereignisse anzeigen",
     "tip.tooltips": "Hilfreiche Beschreibungen beim Überfahren von Optionen anzeigen",
     "tip.start_at_login": "HSYNC beim Anmelden minimiert im Infobereich starten",
+    "tip.check_updates": "Fragt einmal täglich die Release-Seite, ob eine neuere stabile Version existiert. Vorabversionen (alpha, beta, rc) werden nie angeboten. Es wird nichts heruntergeladen oder installiert.",
     "tip.start_at_login_unsupported": "Automatischer Start wird auf diesem System nicht unterstützt",
     "disclaimer.title": "Haftungsausschluss",
     "disclaimer.message": "Die Nutzung dieser Software erfolgt vollständig auf eigene Gefahr des Benutzers. Der Autor und etwaige Mitwirkende übernehmen keine Verantwortung für Schäden, die durch ihre Nutzung entstehen.\n\nMit dem Fortfahren bestätigen Sie, dass Sie diesen Hinweis gelesen und verstanden haben.",

@@ -81,20 +81,69 @@ def parse_version(text: str) -> tuple[int, ...] | None:
     return tuple(int(part) for part in parts)
 
 
+def _split_semver(text: str) -> tuple[tuple[int, ...], tuple[str, ...]] | None:
+    """Split ``v1.2.3-rc.1+build`` into (release numbers, prerelease identifiers)."""
+    base = text.strip().lstrip("vV").split("+", 1)[0]
+    release, _sep, prerelease = base.partition("-")
+    parts = release.split(".")
+    if not parts or not all(part.isdigit() for part in parts):
+        return None
+    identifiers = tuple(prerelease.split(".")) if prerelease else ()
+    return tuple(int(part) for part in parts), identifiers
+
+
+def _compare_prerelease(left: tuple[str, ...], right: tuple[str, ...]) -> int:
+    """SemVer §11 precedence for two prerelease identifier lists.
+
+    A release without a prerelease outranks one with it, numeric identifiers
+    compare numerically and rank below alphanumeric ones, and a shorter list
+    that is a prefix of a longer one ranks lower (``1.0.0-alpha < 1.0.0-alpha.1``).
+    """
+    if not left and not right:
+        return 0
+    if not left:
+        return 1
+    if not right:
+        return -1
+    for left_id, right_id in zip(left, right, strict=False):
+        left_numeric = left_id.isdigit()
+        right_numeric = right_id.isdigit()
+        if left_numeric and right_numeric:
+            if int(left_id) != int(right_id):
+                return 1 if int(left_id) > int(right_id) else -1
+        elif left_numeric != right_numeric:
+            # Numeric identifiers always have lower precedence.
+            return 1 if right_numeric else -1
+        elif left_id != right_id:
+            return 1 if left_id > right_id else -1
+    if len(left) == len(right):
+        return 0
+    return 1 if len(left) > len(right) else -1
+
+
 def is_newer(current: str, latest: str) -> bool:
     """True when *latest* is a strictly newer release than *current*.
+
+    Full SemVer precedence, prerelease included: a final release outranks its
+    own prereleases (``1.1.0 > 1.1.0-beta.1``) and ``beta.2 > beta.1``. Dropping
+    the suffix — as this check used to — compared them as equal, so a machine
+    running a beta was never offered the final release it was waiting for.
 
     Unparseable input is never reported as an update: a malformed tag must not
     produce a "new version available" dialog.
     """
-    current_parts = parse_version(current)
-    latest_parts = parse_version(latest)
-    if current_parts is None or latest_parts is None:
+    current_split = _split_semver(current)
+    latest_split = _split_semver(latest)
+    if current_split is None or latest_split is None:
         return False
+    current_parts, current_pre = current_split
+    latest_parts, latest_pre = latest_split
     width = max(len(current_parts), len(latest_parts))
     current_padded = current_parts + (0,) * (width - len(current_parts))
     latest_padded = latest_parts + (0,) * (width - len(latest_parts))
-    return latest_padded > current_padded
+    if latest_padded != current_padded:
+        return latest_padded > current_padded
+    return _compare_prerelease(latest_pre, current_pre) > 0
 
 
 def _tag_from_final_url(url: str) -> str | None:

@@ -163,3 +163,45 @@ def test_dismissed_version_is_per_release(settings):
     assert updates.is_dismissed("1.0.12") is True
     assert updates.is_dismissed("1.0.13") is False
     assert updates.is_dismissed("") is False
+
+
+@pytest.mark.parametrize(
+    ("current", "latest", "expected"),
+    [
+        # A final release outranks its own prereleases: a machine running a beta
+        # must be offered the release it is waiting for.
+        ("1.1.0-beta.1", "1.1.0", True),
+        ("1.1.0-rc.1", "1.1.0", True),
+        ("1.1.0", "1.1.0-beta.1", False),
+        # SemVer §11 identifier ordering.
+        ("1.1.0-beta.1", "1.1.0-beta.2", True),
+        ("1.1.0-beta.2", "1.1.0-beta.11", True),
+        ("1.1.0-alpha", "1.1.0-alpha.1", True),
+        ("1.1.0-alpha.beta", "1.1.0-beta", True),
+        ("1.1.0-beta", "1.1.0-alpha.beta", False),
+        # A newer prerelease of a newer release still wins.
+        ("1.1.0-beta.1", "1.2.0-alpha.1", True),
+        # Build metadata is ignored.
+        ("1.1.0+build.1", "1.1.0+build.2", False),
+        # Same release, same prerelease: not an update.
+        ("1.1.0-beta.1", "1.1.0-beta.1", False),
+    ],
+)
+def test_is_newer_orders_prereleases_per_semver(current, latest, expected):
+    assert updates.is_newer(current, latest) is expected
+
+
+def test_the_check_only_consults_the_stable_latest_release():
+    """Prereleases are excluded structurally, not by a filter to maintain.
+
+    The probe reads the repository's ``releases/latest`` redirect, which GitHub
+    resolves to the newest **non-prerelease** only: the release workflow marks a
+    tag containing ``-`` as a prerelease and never as ``latest``. No alpha/beta
+    can therefore reach the dialog, whatever the local version is.
+    """
+    from hsync_desktop import docs_links
+
+    assert docs_links.LATEST_RELEASE.endswith("/releases/latest")
+    # ``/releases/latest`` is the one GitHub endpoint that already excludes
+    # prereleases; asking ``/releases`` (the index) would mix them in.
+    assert "/releases/tag/" not in docs_links.LATEST_RELEASE

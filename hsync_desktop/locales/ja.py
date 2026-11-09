@@ -423,6 +423,7 @@ translations: dict[str, str] = {
     "tip.language": "アプリの表示言語",
     "tip.tooltips": "設定オプションのツールチップを表示または非表示にする",
     "tip.start_at_login": "ログイン時に HSYNC をトレイに最小化して起動",
+    "tip.check_updates": "1 日 1 回、リリースページに新しい安定版があるか問い合わせます。プレリリース (alpha、beta、rc) は提示されません。ダウンロードやインストールは行いません。",
     "tip.start_at_login_unsupported": "このシステムでは自動起動はサポートされていません",
     # Warnings
     "warn.deletion_policy_title": "警告",

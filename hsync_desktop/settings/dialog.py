@@ -446,6 +446,7 @@ class SettingsDialog(QDialog):
             (self.tooltips_enabled, "tip.tooltips"),
             (self.show_log_panel, "tip.show_log_panel"),
             (self.start_at_login, "tip.start_at_login"),
+            (self.update_check, "tip.check_updates"),
         ):
             _maybe_tip(widget, key, tips)
         # A disabled toggle on a platform without an autostart mechanism still
@@ -1488,6 +1489,12 @@ class SettingsDialog(QDialog):
             set_language(lang_code)
         s.setValue("appearance/tooltips", self.tooltips_enabled.isChecked())
         s.setValue("appearance/start_at_login", self.start_at_login.isChecked())
+        # The update check owns its own QSettings key (``updates/check_enabled``):
+        # write it through its API so the Help dialog and this tab can never
+        # disagree on where the preference lives.
+        from hsync_desktop import updates
+
+        updates.set_enabled(self.update_check.isChecked())
         s.setValue("appearance/show_log", self.show_log_panel.isChecked())
         # Flush to disk and tighten file permissions (config may be created here
         # on first run, before the startup hardening runs).
@@ -1679,6 +1686,11 @@ class SettingsDialog(QDialog):
             self.start_at_login.setEnabled(False)
             self._lbl_start_at_login.setEnabled(False)
             _set_field_tooltip(self.start_at_login, tr("tip.start_at_login_unsupported"))
+        # Automatic update check (ADR-0048): read through ``updates`` so this tab
+        # and the Help dialog always show the same persisted value.
+        from hsync_desktop import updates
+
+        self.update_check.setChecked(updates.is_enabled())
         # Show log panel (default: hidden)
         self.show_log_panel.setChecked(
             bool(s.value("appearance/show_log", DEFAULT_SHOW_LOG_PANEL, bool))

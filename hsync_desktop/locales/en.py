@@ -423,6 +423,7 @@ translations: dict[str, str] = {
     "tip.language": "Application display language",
     "tip.tooltips": "Show or hide tooltips on settings options",
     "tip.start_at_login": "Start HSYNC minimized to the tray when you log in",
+    "tip.check_updates": "Ask the project's release page once a day whether a newer stable version exists. Prereleases (alpha, beta, rc) are never offered. Nothing is downloaded or installed.",
     "tip.start_at_login_unsupported": "Automatic startup is not supported on this system",
     # Warnings
     "warn.deletion_policy_title": "Warning",

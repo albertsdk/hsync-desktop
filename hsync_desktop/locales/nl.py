@@ -423,6 +423,7 @@ translations: dict[str, str] = {
     "tip.language": "Weergavetaal van de toepassing",
     "tip.tooltips": "Tooltips bij instellingsopties tonen of verbergen",
     "tip.start_at_login": "HSYNC geminimaliseerd naar het systeemvak starten bij aanmelden",
+    "tip.check_updates": "Vraagt één keer per dag aan de releasepagina of er een nieuwere stabiele versie is. Vooruitgaven (alpha, beta, rc) worden nooit aangeboden. Er wordt niets gedownload of geïnstalleerd.",
     "tip.start_at_login_unsupported": "Automatisch starten wordt niet ondersteund op dit systeem",
     # Warnings
     "warn.deletion_policy_title": "Waarschuwing",

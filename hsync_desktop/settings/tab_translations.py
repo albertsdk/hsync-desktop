@@ -231,6 +231,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_tooltips.setText(tr("settings.tooltips"))
     dlg._lbl_show_log_panel.setText(tr("settings.show_log_panel"))
     dlg._lbl_start_at_login.setText(tr("settings.start_at_login"))
+    dlg._lbl_update_check.setText(tr("updates.check_at_startup"))
     dlg._lbl_show_advanced.setText(tr("settings.show_advanced"))
 
     # Contextual documentation links (fixed URLs; only the text is localized).

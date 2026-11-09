@@ -489,6 +489,7 @@ translations: dict[str, str] = {
     "tip.notifications": "Afficher les notifications système pour les événements de synchronisation",
     "tip.tooltips": "Afficher les descriptions utiles au survol des options",
     "tip.start_at_login": "Démarrer HSYNC réduit dans la zone de notification à la connexion",
+    "tip.check_updates": "Interroge une fois par jour la page des versions pour savoir si une version stable plus récente existe. Les préversions (alpha, beta, rc) ne sont jamais proposées. Rien n'est téléchargé ni installé.",
     "tip.start_at_login_unsupported": "Le démarrage automatique n'est pas pris en charge sur ce système",
     "disclaimer.title": "Avertissement",
     "disclaimer.message": "L'utilisation de ce logiciel est entièrement aux risques de l'utilisateur. L'auteur et les éventuels contributeurs n'assument aucune responsabilité pour les dommages causés par son utilisation.\n\nEn continuant, vous confirmez avoir lu et compris cet avertissement.",

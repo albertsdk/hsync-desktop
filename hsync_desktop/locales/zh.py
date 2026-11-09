@@ -423,6 +423,7 @@ translations: dict[str, str] = {
     "tip.language": "应用显示语言",
     "tip.tooltips": "在设置选项上显示或隐藏工具提示",
     "tip.start_at_login": "登录时以最小化到托盘的方式启动 HSYNC",
+    "tip.check_updates": "每天向发布页查询一次是否有更新的稳定版本。预发布版本 (alpha、beta、rc) 永远不会被推荐。不会下载或安装任何内容。",
     "tip.start_at_login_unsupported": "此系统不支持自动启动",
     # Warnings
     "warn.deletion_policy_title": "警告",

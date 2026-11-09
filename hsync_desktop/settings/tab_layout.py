@@ -286,6 +286,7 @@ def reorganize_general_tab(dlg: SettingsDialog) -> None:
     add_row(f3, dlg._lbl_tooltips, dlg.tooltips_enabled)
     add_row(f3, dlg._lbl_show_log_panel, dlg.show_log_panel)
     add_row(f3, dlg._lbl_start_at_login, dlg.start_at_login)
+    add_row(f3, dlg._lbl_update_check, dlg.update_check)
     add_row(f3, dlg._lbl_show_advanced, dlg.show_advanced)
     vbox.addWidget(dlg._grp_general_window)
 

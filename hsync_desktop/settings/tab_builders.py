@@ -502,6 +502,13 @@ def build_general_tab(dlg: SettingsDialog) -> None:
     dlg.font_scale_combo.addItem("", FONT_SCALE_COMPACT)
     dlg._lbl_font_scale = QLabel(dlg)
 
+    # "Check for updates at startup" (ADR-0048): the same preference the Help
+    # dialog exposes, edited here too so the two surfaces cannot diverge. Its
+    # state lives in ``updates`` (one QSettings key), not in this dialog.
+    dlg.update_check = ToggleSwitch(dlg)
+    dlg.update_check.setObjectName("updateCheck")
+    dlg._lbl_update_check = QLabel(dlg)
+
     # "Show advanced options" toggle (no .ui counterpart): hides the Advanced tab
     # and the advanced sections in the Sync/p2p/Server tabs.
     dlg.show_advanced = ToggleSwitch(dlg)

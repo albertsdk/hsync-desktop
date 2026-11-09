@@ -423,6 +423,7 @@ translations: dict[str, str] = {
     "tip.language": "Idioma de exibição do aplicativo",
     "tip.tooltips": "Mostrar ou ocultar dicas nas opções de configuração",
     "tip.start_at_login": "Iniciar o HSYNC minimizado na bandeja ao fazer login",
+    "tip.check_updates": "Pergunta uma vez por dia à página de versões se existe uma versão estável mais recente. As pré-versões (alpha, beta, rc) nunca são propostas. Nada é descarregado ou instalado.",
     "tip.start_at_login_unsupported": "A inicialização automática não é suportada neste sistema",
     # Warnings
     "warn.deletion_policy_title": "Atenção",
