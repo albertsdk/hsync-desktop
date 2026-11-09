@@ -66,6 +66,7 @@ from hsync_desktop.file_panel.import_ops import validate_sources
 from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     IN_FLIGHT_STALE_SECONDS,
+    IN_FLIGHT_STATUSES,
     STATUS_COLORS,
     STATUS_COLORS_DARK,
     FileTransfer,
@@ -94,6 +95,10 @@ _STATUS_PRIORITY = {
     TransferStatus.ERROR: 1,
     TransferStatus.DOWNLOADING: 2,
     TransferStatus.UPLOADING: 2,
+    # A queued/transferring child is activity too: without these a folder of
+    # pending transfers read "Local" while the table showed it moving.
+    TransferStatus.QUEUED: 2,
+    TransferStatus.TRANSFERRING: 2,
     TransferStatus.TO_DOWNLOAD: 3,
     TransferStatus.TO_UPLOAD: 3,
     TransferStatus.TO_DELETE: 3,
@@ -207,6 +212,24 @@ _STATE_SAVE_DELAY_MS = 300
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
+
+
+def _folder_status_key(status_priority: int, sending: int, receiving: int) -> str:
+    """Status label for a folder, naming the direction when it is unambiguous.
+
+    A neutral "Syncing" hides whether the folder is being sent or received, which
+    is exactly what a user watching a folder sync needs to know. The direction is
+    used only while the folder is actually transferring (priority 2); every other
+    priority keeps its own label.
+    """
+    if status_priority == 2:
+        if sending and receiving:
+            return "folder.status.syncing_both"
+        if sending:
+            return "folder.status.sending"
+        if receiving:
+            return "folder.status.receiving"
+    return _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
 
 
 def selection_subdir(filepath: str) -> str:
@@ -331,7 +354,7 @@ class FileTransferModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.ForegroundRole:
             return self._foreground(transfer, folder_data, is_folder)
         if role == Qt.ItemDataRole.FontRole:
-            if col == COL_DIRECTION and self._direction_text(transfer, is_folder):
+            if col == COL_DIRECTION and self._direction_text(transfer, is_folder, folder_data):
                 return self._direction_font
             return None
         if role == Qt.ItemDataRole.ToolTipRole:
@@ -429,14 +452,33 @@ class FileTransferModel(QAbstractTableModel):
                 rate = transfer.speed_bps if transfer else None
             return f"{format_bytes(rate)}/s" if rate else ""
         if col == COL_DIRECTION:
-            return self._direction_text(transfer, is_folder)
+            return self._direction_text(transfer, is_folder, folder_data)
         return ""
 
     @staticmethod
-    def _direction_text(transfer: FileTransfer | None, is_folder: bool) -> str:
-        # Empty at rest: the dash placeholder is noise in a dense column, and
-        # the Status column already carries the state.
-        if transfer is None or is_folder or transfer.direction in ("", "—"):
+    def _direction_text(
+        transfer: FileTransfer | None,
+        is_folder: bool,
+        folder_data: dict | None = None,
+    ) -> str:
+        """Arrow for the row: the file's own, or the folder's aggregate.
+
+        A folder cannot have one direction of its own, but while its children are
+        moving it can: ``↑`` all sending, ``↓`` all receiving, ``↕`` both. Empty at
+        rest — the dash placeholder is noise in a dense column and the Status
+        column already carries the state.
+        """
+        if is_folder:
+            sending = (folder_data or {}).get("sending", 0)
+            receiving = (folder_data or {}).get("receiving", 0)
+            if sending and receiving:
+                return "↕"
+            if sending:
+                return "↑"
+            if receiving:
+                return "↓"
+            return ""
+        if transfer is None or transfer.direction in ("", "—"):
             return ""
         return transfer.direction
 
@@ -491,6 +533,15 @@ class FileTransferModel(QAbstractTableModel):
             (TransferStatus.TO_RENAME, "detail.to_rename"),
         ):
             count = ops.get(op_status, 0)
+            if count:
+                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+        # Planned operations and transfers in progress are different facts: the
+        # tooltip names both, so "3 to upload" cannot be mistaken for "3 moving".
+        for key, label_key in (
+            ("sending", "detail.uploading"),
+            ("receiving", "detail.downloading"),
+        ):
+            count = folder_data.get(key, 0)
             if count:
                 parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
         return ", ".join(parts) if parts else None
@@ -1408,6 +1459,8 @@ class FileTransferTable(QTableView):
         max_mtime = 0.0
         status_priority = 100
         uploading = False
+        sending = 0
+        receiving = 0
         ops = {
             TransferStatus.TO_UPLOAD: 0,
             TransferStatus.TO_DOWNLOAD: 0,
@@ -1429,8 +1482,22 @@ class FileTransferTable(QTableView):
                 uploading = True
             if f.status in ops:
                 ops[f.status] += 1
+            if f.status in IN_FLIGHT_STATUSES:
+                # Direction of the activity in progress: the arrow the row carries,
+                # or the status when the row was built without one. A row with
+                # neither (a queued entry with no direction yet) is not counted.
+                direction = f.direction
+                if direction not in ("↑", "↓"):
+                    if f.status is TransferStatus.UPLOADING:
+                        direction = "↑"
+                    elif f.status is TransferStatus.DOWNLOADING:
+                        direction = "↓"
+                if direction == "↑":
+                    sending += 1
+                elif direction == "↓":
+                    receiving += 1
 
-        status_key = _FOLDER_STATUS_KEYS.get(status_priority, "folder.status.local")
+        status_key = _folder_status_key(status_priority, sending, receiving)
         progress = int(total_transferred / total_size * 100) if total_size > 0 else -1
         # The aggregate inherits the row rule: a folder still uploading a child
         # is never shown as finished.
@@ -1447,6 +1514,10 @@ class FileTransferTable(QTableView):
             "status_key": status_key,
             "status_priority": status_priority,
             "speed": speed,
+            # In-flight direction counts: the Direction column and the status
+            # label name what the folder is doing (send/receive/both).
+            "sending": sending,
+            "receiving": receiving,
             # Planned-operation breakdown for the folder tooltip: a folder can
             # mix uploads/downloads/deletes, so the neutral aggregate status
             # alone does not say what will actually happen.

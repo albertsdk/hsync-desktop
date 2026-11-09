@@ -3354,3 +3354,152 @@ class TestUnknownTransferTotal:
 
         assert data["total_size"] == 1_000
         assert data["progress"] == 50
+
+
+class TestFolderDirection:
+    """A folder names what it is doing: sending, receiving, or both.
+
+    The folder row is an aggregate, so it used to say only "Syncing" and leave the
+    Direction column empty, while its files carried the arrow: watching a folder
+    sync made it impossible to tell an upload from a download.
+    """
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        return table
+
+    @staticmethod
+    def _child(filepath, direction, status):
+        child = FileTransfer(filepath=filepath, direction=direction, size=100)
+        child.status = status
+        return child
+
+    def _folder(self, table, *children):
+        return table._aggregate_folder(list(children))
+
+    def test_an_uploading_folder_sends(self, qtbot):
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        data = self._folder(table, self._child("dir/a.bin", "↑", TransferStatus.UPLOADING))
+
+        assert data["sending"] == 1 and data["receiving"] == 0
+        assert data["status_key"] == "folder.status.sending"
+        assert tr(data["status_key"]) == tr("folder.status.sending")
+
+    def test_a_receiving_folder_receives(self, qtbot):
+        table = self._table(qtbot)
+        data = self._folder(table, self._child("dir/a.bin", "↓", TransferStatus.DOWNLOADING))
+
+        assert data["receiving"] == 1 and data["sending"] == 0
+        assert data["status_key"] == "folder.status.receiving"
+
+    def test_a_mixed_folder_names_both(self, qtbot):
+        table = self._table(qtbot)
+        data = self._folder(
+            table,
+            self._child("dir/a.bin", "↑", TransferStatus.UPLOADING),
+            self._child("dir/b.bin", "↓", TransferStatus.DOWNLOADING),
+        )
+
+        assert (data["sending"], data["receiving"]) == (1, 1)
+        assert data["status_key"] == "folder.status.syncing_both"
+
+    def test_a_resting_folder_has_no_direction(self, qtbot):
+        table = self._table(qtbot)
+        data = self._folder(
+            table,
+            self._child("dir/a.bin", "—", TransferStatus.LOCAL),
+            self._child("dir/b.bin", "—", TransferStatus.LOCAL),
+        )
+
+        assert (data["sending"], data["receiving"]) == (0, 0)
+        assert data["status_key"] == "folder.status.local"
+
+    def test_a_settled_row_does_not_count(self, qtbot):
+        """``direction`` survives the transfer; only an in-flight status counts."""
+        table = self._table(qtbot)
+        data = self._folder(table, self._child("dir/a.bin", "↑", TransferStatus.COMPLETED))
+
+        assert (data["sending"], data["receiving"]) == (0, 0)
+
+    def test_a_queued_row_counts_with_its_direction(self, qtbot):
+        table = self._table(qtbot)
+        data = self._folder(table, self._child("dir/a.bin", "↑", TransferStatus.QUEUED))
+
+        assert data["sending"] == 1
+        assert data["status_key"] == "folder.status.sending"
+
+    def test_a_missing_direction_falls_back_to_the_status(self, qtbot):
+        """A row built without an arrow still counts by its uploading status."""
+        table = self._table(qtbot)
+        data = self._folder(table, self._child("dir/a.bin", "—", TransferStatus.UPLOADING))
+
+        assert data["sending"] == 1
+
+    def test_the_column_shows_the_folder_arrow(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        for path, direction, status in (
+            ("dir/a.bin", "↑", TransferStatus.UPLOADING),
+            ("dir/b.bin", "↑", TransferStatus.UPLOADING),
+        ):
+            table.add_transfer(
+                FileTransfer(filepath=path, direction=direction, size=1, status=status)
+            )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+
+    def test_a_mixed_folder_column_shows_both(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="dir/a.bin", direction="↑", size=1, status=TransferStatus.UPLOADING
+            )
+        )
+        table.add_transfer(
+            FileTransfer(
+                filepath="dir/b.bin", direction="↓", size=1, status=TransferStatus.DOWNLOADING
+            )
+        )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↕"
+
+    def test_a_single_file_keeps_its_own_arrow(self, qtbot):
+        """Regression: the per-file Direction column is unchanged."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="↓", size=1, status=TransferStatus.DOWNLOADING)
+        )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+
+    def test_the_folder_tooltip_names_the_transfers_in_progress(self, qtbot):
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(
+                filepath="dir/a.bin", direction="↑", size=1, status=TransferStatus.UPLOADING
+            )
+        )
+        table.refresh_view()
+
+        model = table._model
+        tooltip = model._tooltip(None, model._rows[0][2], True, 0)
+
+        assert tooltip is not None
+        assert tr("detail.uploading") in tooltip

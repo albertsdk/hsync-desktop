@@ -833,6 +833,22 @@ because it can mix operations; its tooltip spells out the planned actions
 (`folder.ops_item`, e.g. "To upload: 3, To download: 1") while files keep the
 precise per-action label (`detail.to_upload`, `detail.to_download`, …).
 
+**A transferring folder names its direction.** An aggregate cannot have one
+direction of its own, but while its children move it does:
+`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._aggregate_folder`
+counts the in-flight children per arrow (`sending`/`receiving`, from
+`FileTransfer.direction`, falling back to an `UPLOADING`/`DOWNLOADING` status when
+the row carries none) and `_folder_status_key` picks the label — `In invio`,
+`In ricezione`, or `Invio e ricezione` when both. The Direction column mirrors it
+(`↑` / `↓` / `↕`, `_direction_text`), so the folder row never contradicts the
+arrow its files already show; it stays empty at rest, like a file row. Only the
+in-flight statuses count (`IN_FLIGHT_STATUSES` in `file_panel/models.py`, shared
+with the window's link-state guard): a `COMPLETED` row keeps its last arrow and
+must not be reported as moving. A queued/transferring child is activity too, so
+both statuses take the same priority — a folder of pending transfers used to read
+"Local". The tooltip lists the transfers in progress in addition to the planned
+operations, so "3 to upload" is never mistaken for "3 moving".
+
 **Live progress**: a received file does not exist on disk before it completes, so
 its row cannot come from the scan. `update_transfer_progress`
 (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.update_transfer_progress`)

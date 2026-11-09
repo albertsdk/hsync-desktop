@@ -62,6 +62,7 @@ from hsync_desktop.engine import (
     supports_peer_trust,
 )
 from hsync_desktop.file_panel import FilePanel, TransferStatus
+from hsync_desktop.file_panel.models import IN_FLIGHT_STATUSES
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.notifications import NotificationManager
 from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
@@ -483,13 +484,7 @@ class EventsMixin:
         device count instead of replacing it with "no device".
         """
         return any(
-            transfer.status
-            in (
-                TransferStatus.DOWNLOADING,
-                TransferStatus.UPLOADING,
-                TransferStatus.QUEUED,
-                TransferStatus.TRANSFERRING,
-            )
+            transfer.status in IN_FLIGHT_STATUSES
             for transfer in self._file_panel.table._transfers.values()
         )
 

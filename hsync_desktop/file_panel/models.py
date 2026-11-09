@@ -36,6 +36,19 @@ class TransferStatus(Enum):
     ERROR = "error"
 
 
+# A transfer that is under way (or queued to start): the row's direction is the
+# activity happening now, not a plan. One definition shared by the folder
+# aggregation (direction glyph and status) and the window's link-state guard.
+IN_FLIGHT_STATUSES = frozenset(
+    {
+        TransferStatus.DOWNLOADING,
+        TransferStatus.UPLOADING,
+        TransferStatus.QUEUED,
+        TransferStatus.TRANSFERRING,
+    }
+)
+
+
 # Status colors for the file table. The light-theme palette is deliberately
 # darker than the material 400 shades: on a white background the green, amber
 # and blue were hard to read. The dark-theme palette keeps the brighter shades.
