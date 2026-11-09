@@ -5092,3 +5092,126 @@ class TestFileMenuMultiSelection:
             os.path.normpath("/share/a.bin"),
             os.path.normpath("/share/b.bin"),
         }
+
+
+class TestStatusBarDuringTransfer:
+    """The bar must not claim "no device" while files are actually moving.
+
+    A p2p sync runs before the slave opens its WebSocket, so the serving side
+    legitimately reports zero clients during the transfer. The link facts are
+    therefore held back while bytes move and applied once the last row settles.
+    """
+
+    @staticmethod
+    def _transferring(window, filepath="a.bin", status=None):
+        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+
+        # ``_rel_path`` maps a client path against the window's local path, so the
+        # failure test must use the same base the table is keyed by.
+        window._local_path = "/share"
+        table = window._file_panel.table
+        table.set_base_directory("/share")
+        table.add_transfer(
+            FileTransfer(
+                filepath=filepath,
+                direction="↓",
+                size=100,
+                status=status or TransferStatus.DOWNLOADING,
+            )
+        )
+
+    def test_waiting_does_not_replace_the_label_while_receiving(self, window):
+        self._transferring(window)
+        window._set_sync_state("pending", 1, 0, 0)
+        window._peers_label.setText("2/2")
+
+        window._on_status("waiting")
+
+        assert window._peers_label.text() == "2/2"
+        assert window._sync_state[0] == "pending"
+
+    def test_a_lone_device_does_not_claim_no_device_while_receiving(self, window):
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._set_sync_state("pending", 1, 0, 0)
+
+        window._on_peers(1, 1)
+
+        assert window._sync_state[0] == "pending"
+
+    def test_a_lost_link_is_applied_once_the_transfer_settles(self, window):
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._ever_connected = True
+        window._set_sync_state("pending", 1, 0, 0)
+
+        window._on_status("waiting")
+        # The transfer completes: the row leaves the in-flight state first.
+        window._file_panel.table._transfers["a.bin"].stop_transfer()
+        window._note_transfer_progress("↓")
+
+        assert window._peers_label.text() == "–"
+        assert window._sync_state[0] == "offline"
+
+    def test_a_lone_device_is_applied_once_the_transfer_settles(self, window):
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._set_sync_state("pending", 1, 0, 0)
+
+        window._on_peers(1, 1)
+        window._file_panel.table._transfers["a.bin"].stop_transfer()
+        window._note_transfer_progress("↓")
+
+        assert window._peers_label.text() == "1/1"
+        assert window._sync_state[0] == "no_devices"
+
+    def test_settlement_happens_when_no_plan_item_is_left(self, window):
+        """The counts can already be exhausted; the last transfer still settles.
+
+        Once the pending counts reach zero the state is ``in_sync`` and a later
+        completion takes the "nothing to retire" path. Skipping the settlement
+        there would leave the deferred link facts unapplied forever.
+        """
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._ever_connected = True
+        window._set_sync_state("in_sync")
+
+        window._on_status("waiting")
+        window._file_panel.table._transfers["a.bin"].stop_transfer()
+        window._note_transfer_progress("↓")
+
+        assert window._peers_label.text() == "–"
+        assert window._sync_state[0] == "offline"
+
+    def test_a_failed_transfer_also_settles_the_link_facts(self, window):
+        """A failure leaves the in-flight set exactly like a completion."""
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._ever_connected = True
+        window._set_sync_state("pending", 1, 0, 0)
+
+        window._on_status("waiting")
+        window._on_transfer_failed("download", "/share/a.bin", "boom")
+
+        assert window._peers_label.text() == "–"
+        assert window._sync_state[0] == "offline"
+
+    def test_a_planned_row_does_not_suppress_the_link_state(self, window):
+        """A plan is not a transfer: the bar must stay honest during a preview."""
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        self._transferring(window, status=TransferStatus.TO_DOWNLOAD)
+
+        assert window._transfer_in_flight() is False
+
+    def test_the_connection_lost_notice_still_fires_while_receiving(self, window, monkeypatch):
+        fired: list[str] = []
+        monkeypatch.setattr(window, "_notify_warning", lambda title, message: fired.append(title))
+        self._transferring(window)
+        window._ever_connected = True
+        window._link_lost_notified = False
+
+        window._on_status("waiting")
+
+        assert fired == [tr("notif.connection_lost")]

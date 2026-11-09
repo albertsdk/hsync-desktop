@@ -322,6 +322,8 @@ class ActionsMixin:
         self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
         # No plan is pending application in a fresh process.
         self._preview_run_to_stop = False
+        self._deferred_link_status: str | None = None
+        self._deferred_peers: tuple[int, int] | None = None
         # No plan is being prepared: only _start_preview_run enters that state.
         self._preparing_plan = False
         # A new dry-run decides again whether anyone is watching it.

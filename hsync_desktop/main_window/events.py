@@ -126,6 +126,11 @@ class EventsMixin:
     # wins; a directory verdict stores the status only and re-reads the mtime at
     # flush time, so the timestamp reflects the settled tree.
     _pending_verdicts: dict[str, tuple[str, int, int, int]]
+    # Link facts suppressed while bytes were moving: the bar keeps showing the
+    # transfer instead of "no device", and these are applied as soon as the last
+    # in-flight row settles (`_settle_deferred_link_state`).
+    _deferred_link_status: str | None
+    _deferred_peers: tuple[int, int] | None
     # The engine reported a connection failure: the link is down until the client
     # says otherwise, so no "checking" may be claimed meanwhile.
     _link_down: bool
@@ -181,8 +186,16 @@ class EventsMixin:
             # stale "N/M" does not outlive the link. Per-file statuses keep their
             # last known value: losing the link makes the comparison stale, it
             # does not make a synced file local.
-            self._peers_label.setText("–")
-            self._set_sync_state("offline" if self._ever_connected else "idle")
+            # While files are actually moving, though, the label must not claim
+            # "no device": a p2p sync runs before the slave opens its WebSocket,
+            # so the serving side legitimately reports zero clients during the
+            # transfer and the bar would contradict what the user sees.
+            if self._transfer_in_flight():
+                # Remember the fact and apply it once the transfer settles.
+                self._deferred_link_status = status
+            else:
+                self._peers_label.setText("–")
+                self._set_sync_state("offline" if self._ever_connected else "idle")
             # An established link that is now down is a lost connection. The
             # client names that state "waiting" (server mode and p2p) rather than
             # "disconnected", which only the engine reports when the process ends,
@@ -354,8 +367,13 @@ class EventsMixin:
         self._peers_total = total
         if self._p2p_enabled:
             if total <= 1:
-                # Alone in the group: there is no file set to compare against.
-                self._set_sync_state("no_devices")
+                # Alone in the group: there is no file set to compare against —
+                # unless bytes are moving, which proves the peer is there even
+                # before its WebSocket count converges.
+                if self._transfer_in_flight():
+                    self._deferred_peers = (connected, total)
+                else:
+                    self._set_sync_state("no_devices")
             elif self._sync_state[0] == "no_devices":
                 # A device joined: wait for its inventory before claiming one.
                 self._set_sync_state("checking")
@@ -423,8 +441,57 @@ class EventsMixin:
             if not downloads and not uploads:
                 state = "pending_other" if others else "in_sync"
         else:
+            # Nothing to retire, but the transfer still ended: this is exactly
+            # when the last in-flight row may settle, so the settlement must not
+            # be skipped here (the counts are already exhausted and the state is
+            # ``in_sync``, so no further completion would ever apply it).
+            self._settle_deferred_link_state()
             return
         self._set_sync_state(state, downloads, uploads, others)
+        self._settle_deferred_link_state()
+
+    def _settle_deferred_link_state(self) -> None:
+        """Apply the link facts held back while bytes were moving.
+
+        Called on every completed transfer: once the last in-flight row settles
+        there is no longer a transfer to justify hiding them, so the bar returns
+        to telling the truth about the link (a lost connection, or a lone
+        device). Only then — applying them earlier would replace the transfer
+        state with "no device" again.
+        """
+        if self._transfer_in_flight():
+            return
+        deferred_status = self._deferred_link_status
+        deferred_peers = self._deferred_peers
+        self._deferred_link_status = None
+        self._deferred_peers = None
+        if deferred_status is not None:
+            self._peers_label.setText("–")
+            self._set_sync_state("offline" if self._ever_connected else "idle")
+        if deferred_peers is not None:
+            connected, total = deferred_peers
+            self._peers_label.setText(f"{connected}/{total}")
+            if total <= 1:
+                self._set_sync_state("no_devices")
+
+    def _transfer_in_flight(self) -> bool:
+        """True while the engine is moving bytes (not merely planning them).
+
+        Only the in-flight statuses count: a planned ``TO_*`` row belongs to a
+        comparison, and suppressing the link state for one would make the bar
+        lie during a preview. A busy row is what justifies keeping the last
+        device count instead of replacing it with "no device".
+        """
+        return any(
+            transfer.status
+            in (
+                TransferStatus.DOWNLOADING,
+                TransferStatus.UPLOADING,
+                TransferStatus.QUEUED,
+                TransferStatus.TRANSFERRING,
+            )
+            for transfer in self._file_panel.table._transfers.values()
+        )
 
     def _pending_from_table(self) -> tuple[int, int, int]:
         """Plan rows the table still shows as pending: (downloads, uploads, others)."""
@@ -655,6 +722,9 @@ class EventsMixin:
         # The row would otherwise keep showing an in-flight progress bar.
         rel_path = self._rel_path(filepath)
         self._file_panel.mark_failed(rel_path)
+        # A failed row leaves the in-flight set just like a completed one, so it
+        # may be the last one: apply the link facts held back during the transfer.
+        self._settle_deferred_link_state()
         # One system notification per burst: a failing cycle can give up on many
         # files at once, and the badge and the toast already carry the count and
         # the names.

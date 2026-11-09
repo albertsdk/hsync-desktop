@@ -168,6 +168,8 @@ class MainWindow(
         # run exists only to apply that plan, so it stops as soon as the cycle
         # completes instead of staying up as a daemon nobody asked for.
         self._preview_run_to_stop = False
+        self._deferred_link_status: str | None = None
+        self._deferred_peers: tuple[int, int] | None = None
         # Whether nobody is watching the dry-run in flight. A per-dry-run value,
         # not the run's origin: an auth retry after a credential prompt is
         # watched again, so its plan must be confirmed (see

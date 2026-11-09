@@ -848,6 +848,18 @@ that gives up is flagged `TransferStatus.ERROR`
 (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.mark_failed`); rows still marked
 in flight when the engine stops are reset or dropped
 (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable.clear_transient_progress`).
+**The bottom bar never claims "no device" while bytes move.** The link label
+(`_on_status`, `_on_peers`) is driven by the control channel, and a p2p sync runs
+*before* the slave opens its WebSocket: during a transfer the serving side
+legitimately reports zero clients, which used to replace the device count with
+`–` and the file-set state with "no device". While `_transfer_in_flight()` is
+true (only the in-flight statuses — a planned `TO_*` row is a comparison, not a
+transfer), the bar keeps the last known link state, records what it was told in
+`_deferred_link_status` / `_deferred_peers`, and applies it from
+`_settle_deferred_link_state` when the last row settles. The connection-lost
+notice still fires immediately: hiding the *label* must not hide a disappeared
+peer.
+
 A status refresh must never downgrade a live in-flight row:
 `update_file_status` ignores a *planned* status (`TO_*` — the master's
 `master_status` re-emits every file on each pass) while the row is
@@ -866,8 +878,12 @@ limiter. A sample pair closer than `_RATE_MIN_INTERVAL` measures nothing — the
 client flushes its closing sample as soon as the wire total is reached, so a
 burst absorbed by the transport would otherwise be reported at hundreds of MB/s
 with an ETA of zero — and the previous measurement stands. `progress_total` keeps
-the wire total (compressed upload size, delta payload) separate from the on-disk
-`size`.
+the wire total (delta payload) separate from the on-disk `size`. A **negative**
+`total` in a `progress` event means "explicitly unknown" (a compressed serve,
+whose wire bytes cannot be mapped onto the file size): the row stores `-1`,
+renders no percentage and no ETA, and the folder aggregate skips it instead of
+summing it as a size. A `0` total keeps the older meaning — "use the row's own
+size" — which is what a delta literal payload relies on.
 
 An in-flight **upload** never reads as finished:
 `hsync_desktop/file_panel/models.py::clamp_upload_progress` caps its percentage at

@@ -1417,8 +1417,11 @@ class FileTransferTable(QTableView):
 
         for f in files:
             if not f.filepath.endswith("/"):
-                total_size += f.total_bytes
-                total_transferred += f.bytes_transferred
+                # An unknown total (compressed serve) is not a size: summing it
+                # would poison the folder percentage.
+                if f.total_bytes > 0:
+                    total_size += f.total_bytes
+                    total_transferred += f.bytes_transferred
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
@@ -2380,6 +2383,12 @@ class FileTransferTable(QTableView):
                 # reports the smaller wire size as its total.
                 if t.size <= 0:
                     t.size = total_bytes
+            elif total_bytes < 0:
+                # Explicitly unknown: a compressed serve moves wire bytes that
+                # cannot be mapped onto the file size, so the row shows an
+                # indeterminate bar instead of falling back to ``size`` and
+                # inventing a percentage that will never reach 100.
+                t.progress_total = -1
             t.note_progress(bytes_transferred)
         self._cached_items = None  # Invalidate cache
         self._schedule_refresh()

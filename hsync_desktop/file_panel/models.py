@@ -262,7 +262,10 @@ class FileTransfer:
 
     @property
     def eta_seconds(self) -> float | None:
+        """Remaining time, or ``None`` when the total (or the rate) is unknown."""
         rate = self.speed_bps
-        if rate is None:
+        # ``total_bytes <= 0`` means the transfer reports an unknown total (a
+        # compressed serve): there is nothing to project an arrival from.
+        if rate is None or self.total_bytes <= 0:
             return None
         return self.remaining / rate

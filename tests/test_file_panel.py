@@ -3277,3 +3277,80 @@ class TestTrashPlatform:
         script = calls[0][0][2]
         assert '\\"' in script
         assert '/share/a"b/c.bin' not in script
+
+
+class TestUnknownTransferTotal:
+    """A compressed serve reports an unknown total, never a wrong percentage.
+
+    The sender moves wire bytes while the receiver counts the decompressed file:
+    zstd emits most of the output early, so the two scales disagree badly (55%
+    against 98%). The sender therefore reports a negative total, and the row — and
+    the folder containing it — render an indeterminate bar.
+    """
+
+    @staticmethod
+    def _table(qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        return table
+
+    def test_a_negative_total_marks_the_row_unknown(self, qtbot):
+        table = self._table(qtbot)
+
+        table.update_transfer_progress("a.bin", 512, -1, "upload")
+
+        transfer = table._transfers["a.bin"]
+        assert transfer.total_bytes == -1
+        assert transfer.eta_seconds is None
+
+    def test_the_row_renders_no_percentage(self, qtbot):
+        table = self._table(qtbot)
+
+        table.update_transfer_progress("a.bin", 512, -1, "upload")
+
+        assert table._model._row_progress(table._transfers["a.bin"], None, False) == -1
+
+    def test_a_known_file_size_does_not_leak_back_as_the_total(self, qtbot):
+        """The row exists from the local scan; its size must not become the scale."""
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10_000, status=TransferStatus.LOCAL)
+        )
+
+        table.update_transfer_progress("a.bin", 512, -1, "upload")
+
+        assert table._transfers["a.bin"].total_bytes == -1
+        assert table._model._row_progress(table._transfers["a.bin"], None, False) == -1
+
+    def test_a_zero_total_keeps_the_previous_behaviour(self, qtbot):
+        """Zero still means "keep the row's own size" (delta literal payloads)."""
+        table = self._table(qtbot)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1_000, status=TransferStatus.LOCAL)
+        )
+
+        table.update_transfer_progress("a.bin", 500, 0, "download")
+
+        assert table._transfers["a.bin"].total_bytes == 1_000
+
+    def test_an_unknown_row_does_not_poison_the_folder_percentage(self, qtbot):
+        table = self._table(qtbot)
+        known = FileTransfer(
+            filepath="dir/known.bin", direction="↓", size=1_000, status=TransferStatus.DOWNLOADING
+        )
+        known.note_progress(500)
+        unknown = FileTransfer(
+            filepath="dir/unknown.bin", direction="↑", size=9_000, status=TransferStatus.UPLOADING
+        )
+        unknown.progress_total = -1
+        unknown.bytes_transferred = 900
+        table.add_transfer(known)
+        table.add_transfer(unknown)
+
+        data = table._aggregate_folder([known, unknown])
+
+        assert data["total_size"] == 1_000
+        assert data["progress"] == 50
