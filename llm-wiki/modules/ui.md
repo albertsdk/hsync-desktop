@@ -709,7 +709,12 @@ row alone, the standard desktop behaviour.
 
 `FileTransferTable._trash_many` asks one confirmation for the batch (the count,
 not one prompt per item) and moves everything with a single `gio trash` call on
-Linux; macOS/Windows iterate and report the failures in one warning.
+Linux; macOS/Windows iterate (`_trash_platform`) and report the failures in one
+warning. Windows uses `DeleteDirectory` for a folder and `DeleteFile` for a file
+(the recycle-bin API has no single call for both), and it hands the path over
+through an environment variable rather than interpolating it into the script, so
+a name containing a quote or a shell metacharacter cannot inject PowerShell; the
+AppleScript literal is escaped for the same reason.
 `_copy_to_many` picks one destination, asks one confirmation and one overwrite
 question for the whole batch, then copies every entry. A partial failure never
 stops the rest: the summary reports how many succeeded. `_remove_files` drops

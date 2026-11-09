@@ -3220,3 +3220,60 @@ class TestMultiSelection:
         assert (dest / "a.bin").read_bytes() == b"a"
         assert (dest / "b.bin").read_bytes() == b"b"
         assert shown == ["info"]
+
+
+class TestTrashPlatform:
+    """The per-platform trash helpers, without touching a real trash.
+
+    Windows needs ``DeleteDirectory`` for a folder (``DeleteFile`` refuses one),
+    and the path must never be interpolated into the script: a file name can
+    contain a quote or a shell metacharacter.
+    """
+
+    @staticmethod
+    def _run(monkeypatch, system, abs_path, *, exists_dir=False):
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        calls: list[tuple[list[str], dict]] = []
+        monkeypatch.setattr(tt.platform, "system", lambda: system)
+        monkeypatch.setattr(tt.os.path, "isdir", lambda _p: exists_dir)
+        monkeypatch.setattr(
+            tt.subprocess,
+            "run",
+            lambda args, **kw: calls.append((list(args), dict(kw))),
+        )
+        tt.FileTransferTable._trash_platform(abs_path, system)
+        return calls
+
+    def test_windows_uses_delete_directory_for_a_folder(self, monkeypatch):
+        calls = self._run(monkeypatch, "Windows", r"C:\share\docs", exists_dir=True)
+
+        assert len(calls) == 1
+        script = calls[0][0][2]
+        assert "::DeleteDirectory(" in script
+        assert "::DeleteFile(" not in script
+
+    def test_windows_uses_delete_file_for_a_file(self, monkeypatch):
+        calls = self._run(monkeypatch, "Windows", r"C:\share\a.txt")
+
+        assert len(calls) == 1
+        script = calls[0][0][2]
+        assert "::DeleteFile(" in script
+        assert "::DeleteDirectory(" not in script
+
+    def test_windows_never_interpolates_the_path_into_the_script(self, monkeypatch):
+        hostile = r"C:\share\a\"; Remove-Item C:\ -Recurse; \"$x"
+        calls = self._run(monkeypatch, "Windows", hostile)
+
+        script = calls[0][0][2]
+        assert hostile not in script
+        assert "Remove-Item" not in script
+        # The path travels through the environment instead.
+        assert calls[0][1]["env"]["HSYNC_TRASH_PATH"] == hostile
+
+    def test_macos_escapes_the_path_in_the_applescript(self, monkeypatch):
+        calls = self._run(monkeypatch, "Darwin", '/share/a"b/c.bin')
+
+        script = calls[0][0][2]
+        assert '\\"' in script
+        assert '/share/a"b/c.bin' not in script

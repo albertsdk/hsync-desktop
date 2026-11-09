@@ -2029,13 +2029,26 @@ class FileTransferTable(QTableView):
 
     @staticmethod
     def _trash_platform(abs_path: str, system: str) -> None:
-        """Move one path to the trash on macOS/Windows (Linux uses ``gio``)."""
+        """Move one path to the trash on macOS/Windows (Linux uses ``gio``).
+
+        Windows needs two calls: ``DeleteFile`` refuses a directory, so a folder
+        goes through ``DeleteDirectory`` (the old single-target code called
+        ``DeleteFile`` for both, which silently failed on folders).
+
+        The path is handed over through the environment, never interpolated into
+        the script: a name containing a quote, a ``$`` or a backtick would
+        otherwise end the string literal and run attacker-chosen PowerShell. The
+        same reasoning applies to the AppleScript literal, which is escaped.
+        """
         if system == "Darwin":
+            # AppleScript: a backslash and a quote both end the literal, so both
+            # are escaped before it is embedded.
+            escaped = abs_path.replace("\\", "\\\\").replace('"', '\\"')
             subprocess.run(
                 [
                     "osascript",
                     "-e",
-                    f'tell application "Finder" to delete (POSIX file "{abs_path}" as alias)',
+                    f'tell application "Finder" to delete (POSIX file "{escaped}" as alias)',
                 ],
                 check=True,
                 stdout=subprocess.DEVNULL,
@@ -2043,12 +2056,21 @@ class FileTransferTable(QTableView):
             )
             return
         if system == "Windows":
-            ps_cmd = f'Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile("{abs_path}", "OnlyErrorDialogs", "SendToRecycleBin")'
+            is_dir = os.path.isdir(abs_path)
+            method = "DeleteDirectory" if is_dir else "DeleteFile"
+            ps_cmd = (
+                "Add-Type -AssemblyName Microsoft.VisualBasic; "
+                f"[Microsoft.VisualBasic.FileIO.FileSystem]::{method}("
+                "$env:HSYNC_TRASH_PATH, "
+                "'OnlyErrorDialogs', 'SendToRecycleBin')"
+            )
+            env = dict(os.environ, HSYNC_TRASH_PATH=abs_path)
             subprocess.run(
                 ["powershell", "-Command", ps_cmd],
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
+                env=env,
             )
             return
         raise OSError("Unsupported platform for trash operation")
