@@ -134,6 +134,12 @@ server health endpoint and reports whether it answers; the button reads
 **Checking…** while the request runs, so the window stays responsive until the
 result appears.
 
+Devices that sync the same folder on one server use the **same share name**, and
+each **API key must be the server admin's or a member of that share**: the same
+key on every device works, one key per device keeps revoking and rotating per
+device — see [Roles and Permissions → Sharing one bucket between
+devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
+
 ## General
 
 <img src="assets/screens/08-settings-general.png" alt="Settings, General tab" width="640">

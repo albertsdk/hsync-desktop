@@ -31,6 +31,14 @@ the CLI moves it aside with `hsync state reset --folder DIR --quarantine`.
 
 ## Why do my two devices not see each other?
 
+In **Server Mode** both devices must point at the same server, use the **same
+share name**, and hold an **API key that is the server admin's or a member of
+that share**. The share name is the shared thing; the key only proves a device
+may use it, so the same key on both devices works and one key per device keeps
+revoking and rotating per device — see [Roles and Permissions → Sharing one
+bucket between
+devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
+
 In p2p Mode they must use the **same group name** and the **same share name**, and
 be on the same network (or reach the same discovery servers). A device with no
 group only sees other no-group devices. The full checklist is in
