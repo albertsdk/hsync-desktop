@@ -569,7 +569,7 @@ The devices tab shows
 | `FilePanel` | `hsync_desktop/file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
 | `FileTransferTable` | `hsync_desktop/file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
 | `FileTransferModel` | `hsync_desktop/file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
-| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | metadata pane for the selected row (path, name, size, modified, status, device coverage, last synced). For a **folder** (`show_transfer(transfer, folder=…)`) it shows the folder aggregate from `hsync_desktop/file_panel/transfer_table.py::FileTransferTable.folder_summary` — summed size, newest child mtime, max device coverage, most recent child sync and the aggregated folder status — instead of the directory row's `LOCAL` placeholder, so a synced folder is not reported as "Local" and the size needs no extra filesystem walk (the flat transfer map already holds every scanned file) |
+| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | metadata pane for the selected row (path, name, size, modified, status, device coverage, last synced, and for a folder an **Elements** count). For a **folder** (`show_transfer(transfer, folder=…)`) it shows the folder aggregate from `hsync_desktop/file_panel/transfer_table.py::FileTransferTable.folder_summary` — on-disk `size_bytes` sum, newest child mtime, max device coverage, most recent child sync, the aggregated folder status and the item count via `hsync_desktop/file_panel/utils.py::folder_count_text` (the Elements row is hidden for a file) — instead of the directory row's `LOCAL` placeholder, so a synced folder is not reported as "Local" and the size needs no extra filesystem walk (the flat transfer map already holds every scanned file) |
 | `ProgressBarDelegate` | `hsync_desktop/file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
 | `LoadingOverlay` | `hsync_desktop/file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
 | `_confirm_dialog` | `hsync_desktop/file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |
@@ -591,11 +591,22 @@ The sort key is the column's **value, not its display text**
 would sort lexicographically ("9.5MB" > "10.0MB", the localized date string is not
 chronological) and the progress column has no display text at all (the bar is
 drawn from `UserRole`), so a text sort there was a no-op. Progress, Size, Modified,
-ETA and Speed use numeric/epoch keys (a folder's Size key is its item count, what
-the cell shows); Name, Type, Status and Direction keep the display string.
+ETA and Speed use numeric/epoch keys (a folder's Size key is its on-disk byte sum,
+what the cell shows; the item count is in the tooltip); Name, Type, Status and
+Direction keep the display string.
 `FileTransferTable` keeps the navigation, context-menu, column-visibility/width
 and selection logic and exposes `_model` (and `model().display_name(row)`) to
 callers that need a row's transfer or display name.
+
+**A folder's Size cell reads bytes**, like a file row (the industry norm: Windows
+Explorer, Finder and Dolphin treat "Size" as bytes; only Nautilus puts the item
+count there). `FileTransferModel._display_value` (`COL_SIZE`) uses the `size_bytes`
+aggregate — the sum of the children's on-disk `size` — while `total_size` stays the
+progress denominator (a compressed/in-flight child's `total_bytes` is the wire
+size). A folder with no known file children shows "—". The count is not lost:
+`FileTransferModel._tooltip` shows it on the Size cell and prepends it to the
+Name/Status ops tooltip through `hsync_desktop/file_panel/utils.py::folder_count_text`
+(singular at one), and the detail pane shows it in its **Elements** row.
 
 The panel lists exactly what the engine synchronises: the local scan, the
 consistency pass and the status-bar size share

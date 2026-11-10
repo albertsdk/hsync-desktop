@@ -14,7 +14,7 @@ Each row shows the file's icon next to its name, then:
 | ------ | ------- |
 | **Name** | The file or folder, with its type icon. Always shown, always first. |
 | **Direction** | `↑` upload, `↓` download, `✕` a deleted row, `⇄` a rename. Blank when there is no operation. |
-| **Size** | The size on disk. |
+| **Size** | The size on disk. For a folder, the sum of the files it contains; its item count is shown in the tooltip and in the properties pane. |
 | **Type** | The kind of file (hidden until you enable it). |
 | **Modified** | The last modification date. |
 | **Progress** | A bar with the percentage while a transfer runs. A file you are sending reaches 100% only once the other device has received it. |

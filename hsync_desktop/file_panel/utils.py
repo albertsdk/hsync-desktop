@@ -319,3 +319,9 @@ def format_mtime(epoch: float) -> str:
     # caches above instead of building a QLocale for every row.
     month = _short_month_name(get_language(), dt.month)
     return f"{dt.day} {month} {dt.year} {time_str}"
+
+
+def folder_count_text(count: int) -> str:
+    """Localized item count for a folder row ("1 elemento", "N elementi")."""
+    key = "folder.item" if count == 1 else "folder.items"
+    return tr(key).format(count=count)

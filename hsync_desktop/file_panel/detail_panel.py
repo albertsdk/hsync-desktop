@@ -14,7 +14,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFrame, QLabel, QToolButton
 
 from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
-from hsync_desktop.file_panel.utils import format_mtime
+from hsync_desktop.file_panel.utils import folder_count_text, format_mtime
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.icons import icon as get_icon
 
@@ -37,6 +37,7 @@ class FileDetailPanel:
         self._lbl_status: QLabel = frame.findChild(QLabel, "valStatus")  # type: ignore[assignment]
         self._lbl_devices: QLabel = frame.findChild(QLabel, "valDevices")  # type: ignore[assignment]
         self._lbl_last_synced: QLabel = frame.findChild(QLabel, "valLastSynced")  # type: ignore[assignment]
+        self._lbl_elements: QLabel = frame.findChild(QLabel, "valElements")  # type: ignore[assignment]
 
         # Label widgets for translation
         self._lbl_filepath_label: QLabel = frame.findChild(QLabel, "lblFilepath")  # type: ignore[assignment]
@@ -46,6 +47,7 @@ class FileDetailPanel:
         self._lbl_status_label: QLabel = frame.findChild(QLabel, "lblStatus")  # type: ignore[assignment]
         self._lbl_devices_label: QLabel = frame.findChild(QLabel, "lblDevices")  # type: ignore[assignment]
         self._lbl_last_synced_label: QLabel = frame.findChild(QLabel, "lblLastSynced")  # type: ignore[assignment]
+        self._lbl_elements_label: QLabel = frame.findChild(QLabel, "lblElements")  # type: ignore[assignment]
 
         # Make filepath label clickable via <a href> + linkActivated signal
         self._lbl_filepath.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
@@ -72,6 +74,7 @@ class FileDetailPanel:
         self._lbl_devices.setToolTip(tr("detail.devices_tip"))
         self._lbl_devices_label.setToolTip(tr("detail.devices_tip"))
         self._lbl_last_synced_label.setText(tr("detail.last_synced"))
+        self._lbl_elements_label.setText(tr("detail.elements"))
 
     def set_base_directory(self, directory: str) -> None:
         """Set the base directory for resolving absolute file paths."""
@@ -98,7 +101,7 @@ class FileDetailPanel:
         self._render_filepath_link()
 
         self._lbl_filename.setText(transfer.filename)
-        size = folder["total_size"] if folder is not None else transfer.size
+        size = folder["size_bytes"] if folder is not None else transfer.size
         mtime = folder["mtime"] if folder is not None else transfer.mtime
         self._lbl_size.setText(format_bytes(size))
         self._lbl_modified.setText(format_mtime(mtime))
@@ -130,6 +133,14 @@ class FileDetailPanel:
             self._lbl_devices.setText("—")
         last_synced = folder["last_synced_at"] if folder is not None else transfer.last_synced_at
         self._lbl_last_synced.setText(format_mtime(last_synced))
+        if folder is not None:
+            self._lbl_elements.setText(folder_count_text(folder.get("count", 0)))
+            self._lbl_elements_label.show()
+            self._lbl_elements.show()
+        else:
+            # A single file (or a selection) has no item count.
+            self._lbl_elements_label.hide()
+            self._lbl_elements.hide()
         self._frame.show()
 
     def _render_filepath_link(self) -> None:

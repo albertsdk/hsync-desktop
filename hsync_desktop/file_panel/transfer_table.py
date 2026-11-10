@@ -85,6 +85,7 @@ from hsync_desktop.file_panel.utils import (
     COL_STATUS,
     COL_TYPE,
     _classify_file,
+    folder_count_text,
     format_mtime,
 )
 from hsync_desktop.i18n import tr
@@ -402,9 +403,9 @@ class FileTransferModel(QAbstractTableModel):
         if column == COL_PROGRESS:
             return self._row_progress(transfer, folder_data, is_folder)
         if column == COL_SIZE:
-            # A folder row shows its item count, not a byte size (``_display_value``).
+            # A folder row shows its on-disk size (``_display_value``).
             if is_folder:
-                return folder_data.get("count", 0) if folder_data else 0
+                return folder_data.get("size_bytes", 0) if folder_data else 0
             return transfer.size if transfer else 0
         if column == COL_MODIFIED:
             if folder_data:
@@ -437,9 +438,14 @@ class FileTransferModel(QAbstractTableModel):
                 return tr("ftype.folder")
             return tr(_classify_file(transfer.filepath)[1]) if transfer else ""
         if col == COL_SIZE:
-            if is_folder and folder_data:
-                return tr("folder.items").format(count=folder_data.get("count", 0))
-            if transfer and not is_folder:
+            if is_folder:
+                # The Size column reads bytes like a file row; the item count
+                # belongs in the tooltip/properties. A folder with no known files
+                # has no meaningful size yet.
+                if not folder_data or folder_data.get("count", 0) <= 0:
+                    return "—"
+                return format_bytes(folder_data.get("size_bytes", 0))
+            if transfer:
                 return format_bytes(transfer.size)
             return ""
         if col == COL_MODIFIED:
@@ -528,30 +534,37 @@ class FileTransferModel(QAbstractTableModel):
             self._row_status(transfer, folder_data, is_folder)[1]
         ):
             return self._stale_synced_tooltip()
+        if not is_folder:
+            return None
+        count = (folder_data or {}).get("count", 0)
+        if col == COL_SIZE:
+            # The Size cell shows bytes; the item count on hover explains it (and
+            # an empty folder's "—").
+            return folder_count_text(count)
         # A folder's neutral aggregate status hides the mix of planned
         # operations, so spell out what will actually happen.
-        if col not in (COL_NAME, COL_STATUS) or not is_folder or not folder_data:
+        if not folder_data or col not in (COL_NAME, COL_STATUS):
             return None
+        parts = [folder_count_text(count)] if count else []
         ops = folder_data.get("ops") or {}
-        parts = []
         for op_status, label_key in (
             (TransferStatus.TO_UPLOAD, "detail.to_upload"),
             (TransferStatus.TO_DOWNLOAD, "detail.to_download"),
             (TransferStatus.TO_DELETE, "detail.to_delete"),
             (TransferStatus.TO_RENAME, "detail.to_rename"),
         ):
-            count = ops.get(op_status, 0)
-            if count:
-                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+            n = ops.get(op_status, 0)
+            if n:
+                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=n))
         # Planned operations and transfers in progress are different facts: the
         # tooltip names both, so "3 to upload" cannot be mistaken for "3 moving".
         for key, label_key in (
             ("sending", "detail.uploading"),
             ("receiving", "detail.downloading"),
         ):
-            count = folder_data.get(key, 0)
-            if count:
-                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=count))
+            n = folder_data.get(key, 0)
+            if n:
+                parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=n))
         return ", ".join(parts) if parts else None
 
     @staticmethod
@@ -1470,6 +1483,7 @@ class FileTransferTable(QTableView):
         """Aggregate data for a folder from its contained files."""
         count = len(files)
         total_size = 0
+        size_bytes = 0
         total_transferred = 0
         max_mtime = 0.0
         status_priority = 100
@@ -1485,6 +1499,9 @@ class FileTransferTable(QTableView):
 
         for f in files:
             if not f.filepath.endswith("/"):
+                # On-disk size for the Size column/properties; ``total_size``
+                # below is the progress scale (wire/compressed while in flight).
+                size_bytes += max(0, f.size)
                 # An unknown total (compressed serve) is not a size: summing it
                 # would poison the folder percentage.
                 if f.total_bytes > 0:
@@ -1524,6 +1541,7 @@ class FileTransferTable(QTableView):
         return {
             "count": count,
             "total_size": total_size,
+            "size_bytes": size_bytes,
             "mtime": max_mtime,
             "progress": progress,
             "status_key": status_key,

@@ -3757,6 +3757,7 @@ class TestFolderProperties:
 
         assert summary is not None
         assert summary["total_size"] == 150
+        assert summary["size_bytes"] == 150
         assert summary["mtime"] == 20.0
         assert summary["devices"] == 2
         assert summary["holders"] == 2
@@ -3786,3 +3787,94 @@ class TestFolderProperties:
         assert detail._lbl_status.text() == tr("folder.status.synced")
         assert detail._lbl_devices.text() == "2/2"
         assert detail._lbl_last_synced.text() == format_mtime(60.0)
+        assert detail._lbl_elements.text() == tr("folder.items").format(count=2)
+        assert not detail._lbl_elements.isHidden()
+        assert not detail._lbl_elements_label.isHidden()
+
+
+class TestFolderSizeColumn:
+    """The Size column reads a folder's on-disk bytes; the count lives elsewhere."""
+
+    def _table(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def _row(self, path: str, **kwargs) -> FileTransfer:
+        return FileTransfer(filepath=path, direction="—", **kwargs)
+
+    def test_a_folder_size_cell_reads_the_on_disk_sum(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(self._row("Moto/a.bin", size=100, status=TransferStatus.SYNCED))
+        table.add_transfer(self._row("Moto/sub/b.bin", size=50, status=TransferStatus.SYNCED))
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_SIZE) == _format_size(150)
+
+    def test_a_folder_without_files_shows_a_dash(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(self._row("Empty/", size=0, status=TransferStatus.LOCAL))
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_SIZE) == "—"
+
+    def test_the_folder_size_uses_disk_bytes_not_the_wire_total(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        # An in-flight compressed upload: progress_total (wire) differs from size.
+        table.add_transfer(
+            self._row("Moto/a.bin", size=1000, progress_total=100, status=TransferStatus.UPLOADING)
+        )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_SIZE) == _format_size(1000)
+
+    def test_the_size_tooltip_shows_the_item_count(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.add_transfer(self._row("Moto/a.bin", size=10, status=TransferStatus.SYNCED))
+        table.add_transfer(self._row("Moto/b.bin", size=10, status=TransferStatus.SYNCED))
+        table.refresh_view()
+        assert _cell(table, 0, tt.COL_SIZE, Qt.ItemDataRole.ToolTipRole) == tr(
+            "folder.items"
+        ).format(count=2)
+
+        single = self._table(qtbot)
+        single.add_transfer(self._row("Solo/x.bin", size=10, status=TransferStatus.SYNCED))
+        single.refresh_view()
+        assert _cell(single, 0, tt.COL_SIZE, Qt.ItemDataRole.ToolTipRole) == tr(
+            "folder.item"
+        ).format(count=1)
+
+    def test_sorting_by_size_orders_folders_by_bytes(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.add_transfer(self._row("Big/a.bin", size=100, status=TransferStatus.SYNCED))
+        table.add_transfer(self._row("Small/b.bin", size=10, status=TransferStatus.SYNCED))
+        table.refresh_view()
+        table.sortByColumn(tt.COL_SIZE, Qt.SortOrder.AscendingOrder)
+
+        assert _cell_text(table, 0, tt.COL_NAME) == "Small"
+        assert _cell_text(table, 1, tt.COL_NAME) == "Big"
+
+    def test_the_properties_elements_row_is_hidden_for_a_file(self, qtbot):
+        from hsync_desktop.file_panel import FilePanel
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        panel._table.add_transfer(self._row("a.bin", size=1, status=TransferStatus.SYNCED))
+
+        panel._on_properties_requested(panel._table._transfers["a.bin"])
+
+        assert panel._detail._lbl_elements.isHidden()
+        assert panel._detail._lbl_elements_label.isHidden()

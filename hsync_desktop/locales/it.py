@@ -854,4 +854,6 @@ translations: dict[str, str] = {
     "conn.tip.details": "Clic per i dettagli",
     "conn.menu.show_log": "Mostra log",
     "conn.menu.settings": "Impostazioni server",
+    "detail.elements": "Elementi:",
+    "folder.item": "{count} elemento",
 }

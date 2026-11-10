@@ -223,6 +223,7 @@ class TestTerminologyConsistency:
     # ``group_key.caption`` is the label above the masked provisioning line.
     KEY_VALUE_KEYS = {
         "detail.devices",
+        "detail.elements",
         "detail.filename",
         "detail.last_synced",
         "detail.filepath",
