@@ -396,7 +396,8 @@ class HsyncEngine(QObject):
     # JSON types). The payload is not a log line: the window renders it as its
     # own ``[EVENT ERROR]`` line, because only the UI layer owns presentation.
     event_error = Signal(str)  # truncated event payload
-    status_changed = Signal(str)  # disconnected|connecting|connected|waiting|error
+    status_changed = Signal(str)  # link state: disconnected|connecting|connected|waiting|error
+    activity_changed = Signal(str)  # data-movement phase: syncing|idle
     peers_changed = Signal(int, int)  # connected clients, total clients (self included)
     master_changed = Signal(bool)  # True ⇒ this client is master
     bucket_detected = Signal(str)  # bucket name
@@ -1016,9 +1017,8 @@ class HsyncEngine(QObject):
     def _handle_event(self, event: UiEventDict) -> None:
         """Translate one structured client event into Qt signal(s).
 
-        Mirrors the former regex parser 1:1 — each event name maps to the same
-        signal/payload the GUI already consumes. A malformed event is logged but
-        never crashes the engine.
+        Each event name maps to the signal/payload the window consumes. A
+        malformed event is logged but never crashes the engine.
         """
         name = event.get("event")
         # Readiness phase: the client emits ``ready`` once every fatal startup
@@ -1061,6 +1061,9 @@ class HsyncEngine(QObject):
 
     def _on_status_event(self, event: UiEventDict) -> None:
         self._set_status(str(event.get("status", "")))
+
+    def _on_activity_event(self, event: UiEventDict) -> None:
+        self.activity_changed.emit(str(event.get("activity", "")))
 
     def _on_progress_event(self, event: UiEventDict) -> None:
         self.file_progress.emit(
@@ -1300,6 +1303,7 @@ class HsyncEngine(QObject):
 
     _EVENT_HANDLERS: ClassVar[dict[str, Callable[[HsyncEngine, UiEventDict], None]]] = {
         UiEventName.status: _on_status_event,
+        UiEventName.activity: _on_activity_event,
         UiEventName.progress: _on_progress_event,
         UiEventName.transfer: _on_transfer_event,
         UiEventName.file_status: _on_file_status_event,

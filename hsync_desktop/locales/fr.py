@@ -15,7 +15,6 @@ translations: dict[str, str] = {
     "status.disconnected": "Déconnecté",
     "status.connecting": "Connexion…",
     "status.waiting": "En attente…",
-    "status.syncing": "Synchronisation…",
     "status.stopping": "Arrêt en cours…",
     "status.error": "Erreur",
     "status.unknown": "Inconnu",

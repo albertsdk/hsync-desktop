@@ -37,7 +37,8 @@ window's attributes.
 
 Engine→slot wiring (in `_connect_signals`, `hsync_desktop/main_window/window.py::MainWindow._connect_signals`): `log_received→_append_log`,
 `event_error→_on_engine_event_error` (`hsync_desktop/main_window/ui.py::UiBuildMixin._on_engine_event_error`, which logs it as the desktop's own `[EVENT ERROR]` line),
-`status_changed→_on_status`, `peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
+`status_changed→_on_status`, `activity_changed→_on_activity`,
+`peers_changed`/`master_changed`, `file_transferred→_on_file_transferred`,
 `transfer_failed→_on_transfer_failed`, `warning_cleared→_on_engine_warning_cleared`,
 `sync_paused→_on_sync_paused`,
 `file_progress`/`file_renamed`, `folder_size_changed→_on_folder_size`,
@@ -1194,6 +1195,16 @@ The counts come from two sources, one per side of the comparison.
   `pending_here + pending_there`) and its own counts. The state is never a set
   union: a file only one device holds is `in_sync` for that device and pending
   for the others, so `in_sync` here means every device is converged (ADR 0042).
+
+The busy glyph of that label tracks work in progress on either axis:
+`EventsMixin._begin_comparison` starts it for a comparison this window asked
+for, and `EventsMixin._on_activity` (`hsync_desktop/main_window/events.py::EventsMixin._on_activity`)
+starts it while the engine reports `activity=syncing`. The phase is a fact of its
+own (ADR 0050): it never touches the link label, so a cycle running on a live
+link keeps reading "Connected" while the bar animates, and a repeated value is
+dropped instead of re-rendered. `connected`/`disconnected` stay the only link
+values the label renders, and a `disconnected` engine clears the phase, because
+work reported by a process that exited cannot stay on screen.
 
 `EventsMixin._begin_comparison` resets both, so repeated comparisons never
 inflate the counts nor keep a device that has left. The label is **live during a

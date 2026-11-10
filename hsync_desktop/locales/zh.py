@@ -17,7 +17,6 @@ translations: dict[str, str] = {
     "status.disconnected": "未连接",
     "status.connecting": "正在连接…",
     "status.waiting": "正在等待…",
-    "status.syncing": "同步中…",
     "status.stopping": "正在停止…",
     "status.error": "错误",
     "status.unknown": "未知",

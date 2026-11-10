@@ -3,8 +3,8 @@
 
 """HSYNC engine package: synchronous CLI helpers and the subprocess bridge.
 
-Re-exports the public surface previously provided by ``engine.py`` so existing
-``from hsync_desktop.engine import ...`` imports keep working.
+Re-exports the engine's public surface: ``from hsync_desktop.engine import ...``
+is the single import path.
 """
 
 from hsync_desktop.engine.async_probe import AsyncProbe, ProbeOutcome

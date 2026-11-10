@@ -23,7 +23,6 @@ _STATUS_KEYS = {
     "disconnected": "status.disconnected",
     "connecting": "status.connecting",
     "waiting": "status.waiting",
-    "syncing": "status.syncing",
     "stopping": "status.stopping",
     "error": "status.error",
 }

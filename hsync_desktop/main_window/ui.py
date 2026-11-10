@@ -312,6 +312,10 @@ class UiBuildMixin:
         # second question (set by the preview/file-status flow in events.py).
         self._sync_state_label = QLabel(self.centralWidget())
         self._sync_state = ("idle", 0, 0, 0)
+        # Data-movement phase reported by the engine (``syncing``/``idle``): it
+        # animates this label without changing the text, so the bar keeps
+        # answering "do the file sets match?" while a cycle runs.
+        self._activity: str | None = None
         self._sync_state_label.setForegroundRole(self.palette().ColorRole.PlaceholderText)
         # Busy feedback for this label, created here so the first
         # ``_render_sync_state`` (from ``_apply_translations``) already finds it.
@@ -486,7 +490,7 @@ class UiBuildMixin:
         for problem in problems:
             action = self._problems_menu.addAction(self._problem_label(problem))
             action.triggered.connect(lambda _=False, key=problem.key: self._reveal_log_line(key))
-        # The remedy the toast used to carry must stay reachable: the entry
+        # The remedy a toast carries must stay reachable after it expires: the entry
         # outlives the toast, so its guide link does too. One action serves the
         # whole list, opening the first guide it finds — the targets are the
         # watcher-limits page and the troubleshooting page, and in practice one

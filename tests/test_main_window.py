@@ -2051,16 +2051,37 @@ class TestInitialReconcile:
         stub._engine.sync.assert_not_called()
 
 
-class TestSyncingStatus:
-    """The initial full sync reports "Syncing…", not "Connecting…"."""
+class TestLinkAndActivity:
+    """The link label and the file-set bar report independent facts."""
 
-    def test_the_syncing_status_has_its_own_label_and_colour(self, window):
-        from hsync_desktop.themes import COLOR_SYNCING
+    def test_a_running_cycle_keeps_the_link_label_connected(self, window):
+        """A cycle moving bytes is a live link: the label never reports the phase."""
+        window._on_status("connected")
 
-        window._on_status("syncing")
+        window._on_activity("syncing")
 
-        assert window._status_label.text() == tr("status.syncing")
-        assert COLOR_SYNCING.name() in window._status_dot.styleSheet()
+        assert window._status_label.text() == tr("status.connected")
+        assert window._connected is True
+
+    def test_the_activity_animates_the_file_set_bar(self, window):
+        window._on_status("connected")
+
+        window._on_activity("syncing")
+        window._sync_busy._begin()  # past the delay
+        assert window._sync_busy.is_animating is True
+
+        window._on_activity("idle")
+        assert window._sync_busy.is_animating is False
+
+    def test_a_dead_engine_clears_the_activity(self, window):
+        window._on_activity("syncing")
+        window._sync_busy._begin()
+        assert window._sync_busy.is_animating is True
+
+        window._on_status("disconnected")
+
+        assert window._activity is None
+        assert window._sync_busy.is_animating is False
 
 
 class TestPostSyncStatusRefresh:

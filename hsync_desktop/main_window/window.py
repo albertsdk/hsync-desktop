@@ -329,6 +329,7 @@ class MainWindow(
         # log line: the window renders it in the shared grammar.
         e.event_error.connect(self._on_engine_event_error)
         e.status_changed.connect(self._on_status)
+        e.activity_changed.connect(self._on_activity)
         e.peers_changed.connect(self._on_peers)
         e.master_changed.connect(self._on_master)
         e.bucket_detected.connect(self._on_bucket_detected)

@@ -82,7 +82,6 @@ from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
     COLOR_CONNECTED,
     COLOR_DISCONNECTED,
-    COLOR_SYNCING,
     COLOR_WAITING,
     apply_theme,
 )
@@ -139,6 +138,9 @@ class EventsMixin:
     _link_lost_notified: bool
     _last_check_at: QTime | None
     _peers_total: int
+    # Data-movement phase reported by the engine (``syncing``/``idle``): an
+    # axis of its own, so a busy link keeps reading ``connected``.
+    _activity: str | None
 
     @Slot(str)
     def _on_bucket_detected(self, bucket: str) -> None:
@@ -159,7 +161,6 @@ class EventsMixin:
             "disconnected": ("status.disconnected", COLOR_DISCONNECTED),
             "connecting": ("status.connecting", COLOR_WAITING),
             "waiting": ("status.waiting", COLOR_WAITING),
-            "syncing": ("status.syncing", COLOR_SYNCING),
             "stopping": ("status.stopping", COLOR_WAITING),
             "error": ("status.error", COLOR_DISCONNECTED),
         }
@@ -181,6 +182,12 @@ class EventsMixin:
         # The comparison action explains itself: "compare now" once linked, the
         # state-dependent wording (or the last check time) otherwise.
         self._update_preview_changes_tooltip()
+
+        if status == "disconnected" and self._activity == "syncing":
+            # The engine is gone, so no cycle can still be moving bytes: a phase
+            # last reported by a process that exited cannot stay on screen.
+            self._activity = None
+            self._render_sync_state()
 
         if status in ("disconnected", "waiting"):
             # The peer count is only meaningful while connected: clear it so a
@@ -235,6 +242,21 @@ class EventsMixin:
                 rows=len(self._file_panel.table._transfers),
             )
 
+    @Slot(str)
+    def _on_activity(self, activity: str) -> None:
+        """Render the engine's data-movement phase, never the link state.
+
+        ``syncing`` means a cycle is moving bytes right now and ``idle`` that
+        none is: the bar animates for the former, while the link label keeps
+        saying whether a device is reachable and the rows keep their verified
+        verdict. A repeated value is dropped, so a stream of cycles does not
+        re-render the bar for nothing.
+        """
+        if activity == self._activity:
+            return
+        self._activity = activity
+        self._render_sync_state()
+
     def _on_connected_refresh(self) -> None:
         """Refresh the file list after a connect, with a one-off catch-up.
 
@@ -285,14 +307,16 @@ class EventsMixin:
             text = tr("sync.state.pending_other").replace("{count}", str(others))
         else:
             text = tr(f"sync.state.{state}")
-        # The busy glyph tracks the *comparison*, not the ``checking`` state:
-        # that state is also the resting "waiting for a file-set answer" (a link
-        # that came up, an inventory still missing), which is not work happening
-        # now. Buffered through ``BusyText`` so a fast comparison never flickers.
+        # The busy glyph tracks work in progress on either axis: a comparison this
+        # window asked for, or the data movement the engine reports. It is not
+        # bound to the ``checking`` state, which is also the resting "waiting for
+        # a file-set answer" (a link that came up, an inventory still missing) and
+        # not work happening now. Buffered through ``BusyText`` so a fast
+        # comparison never flickers.
         busy = getattr(self, "_sync_busy", None)
         if busy is not None:
             busy.set_text(text)
-            if self._comparison_in_flight and state == "checking":
+            if self._activity == "syncing" or (self._comparison_in_flight and state == "checking"):
                 busy.start()
             else:
                 busy.stop()
@@ -418,10 +442,10 @@ class EventsMixin:
     def _note_transfer_progress(self, direction: str) -> None:
         """Retire one plan item per completed transfer, so the label stays live.
 
-        The file-set label is a snapshot taken at the comparison end and nothing
-        re-computes it while files move: the pending counts used to freeze at the
-        plan for the whole transfer, and a comparison that left no verdict kept
-        reading "checking". A completed transfer retires the matching plan item;
+        The file-set label is a snapshot taken at the comparison end, so nothing
+        else re-computes it while files move: without this the pending counts
+        stay at the plan for the whole transfer, and a comparison that left no
+        verdict keeps reading "checking". A completed transfer retires the matching plan item;
         while the label still reads "checking" the counts are re-derived from the
         plan rows the table shows, because a file actually moving proves the peer
         is reconciled.
@@ -1198,8 +1222,8 @@ class EventsMixin:
         The startup safety net only covers exits before readiness: a client that
         refuses later (the folder's instance lock, a failed trust/connectivity
         resolution) or dies on an unexpected exception exits *normally* with
-        code 1, which used to leave the window on "disconnected" with the reason
-        in the log only.
+        code 1, which would otherwise leave the window on "disconnected" with
+        the reason in the log only.
 
         Nothing is reported twice: a scoped Send/Receive owns its own outcome, a
         run the user stopped is not a failure, and an error the client already

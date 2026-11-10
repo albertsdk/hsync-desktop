@@ -118,6 +118,7 @@ command line:
 | `UiEventName` | Signal |
 | ------------- | ------ |
 | `status` / `peers` / `role` | `status_changed` / `peers_changed(connected, total)` / `master_changed` |
+| `activity` | `activity_changed(state)` — the data-movement phase (`syncing`/`idle`), never the link state |
 | `bucket` / `group` / `session` / `server` | `bucket_detected` / `group_detected` / … / `server` ip |
 | `rendezvous` | `rendezvous_changed(plan, rendezvous)` — the active plan (mdns/rendezvous) at startup |
 | `transfer` / `rename` / `dir_created` | `file_transferred(direction, file, size)` / `file_renamed(old, new)` / `directory_created(path)` |
