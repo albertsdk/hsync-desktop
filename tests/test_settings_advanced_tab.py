@@ -117,10 +117,11 @@ class TestDisabledDuringSync:
 
 
 class TestCapabilityGating:
-    def _with_flags(self, qtbot, monkeypatch, flags: list[str]):
+    def _with_flags(self, qtbot, monkeypatch, tmp_path, flags: list[str]):
         from hsync_common.protocol.capabilities import build_capabilities
 
         import hsync_desktop.settings.dialog as dialog_mod
+        from tests._helpers import _patch_settings_qsettings, _settings
 
         doc = build_capabilities(
             app_version="1.0.0",
@@ -128,20 +129,24 @@ class TestCapabilityGating:
             cli_options_by_subcommand={"p2p": flags},
         )
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: doc)
+        # Isolated store in p2p mode: the p2p switches are mode-dependent, so a
+        # host's stored mode would decide the outcome instead of the flags.
+        _patch_settings_qsettings(monkeypatch, _settings(tmp_path))
         dlg = dialog_mod.SettingsDialog()
         qtbot.addWidget(dlg)
         return dlg
 
-    def test_missing_flags_disable_advanced_controls(self, qtbot, monkeypatch):
-        dlg = self._with_flags(qtbot, monkeypatch, [])
+    def test_missing_flags_disable_advanced_controls(self, qtbot, monkeypatch, tmp_path):
+        dlg = self._with_flags(qtbot, monkeypatch, tmp_path, [])
         assert not dlg.autotune.isEnabled()
         assert not dlg.mass_delete_threshold.isEnabled()
         assert not dlg.peer_download.isEnabled()
 
-    def test_advertised_flags_keep_controls_enabled(self, qtbot, monkeypatch):
+    def test_advertised_flags_keep_controls_enabled(self, qtbot, monkeypatch, tmp_path):
         dlg = self._with_flags(
             qtbot,
             monkeypatch,
+            tmp_path,
             [
                 "--no-peer-download",
                 "--no-autotune",
@@ -156,8 +161,20 @@ class TestCapabilityGating:
                 "--limit-download",
             ],
         )
+        assert dlg.p2p_mode.isChecked()  # the isolated store runs in p2p mode
         assert dlg.autotune.isEnabled()
         assert dlg.mass_delete_threshold.isEnabled()
+        assert dlg.peer_download.isEnabled()
+
+    def test_the_peer_download_switch_follows_the_mode(self, qtbot, monkeypatch, tmp_path):
+        """The flag gates the switch; the mode decides where it applies."""
+        dlg = self._with_flags(qtbot, monkeypatch, tmp_path, ["--no-peer-download"])
+        assert dlg.peer_download.isEnabled()
+
+        dlg.p2p_mode.setChecked(False)
+        assert not dlg.peer_download.isEnabled()
+
+        dlg.p2p_mode.setChecked(True)
         assert dlg.peer_download.isEnabled()
 
 
