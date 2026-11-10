@@ -209,6 +209,14 @@ _MIN_NAME_FIRST_RUN = 460
 # Idle time after the last column adjustment before the layout is persisted.
 _STATE_SAVE_DELAY_MS = 300
 
+# A rename can reach the UI as a `deleted` event followed, a moment later, by the
+# correlated `rename` (watcher/sync ordering is not guaranteed). Hold the deleted
+# marker briefly so the pair reads as one rename on screen instead of a
+# delete-then-reappear flash; a genuine delete still shows the marker after it.
+_DELETE_DISPLAY_GRACE_MS = 1500
+# How long the deleted marker stays visible before the row is removed.
+_DELETED_MARKER_MS = 1500
+
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
@@ -651,6 +659,8 @@ class FileTransferTable(QTableView):
         super().__init__(parent)
         self._transfers: dict[str, FileTransfer] = {}  # filepath -> transfer (flat)
         self._transfers_mutex = QMutex()  # Protects _transfers dict
+        # Deleted markers waiting out the rename grace period, keyed by path.
+        self._pending_deletes: dict[str, QTimer] = {}
         self._row_index: dict[str, int] = {}  # display key -> row index
         self._last_selected_row: int = -1
         # Restored across a file-panel reload (scoped Send/Receive): keeps the
@@ -2168,6 +2178,7 @@ class FileTransferTable(QTableView):
 
     def add_transfer(self, transfer: FileTransfer) -> None:
         """Add or update a transfer in the table."""
+        self._cancel_pending_delete(transfer.filepath)
         with QMutexLocker(self._transfers_mutex):
             self._transfers[transfer.filepath] = transfer
         self._cached_items = None  # Invalidate cache
@@ -2175,6 +2186,7 @@ class FileTransferTable(QTableView):
 
     def clear_transfers(self) -> None:
         """Clear all transfers from the table."""
+        self._cancel_all_pending_deletes()
         with QMutexLocker(self._transfers_mutex):
             self._transfers.clear()
         self._cached_items = None  # Invalidate cache
@@ -2224,6 +2236,8 @@ class FileTransferTable(QTableView):
         """
         if not transfers:
             return
+        for transfer in transfers:
+            self._cancel_pending_delete(transfer.filepath)
         with QMutexLocker(self._transfers_mutex):
             for transfer in transfers:
                 previous = self._classified_row(transfer.filepath, known)
@@ -2334,12 +2348,43 @@ class FileTransferTable(QTableView):
         self._schedule_refresh()
 
     def mark_deleted(self, filepath: str) -> None:
-        """Mark a file as deleted."""
+        """Defer the deleted marker so a rename does not flash it.
+
+        A rename can reach the UI as a ``deleted`` event followed by the
+        correlated ``rename`` a moment later; holding the marker briefly lets
+        :meth:`rename_file` cancel it, so a renamed row never shows "deleted"
+        before reappearing under its new name. A genuine delete shows the marker
+        after the grace and is then removed.
+        """
+        self._cancel_pending_delete(filepath)
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda p=filepath: self._commit_deleted(p))
+        self._pending_deletes[filepath] = timer
+        timer.start(_DELETE_DISPLAY_GRACE_MS)
+
+    def _cancel_pending_delete(self, filepath: str) -> None:
+        """Drop a scheduled deleted marker for *filepath* (a rename or return)."""
+        timer = self._pending_deletes.pop(filepath, None)
+        if timer is not None:
+            timer.stop()
+            timer.deleteLater()
+
+    def _cancel_all_pending_deletes(self) -> None:
+        for timer in self._pending_deletes.values():
+            timer.stop()
+            timer.deleteLater()
+        self._pending_deletes.clear()
+
+    def _commit_deleted(self, filepath: str) -> None:
+        """Show the deleted marker for a pending deletion, then remove the row."""
+        self._pending_deletes.pop(filepath, None)
         with QMutexLocker(self._transfers_mutex):
-            if filepath in self._transfers:
-                t = self._transfers[filepath]
-                t.status = TransferStatus.DELETED
-                t.direction = "✕"
+            transfer = self._transfers.get(filepath)
+            if transfer is None:
+                return
+            transfer.status = TransferStatus.DELETED
+            transfer.direction = "✕"
         self.refresh_view()
         # Show the marker for a moment, then remove the row. The timer is
         # parented to the table so it is destroyed with the widget instead of
@@ -2348,7 +2393,7 @@ class FileTransferTable(QTableView):
         timer = QTimer(self)
         timer.setSingleShot(True)
         timer.timeout.connect(lambda: self._remove_file(filepath))
-        timer.start(3000)
+        timer.start(_DELETED_MARKER_MS)
 
     def _remove_file(self, filepath: str) -> None:
         """Remove one file from the table."""
@@ -2360,6 +2405,8 @@ class FileTransferTable(QTableView):
         A multi-selection trash/copy removes N rows at once: refreshing per row
         would rebuild the whole tree N times and drop the selection between them.
         """
+        for filepath in filepaths:
+            self._cancel_pending_delete(filepath)
         removed = False
         with QMutexLocker(self._transfers_mutex):
             for filepath in filepaths:
@@ -2377,6 +2424,10 @@ class FileTransferTable(QTableView):
         mtime: float = 0.0,
     ) -> None:
         """Handle a file rename."""
+        # A pending deleted marker on either side belongs to the same move: do not
+        # flash "deleted" before the row reappears under its new name.
+        self._cancel_pending_delete(old_path)
+        self._cancel_pending_delete(new_path)
         old_size = 0
         old_mtime = 0.0
         with QMutexLocker(self._transfers_mutex):

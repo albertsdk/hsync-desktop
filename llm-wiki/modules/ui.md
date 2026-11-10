@@ -762,6 +762,16 @@ question for the whole batch, then copies every entry. A partial failure never
 stops the rest: the summary reports how many succeeded. `_remove_files` drops
 several rows with one refresh, so the tree is not rebuilt once per entry.
 
+A deletion is shown with a short **grace period** (`_DELETE_DISPLAY_GRACE_MS`):
+`mark_deleted` schedules the DELETED marker instead of applying it at once, so a
+rename that arrives a moment later can cancel it — the watcher/sync may report a
+move as a `deleted` followed by the correlated `rename` — and
+`FileTransferTable.rename_file` cancels the pending marker for either path, so a
+renamed row never flashes "deleted" before reappearing under its new name. A
+returning file (`add_transfer`/`add_transfers_batch`) and `clear_transfers` cancel
+it too; a genuine delete commits the marker after the grace and removes the row
+after `_DELETED_MARKER_MS` (total time to removal unchanged at ~3 s).
+
 Destructive acts (`Rename` / `Trash`) add a **per-row** gate on top:
 `FileTransferTable._entry_is_busy` returns True while the engine owns the path —
 planned (`TO_*`), in-flight (`DOWNLOADING`/`UPLOADING`),

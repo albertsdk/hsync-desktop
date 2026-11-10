@@ -2469,6 +2469,7 @@ class TestConsistencyFiltering:
         SYNCED row just because it is not LOCAL.
         """
         from hsync_desktop.file_panel import FilePanel
+        from hsync_desktop.file_panel import transfer_table as tt
 
         panel = FilePanel()
         qtbot.addWidget(panel)
@@ -2485,6 +2486,8 @@ class TestConsistencyFiltering:
         )
 
         panel._check_directory_consistency()
+        # The deleted marker is deferred briefly so a rename can cancel it.
+        qtbot.wait(tt._DELETE_DISPLAY_GRACE_MS + 200)
 
         row = panel._table._transfers["gone.bin"]
         assert row.status is TransferStatus.DELETED
@@ -2567,6 +2570,7 @@ class TestConsistencyResilience:
     def test_a_nested_scandir_error_does_not_freeze_the_pass(self, qtbot, tmp_path, monkeypatch):
         from hsync_desktop.file_panel import FilePanel
         from hsync_desktop.file_panel import panel as panel_module
+        from hsync_desktop.file_panel import transfer_table as tt
 
         (tmp_path / "ok").mkdir()
         (tmp_path / "locked").mkdir()
@@ -2593,6 +2597,8 @@ class TestConsistencyResilience:
         )
 
         panel._check_directory_consistency()
+        # The deleted marker is deferred briefly so a rename can cancel it.
+        qtbot.wait(tt._DELETE_DISPLAY_GRACE_MS + 200)
 
         assert panel._table._transfers["ok/gone.txt"].status is TransferStatus.DELETED
 
@@ -3629,3 +3635,70 @@ class TestFolderDirection:
 
         assert tooltip is not None
         assert tr("detail.uploading") in tooltip
+
+
+class TestRenameDeleteDebounce:
+    """A rename must not flash a deleted row before it reappears renamed."""
+
+    def _table(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def _add(self, table, path: str) -> None:
+        table.add_transfer(
+            FileTransfer(filepath=path, direction="—", size=10, status=TransferStatus.SYNCED)
+        )
+
+    def test_a_delete_is_deferred(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        self._add(table, "a.bin")
+
+        table.mark_deleted("a.bin")
+
+        assert table._transfers["a.bin"].status is TransferStatus.SYNCED
+        assert "a.bin" in table._pending_deletes
+
+        qtbot.wait(tt._DELETE_DISPLAY_GRACE_MS + 200)
+        assert table._transfers["a.bin"].status is TransferStatus.DELETED
+
+    def test_a_rename_cancels_the_pending_delete(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        self._add(table, "a.bin")
+        table.mark_deleted("a.bin")
+        assert "a.bin" in table._pending_deletes
+
+        table.rename_file("a.bin", "b.bin")
+
+        assert "a.bin" not in table._pending_deletes
+        assert "b.bin" in table._transfers
+        assert table._transfers["b.bin"].status is TransferStatus.SYNCED
+
+        # Even after the grace elapses, the renamed row was never marked deleted.
+        qtbot.wait(tt._DELETE_DISPLAY_GRACE_MS + 200)
+        assert table._transfers["b.bin"].status is TransferStatus.SYNCED
+
+    def test_a_returning_file_cancels_the_pending_delete(self, qtbot):
+        table = self._table(qtbot)
+        self._add(table, "a.bin")
+        table.mark_deleted("a.bin")
+
+        self._add(table, "a.bin")
+
+        assert "a.bin" not in table._pending_deletes
+        assert table._transfers["a.bin"].status is TransferStatus.SYNCED
+
+    def test_clearing_cancels_pending_deletes(self, qtbot):
+        table = self._table(qtbot)
+        self._add(table, "a.bin")
+        table.mark_deleted("a.bin")
+
+        table.clear_transfers()
+
+        assert table._pending_deletes == {}
