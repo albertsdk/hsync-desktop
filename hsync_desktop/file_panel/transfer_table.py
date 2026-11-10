@@ -2029,16 +2029,24 @@ class FileTransferTable(QTableView):
             return
         try:
             os.rename(abs_path, new_abs)
-            old_rel = transfer.filepath
-            del self._transfers[old_rel]
-            transfer.filepath = new_rel
-            self._transfers[new_rel] = transfer
-            self._cached_items = None  # Invalidate cache
-            self.refresh_view()
         except Exception as exc:
             QMessageBox.warning(
                 self, tr("ctx.error_title"), tr("ctx.error_rename").format(error=str(exc))
             )
+            return
+        # The rename is on disk. Re-keying the row and refreshing the view must
+        # never turn a successful rename into a failure dialog: during an active
+        # sync the engine can already have removed or re-keyed the row, which
+        # used to raise inside this method and show "cannot rename" after the
+        # filesystem had moved the file. Pop defensively under the same lock the
+        # engine-driven rename path (``rename_file``) uses.
+        old_rel = transfer.filepath
+        with QMutexLocker(self._transfers_mutex):
+            self._transfers.pop(old_rel, None)
+            transfer.filepath = new_rel
+            self._transfers[new_rel] = transfer
+        self._cached_items = None  # Invalidate cache
+        self.refresh_view()
 
     def _ctx_trash(self, transfer: FileTransfer) -> None:
         """Move one entry to the system trash (single-row caller)."""

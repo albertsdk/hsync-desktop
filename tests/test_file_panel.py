@@ -1761,6 +1761,64 @@ class TestContextMenuGating:
         assert table._transfers["c.bin"] is transfer
         assert "a.bin" not in table._transfers
 
+    def test_a_successful_rename_never_reports_a_failure(self, qtbot, tmp_path, monkeypatch):
+        """An engine-side re-key must not turn the on-disk rename into an error.
+
+        Renaming during an active sync can race the engine, which removes or
+        re-keys the row before the dialog returns. The filesystem rename is what
+        the user asked for; the row bookkeeping must follow without a false
+        "cannot rename" dialog (the reported bug).
+        """
+        table = self._table(qtbot)
+        table.set_base_directory(str(tmp_path))
+        (tmp_path / "a.bin").write_bytes(b"x")
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+        transfer = table._transfers.pop("a.bin")  # already re-keyed by the engine
+        warnings: list[tuple] = []
+        monkeypatch.setattr(
+            "hsync_desktop.file_panel.transfer_table.QMessageBox.warning",
+            lambda *a, **k: warnings.append(a),
+        )
+
+        table._apply_rename(transfer, "c.bin")
+
+        assert (tmp_path / "c.bin").exists()
+        assert not (tmp_path / "a.bin").exists()
+        assert warnings == []
+        assert table._transfers["c.bin"] is transfer
+
+    def test_a_real_rename_failure_is_reported_and_keeps_the_row(
+        self, qtbot, tmp_path, monkeypatch
+    ):
+        """Only the filesystem operation triggers the rename-failure dialog."""
+        table = self._table(qtbot)
+        table.set_base_directory(str(tmp_path))
+        (tmp_path / "a.bin").write_bytes(b"x")
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+        transfer = table._transfers["a.bin"]
+        warnings: list[tuple] = []
+        monkeypatch.setattr(
+            "hsync_desktop.file_panel.transfer_table.QMessageBox.warning",
+            lambda *a, **k: warnings.append(a),
+        )
+
+        def _boom(*_a, **_k):
+            raise OSError("boom")
+
+        monkeypatch.setattr("hsync_desktop.file_panel.transfer_table.os.rename", _boom)
+
+        table._apply_rename(transfer, "c.bin")
+
+        assert warnings
+        assert table._transfers["a.bin"] is transfer
+        assert "c.bin" not in table._transfers
+
 
 class TestVirtualRowSelection:
     """Rows with no FileTransfer of their own select exactly like catalogued rows.
