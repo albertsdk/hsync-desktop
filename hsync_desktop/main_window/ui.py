@@ -202,6 +202,7 @@ class UiBuildMixin:
         # Set icons for action buttons (icon-only, no text)
         from PySide6.QtCore import QSize
 
+        from hsync_desktop.icons import HEADER_ICON_PX
         from hsync_desktop.icons import icon as get_icon
 
         icon_size = QSize(18, 18)
@@ -224,20 +225,22 @@ class UiBuildMixin:
 
         # Add folder icon label before path label
         self._path_icon_label = QLabel(self.centralWidget())
-        self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(16, 16))
-        self._path_icon_label.setFixedSize(20, 20)
+        self._path_icon_label.setPixmap(
+            get_icon("folder-open").pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+        )
+        self._path_icon_label.setFixedSize(HEADER_ICON_PX, HEADER_ICON_PX)
         self._path_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._path_icon_label.hide()  # Hidden until path is set
 
         # Sync direction icon (right of path label)
         self._sync_dir_icon = QLabel(self.centralWidget())
-        self._sync_dir_icon.setFixedSize(20, 20)
+        self._sync_dir_icon.setFixedSize(HEADER_ICON_PX, HEADER_ICON_PX)
         self._sync_dir_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._sync_dir_icon.hide()
 
         # Remote endpoint icon + label (right of sync direction icon)
         self._remote_icon = QLabel(self.centralWidget())
-        self._remote_icon.setFixedSize(20, 20)
+        self._remote_icon.setFixedSize(HEADER_ICON_PX, HEADER_ICON_PX)
         self._remote_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._remote_icon.hide()
         self._remote_label = QLabel(self.centralWidget())

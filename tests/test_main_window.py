@@ -114,6 +114,27 @@ class TestRemoteIcon:
         assert "network-cloud" in names
         assert window._remote_label.text() == "srv.example.com"
 
+    def test_header_icons_fill_their_slot(self, window, monkeypatch, tmp_path):
+        """The pixmap must be rendered at the label's fixed size.
+
+        A 24px pixmap in a 20px slot is centered and clipped, which turned the
+        edge-to-edge cloud glyph into a blob. Regression guard for that mismatch.
+        """
+        from PySide6.QtCore import QSize
+
+        from hsync_desktop.icons import HEADER_ICON_PX
+
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", False)
+        s.setValue("connection/server_url", "https://srv.example.com:9753")
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+        window._update_path_display()
+
+        for label in (window._path_icon_label, window._sync_dir_icon, window._remote_icon):
+            assert label.size() == QSize(HEADER_ICON_PX, HEADER_ICON_PX)
+            assert label.pixmap().size() == QSize(HEADER_ICON_PX, HEADER_ICON_PX)
+
     @pytest.mark.parametrize(
         ("group_value", "expected_label", "expected_tip_key"),
         [

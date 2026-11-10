@@ -75,6 +75,12 @@ def _load_themed_svg(svg_path: Path, custom_color: str | None = None) -> QIcon:
 # Directory containing fallback icons
 ICONS_DIR = Path(__file__).parent / "resources" / "icons"
 
+# Side of the square used by the header icon labels (folder / sync direction /
+# remote endpoint). The labels are fixed to this size, so every pixmap drawn
+# there must be rendered at the same size: QLabel does not scale, it centers and
+# clips, which turned an edge-to-edge glyph (the cloud) into a blob.
+HEADER_ICON_PX = 24
+
 # Mapping of FreeDesktop icon names to fallback filenames
 # Add entries here when you add custom fallback icons
 _FALLBACK_MAP: dict[str, str] = {

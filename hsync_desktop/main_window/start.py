@@ -181,6 +181,7 @@ class StartMixin:
 
     def _update_path_display(self) -> None:
         """Update the path label, sync direction icon, and remote endpoint."""
+        from hsync_desktop.icons import HEADER_ICON_PX
         from hsync_desktop.icons import icon as get_icon
 
         # Primary/secondary is a p2p concept; Server Mode has no such role, so
@@ -192,7 +193,9 @@ class StartMixin:
 
         if self._local_path:
             # ── Folder icon + share name (local path in the tooltip) ──────
-            self._path_icon_label.setPixmap(get_icon("folder-open").pixmap(24, 24))
+            self._path_icon_label.setPixmap(
+                get_icon("folder-open").pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+            )
             self._path_icon_label.show()
             share_name = self._share_display_name()
             # Elide the name if it's too long (max ~300px)
@@ -227,13 +230,17 @@ class StartMixin:
                 "download-only": tr("menu.sync.direction.download_only"),
             }
             icon_name = dir_icon_map.get(direction, "sync-bidirectional")
-            self._sync_dir_icon.setPixmap(get_icon(icon_name).pixmap(24, 24))
+            self._sync_dir_icon.setPixmap(
+                get_icon(icon_name).pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+            )
             self._sync_dir_icon.setToolTip(dir_tip_map.get(direction, ""))
             self._sync_dir_icon.show()
 
             # ── Remote endpoint icon + label ──────────────────────────
             if p2p_enabled:
-                self._remote_icon.setPixmap(get_icon("network-p2p").pixmap(24, 24))
+                self._remote_icon.setPixmap(
+                    get_icon("network-p2p").pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+                )
                 group = str(s.value("p2p/group", DEFAULT_GROUP, str)).strip()
                 if group:
                     self._remote_label.setText(group)
@@ -247,7 +254,9 @@ class StartMixin:
                 # The group is the remote label; hide the bottom-bar twin in p2p
                 self._group_label.hide()
             else:
-                self._remote_icon.setPixmap(get_icon("network-cloud").pixmap(24, 24))
+                self._remote_icon.setPixmap(
+                    get_icon("network-cloud").pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+                )
                 server_ip = self._engine.server_ip if self._engine.server_ip else ""
                 if not server_ip:
                     server_url = str(s.value("connection/server_url", "", str))
