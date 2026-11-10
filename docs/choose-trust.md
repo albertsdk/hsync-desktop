@@ -47,7 +47,7 @@ only a certificate the operating system already trusts, which is what a reverse
 proxy with a real CA provides. A server that presents its own self-signed
 certificate — the HSYNC Server Debian package generates one — is refused in that
 mode, so pick **Ask on first use** once (or pin its `sha256:…` fingerprint shown
-by `hsync-server admin tls fingerprint`).
+by `sudo hsync-server admin tls fingerprint` on the server host).
 
 In **p2p Mode** the same idea applies to the device that becomes primary, through
 **New primary device** (*Settings → p2p Mode*): **Ask for confirmation** by

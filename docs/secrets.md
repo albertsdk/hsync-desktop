@@ -81,6 +81,12 @@ If the password does not match, the app shows a warning that names
 The server account key looks like `hs_<id>_<secret>`; it is issued by your HSYNC
 server. Enter it in the Server tab's **API key** dialog.
 
+Paste **only the token**: the `Token (save now, not recoverable):` label the
+server prints next to it is not part of the value. When the operator rotates the
+key, the previous one stops working (immediately, or at the end of the rotation's
+grace window): enter the new token and restart the sync (see *How they are
+stored and used* above).
+
 ## Keyless p2p runs
 
 If the p2p password is empty, devices are **not authenticated** and reads are open
