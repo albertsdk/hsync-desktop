@@ -141,6 +141,8 @@ class MainWindow(
         self._conn_reason_override = ""
         self._conn_state = "stopped"
         self._conn_reason = ""
+        # True while an alert/error badge replaces the endpoint mode icon.
+        self._conn_badge_replaces_icon = False
         # Last engine link status (``connected``/``waiting``/…) and the endpoint's
         # own tooltip, restored when the badge is healthy.
         self._link_status = ""

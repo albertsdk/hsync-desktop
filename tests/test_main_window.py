@@ -5489,6 +5489,48 @@ class TestConnectionBadge:
             assert window._conn_state == "problem"
             assert window._conn_reason == tr("conn.p2p.no_peers")
 
+    def test_an_alert_replaces_the_mode_icon(self, window, settings, tmp_path, monkeypatch):
+        """A red badge must not sit on top of the p2p/server mode icon."""
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._ever_connected = True
+            window._link_status = "waiting"
+            window._render_connection_badge()
+            assert window._conn_state == "lost"
+            assert window._conn_badge_replaces_icon is True
+
+            window._on_engine_error("Sync failed", "connection", "refused")
+            assert window._conn_state == "problem"
+            assert window._conn_badge_replaces_icon is True
+
+    def test_the_mode_icon_returns_when_the_problem_clears(
+        self, window, settings, tmp_path, monkeypatch
+    ):
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._link_status = "waiting"
+            window._on_engine_error("Sync failed", "connection", "refused")
+            assert window._conn_badge_replaces_icon is True
+
+            window._link_status = "connected"
+            window._render_connection_badge()
+            assert window._conn_state == "healthy"
+            assert window._conn_badge_replaces_icon is False
+            assert window._remote_icon.toolTip() == tr("label.remote_server_tip")
+
+    def test_connecting_keeps_the_mode_icon(self, window, settings, tmp_path, monkeypatch):
+        """Only alerts/errors replace the mode icon; in-progress overlays it."""
+        with self._engine_running(monkeypatch):
+            self._setup_p2p(window, settings, tmp_path)
+
+            window._ever_connected = False
+            window._link_status = "waiting"
+            window._render_connection_badge()
+            assert window._conn_state == "connecting"
+            assert window._conn_badge_replaces_icon is False
+
     def test_an_idle_app_shows_no_badge(self, window, settings, tmp_path):
         settings.setValue("p2p/enabled", False)
         settings.setValue("connection/server_url", "https://server.example.com:9753")

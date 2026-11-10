@@ -1148,10 +1148,18 @@ class UiBuildMixin:
         return "\n".join(line for line in lines if line)
 
     @staticmethod
-    def _compose_status_badge(base, state: str, dpr: float, size_px: int):
-        """Draw a small status dot/glyph on the icon's bottom-right corner."""
+    def _compose_status_badge(
+        base, state: str, dpr: float, size_px: int, *, replace_base: bool = False
+    ):
+        """Draw the status glyph for the endpoint.
+
+        Healthy is handled by the caller with the plain mode icon. A neutral or
+        in-progress state overlays a small dot on the mode icon; an alert/error
+        replaces it entirely (``replace_base``) so the mode icon is never visible
+        underneath the warning, matching the user's request.
+        """
         from PySide6.QtCore import QRect
-        from PySide6.QtGui import QColor, QFont, QPainter, QPen
+        from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 
         colors = {
             "connecting": QColor("#f0a000"),
@@ -1161,9 +1169,16 @@ class UiBuildMixin:
         }
         glyphs = {"connecting": "", "lost": "!", "problem": "!", "stopped": "\u2013"}
         diameter = max(6, round((size_px - 4) * dpr))
-        x = base.width() - diameter
-        y = base.height() - diameter
-        painter = QPainter(base)
+        if replace_base:
+            pixmap = QPixmap(base.size())
+            pixmap.fill(Qt.GlobalColor.transparent)
+            x = (pixmap.width() - diameter) // 2
+            y = (pixmap.height() - diameter) // 2
+        else:
+            pixmap = base
+            x = pixmap.width() - diameter
+            y = pixmap.height() - diameter
+        painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setPen(QPen(QColor("#ffffff"), max(1, round(dpr))))
         painter.setBrush(colors.get(state, QColor("#9e9e9e")))
@@ -1177,7 +1192,9 @@ class UiBuildMixin:
             painter.setPen(QColor("#ffffff"))
             painter.drawText(QRect(x, y, diameter, diameter), Qt.AlignmentFlag.AlignCenter, glyph)
         painter.end()
-        return base
+        if replace_base:
+            pixmap.setDevicePixelRatio(dpr)
+        return pixmap
 
     def _render_connection_badge(self) -> None:
         """Render the endpoint connectivity badge from the shared link state."""
@@ -1191,6 +1208,7 @@ class UiBuildMixin:
         if not self._local_path or (not p2p and not self._server_configured()):
             # Nothing to announce: `_update_path_display` owns the hidden widgets.
             self._conn_state = "stopped"
+            self._conn_badge_replaces_icon = False
             return
         from hsync_desktop.icons import HEADER_ICON_PX
         from hsync_desktop.icons import icon as get_icon
@@ -1201,6 +1219,7 @@ class UiBuildMixin:
         base.setDevicePixelRatio(dpr)
         label = getattr(self, "_remote_label", None)
         if state == "healthy":
+            self._conn_badge_replaces_icon = False
             icon.setPixmap(base)
             tip = getattr(self, "_remote_base_tip", "") or ""
             icon.setToolTip(tip)
@@ -1209,7 +1228,14 @@ class UiBuildMixin:
             if label is not None:
                 label.setToolTip(tip)
             return
-        icon.setPixmap(self._compose_status_badge(base, state, dpr, HEADER_ICON_PX))
+        # An alert/error replaces the mode icon so it is never visible underneath
+        # the warning; neutral/in-progress states only overlay a dot. Clearing the
+        # alert (healthy above) brings the mode icon back.
+        replace_base = state in ("problem", "lost")
+        self._conn_badge_replaces_icon = replace_base
+        icon.setPixmap(
+            self._compose_status_badge(base, state, dpr, HEADER_ICON_PX, replace_base=replace_base)
+        )
         tip = self._connection_tooltip(state, p2p)
         icon.setToolTip(tip)
         icon.setAccessibleName(tip)
