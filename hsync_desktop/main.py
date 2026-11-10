@@ -213,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
     tray.stop_requested.connect(window._on_stop)
     tray.settings_requested.connect(window._open_settings)
     tray.wizard_requested.connect(window._open_setup_wizard)
+    tray.about_requested.connect(window._show_about)
+    tray.open_folder_requested.connect(window._open_share_folder)
     tray.quit_requested.connect(window._quit)
     # Create the notifier now that tray is available. Routine notifications are
     # suppressed while the main window is in the foreground.

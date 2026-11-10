@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The tray menu names the connection state and offers **Open synced folder**
+  (reach the files without restoring the window) and **About**, next to the
+  run controls, Settings, the Setup wizard and Quit.
 - Import files by **drag & drop** onto the file list: dropping files or folders
   from the OS file manager copies them into the shared folder (hold **Shift** to
   move). Name conflicts are resolved with a Replace / Keep both / Skip prompt

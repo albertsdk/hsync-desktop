@@ -105,3 +105,75 @@ class TestStoppingState:
             assert not tray._act_preview_changes.isEnabled()
         finally:
             tray.hide()
+
+
+class TestMenuEntries:
+    """The menu names the state and offers the navigation and info entries."""
+
+    def test_the_state_line_names_the_link(self, qapp):
+        tray = SystemTray()
+        try:
+            assert tray._act_status.text() == tr("status.disconnected")
+            assert not tray._act_status.isEnabled()
+
+            tray.update_status("connected")
+            assert tray._act_status.text() == tr("status.connected")
+
+            tray.update_status("waiting")
+            assert tray._act_status.text() == tr("status.waiting")
+        finally:
+            tray.hide()
+
+    def test_the_folder_entry_follows_the_folder(self, qapp):
+        tray = SystemTray()
+        try:
+            opened: list[int] = []
+            tray.open_folder_requested.connect(lambda: opened.append(1))
+
+            assert not tray._act_open_folder.isEnabled()
+            assert tray._act_open_folder.text() == tr("tray.open_folder")
+
+            tray.set_open_folder_enabled(True)
+            assert tray._act_open_folder.isEnabled()
+
+            tray._act_open_folder.trigger()
+            assert opened == [1]
+        finally:
+            tray.hide()
+
+    def test_the_about_entry_opens_the_app_info(self, qapp):
+        tray = SystemTray()
+        try:
+            shown: list[int] = []
+            tray.about_requested.connect(lambda: shown.append(1))
+
+            assert tray._act_about.text() == tr("menu.help.about")
+
+            tray._act_about.trigger()
+            assert shown == [1]
+        finally:
+            tray.hide()
+
+    def test_the_menu_order_keeps_navigation_runs_config_and_info_apart(self, qapp):
+        """State, navigation, run controls, configuration, info, quit."""
+        tray = SystemTray()
+        try:
+            menu = tray.contextMenu()
+            assert menu is not None
+            actions = [a for a in menu.actions() if not a.isSeparator()]
+            labels = [a.text() for a in actions]
+
+            assert labels == [
+                tr("status.disconnected"),
+                tr("tray.show"),
+                tr("tray.open_folder"),
+                tr("tray.start"),
+                tr("tray.preview_changes"),
+                tr("tray.stop"),
+                tr("tray.settings"),
+                tr("tray.setup_wizard"),
+                tr("menu.help.about"),
+                tr("tray.quit"),
+            ]
+        finally:
+            tray.hide()

@@ -444,6 +444,7 @@ translations: dict[str, str] = {
     "tray.show": "Tonen",
     "tray.hide": "Verbergen",
     "tray.minimize": "Minimaliseren naar systeemvak",
+    "tray.open_folder": "Gesynchroniseerde map openen…",
     "tray.start": "Starten",
     "tray.preview_changes": "Wijzigingen bekijken",
     "tray.stop": "Stoppen",

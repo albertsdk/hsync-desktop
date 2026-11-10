@@ -844,6 +844,11 @@ class UiBuildMixin:
         self._btn_start.setEnabled(can_start)
         if self._tray:
             self._tray.set_start_enabled(can_start)
+            # The folder shortcut follows the folder itself: a configured path
+            # that is not reachable is not something the tray may promise.
+            self._tray.set_open_folder_enabled(
+                bool(self._local_path) and os.path.isdir(self._local_path)
+            )
         self._act_stop.setEnabled(is_running and not is_stopping)
         # The toolbar Stop button follows the same rule as the menu action. It is
         # not cosmetic: ``_reset_ui_stopped`` disables it, and if the engine is

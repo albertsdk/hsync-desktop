@@ -549,6 +549,23 @@ class ActionsMixin:
         about = SplashScreen(self)
         about.show_as_about()
 
+    def _open_share_folder(self) -> None:
+        """Open the synced folder in the desktop's file manager.
+
+        The tray's everyday shortcut: a window minimised to the tray still lets
+        the user reach the files without restoring the app. The folder is the
+        live configuration, so it is re-read here rather than cached: an empty or
+        vanished path leaves the entry disabled (see ``_update_menu_state``) and
+        is a no-op if it is reached anyway.
+        """
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        folder = self._local_path
+        if not folder or not os.path.isdir(folder):
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
     def _show_license(self) -> None:
         """Show the project license in a scrollable, read-only dialog."""
         from hsync_desktop.license_dialog import LicenseDialog

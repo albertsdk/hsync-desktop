@@ -101,12 +101,14 @@ labels.
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: Show, Start, Preview changes, Stop, Settings, Setup wizard and Quit" width="200">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: the connection state, Show, Open synced folder, Start, Preview changes, Stop, Settings, Setup wizard, About and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
-the system-tray icon. Use the tray menu to bring the window back (**Show**) or to
-stop everything (**Quit**, which asks for confirmation while a sync runs). On a
-desktop without a system tray, closing the window really closes the app (and
+the system-tray icon. The menu names the current state and offers the everyday
+shortcuts: **Show** to bring the window back, **Open synced folder** to reach the
+files without restoring it, the run controls, **Settings** and the **Setup
+wizard**, **About**, and **Quit** (which asks for confirmation while a sync runs).
+On a desktop without a system tray, closing the window really closes the app (and
 still asks before stopping a run).
 
 ## Where to go next

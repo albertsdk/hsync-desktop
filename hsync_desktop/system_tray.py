@@ -56,6 +56,8 @@ class SystemTray(QSystemTrayIcon):
     stop_requested = Signal()
     settings_requested = Signal()
     wizard_requested = Signal()
+    about_requested = Signal()
+    open_folder_requested = Signal()
     quit_requested = Signal()
     # A system notification raised by this icon was clicked: the window must come
     # forward. Qt forwards the platform event (a balloon/notification-centre
@@ -76,14 +78,33 @@ class SystemTray(QSystemTrayIcon):
         # Track whether the main window is currently visible
         self._window_visible = False
 
-        # Context menu
+        # Context menu. The order follows the desktop convention for a status
+        # icon: current state, window/folder navigation, run controls, the
+        # configuration flows, app info, then Quit.
         menu = QMenu()
         # The run entries carry a tooltip (see below); a menu shows them only
         # when asked, and QMenu defaults to off.
         menu.setToolTipsVisible(True)
+
+        # The state line is a label, not an action: the icon and the tooltip
+        # carry the same fact, and naming it keeps the menu readable when the
+        # icon is small.
+        self._act_status = QAction("", menu)
+        self._act_status.setEnabled(False)
+        menu.addAction(self._act_status)
+        menu.addSeparator()
+
         self._act_show = QAction(tr("tray.show"), menu)
         self._act_show.triggered.connect(self.toggle_window.emit)
         menu.addAction(self._act_show)
+
+        # Navigation, not a run control: opening the synced folder from a
+        # tray-only window is the everyday shortcut of a sync agent.
+        self._act_open_folder = QAction(tr("tray.open_folder"), menu)
+        self._act_open_folder.triggered.connect(self.open_folder_requested.emit)
+        self._act_open_folder.setEnabled(False)
+        menu.addAction(self._act_open_folder)
+
         menu.addSeparator()
 
         self._act_start = QAction(tr("tray.start"), menu)
@@ -111,6 +132,12 @@ class SystemTray(QSystemTrayIcon):
         menu.addAction(self._act_setup_wizard)
 
         menu.addSeparator()
+        # App info: the About window is the same one the Help menu opens.
+        self._act_about = QAction(tr("menu.help.about"), menu)
+        self._act_about.triggered.connect(self.about_requested.emit)
+        menu.addAction(self._act_about)
+
+        menu.addSeparator()
         self._act_quit = QAction(tr("tray.quit"), menu)
         self._act_quit.triggered.connect(self.quit_requested.emit)
         menu.addAction(self._act_quit)
@@ -123,6 +150,7 @@ class SystemTray(QSystemTrayIcon):
         self._current_status = "disconnected"
         # Simulation Mode note in the tooltip (set by the main window).
         self._simulation = False
+        self._act_status.setText(self._status_text())
 
         # Register for language change notifications
         register_language_callback(self._apply_translations)
@@ -130,19 +158,24 @@ class SystemTray(QSystemTrayIcon):
     # ── Public helpers ───────────────────────────────────────────────────
 
     def update_status(self, status: str) -> None:
-        """Update tray icon and tooltip based on connection status."""
+        """Update the tray icon, the state line and the tooltip."""
         self._current_status = status
         icon_key = (
             "connected"
             if status == "connected"
-            else (
-                "waiting"
-                if status in ("connecting", "waiting", "syncing", "stopping")
-                else "disconnected"
-            )
+            else ("waiting" if status in ("connecting", "waiting", "stopping") else "disconnected")
         )
         self.setIcon(self._icons[icon_key])
+        self._act_status.setText(self._status_text())
         self._update_tooltip()
+
+    def _status_text(self) -> str:
+        """Translated label of the current link state (the disabled state line)."""
+        return tr(_STATUS_KEYS.get(self._current_status, "status.unknown"))
+
+    def set_open_folder_enabled(self, enabled: bool) -> None:
+        """Enable the "open synced folder" entry when a folder can be opened."""
+        self._act_open_folder.setEnabled(enabled)
 
     def set_simulation(self, simulation: bool) -> None:
         """Append the Simulation Mode note to the tooltip while it is active."""
@@ -214,6 +247,9 @@ class SystemTray(QSystemTrayIcon):
         self._act_stop.setText(tr("tray.stop"))
         self._act_settings.setText(tr("tray.settings"))
         self._act_setup_wizard.setText(tr("tray.setup_wizard"))
+        self._act_open_folder.setText(tr("tray.open_folder"))
+        self._act_about.setText(tr("menu.help.about"))
+        self._act_status.setText(self._status_text())
         self._act_quit.setText(tr("tray.quit"))
         self._update_tooltip()
 

@@ -444,6 +444,7 @@ translations: dict[str, str] = {
     "tray.show": "Show",
     "tray.hide": "Hide",
     "tray.minimize": "Minimize to tray",
+    "tray.open_folder": "Open synced folder…",
     "tray.start": "Start",
     "tray.preview_changes": "Preview changes",
     "tray.stop": "Stop",

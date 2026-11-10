@@ -244,6 +244,9 @@ class TestShutdown:
             def set_preview_changes_tooltip(self, _text: str) -> None:
                 pass
 
+            def set_open_folder_enabled(self, _enabled: bool) -> None:
+                pass
+
         tray = _Tray()
         window._tray = tray  # type: ignore[assignment]
         return tray
@@ -2070,6 +2073,52 @@ class TestInitialReconcile:
 
         stub._engine.preview.assert_called_once()
         stub._engine.sync.assert_not_called()
+
+
+class TestOpenShareFolder:
+    """The tray's folder shortcut opens the configured sync folder."""
+
+    def test_it_opens_the_configured_folder(self, window, tmp_path, monkeypatch):
+        from PySide6.QtGui import QDesktopServices
+
+        opened: list[str] = []
+        monkeypatch.setattr(
+            QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url.toLocalFile()))
+        )
+        window._local_path = str(tmp_path)
+
+        window._open_share_folder()
+
+        assert opened == [str(tmp_path)]
+
+    def test_it_stays_silent_without_a_reachable_folder(self, window, monkeypatch):
+        from PySide6.QtGui import QDesktopServices
+
+        opened: list[str] = []
+        monkeypatch.setattr(
+            QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url.toLocalFile()))
+        )
+
+        window._local_path = ""
+        window._open_share_folder()
+        window._local_path = "/nonexistent/hsync-folder"
+        window._open_share_folder()
+
+        assert opened == []
+
+    def test_the_tray_entry_follows_the_folder(self, window, tmp_path):
+        from unittest.mock import MagicMock
+
+        tray = MagicMock()
+        window._tray = tray
+
+        window._local_path = str(tmp_path)
+        window._update_menu_state()
+        tray.set_open_folder_enabled.assert_called_with(True)
+
+        window._local_path = "/nonexistent/hsync-folder"
+        window._update_menu_state()
+        tray.set_open_folder_enabled.assert_called_with(False)
 
 
 class TestLinkAndActivity:
@@ -4971,6 +5020,9 @@ class TestStoppingFeedback:
                 pass
 
             def set_preview_changes_tooltip(self, _text: str) -> None:
+                pass
+
+            def set_open_folder_enabled(self, _enabled: bool) -> None:
                 pass
 
         tray = _Tray()

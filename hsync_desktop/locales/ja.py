@@ -444,6 +444,7 @@ translations: dict[str, str] = {
     "tray.show": "表示",
     "tray.hide": "非表示",
     "tray.minimize": "トレイに最小化",
+    "tray.open_folder": "同期フォルダーを開く…",
     "tray.start": "開始",
     "tray.preview_changes": "変更をプレビュー",
     "tray.stop": "停止",

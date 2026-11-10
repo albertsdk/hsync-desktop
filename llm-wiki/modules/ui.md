@@ -69,6 +69,7 @@ client already deduplicates that stream per `(source, message)` window, and a
 warning arriving after an operator stop is logged but not notified. A
 *persistent* warning is a state: it is recorded in the problems registry (see
 *Problems badge*) and the client retracts it with `warning_cleared` when the
+condition heals, so no surface ever reports a problem that is gone.
 
 **"In front" means the app owns the focused window, dialogs included.** The
 notification policy (`hsync_desktop/notifications.py::NotificationManager.notify`)
@@ -91,7 +92,21 @@ The same `_bring_to_front` backs the tray Show/Hide entry, so both entries behav
 identically. Notification-click reporting depends on the platform: Windows
 balloons and macOS notification centre forward it, while some Linux
 notification daemons handle the click themselves and never tell the app.
-condition heals, so no surface ever reports a problem that is gone.
+
+### System tray menu
+
+`SystemTray` (`hsync_desktop/system_tray.py::SystemTray`) owns the status icon and
+the one menu, ordered the way desktop sync agents order it: the **state line**
+(`_act_status`, disabled, text from `hsync_desktop/system_tray.py::SystemTray._status_text`
+so it follows the link), Show/Minimize, **Open synced folder**
+(`tray.open_folder` → `open_folder_requested` →
+`hsync_desktop/main_window/actions.py::ActionsMixin._open_share_folder`, enabled only
+while the folder exists by `hsync_desktop/main_window/ui.py::UiBuildMixin._update_menu_state`),
+the run controls (Start, Preview changes, Stop), Settings, Setup wizard, About
+(`menu.help.about` → `about_requested` → `ActionsMixin._show_about`) and Quit.
+Signals are connected in `hsync_desktop/main.py`; every label is a `tray.*`
+key except About, which reuses the menu-bar string, and
+`SystemTray._apply_translations` re-applies them on a language change.
 
 ### Problems badge
 

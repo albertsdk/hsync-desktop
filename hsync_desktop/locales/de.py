@@ -357,6 +357,7 @@ translations: dict[str, str] = {
     "tray.show": "Anzeigen",
     "tray.hide": "Ausblenden",
     "tray.minimize": "In Taskleiste minimieren",
+    "tray.open_folder": "Synchronisierten Ordner öffnen…",
     "tray.start": "Start",
     "tray.preview_changes": "Vorschau der Änderungen",
     "tray.stop": "Stopp",
