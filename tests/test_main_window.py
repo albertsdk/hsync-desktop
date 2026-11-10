@@ -346,7 +346,7 @@ class TestEngineStartFailure:
         shown = self._capture_dialogs(monkeypatch)
 
         def failing_start(_args):
-            window._engine.error_occurred.emit("hsync binary not found.", "start")
+            window._engine.error_occurred.emit("hsync binary not found.", "start", "")
             return False
 
         monkeypatch.setattr(window._engine, "start", failing_start)
@@ -377,7 +377,7 @@ class TestEngineStartFailure:
         window._pending_sync_path = str(tmp_path)
 
         def failing_start(_args):
-            window._engine.error_occurred.emit("Failed to start hsync process.", "start")
+            window._engine.error_occurred.emit("Failed to start hsync process.", "start", "")
             return False
 
         monkeypatch.setattr(window._engine, "start", failing_start)
@@ -1692,7 +1692,7 @@ class TestInfoToast:
         window._notifier = NotificationManager(tray, is_foreground=lambda: True)
         window._notifier.enabled = False
 
-        window._engine.error_occurred.emit("boom", "process")
+        window._engine.error_occurred.emit("boom", "process", "")
 
         assert window._info_banner_kind == "error"
         assert not window._info_banner.isHidden()
@@ -5383,3 +5383,127 @@ class TestSendReport:
         window._on_sync_completed({"uploaded": 1, "failed": 0})
 
         assert seen == [None]
+
+
+class TestConnectionBadge:
+    """The endpoint badge reflects the shared link state in both modes."""
+
+    @staticmethod
+    @contextmanager
+    def _engine_running(monkeypatch):
+        from hsync_desktop.engine import HsyncEngine
+
+        # Scoped so teardown closes the window with the real (stopped) engine and
+        # does not prompt to interrupt a run.
+        with monkeypatch.context() as scope:
+            scope.setattr(HsyncEngine, "is_running", property(lambda self: True))
+            yield
+
+    def _setup_server(self, window, settings, tmp_path) -> None:
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("connection/server_url", "https://server.example.com:9753")
+        window._local_path = str(tmp_path)
+        window._update_path_display()
+
+    def _setup_p2p(self, window, settings, tmp_path) -> None:
+        settings.setValue("p2p/enabled", True)
+        settings.setValue("p2p/group", "team")
+        window._local_path = str(tmp_path)
+        window._update_path_display()
+
+    def test_connected_hides_the_badge(self, window, settings, tmp_path, monkeypatch):
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._link_status = "connected"
+            window._render_connection_badge()
+
+            assert window._conn_state == "healthy"
+            assert window._remote_icon.toolTip() == tr("label.remote_server_tip")
+
+    def test_a_connection_error_shows_the_mapped_reason(
+        self, window, settings, tmp_path, monkeypatch
+    ):
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._link_status = "waiting"
+            window._on_engine_error("Sync failed: Connection refused", "connection", "refused")
+
+            assert window._conn_state == "problem"
+            assert window._conn_reason == tr("conn.reason.refused")
+            assert tr("conn.reason.refused") in window._remote_icon.toolTip()
+
+    def test_a_lost_link_after_connection_is_red(self, window, settings, tmp_path, monkeypatch):
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._ever_connected = True
+            window._link_status = "waiting"
+            window._render_connection_badge()
+
+            assert window._conn_state == "lost"
+            assert window._conn_reason == tr("conn.state.lost")
+
+    def test_p2p_waiting_without_a_link_is_not_a_failure(
+        self, window, settings, tmp_path, monkeypatch
+    ):
+        with self._engine_running(monkeypatch):
+            self._setup_p2p(window, settings, tmp_path)
+
+            window._ever_connected = False
+            window._link_status = "waiting"
+            window._render_connection_badge()
+
+            assert window._conn_state == "connecting"
+
+    def test_p2p_no_master_turns_the_badge_red(self, window, settings, tmp_path, monkeypatch):
+        with self._engine_running(monkeypatch):
+            self._setup_p2p(window, settings, tmp_path)
+
+            window._ever_connected = False
+            window._link_status = "waiting"
+            window._problems.record_warning("master", "No master", "none")
+
+            assert window._conn_state == "problem"
+            assert window._conn_reason == tr("conn.p2p.no_master")
+
+    def test_a_connected_link_wins_over_a_warning(self, window, settings, tmp_path, monkeypatch):
+        with self._engine_running(monkeypatch):
+            self._setup_p2p(window, settings, tmp_path)
+
+            window._problems.record_warning("relay", "Relay", "down")
+            window._link_status = "connected"
+            window._render_connection_badge()
+
+            assert window._conn_state == "healthy"
+
+    def test_no_peers_sets_the_reason(self, window, settings, tmp_path, monkeypatch):
+        with self._engine_running(monkeypatch):
+            self._setup_p2p(window, settings, tmp_path)
+
+            window._ever_connected = False
+            window._link_status = "waiting"
+            window._on_no_peers("none")
+
+            assert window._conn_state == "problem"
+            assert window._conn_reason == tr("conn.p2p.no_peers")
+
+    def test_an_idle_app_shows_no_badge(self, window, settings, tmp_path):
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("connection/server_url", "https://server.example.com:9753")
+        window._local_path = str(tmp_path)
+        window._update_path_display()
+
+        # Never started: nothing to announce, the endpoint keeps its own tooltip.
+        assert window._conn_state == "healthy"
+
+    def test_a_user_stop_is_neutral(self, window, settings, tmp_path):
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("connection/server_url", "https://server.example.com:9753")
+        window._local_path = str(tmp_path)
+        window._user_stopped = True
+        window._update_path_display()
+
+        assert window._conn_state == "stopped"
+        assert window._conn_reason == tr("conn.state.stopped")

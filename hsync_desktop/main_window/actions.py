@@ -307,6 +307,10 @@ class ActionsMixin:
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
         self._link_lost_notified = False  # a new run has no lost link to report
+        # A new run starts with no transport failure carried over.
+        self._conn_reason_code = ""
+        self._conn_reason_override = ""
+        self._link_down = False
         # The problems describe the run that reported them: a new one starts clean.
         self._problems.clear_all()
         self._p2p_enabled = bool(

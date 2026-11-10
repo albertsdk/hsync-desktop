@@ -96,6 +96,9 @@ class LifecycleMixin:
             event.type() == QEvent.Type.MouseButtonPress
             and event.button() == Qt.MouseButton.LeftButton
         ):
+            if obj in (getattr(self, "_remote_icon", None), getattr(self, "_remote_label", None)):
+                self._show_connection_badge_menu()
+                return True
             # Check if the clicked widget is one of our bandwidth labels
             bandwidth_labels = [
                 self._lbl_sent,

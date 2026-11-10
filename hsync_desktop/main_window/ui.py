@@ -245,6 +245,9 @@ class UiBuildMixin:
         self._remote_icon.hide()
         self._remote_label = QLabel(self.centralWidget())
         self._remote_label.hide()
+        # The endpoint icon/label open the connectivity badge menu (see eventFilter).
+        self._remote_icon.installEventFilter(self)
+        self._remote_label.installEventFilter(self)
 
         # Insert widgets into the actionBarLayout
         # Layout order: ... [folder-icon] [path-label] [sync-dir-icon] [remote-icon] [remote-label] [browse-btn] ...
@@ -287,6 +290,9 @@ class UiBuildMixin:
         self._problems_badge.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._problems_badge.setMenu(self._problems_menu)
         self._problems.changed.connect(self._refresh_problems_badge)
+        # p2p connectivity warnings (master/rendezvous/relay) also drive the
+        # endpoint badge's reason, without re-plumbing those events.
+        self._problems.changed.connect(self._render_connection_badge)
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
         # Add role icon before roleLabel in the bottom bar layout
         self._role_icon = QLabel()
@@ -1010,8 +1016,8 @@ class UiBuildMixin:
         """
         self._append_desktop_log("ERROR", f"[EVENT ERROR] {payload}")
 
-    @Slot(str, str)
-    def _on_engine_error(self, message: str, reason: str = "") -> None:
+    @Slot(str, str, str)
+    def _on_engine_error(self, message: str, reason: str = "", code: str = "") -> None:
         """Record an engine error, mirror it into the log, and surface it.
 
         During a scoped Send/Receive the error is that operation's outcome
@@ -1025,9 +1031,12 @@ class UiBuildMixin:
         if reason == "connection":
             # The link is down and the client retries the comparison on its own:
             # the state says so instead of reading "checking" while nothing can
-            # progress, and the per-file rows keep their last known value.
+            # progress, and the per-file rows keep their last known value. ``code``
+            # is the stable transport cause the badge shows in its tooltip.
+            self._conn_reason_code = code
             self._link_down = True
             self._set_sync_state("offline" if self._ever_connected else "idle")
+            self._render_connection_badge()
         if message and self._comparison_in_flight:
             # The preview/classification failed. Its end marker still arrives, so
             # record it here: a failed comparison is never a "last check". The
@@ -1061,6 +1070,169 @@ class UiBuildMixin:
 
         if message:
             self._notify_error(tr("notif.error"), message)
+
+    def _is_p2p_mode(self) -> bool:
+        return bool(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)
+        )
+
+    def _server_configured(self) -> bool:
+        """True when Server Mode has an endpoint (engine-reported or configured)."""
+        if getattr(self._engine, "server_ip", ""):
+            return True
+        configured = str(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("connection/server_url", "", str)
+        )
+        return bool(configured.strip())
+
+    def _connection_problem_key(self, p2p: bool) -> str:
+        """The top connectivity warning (p2p), as a localized reason key, or "".
+
+        Mutually ordered by how actionable the cause is: no master, then the
+        discovery server, then the relay, then the one-shot no-peer abort.
+        """
+        if not p2p:
+            return ""
+        warnings = {w.key: w for w in self._problems.warnings if w.kind == WARNING}
+        if "master" in warnings:
+            return "conn.p2p.no_master"
+        rendezvous = warnings.get("rendezvous")
+        if rendezvous is not None:
+            if rendezvous.reason == "token_required":
+                return "conn.p2p.rendezvous_token"
+            return "conn.p2p.rendezvous_unreachable"
+        if "relay" in warnings:
+            return "conn.p2p.relay_unavailable"
+        if self._conn_reason_override == "no_peers":
+            return "conn.p2p.no_peers"
+        return ""
+
+    def _derived_connection_badge(self, p2p: bool) -> tuple[str, str]:
+        """Derive (state, reason key) from the shared link facts (first match wins)."""
+        status = getattr(self, "_link_status", "")
+        # Rule 1: a finished/stopped run is neutral, before ``_ever_connected``
+        # (reset at process end) can make "disconnected" look like a loss. A
+        # never-started app keeps the endpoint's own tooltip: nothing to announce.
+        if not self._engine.is_running:
+            if (
+                self._user_stopped
+                or self._ever_connected
+                or self._link_down
+                or status in ("stopping", "disconnected")
+            ):
+                return "stopped", "conn.state.stopped"
+            return "healthy", ""
+        if status in ("stopping", "disconnected") and self._user_stopped:
+            return "stopped", "conn.state.stopped"
+        if status == "connected":
+            return "healthy", ""
+        transport = f"conn.reason.{self._conn_reason_code}" if self._conn_reason_code else ""
+        problem = self._connection_problem_key(p2p)
+        if transport or self._link_down or problem:
+            return "problem", transport or problem or "conn.reason.unknown"
+        if status == "connecting":
+            return "connecting", "conn.state.searching" if p2p else "conn.state.connecting"
+        if status in ("", "waiting") and not self._ever_connected:
+            if p2p and status == "waiting":
+                return "connecting", "conn.state.waiting_device"
+            return "connecting", "conn.state.searching" if p2p else "conn.state.connecting"
+        if status in ("waiting", "disconnected") and self._ever_connected:
+            return "lost", "conn.state.lost"
+        return "stopped", "conn.state.stopped"
+
+    def _connection_tooltip(self, state: str, p2p: bool) -> str:
+        lines = [self._conn_reason] if self._conn_reason else []
+        if state in ("problem", "lost") and not p2p:
+            lines.append(tr("conn.tip.retry"))
+        lines.append(tr("conn.tip.details"))
+        return "\n".join(line for line in lines if line)
+
+    @staticmethod
+    def _compose_status_badge(base, state: str, dpr: float, size_px: int):
+        """Draw a small status dot/glyph on the icon's bottom-right corner."""
+        from PySide6.QtCore import QRect
+        from PySide6.QtGui import QColor, QFont, QPainter, QPen
+
+        colors = {
+            "connecting": QColor("#f0a000"),
+            "lost": QColor("#d32f2f"),
+            "problem": QColor("#d32f2f"),
+            "stopped": QColor("#9e9e9e"),
+        }
+        glyphs = {"connecting": "", "lost": "!", "problem": "!", "stopped": "\u2013"}
+        diameter = max(6, round((size_px - 4) * dpr))
+        x = base.width() - diameter
+        y = base.height() - diameter
+        painter = QPainter(base)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QPen(QColor("#ffffff"), max(1, round(dpr))))
+        painter.setBrush(colors.get(state, QColor("#9e9e9e")))
+        painter.drawEllipse(x, y, diameter, diameter)
+        glyph = glyphs.get(state, "")
+        if glyph:
+            font = QFont(painter.font())
+            font.setPixelSize(max(6, round(diameter * 0.8)))
+            font.setBold(True)
+            painter.setFont(font)
+            painter.setPen(QColor("#ffffff"))
+            painter.drawText(QRect(x, y, diameter, diameter), Qt.AlignmentFlag.AlignCenter, glyph)
+        painter.end()
+        return base
+
+    def _render_connection_badge(self) -> None:
+        """Render the endpoint connectivity badge from the shared link state."""
+        icon = getattr(self, "_remote_icon", None)
+        if icon is None:
+            return
+        p2p = self._is_p2p_mode()
+        state, reason_key = self._derived_connection_badge(p2p)
+        self._conn_state = state
+        self._conn_reason = tr(reason_key) if reason_key else ""
+        if not self._local_path or (not p2p and not self._server_configured()):
+            # Nothing to announce: `_update_path_display` owns the hidden widgets.
+            self._conn_state = "stopped"
+            return
+        from hsync_desktop.icons import HEADER_ICON_PX
+        from hsync_desktop.icons import icon as get_icon
+
+        base_name = "network-p2p" if p2p else "network-cloud"
+        dpr = icon.devicePixelRatioF() or 1.0
+        base = get_icon(base_name).pixmap(round(HEADER_ICON_PX * dpr), round(HEADER_ICON_PX * dpr))
+        base.setDevicePixelRatio(dpr)
+        label = getattr(self, "_remote_label", None)
+        if state == "healthy":
+            icon.setPixmap(base)
+            tip = getattr(self, "_remote_base_tip", "") or ""
+            icon.setToolTip(tip)
+            icon.setAccessibleName(tip)
+            icon.setCursor(Qt.CursorShape.ArrowCursor)
+            if label is not None:
+                label.setToolTip(tip)
+            return
+        icon.setPixmap(self._compose_status_badge(base, state, dpr, HEADER_ICON_PX))
+        tip = self._connection_tooltip(state, p2p)
+        icon.setToolTip(tip)
+        icon.setAccessibleName(tip)
+        icon.setCursor(Qt.CursorShape.PointingHandCursor)
+        if label is not None:
+            label.setToolTip(tip)
+
+    def _show_connection_badge_menu(self) -> None:
+        """Menu for the endpoint badge: open the log, or the server settings."""
+        if self._conn_state == "healthy" or not self._local_path:
+            return
+        menu = QMenu(self)
+        act_log = menu.addAction(tr("conn.menu.show_log"))
+        act_settings = None
+        if not self._is_p2p_mode():
+            act_settings = menu.addAction(tr("conn.menu.settings"))
+        chosen = menu.exec(self._remote_icon.mapToGlobal(self._remote_icon.rect().bottomLeft()))
+        if chosen is act_log:
+            self._show_log_panel()
+        elif act_settings is not None and chosen is act_settings:
+            from hsync_desktop.settings.tab_indices import _SERVER_TAB_INDEX
+
+            self._open_settings(initial_tab=_SERVER_TAB_INDEX)
 
     @Slot(QPoint)
     def _show_log_context_menu(self, pos: QPoint) -> None:
@@ -1319,7 +1491,9 @@ class UiBuildMixin:
         # token refusal, whose remedy points at Settings) keeps the desktop
         # symptom guide.
         help_url = WATCHER_LIMITS if source == "watcher" and remedy else TROUBLESHOOTING
-        self._problems.record_warning(source, message, remedy, help_url)
+        self._problems.record_warning(
+            source, message, remedy, help_url, str((details or {}).get("reason", ""))
+        )
         self._notify_warning(tr("notif.warning"), text, category="warnings", help_url=help_url)
 
     @Slot(str)

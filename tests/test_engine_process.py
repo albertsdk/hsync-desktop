@@ -232,7 +232,7 @@ class TestStartupPhase:
         engine._handle_event(build_event(UiEventName.error, message="bad config", reason="startup"))
         engine._on_finished(1, QProcess.ExitStatus.NormalExit)
 
-        assert errors == [("bad config", "startup")]
+        assert errors == [("bad config", "startup", "")]
         assert failures == []
 
     def test_a_warning_event_carries_its_source(self):
@@ -801,15 +801,25 @@ class TestHandleEvent:
     def test_error_event(self, engine):
         out = _capture(engine.error_occurred)
         engine._handle_event(build_event(UiEventName.error, message="boom"))
-        assert out == [("boom", "")]
+        assert out == [("boom", "", "")]
 
     def test_error_event_carries_its_reason(self, engine):
-        """A tagged error (e.g. a connection failure) keeps its reason."""
+        """A tagged error (e.g. a connection failure) keeps its reason and code."""
+        out = _capture(engine.error_occurred)
+        engine._handle_event(
+            build_event(
+                UiEventName.error, message="unreachable", reason="connection", code="refused"
+            )
+        )
+        assert out == [("unreachable", "connection", "refused")]
+
+    def test_connection_error_without_a_code_keeps_an_empty_code(self, engine):
+        """An older client sends no code: the desktop must not invent one."""
         out = _capture(engine.error_occurred)
         engine._handle_event(
             build_event(UiEventName.error, message="unreachable", reason="connection")
         )
-        assert out == [("unreachable", "connection")]
+        assert out == [("unreachable", "connection", "")]
 
     def test_transfer_failed_event(self, engine):
         out = _capture(engine.transfer_failed)

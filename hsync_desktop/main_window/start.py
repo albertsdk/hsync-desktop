@@ -249,8 +249,9 @@ class StartMixin:
                     # An empty group is the client's ungrouped partition.
                     self._remote_label.setText(tr("label.remote_p2p_no_group"))
                     tip_key = "label.remote_p2p_no_group_tip"
-                self._remote_icon.setToolTip(tr(tip_key))
-                self._remote_label.setToolTip(tr(tip_key))
+                self._remote_base_tip = tr(tip_key)
+                self._remote_icon.setToolTip(self._remote_base_tip)
+                self._remote_label.setToolTip(self._remote_base_tip)
                 # The group is the remote label; hide the bottom-bar twin in p2p
                 self._group_label.hide()
             else:
@@ -266,12 +267,14 @@ class StartMixin:
                         parsed = urlparse(server_url)
                         server_ip = parsed.hostname or ""
                 self._remote_label.setText(server_ip if server_ip else tr("label.remote_server"))
-                self._remote_icon.setToolTip(tr("label.remote_server_tip"))
-                self._remote_label.setToolTip(tr("label.remote_server_tip"))
+                self._remote_base_tip = tr("label.remote_server_tip")
+                self._remote_icon.setToolTip(self._remote_base_tip)
+                self._remote_label.setToolTip(self._remote_base_tip)
                 # In server mode, group label stays in bottom bar
                 self._group_label.show()
             self._remote_icon.show()
             self._remote_label.show()
+            self._render_connection_badge()
         else:
             self._path_icon_label.hide()
             self._sync_dir_icon.hide()

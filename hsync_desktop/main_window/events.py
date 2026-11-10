@@ -156,6 +156,12 @@ class EventsMixin:
 
     def _set_status_label(self, status: str) -> None:
         """Update the status dot/label/tray without the connection-loss effects."""
+        self._link_status = status
+        if status == "connected":
+            # A live link clears every transport failure the badge may hold.
+            self._conn_reason_code = ""
+            self._conn_reason_override = ""
+            self._link_down = False
         i18n_map = {
             "connected": ("status.connected", COLOR_CONNECTED),
             "disconnected": ("status.disconnected", COLOR_DISCONNECTED),
@@ -169,6 +175,7 @@ class EventsMixin:
         self._status_label.setText(tr(key))
         if self._tray:
             self._tray.update_status(status)
+        self._render_connection_badge()
 
     @Slot(str)
     def _on_status(self, status: str) -> None:
@@ -831,6 +838,8 @@ class EventsMixin:
     def _on_no_peers(self, _message: str) -> None:
         """A p2p one-shot aborted with no peer: the scoped op has no target."""
         self._set_sync_state("no_devices")
+        self._conn_reason_override = "no_peers"
+        self._render_connection_badge()
         if self._selection_sync_active:
             self._finish_selection_sync("no_devices")
 

@@ -42,6 +42,9 @@ class Problem:
     title: str  # the headline the badge lists (the path for a failure)
     detail: str
     help_url: str | None = None
+    # warning: the client's stable sub-reason (e.g. rendezvous "unreachable" vs
+    # "token_required"), so a consumer can localize a precise message.
+    reason: str = ""
 
 
 class ProblemRegistry(QObject):
@@ -84,7 +87,7 @@ class ProblemRegistry(QObject):
     # ── Warnings ─────────────────────────────────────────────────────────
 
     def record_warning(
-        self, source: str, title: str, detail: str, help_url: str | None = None
+        self, source: str, title: str, detail: str, help_url: str | None = None, reason: str = ""
     ) -> None:
         """Record a condition *source* reports; a repeat replaces the entry.
 
@@ -93,7 +96,7 @@ class ProblemRegistry(QObject):
         """
         if not source:
             return
-        problem = Problem(WARNING, source, title, detail, help_url)
+        problem = Problem(WARNING, source, title, detail, help_url, reason)
         if self._warnings.get(source) == problem:
             return
         self._warnings[source] = problem

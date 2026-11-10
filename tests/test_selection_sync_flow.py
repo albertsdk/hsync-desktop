@@ -234,7 +234,7 @@ class TestProcessLifecycle:
         _arm(window)
 
         def failing_start(_args):
-            window._engine.error_occurred.emit("hsync binary not found.", "start")
+            window._engine.error_occurred.emit("hsync binary not found.", "start", "")
             return False
 
         monkeypatch.setattr(window._engine, "start", failing_start)

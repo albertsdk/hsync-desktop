@@ -134,6 +134,17 @@ class MainWindow(
             self._notifier.enabled = are_notifications_enabled()
             self._notifier.categories = get_enabled_notification_categories()
         self._user_stopped = False  # track if stop was user-initiated
+        # Connection badge next to the endpoint: the client's stable transport
+        # code on a connection error, a transient override (``no_peers``), and
+        # the derived state/reason rendered on the icon.
+        self._conn_reason_code = ""
+        self._conn_reason_override = ""
+        self._conn_state = "stopped"
+        self._conn_reason = ""
+        # Last engine link status (``connected``/``waiting``/…) and the endpoint's
+        # own tooltip, restored when the badge is healthy.
+        self._link_status = ""
+        self._remote_base_tip = ""
         # True from the user clicking Stop until the engine reports it finished:
         # the window shows "Stopping…" and keeps Start/Stop disabled while set.
         self._stop_requested = False

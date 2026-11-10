@@ -451,6 +451,32 @@ appears only when connected and the role is known
 (`hsync_desktop/main_window/events.py::EventsMixin._on_master` + `_on_status`), and the state
 resets per engine process (`_prepare_engine_run`).
 
+### Endpoint connectivity badge
+
+The endpoint icon carries a small status dot/glyph, composited onto the base icon
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._render_connection_badge`, DPR-aware) so the
+header layout is unchanged and the badge survives `_update_path_display` rebuilds. It is
+**hidden when healthy** (the bottom status bar already says "Connected") and shows amber
+while establishing, red on a loss/problem, grey when the run is stopped.
+
+`hsync_desktop/main_window/ui.py::UiBuildMixin._derived_connection_badge` is the single
+derivation (first match wins): a finished/stopped run is neutral — checked **before**
+`_ever_connected`, which `_on_process_finished` resets before the finish-time
+`disconnected`; a never-started app is healthy (keeps the endpoint's own tooltip);
+`connected` is healthy even with a p2p warning (the `problemsBadge` owns those); a
+transport code/`_link_down`/p2p warning is a problem; `connecting` or `waiting` before the
+first link is amber (`waiting` in p2p is *normal*: `_p2p_status` only reports connected
+with a live peer); `waiting`/`disconnected` after a link is lost.
+
+Reasons come from the client's stable code on a connection `error` (`conn.reason.*`,
+`hsync_common/protocol/events.py::ConnectionErrorCode`) with precedence over the p2p
+problems already in `ProblemRegistry` (`master` → `conn.p2p.no_master`, `rendezvous`
+`unreachable`/`token_required`, `relay`, and the one-shot `no_peers` override). The tooltip
+states the localized reason plus the log/menu hint; clicking the icon/host opens the
+`lifecycle.py::LifecycleMixin.eventFilter` menu (*Show log*, and *Server settings* in Server
+Mode). It re-renders from `_set_status_label` (the seam that also covers the finish-time
+`disconnected`), `_on_engine_error`, `_problems.changed` and `_update_path_display`.
+
 ### Share name next to the folder icon
 
 The active share (bucket) is the user-facing identity, so it labels the local

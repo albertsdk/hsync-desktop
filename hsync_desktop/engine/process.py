@@ -419,9 +419,11 @@ class HsyncEngine(QObject):
     folder_size_changed = Signal(int, int)  # (local_bytes, total_bytes)
     transfer_failed = Signal(str, str, str)  # op ("download"|"upload"), filepath, message
     sync_paused = Signal(str, int, int)  # reason, deletes blocked, local files
-    # error message + reason: "" (generic), "connection" (network failure in
-    # preview/sync), "process" (QProcess error), "start" (engine launch failure).
-    error_occurred = Signal(str, str)
+    # error message + reason + transport code: reason "" (generic), "connection"
+    # (network failure in preview/sync), "process" (QProcess error), "start"
+    # (engine launch failure). code is the client's stable ConnectionErrorCode
+    # value when reason is "connection", "" otherwise.
+    error_occurred = Signal(str, str, str)
     # A non-fatal condition the engine keeps running through (a degraded file
     # watcher, an unreachable rendezvous): message, the stable ``source``
     # identifier the client reported and whether it heals itself (``transient``,
@@ -571,7 +573,7 @@ class HsyncEngine(QObject):
         if self._running:
             return False
         if not self._binary:
-            self.error_occurred.emit("hsync binary not found.", "start")
+            self.error_occurred.emit("hsync binary not found.", "start", "")
             return False
 
         self.stats.reset()
@@ -657,7 +659,7 @@ class HsyncEngine(QObject):
                     os.close(fd)
                 except OSError:
                     pass
-            self.error_occurred.emit("Failed to start hsync process.", "start")
+            self.error_occurred.emit("Failed to start hsync process.", "start", "")
             self._set_status("error")
             return False
 
@@ -950,7 +952,7 @@ class HsyncEngine(QObject):
             QProcess.ProcessError.ReadError: "Read error",
             QProcess.ProcessError.UnknownError: "Unknown error",
         }
-        self.error_occurred.emit(mapping.get(error, "Unknown error"), "process")
+        self.error_occurred.emit(mapping.get(error, "Unknown error"), "process", "")
         self._set_status("error")
 
     # ── Status helper ─────────────────────────────────────────────────────
@@ -1173,7 +1175,11 @@ class HsyncEngine(QObject):
         )
 
     def _on_error_event(self, event: UiEventDict) -> None:
-        self.error_occurred.emit(str(event.get("message", "")), str(event.get("reason", "")))
+        self.error_occurred.emit(
+            str(event.get("message", "")),
+            str(event.get("reason", "")),
+            str(event.get("code", "")),
+        )
 
     def _on_warning_event(self, event: UiEventDict) -> None:
         reason = str(event.get("reason", ""))
