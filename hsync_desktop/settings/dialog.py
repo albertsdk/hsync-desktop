@@ -17,7 +17,12 @@ from pathlib import Path
 from typing import cast
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME, RDV_DEFAULT_PORT
-from hsync_common.endpoint import format_authority, parse_endpoint_list, parse_host_port
+from hsync_common.endpoint import (
+    format_authority,
+    parse_endpoint_list,
+    parse_host_port,
+    server_fallback_url,
+)
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
 from hsync_common.protocol.rdv_tokens import (
     WeakGroupPassphrase,
@@ -1111,8 +1116,22 @@ class SettingsDialog(QDialog):
     def _server_probe_outcome(
         base_url: str, ssl_context: ssl.SSLContext, timeout: float
     ) -> ProbeOutcome:
-        """Probe the server health endpoint, from the probe thread."""
+        """Probe the server health endpoint, from the probe thread.
+
+        A bare address carries the implicit default port; if that does not
+        answer, try the shared 443 fallback (a reverse proxy) so this test agrees
+        with the client's startup port resolution instead of failing a server
+        the sync will actually reach.
+        """
         result = probe_server_health(base_url, ssl_context=ssl_context, timeout=timeout)
+        if not result.ok:
+            fallback = server_fallback_url(base_url)
+            if fallback is not None:
+                fallback_result = probe_server_health(
+                    fallback, ssl_context=ssl_context, timeout=timeout
+                )
+                if fallback_result.ok:
+                    return ProbeOutcome(True, fallback_result.status, reason=f"fallback:{fallback}")
         return ProbeOutcome(result.ok, result.status, reason=result.reason)
 
     @staticmethod

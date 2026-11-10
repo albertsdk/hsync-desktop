@@ -266,6 +266,31 @@ class TestServerTestConnection:
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
         assert warned == [tr("settings.test_connection_failure")]
 
+    def test_a_bare_address_falls_back_to_the_443_proxy(self, dialog, qtbot, monkeypatch):
+        """A server behind a 443 reverse proxy passes from a bare host.
+
+        The field normalizes to ``https://host:9753``; the probe must then try
+        the shared 443 fallback so the test agrees with the client's startup
+        resolution instead of failing a server the sync reaches.
+        """
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import REASON_UNREACHABLE, ServerProbeResult
+
+        infos = self._capture(monkeypatch, "information")
+
+        def fake_probe(base_url, **_kwargs):
+            if base_url.endswith(":443"):
+                return ServerProbeResult(True, 200, 3, False)
+            return ServerProbeResult(False, None, 3, False, REASON_UNREACHABLE)
+
+        monkeypatch.setattr(dialog_mod, "probe_server_health", fake_probe)
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_url.setText("217.160.132.7")  # bare -> https://...:9753
+        dialog._on_test_connection()
+
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+        assert infos == [tr("settings.test_connection_success")]
+
     def test_the_rendezvous_button_label_is_untouched(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
         from hsync_desktop.engine.probes import ServerProbeResult

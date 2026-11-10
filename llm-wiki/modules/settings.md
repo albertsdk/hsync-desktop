@@ -242,7 +242,11 @@ value the CLI rejects.
 full URL; `_normalize_server_endpoint`
 (`hsync_desktop/settings/dialog.py::SettingsDialog._normalize_server_endpoint`) implies
 `https://` and the default port (`_SERVER_DEFAULT_PORT`), so the field is labelled
-"Server address", not "URL". There is no separate port field.
+"Server address", not "URL". There is no separate port field. A field left on the
+default port also reaches a reverse-proxy deployment on 443: the client's startup
+resolution and the Test Connection probe try
+`hsync_common/endpoint.py::server_fallback_url` (`SERVER_FALLBACK_PORT`) when the
+standard port does not answer.
 
 **Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
 `never_master`, `p2p_trust`, `peer_download` and its caps) are disabled +
@@ -617,7 +621,10 @@ and the setup wizard agree:
   the same rule the client's `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` validator applies) and
   `build_probe_ssl_context`; `SettingsDialog._normalize_server_endpoint` /
   `_normalize_rendezvous_server_endpoints` / `_test_connection_ssl_context` delegate to them.
-  `_on_accept` still normalizes the fields before `save()`.
+  `_on_accept` still normalizes the fields before `save()`. The server probe
+  (`SettingsDialog._server_probe_outcome`) also tries the shared 443 fallback
+  (`hsync_common/endpoint.py::server_fallback_url`) so the test agrees with the
+  client's startup port resolution.
 - `hsync_desktop/engine/probes.py::probe_server_health` / `probe_server_bucket` /
   `ServerProbeResult`; the Settings "Test connection" action and the wizard both
   use them (`GET /health`, `GET /api/v1/buckets/{bucket}`).
