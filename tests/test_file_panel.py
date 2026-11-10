@@ -3702,3 +3702,87 @@ class TestRenameDeleteDebounce:
         table.clear_transfers()
 
         assert table._pending_deletes == {}
+
+
+class TestFolderProperties:
+    """The properties/detail pane of a folder shows its aggregate, not the placeholder."""
+
+    def _table(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table
+
+    def _row(
+        self,
+        path: str,
+        *,
+        size: int = 0,
+        mtime: float = 0.0,
+        status: TransferStatus = TransferStatus.SYNCED,
+        devices: int = -1,
+        holders: int = -1,
+        last_synced_at: float = 0.0,
+    ) -> FileTransfer:
+        return FileTransfer(
+            filepath=path,
+            direction="—",
+            size=size,
+            mtime=mtime,
+            status=status,
+            devices=devices,
+            holders=holders,
+            last_synced_at=last_synced_at,
+        )
+
+    def _populate(self, table) -> None:
+        # The directory row itself is a LOCAL placeholder (size 0) exactly like the
+        # scan creates it; the children carry the real metadata.
+        table.add_transfer(self._row("Moto/", mtime=1.0, status=TransferStatus.LOCAL))
+        table.add_transfer(
+            self._row("Moto/a.bin", size=100, mtime=10.0, devices=2, holders=2, last_synced_at=50.0)
+        )
+        table.add_transfer(
+            self._row(
+                "Moto/sub/b.bin", size=50, mtime=20.0, devices=2, holders=1, last_synced_at=60.0
+            )
+        )
+
+    def test_folder_summary_aggregates_children(self, qtbot):
+        table = self._table(qtbot)
+        self._populate(table)
+
+        summary = table.folder_summary(table._transfers["Moto/"])
+
+        assert summary is not None
+        assert summary["total_size"] == 150
+        assert summary["mtime"] == 20.0
+        assert summary["devices"] == 2
+        assert summary["holders"] == 2
+        assert summary["last_synced_at"] == 60.0
+        assert summary["status_key"] == "folder.status.synced"
+
+    def test_a_file_has_no_folder_summary(self, qtbot):
+        table = self._table(qtbot)
+        table.add_transfer(self._row("a.bin", size=1))
+
+        assert table.folder_summary(table._transfers["a.bin"]) is None
+
+    def test_properties_panel_shows_the_folder_aggregate(self, qtbot):
+        from hsync_desktop.file_panel import FilePanel
+        from hsync_desktop.file_panel.utils import format_mtime
+        from hsync_desktop.i18n import tr
+
+        panel = FilePanel()
+        qtbot.addWidget(panel)
+        self._populate(panel._table)
+
+        panel._on_properties_requested(panel._table._transfers["Moto/"])
+
+        detail = panel._detail
+        assert detail._lbl_size.text() == _format_size(150)
+        assert detail._lbl_modified.text() == format_mtime(20.0)
+        assert detail._lbl_status.text() == tr("folder.status.synced")
+        assert detail._lbl_devices.text() == "2/2"
+        assert detail._lbl_last_synced.text() == format_mtime(60.0)

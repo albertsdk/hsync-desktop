@@ -240,12 +240,12 @@ class FilePanel(QWidget):
     @Slot(object)
     def _on_row_selected(self, transfer: FileTransfer | None) -> None:
         if transfer and self._splitter.sizes()[1] > 0:
-            self._detail.show_transfer(transfer)
+            self._detail.show_transfer(transfer, folder=self._table.folder_summary(transfer))
 
     @Slot(object)
     def _on_properties_requested(self, transfer: FileTransfer | None) -> None:
         if transfer:
-            self._detail.show_transfer(transfer)
+            self._detail.show_transfer(transfer, folder=self._table.folder_summary(transfer))
             sizes = self._splitter.sizes()
             if sizes[1] == 0:
                 self._splitter.setSizes([600, 250])

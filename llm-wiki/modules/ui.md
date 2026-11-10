@@ -569,7 +569,7 @@ The devices tab shows
 | `FilePanel` | `hsync_desktop/file_panel/panel.py::FilePanel` | container: table + detail pane + overlay |
 | `FileTransferTable` | `hsync_desktop/file_panel/transfer_table.py::FileTransferTable` | `QTableView` showing per-file rows (status/progress/size) |
 | `FileTransferModel` | `hsync_desktop/file_panel/transfer_table.py::FileTransferModel` | `QAbstractTableModel` holding the visible rows and rendering each cell on demand |
-| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | metadata pane for the selected file (path, name, size, modified, status, device coverage, last synced) |
+| `FileDetailPanel` | `hsync_desktop/file_panel/detail_panel.py::FileDetailPanel` | metadata pane for the selected row (path, name, size, modified, status, device coverage, last synced). For a **folder** (`show_transfer(transfer, folder=…)`) it shows the folder aggregate from `hsync_desktop/file_panel/transfer_table.py::FileTransferTable.folder_summary` — summed size, newest child mtime, max device coverage, most recent child sync and the aggregated folder status — instead of the directory row's `LOCAL` placeholder, so a synced folder is not reported as "Local" and the size needs no extra filesystem walk (the flat transfer map already holds every scanned file) |
 | `ProgressBarDelegate` | `hsync_desktop/file_panel/delegates.py::ProgressBarDelegate` | progress-bar cell rendering |
 | `LoadingOverlay` | `hsync_desktop/file_panel/overlay.py::LoadingOverlay` | busy overlay shared by the folder scan and the drag & drop import (the import mode is cancellable) |
 | `_confirm_dialog` | `hsync_desktop/file_panel/dialogs.py::_confirm_dialog` | reusable confirm prompt |

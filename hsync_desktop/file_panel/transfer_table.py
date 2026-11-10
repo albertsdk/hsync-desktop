@@ -1539,6 +1539,38 @@ class FileTransferTable(QTableView):
             "ops": {status: n for status, n in ops.items() if n},
         }
 
+    def folder_summary(self, transfer: FileTransfer) -> dict | None:
+        """Aggregate the properties of a folder row, or ``None`` for a file.
+
+        The flat transfer map already holds every scanned file, so a folder's
+        size, last modification, device coverage and last sync are derived from
+        its children with no extra filesystem walk: the properties panel stays
+        cheap even on a large tree. The status is aggregated too, so a directory
+        whose files are all synced is not reported as "Local".
+        """
+        if not transfer.filepath.endswith("/"):
+            return None
+        prefix = transfer.filepath
+        with QMutexLocker(self._transfers_mutex):
+            children = [
+                row
+                for filepath, row in self._transfers.items()
+                if filepath.startswith(prefix) and not filepath.endswith("/")
+            ]
+        summary = self._aggregate_folder(children)
+        summary["devices"] = max((row.devices for row in children), default=-1)
+        summary["holders"] = max((row.holders for row in children), default=-1)
+        summary["last_synced_at"] = max((row.last_synced_at for row in children), default=0.0)
+        if summary["mtime"] <= 0:
+            # No child mtime (an empty folder): fall back to the directory's own.
+            try:
+                summary["mtime"] = os.stat(
+                    os.path.join(self._base_directory, prefix.rstrip("/"))
+                ).st_mtime
+            except OSError:
+                summary["mtime"] = transfer.mtime
+        return summary
+
     def _schedule_refresh(self) -> None:
         """Schedule a debounced refresh of the view."""
         self._refresh_pending = True

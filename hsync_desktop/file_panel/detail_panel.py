@@ -77,8 +77,14 @@ class FileDetailPanel:
         """Set the base directory for resolving absolute file paths."""
         self._base_directory = directory
 
-    def show_transfer(self, transfer: FileTransfer) -> None:
-        """Display details for the given transfer."""
+    def show_transfer(self, transfer: FileTransfer, folder: dict | None = None) -> None:
+        """Display details for the given transfer.
+
+        ``folder`` carries the aggregated metadata of a directory row (size,
+        last modification, device coverage, last sync and status): a directory
+        has no single file to read those from, and its aggregate status is what
+        the table already shows.
+        """
         rel_path = transfer.path
         # Determine the directory to open on click
         if rel_path:
@@ -92,30 +98,38 @@ class FileDetailPanel:
         self._render_filepath_link()
 
         self._lbl_filename.setText(transfer.filename)
-        self._lbl_size.setText(format_bytes(transfer.size))
-        self._lbl_modified.setText(format_mtime(transfer.mtime))
+        size = folder["total_size"] if folder is not None else transfer.size
+        mtime = folder["mtime"] if folder is not None else transfer.mtime
+        self._lbl_size.setText(format_bytes(size))
+        self._lbl_modified.setText(format_mtime(mtime))
 
-        status_map = {
-            TransferStatus.LOCAL: "detail.local",
-            TransferStatus.SYNCED: "detail.synced",
-            TransferStatus.TO_DOWNLOAD: "detail.to_download",
-            TransferStatus.TO_UPLOAD: "detail.to_upload",
-            TransferStatus.TO_DELETE: "detail.to_delete",
-            TransferStatus.TO_RENAME: "detail.to_rename",
-            TransferStatus.DOWNLOADING: "detail.downloading",
-            TransferStatus.UPLOADING: "detail.uploading",
-            TransferStatus.DELETED: "detail.deleted",
-            TransferStatus.QUEUED: "detail.pending",
-            TransferStatus.TRANSFERRING: "detail.transferring",
-            TransferStatus.COMPLETED: "detail.completed",
-            TransferStatus.ERROR: "status.error",
-        }
-        self._lbl_status.setText(tr(status_map.get(transfer.status, "status.unknown")))
-        if transfer.devices > 0 and 0 <= transfer.holders <= transfer.devices:
-            self._lbl_devices.setText(f"{transfer.holders}/{transfer.devices}")
+        if folder is not None:
+            self._lbl_status.setText(tr(folder["status_key"]))
+        else:
+            status_map = {
+                TransferStatus.LOCAL: "detail.local",
+                TransferStatus.SYNCED: "detail.synced",
+                TransferStatus.TO_DOWNLOAD: "detail.to_download",
+                TransferStatus.TO_UPLOAD: "detail.to_upload",
+                TransferStatus.TO_DELETE: "detail.to_delete",
+                TransferStatus.TO_RENAME: "detail.to_rename",
+                TransferStatus.DOWNLOADING: "detail.downloading",
+                TransferStatus.UPLOADING: "detail.uploading",
+                TransferStatus.DELETED: "detail.deleted",
+                TransferStatus.QUEUED: "detail.pending",
+                TransferStatus.TRANSFERRING: "detail.transferring",
+                TransferStatus.COMPLETED: "detail.completed",
+                TransferStatus.ERROR: "status.error",
+            }
+            self._lbl_status.setText(tr(status_map.get(transfer.status, "status.unknown")))
+        holders = folder["holders"] if folder is not None else transfer.holders
+        devices = folder["devices"] if folder is not None else transfer.devices
+        if devices > 0 and 0 <= holders <= devices:
+            self._lbl_devices.setText(f"{holders}/{devices}")
         else:
             self._lbl_devices.setText("—")
-        self._lbl_last_synced.setText(format_mtime(transfer.last_synced_at))
+        last_synced = folder["last_synced_at"] if folder is not None else transfer.last_synced_at
+        self._lbl_last_synced.setText(format_mtime(last_synced))
         self._frame.show()
 
     def _render_filepath_link(self) -> None:
