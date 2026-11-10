@@ -370,25 +370,29 @@ other p2p fields (disabled in server mode and while syncing); it reuses the
 key, and reports the rendezvous's certificate fingerprint on success.
 
 **Action rows**: each mode panel pairs its two related secondary actions in one
-left-aligned horizontal row via `_action_row` (`hsync_desktop/settings/form_helpers.py::_action_row`) —
+horizontal row via `_action_row` (`hsync_desktop/settings/form_helpers.py::_action_row`) —
 the p2p *Manage trusted keys* + *Test connection* (`btn_test_rendezvous`), and the
 Server twin `btn_manage_trusted_keys_server` + `btn_test_connection`. One row reads
-as a group and uses less vertical space than two stacked form rows; the trailing
-stretch keeps them left-aligned. Both test buttons carry the
+as a group and uses less vertical space than two stacked form rows. The pair is
+**trailing-aligned** to the content (field) edge — its right edge follows the
+inputs instead of floating left under the captions — using a leading stretch that
+only grows while the row is horizontal. Both test buttons carry the
 `settings.test_connection` label (set in `_apply_translations`).
 
 The row is added with the **single-widget** `QFormLayout` overload
 (`hsync_desktop/settings/tab_layout.py::reorganize_p2p_tab` → `g2.addRow(manage_container)`,
 `reorganize_server_tab` → `g1.addRow(action_row)`), so it spans both columns and
-gets the full form width. `addRow("", container)` would confine the pair to the
-field column, which is only as wide as the caption column leaves it (~330 px at
-the 640 px dialog minimum): the localized labels need up to 500 px and
-`QPushButton` clips its text instead of eliding it.
-`hsync_desktop/settings/form_helpers.py::_ActionRow` re-evaluates on every resize and layout
-request and stacks the pair vertically when even the spanned width cannot hold
-both labels (a large system font); `TestActionRow` pins that switch and
+gets the full form width; `addRow("", container)` would confine it to the field
+column (~330 px at the 640 px dialog minimum), where the localized labels do not
+fit and `QPushButton` clips instead of eliding. The row is **rebuilt** in
+`reorganize_*` from the two buttons (`_action_row(button, button)`) rather than
+captured via `btn.parent()`: the container created in `build_*_tab` is discarded
+with the old layout. `hsync_desktop/settings/form_helpers.py::_ActionRow`
+re-evaluates on every resize and layout request and stacks the pair vertically
+when even the spanned width cannot hold both labels (a large system font);
+`TestActionRow` pins both the stacking and the trailing alignment, and
 `tests/test_settings_dialog_size.py::TestContentWidth::test_the_trust_action_rows_are_not_clipped`
-guards the invariant for the widest locales.
+guards the label invariant for the widest locales.
 
 **Test Connection probes** (`hsync_desktop/settings/dialog.py::SettingsDialog._on_test_connection`
 and `SettingsDialog._on_test_rendezvous`): the input validation and its warnings are

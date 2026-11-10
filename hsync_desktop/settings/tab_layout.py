@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.docs_links import RENDEZVOUS_SETUP, SERVER_SETUP
 from hsync_desktop.i18n import tr
+from hsync_desktop.settings.form_helpers import _action_row
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
     _GENERAL_TAB_INDEX,
@@ -386,7 +387,10 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     lbl_port: QLabel = dlg.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
     lbl_rendezvous: QLabel = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
 
-    manage_container: QWidget = dlg.btn_manage_trusted_keys.parent()  # type: ignore[assignment]
+    # Rebuild the pair from the buttons: the container created in
+    # ``build_p2p_tab`` is discarded with the old layout, so capturing the
+    # buttons' current parent is fragile. A fresh row is a single aligned unit.
+    manage_container = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_rendezvous)
 
     # Detach the original form layout.
     old = p2p_tab.layout()
@@ -418,8 +422,9 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g2, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous_trust, dlg.p2p_rendezvous_trust)
     add_row(g2, dlg._lbl_p2p_rendezvous_transport, dlg.p2p_rendezvous_transport)
-    # Spanning row: the button pair cannot fit the field column once the captions
-    # and the labels are localized (see ``_action_row``).
+    # Spanning row: the pair needs more width than the field column leaves, and
+    # ``_ActionRow`` trailing-aligns it to the content edge (stacking when even
+    # the full width cannot hold both labels).
     g2.addRow(manage_container)
     # The derived group key only matters for a discovery server, so the action
     # lives with the other discovery-server controls; it is hidden until one is
@@ -464,8 +469,9 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     lbl_ca_cert: QLabel = dlg.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
     lbl_timeout: QLabel = dlg.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
 
-    # Action rows keep their own container (they are not labelled fields).
-    action_row: QWidget = dlg.btn_manage_trusted_keys_server.parent()  # type: ignore[assignment]
+    # Rebuild the pair from the buttons (see the p2p twin); `_ActionRow` then
+    # trailing-aligns it to the content edge shared with the inputs.
+    action_row = _action_row(dlg.btn_manage_trusted_keys_server, dlg.btn_test_connection)
 
     old = server_tab.layout()
     if old is not None:
@@ -487,7 +493,8 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     add_row(g1, lbl_server_url, dlg.server_url)
     add_row(g1, lbl_api_key, dlg.api_key)
     add_row(g1, dlg._lbl_server_trust, dlg.server_trust)
-    # Spanning row, same reason as the p2p twin above.
+    # Spanning row, trailing-aligned to the same content edge as the inputs
+    # (same reasoning as the p2p twin).
     g1.addRow(action_row)
     dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
     g1.addRow("", dlg._lbl_help_server)

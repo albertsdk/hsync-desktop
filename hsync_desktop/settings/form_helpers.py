@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QLabel,
+    QSizePolicy,
+    QSpacerItem,
     QWidget,
 )
 
@@ -84,6 +86,10 @@ class _ActionRow(QWidget):
     localized labels would lose characters in a narrow column. The row starts
     side by side and switches to a vertical stack once the available width drops
     below the buttons' own size hints (a large system font does that).
+
+    Placed as a spanning form row, the pair is trailing-aligned so its right edge
+    follows the content (field) column instead of floating under the captions;
+    the stacked fallback keeps the buttons at the top, not bottom-aligned.
     """
 
     def __init__(self, *buttons: QWidget) -> None:
@@ -91,9 +97,15 @@ class _ActionRow(QWidget):
         self._buttons = buttons
         self._box = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
         self._box.setContentsMargins(0, 0, 0, 0)
+        # Two spacers: a sole trailing stretch would push the buttons to the
+        # bottom in the vertical fallback, so the leading one grows only while
+        # the row is horizontal.
+        self._lead = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self._trail = QSpacerItem(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self._box.addSpacerItem(self._lead)
         for button in buttons:
             self._box.addWidget(button)
-        self._box.addStretch()
+        self._box.addSpacerItem(self._trail)
 
     def _needs_stack(self) -> bool:
         if self.width() <= 0:
@@ -102,13 +114,26 @@ class _ActionRow(QWidget):
         return self.width() < sum(widths) + self._box.spacing() * max(0, len(widths) - 1)
 
     def _apply_direction(self) -> None:
+        stacked = self._needs_stack()
         direction = (
-            QBoxLayout.Direction.TopToBottom
-            if self._needs_stack()
-            else QBoxLayout.Direction.LeftToRight
+            QBoxLayout.Direction.TopToBottom if stacked else QBoxLayout.Direction.LeftToRight
         )
         if self._box.direction() != direction:
             self._box.setDirection(direction)
+        # Horizontal: the leading stretch holds the pair against the content's
+        # trailing edge. Stacked: drop it so the pair stays top-aligned.
+        self._lead.changeSize(
+            0,
+            0,
+            QSizePolicy.Policy.Fixed if stacked else QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum,
+        )
+        self._trail.changeSize(
+            0,
+            0,
+            QSizePolicy.Policy.Expanding if stacked else QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Minimum,
+        )
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

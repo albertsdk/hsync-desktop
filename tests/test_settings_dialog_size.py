@@ -189,6 +189,36 @@ class TestActionRow:
         row._apply_direction()
         assert row.layout().direction() == QBoxLayout.Direction.LeftToRight
 
+    def test_the_pair_is_trailing_aligned_when_side_by_side(self, qtbot, monkeypatch):
+        """The pair ends on the content's trailing edge, not under the captions.
+
+        Left-aligned under the caption column looked detached from the fields;
+        the lead stretch now holds it against the field/content edge. The stacked
+        fallback keeps the buttons top-aligned instead of bottom-aligned.
+        """
+        from PySide6.QtWidgets import QSizePolicy
+
+        from hsync_desktop.settings.form_helpers import _action_row
+
+        row = _action_row(QPushButton("Manage trusted servers"), QPushButton("Test Connection"))
+        qtbot.addWidget(row)
+        box = row.layout()
+
+        monkeypatch.setattr(type(row), "width", lambda self: 5000)
+        row._apply_direction()
+
+        lead = box.itemAt(0).spacerItem()
+        trail = box.itemAt(box.count() - 1).spacerItem()
+        assert lead is not None and trail is not None
+        assert lead.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding
+        assert trail.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Fixed
+
+        monkeypatch.setattr(type(row), "width", lambda self: 1)
+        row._apply_direction()
+
+        assert lead.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Fixed
+        assert trail.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding
+
 
 class TestPageNeverSqueezesRows:
     """A page shorter than its content compresses every form row to fit.
