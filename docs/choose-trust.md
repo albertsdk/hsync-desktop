@@ -37,10 +37,17 @@ idea is the same:
 
 | Behaviour | What it means | Good for |
 | --------- | ------------- | -------- |
-| **Ask on first use** (default) | Trust the first fingerprint once you confirm it; refuse later changes. | Most people: one confirmation, then silence. |
+| **Ask on first use** (default for devices and the discovery server) | Trust the first fingerprint once you confirm it; refuse later changes. | Most people: one confirmation, then silence. |
 | **Accept automatically** | Pin the first fingerprint with no question. | A closed, trusted network where you cannot be interrupted. |
 | **Require the saved identity** | Only accept a fingerprint you have already pinned. | Strict setups: nothing new is trusted by chance. |
 | **Don't verify** | Accept any fingerprint. | Never, unless you fully control the network. |
+
+The **sync server** tab starts at **Standard verification** instead: it accepts
+only a certificate the operating system already trusts, which is what a reverse
+proxy with a real CA provides. A server that presents its own self-signed
+certificate — the HSYNC Server Debian package generates one — is refused in that
+mode, so pick **Ask on first use** once (or pin its `sha256:…` fingerprint shown
+by `hsync-server admin tls fingerprint`).
 
 In **p2p Mode** the same idea applies to the device that becomes primary, through
 **New primary device** (*Settings → p2p Mode*): **Ask for confirmation** by
