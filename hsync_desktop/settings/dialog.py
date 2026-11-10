@@ -1838,3 +1838,9 @@ class SettingsDialog(QDialog):
             self._apply_tooltips()
             # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
             self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+
+        # The Test Connection buttons are gated by p2p mode, capability and an
+        # active sync. `_restore_test_buttons` owns that state, but it only ran
+        # when a probe ended, so opening the dialog while a sync is already
+        # running left the Server Mode button enabled. Re-derive both here.
+        self._restore_test_buttons()

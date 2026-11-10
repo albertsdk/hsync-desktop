@@ -324,6 +324,24 @@ class TestServerTestConnection:
         dialog.set_connection_active(False)
         assert dialog.btn_test_connection.isEnabled()
 
+    def test_opening_with_an_active_sync_disables_the_button(self, dialog):
+        """Opening Settings while a sync runs must disable the Server Mode button.
+
+        ``start._open_settings`` calls ``set_connection_active(engine.is_running)``
+        right after building the dialog, before any probe. That path used to leave
+        the Test Connection button enabled because its gate only ran when a probe
+        ended.
+        """
+        dialog.p2p_mode.setChecked(False)
+
+        dialog.set_connection_active(True)
+
+        assert not dialog.btn_test_connection.isEnabled()
+
+        dialog.set_connection_active(False)
+
+        assert dialog.btn_test_connection.isEnabled()
+
 
 class TestP2pPanelSections:
     """The p2p tab is grouped into four sections like the sync tab."""
