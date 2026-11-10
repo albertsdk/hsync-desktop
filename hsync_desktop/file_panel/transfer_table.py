@@ -863,6 +863,11 @@ class FileTransferTable(QTableView):
             restored = self.horizontalHeader().restoreState(state)
         if not restored:
             self._apply_default_columns()
+        # A restored layout is the user's choice: never fit the data columns to
+        # their content afterwards, or the first refresh would overwrite the
+        # saved widths. Content fitting runs only when there is nothing to honour
+        # (a first run, or a blob this build could not restore).
+        self._columns_sized = restored
         self.horizontalHeader().showSection(COL_NAME)
 
     def _restore_sort_indicator(self) -> None:

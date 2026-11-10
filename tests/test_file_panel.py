@@ -1209,6 +1209,40 @@ class TestColumnResizing:
         fresh = self._table(qtbot)
         assert fresh.horizontalHeader().sectionSize(tt.COL_SIZE) == 222
 
+    def test_a_saved_width_survives_the_first_populated_refresh(self, qtbot, tmp_path, monkeypatch):
+        """A restored layout is not re-fitted to the content on startup.
+
+        The first populated refresh used to fit the data columns, overwriting the
+        widths restored from the saved state. The user's choice must win.
+        """
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        def populate(table):
+            table.add_transfer(
+                FileTransfer(
+                    filepath="a.bin", direction="↓", size=123, status=TransferStatus.SYNCED
+                )
+            )
+            table.refresh_view()
+
+        first = self._table(qtbot)
+        populate(first)  # first run: the content fit seeds the default widths
+        first.horizontalHeader().resizeSection(tt.COL_SIZE, 321)
+        first.horizontalHeader().resizeSection(tt.COL_STATUS, 222)
+        first._state_save_timer.stop()
+        first._save_header_state()
+
+        fresh = self._table(qtbot)
+        populate(fresh)  # a populated refresh must not clobber the restore
+
+        assert fresh.horizontalHeader().sectionSize(tt.COL_SIZE) == 321
+        assert fresh.horizontalHeader().sectionSize(tt.COL_STATUS) == 222
+
     def test_a_drag_is_persisted_after_the_debounce(self, qtbot, tmp_path, monkeypatch):
         """The layout write is coalesced, but it must land once the drag settles."""
         from PySide6.QtCore import QSettings
