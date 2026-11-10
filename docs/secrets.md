@@ -16,7 +16,11 @@ never on a command line, and they never appear in logs or process listings.
 - Masked by default, with a **show/hide (eye) toggle** on the right of every
   secret field: reveal the value only on demand to check or copy it. The field is
   masked again the next time you open Settings.
-- Replaceable at any time: reopen the dialog and enter a new value.
+- Replaceable at any time: reopen the dialog and enter a new value. The new value
+  applies to the **next** run — a sync that is already running keeps the key it
+  started with, so stop it and start it again. After an authentication failure
+  the app stops the engine itself, shows the dialog and retries with what you
+  save there.
 
 ## p2p Mode: the shared password
 
