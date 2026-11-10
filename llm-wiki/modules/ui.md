@@ -893,7 +893,10 @@ the sustained rate within a second and hides the per-chunk pacing of the
 limiter. A sample pair closer than `_RATE_MIN_INTERVAL` measures nothing — the
 client flushes its closing sample as soon as the wire total is reached, so a
 burst absorbed by the transport would otherwise be reported at hundreds of MB/s
-with an ETA of zero — and the previous measurement stands. `progress_total` keeps
+with an ETA of zero — and the previous measurement stands. An ETA is reported only
+while bytes remain: a row whose receiver already holds every byte has no arrival
+left to project (`hsync_desktop/file_panel/models.py::FileTransfer.eta_seconds` returns
+`None` at `remaining == 0`, never `0s`). `progress_total` keeps
 the wire total (delta payload) separate from the on-disk `size`. A **negative**
 `total` in a `progress` event means "explicitly unknown" (a compressed serve,
 whose wire bytes cannot be mapped onto the file size): the row stores `-1`,
@@ -908,7 +911,9 @@ An in-flight **upload** never reads as finished:
 aggregate (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
 The client counts the bytes handed to the transport, so a burst absorbed by the
 socket/relay buffers reaches the wire total long before the receiver commits the
-file; the bar closes with the row, on the terminal `transfer` event. A download
+file; in p2p the row instead follows the receiver's echo (the client's
+`file_progress`), so the cap remains only because delivery is not a commit — the
+bar closes with the row, on the terminal `transfer` event. A download
 is unaffected: its bytes really are on disk. The reverse also holds: a row that
 already reached a settled classification (`hsync_desktop/file_panel/transfer_table.py::_SETTLED_STATUSES`
 — `SYNCED`, `COMPLETED`, `DELETED`) is **not** restarted by a trailing progress

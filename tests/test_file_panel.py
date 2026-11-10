@@ -2606,6 +2606,40 @@ class TestTransferRate:
         assert transfer.bytes_transferred == 0
         assert transfer.speed_bps is None
 
+    def test_eta_is_none_once_the_receiver_holds_every_byte(self):
+        """``remaining == 0`` in flight is not a ``0s`` arrival: the row waits."""
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=1_000_000)
+        transfer.start_transfer("↑", now=1000.0)
+        transfer.note_progress(0, now=1000.0)
+        transfer.note_progress(500_000, now=1000.5)  # a real rate to project from
+        assert transfer.eta_seconds is not None
+
+        transfer.note_progress(1_000_000, now=1001.0)  # the receiver has every byte
+
+        assert transfer.remaining == 0
+        assert transfer.eta_seconds is None
+
+    def test_a_receiver_sample_below_the_wire_sample_reanchors(self):
+        """A serve's wire sample gives way to the peer's lower delivery count.
+
+        The forward sample is the burst handed to the socket; when the peer's
+        echo arrives lower, the measurement restarts instead of folding the two
+        scales into one spurious rate.
+        """
+        transfer = FileTransfer(filepath="a.bin", direction="↑", size=2_000_000)
+        transfer.start_transfer("↑", now=1000.0)
+        transfer.note_progress(0, now=1000.0)
+        transfer.note_progress(1_500_000, now=1000.25)  # wire burst handed off
+        assert transfer.speed_bps == pytest.approx(6_000_000)
+
+        transfer.note_progress(500_000, now=1000.5)  # the peer's lower echo
+
+        assert transfer.speed_bps is None
+        assert transfer.bytes_transferred == 500_000
+
+        transfer.note_progress(1_000_000, now=1000.75)  # fresh 0.25 s window
+        assert transfer.speed_bps == pytest.approx(2_000_000)
+
 
 class TestLiveTransferProgress:
     """A progress event creates the row of a file that is not on disk yet."""

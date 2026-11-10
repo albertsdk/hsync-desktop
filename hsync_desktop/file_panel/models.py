@@ -275,10 +275,13 @@ class FileTransfer:
 
     @property
     def eta_seconds(self) -> float | None:
-        """Remaining time, or ``None`` when the total (or the rate) is unknown."""
+        """Remaining time, or ``None`` when no honest estimate exists."""
         rate = self.speed_bps
         # ``total_bytes <= 0`` means the transfer reports an unknown total (a
-        # compressed serve): there is nothing to project an arrival from.
-        if rate is None or self.total_bytes <= 0:
+        # compressed serve): there is nothing to project an arrival from. A
+        # ``remaining`` of zero means the receiver already holds every byte but
+        # the row is still in flight: the bar waits for the terminal event, so a
+        # ``0s`` ETA would be a claim the row cannot keep.
+        if rate is None or self.total_bytes <= 0 or self.remaining <= 0:
             return None
         return self.remaining / rate
