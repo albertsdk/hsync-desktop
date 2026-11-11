@@ -379,16 +379,26 @@ jobs:
           sed -i "s/^version:.*$/version: \"${{ steps.version.outputs.version }}\"/" snap/snapcraft.yaml
           grep -n '^version:' snap/snapcraft.yaml
       - name: Install snapcraft
-        # The hosted images ship snapd but not snapcraft, and the store answer is
-        # occasionally refused: retry with a widening delay instead of failing the
-        # release on a transient error.
+        id: snapcraft
+        # snapcraft is only distributed through the Snap Store, so a store outage
+        # must skip the snap (the other formats still ship) instead of failing the
+        # release. A build error after a successful install still fails the job.
         run: |
+          installed=false
+          sudo snap wait system seed.loaded || true
           for attempt in 1 2 3 4 5; do
+            if snap list snapcraft >/dev/null 2>&1; then break; fi
             if sudo snap install --classic --channel=9.x/stable snapcraft; then break; fi
-            sleep $((attempt * 10))
+            sleep $((attempt * 15))
           done
-          snap list snapcraft
+          if snap list snapcraft >/dev/null 2>&1; then
+            installed=true
+          else
+            echo "::warning::the Snap Store is unreachable: skipping the snap build"
+          fi
+          echo "installed=$installed" >> "$GITHUB_OUTPUT"
       - name: Build the snap
+        if: steps.snapcraft.outputs.installed == 'true'
         working-directory: hsync-desktop
         env:
           # One native runner per architecture, both matching the core24 base, so
@@ -402,22 +412,43 @@ jobs:
             SNAPCRAFT_IMAGE_INFO="$SNAPCRAFT_IMAGE_INFO" \
             /snap/bin/snapcraft pack --destructive-mode --platform=${{ matrix.arch }}
       - name: Install the LXD lint environment
-        # `snapcraft lint` installs the snap inside a build environment, which is
-        # an LXD instance: this is the only step left that needs the store.
+        id: lxd
+        if: steps.snapcraft.outputs.installed == 'true'
+        # `snapcraft lint` runs the snap inside an LXD instance, which needs the
+        # store as well. This step only prepares it: a store outage skips the
+        # lint with a warning, while a lint failure in a working environment still
+        # fails the job.
         run: |
+          ready=false
           for attempt in 1 2 3 4 5; do
-            if sudo snap install lxd; then break; fi
-            sleep $((attempt * 10))
+            if ! snap list lxd >/dev/null 2>&1; then
+              if ! sudo snap install lxd; then
+                sleep $((attempt * 15))
+                continue
+              fi
+            fi
+            if ! sudo lxc info >/dev/null 2>&1; then
+              if ! sudo lxd init --auto; then
+                sleep $((attempt * 15))
+                continue
+              fi
+            fi
+            # Docker on the runner sets the FORWARD policy to DROP, which
+            # blackholes LXD's bridge network.
+            sudo iptables -P FORWARD ACCEPT
+            ready=true
+            break
           done
-          snap list lxd
-          sudo lxd init --auto
-          # Docker on the runner sets the FORWARD policy to DROP, which blackholes
-          # LXD's bridge network.
-          sudo iptables -P FORWARD ACCEPT
+          if [ "$ready" != true ]; then
+            echo "::warning::the Snap Store is unreachable: skipping snapcraft lint"
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
       - name: Lint the snap
+        if: steps.lxd.outputs.ready == 'true'
         run: |
           sudo /snap/bin/snapcraft lint "$(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)"
       - uses: actions/upload-artifact@v7
+        if: steps.snapcraft.outputs.installed == 'true'
         with:
           name: snap-${{ matrix.arch }}
           path: hsync-desktop/*.snap
