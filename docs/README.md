@@ -35,8 +35,9 @@ Still choosing between a server and peer-to-peer (p2p)? Read
 
 [Start, watch and stop a sync](sync-basics.md) covers the everyday controls;
 [The file list](file-list.md) explains the table and its right-click menu;
-[Warnings and notifications](warnings.md) explains the prompts, badges and
-notifications. When something does not work at all, go to
+[Managing multiple shares](shares.md) covers saving and switching between several
+named configurations; [Warnings and notifications](warnings.md) explains the
+prompts, badges and notifications. When something does not work at all, go to
 [Troubleshooting](troubleshooting.md).
 
 ### 5. Reference
@@ -57,6 +58,7 @@ notifications. When something does not work at all, go to
 | [warnings.md](warnings.md) | Toasts, banners, notifications, badges and the "in sync?" states. |
 | [secrets.md](secrets.md) | Account keys and shared passwords. |
 | [reset-sync-state.md](reset-sync-state.md) | Reconciling a folder from scratch. |
+| [shares.md](shares.md) | Saving and switching between several named shares. |
 | [troubleshooting.md](troubleshooting.md) | Symptoms, what to check, where the logs are, how to get help. |
 | [faq.md](faq.md) | Common questions. |
 | [log-labels.md](log-labels.md) | Action labels shown in the log panel (advanced). |

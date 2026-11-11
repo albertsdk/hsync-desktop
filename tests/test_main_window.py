@@ -1129,16 +1129,12 @@ class TestLogViewerFont:
 class TestLinkStyling:
     """Clickable share/path labels use the default colour and are underlined."""
 
-    def test_share_placeholder_link(self, window):
-        from PySide6.QtGui import QPalette
-
+    def test_share_placeholder_is_plain_text(self, window):
         window._bucket = ""
         window._update_path_display()
 
-        text = window._path_label.text()
-        colour = window._path_label.palette().color(QPalette.ColorRole.WindowText).name()
-        assert "text-decoration:underline" in text
-        assert f"color:{colour}" in text
+        assert window._path_label.text() == tr("label.path_placeholder")
+        assert "text-decoration:underline" not in window._path_label.text()
 
     def test_breadcrumb_links(self, window):
         from PySide6.QtGui import QPalette
@@ -2673,7 +2669,7 @@ class TestSetupWizardIntegration:
         opened: list[str] = []
         monkeypatch.setattr(window, "_open_setup_wizard", lambda: opened.append("wizard"))
         monkeypatch.setattr(window, "_open_settings", lambda *a, **k: opened.append("settings"))
-        window._on_path_clicked("settings")
+        window._on_share_name_clicked()
         assert opened == ["wizard"]
 
     def test_placeholder_opens_settings_when_configured(self, window, monkeypatch, tmp_path):
@@ -2681,7 +2677,7 @@ class TestSetupWizardIntegration:
         opened: list[str] = []
         monkeypatch.setattr(window, "_open_setup_wizard", lambda: opened.append("wizard"))
         monkeypatch.setattr(window, "_open_settings", lambda *a, **k: opened.append("settings"))
-        window._on_path_clicked("settings")
+        window._on_share_name_clicked()
         assert opened == ["settings"]
 
 

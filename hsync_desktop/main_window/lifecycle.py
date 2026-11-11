@@ -99,6 +99,14 @@ class LifecycleMixin:
             if obj in (getattr(self, "_remote_icon", None), getattr(self, "_remote_label", None)):
                 self._show_connection_badge_menu()
                 return True
+            # The folder icon opens the share's folder; the name opens the share
+            # selector (or Settings while nothing is configured).
+            if obj is getattr(self, "_path_icon_label", None):
+                self._open_active_folder()
+                return True
+            if obj is getattr(self, "_path_label", None):
+                self._on_share_name_clicked()
+                return True
             # Check if the clicked widget is one of our bandwidth labels
             bandwidth_labels = [
                 self._lbl_sent,
@@ -176,6 +184,8 @@ class LifecycleMixin:
         # them here keeps a later window teardown from destroying a live
         # ``QThread`` (which aborts the process).
         self._file_panel.stop_background_work()
+        # Capture any settings edits made since the last switch before quitting.
+        self._share_store.snapshot_active()
         QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("window/geometry", self.saveGeometry())
         if self._tray:
             self._tray.hide()

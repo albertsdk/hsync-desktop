@@ -18,7 +18,6 @@ from PySide6.QtGui import (
     QAction,
     QActionGroup,
     QCloseEvent,
-    QDesktopServices,
     QFontMetrics,
 )
 from PySide6.QtWidgets import (
@@ -166,9 +165,13 @@ class StartMixin:
     def _share_display_name(self) -> str:
         """User-facing share name shown next to the folder icon.
 
-        Prefers the engine-detected bucket, then the saved share name, then the
-        local folder's own name as a last resort.
+        The active share's label is the identity; before any share exists (fresh
+        install or a test that does not configure one) it falls back to the
+        engine-detected bucket, the saved bucket, then the folder's own name.
         """
+        share = self._share_store.active()
+        if share is not None and share.name.strip():
+            return share.name.strip()
         if self._bucket:
             return self._bucket
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
@@ -202,18 +205,13 @@ class StartMixin:
             max_name_px = 300
             fm = QFontMetrics(self._path_label.font())
             elided = fm.elidedText(share_name, Qt.TextElideMode.ElideMiddle, max_name_px)
-            text_color = (
-                self._path_label.palette()
-                .color(self._path_label.palette().ColorRole.WindowText)
-                .name()
-            )
-            self._path_label.setText(
-                f'<a href="open" style="color:{text_color}; text-decoration:underline;">{elided}</a>'
-            )
-            # The full local path is always reachable here: this tooltip is
-            # intentionally exempt from the "Show tooltips" preference, which
-            # only governs the settings fields.
-            self._path_label.setToolTip(self._local_path)
+            # The name is the active share's identity (the selector, and the
+            # folder icon, own the click actions); the tooltip carries the rest.
+            self._path_label.setText(elided)
+            # The full local path + bucket/direction/target are always reachable
+            # here: this tooltip is intentionally exempt from the "Show tooltips"
+            # preference, which only governs the settings fields.
+            self._path_label.setToolTip(self._active_header_tooltip())
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
 
             # ── Sync direction icon ───────────────────────────────────
@@ -281,30 +279,9 @@ class StartMixin:
             self._sync_dir_icon.hide()
             self._remote_icon.hide()
             self._remote_label.hide()
-            text_color = (
-                self._path_label.palette()
-                .color(self._path_label.palette().ColorRole.WindowText)
-                .name()
-            )
-            self._path_label.setText(
-                f'<a href="settings" style="color:{text_color}; text-decoration:underline;">'
-                f"{tr('label.path_placeholder')}</a>"
-            )
+            self._path_label.setText(tr("label.path_placeholder"))
             self._path_label.setToolTip(tr("label.path_placeholder_tip"))
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    def _on_path_clicked(self, link: str) -> None:
-        """Handle clicks on the path label link."""
-        if link == "settings":
-            # Unconfigured folder: send the user to the wizard, not Settings.
-            if self._local_path:
-                self._open_settings(initial_tab=0)
-            else:
-                self._open_setup_wizard()
-        elif self._local_path and os.path.isdir(self._local_path):
-            from PySide6.QtCore import QUrl
-
-            QDesktopServices.openUrl(QUrl.fromLocalFile(self._local_path))
 
     def _build_disclaimer_dialog(
         self,
@@ -877,7 +854,11 @@ class StartMixin:
             self._settings_dialog.raise_()
             self._settings_dialog.activateWindow()
             return
-        dlg = SettingsDialog(self)
+        dlg = SettingsDialog(
+            self,
+            folder_in_use=self._folder_is_taken,
+            bucket_in_use=self._bucket_is_taken,
+        )
         self._settings_dialog = dlg
         try:
             # Disable connection-critical settings while sync is running
@@ -978,6 +959,12 @@ class StartMixin:
         # follow the saved settings too.
         self._refresh_simulation_state()
         self._refresh_deletion_badge()
+        # The wizard writes path/local directly (the Settings dialog validates
+        # earlier): keep one folder per share before adopting the new value.
+        if self._share_store.enforce_unique_folder():
+            QMessageBox.warning(
+                self, tr("shares.manage.title"), tr("shares.error.folder_duplicate")
+            )
         # Reload path in case it changed in settings
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         new_path = str(s.value("path/local", "", str))
@@ -989,6 +976,11 @@ class StartMixin:
         self._update_path_display()
         # The presence title follows the mode (devices vs connected members).
         self._update_peers_label_title()
+        # The Settings dialog and the wizard both land here: keep the active
+        # share's record in sync with the flat keys and refresh the selector.
+        self._share_store.sync_from_flat()
+        self._sync_shares_button()
+        self._adopt_log_share()
 
     def _open_setup_wizard(self) -> None:
         """Open the guided setup wizard (stop a running sync first)."""

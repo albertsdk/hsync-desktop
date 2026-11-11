@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+from collections import deque
 from collections.abc import Callable
 from typing import cast
 from urllib.parse import urlsplit
@@ -220,9 +221,6 @@ class UiBuildMixin:
             btn.setIconSize(icon_size)
             btn.setText("")
         self._path_label: QLabel = self.findChild(QLabel, "pathLabel")  # type: ignore[assignment]
-        self._path_label.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
-        self._path_label.setOpenExternalLinks(False)
-        self._path_label.linkActivated.connect(self._on_path_clicked)
         self._local_path: str = ""
         # Active share name (bucket) shown next to the folder icon; empty until
         # the engine detects one, then seeded from the configured share.
@@ -254,6 +252,20 @@ class UiBuildMixin:
         self._remote_icon.installEventFilter(self)
         self._remote_label.installEventFilter(self)
 
+        # Header share selector: a compact chevron after the share name. Clicking
+        # the name or the chevron opens the shares menu (see SharesMixin); the
+        # folder icon opens the share's folder (see LifecycleMixin.eventFilter).
+        self._shares_button = QToolButton(self.centralWidget())
+        self._shares_button.setAutoRaise(True)
+        self._shares_button.setArrowType(Qt.ArrowType.DownArrow)
+        self._shares_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._shares_button.setToolTip(tr("shares.menu.title"))
+        self._shares_button.hide()
+        self._path_icon_label.installEventFilter(self)
+        self._path_icon_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._path_label.installEventFilter(self)
+        self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+
         # Insert widgets into the actionBarLayout
         # Layout order: ... [folder-icon] [path-label] [sync-dir-icon] [remote-icon] [remote-label] [browse-btn] ...
         central = self.centralWidget()
@@ -267,10 +279,11 @@ class UiBuildMixin:
                         item = action_bar_layout.itemAt(i)
                         if item and item.widget() == self._path_label:
                             action_bar_layout.insertWidget(i, self._path_icon_label)
-                            # Insert after path_label (i+2 because we just inserted one)
-                            action_bar_layout.insertWidget(i + 2, self._sync_dir_icon)
-                            action_bar_layout.insertWidget(i + 3, self._remote_icon)
-                            action_bar_layout.insertWidget(i + 4, self._remote_label)
+                            # [folder] [path] [shares ▾] [direction] [endpoint] …
+                            action_bar_layout.insertWidget(i + 2, self._shares_button)
+                            action_bar_layout.insertWidget(i + 3, self._sync_dir_icon)
+                            action_bar_layout.insertWidget(i + 4, self._remote_icon)
+                            action_bar_layout.insertWidget(i + 5, self._remote_label)
                             break
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
@@ -282,6 +295,10 @@ class UiBuildMixin:
         # Use the desktop's monospace font, two points smaller: the log lines are
         # long, so the extra width keeps them readable without scrolling.
         self._log_view.setFont(log_monospace_font())
+        # Per-share log buffers: the panel shows the active share's lines and
+        # SharesMixin swaps them on switch. Each share keeps a bounded history.
+        self._log_buffers: dict[str, deque[str]] = {}
+        self._log_active_share: str = ""
 
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
@@ -404,6 +421,9 @@ class UiBuildMixin:
 
         # Create classic menu bar
         self._create_menu_bar()
+
+        # Wire the header share selector (SharesMixin).
+        self._init_shares_ui()
 
         # Set initial button/menu/tray state (disables Start if no path)
         self._update_menu_state()
@@ -927,7 +947,42 @@ class UiBuildMixin:
         arrives as one payload (the engine batches a whole stdout read), so it is
         split back and inserted in a single edit block.
         """
-        self._insert_log_lines(payload.split("\n"))
+        lines = payload.split("\n")
+        self._buffer_log_lines(lines)
+        self._insert_log_lines(lines)
+
+    def _buffer_log_lines(self, lines: list[str]) -> None:
+        """Keep the raw lines in the active share's bounded log history.
+
+        The per-line cap mirrors the document path so a pathological line is
+        bounded here too; ``maxlen`` drops the oldest lines in C.
+        """
+        share_id = getattr(self, "_log_active_share", "")
+        if not share_id:
+            return
+        buffer = self._log_buffers.get(share_id)
+        if buffer is None:
+            buffer = deque(maxlen=_LOG_MAX_BLOCKS)
+            self._log_buffers[share_id] = buffer
+        for line in lines:
+            if len(line) > _LOG_LINE_MAX_CHARS:
+                line = line[:_LOG_LINE_MAX_CHARS] + _LOG_LINE_ELLIPSIS
+            buffer.append(line)
+
+    def _seed_log_buffer_from_view(self, share_id: str) -> None:
+        """Seed *share_id*'s buffer with the lines currently shown (first adopt)."""
+        if share_id not in self._log_buffers:
+            self._log_buffers[share_id] = deque(
+                self._log_view.toPlainText().splitlines(), maxlen=_LOG_MAX_BLOCKS
+            )
+
+    def _set_log_share(self, share_id: str) -> None:
+        """Show *share_id*'s log history (each share keeps its own buffer)."""
+        self._log_active_share = share_id
+        self._log_view.clear()
+        buffer = self._log_buffers.get(share_id)
+        if buffer:
+            self._insert_log_lines(list(buffer))
 
     def _insert_log_lines(self, lines: list[str]) -> None:
         """Insert *lines* at the tail in one edit block, keeping the scroll state.

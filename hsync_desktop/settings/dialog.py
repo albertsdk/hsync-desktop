@@ -191,8 +191,19 @@ from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 class SettingsDialog(QDialog):
     """Modal settings dialog with tabbed sections."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        folder_in_use: Callable[[str], bool] | None = None,
+        bucket_in_use: Callable[[str], bool] | None = None,
+    ) -> None:
         super().__init__(parent)
+        # Optional share validators supplied by the window: a folder is owned by
+        # exactly one share (one client state DB, one lock); a duplicate p2p
+        # bucket means "same device" and only warns (non-blocking).
+        self._folder_in_use = folder_in_use
+        self._bucket_in_use = bucket_in_use
         # Controls gated off by the binary's capabilities; never re-enabled
         # by the p2p-mode or connection-active state machines.
         self._unsupported_widgets: set[QWidget] = set()
@@ -1374,6 +1385,17 @@ class SettingsDialog(QDialog):
         if self._rdv_key_mismatch() and not self._rdv_key_reminder_ack:
             if not self._confirm_rdv_key_update():
                 return False
+        # The local folder must stay unique across shares.
+        if self._folder_in_use is not None and self._folder_in_use(self.shared_path.text().strip()):
+            QMessageBox.warning(self, tr("settings.title"), tr("shares.error.folder_duplicate"))
+            return False
+        # A duplicate p2p bucket is allowed but means the same device: warn only.
+        if (
+            self._bucket_in_use is not None
+            and self.p2p_mode.isChecked()
+            and self._bucket_in_use(self.bucket.text().strip())
+        ):
+            QMessageBox.warning(self, tr("settings.title"), tr("shares.warn.same_bucket"))
         self.save()
         return True
 

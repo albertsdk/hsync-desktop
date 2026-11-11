@@ -76,6 +76,7 @@ from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.main_window.actions import ActionsMixin
 from hsync_desktop.main_window.events import EventsMixin
 from hsync_desktop.main_window.lifecycle import LifecycleMixin
+from hsync_desktop.main_window.shares import SharesMixin
 from hsync_desktop.main_window.start import StartMixin
 from hsync_desktop.main_window.trust import TrustMixin
 from hsync_desktop.main_window.ui import UiBuildMixin
@@ -96,6 +97,7 @@ from hsync_desktop.settings import (
     is_auto_sync_enabled,
     is_log_panel_visible,
 )
+from hsync_desktop.shares import ShareStore
 from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
     COLOR_CONNECTED,
@@ -110,7 +112,14 @@ from hsync_desktop.wizard import SetupWizard
 
 
 class MainWindow(
-    UiBuildMixin, ActionsMixin, EventsMixin, TrustMixin, StartMixin, LifecycleMixin, QMainWindow
+    UiBuildMixin,
+    ActionsMixin,
+    EventsMixin,
+    TrustMixin,
+    SharesMixin,
+    StartMixin,
+    LifecycleMixin,
+    QMainWindow,
 ):
     """Primary application window."""
 
@@ -268,6 +277,12 @@ class MainWindow(
         self._settings_dialog: SettingsDialog | None = None
         # Open setup wizard, if any (menu/tray re-clicks raise it instead).
         self._setup_wizard: SetupWizard | None = None
+
+        # Named shares: the store keeps every saved share and writes the active
+        # one into the flat keys. Migration runs before the UI reads them (it
+        # never touches the flat keys, so every reader behaves as before).
+        self._share_store = ShareStore(QSettings(SETTINGS_ORG, SETTINGS_APP))
+        self._share_store.migrate_if_needed()
 
         self._load_ui()
         self._connect_signals()
