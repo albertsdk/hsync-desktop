@@ -911,4 +911,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Another share already uses this folder.",
     "shares.error.last": "The last share cannot be deleted.",
     "shares.warn.same_bucket": "Another p2p share already uses this bucket; two p2p shares on the same bucket act as the same device.",
+    "settings.bucket_probe.title": "Share access",
+    "settings.bucket_probe.missing": "The share does not exist or your account has no access to it. If it does not exist it will be created on the first upload. Save anyway?",
+    "settings.bucket_probe.offline": "The server could not be reached, so the share was not verified. Save anyway?",
 }

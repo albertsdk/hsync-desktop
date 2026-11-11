@@ -910,4 +910,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "另一个共享已使用此文件夹。",
     "shares.error.last": "无法删除最后一个共享。",
     "shares.warn.same_bucket": "另一个 p2p 共享已使用此存储桶；同一存储桶上的两个 p2p 共享会被视为同一设备。",
+    "settings.bucket_probe.title": "共享访问权限",
+    "settings.bucket_probe.missing": "该共享不存在，或你的账户无权访问。若不存在，将在首次上传时创建。仍要保存吗？",
+    "settings.bucket_probe.offline": "无法连接服务器，未验证该共享。仍要保存吗？",
 }

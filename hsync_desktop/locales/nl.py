@@ -910,4 +910,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Een andere deling gebruikt deze map al.",
     "shares.error.last": "De laatste deling kan niet worden verwijderd.",
     "shares.warn.same_bucket": "Een andere p2p-deling gebruikt deze bucket al; twee p2p-delingen op dezelfde bucket gelden als hetzelfde apparaat.",
+    "settings.bucket_probe.title": "Toegang tot deling",
+    "settings.bucket_probe.missing": "De deling bestaat niet of je account heeft er geen toegang toe. Bestaat hij niet, dan wordt hij bij de eerste upload aangemaakt. Toch opslaan?",
+    "settings.bucket_probe.offline": "De server is niet bereikbaar, dus de deling is niet gecontroleerd. Toch opslaan?",
 }

@@ -30,10 +30,12 @@ from hsync_desktop.engine import (
     find_hsync_binary,
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
-    probe_server_bucket,
+    probe_server_bucket_access,
     probe_server_health,
+    server_failure_reason,
 )
 from hsync_desktop.i18n import tr
+from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
 from hsync_desktop.widgets.text import escape_mnemonics
@@ -406,25 +408,21 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
-            health = probe_server_health(base, ssl_context=ssl_context, timeout=timeout)
-            if not health.ok:
-                return _health_failure(health)
             if not check_bucket:
-                return ProbeOutcome(True, health.status)
-            result = probe_server_bucket(
+                health = probe_server_health(base, ssl_context=ssl_context, timeout=timeout)
+                if health.ok:
+                    return ProbeOutcome(True, health.status)
+                return ProbeOutcome(False, health.status, reason=server_failure_reason(health))
+            result, reason = probe_server_bucket_access(
                 base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
             )
-            if result.ok:
+            if not reason:
                 return ProbeOutcome(True, result.status)
-            if result.status == 404:
-                return ProbeOutcome(mode != WizardMode.TEAM_SHARE, 404, reason="share_missing")
-            if result.status == 400:
-                return ProbeOutcome(False, 400, reason="bad_share")
-            if result.status in (401, 403):
-                return ProbeOutcome(False, result.status, reason="unauthorized")
-            if result.status is not None and result.status >= 500:
-                return ProbeOutcome(False, result.status, reason="server_error")
-            return ProbeOutcome(False, result.status, reason="unreachable")
+            if reason == "share_missing":
+                # Backup mode creates the bucket on the first upload, so a 404 is
+                # only a blocker for a team share.
+                return ProbeOutcome(mode != WizardMode.TEAM_SHARE, result.status, reason=reason)
+            return ProbeOutcome(False, result.status, reason=reason)
 
         self._probe.start(job)
 
@@ -517,7 +515,12 @@ class ConnectionPage(WizardPage):
             self.changed.emit()
             return
         self._share_missing = outcome.reason == "share_missing"
-        self._set_status(self.server_status, "error", _probe_message(outcome.reason))
+        # Backup mode tolerates a missing bucket (the first upload creates it).
+        self._set_status(
+            self.server_status,
+            "error",
+            probe_reason_text(outcome.reason, missing_bucket_text_key="wizard.probe.404_backup"),
+        )
         if self._share_missing:
             set_field_error(self.bucket, self._rows["bucket"][2], tr("wizard.probe.404_team"))
         self.changed.emit()
@@ -644,20 +647,3 @@ class ConnectionPage(WizardPage):
     def focus_first(self) -> None:
         name = "server_url" if self._stack.currentWidget() is self._server_page else "p2p_group"
         self._rows[name][1].setFocus()
-
-
-def _health_failure(health) -> ProbeOutcome:
-    if health.status in (401, 403):
-        return ProbeOutcome(False, health.status, reason="unauthorized")
-    if health.status is not None and health.status >= 500:
-        return ProbeOutcome(False, health.status, reason="server_error")
-    return ProbeOutcome(False, health.status, reason="unreachable")
-
-
-def _probe_message(reason: str) -> str:
-    return {
-        "share_missing": tr("wizard.probe.404_backup"),
-        "unauthorized": tr("wizard.probe.401"),
-        "bad_share": tr("wizard.probe.400"),
-        "server_error": tr("wizard.probe.5xx"),
-    }.get(reason, tr("wizard.probe.unreachable"))

@@ -910,4 +910,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Outro compartilhamento já usa esta pasta.",
     "shares.error.last": "O último compartilhamento não pode ser excluído.",
     "shares.warn.same_bucket": "Outro compartilhamento p2p já usa este bucket; dois compartilhamentos p2p no mesmo bucket são o mesmo dispositivo.",
+    "settings.bucket_probe.title": "Acesso ao compartilhamento",
+    "settings.bucket_probe.missing": "O compartilhamento não existe ou sua conta não tem acesso a ele. Se não existir, será criado no primeiro envio. Salvar mesmo assim?",
+    "settings.bucket_probe.offline": "Não foi possível contatar o servidor, então o compartilhamento não foi verificado. Salvar mesmo assim?",
 }

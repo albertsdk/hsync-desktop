@@ -910,4 +910,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "別の共有がこのフォルダーを既に使用しています。",
     "shares.error.last": "最後の共有は削除できません。",
     "shares.warn.same_bucket": "別の P2P 共有がこのバケットを既に使用しています。同じバケットの 2 つの P2P 共有は同じデバイスとして扱われます。",
+    "settings.bucket_probe.title": "共有へのアクセス",
+    "settings.bucket_probe.missing": "共有が存在しないか、このアカウントにアクセス権がありません。存在しない場合は最初のアップロードで作成されます。それでも保存しますか？",
+    "settings.bucket_probe.offline": "サーバーに接続できないため、共有を確認できませんでした。それでも保存しますか？",
 }

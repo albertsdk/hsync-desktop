@@ -887,4 +887,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Un autre partage utilise déjà ce dossier.",
     "shares.error.last": "Le dernier partage ne peut pas être supprimé.",
     "shares.warn.same_bucket": "Un autre partage p2p utilise déjà ce bucket ; deux partages p2p sur le même bucket sont le même appareil.",
+    "settings.bucket_probe.title": "Accès au partage",
+    "settings.bucket_probe.missing": "Le partage n'existe pas ou votre compte n'y a pas accès. S'il n'existe pas, il sera créé au premier envoi. Enregistrer quand même ?",
+    "settings.bucket_probe.offline": "Le serveur est injoignable, le partage n'a donc pas été vérifié. Enregistrer quand même ?",
 }

@@ -887,4 +887,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Otro recurso ya usa esta carpeta.",
     "shares.error.last": "El último recurso no se puede eliminar.",
     "shares.warn.same_bucket": "Otro recurso p2p ya usa este bucket; dos recursos p2p con el mismo bucket son el mismo dispositivo.",
+    "settings.bucket_probe.title": "Acceso al recurso",
+    "settings.bucket_probe.missing": "El recurso no existe o tu cuenta no tiene acceso a él. Si no existe, se creará en la primera subida. ¿Guardar de todos modos?",
+    "settings.bucket_probe.offline": "No se pudo contactar con el servidor, así que el recurso no se verificó. ¿Guardar de todos modos?",
 }

@@ -125,6 +125,7 @@ from hsync_desktop.engine import (
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
     p2p_secret_mode,
+    probe_server_bucket_access,
     probe_server_health,
 )
 from hsync_desktop.i18n import (
@@ -135,6 +136,7 @@ from hsync_desktop.i18n import (
     tr,
 )
 from hsync_desktop.icons import icon, style_ok_cancel_button_box
+from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.settings.cli_args import (
     get_bandwidth_limits,
     save_bandwidth_limits,
@@ -235,6 +237,11 @@ class SettingsDialog(QDialog):
         self._probe = AsyncProbe(self)
         self._probe.done.connect(self._on_probe_done)
         self._probe_target: str | None = None
+        # What to do once a deferred commit (the bucket check) comes back clean:
+        # the caller's continuation, dropped when the check is vetoed.
+        self._commit_continuation: Callable[[], None] | None = None
+        # Label of the OK button while the bucket check borrows it for progress.
+        self._ok_label = ""
 
         self._load_ui()
         self.load()  # Load saved values BEFORE connecting signals
@@ -705,13 +712,15 @@ class SettingsDialog(QDialog):
         dialog = ResetStateDialog(self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+
         # Persist through the same validated path as OK, so closing as Accepted
         # never silently drops the session's edits; request the reset only once
         # the settings are really saved.
-        if not self._commit():
-            return
-        self._reset_state_folder = shared
-        self.accept()
+        def finish() -> None:
+            self._reset_state_folder = shared
+            self.accept()
+
+        self._commit_then(finish)
 
     @property
     def reset_state_folder(self) -> str:
@@ -1181,11 +1190,122 @@ class SettingsDialog(QDialog):
         button.setText(tr("common.checking"))
         self._probe.start(job)
 
+    # ── Bucket change check (deferred commit) ────────────────────────────
+
+    def _bucket_probe_job(self, normalized_server: str | None) -> Callable[[], ProbeOutcome] | None:
+        """The off-thread check for a changed bucket in server mode, or ``None``.
+
+        Renaming a share never changes the bucket (``ShareStore.rename`` keeps
+        it), so only an edit of the field reaches this. A bucket the account
+        cannot reach answers 404 exactly like a missing one, and the first upload
+        would silently create it: this check turns that into a decision.
+        """
+        if self.p2p_mode.isChecked() or not normalized_server:
+            return None
+        bucket = self.bucket.text().strip()
+        api_key = self.api_key.text().strip()
+        if not bucket or not api_key:
+            return None
+        persisted = str(
+            QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", DEFAULT_BUCKET, str)
+        )
+        if bucket == persisted.strip():
+            return None
+        base = normalized_server.rstrip("/")
+        ssl_context = self._test_connection_ssl_context()
+        timeout = float(max(5, self.http_timeout.value()))
+        return lambda: self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
+
+    @staticmethod
+    def _bucket_probe_outcome(
+        base_url: str, bucket: str, api_key: str, ssl_context: ssl.SSLContext, timeout: float
+    ) -> ProbeOutcome:
+        """Reach the server and check the bucket, from the probe thread."""
+        result, reason = probe_server_bucket_access(
+            base_url, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+        )
+        return ProbeOutcome(not reason, result.status, reason=reason)
+
+    def _start_bucket_probe(self, job: Callable[[], ProbeOutcome]) -> None:
+        """Run the bucket check, gating the OK button instead of the test ones."""
+        self._probe_target = "bucket"
+        self._set_commit_busy(True)
+        self._probe.start(job)
+
+    def _set_commit_busy(self, busy: bool) -> None:
+        """Mark the OK button busy while the bucket check runs; Cancel stays live."""
+        ok = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
+        if ok is None:
+            return
+        if busy:
+            self._ok_label = ok.text()
+            ok.setEnabled(False)
+            ok.setText(tr("common.checking"))
+            return
+        ok.setEnabled(True)
+        if self._ok_label:
+            ok.setText(self._ok_label)
+            self._ok_label = ""
+
+    def _on_bucket_probe_done(self, outcome: ProbeOutcome) -> None:
+        """Finish, confirm or veto a save whose new bucket needed the server."""
+        self._set_commit_busy(False)
+        if outcome.ok:
+            self._finish_deferred_commit()
+            return
+        if outcome.reason == "share_missing":
+            # 404 is ambiguous by design: missing *or* no membership. Saving is
+            # allowed because a missing bucket is created by the first upload,
+            # but a typo would create an empty one, so the user decides.
+            if confirm(
+                self,
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.missing"),
+                with_icons=True,
+            ):
+                self._finish_deferred_commit()
+            else:
+                self._abandon_deferred_commit()
+            return
+        if outcome.reason in ("unreachable", "server_error"):
+            # Offline work must stay possible: the bucket may be fine.
+            if confirm(
+                self,
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.offline"),
+                with_icons=True,
+            ):
+                self._finish_deferred_commit()
+            else:
+                self._abandon_deferred_commit()
+            return
+        # A rejected key or a malformed name: nothing is saved.
+        QMessageBox.warning(self, tr("settings.title"), probe_reason_text(outcome.reason))
+        self._abandon_deferred_commit()
+
+    def _finish_deferred_commit(self) -> None:
+        """Persist the already-validated settings and run the caller's continuation."""
+        continuation = self._commit_continuation
+        self._commit_continuation = None
+        self.save()
+        if continuation is not None:
+            continuation()
+
+    def _abandon_deferred_commit(self) -> None:
+        """Drop a deferred save and put the cursor back on the bucket field."""
+        self._commit_continuation = None
+        self._set_commit_busy(False)
+        self.bucket.setFocus()
+        self.bucket.selectAll()
+
     @Slot(object)
     def _on_probe_done(self, outcome: object) -> None:
         """Render the probe result; the event loop stayed live meanwhile."""
         target = self._end_probe()
         if target is None or not isinstance(outcome, ProbeOutcome):
+            return
+        if target == "bucket":
+            self._on_bucket_probe_done(outcome)
             return
         if target == "rendezvous":
             # Keyed on the outcome, not on the text: the multi-server report is
@@ -1251,7 +1371,8 @@ class SettingsDialog(QDialog):
         )
 
     def done(self, result: int) -> None:
-        """Drop a pending probe result when the dialog closes."""
+        """Drop a pending probe (and its continuation) when the dialog closes."""
+        self._commit_continuation = None
         self._end_probe()
         super().done(result)
 
@@ -1308,9 +1429,20 @@ class SettingsDialog(QDialog):
 
     def _on_accept(self) -> None:
         """Validate and persist the dialog, then close it as Accepted."""
-        if not self._commit():
-            return  # Go back to dialog
-        self.accept()
+        self._commit_then(self.accept)
+
+    def _commit_then(self, on_done: Callable[[], None]) -> None:
+        """Commit, or run *on_done* once the new bucket's access is confirmed.
+
+        ``_commit`` can defer the save: a changed bucket in server mode is
+        checked against the server first, and the dialog stays open meanwhile.
+        """
+        if self._probe_target == "bucket":
+            return  # a check is already in flight
+        self._commit_continuation = on_done
+        if self._commit():
+            self._commit_continuation = None
+            on_done()
 
     def _effective_p2p_key_mode(self) -> str:
         """Persist the input mode the current field value needs.
@@ -1396,6 +1528,14 @@ class SettingsDialog(QDialog):
             and self._bucket_in_use(self.bucket.text().strip())
         ):
             QMessageBox.warning(self, tr("settings.title"), tr("shares.warn.same_bucket"))
+        # In server mode a new bucket name is checked against the server first: a
+        # 404 (missing **or** no access) would otherwise surface only on the first
+        # sync, after the settings were saved (and the first upload would silently
+        # create an empty bucket under a typo).
+        probe_job = self._bucket_probe_job(normalized_server)
+        if probe_job is not None:
+            self._start_bucket_probe(probe_job)
+            return False  # nothing is persisted: the probe's answer decides
         self.save()
         return True
 

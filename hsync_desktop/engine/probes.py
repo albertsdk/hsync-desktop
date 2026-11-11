@@ -19,10 +19,20 @@ from urllib.request import Request, urlopen
 
 from hsync_common.protocol.rest import REST_BUCKET_PATH_TEMPLATE, REST_HEALTH_PATH
 
-__all__ = ["ServerProbeResult", "probe_server_bucket", "probe_server_health"]
+__all__ = [
+    "ServerProbeResult",
+    "probe_server_bucket",
+    "probe_server_bucket_access",
+    "probe_server_health",
+    "server_failure_reason",
+]
 
 # Machine reason codes; the UI maps them to localized messages (never shown raw).
 REASON_UNREACHABLE = "unreachable"
+REASON_SHARE_MISSING = "share_missing"
+REASON_BAD_SHARE = "bad_share"
+REASON_UNAUTHORIZED = "unauthorized"
+REASON_SERVER_ERROR = "server_error"
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,3 +94,50 @@ def probe_server_bucket(
     """
     path = REST_BUCKET_PATH_TEMPLATE.replace("{bucket}", quote(bucket, safe=""))
     return _probe(f"{base_url.rstrip('/')}{path}", api_key, ssl_context, timeout)
+
+
+def server_failure_reason(result: ServerProbeResult) -> str:
+    """Reason code for a failed probe.
+
+    Per-status, so a rejected key (401/403) is never reported as an unreachable
+    server and a server-side fault (5xx) never as a bad name.
+    """
+    if result.status in (401, 403):
+        return REASON_UNAUTHORIZED
+    if result.status is not None and result.status >= 500:
+        return REASON_SERVER_ERROR
+    return REASON_UNREACHABLE
+
+
+def probe_server_bucket_access(
+    base_url: str,
+    bucket: str,
+    api_key: str,
+    *,
+    ssl_context: ssl.SSLContext,
+    timeout: float = 5.0,
+) -> tuple[ServerProbeResult, str]:
+    """Reach the server, then check that the account may use *bucket*.
+
+    Health comes first: a dead server must not be reported as a missing share.
+    The reason code is empty on HTTP 200; otherwise one of ``unreachable``,
+    ``unauthorized``, ``server_error``, ``bad_share`` or ``share_missing``
+    (404 — the bucket does not exist **or** the account is not a member; the
+    server deliberately does not tell the two apart).
+
+    Shared by the wizard's Test connection and the Settings dialog's
+    bucket-change check so both read a server answer identically.
+    """
+    health = probe_server_health(base_url, ssl_context=ssl_context, timeout=timeout)
+    if not health.ok:
+        return health, server_failure_reason(health)
+    result = probe_server_bucket(
+        base_url, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+    )
+    if result.ok:
+        return result, ""
+    if result.status == 404:
+        return result, REASON_SHARE_MISSING
+    if result.status == 400:
+        return result, REASON_BAD_SHARE
+    return result, server_failure_reason(result)

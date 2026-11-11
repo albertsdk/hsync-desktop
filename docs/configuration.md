@@ -140,6 +140,16 @@ key on every device works, one key per device keeps revoking and rotating per
 device — see [Roles and Permissions → Sharing one bucket between
 devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
 
+Changing the **share name** in this tab keeps your API key: the key identifies
+your account, the share name only says which bucket it works on. The app checks
+the new name against the server before saving, and asks before proceeding when
+the server answers that the share does not exist or that your account has no
+access to it. A share that does not exist yet is created by the first upload — so
+confirm only when the name is really the one you mean, because a typo would
+create an empty share with that name. To use a share owned by another account,
+ask its owner (or the server admin) to add you as a member; with no membership
+the server answers *not found* for a share that exists.
+
 ## General
 
 <img src="assets/screens/08-settings-general.png" alt="Settings, General tab" width="640">

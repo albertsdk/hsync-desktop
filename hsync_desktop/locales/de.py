@@ -887,4 +887,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Eine andere Freigabe verwendet diesen Ordner bereits.",
     "shares.error.last": "Die letzte Freigabe kann nicht gelöscht werden.",
     "shares.warn.same_bucket": "Eine andere p2p-Freigabe verwendet diesen Bucket bereits; zwei p2p-Freigaben mit demselben Bucket gelten als dasselbe Gerät.",
+    "settings.bucket_probe.title": "Zugriff auf die Freigabe",
+    "settings.bucket_probe.missing": "Die Freigabe existiert nicht oder dein Konto hat keinen Zugriff darauf. Existiert sie nicht, wird sie beim ersten Upload erstellt. Trotzdem speichern?",
+    "settings.bucket_probe.offline": "Der Server ist nicht erreichbar, die Freigabe wurde also nicht geprüft. Trotzdem speichern?",
 }

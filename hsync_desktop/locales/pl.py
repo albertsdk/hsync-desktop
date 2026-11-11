@@ -910,4 +910,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Inny udział już używa tego folderu.",
     "shares.error.last": "Nie można usunąć ostatniego udziału.",
     "shares.warn.same_bucket": "Inny udział p2p już używa tego bucketu; dwa udziały p2p na tym samym bucketcie to to samo urządzenie.",
+    "settings.bucket_probe.title": "Dostęp do udziału",
+    "settings.bucket_probe.missing": "Udział nie istnieje lub twoje konto nie ma do niego dostępu. Jeśli go nie ma, zostanie utworzony przy pierwszym wysłaniu. Zapisać mimo to?",
+    "settings.bucket_probe.offline": "Nie można połączyć się z serwerem, więc udział nie został zweryfikowany. Zapisać mimo to?",
 }

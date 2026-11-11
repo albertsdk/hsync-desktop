@@ -887,4 +887,7 @@ translations: dict[str, str] = {
     "shares.error.folder_duplicate": "Un'altra condivisione usa già questa cartella.",
     "shares.error.last": "L'ultima condivisione non può essere eliminata.",
     "shares.warn.same_bucket": "Un'altra condivisione p2p usa già questo bucket; due condivisioni p2p sullo stesso bucket sono lo stesso dispositivo.",
+    "settings.bucket_probe.title": "Accesso alla condivisione",
+    "settings.bucket_probe.missing": "La condivisione non esiste o il tuo account non vi ha accesso. Se non esiste verrà creata al primo caricamento. Salvare comunque?",
+    "settings.bucket_probe.offline": "Il server non è raggiungibile, quindi la condivisione non è stata verificata. Salvare comunque?",
 }

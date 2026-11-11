@@ -44,7 +44,9 @@ from hsync_desktop.engine.endpoints import (
 from hsync_desktop.engine.probes import (
     ServerProbeResult,
     probe_server_bucket,
+    probe_server_bucket_access,
     probe_server_health,
+    server_failure_reason,
 )
 from hsync_desktop.engine.process import (
     HsyncEngine,
@@ -85,7 +87,9 @@ __all__ = [
     "p2p_secret_mode",
     "p2p_secret_option",
     "probe_server_bucket",
+    "probe_server_bucket_access",
     "probe_server_health",
+    "server_failure_reason",
     "remove_rendezvous_trust",
     "remove_peer_pin",
     "remove_server_trust",
