@@ -76,6 +76,17 @@ class FileDetailPanel:
         self._lbl_last_synced_label.setText(tr("detail.last_synced"))
         self._lbl_elements_label.setText(tr("detail.elements"))
 
+    def refresh_fonts(self) -> None:
+        """Keep the panel title bold after a global font reset.
+
+        ``fonts.reset_widget_fonts`` clears every widget font (the stylesheet
+        pins them at polish time), which also dropped the title's bold declared
+        in the ``.ui``; re-apply it after that reset.
+        """
+        font = self._lbl_title.font()
+        font.setBold(True)
+        self._lbl_title.setFont(font)
+
     def set_base_directory(self, directory: str) -> None:
         """Set the base directory for resolving absolute file paths."""
         self._base_directory = directory

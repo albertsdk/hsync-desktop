@@ -943,6 +943,7 @@ class FilePanel(QWidget):
     def refresh_fonts(self) -> None:
         """Re-apply the table fonts after a global font-size change."""
         self._table.refresh_fonts()
+        self._detail.refresh_fonts()
 
     def mark_verified(self) -> None:
         """Record that the rows were compared with the remote just now."""

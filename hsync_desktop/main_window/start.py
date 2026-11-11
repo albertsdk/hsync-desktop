@@ -270,8 +270,9 @@ class StartMixin:
                 self._remote_base_tip = tr("label.remote_server_tip")
                 self._remote_icon.setToolTip(self._remote_base_tip)
                 self._remote_label.setToolTip(self._remote_base_tip)
-                # In server mode, group label stays in bottom bar
-                self._group_label.show()
+                # Server Mode has no p2p group, so keep the bottom-bar group
+                # label hidden instead of leaving its "–" placeholder visible.
+                self._group_label.hide()
             self._remote_icon.show()
             self._remote_label.show()
             self._render_connection_badge()

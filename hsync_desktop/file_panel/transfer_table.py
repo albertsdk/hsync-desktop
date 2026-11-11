@@ -218,6 +218,10 @@ _DELETE_DISPLAY_GRACE_MS = 1500
 # How long the deleted marker stays visible before the row is removed.
 _DELETED_MARKER_MS = 1500
 
+# The rename dialog widens the filename field beyond Qt's content-hugging
+# default so a long name stays readable while editing it.
+_RENAME_DIALOG_MIN_WIDTH = 440
+
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
@@ -2032,6 +2036,7 @@ class FileTransferTable(QTableView):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(tr("ctx.rename_title"))
+        dlg.setMinimumWidth(_RENAME_DIALOG_MIN_WIDTH)
         form = QFormLayout(dlg)
         line_edit = QLineEdit(old_name)
         form.addRow(tr("ctx.rename_label"), line_edit)

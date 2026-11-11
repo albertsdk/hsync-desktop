@@ -1752,6 +1752,30 @@ class TestContextMenuGating:
         table._ctx_copy_to(transfer)
         table._ctx_trash(transfer)
 
+    def test_the_rename_dialog_is_wide_enough_to_read_the_name(self, qtbot, monkeypatch):
+        from PySide6.QtWidgets import QDialog
+
+        table = self._table(qtbot)
+        transfer = FileTransfer(
+            filepath="a-long-file-name-that-needs-room-to-edit.bin",
+            direction="—",
+            size=1,
+            status=TransferStatus.LOCAL,
+        )
+        table.add_transfer(transfer)
+
+        widths: list[int] = []
+
+        def capture(dlg):
+            widths.append(dlg.minimumWidth())
+            return QDialog.DialogCode.Rejected
+
+        monkeypatch.setattr(QDialog, "exec", capture)
+        table._ctx_rename(transfer)
+
+        assert len(widths) == 1
+        assert widths[0] >= 400
+
     def test_rename_onto_a_busy_destination_is_blocked(self, qtbot, monkeypatch):
         """The selected row may rest while the destination is transferring."""
         table = self._table(qtbot)

@@ -767,6 +767,33 @@ class TestRoleVisibility:
         assert window._role_icon.isHidden()
 
 
+class TestBottomBarGroupLabel:
+    """The p2p group is the header remote label; the bottom bar never shows it."""
+
+    def test_hidden_in_server_mode(self, window, monkeypatch, tmp_path):
+        """Server Mode has no p2p group: never surface the "–" placeholder."""
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", False)
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+
+        window._update_path_display()
+
+        assert window._group_label.isHidden()
+
+    def test_hidden_in_p2p_mode(self, window, monkeypatch, tmp_path):
+        """In p2p the group is already the header remote label."""
+        s = _settings(tmp_path)
+        s.setValue("p2p/enabled", True)
+        s.setValue("p2p/group", "team")
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: s)
+        window._local_path = str(tmp_path)
+
+        window._update_path_display()
+
+        assert window._group_label.isHidden()
+
+
 class TestFilePanelConnectionState:
     """The file table grays "Local" rows only while a link is active."""
 
@@ -1182,6 +1209,10 @@ class TestLinkStyling:
         row.last_synced_at = time.time()
         detail.show_transfer(row)
         assert detail._lbl_last_synced.text() != "—"
+
+    def test_detail_panel_can_be_widened(self, window):
+        """The Properties pane must grow past its old 300 px ceiling."""
+        assert window._file_panel._detail._frame.maximumWidth() >= 420
 
     def test_synced_verdict_stamps_last_synced(self, window):
         table = window._file_panel._table

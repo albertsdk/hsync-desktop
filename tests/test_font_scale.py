@@ -92,3 +92,13 @@ class TestLiveFontScaleChange:
             fonts.log_monospace_font().pointSizeF()
         )
         assert window.menuBar().font().pointSizeF() == pytest.approx(fonts.ui_font().pointSizeF())
+
+    def test_the_detail_title_stays_bold(self, window, monkeypatch, app_fonts):
+        """The font reset clears the .ui bold; the panel must re-apply it."""
+        import hsync_desktop.main_window.start as start_mod
+
+        monkeypatch.setattr(start_mod, "get_saved_font_scale", lambda: FONT_SCALE_COMPACT)
+
+        window._apply_settings_changes()
+
+        assert window._file_panel._detail._lbl_title.font().bold()
