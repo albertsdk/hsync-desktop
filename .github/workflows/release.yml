@@ -469,7 +469,7 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
-          sudo snap install snapcraft --classic --channel=8.x/stable
+          sudo snap install snapcraft --classic --channel=9.x/stable
           snapcraft upload snaps/*.snap --release edge
 
   release:
