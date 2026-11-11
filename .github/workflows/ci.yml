@@ -40,9 +40,10 @@ jobs:
           token: ${{ secrets.HSYNC_COMMON_PAT }}
 
       - name: Install Qt runtime libraries
-        # The hosted mirror can stop resolving for minutes; the script retries.
+        # The checkout lives under hsync-desktop/ and the hosted mirror can stop
+        # resolving for minutes; the script retries.
         run: >
-          bash .github/scripts/apt-install.sh
+          bash hsync-desktop/.github/scripts/apt-install.sh
           libegl1 libgl1 libxkbcommon0 libdbus-1-3
 
       - name: Set up Python
