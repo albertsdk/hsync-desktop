@@ -263,3 +263,58 @@ class TestReviewFixes:
         window._delete_share(beta.id, False)
 
         assert beta.id not in window._log_buffers
+
+
+class TestSelectorChrome:
+    """The header selector draws one chevron, from the app's own styling."""
+
+    def test_the_selector_keeps_a_single_arrow(self, window):
+        from PySide6.QtCore import Qt
+
+        from hsync_desktop.themes import _dark_qss, _light_qss
+
+        # The arrow comes from the arrowType; the style must not paint its own
+        # menu indicator as well, or some styles show two chevrons.
+        assert window._shares_button.objectName() == "sharesButton"
+        assert window._shares_button.arrowType() == Qt.ArrowType.DownArrow
+        for qss in (_light_qss(), _dark_qss()):
+            assert "QToolButton#sharesButton::menu-indicator" in qss
+
+
+class TestManageDialogChrome:
+    """The manager dialog labels its actions with app icons, not Qt's defaults."""
+
+    def test_the_action_buttons_carry_icons_and_no_ellipsis(self, window, tmp_path, qtbot):
+        from hsync_desktop.shares.dialog import SharesDialog
+
+        _configure(window, tmp_path, bucket="team")
+        dialog = SharesDialog(window, window)
+        qtbot.addWidget(dialog)
+
+        expected = {
+            dialog._btn_new: tr("shares.manage.new"),
+            dialog._btn_duplicate: tr("shares.manage.duplicate"),
+            dialog._btn_rename: tr("shares.manage.rename"),
+            dialog._btn_delete: tr("shares.manage.delete"),
+        }
+        for button, label in expected.items():
+            assert button.text() == label
+            assert "…" not in button.text()
+            assert not button.icon().isNull()
+
+    def test_close_is_localized_and_iconed(self, window, tmp_path, qtbot):
+        from PySide6.QtWidgets import QDialogButtonBox
+
+        from hsync_desktop.shares.dialog import SharesDialog
+
+        _configure(window, tmp_path, bucket="team")
+        dialog = SharesDialog(window, window)
+        qtbot.addWidget(dialog)
+
+        box = dialog.findChild(QDialogButtonBox)
+        assert box is not None
+        buttons = box.buttons()
+        assert len(buttons) == 1
+        assert buttons[0].text() == tr("action.close")
+        assert not buttons[0].icon().isNull()
+        assert box.button(QDialogButtonBox.StandardButton.Close) is None

@@ -16,7 +16,6 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import (
     QFileDialog,
-    QInputDialog,
     QMenu,
     QMessageBox,
     QToolButton,
@@ -27,6 +26,7 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 from hsync_desktop.shares import Share, ShareStore
 from hsync_desktop.widgets.dialogs import confirm
+from hsync_desktop.widgets.name_dialog import ask_name
 
 _DIRECTION_KEYS = {
     "bidirectional": "menu.sync.direction.bidirectional",
@@ -295,8 +295,13 @@ class SharesMixin:
     # ── header actions ─────────────────────────────────────────────────────
     def _on_new_share(self) -> None:
         """Create a share from the active one, then open Settings to refine it."""
-        name, ok = QInputDialog.getText(self, tr("shares.new.title"), tr("shares.new.name"))
-        if not ok or not name.strip():
+        name = ask_name(
+            self,
+            title=tr("shares.new.title"),
+            label=tr("shares.new.name"),
+            accept_text_key="shares.manage.new",
+        )
+        if not name:
             return
         folder = QFileDialog.getExistingDirectory(self, tr("shares.new.folder"))
         if not folder:

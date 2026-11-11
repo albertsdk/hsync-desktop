@@ -11,21 +11,20 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
-    QInputDialog,
     QListWidget,
     QListWidgetItem,
-    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.widgets.dialogs import build_destructive_confirm_box
+from hsync_desktop.widgets.name_dialog import ask_name
 
 
 class SharesDialog(QDialog):
@@ -45,15 +44,20 @@ class SharesDialog(QDialog):
         layout.addWidget(self._list)
 
         row = QHBoxLayout()
-        self._btn_new = QPushButton(tr("shares.manage.new"), self)
-        self._btn_duplicate = QPushButton(tr("shares.manage.duplicate"), self)
-        self._btn_rename = QPushButton(tr("shares.manage.rename"), self)
-        self._btn_delete = QPushButton(tr("shares.manage.delete"), self)
+        # The labels carry no ellipsis unlike the header menu: a row of four
+        # trailing "…" reads as noise, and the icon already says the click opens
+        # a dialog (the HIG reserves the ellipsis for menus).
+        self._btn_new = QPushButton(icon("list-add"), tr("shares.manage.new"), self)
+        self._btn_duplicate = QPushButton(icon("edit-copy"), tr("shares.manage.duplicate"), self)
+        self._btn_rename = QPushButton(icon("edit-rename"), tr("shares.manage.rename"), self)
+        self._btn_delete = QPushButton(icon("edit-delete"), tr("shares.manage.delete"), self)
         for button in (self._btn_new, self._btn_duplicate, self._btn_rename, self._btn_delete):
             row.addWidget(button)
         layout.addLayout(row)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
+        buttons = QDialogButtonBox(self)
+        close = buttons.addButton(tr("action.close"), QDialogButtonBox.ButtonRole.RejectRole)
+        close.setIcon(icon("window-close"))
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
@@ -94,9 +98,14 @@ class SharesDialog(QDialog):
             self._host._switch_to_share(share_id)
             self._refresh()
 
-    def _ask_name_and_folder(self, title_key: str) -> tuple[str, str] | None:
-        name, ok = QInputDialog.getText(self, tr(title_key), tr("shares.new.name"))
-        if not ok or not name.strip():
+    def _ask_name_and_folder(self, title_key: str, accept_key: str) -> tuple[str, str] | None:
+        name = ask_name(
+            self,
+            title=tr(title_key),
+            label=tr("shares.new.name"),
+            accept_text_key=accept_key,
+        )
+        if not name:
             return None
         folder = QFileDialog.getExistingDirectory(self, tr("shares.new.folder"))
         if not folder:
@@ -104,7 +113,7 @@ class SharesDialog(QDialog):
         return name, folder
 
     def _on_new(self) -> None:
-        answer = self._ask_name_and_folder("shares.new.title")
+        answer = self._ask_name_and_folder("shares.new.title", "shares.manage.new")
         if answer and self._host._create_share(*answer):
             self._refresh()
 
@@ -112,7 +121,7 @@ class SharesDialog(QDialog):
         share_id = self._current_id()
         if not share_id:
             return
-        answer = self._ask_name_and_folder("shares.duplicate.title")
+        answer = self._ask_name_and_folder("shares.duplicate.title", "shares.manage.duplicate")
         if answer and self._host._duplicate_share(share_id, *answer):
             self._refresh()
 
@@ -120,28 +129,29 @@ class SharesDialog(QDialog):
         share_id = self._current_id()
         if not share_id:
             return
-        name, ok = QInputDialog.getText(
-            self, tr("shares.rename.title"), tr("shares.new.name"), text=self._current_name()
+        name = ask_name(
+            self,
+            title=tr("shares.rename.title"),
+            label=tr("shares.new.name"),
+            accept_text_key="shares.manage.rename",
+            initial=self._current_name(),
         )
-        if ok and self._host._rename_share(share_id, name):
+        if name and self._host._rename_share(share_id, name):
             self._refresh()
 
     def _on_delete(self) -> None:
         share_id = self._current_id()
         if not share_id:
             return
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle(tr("shares.delete.title"))
-        box.setText(tr("shares.delete.message").format(name=self._current_name()))
-        clear = QCheckBox(tr("shares.delete.clear_state"), box)
-        clear.setChecked(True)
-        box.setCheckBox(clear)
-        delete = box.addButton(tr("shares.manage.delete"), QMessageBox.ButtonRole.DestructiveRole)
-        cancel = box.addButton(QMessageBox.StandardButton.Cancel)
-        box.setDefaultButton(cancel)
+        box, delete, clear = build_destructive_confirm_box(
+            self,
+            title=tr("shares.delete.title"),
+            text=tr("shares.delete.message").format(name=self._current_name()),
+            accept_text=tr("shares.manage.delete"),
+            checkbox_text=tr("shares.delete.clear_state"),
+        )
         box.exec()
         if box.clickedButton() is not delete:
             return
-        if self._host._delete_share(share_id, clear.isChecked()):
+        if self._host._delete_share(share_id, bool(clear and clear.isChecked())):
             self._refresh()

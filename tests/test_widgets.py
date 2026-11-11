@@ -169,3 +169,56 @@ class TestOptoutConfirmBox:
         assert box.defaultButton() is no
         assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
         assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+
+class TestDestructiveConfirmBox:
+    """A destructive confirm names the verb, localizes Cancel and stays safe."""
+
+    def _box(self, qtbot):
+        from hsync_desktop.widgets.dialogs import build_destructive_confirm_box
+
+        box, accept, checkbox = build_destructive_confirm_box(
+            None,
+            title="Delete share",
+            text="Delete the share?",
+            accept_text="Delete",
+            checkbox_text="Also clear its local sync state",
+        )
+        qtbot.addWidget(box)
+        return box, accept, checkbox
+
+    def test_the_accept_button_repeats_the_verb(self, qtbot):
+        from hsync_desktop.icons import icon
+
+        _box, accept, _checkbox = self._box(qtbot)
+
+        assert accept.text() == "Delete"
+        assert accept.icon().cacheKey() == icon("edit-delete").cacheKey()
+
+    def test_cancel_is_localized_and_is_the_default(self, qtbot):
+        from hsync_desktop.i18n import tr
+        from hsync_desktop.icons import icon
+
+        box, _accept, _checkbox = self._box(qtbot)
+        cancel = box.defaultButton()
+
+        assert cancel is not None
+        assert cancel.text() == tr("action.cancel")
+        assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+    def test_the_optout_checkbox_starts_checked(self, qtbot):
+        box, _accept, checkbox = self._box(qtbot)
+
+        assert box.checkBox() is checkbox
+        assert checkbox is not None and checkbox.isChecked() is True
+
+    def test_without_a_checkbox_the_box_has_none(self, qtbot):
+        from hsync_desktop.widgets.dialogs import build_destructive_confirm_box
+
+        box, _accept, checkbox = build_destructive_confirm_box(
+            None, title="t", text="x", accept_text="Delete"
+        )
+        qtbot.addWidget(box)
+
+        assert checkbox is None
+        assert box.checkBox() is None

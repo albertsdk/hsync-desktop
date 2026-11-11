@@ -14,17 +14,23 @@ always the user's explicit act, and only the caller decides what an
 acknowledgement covers.
 
 Consumers: ``main_window/{actions,events,lifecycle,start,trust,ui,window}``,
-``settings/dialog``, ``wizard/dialog``, ``trusted_keys``.
+``settings/dialog``, ``wizard/dialog``, ``trusted_keys``, ``shares/dialog``
+(destructive share deletion).
 """
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QCheckBox, QMessageBox, QWidget
+from PySide6.QtWidgets import QCheckBox, QMessageBox, QPushButton, QWidget
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 
-__all__ = ["build_confirm_box", "build_optout_confirm_box", "confirm"]
+__all__ = [
+    "build_confirm_box",
+    "build_destructive_confirm_box",
+    "build_optout_confirm_box",
+    "confirm",
+]
 
 
 def build_confirm_box(
@@ -105,3 +111,37 @@ def confirm(
         with_icons=with_icons,
     )
     return box.exec() == QMessageBox.StandardButton.Yes
+
+
+def build_destructive_confirm_box(
+    parent: QWidget | None,
+    *,
+    title: str,
+    text: str,
+    accept_text: str,
+    accept_icon: str = "edit-delete",
+    checkbox_text: str | None = None,
+) -> tuple[QMessageBox, QPushButton, QCheckBox | None]:
+    """Build a localized confirm box whose accept button names the action.
+
+    A destructive action does not answer Yes/No: the accept button repeats the
+    verb ("Delete"), so the click stays unambiguous even when the message is long.
+    Cancel keeps the app label and icon and is the default answer, so a stray
+    Enter never destroys anything. Returns the box, the accept button (compare it
+    with ``clickedButton()``) and the opt-out checkbox when one was requested.
+    """
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Warning)
+    box.setWindowTitle(title)
+    box.setText(text)
+    accept = box.addButton(accept_text, QMessageBox.ButtonRole.DestructiveRole)
+    accept.setIcon(icon(accept_icon))
+    cancel = box.addButton(tr("action.cancel"), QMessageBox.ButtonRole.RejectRole)
+    cancel.setIcon(icon("dialog-cancel"))
+    box.setDefaultButton(cancel)
+    checkbox: QCheckBox | None = None
+    if checkbox_text is not None:
+        checkbox = QCheckBox(checkbox_text)
+        checkbox.setChecked(True)
+        box.setCheckBox(checkbox)
+    return box, accept, checkbox

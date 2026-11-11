@@ -14,8 +14,9 @@ from __future__ import annotations
 import locale
 import os
 from collections.abc import Callable
+from pathlib import Path
 
-from PySide6.QtCore import QLocale, QSettings
+from PySide6.QtCore import QCoreApplication, QLibraryInfo, QLocale, QSettings, QTranslator
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 
@@ -149,6 +150,68 @@ def _detect_system_language() -> str:
     return P2PG_EN
 
 
+# Qt's own catalogues name Brazilian Portuguese and Simplified Chinese after the
+# full locale; every other supported language matches the app code.
+_QT_CATALOGUE = {P2PG_PT: "pt_BR", P2PG_ZH: "zh_CN"}
+
+# Installed Qt catalogue. Qt keeps no reference to it, so dropping it here would
+# let the garbage collector destroy the translations mid-session.
+_qt_translator: QTranslator | None = None
+
+
+def _qt_translations_dir() -> Path | None:
+    """Directory holding Qt's ``qtbase_*.qm`` catalogues, or ``None``.
+
+    ``QLibraryInfo`` reports the path of the Qt this process loaded, which a
+    frozen build resolves inside its bundle; the PySide6 package directory and
+    the distro path are fallbacks for a platform that reports none.
+    """
+    candidates: list[Path] = []
+    try:
+        candidates.append(Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)))
+    except Exception:
+        pass
+    try:
+        import PySide6
+
+        candidates.append(Path(PySide6.__file__).parent / "Qt" / "translations")
+    except Exception:
+        pass
+    candidates.append(Path("/usr/share/qt6/translations"))
+    for candidate in candidates:
+        if (candidate / "qtbase_en.qm").is_file():
+            return candidate
+    return None
+
+
+def _install_qt_translator(lang: str) -> None:
+    """Load Qt's own translations so standard dialog buttons follow the language.
+
+    ``OK``/``Cancel``/``Close``/``Yes``/``No`` come from Qt's catalogues, not from
+    this module's dictionaries: without the translator every standard button of
+    every ``QMessageBox``/``QDialogButtonBox`` stayed English in all languages.
+    English needs no catalogue, and a missing one leaves the Qt strings as-is.
+    """
+    global _qt_translator
+    app = QCoreApplication.instance()
+    if app is None:
+        return
+    if _qt_translator is not None:
+        app.removeTranslator(_qt_translator)
+        _qt_translator = None
+    if lang == P2PG_EN:
+        return
+    directory = _qt_translations_dir()
+    if directory is None:
+        return
+    catalogue = _QT_CATALOGUE.get(lang, lang)
+    translator = QTranslator(app)
+    if not translator.load(f"qtbase_{catalogue}", str(directory)):
+        return
+    app.installTranslator(translator)
+    _qt_translator = translator
+
+
 def init_language() -> None:
     """Initialize the language from the saved preference or the system locale.
 
@@ -163,6 +226,7 @@ def init_language() -> None:
         _current_lang = saved
     else:
         _current_lang = _detect_system_language()
+    _install_qt_translator(_current_lang)
 
 
 def set_language(lang: str) -> None:
@@ -180,6 +244,7 @@ def set_language(lang: str) -> None:
     if resolved == _current_lang:
         return
     _current_lang = resolved
+    _install_qt_translator(_current_lang)
     for callback in _language_change_callbacks:
         try:
             callback()

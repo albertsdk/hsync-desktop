@@ -46,12 +46,8 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
-    QFormLayout,
     QHeaderView,
-    QLineEdit,
     QMenu,
     QMessageBox,
     QTableView,
@@ -90,6 +86,7 @@ from hsync_desktop.file_panel.utils import (
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
+from hsync_desktop.widgets.name_dialog import ask_name
 
 # Folder aggregation status priority (lower wins) and the matching i18n keys.
 _STATUS_PRIORITY = {
@@ -217,10 +214,6 @@ _STATE_SAVE_DELAY_MS = 300
 _DELETE_DISPLAY_GRACE_MS = 1500
 # How long the deleted marker stays visible before the row is removed.
 _DELETED_MARKER_MS = 1500
-
-# The rename dialog widens the filename field beyond Qt's content-hugging
-# default so a long name stays readable while editing it.
-_RENAME_DIALOG_MIN_WIDTH = 440
 
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
@@ -2033,29 +2026,16 @@ class FileTransferTable(QTableView):
         if self._entry_is_busy(transfer):
             return
         old_name = transfer.filename
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(tr("ctx.rename_title"))
-        dlg.setMinimumWidth(_RENAME_DIALOG_MIN_WIDTH)
-        form = QFormLayout(dlg)
-        line_edit = QLineEdit(old_name)
-        form.addRow(tr("ctx.rename_label"), line_edit)
-        buttons = QDialogButtonBox()
-        rename_btn = buttons.addButton(tr("ctx.rename_btn"), QDialogButtonBox.ButtonRole.AcceptRole)
-        buttons.addButton(tr("action.cancel"), QDialogButtonBox.ButtonRole.RejectRole)
-        buttons.rejected.connect(dlg.reject)
-        rename_btn.clicked.connect(dlg.accept)
-        form.addRow(buttons)
-
         dot_idx = old_name.rfind(".")
-        if dot_idx > 0:
-            line_edit.setSelection(0, dot_idx)
-        else:
-            line_edit.selectAll()
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-        new_name = line_edit.text().strip()
+        new_name = ask_name(
+            self,
+            title=tr("ctx.rename_title"),
+            label=tr("ctx.rename_label"),
+            accept_text_key="ctx.rename_btn",
+            initial=old_name,
+            # Select the stem, not the extension, so typing keeps the suffix.
+            selection=(0, dot_idx) if dot_idx > 0 else None,
+        )
         if not new_name or new_name == old_name:
             return
         self._apply_rename(transfer, new_name)

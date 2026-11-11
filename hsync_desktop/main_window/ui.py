@@ -256,6 +256,10 @@ class UiBuildMixin:
         # the name or the chevron opens the shares menu (see SharesMixin); the
         # folder icon opens the share's folder (see LifecycleMixin.eventFilter).
         self._shares_button = QToolButton(self.centralWidget())
+        # The style also paints its own menu indicator for a button that has a
+        # menu, so an explicit arrow type drew two chevrons under some styles;
+        # themes.py hides that indicator and this arrow is the only one.
+        self._shares_button.setObjectName("sharesButton")
         self._shares_button.setAutoRaise(True)
         self._shares_button.setArrowType(Qt.ArrowType.DownArrow)
         self._shares_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)

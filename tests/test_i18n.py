@@ -4,6 +4,7 @@
 """Tests for hsync_desktop.i18n module."""
 
 import pytest
+from PySide6.QtWidgets import QDialogButtonBox
 
 import hsync_desktop.i18n as i18n
 
@@ -411,3 +412,40 @@ class TestAutoLanguage:
 
         assert i18n.get_language() == "fr"
         assert data["appearance/language"] == "fr"
+
+
+class TestQtTranslator:
+    """Qt's own catalogues localize the standard dialog buttons.
+
+    The app's dictionaries never reach ``OK``/``Cancel``/``Close``/``Yes``/``No``:
+    Qt renders those from ``qtbase_<locale>.qm``, so the app installs a
+    ``QTranslator`` alongside its own language switch.
+    """
+
+    def test_the_catalogue_directory_holds_the_supported_languages(self):
+        directory = i18n._qt_translations_dir()
+        assert directory is not None
+        for catalogue in ("it", "de", "fr", "es", "ja", "nl", "pl", "pt_BR", "ru", "zh_CN"):
+            assert (directory / f"qtbase_{catalogue}.qm").is_file(), catalogue
+
+    def test_italian_translates_the_standard_buttons(self, qapp):
+        i18n._install_qt_translator("it")
+        try:
+            box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+            assert box.button(QDialogButtonBox.StandardButton.Cancel).text() == "Annulla"
+        finally:
+            i18n._install_qt_translator("en")
+
+    def test_english_leaves_qt_s_own_labels(self, qapp):
+        i18n._install_qt_translator("en")
+        box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        assert box.button(QDialogButtonBox.StandardButton.Cancel).text() == "Cancel"
+
+    def test_switching_language_replaces_the_catalogue(self, qapp):
+        i18n._install_qt_translator("it")
+        i18n._install_qt_translator("de")
+        try:
+            box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+            assert box.button(QDialogButtonBox.StandardButton.Cancel).text() == "Abbrechen"
+        finally:
+            i18n._install_qt_translator("en")

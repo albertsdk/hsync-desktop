@@ -100,6 +100,11 @@ _FALLBACK_MAP: dict[str, str] = {
     "media-playback-start": "media-playback-start.svg",
     "media-playback-stop": "media-playback-stop.svg",
     "preferences-system": "preferences-system.svg",
+    # List/record actions (shares manager)
+    "list-add": "list-add.svg",
+    "edit-copy": "edit-copy.svg",
+    "edit-rename": "edit-rename.svg",
+    "edit-delete": "edit-delete.svg",
     # Navigation icons
     "go-previous": "go-previous.svg",
     "go-next": "go-next.svg",
@@ -246,6 +251,7 @@ def style_ok_cancel_button_box(
     *,
     accept_text_key: str = "settings.save",
     accept_icon_key: str = "document-save",
+    cancel_text_key: str = "settings.cancel",
 ) -> None:
     """Label and icon a standard OK/Cancel ``QDialogButtonBox`` with the app theme.
 
@@ -266,5 +272,5 @@ def style_ok_cancel_button_box(
         ok.setIcon(icon(accept_icon_key))
     cancel = button_box.button(QDialogButtonBox.StandardButton.Cancel)
     if cancel is not None:
-        cancel.setText(tr("settings.cancel"))
+        cancel.setText(tr(cancel_text_key))
         cancel.setIcon(icon("dialog-cancel"))

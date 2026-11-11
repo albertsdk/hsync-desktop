@@ -238,6 +238,9 @@ QPushButton:pressed {{
 QToolButton:disabled {{
     color: {disabled_text};
 }}
+QToolButton#sharesButton::menu-indicator {{
+    image: none;
+}}
 QPushButton#primaryButton {{
     background-color: {accent};
     color: #FFFFFF;

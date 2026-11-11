@@ -51,10 +51,15 @@ stopped**. Press **Start** to sync the new share.
 
 **Manage shares…** lists every share and lets you:
 
-- **New…** — as above;
-- **Duplicate…** — copy a share (with a new name and a new folder);
-- **Rename…** — change the label only; the bucket is untouched;
-- **Delete…** — remove the share's configuration.
+- **New** — as above;
+- **Duplicate** — copy a share (with a new name and a new folder);
+- **Rename** — change the label only; the bucket is untouched;
+- **Delete** — remove the share's configuration.
+
+The four buttons carry the app's own icons and no trailing ellipsis (the header
+menu keeps its "…", the markup for an action that opens a dialog). **Rename**
+and **New**/**Duplicate** open a prompt wide enough to show its title, with the
+action's verb on the confirm button; **Close** closes the list.
 
 Deleting a share **never touches your files**. It offers a checked box to also
 *clear the local sync state* of its folder: this forgets the folder's merge bases
