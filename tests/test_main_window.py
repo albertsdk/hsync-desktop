@@ -5504,6 +5504,35 @@ class TestConnectionBadge:
             assert window._conn_state == "problem"
             assert window._conn_badge_replaces_icon is True
 
+    def test_a_stopped_run_replaces_the_mode_icon(self, window, settings, tmp_path):
+        """A stopped/finished run shows the grey badge alone, not over the mode icon."""
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("connection/server_url", "https://server.example.com:9753")
+        window._local_path = str(tmp_path)
+        window._user_stopped = True
+        window._update_path_display()
+
+        assert window._conn_state == "stopped"
+        assert window._conn_badge_replaces_icon is True
+
+    def test_the_mode_icon_returns_after_a_stopped_run(
+        self, window, settings, tmp_path, monkeypatch
+    ):
+        with self._engine_running(monkeypatch):
+            self._setup_server(window, settings, tmp_path)
+
+            window._user_stopped = True
+            window._link_status = "stopping"
+            window._render_connection_badge()
+            assert window._conn_state == "stopped"
+            assert window._conn_badge_replaces_icon is True
+
+            window._user_stopped = False
+            window._link_status = "connected"
+            window._render_connection_badge()
+            assert window._conn_state == "healthy"
+            assert window._conn_badge_replaces_icon is False
+
     def test_the_mode_icon_returns_when_the_problem_clears(
         self, window, settings, tmp_path, monkeypatch
     ):
@@ -5521,7 +5550,7 @@ class TestConnectionBadge:
             assert window._remote_icon.toolTip() == tr("label.remote_server_tip")
 
     def test_connecting_keeps_the_mode_icon(self, window, settings, tmp_path, monkeypatch):
-        """Only alerts/errors replace the mode icon; in-progress overlays it."""
+        """Only warnings replace the mode icon; in-progress overlays a corner dot."""
         with self._engine_running(monkeypatch):
             self._setup_p2p(window, settings, tmp_path)
 
@@ -5530,6 +5559,34 @@ class TestConnectionBadge:
             window._render_connection_badge()
             assert window._conn_state == "connecting"
             assert window._conn_badge_replaces_icon is False
+
+    def test_the_overlay_dot_is_smaller_and_out_of_the_way(self, qapp):
+        """The in-progress dot annotates the icon; a warning replaces it fully."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QPixmap
+
+        from hsync_desktop.icons import HEADER_ICON_PX
+        from hsync_desktop.main_window.ui import UiBuildMixin
+
+        def composed(state: str, replace: bool):
+            base = QPixmap(HEADER_ICON_PX, HEADER_ICON_PX)
+            base.fill(Qt.GlobalColor.transparent)
+            return UiBuildMixin._compose_status_badge(
+                base, state, 1.0, HEADER_ICON_PX, replace_base=replace
+            ).toImage()
+
+        def painted_columns(image) -> int:
+            return sum(
+                any(image.pixelColor(x, y).alpha() > 0 for y in range(image.height()))
+                for x in range(image.width())
+            )
+
+        overlay = composed("connecting", replace=False)
+        warning = composed("problem", replace=True)
+        # The overlay dot is smaller than the warning glyph ...
+        assert painted_columns(overlay) < painted_columns(warning)
+        # ... and sits in the corner, leaving the top-left of the icon clear.
+        assert overlay.pixelColor(0, 0).alpha() == 0
 
     def test_an_idle_app_shows_no_badge(self, window, settings, tmp_path):
         settings.setValue("p2p/enabled", False)

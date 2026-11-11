@@ -169,6 +169,11 @@ _LOG_MAX_BLOCKS = 10000
 _LOG_LINE_MAX_CHARS = 4000
 _LOG_LINE_ELLIPSIS = " …"
 
+#: The connectivity dot overlaid on the endpoint mode icon (a neutral/in-progress
+#: state) keeps to this fraction of the icon so it annotates the mode instead of
+#: hiding it. Alert/error/stopped states replace the icon entirely instead.
+_STATUS_OVERLAY_DOT_RATIO = 0.4
+
 
 def _insert_log_line(cursor: QTextCursor, line: str, theme: str) -> None:
     """Insert one styled line at *cursor*, capping its length on the text.
@@ -1153,10 +1158,11 @@ class UiBuildMixin:
     ):
         """Draw the status glyph for the endpoint.
 
-        Healthy is handled by the caller with the plain mode icon. A neutral or
-        in-progress state overlays a small dot on the mode icon; an alert/error
-        replaces it entirely (``replace_base``) so the mode icon is never visible
-        underneath the warning, matching the user's request.
+        Healthy is handled by the caller with the plain mode icon. An alert,
+        error or stopped state replaces the icon entirely (``replace_base``) so
+        the mode is never visible underneath the badge; a neutral/in-progress
+        state overlays a small corner dot that annotates — without hiding — the
+        mode icon.
         """
         from PySide6.QtCore import QRect
         from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
@@ -1168,13 +1174,17 @@ class UiBuildMixin:
             "stopped": QColor("#9e9e9e"),
         }
         glyphs = {"connecting": "", "lost": "!", "problem": "!", "stopped": "\u2013"}
-        diameter = max(6, round((size_px - 4) * dpr))
         if replace_base:
+            # A glyph that replaces the icon: centred and large enough to read.
+            diameter = max(6, round((size_px - 4) * dpr))
             pixmap = QPixmap(base.size())
             pixmap.fill(Qt.GlobalColor.transparent)
             x = (pixmap.width() - diameter) // 2
             y = (pixmap.height() - diameter) // 2
         else:
+            # A dot that only annotates the icon: small and in the bottom-right
+            # corner, so the mode icon stays readable (a full-size overlay hid it).
+            diameter = max(4, round(size_px * _STATUS_OVERLAY_DOT_RATIO * dpr))
             pixmap = base
             x = pixmap.width() - diameter
             y = pixmap.height() - diameter
@@ -1228,10 +1238,10 @@ class UiBuildMixin:
             if label is not None:
                 label.setToolTip(tip)
             return
-        # An alert/error replaces the mode icon so it is never visible underneath
-        # the warning; neutral/in-progress states only overlay a dot. Clearing the
-        # alert (healthy above) brings the mode icon back.
-        replace_base = state in ("problem", "lost")
+        # A warning (alert/error or a stopped run) replaces the mode icon so it is
+        # never visible underneath the badge; only the in-progress dot overlays it.
+        # Clearing the warning (healthy above) brings the mode icon back.
+        replace_base = state in ("problem", "lost", "stopped")
         self._conn_badge_replaces_icon = replace_base
         icon.setPixmap(
             self._compose_status_badge(base, state, dpr, HEADER_ICON_PX, replace_base=replace_base)

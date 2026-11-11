@@ -152,6 +152,9 @@ Accepting a fingerprint pins it in the client's trust store, so the app and the
 - **Simulation — no changes** — Simulation Mode is on; runs only preview.
 - **Deletions kept** — the **Keep deleted files** policy is active.
 - **— Simulation** in the title bar while Simulation Mode is on.
+- **Status dot on the connection icon** — amber while a link is being established, red on a
+  connection problem, grey when the sync is stopped. A red or grey warning replaces the mode
+  icon while it is shown, so the connection mode never shows through it.
 
 ## When the connection is lost
 
