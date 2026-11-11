@@ -378,18 +378,45 @@ jobs:
         run: |
           sed -i "s/^version:.*$/version: \"${{ steps.version.outputs.version }}\"/" snap/snapcraft.yaml
           grep -n '^version:' snap/snapcraft.yaml
-      - name: Build the snap
-        uses: snapcore/action-build@v1
-        with:
-          path: hsync-desktop
-          # Pinned: the asset paths in snapcraft.yaml follow this major's rules.
-          snapcraft-channel: 9.x/stable
-      - name: Lint the snap
-        # The build action adds the runner to the lxd group, but the shell that
-        # runs this step inherits the pre-usermod group list: sudo re-initialises
-        # the supplementary groups so snapcraft can reach the LXD provider.
+      - name: Install snapcraft
+        # The hosted images ship snapd but not snapcraft, and the store answer is
+        # occasionally refused: retry with a widening delay instead of failing the
+        # release on a transient error.
         run: |
-          sudo -u "$USER" -E snapcraft lint "$(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)"
+          for attempt in 1 2 3 4 5; do
+            if sudo snap install --classic --channel=9.x/stable snapcraft; then break; fi
+            sleep $((attempt * 10))
+          done
+          snap list snapcraft
+      - name: Build the snap
+        working-directory: hsync-desktop
+        env:
+          # One native runner per architecture, both matching the core24 base, so
+          # the build runs on the host: no LXD instance and no store round-trip.
+          SNAPCRAFT_BUILD_INFO: "1"
+          SNAPCRAFT_IMAGE_INFO: '{"build_url":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}'
+        # sudo resets the environment on the hosted runners, so the two snapcraft
+        # variables are handed over explicitly instead of via -E.
+        run: |
+          sudo env SNAPCRAFT_BUILD_INFO="$SNAPCRAFT_BUILD_INFO" \
+            SNAPCRAFT_IMAGE_INFO="$SNAPCRAFT_IMAGE_INFO" \
+            /snap/bin/snapcraft pack --destructive-mode --platform=${{ matrix.arch }}
+      - name: Install the LXD lint environment
+        # `snapcraft lint` installs the snap inside a build environment, which is
+        # an LXD instance: this is the only step left that needs the store.
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if sudo snap install lxd; then break; fi
+            sleep $((attempt * 10))
+          done
+          snap list lxd
+          sudo lxd init --auto
+          # Docker on the runner sets the FORWARD policy to DROP, which blackholes
+          # LXD's bridge network.
+          sudo iptables -P FORWARD ACCEPT
+      - name: Lint the snap
+        run: |
+          sudo /snap/bin/snapcraft lint "$(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)"
       - uses: actions/upload-artifact@v7
         with:
           name: snap-${{ matrix.arch }}
