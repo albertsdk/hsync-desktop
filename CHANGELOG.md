@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-12
+
+### Added
+
+- **Multiple named shares**: a header selector switches the active share and a
+  manage dialog creates, duplicates, renames and deletes them (with an optional
+  client-state reset), each share keeping its own log buffer. Folder uniqueness
+  and a duplicate-bucket warning guard the store, and the previous single-share
+  configuration is migrated.
+- A changed bucket is verified before the settings dialog saves it, and the
+  settings dialog and the wizard's connection test offer to create a share the
+  server reports as missing instead of letting the sync fail on it.
+
+### Changed
+
+- Every dialog button is localized in all the supported locales, and the shares
+  dialogs follow the rest of the UI style.
+
+### Fixed
+
+- Creating a share posts the name as a query parameter, and a `403` that names
+  `max_buckets_per_account` is reported as a quota with the limit instead of a
+  generic failure.
+- Deleting a share removes the selected row instead of the first one, and the
+  reset/confirm dialogs stay in front of the share manager.
+- A missing share raises one notification per episode instead of two.
+- The Properties title stays bold after a font reset, the detail pane can widen,
+  the rename dialog keeps long names readable, and Server Mode no longer shows
+  the placeholder dash of the bottom-bar group label.
+- A stopped sync replaces the p2p/server mode icon with the grey badge instead
+  of overlaying it, and the in-progress dot is smaller.
+
 ## [1.1.0] - 2026-11-11
 
 ### Added
