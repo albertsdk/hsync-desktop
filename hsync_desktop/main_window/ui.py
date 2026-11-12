@@ -154,9 +154,44 @@ def _insert_log_line(cursor: QTextCursor, line: str, theme: str) -> None:
 class UiBuildMixin:
     def _load_ui(self) -> None:
         """Load UI from .ui file and setup widget references."""
-        # Load UI into self
         load_ui_widget("main_window", self)
 
+        self._create_header()
+        self._build_log_panel()
+        self._build_bottom_bar()
+        self._install_file_panel()
+        self._build_info_toast()
+
+        # Apply log panel visibility setting
+        self._apply_log_visibility()
+
+        # Restore saved path and load files
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        saved_path = str(s.value("path/local", "", str))
+        self._set_path(saved_path)
+        if saved_path:
+            self._load_local_files(saved_path)
+
+        # Apply translations
+        self._apply_translations()
+
+        # Apply initial button styles (Start green, Stop idle)
+        self._apply_button_styles()
+
+        # Create classic menu bar
+        self._create_menu_bar()
+
+        # Wire the header share selector (SharesMixin).
+        self._init_shares_ui()
+
+        # Set initial button/menu/tray state (disables Start if no path)
+        self._update_menu_state()
+
+        # Register for language change notifications
+        register_language_callback(self._apply_translations)
+
+    def _create_header(self) -> None:
+        """Bind the action-bar widgets and the header path/share indicators."""
         # Get widget references from .ui file
         self._btn_start: QPushButton = self.findChild(QPushButton, "btnStart")  # type: ignore[assignment]
         self._btn_stop: QPushButton = self.findChild(QPushButton, "btnStop")  # type: ignore[assignment]
@@ -245,6 +280,9 @@ class UiBuildMixin:
                             action_bar_layout.insertWidget(i + 4, self._remote_icon)
                             action_bar_layout.insertWidget(i + 5, self._remote_label)
                             break
+
+    def _build_log_panel(self) -> None:
+        """Bind the splitter/log view and its bounded per-share buffers."""
         self._main_splitter: QSplitter = self.findChild(QSplitter, "mainSplitter")  # type: ignore[assignment]
         self._log_view: QPlainTextEdit = self.findChild(QPlainTextEdit, "logView")  # type: ignore[assignment]
         self._log_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -260,6 +298,8 @@ class UiBuildMixin:
         self._log_buffers: dict[str, deque[str]] = {}
         self._log_active_share: str = ""
 
+    def _build_bottom_bar(self) -> None:
+        """Bind the status-bar widgets and the share-size/sync-state labels."""
         # Bottom bar widgets
         self._status_dot: QLabel = self.findChild(QLabel, "statusDot")  # type: ignore[assignment]
         self._status_label: QLabel = self.findChild(QLabel, "statusLabel")  # type: ignore[assignment]
@@ -341,7 +381,8 @@ class UiBuildMixin:
         for label in [self._lbl_sent, self._sent_label, self._lbl_recv, self._recv_label]:
             label.installEventFilter(self)
 
-        # Replace filePanelPlaceholder with actual FilePanel
+    def _install_file_panel(self) -> None:
+        """Replace the .ui placeholder with the real FilePanel."""
         placeholder: QWidget = self.findChild(QWidget, "filePanelPlaceholder")  # type: ignore[assignment]
         self._file_panel = FilePanel()
         # Replace placeholder in splitter
@@ -353,6 +394,8 @@ class UiBuildMixin:
         # Set initial sizes (2/3 files, 1/3 log)
         self._main_splitter.setSizes([400, 200])
 
+    def _build_info_toast(self) -> None:
+        """Create the info toast overlay and its one-shot hide timer."""
         # Info toast: an overlay child of the central widget (never in the
         # layout, so showing/hiding it cannot move the content).
         self._info_banner = self._create_info_banner()
@@ -362,34 +405,6 @@ class UiBuildMixin:
         self._info_timer = QTimer(self)
         self._info_timer.setSingleShot(True)
         self._info_timer.timeout.connect(self._hide_info_banner)
-
-        # Apply log panel visibility setting
-        self._apply_log_visibility()
-
-        # Restore saved path and load files
-        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-        saved_path = str(s.value("path/local", "", str))
-        self._set_path(saved_path)
-        if saved_path:
-            self._load_local_files(saved_path)
-
-        # Apply translations
-        self._apply_translations()
-
-        # Apply initial button styles (Start green, Stop idle)
-        self._apply_button_styles()
-
-        # Create classic menu bar
-        self._create_menu_bar()
-
-        # Wire the header share selector (SharesMixin).
-        self._init_shares_ui()
-
-        # Set initial button/menu/tray state (disables Start if no path)
-        self._update_menu_state()
-
-        # Register for language change notifications
-        register_language_callback(self._apply_translations)
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
