@@ -154,54 +154,70 @@ COLOR_WAITING = QColor("#BF8700")
 COLOR_SYNCING = QColor("#0969DA")
 
 
+_LIGHT_COLORS: dict[QPalette.ColorRole, str] = {
+    QPalette.ColorRole.Window: "#F5F5F5",
+    QPalette.ColorRole.WindowText: "#1E1E1E",
+    QPalette.ColorRole.Base: "#FFFFFF",
+    QPalette.ColorRole.AlternateBase: "#F0F0F0",
+    QPalette.ColorRole.Text: "#1E1E1E",
+    QPalette.ColorRole.Button: "#E8E8E8",
+    QPalette.ColorRole.ButtonText: "#1E1E1E",
+    QPalette.ColorRole.HighlightedText: "#FFFFFF",
+    QPalette.ColorRole.ToolTipBase: "#FFFFFF",
+    QPalette.ColorRole.ToolTipText: "#1E1E1E",
+    QPalette.ColorRole.PlaceholderText: "#888888",
+    QPalette.ColorRole.Link: "#0969DA",
+    QPalette.ColorRole.LinkVisited: "#8250DF",
+    QPalette.ColorRole.Light: "#FFFFFF",
+    QPalette.ColorRole.Midlight: "#E0E0E0",
+    QPalette.ColorRole.Mid: "#C0C0C0",
+    QPalette.ColorRole.Dark: "#A0A0A0",
+    QPalette.ColorRole.Shadow: "#707070",
+}
+
+_DARK_COLORS: dict[QPalette.ColorRole, str] = {
+    QPalette.ColorRole.Window: "#1E1E1E",
+    QPalette.ColorRole.WindowText: "#D4D4D4",
+    QPalette.ColorRole.Base: "#252526",
+    QPalette.ColorRole.AlternateBase: "#2D2D2D",
+    QPalette.ColorRole.Text: "#D4D4D4",
+    QPalette.ColorRole.Button: "#333333",
+    QPalette.ColorRole.ButtonText: "#D4D4D4",
+    QPalette.ColorRole.HighlightedText: "#FFFFFF",
+    QPalette.ColorRole.ToolTipBase: "#2D2D2D",
+    QPalette.ColorRole.ToolTipText: "#D4D4D4",
+    QPalette.ColorRole.PlaceholderText: "#666666",
+    QPalette.ColorRole.Link: "#58A6FF",
+    QPalette.ColorRole.LinkVisited: "#BC8CFF",
+    QPalette.ColorRole.Light: "#404040",
+    QPalette.ColorRole.Midlight: "#353535",
+    QPalette.ColorRole.Mid: "#2A2A2A",
+    QPalette.ColorRole.Dark: "#1A1A1A",
+    QPalette.ColorRole.Shadow: "#0A0A0A",
+}
+
+
+def _build_palette(colors: dict[QPalette.ColorRole, str]) -> QPalette:
+    """Build a QPalette from a role→hex map, with the live system accent.
+
+    ``Highlight`` is never listed in the maps: it is always taken from the
+    system accent so both themes track the desktop's accent color.
+    """
+    palette = QPalette()
+    for role, color in colors.items():
+        palette.setColor(role, QColor(color))
+    palette.setColor(QPalette.ColorRole.Highlight, _get_system_accent())
+    return palette
+
+
 def _build_light_palette() -> QPalette:
     """Build the light theme palette."""
-    p = QPalette()
-    p.setColor(QPalette.ColorRole.Window, QColor("#F5F5F5"))
-    p.setColor(QPalette.ColorRole.WindowText, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.Base, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.AlternateBase, QColor("#F0F0F0"))
-    p.setColor(QPalette.ColorRole.Text, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.Button, QColor("#E8E8E8"))
-    p.setColor(QPalette.ColorRole.ButtonText, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.Highlight, _get_system_accent())
-    p.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.ToolTipBase, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.ToolTipText, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.PlaceholderText, QColor("#888888"))
-    p.setColor(QPalette.ColorRole.Link, QColor("#0969DA"))
-    p.setColor(QPalette.ColorRole.LinkVisited, QColor("#8250DF"))
-    p.setColor(QPalette.ColorRole.Light, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.Midlight, QColor("#E0E0E0"))
-    p.setColor(QPalette.ColorRole.Mid, QColor("#C0C0C0"))
-    p.setColor(QPalette.ColorRole.Dark, QColor("#A0A0A0"))
-    p.setColor(QPalette.ColorRole.Shadow, QColor("#707070"))
-    return p
+    return _build_palette(_LIGHT_COLORS)
 
 
 def _build_dark_palette() -> QPalette:
     """Build the dark theme palette."""
-    p = QPalette()
-    p.setColor(QPalette.ColorRole.Window, QColor("#1E1E1E"))
-    p.setColor(QPalette.ColorRole.WindowText, QColor("#D4D4D4"))
-    p.setColor(QPalette.ColorRole.Base, QColor("#252526"))
-    p.setColor(QPalette.ColorRole.AlternateBase, QColor("#2D2D2D"))
-    p.setColor(QPalette.ColorRole.Text, QColor("#D4D4D4"))
-    p.setColor(QPalette.ColorRole.Button, QColor("#333333"))
-    p.setColor(QPalette.ColorRole.ButtonText, QColor("#D4D4D4"))
-    p.setColor(QPalette.ColorRole.Highlight, _get_system_accent())
-    p.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
-    p.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2D2D2D"))
-    p.setColor(QPalette.ColorRole.ToolTipText, QColor("#D4D4D4"))
-    p.setColor(QPalette.ColorRole.PlaceholderText, QColor("#666666"))
-    p.setColor(QPalette.ColorRole.Link, QColor("#58A6FF"))
-    p.setColor(QPalette.ColorRole.LinkVisited, QColor("#BC8CFF"))
-    p.setColor(QPalette.ColorRole.Light, QColor("#404040"))
-    p.setColor(QPalette.ColorRole.Midlight, QColor("#353535"))
-    p.setColor(QPalette.ColorRole.Mid, QColor("#2A2A2A"))
-    p.setColor(QPalette.ColorRole.Dark, QColor("#1A1A1A"))
-    p.setColor(QPalette.ColorRole.Shadow, QColor("#0A0A0A"))
-    return p
+    return _build_palette(_DARK_COLORS)
 
 
 # ─── Global QSS ─────────────────────────────────────────────────────────────
