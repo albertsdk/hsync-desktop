@@ -445,6 +445,10 @@ jobs:
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
       - name: Lint the snap
         if: steps.lxd.outputs.ready == 'true'
+        # `snapcraft lint` launches the snap in LXD; on a hosted runner that
+        # instance is often unusable, and lint is advisory, so it must not gate
+        # the release.
+        continue-on-error: true
         run: |
           sudo /snap/bin/snapcraft lint "$(find hsync-desktop -maxdepth 1 -name '*.snap' | head -1)"
       - uses: actions/upload-artifact@v7.0.2
@@ -473,7 +477,14 @@ jobs:
           snapcraft upload snaps/*.snap --release edge
 
   release:
+    # The snap is best-effort (store/LXD availability): waiting for it lets its
+    # assets ship when it builds, but its failure must never gate the release.
     needs: [build-binaries, build-packages, build-appimage, build-snap]
+    if: >-
+      !cancelled() &&
+      needs.build-binaries.result == 'success' &&
+      needs.build-packages.result == 'success' &&
+      needs.build-appimage.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
