@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-readonly DEFAULT_VERSION="v1.1.1"
+readonly DEFAULT_VERSION="v1.1.2"
 readonly REPO="albertsdk/hsync-desktop"
 readonly APP="hsync-desktop"
 
