@@ -4238,6 +4238,22 @@ class TestSyncState:
         assert window._link_down is False
         assert window._sync_state[0] == "checking"
 
+    def test_a_missing_share_is_reported_in_the_users_terms(self, window, tmp_path):
+        """The client's sentence names the bucket; the window names the share."""
+        settings = window._share_store._s
+        settings.setValue("path/local", str(tmp_path / "barbara"))
+        settings.setValue("sync/bucket", "barbara")
+        window._share_store.sync_from_flat()
+
+        window._on_engine_error(
+            "Sync failed: Bucket 'barbara' does not exist on the server", "share_missing"
+        )
+
+        warnings = [w for w in window._problems.warnings if w.key == "share_missing"]
+        assert warnings
+        assert "barbara" in warnings[0].detail
+        assert "bucket" not in warnings[0].detail.lower()
+
     def test_a_connection_failure_never_claims_a_lost_link_it_never_had(self, window):
         """A one-shot that never linked reads "idle", not "connection lost"."""
         window._ever_connected = False

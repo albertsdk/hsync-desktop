@@ -17,10 +17,15 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from hsync_common.protocol.rest import REST_BUCKET_PATH_TEMPLATE, REST_HEALTH_PATH
+from hsync_common.protocol.rest import (
+    REST_BUCKET_PATH_TEMPLATE,
+    REST_BUCKETS_PREFIX,
+    REST_HEALTH_PATH,
+)
 
 __all__ = [
     "ServerProbeResult",
+    "create_server_bucket",
     "probe_server_bucket",
     "probe_server_bucket_access",
     "probe_server_health",
@@ -94,6 +99,38 @@ def probe_server_bucket(
     """
     path = REST_BUCKET_PATH_TEMPLATE.replace("{bucket}", quote(bucket, safe=""))
     return _probe(f"{base_url.rstrip('/')}{path}", api_key, ssl_context, timeout)
+
+
+def create_server_bucket(
+    base_url: str,
+    bucket: str,
+    api_key: str,
+    *,
+    ssl_context: ssl.SSLContext,
+    timeout: float = 5.0,
+) -> ServerProbeResult:
+    """Create *bucket* on the server (``POST /api/v1/buckets/<bucket>``).
+
+    The creator becomes the owner. ``ok`` is True on 201 **and** on 409: a bucket
+    that already exists is the outcome the caller wanted, and the server answers
+    409 for it. A 404 here means the endpoint is missing (an older server), which
+    the caller reports as a failure.
+    """
+    url = f"{base_url.rstrip('/')}{REST_BUCKETS_PREFIX}/{quote(bucket, safe='')}"
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    request = Request(url, headers=headers, method="POST")
+    started = time.monotonic()
+    try:
+        with urlopen(request, timeout=timeout, context=ssl_context) as response:
+            status = getattr(response, "status", None)
+            latency = int((time.monotonic() - started) * 1000)
+            return ServerProbeResult(status in (200, 201), status, latency, bool(api_key))
+    except HTTPError as exc:
+        latency = int((time.monotonic() - started) * 1000)
+        return ServerProbeResult(exc.code == 409, exc.code, latency, bool(api_key))
+    except (URLError, ssl.SSLError, OSError, ValueError):
+        latency = int((time.monotonic() - started) * 1000)
+        return ServerProbeResult(False, None, latency, bool(api_key), REASON_UNREACHABLE)
 
 
 def server_failure_reason(result: ServerProbeResult) -> str:

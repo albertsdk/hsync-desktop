@@ -1132,8 +1132,28 @@ class UiBuildMixin:
             self._finish_selection_sync(outcome)
             return
 
+        if reason == "share_missing":
+            self._report_missing_share()
+            return
+
         if message:
             self._notify_error(tr("notif.error"), message)
+
+    def _report_missing_share(self) -> None:
+        """Name the share the server does not have, with the remedy.
+
+        The client reports ``reason="share_missing"`` when the first listing of a
+        cycle answers 404: the share does not exist on the server, or the account
+        cannot reach it. The client's own sentence is technical (it names the
+        bucket and the admin command); the window says it in the user's terms and
+        points at Settings, where the share can be created.
+        """
+        share = self._share_store.active()
+        name = share.name if share is not None else ""
+        title = tr("notif.share_missing_title")
+        text = tr("notif.share_missing_msg").replace("{name}", name)
+        self._problems.record_warning("share_missing", title, text)
+        self._notify_warning(title, text)
 
     def _is_p2p_mode(self) -> bool:
         return bool(

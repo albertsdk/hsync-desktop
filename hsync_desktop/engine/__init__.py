@@ -43,6 +43,7 @@ from hsync_desktop.engine.endpoints import (
 )
 from hsync_desktop.engine.probes import (
     ServerProbeResult,
+    create_server_bucket,
     probe_server_bucket,
     probe_server_bucket_access,
     probe_server_health,
@@ -89,6 +90,7 @@ __all__ = [
     "probe_server_bucket",
     "probe_server_bucket_access",
     "probe_server_health",
+    "create_server_bucket",
     "server_failure_reason",
     "remove_rendezvous_trust",
     "remove_peer_pin",

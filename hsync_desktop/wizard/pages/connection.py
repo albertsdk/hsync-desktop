@@ -26,6 +26,7 @@ from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
+    create_server_bucket,
     fetch_rendezvous_fingerprint,
     find_hsync_binary,
     normalize_rendezvous_server_endpoints,
@@ -138,6 +139,13 @@ class ConnectionPage(WizardPage):
         server_form.addRow(*self._action_row("test_server", self.test_server))
         # Its own row: a long error can never overlap the button.
         server_form.addRow("", self.server_status)
+        # Offered only when the test says the share is missing on the server: the
+        # first upload never creates it (the listing comes first), so the setup
+        # would otherwise end in a sync that cannot start.
+        self.create_server_share = QPushButton()
+        self.create_server_share.clicked.connect(self._on_create_server_share)
+        self.create_server_share.setVisible(False)
+        server_form.addRow(*self._action_row("create_server_share", self.create_server_share))
 
         self.cert_switch = ToggleSwitch()
         self.cert_switch.toggled.connect(self._on_edit)
@@ -339,6 +347,7 @@ class ConnectionPage(WizardPage):
         """Test buttons stay disabled until their required inputs are present."""
         server_ready = bool(self.server_url.text().strip() and self.api_key.text().strip())
         self.test_server.setEnabled(not self._probing and server_ready)
+        self.create_server_share.setEnabled(not self._probing and server_ready)
         self.test_rendezvous_server.setEnabled(
             not self._probing and bool(self.rendezvous_server.text().strip())
         )
@@ -397,9 +406,9 @@ class ConnectionPage(WizardPage):
             trust_policy="ask" if self.cert_switch.isChecked() else "chain",
         )
         timeout = self._timeout()
-        mode = self._mode
         set_field_error(self.bucket, self._rows["bucket"][2], "")
         self._share_missing = False
+        self.create_server_share.setVisible(False)
         self._server_verified = False
         self._server_verified_at = ""
         self._active_target = "server"
@@ -418,10 +427,50 @@ class ConnectionPage(WizardPage):
             )
             if not reason:
                 return ProbeOutcome(True, result.status)
-            if reason == "share_missing":
-                # Backup mode creates the bucket on the first upload, so a 404 is
-                # only a blocker for a team share.
-                return ProbeOutcome(mode != WizardMode.TEAM_SHARE, result.status, reason=reason)
+            # A missing share is a real blocker in both modes: the first upload
+            # never creates it (the listing comes first), so the page offers to
+            # create it instead of promising an implicit one.
+            return ProbeOutcome(False, result.status, reason=reason)
+
+        self._probe.start(job)
+
+    def _on_create_server_share(self) -> None:
+        """Create the share on the server, then re-run the connection test."""
+        raw = self.server_url.text().strip()
+        try:
+            base = normalize_server_endpoint(raw)
+            if base is None:
+                raise ValueError
+        except ValueError:
+            set_field_error(
+                self.server_url, self._rows["server_url"][2], tr("wizard.error.server_invalid")
+            )
+            return
+        bucket = self.bucket.text().strip()
+        api_key = self.api_key.text().strip()
+        if not bucket or not api_key:
+            return
+        ssl_context = build_probe_ssl_context(
+            insecure=False,
+            trust_policy="ask" if self.cert_switch.isChecked() else "chain",
+        )
+        timeout = self._timeout()
+        self._active_target = "server"
+        self._set_status(self.server_status, "working", tr("wizard.connection.testing"))
+        self._probing = True
+        self._update_test_enabled()
+
+        def job() -> ProbeOutcome:
+            created = create_server_bucket(
+                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+            )
+            if not created.ok:
+                return ProbeOutcome(False, created.status, reason="create_failed")
+            result, reason = probe_server_bucket_access(
+                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+            )
+            if not reason:
+                return ProbeOutcome(True, result.status)
             return ProbeOutcome(False, result.status, reason=reason)
 
         self._probe.start(job)
@@ -512,14 +561,20 @@ class ConnectionPage(WizardPage):
             self._server_verified_at = datetime.now(UTC).isoformat()
             self._set_status(self.server_status, "ok", tr("settings.test_connection_success"))
             self._share_missing = False
+            self.create_server_share.setVisible(False)
+            self.changed.emit()
+            return
+        if outcome.reason == "create_failed":
+            self._set_status(self.server_status, "error", tr("settings.bucket_probe.create_failed"))
             self.changed.emit()
             return
         self._share_missing = outcome.reason == "share_missing"
+        self.create_server_share.setVisible(self._share_missing)
         # Backup mode tolerates a missing bucket (the first upload creates it).
         self._set_status(
             self.server_status,
             "error",
-            probe_reason_text(outcome.reason, missing_bucket_text_key="wizard.probe.404_backup"),
+            probe_reason_text(outcome.reason),
         )
         if self._share_missing:
             set_field_error(self.bucket, self._rows["bucket"][2], tr("wizard.probe.404_team"))
@@ -535,6 +590,7 @@ class ConnectionPage(WizardPage):
                 if isinstance(field, ToggleSwitch):
                     field.setAccessibleName(text)
         self.test_server.setText(tr("settings.test_connection"))
+        self.create_server_share.setText(tr("settings.bucket_probe.create"))
         self.test_rendezvous_server.setText(tr("settings.test_connection"))
         self.trust_save.setText(tr("wizard.connection.trust_save"))
         self.trust_ask.setText(tr("wizard.connection.trust_ask"))

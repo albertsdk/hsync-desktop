@@ -51,6 +51,51 @@ class TestHealthProbe:
         assert result.reason == probes.REASON_UNREACHABLE
 
 
+class TestCreateBucket:
+    """``POST /buckets/<name>``: 201 and 409 both mean the share is there."""
+
+    def test_201_is_ok_and_posts_to_the_bucket_path(self, monkeypatch):
+        seen: dict = {}
+
+        def capture(request, **_k):
+            seen["url"] = request.full_url
+            seen["method"] = request.get_method()
+            seen["auth"] = request.get_header("Authorization")
+            return _Response(201)
+
+        monkeypatch.setattr(probes, "urlopen", capture)
+        result = probes.create_server_bucket(
+            "https://host:9753/", "barbara", "key", ssl_context=_ssl_context()
+        )
+
+        assert result.ok is True and result.status == 201
+        assert seen["url"] == "https://host:9753/api/v1/buckets/barbara"
+        assert seen["method"] == "POST"
+        assert seen["auth"] == "Bearer key"
+
+    def test_409_already_exists_is_ok(self, monkeypatch):
+        def raise_http(*_a, **_k):
+            raise urllib.error.HTTPError("u", 409, "exists", {}, None)
+
+        monkeypatch.setattr(probes, "urlopen", raise_http)
+        result = probes.create_server_bucket(
+            "https://host", "barbara", "key", ssl_context=_ssl_context()
+        )
+
+        assert result.ok is True and result.status == 409
+
+    def test_403_is_a_failure(self, monkeypatch):
+        def raise_http(*_a, **_k):
+            raise urllib.error.HTTPError("u", 403, "quota", {}, None)
+
+        monkeypatch.setattr(probes, "urlopen", raise_http)
+        result = probes.create_server_bucket(
+            "https://host", "barbara", "key", ssl_context=_ssl_context()
+        )
+
+        assert result.ok is False and result.status == 403
+
+
 class TestBucketProbe:
     def test_sends_bearer_and_hits_bucket_path(self, monkeypatch):
         seen: dict = {}

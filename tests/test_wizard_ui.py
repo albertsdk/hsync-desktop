@@ -398,6 +398,40 @@ class TestProbeStatus:
         assert page.server_status.text() == tr("wizard.probe.unreachable")
         assert page.rendezvous_server_status.isHidden()
 
+    def test_a_missing_share_offers_to_create_it(self, wizard):
+        """The first upload never creates the share, so the page offers the action."""
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = wizard.connection_page
+        page.set_mode(WizardMode.BACKUP)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(False, 404, reason="share_missing"))
+
+        assert page.server_status.text() == tr("wizard.probe.404_team")
+        assert not page.create_server_share.isHidden()
+        assert page.create_server_share.text() == tr("settings.bucket_probe.create")
+
+    def test_a_verified_share_hides_the_create_action(self, wizard):
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = wizard.connection_page
+        page.set_mode(WizardMode.BACKUP)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(False, 404, reason="share_missing"))
+        page._on_probe_done(ProbeOutcome(True, 200))
+
+        assert page.create_server_share.isHidden()
+
+    def test_a_failed_creation_reports_it_on_the_status(self, wizard):
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = wizard.connection_page
+        page.set_mode(WizardMode.BACKUP)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(False, 403, reason="create_failed"))
+
+        assert page.server_status.text() == tr("settings.bucket_probe.create_failed")
+
     def test_rendezvous_server_success_lands_on_rendezvous_server_status(self, wizard):
         from hsync_desktop.engine import ProbeOutcome
 

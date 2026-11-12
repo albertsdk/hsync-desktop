@@ -859,6 +859,8 @@ class EventsMixin:
         if not self._guard_paused_this_cycle:
             self._problems.clear_warning("deletion_guard")
         self._guard_paused_this_cycle = False
+        # A cycle that ran proves the share exists on the server again.
+        self._problems.clear_warning("share_missing")
         was_scoped = self._selection_sync_active
         if was_scoped and self._selection_sync_phase == "run":
             outcome, applied = _scoped_outcome(counters or {})

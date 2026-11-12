@@ -119,6 +119,7 @@ from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
+    create_server_bucket,
     fetch_rendezvous_fingerprint,
     find_hsync_binary,
     get_binary_capabilities_cached,
@@ -127,6 +128,7 @@ from hsync_desktop.engine import (
     p2p_secret_mode,
     probe_server_bucket_access,
     probe_server_health,
+    server_failure_reason,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -184,7 +186,7 @@ from hsync_desktop.settings.tab_translations import apply_translations
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
-from hsync_desktop.widgets.dialogs import confirm
+from hsync_desktop.widgets.dialogs import build_choice_box, confirm
 from hsync_desktop.widgets.secret_reveal import refresh_reveal_tooltip
 from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
@@ -237,6 +239,10 @@ class SettingsDialog(QDialog):
         self._probe = AsyncProbe(self)
         self._probe.done.connect(self._on_probe_done)
         self._probe_target: str | None = None
+        # (base_url, bucket, api_key, ssl_context, timeout) of the bucket check in
+        # flight, so "create the share on the server" can reuse exactly what was
+        # probed instead of re-reading the form.
+        self._bucket_probe_args: tuple[str, str, str, ssl.SSLContext, float] | None = None
         # What to do once a deferred commit (the bucket check) comes back clean:
         # the caller's continuation, dropped when the check is vetoed.
         self._commit_continuation: Callable[[], None] | None = None
@@ -1214,6 +1220,7 @@ class SettingsDialog(QDialog):
         base = normalized_server.rstrip("/")
         ssl_context = self._test_connection_ssl_context()
         timeout = float(max(5, self.http_timeout.value()))
+        self._bucket_probe_args = (base, bucket, api_key, ssl_context, timeout)
         return lambda: self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
 
     @staticmethod
@@ -1254,18 +1261,37 @@ class SettingsDialog(QDialog):
             self._finish_deferred_commit()
             return
         if outcome.reason == "share_missing":
-            # 404 is ambiguous by design: missing *or* no membership. Saving is
-            # allowed because a missing bucket is created by the first upload,
-            # but a typo would create an empty one, so the user decides.
-            if confirm(
+            # 404 is ambiguous by design: missing *or* no membership. Creating it
+            # is the only way forward when it is missing (the server makes the
+            # creator the owner), but a typo would create an empty share, so the
+            # user decides — and may still save without creating.
+            box, buttons = build_choice_box(
                 self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr("settings.bucket_probe.missing"),
-                with_icons=True,
-            ):
+                choices=[
+                    (tr("settings.bucket_probe.create"), "list-add"),
+                    (tr("settings.bucket_probe.save_anyway"), "dialog-ok"),
+                    (tr("action.cancel"), "dialog-cancel"),
+                ],
+                default_index=2,
+            )
+            box.exec()
+            clicked = box.clickedButton()
+            if clicked is buttons[0]:
+                self._create_bucket_then_commit()
+            elif clicked is buttons[1]:
                 self._finish_deferred_commit()
             else:
                 self._abandon_deferred_commit()
+            return
+        if outcome.reason == "create_failed":
+            QMessageBox.warning(
+                self,
+                tr("settings.bucket_probe.title"),
+                tr("settings.bucket_probe.create_failed"),
+            )
+            self._abandon_deferred_commit()
             return
         if outcome.reason in ("unreachable", "server_error"):
             # Offline work must stay possible: the bucket may be fine.
@@ -1282,6 +1308,29 @@ class SettingsDialog(QDialog):
         # A rejected key or a malformed name: nothing is saved.
         QMessageBox.warning(self, tr("settings.title"), probe_reason_text(outcome.reason))
         self._abandon_deferred_commit()
+
+    def _create_bucket_then_commit(self) -> None:
+        """Create the share on the server, then save once the re-check passes.
+
+        The creation runs off-thread like the probe; its outcome is a fresh
+        ``ProbeOutcome`` so the same handler decides (a 409 "already exists" is a
+        success: the share is there, which is what the user asked for).
+        """
+        args = self._bucket_probe_args
+        if args is None:
+            self._abandon_deferred_commit()
+            return
+        base, bucket, api_key, ssl_context, timeout = args
+
+        def job() -> ProbeOutcome:
+            created = create_server_bucket(
+                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+            )
+            if not created.ok:
+                return ProbeOutcome(False, created.status, reason="create_failed")
+            return self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
+
+        self._start_bucket_probe(job)
 
     def _finish_deferred_commit(self) -> None:
         """Persist the already-validated settings and run the caller's continuation."""

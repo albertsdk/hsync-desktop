@@ -20,12 +20,15 @@ Consumers: ``main_window/{actions,events,lifecycle,start,trust,ui,window}``,
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from PySide6.QtWidgets import QApplication, QCheckBox, QMessageBox, QPushButton, QWidget
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 
 __all__ = [
+    "build_choice_box",
     "build_confirm_box",
     "build_destructive_confirm_box",
     "build_optout_confirm_box",
@@ -42,6 +45,42 @@ def dialog_parent(fallback: QWidget | None = None) -> QWidget | None:
     message box reached from a dialog action goes through here.
     """
     return QApplication.activeModalWidget() or fallback
+
+
+def build_choice_box(
+    parent: QWidget | None,
+    *,
+    title: str,
+    text: str,
+    choices: Sequence[tuple[str, str]],
+    default_index: int = 0,
+) -> tuple[QMessageBox, list[QPushButton]]:
+    """Build a localized box whose buttons are *choices* (label, icon name).
+
+    For a question with more than two answers (create / save anyway / cancel).
+    The first choice is the accept role, the last the reject role and any middle
+    one an action role, so ``clickedButton()`` identifies the answer. The default
+    button is ``default_index`` (the safe answer), so a stray Enter never picks a
+    destructive one.
+    """
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setWindowTitle(title)
+    box.setText(text)
+    buttons: list[QPushButton] = []
+    for index, (label, icon_name) in enumerate(choices):
+        if index == 0:
+            role = QMessageBox.ButtonRole.AcceptRole
+        elif index == len(choices) - 1:
+            role = QMessageBox.ButtonRole.RejectRole
+        else:
+            role = QMessageBox.ButtonRole.ActionRole
+        button = box.addButton(label, role)
+        button.setIcon(icon(icon_name))
+        buttons.append(button)
+    if buttons:
+        box.setDefaultButton(buttons[min(max(default_index, 0), len(buttons) - 1)])
+    return box, buttons
 
 
 def build_confirm_box(
