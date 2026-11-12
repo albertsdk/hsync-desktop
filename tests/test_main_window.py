@@ -3130,6 +3130,25 @@ class TestPreviewChanges:
         assert window._is_dry_run_preview is False
         assert tr("preview.no_actions") in window._info_banner_label.text()
 
+    def test_a_failed_dry_run_never_claims_everything_is_in_sync(self, window, monkeypatch):
+        """A 404 on the first listing must not degrade into "nothing to sync".
+
+        The dry-run produced no plan at all (the share is missing on the server).
+        Reporting ``preview.no_actions`` pushed a blue toast that read as success,
+        and the SYNC promoting the run failed again with the same 404.
+        """
+        sent, stops = self._spy_engine(window, monkeypatch)
+        window._preview_stats.reset()
+        window._is_dry_run_preview = True
+        window._comparison_errored = True
+
+        window._show_preview_summary()
+
+        assert sent == []
+        assert stops == ["stop"]
+        assert window._is_dry_run_preview is False
+        assert tr("preview.no_actions") not in window._info_banner_label.text()
+
     def test_an_accepted_preview_applies_in_the_same_session(self, window, monkeypatch):
         import hsync_desktop.main_window.actions as actions_module
 

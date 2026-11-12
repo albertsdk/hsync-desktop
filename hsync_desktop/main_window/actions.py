@@ -717,6 +717,13 @@ class ActionsMixin:
         """
         # The wait is over: the plan arrived or the comparison ended.
         self._exit_preparing_plan_ui()
+        if self._comparison_errored and self._is_dry_run_preview:
+            # A failed comparison produced no plan at all (a missing share, an
+            # unreachable server…). "Nothing to sync" would claim an answer that
+            # never came, and the SYNC that promotes the dry-run would fail the
+            # same way: the engine already surfaced the error, so end the run.
+            self._stop_preview_run()
+            return
         s = self._preview_stats
         selection = self._selection_sync_active
         # Simulation Mode never applies the preview: the client exits after its

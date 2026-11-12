@@ -979,8 +979,9 @@ class EventsMixin:
             self._initial_reconcile_done = True
         # Show summary dialog if awaiting sync confirmation. A failed comparison
         # already surfaced its error: never follow it with a "nothing to sync"
-        # plan that was never computed. The initial dry-run keeps the fallback,
-        # because that SYNC is what takes the client out of dry-run mode.
+        # plan that was never computed. The initial dry-run still reaches
+        # ``_show_preview_summary`` (its stats are what the two intents read),
+        # and that function ends the run instead of reporting an empty plan.
         if self._awaiting_preview_for_sync:
             self._awaiting_preview_for_sync = False
             if not self._comparison_errored or self._is_dry_run_preview:
