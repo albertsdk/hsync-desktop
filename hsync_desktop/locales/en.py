@@ -917,5 +917,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Create the share on the server",
     "settings.bucket_probe.save_anyway": "Save without creating",
     "settings.bucket_probe.create_failed": "The share could not be created on the server.",
+    "settings.bucket_probe.quota": "You have reached the maximum of {max} shares for your account. Delete a share, or ask the server administrator to raise the limit.",
     "settings.bucket_probe.offline": "The server could not be reached, so the share was not verified. Save anyway?",
 }

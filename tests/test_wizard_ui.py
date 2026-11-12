@@ -432,6 +432,16 @@ class TestProbeStatus:
 
         assert page.server_status.text() == tr("settings.bucket_probe.create_failed")
 
+    def test_a_quota_refusal_names_the_limit(self, wizard):
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = wizard.connection_page
+        page.set_mode(WizardMode.BACKUP)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(False, 403, reason="create_quota", limit=3))
+
+        assert page.server_status.text() == tr("settings.bucket_probe.quota").replace("{max}", "3")
+
     def test_rendezvous_server_success_lands_on_rendezvous_server_status(self, wizard):
         from hsync_desktop.engine import ProbeOutcome
 

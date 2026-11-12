@@ -893,5 +893,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Créer le partage sur le serveur",
     "settings.bucket_probe.save_anyway": "Enregistrer sans créer",
     "settings.bucket_probe.create_failed": "Le partage n'a pas pu être créé sur le serveur.",
+    "settings.bucket_probe.quota": "Vous avez atteint le maximum de {max} partages pour votre compte. Supprimez un partage ou demandez à l'administrateur du serveur d'augmenter la limite.",
     "settings.bucket_probe.offline": "Le serveur est injoignable, le partage n'a donc pas été vérifié. Enregistrer quand même ?",
 }

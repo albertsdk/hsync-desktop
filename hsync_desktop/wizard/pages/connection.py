@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from hsync_desktop import autostart
 from hsync_desktop.config import DEFAULT_HTTP_TIMEOUT
 from hsync_desktop.engine import (
+    REASON_QUOTA,
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
@@ -465,7 +466,8 @@ class ConnectionPage(WizardPage):
                 base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
             )
             if not created.ok:
-                return ProbeOutcome(False, created.status, reason="create_failed")
+                reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
+                return ProbeOutcome(False, created.status, reason=reason, limit=created.limit)
             result, reason = probe_server_bucket_access(
                 base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
             )
@@ -562,6 +564,14 @@ class ConnectionPage(WizardPage):
             self._set_status(self.server_status, "ok", tr("settings.test_connection_success"))
             self._share_missing = False
             self.create_server_share.setVisible(False)
+            self.changed.emit()
+            return
+        if outcome.reason == "create_quota":
+            self._set_status(
+                self.server_status,
+                "error",
+                tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
+            )
             self.changed.emit()
             return
         if outcome.reason == "create_failed":

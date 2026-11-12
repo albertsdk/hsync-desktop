@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import io
 import ssl
 import urllib.error
 
@@ -52,9 +53,9 @@ class TestHealthProbe:
 
 
 class TestCreateBucket:
-    """``POST /buckets/<name>``: 201 and 409 both mean the share is there."""
+    """``POST /buckets?bucket=<name>``: 201 and 409 both mean the share is there."""
 
-    def test_201_is_ok_and_posts_to_the_bucket_path(self, monkeypatch):
+    def test_201_is_ok_and_posts_the_name_as_a_query_param(self, monkeypatch):
         seen: dict = {}
 
         def capture(request, **_k):
@@ -69,7 +70,8 @@ class TestCreateBucket:
         )
 
         assert result.ok is True and result.status == 201
-        assert seen["url"] == "https://host:9753/api/v1/buckets/barbara"
+        # The create route has no path placeholder: the name is a query param.
+        assert seen["url"] == "https://host:9753/api/v1/buckets?bucket=barbara"
         assert seen["method"] == "POST"
         assert seen["auth"] == "Bearer key"
 
@@ -84,9 +86,11 @@ class TestCreateBucket:
 
         assert result.ok is True and result.status == 409
 
-    def test_403_is_a_failure(self, monkeypatch):
+    def test_403_quota_names_the_limit(self, monkeypatch):
+        body = b'{"info": "Bucket quota exceeded for account", "max_buckets_per_account": 3}'
+
         def raise_http(*_a, **_k):
-            raise urllib.error.HTTPError("u", 403, "quota", {}, None)
+            raise urllib.error.HTTPError("u", 403, "quota", {}, io.BytesIO(body))
 
         monkeypatch.setattr(probes, "urlopen", raise_http)
         result = probes.create_server_bucket(
@@ -94,6 +98,20 @@ class TestCreateBucket:
         )
 
         assert result.ok is False and result.status == 403
+        assert result.reason == probes.REASON_QUOTA
+        assert result.limit == 3
+
+    def test_403_without_a_quota_body_is_a_rejected_key(self, monkeypatch):
+        def raise_http(*_a, **_k):
+            raise urllib.error.HTTPError("u", 403, "forbidden", {}, io.BytesIO(b"{}"))
+
+        monkeypatch.setattr(probes, "urlopen", raise_http)
+        result = probes.create_server_bucket(
+            "https://host", "barbara", "key", ssl_context=_ssl_context()
+        )
+
+        assert result.ok is False and result.reason == probes.REASON_UNAUTHORIZED
+        assert result.limit is None
 
 
 class TestBucketProbe:

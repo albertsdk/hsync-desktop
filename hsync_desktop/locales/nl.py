@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "De share op de server aanmaken",
     "settings.bucket_probe.save_anyway": "Opslaan zonder aan te maken",
     "settings.bucket_probe.create_failed": "De share kon niet op de server worden aangemaakt.",
+    "settings.bucket_probe.quota": "Je hebt het maximum van {max} shares voor je account bereikt. Verwijder een share of vraag de serverbeheerder de limiet te verhogen.",
     "settings.bucket_probe.offline": "De server is niet bereikbaar, dus de deling is niet gecontroleerd. Toch opslaan?",
 }

@@ -893,5 +893,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Crear la compartición en el servidor",
     "settings.bucket_probe.save_anyway": "Guardar sin crear",
     "settings.bucket_probe.create_failed": "No se pudo crear la compartición en el servidor.",
+    "settings.bucket_probe.quota": "Has alcanzado el máximo de {max} comparticiones para tu cuenta. Elimina una compartición o pide al administrador del servidor que aumente el límite.",
     "settings.bucket_probe.offline": "No se pudo contactar con el servidor, así que el recurso no se verificó. ¿Guardar de todos modos?",
 }

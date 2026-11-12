@@ -116,6 +116,7 @@ from hsync_desktop.config import (
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.deletion_risk import forget_acknowledgement
 from hsync_desktop.engine import (
+    REASON_QUOTA,
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
@@ -1285,6 +1286,16 @@ class SettingsDialog(QDialog):
             else:
                 self._abandon_deferred_commit()
             return
+        if outcome.reason == "create_quota":
+            # The account owns as many shares as the server allows: only deleting
+            # one (or raising the cap) can help, so name the limit.
+            QMessageBox.warning(
+                self,
+                tr("settings.bucket_probe.title"),
+                tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
+            )
+            self._abandon_deferred_commit()
+            return
         if outcome.reason == "create_failed":
             QMessageBox.warning(
                 self,
@@ -1327,7 +1338,10 @@ class SettingsDialog(QDialog):
                 base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
             )
             if not created.ok:
-                return ProbeOutcome(False, created.status, reason="create_failed")
+                # A quota refusal is actionable (delete a share or raise the cap),
+                # so it keeps its own reason and the server's limit.
+                reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
+                return ProbeOutcome(False, created.status, reason=reason, limit=created.limit)
             return self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
 
         self._start_bucket_probe(job)

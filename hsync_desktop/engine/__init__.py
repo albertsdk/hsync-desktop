@@ -42,6 +42,7 @@ from hsync_desktop.engine.endpoints import (
     unverified_ssl_context,
 )
 from hsync_desktop.engine.probes import (
+    REASON_QUOTA,
     ServerProbeResult,
     create_server_bucket,
     probe_server_bucket,
@@ -91,6 +92,7 @@ __all__ = [
     "probe_server_bucket_access",
     "probe_server_health",
     "create_server_bucket",
+    "REASON_QUOTA",
     "server_failure_reason",
     "remove_rendezvous_trust",
     "remove_peer_pin",

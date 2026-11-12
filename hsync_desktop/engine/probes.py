@@ -10,6 +10,7 @@ and the reason codes live here instead of being duplicated.
 
 from __future__ import annotations
 
+import json
 import ssl
 import time
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from hsync_common.protocol.rest import (
 )
 
 __all__ = [
+    "REASON_QUOTA",
     "ServerProbeResult",
     "create_server_bucket",
     "probe_server_bucket",
@@ -38,6 +40,7 @@ REASON_SHARE_MISSING = "share_missing"
 REASON_BAD_SHARE = "bad_share"
 REASON_UNAUTHORIZED = "unauthorized"
 REASON_SERVER_ERROR = "server_error"
+REASON_QUOTA = "quota"
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +51,8 @@ class ServerProbeResult:
     when the request never completed (network/TLS error). ``authenticated`` is
     True when an API key was exercised (the bucket probe), so the caller can
     distinguish "reachable but unauthenticated" from "reachable and authorized".
+    ``limit`` carries the server's per-account bucket cap when it refused a
+    creation for that reason.
     """
 
     ok: bool
@@ -55,6 +60,7 @@ class ServerProbeResult:
     latency_ms: int
     authenticated: bool
     reason: str = ""
+    limit: int | None = None
 
 
 def _probe(
@@ -109,14 +115,15 @@ def create_server_bucket(
     ssl_context: ssl.SSLContext,
     timeout: float = 5.0,
 ) -> ServerProbeResult:
-    """Create *bucket* on the server (``POST /api/v1/buckets/<bucket>``).
+    """Create *bucket* on the server (``POST /api/v1/buckets?bucket=<name>``).
 
-    The creator becomes the owner. ``ok`` is True on 201 **and** on 409: a bucket
-    that already exists is the outcome the caller wanted, and the server answers
-    409 for it. A 404 here means the endpoint is missing (an older server), which
-    the caller reports as a failure.
+    The name travels as a query parameter (the create route has no path
+    placeholder) and the creator becomes the owner. ``ok`` is True on 201 **and**
+    on 409: a bucket that already exists is the outcome the caller wanted. A 403
+    is the per-account quota when the body names it (``REASON_QUOTA`` with the
+    cap in ``limit``), otherwise a rejected key.
     """
-    url = f"{base_url.rstrip('/')}{REST_BUCKETS_PREFIX}/{quote(bucket, safe='')}"
+    url = f"{base_url.rstrip('/')}{REST_BUCKETS_PREFIX}?bucket={quote(bucket, safe='')}"
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     request = Request(url, headers=headers, method="POST")
     started = time.monotonic()
@@ -127,10 +134,36 @@ def create_server_bucket(
             return ServerProbeResult(status in (200, 201), status, latency, bool(api_key))
     except HTTPError as exc:
         latency = int((time.monotonic() - started) * 1000)
-        return ServerProbeResult(exc.code == 409, exc.code, latency, bool(api_key))
+        if exc.code == 409:
+            return ServerProbeResult(True, 409, latency, bool(api_key))
+        if exc.code == 403:
+            limit = _quota_limit(exc)
+            if limit is not None:
+                return ServerProbeResult(
+                    False, 403, latency, bool(api_key), REASON_QUOTA, limit=limit
+                )
+            return ServerProbeResult(False, 403, latency, bool(api_key), REASON_UNAUTHORIZED)
+        return ServerProbeResult(False, exc.code, latency, bool(api_key))
     except (URLError, ssl.SSLError, OSError, ValueError):
         latency = int((time.monotonic() - started) * 1000)
         return ServerProbeResult(False, None, latency, bool(api_key), REASON_UNREACHABLE)
+
+
+def _quota_limit(exc: HTTPError) -> int | None:
+    """The per-account bucket cap from a quota 403 body, or ``None``.
+
+    The server answers ``{"info": "Bucket quota exceeded for account",
+    "max_buckets_per_account": N}``; any other 403 (a rejected key) has no such
+    field and must not be reported as a quota.
+    """
+    try:
+        payload = json.loads(exc.read() or b"{}")
+    except (ValueError, OSError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    limit = payload.get("max_buckets_per_account")
+    return limit if isinstance(limit, int) and limit > 0 else None
 
 
 def server_failure_reason(result: ServerProbeResult) -> str:

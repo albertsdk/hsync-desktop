@@ -42,6 +42,9 @@ class ProbeOutcome:
     #: Non-fingerprint payload a probe may report (e.g. the version found by the
     #: release check); empty for probes that only enrich ``status``/``reason``.
     value: str = ""
+    #: A server-imposed cap the probe hit (the per-account bucket quota), so the
+    #: UI can name the limit instead of a generic failure.
+    limit: int | None = None
 
 
 class _Worker(QObject):

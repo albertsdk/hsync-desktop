@@ -169,6 +169,26 @@ class TestOutcome:
         assert warned == ["warning"]
         assert _persisted(settings) == "old"
 
+    def test_a_quota_refusal_names_the_limit(self, server_dialog, settings, monkeypatch):
+        """The account owns as many shares as the server allows: say so."""
+        settings.setValue("sync/bucket", "old")
+        server_dialog.bucket.setText("new")
+        warned: list[str] = []
+
+        class _Box:
+            @staticmethod
+            def warning(_parent, _title, text):
+                warned.append(text)
+
+        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+
+        server_dialog._on_bucket_probe_done(
+            ProbeOutcome(False, 403, reason="create_quota", limit=3)
+        )
+
+        assert warned == [tr("settings.bucket_probe.quota").replace("{max}", "3")]
+        assert _persisted(settings) == "old"
+
     def test_create_then_commit_creates_and_rechecks(self, server_dialog, settings, monkeypatch):
         settings.setValue("sync/bucket", "old")
         server_dialog.bucket.setText("new")

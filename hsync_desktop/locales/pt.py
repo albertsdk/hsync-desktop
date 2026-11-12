@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Criar a partilha no servidor",
     "settings.bucket_probe.save_anyway": "Guardar sem criar",
     "settings.bucket_probe.create_failed": "Não foi possível criar a partilha no servidor.",
+    "settings.bucket_probe.quota": "Atingiu o máximo de {max} partilhas para a sua conta. Elimine uma partilha ou peça ao administrador do servidor para aumentar o limite.",
     "settings.bucket_probe.offline": "Não foi possível contatar o servidor, então o compartilhamento não foi verificado. Salvar mesmo assim?",
 }

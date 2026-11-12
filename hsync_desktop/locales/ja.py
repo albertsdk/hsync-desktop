@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "サーバーに共有を作成",
     "settings.bucket_probe.save_anyway": "作成せずに保存",
     "settings.bucket_probe.create_failed": "サーバーに共有を作成できませんでした。",
+    "settings.bucket_probe.quota": "アカウントの共有数が上限（{max} 件）に達しました。共有を 1 つ削除するか、サーバー管理者に上限の引き上げを依頼してください。",
     "settings.bucket_probe.offline": "サーバーに接続できないため、共有を確認できませんでした。それでも保存しますか？",
 }

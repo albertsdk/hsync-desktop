@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Создать общий ресурс на сервере",
     "settings.bucket_probe.save_anyway": "Сохранить без создания",
     "settings.bucket_probe.create_failed": "Не удалось создать общий ресурс на сервере.",
+    "settings.bucket_probe.quota": "Достигнут максимум в {max} общих ресурсов для вашей учётной записи. Удалите один общий ресурс или попросите администратора сервера увеличить лимит.",
     "settings.bucket_probe.offline": "Сервер недоступен, поэтому общая папка не проверена. Всё равно сохранить?",
 }

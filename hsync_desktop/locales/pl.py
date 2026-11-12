@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Utwórz udział na serwerze",
     "settings.bucket_probe.save_anyway": "Zapisz bez tworzenia",
     "settings.bucket_probe.create_failed": "Nie udało się utworzyć udziału na serwerze.",
+    "settings.bucket_probe.quota": "Osiągnięto maksimum {max} udziałów dla Twojego konta. Usuń udział lub poproś administratora serwera o zwiększenie limitu.",
     "settings.bucket_probe.offline": "Nie można połączyć się z serwerem, więc udział nie został zweryfikowany. Zapisać mimo to?",
 }

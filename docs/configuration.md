@@ -147,9 +147,11 @@ share does not exist (or that your account has no access to it) it offers to
 **create the share on the server**, to save without creating, or to cancel. A
 share is never created implicitly — the first sync lists the remote files before
 uploading anything, so a share that does not exist stops the sync instead of
-being created. To use a share owned by another account, ask its owner (or the
-server admin) to add you as a member; with no membership the server answers *not
-found* for a share that exists.
+being created. If the account already owns as many shares as the server allows
+(`HSYNC_MAX_BUCKETS_PER_ACCOUNT`), the app says so and names the limit: delete a
+share, or ask the server administrator to raise it. To use a share owned by
+another account, ask its owner (or the server admin) to add you as a member; with
+no membership the server answers *not found* for a share that exists.
 
 ## General
 

@@ -893,5 +893,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "Freigabe auf dem Server erstellen",
     "settings.bucket_probe.save_anyway": "Ohne Erstellen speichern",
     "settings.bucket_probe.create_failed": "Die Freigabe konnte auf dem Server nicht erstellt werden.",
+    "settings.bucket_probe.quota": "Sie haben das Maximum von {max} Freigaben für Ihr Konto erreicht. Löschen Sie eine Freigabe oder bitten Sie den Serveradministrator, das Limit zu erhöhen.",
     "settings.bucket_probe.offline": "Der Server ist nicht erreichbar, die Freigabe wurde also nicht geprüft. Trotzdem speichern?",
 }

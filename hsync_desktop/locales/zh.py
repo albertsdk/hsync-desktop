@@ -916,5 +916,6 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create": "在服务器上创建共享",
     "settings.bucket_probe.save_anyway": "不创建，直接保存",
     "settings.bucket_probe.create_failed": "无法在服务器上创建该共享。",
+    "settings.bucket_probe.quota": "你的账户已达到 {max} 个共享的上限。请删除一个共享，或请服务器管理员提高上限。",
     "settings.bucket_probe.offline": "无法连接服务器，未验证该共享。仍要保存吗？",
 }
