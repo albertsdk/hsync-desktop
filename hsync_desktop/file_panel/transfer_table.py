@@ -2494,10 +2494,6 @@ class FileTransferTable(QTableView):
         self._cached_items = None  # Invalidate cache
         self.refresh_view()
 
-    def remove_transfer(self, filepath: str) -> None:
-        """Remove a transfer immediately."""
-        self._remove_file(filepath)
-
     def remove_transfers(self, filepaths: Iterable[str]) -> None:
         """Remove many rows under one lock with a single debounced rebuild.
 

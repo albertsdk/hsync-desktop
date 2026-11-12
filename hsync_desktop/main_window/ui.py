@@ -8,32 +8,21 @@ from __future__ import annotations
 
 import os
 from collections import deque
-from collections.abc import Callable
-from typing import cast
-from urllib.parse import urlsplit
 
-from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
 from hsync_common.logger import format_log_line
 from PySide6.QtCore import QLocale, QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
-    QCloseEvent,
-    QDesktopServices,
-    QFontMetrics,
     QKeySequence,
     QTextCursor,
 )
 from PySide6.QtWidgets import (
-    QApplication,
-    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
-    QMainWindow,
     QMenu,
-    QMessageBox,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -43,59 +32,26 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.busy import BusyText
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
-    DEFAULT_P2P_RENDEZVOUS_TRUST,
-    DEFAULT_SERVER_TRUST,
     DEFAULT_SYNC_DIRECTION,
 )
-from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS, open_docs_link
-from hsync_desktop.engine import (
-    HsyncEngine,
-    add_peer_pin,
-    add_rendezvous_trust,
-    add_server_trust,
-    fetch_rendezvous_fingerprint,
-    fetch_server_fingerprint,
-    find_hsync_binary,
-    list_rendezvous_trust,
-    list_server_trust,
-    remove_peer_pin,
-    remove_rendezvous_trust,
-    remove_server_trust,
-    supports_peer_trust,
-)
 from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.fonts import log_monospace_font
 from hsync_desktop.i18n import register_language_callback, tr
 from hsync_desktop.log_style import styled_runs
-from hsync_desktop.notifications import NotificationManager
-from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.problems import FAILURE, WARNING, Problem
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
-    ApiKeyDialog,
-    P2PKeyDialog,
-    SettingsDialog,
-    are_notifications_enabled,
-    build_hsync_args,
     get_deletion_policy,
-    get_saved_theme,
-    is_auto_sync_enabled,
     is_log_panel_visible,
     is_simulation_mode,
 )
-from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
-    COLOR_CONNECTED,
-    COLOR_DISCONNECTED,
-    COLOR_WAITING,
     THEME_LIGHT,
-    apply_theme,
 )
 from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.warnings import remedy_text
@@ -896,8 +852,6 @@ class UiBuildMixin:
         self._btn_preview_changes.setEnabled(can_preview)
         if self._tray:
             self._tray.set_preview_changes_enabled(can_preview)
-        # Send/Receive of a selection are one-shot commands: only while stopped.
-        idle = not is_running and not is_stopping
         # The File menu follows the whole selection (see
         # ActionsMixin._refresh_file_actions): with a multi-selection an action
         # is enabled only when it applies to every selected entry.

@@ -8,84 +8,29 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable
-from typing import cast
-from urllib.parse import urlsplit
 
-from hsync_common.endpoint import parse_host_port
 from hsync_common.format import format_bytes
-from PySide6.QtCore import QPoint, QSettings, Qt, QTime, QTimer, Slot
-from PySide6.QtGui import (
-    QAction,
-    QActionGroup,
-    QCloseEvent,
-    QDesktopServices,
-    QFontMetrics,
-)
+from PySide6.QtCore import QSettings, Qt, QTime, Slot
 from PySide6.QtWidgets import (
-    QApplication,
-    QCheckBox,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMenu,
     QMessageBox,
-    QPlainTextEdit,
-    QPushButton,
-    QSplitter,
-    QVBoxLayout,
-    QWidget,
 )
 
 from hsync_desktop import debug_events
-from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
-    DEFAULT_P2P_RENDEZVOUS_TRUST,
-    DEFAULT_SERVER_TRUST,
 )
-from hsync_desktop.crypto import decrypt_value
-from hsync_desktop.engine import (
-    HsyncEngine,
-    add_peer_pin,
-    add_rendezvous_trust,
-    add_server_trust,
-    fetch_rendezvous_fingerprint,
-    fetch_server_fingerprint,
-    find_hsync_binary,
-    list_rendezvous_trust,
-    list_server_trust,
-    remove_peer_pin,
-    remove_rendezvous_trust,
-    remove_server_trust,
-    supports_peer_trust,
-)
-from hsync_desktop.file_panel import FilePanel, TransferStatus
+from hsync_desktop.file_panel import TransferStatus
 from hsync_desktop.file_panel.models import IN_FLIGHT_STATUSES
-from hsync_desktop.i18n import register_language_callback, tr
-from hsync_desktop.notifications import NotificationManager
-from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
+from hsync_desktop.i18n import tr
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
-    ApiKeyDialog,
-    P2PKeyDialog,
-    SettingsDialog,
-    are_notifications_enabled,
-    build_hsync_args,
-    get_saved_theme,
-    is_auto_sync_enabled,
-    is_log_panel_visible,
 )
-from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
     COLOR_CONNECTED,
     COLOR_DISCONNECTED,
     COLOR_WAITING,
-    apply_theme,
 )
-from hsync_desktop.ui.loader import load_ui_widget
 
 # Minimum spacing between scan-triggered previews: a burst of missed events
 # (many renames in a row) coalesces into at most one extra full scan per window.

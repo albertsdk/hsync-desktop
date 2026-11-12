@@ -93,10 +93,6 @@ class BusyText(QObject):
         """True while the glyph is on screen (the delay has elapsed)."""
         return self._animating
 
-    def base_text(self) -> str:
-        """The plain text currently rendered (without the glyph)."""
-        return self._base
-
     def set_text(self, text: str) -> None:
         """Set the plain text, keeping the current animation state.
 

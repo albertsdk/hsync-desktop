@@ -7,41 +7,23 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from typing import cast
-from urllib.parse import urlsplit
 
-from hsync_common.endpoint import parse_host_port
-from hsync_common.format import format_bytes
-from PySide6.QtCore import QPoint, QSettings, Qt, QTimer, Slot
+from PySide6.QtCore import QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
-    QAction,
-    QActionGroup,
-    QCloseEvent,
     QFontMetrics,
 )
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
     QMenu,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
-    QSplitter,
-    QVBoxLayout,
-    QWidget,
 )
 
-from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
     DEFAULT_GROUP,
     DEFAULT_P2P_ENABLED,
-    DEFAULT_P2P_RENDEZVOUS_TRUST,
-    DEFAULT_SERVER_TRUST,
     DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.crypto import decrypt_value
@@ -52,37 +34,19 @@ from hsync_desktop.deletion_risk import (
     is_acknowledged,
 )
 from hsync_desktop.engine import (
-    HsyncEngine,
-    add_peer_pin,
-    add_rendezvous_trust,
-    add_server_trust,
-    fetch_rendezvous_fingerprint,
-    fetch_server_fingerprint,
-    find_hsync_binary,
-    list_rendezvous_trust,
-    list_server_trust,
-    remove_peer_pin,
-    remove_rendezvous_trust,
-    remove_server_trust,
     reset_sync_state,
-    supports_peer_trust,
 )
-from hsync_desktop.file_panel import FilePanel
 from hsync_desktop.fonts import (
     apply_system_fonts,
     log_monospace_font,
     reset_widget_fonts,
     ui_font,
 )
-from hsync_desktop.i18n import register_language_callback, tr
+from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
-from hsync_desktop.notifications import NotificationManager
-from hsync_desktop.preview_summary_dialog import PreviewStats, PreviewSummaryDialog
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
-    ApiKeyDialog,
-    P2PKeyDialog,
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
@@ -90,18 +54,11 @@ from hsync_desktop.settings import (
     get_enabled_notification_categories,
     get_saved_font_scale,
     get_saved_theme,
-    is_auto_sync_enabled,
-    is_log_panel_visible,
     is_simulation_mode,
 )
-from hsync_desktop.system_tray import SystemTray
 from hsync_desktop.themes import (
-    COLOR_CONNECTED,
-    COLOR_DISCONNECTED,
-    COLOR_WAITING,
     apply_theme,
 )
-from hsync_desktop.ui.loader import load_ui_widget
 from hsync_desktop.widgets.dialogs import (
     build_confirm_box,
     build_optout_confirm_box,

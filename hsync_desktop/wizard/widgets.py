@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 from hsync_desktop.widgets.labels import muted_label
-from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 
 __all__ = [
     "InlineError",

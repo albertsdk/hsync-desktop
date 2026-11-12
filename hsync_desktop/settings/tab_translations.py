@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QLabel
 
-from hsync_desktop.i18n import SUPPORTED_LANGUAGES, tr
+from hsync_desktop.i18n import tr
 from hsync_desktop.icons import style_ok_cancel_button_box
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
@@ -24,7 +24,6 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
-from hsync_desktop.settings.tab_layout import equalize_tab_descriptions
 from hsync_desktop.widgets.links import set_help_link_text
 from hsync_desktop.widgets.text import escape_mnemonics
 
