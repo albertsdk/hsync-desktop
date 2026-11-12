@@ -31,6 +31,37 @@ if TYPE_CHECKING:
     from hsync_desktop.settings.dialog import SettingsDialog
 
 
+# Plain labels that live in the .ui file (accessed via findChild, not as dialog
+# attributes): object name → i18n key.
+_LABEL_TEXTS: dict[str, str] = {
+    "lblSharedPath": "settings.shared_path",
+    "lblServerUrl": "settings.server_url",
+    "lblApiKey": "settings.api_key",
+    "lblCaCert": "settings.ca_cert",
+    "lblHttpTimeout": "settings.http_timeout",
+    "lblBucket": "settings.bucket",
+    "lblResync": "settings.resync",
+    "lblRetryDelay": "settings.retry_delay",
+    "lblStabilityDelay": "settings.stability_delay",
+    "lblMaxWait": "settings.max_wait",
+    "lblFilterPath": "settings.filter_path",
+    "lblP2pGroup": "settings.p2p_group",
+    "lblP2pKey": "settings.p2p_key",
+    "lblP2pPort": "settings.p2p_port",
+    "lblRendezvousTimeout": "settings.rendezvous_timeout",
+    "lblLogfile": "settings.logfile",
+    "lblTheme": "settings.theme",
+    "lblLanguage": "settings.language",
+}
+
+
+def _set_label_text(dlg: SettingsDialog, name: str, key: str) -> None:
+    """Set a ``.ui``-defined label's text; a missing widget is not an error."""
+    label = dlg.findChild(QLabel, name)
+    if label is not None:
+        label.setText(tr(key))
+
+
 def apply_translations(dlg: SettingsDialog) -> None:
     """Apply i18n translations to UI elements."""
     dlg.setWindowTitle(tr("settings.title"))
@@ -48,25 +79,12 @@ def apply_translations(dlg: SettingsDialog) -> None:
         if hint is not None:
             hint.setText(tr(key))
 
-    # Sync tab - shared path label
-    lbl_shared: QLabel = dlg.findChild(QLabel, "lblSharedPath")  # type: ignore[assignment]
-    if lbl_shared:
-        lbl_shared.setText(tr("settings.shared_path"))
+    # Plain labels defined in the .ui file.
+    for name, key in _LABEL_TEXTS.items():
+        _set_label_text(dlg, name, key)
 
     # Server Mode tab labels
-    lbl: QLabel = dlg.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.server_url"))
-    lbl = dlg.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.api_key"))
     dlg._lbl_insecure.setText(tr("settings.insecure"))
-    lbl = dlg.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.ca_cert"))
-    lbl = dlg.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.http_timeout"))
     dlg._lbl_server_trust.setText(tr("settings.server_trust"))
     dlg._populate_server_trust()
     dlg.btn_test_connection.setText(
@@ -78,9 +96,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
     )
 
     # Sync tab labels
-    lbl = dlg.findChild(QLabel, "lblBucket")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.bucket"))
     dlg._lbl_continuous.setText(tr("settings.watch"))
     dlg._lbl_deletion_policy.setText(tr("settings.deletion_policy"))
     dlg._populate_deletion_policy()
@@ -88,23 +103,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg.sync_direction_combo.setItemText(0, tr("settings.sync_direction.bidirectional"))
     dlg.sync_direction_combo.setItemText(1, tr("settings.sync_direction.upload_only"))
     dlg.sync_direction_combo.setItemText(2, tr("settings.sync_direction.download_only"))
-    lbl = dlg.findChild(QLabel, "lblResync")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.resync"))
     dlg.resync.setSpecialValueText(tr("settings.disabled"))
-    lbl = dlg.findChild(QLabel, "lblRetryDelay")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.retry_delay"))
-    lbl = dlg.findChild(QLabel, "lblStabilityDelay")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.stability_delay"))
     dlg.stability_delay.setSpecialValueText(tr("settings.auto"))
-    lbl = dlg.findChild(QLabel, "lblMaxWait")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.max_wait"))
-    lbl = dlg.findChild(QLabel, "lblFilterPath")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.filter_path"))
     dlg._lbl_min_free_disk_space.setText(tr("settings.min_free_disk_space"))
     dlg.min_free_disk_space.setSpecialValueText(tr("settings.disabled"))
     dlg._lbl_max_inbound_size.setText(tr("settings.max_inbound_size"))
@@ -143,15 +143,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
 
     # p2p tab labels
     dlg._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
-    lbl = dlg.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.p2p_group"))
-    lbl = dlg.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.p2p_key"))
-    lbl = dlg.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.p2p_port"))
     dlg._lbl_p2p_rendezvous.setText(tr("settings.p2p_rendezvous"))
     dlg._lbl_p2p_rendezvous_trust.setText(tr("settings.p2p_rendezvous_trust"))
     dlg._populate_rendezvous_trust()
@@ -170,9 +161,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_p2p_upnp.setText(tr("settings.p2p_upnp"))
     dlg._lbl_no_mdns.setText(tr("settings.p2p_no_mdns"))
     dlg._lbl_p2p_key_rdv_warning.setText(tr("settings.p2p_key_rdv_warning"))
-    lbl = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.rendezvous_timeout"))
     dlg._lbl_ntp_hosts.setText(tr("settings.ntp_hosts"))
     dlg._lbl_prefer_master.setText(tr("settings.prefer_master"))
     dlg._lbl_never_master.setText(tr("settings.never_master"))
@@ -195,9 +183,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_bandwidth_download.setText(tr("settings.bandwidth_download"))
     dlg._lbl_verbose.setText(tr("settings.verbose"))
     dlg._lbl_quiet.setText(tr("settings.quiet"))
-    lbl = dlg.findChild(QLabel, "lblLogfile")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.logfile"))
     dlg.max_concurrent_transfers.setSpecialValueText(tr("settings.auto"))
     dlg.mass_delete_threshold.setSpecialValueText(tr("settings.disabled"))
     dlg.mass_delete_percent.setSpecialValueText(tr("settings.disabled"))
@@ -205,18 +190,12 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg.bandwidth_download.setSpecialValueText(tr("settings.unlimited"))
 
     # General tab labels (interface + startup)
-    lbl = dlg.findChild(QLabel, "lblTheme")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.theme"))
     dlg.theme_combo.setItemText(0, tr("settings.theme_light"))
     dlg.theme_combo.setItemText(1, tr("settings.theme_dark"))
     dlg.theme_combo.setItemText(2, tr("settings.theme_system"))
     dlg._lbl_font_scale.setText(tr("settings.font_size"))
     dlg.font_scale_combo.setItemText(0, tr("settings.font_size_standard"))
     dlg.font_scale_combo.setItemText(1, tr("settings.font_size_compact"))
-    lbl = dlg.findChild(QLabel, "lblLanguage")  # type: ignore[assignment]
-    if lbl:
-        lbl.setText(tr("settings.language"))
     # The first language entry ("System default") is localized; the endonyms are not.
     if dlg.lang_combo.count():
         dlg.lang_combo.setItemText(0, tr("settings.language_system"))
