@@ -243,6 +243,9 @@ class ShareStore:
         values = copy.deepcopy(source.values) if source is not None else self._capture()
         values["path/local"] = folder
         values["sync/bucket"] = self._bucket_for(name, folder)
+        # A fresh name is a fresh bucket: it has never been confirmed on the
+        # server, so Settings must check (and offer to create) it.
+        values["sync/bucket_verified"] = ""
         share = Share(id=uuid.uuid4().hex, name=name.strip(), values=values)
         book.shares.append(share)
         self._write(book)
@@ -263,6 +266,9 @@ class ShareStore:
         values = copy.deepcopy(source.values)
         values["path/local"] = folder
         values["sync/bucket"] = self._bucket_for(name, folder)
+        # Same rule as ``create_from_active``: the copy gets a new bucket name,
+        # which the server has never confirmed.
+        values["sync/bucket_verified"] = ""
         share = Share(id=uuid.uuid4().hex, name=name.strip(), values=values)
         book.shares.append(share)
         self._write(book)

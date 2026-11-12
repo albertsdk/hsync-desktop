@@ -38,6 +38,11 @@ The name is only a label: it can contain spaces and capital letters. The
 **bucket** (the identifier the peers/servers use) is derived from the name when
 the share is created and can be changed later in the Settings dialog.
 
+In Server Mode the new share is checked against the server the first time you
+save those settings: when its name does not exist there yet, the app offers to
+**create it on the server** before saving, so the first sync does not stop on a
+share the server has never heard of.
+
 ## Switch share
 
 Select another share in the list and the whole window follows it: header, badges,

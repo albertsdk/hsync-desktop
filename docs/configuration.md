@@ -142,7 +142,8 @@ devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-perm
 
 Changing the **share name** in this tab keeps your API key: the key identifies
 your account, the share name only says which bucket it works on. The app checks
-the new name against the server before saving: when the server answers that the
+the name against the server before saving — an edited name, and a share you just
+created, whose name the server has never seen. When the server answers that the
 share does not exist (or that your account has no access to it) it offers to
 **create the share on the server**, to save without creating, or to cancel. A
 share is never created implicitly — the first sync lists the remote files before

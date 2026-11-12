@@ -244,6 +244,9 @@ class SettingsDialog(QDialog):
         # flight, so "create the share on the server" can reuse exactly what was
         # probed instead of re-reading the form.
         self._bucket_probe_args: tuple[str, str, str, ssl.SSLContext, float] | None = None
+        # Bucket the server confirmed in this session (probe or creation). It is
+        # what lets an unchanged, already-verified field skip the next check.
+        self._verified_bucket = ""
         # What to do once a deferred commit (the bucket check) comes back clean:
         # the caller's continuation, dropped when the check is vetoed.
         self._commit_continuation: Callable[[], None] | None = None
@@ -1200,12 +1203,15 @@ class SettingsDialog(QDialog):
     # ── Bucket change check (deferred commit) ────────────────────────────
 
     def _bucket_probe_job(self, normalized_server: str | None) -> Callable[[], ProbeOutcome] | None:
-        """The off-thread check for a changed bucket in server mode, or ``None``.
+        """The off-thread check for a bucket that is new to server mode, or ``None``.
 
-        Renaming a share never changes the bucket (``ShareStore.rename`` keeps
-        it), so only an edit of the field reaches this. A bucket the account
-        cannot reach answers 404 exactly like a missing one, and the first upload
-        would silently create it: this check turns that into a decision.
+        Two cases reach this: an edit of the field and a share whose bucket was
+        never confirmed (a share created by the selector gets a fresh bucket name,
+        which the flat keys already hold — so comparing the field with the
+        persisted value would silently skip it). Renaming a share never changes
+        the bucket (``ShareStore.rename`` keeps it). A bucket the account cannot
+        reach answers 404 exactly like a missing one: this check turns that into
+        a decision instead of a first sync that fails on it.
         """
         if self.p2p_mode.isChecked() or not normalized_server:
             return None
@@ -1216,7 +1222,8 @@ class SettingsDialog(QDialog):
         persisted = str(
             QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", DEFAULT_BUCKET, str)
         )
-        if bucket == persisted.strip():
+        verified = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket_verified", "", str))
+        if bucket == persisted.strip() and bucket == verified.strip():
             return None
         base = normalized_server.rstrip("/")
         ssl_context = self._test_connection_ssl_context()
@@ -1256,9 +1263,10 @@ class SettingsDialog(QDialog):
             self._ok_label = ""
 
     def _on_bucket_probe_done(self, outcome: ProbeOutcome) -> None:
-        """Finish, confirm or veto a save whose new bucket needed the server."""
+        """Finish, confirm or veto a save whose bucket needed the server."""
         self._set_commit_busy(False)
         if outcome.ok:
+            self._mark_bucket_verified()
             self._finish_deferred_commit()
             return
         if outcome.reason == "share_missing":
@@ -1319,6 +1327,17 @@ class SettingsDialog(QDialog):
         # A rejected key or a malformed name: nothing is saved.
         QMessageBox.warning(self, tr("settings.title"), probe_reason_text(outcome.reason))
         self._abandon_deferred_commit()
+
+    def _mark_bucket_verified(self) -> None:
+        """Record the bucket the server just confirmed for this share.
+
+        ``save`` persists it as ``sync/bucket_verified``, which the share record
+        picks up right after — that marker is what lets the next save skip the
+        check instead of asking again.
+        """
+        args = self._bucket_probe_args
+        if args is not None:
+            self._verified_bucket = args[1]
 
     def _create_bucket_then_commit(self) -> None:
         """Create the share on the server, then save once the re-check passes.
@@ -1656,7 +1675,18 @@ class SettingsDialog(QDialog):
         s.setValue("connection/ca_cert", self.ca_cert.text())
         s.setValue("connection/server_trust", self.server_trust.currentData())
         s.setValue("connection/http_timeout", self.http_timeout.value())
-        s.setValue("sync/bucket", self.bucket.text())
+        bucket = self.bucket.text().strip()
+        s.setValue("sync/bucket", bucket)
+        # The marker survives only while the field still names the bucket the
+        # server confirmed: a name edited without a passing check (an offline
+        # "save anyway") is unverified again and gets checked next time.
+        verified = (
+            self._verified_bucket
+            or str(
+                QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket_verified", "", str)
+            ).strip()
+        )
+        s.setValue("sync/bucket_verified", bucket if verified == bucket else "")
         s.setValue("sync/continuous", self.continuous.isChecked())
         self._normalize_resync()
         s.setValue("sync/resync", self.resync.value())

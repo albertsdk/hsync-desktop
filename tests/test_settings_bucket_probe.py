@@ -54,11 +54,45 @@ def _choice_box(monkeypatch, choice: int) -> list[str]:
 
 
 class TestWhenTheCheckRuns:
-    def test_an_unchanged_bucket_needs_no_check(self, server_dialog, settings):
+    def test_an_unchanged_verified_bucket_needs_no_check(self, server_dialog, settings):
         settings.setValue("sync/bucket", "team")
+        settings.setValue("sync/bucket_verified", "team")
         server_dialog.bucket.setText("team")
 
         assert server_dialog._bucket_probe_job("https://host") is None
+
+    def test_a_share_whose_bucket_was_never_verified_is_checked(self, server_dialog, settings):
+        """A share created by the selector already holds its fresh bucket name.
+
+        Comparing the field with the persisted value alone skipped the check, so
+        the first sync answered 404 and the bucket was never created.
+        """
+        settings.setValue("sync/bucket", "team")
+        settings.setValue("sync/bucket_verified", "")
+        server_dialog.bucket.setText("team")
+
+        assert server_dialog._bucket_probe_job("https://host") is not None
+
+    def test_a_passing_check_marks_the_bucket_verified(self, server_dialog, settings):
+        settings.setValue("sync/bucket", "old")
+        server_dialog.bucket.setText("new")
+        server_dialog._bucket_probe_args = ("https://host", "new", "key", object(), 5.0)
+
+        server_dialog._on_bucket_probe_done(ProbeOutcome(True, 200))
+
+        assert str(settings.value("sync/bucket_verified", "", str)) == "new"
+        # The marker is what lets the next save skip the check.
+        assert server_dialog._bucket_probe_job("https://host") is None
+
+    def test_editing_a_verified_bucket_clears_the_marker(self, server_dialog, settings):
+        settings.setValue("sync/bucket", "team")
+        settings.setValue("sync/bucket_verified", "team")
+        server_dialog.bucket.setText("other")
+
+        server_dialog.save()
+
+        assert str(settings.value("sync/bucket_verified", "", str)) == ""
+        assert server_dialog._bucket_probe_job("https://host") is not None
 
     def test_p2p_mode_never_checks(self, server_dialog, settings):
         settings.setValue("sync/bucket", "old")

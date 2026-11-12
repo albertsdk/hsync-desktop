@@ -67,6 +67,10 @@ from hsync_desktop.config import (
 SHARE_KEYS: dict[str, tuple[object, type]] = {
     "path/local": ("", str),
     "sync/bucket": (DEFAULT_BUCKET, str),
+    # The bucket this share's name was last confirmed against (probe or create).
+    # A share whose bucket is not marked here has never been verified on the
+    # server, so Settings checks it even when the field was not edited.
+    "sync/bucket_verified": ("", str),
     "sync/direction": (DEFAULT_SYNC_DIRECTION, str),
     "sync/continuous": (DEFAULT_CONTINUOUS, bool),
     "sync/resync": (DEFAULT_RESYNC_INTERVAL, int),
