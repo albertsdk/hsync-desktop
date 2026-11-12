@@ -9,9 +9,6 @@ is the single import path.
 
 from hsync_desktop.engine.async_probe import AsyncProbe, ProbeOutcome
 from hsync_desktop.engine.cli import (
-    _CAPABILITIES_CACHE_KEY,
-    _EXPECTED_VERSION,
-    _VERSION_CACHE_KEY,
     BinaryVersionProbe,
     ResetStateResult,
     add_peer_pin,

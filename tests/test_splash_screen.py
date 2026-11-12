@@ -202,7 +202,6 @@ class TestSplashFrame:
         assert splash.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
 
     def test_the_theme_owns_the_frame(self, qtbot):
-        from hsync_desktop import themes
         from hsync_desktop.splash_screen import SplashScreen
 
         splash = SplashScreen()

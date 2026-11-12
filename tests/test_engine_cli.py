@@ -7,19 +7,12 @@ import json
 import os
 
 import pytest
-from hsync_common.protocol.events import UiEventName, build_event
-from PySide6.QtCore import QProcessEnvironment
 
 from hsync_desktop.engine import (
-    _EXPECTED_VERSION,
-    HsyncEngine,
-    TransferStats,
     add_peer_pin,
     add_rendezvous_trust,
     add_server_trust,
-    apply_settings_env,
     fetch_rendezvous_fingerprint,
-    fetch_server_fingerprint,
     find_hsync_binary,
     get_binary_capabilities,
     get_binary_version,
@@ -31,9 +24,9 @@ from hsync_desktop.engine import (
     remove_rendezvous_trust,
     remove_server_trust,
     supports_peer_trust,
-    write_secret_pipe,
 )
-from tests._helpers import _capture, _FakeCompleted
+from hsync_desktop.engine.cli import _EXPECTED_VERSION
+from tests._helpers import _FakeCompleted
 
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
@@ -521,7 +514,6 @@ class TestServerTrustSubprocessHelpers:
         return types.SimpleNamespace(returncode=0, stdout=stdout)
 
     def test_list_uses_the_trust_server_namespace(self, monkeypatch):
-        import types
 
         calls: list[list[str]] = []
 
@@ -534,7 +526,6 @@ class TestServerTrustSubprocessHelpers:
         assert calls[0] == ["/bin/hsync", "trust", "server", "list", "--json"]
 
     def test_add_and_remove_include_the_port(self, monkeypatch):
-        import types
 
         calls: list[list[str]] = []
 

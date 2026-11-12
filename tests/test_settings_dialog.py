@@ -16,15 +16,12 @@ import pytest
 from hsync_common import defaults
 from PySide6.QtWidgets import (
     QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMessageBox,
 )
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
+from hsync_desktop.settings.dialog import SettingsDialog
 
 
 class TestInsecureApiKeyGate:
@@ -276,7 +273,6 @@ class TestRendezvousTransport:
         trust_row = transport_row = None
         for row in range(form.rowCount()):
             label_item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
-            field_item = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
             if label_item is not None and label_item.widget() is dialog._lbl_p2p_rendezvous_trust:
                 trust_row = row
             if (

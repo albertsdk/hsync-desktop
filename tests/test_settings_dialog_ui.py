@@ -15,7 +15,6 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
-import pytest
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -33,7 +32,6 @@ from hsync_desktop.settings.dialog import (
     _P2P_TAB_INDEX,
     _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
-    SettingsDialog,
 )
 from hsync_desktop.widgets.text import escape_mnemonics
 

@@ -1630,7 +1630,6 @@ class TestCopyPath:
         assert self._clipboard_text() == text
 
     def test_the_context_menu_groups_the_copy_actions(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
         from hsync_desktop.i18n import tr
 
         table = self._table(qtbot)

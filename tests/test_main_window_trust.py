@@ -6,11 +6,9 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings import SettingsDialog
 from tests._helpers import _patch_all, _resolve_dialog
 
 

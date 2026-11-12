@@ -12,28 +12,11 @@ from hsync_common.protocol.events import UiEventName, build_event
 from PySide6.QtCore import QProcess, QProcessEnvironment
 
 from hsync_desktop.engine import (
-    _EXPECTED_VERSION,
     HsyncEngine,
     TransferStats,
-    add_peer_pin,
-    add_rendezvous_trust,
-    add_server_trust,
     apply_settings_env,
-    fetch_rendezvous_fingerprint,
-    fetch_server_fingerprint,
-    find_hsync_binary,
-    get_binary_capabilities,
-    get_binary_version,
-    is_binary_version_compatible,
-    list_peer_pins,
-    list_rendezvous_trust,
-    list_server_trust,
     p2p_secret_mode,
     p2p_secret_option,
-    remove_peer_pin,
-    remove_rendezvous_trust,
-    remove_server_trust,
-    supports_peer_trust,
     write_secret_pipe,
 )
 from hsync_desktop.engine import process as process_module
@@ -43,7 +26,7 @@ from hsync_desktop.engine.process import (
     _signal_process_tree,
     list_process_descendants,
 )
-from tests._helpers import _capture, _FakeCompleted
+from tests._helpers import _capture
 
 
 class TestTransferStats:

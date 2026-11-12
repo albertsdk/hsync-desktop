@@ -199,7 +199,6 @@ class TestSuggestedFolders:
         assert folders["wizard.folder.suggest_home"] == "/home/u/HSYNC"
 
     def test_unset_standard_dir_is_none(self, monkeypatch):
-        from PySide6.QtCore import QStandardPaths
 
         import hsync_desktop.wizard.defaults as defaults
 

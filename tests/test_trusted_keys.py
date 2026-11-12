@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import pytest
 from PySide6.QtWidgets import QMessageBox
 
 from hsync_desktop.i18n import tr

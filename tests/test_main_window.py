@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import pytest
 from hsync_common.protocol.events import UiEventName, build_event
-from PySide6.QtCore import QEvent, QPointF, QSettings, Qt
+from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QFont, QMouseEvent
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
 
@@ -20,7 +20,7 @@ from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.fonts import ui_font
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings import SettingsDialog
-from tests._helpers import _patch_all, _resolve_dialog, _settings
+from tests._helpers import _patch_all, _settings
 
 
 def _stop_the_deferred_timer(monkeypatch) -> None:
@@ -4445,7 +4445,6 @@ class TestFileMenuCopyPath:
         assert texts[-1] == tr("menu.file.properties")
 
     def test_the_shortcuts_follow_the_platform_conventions(self, window):
-        from PySide6.QtGui import QKeySequence
 
         assert window._act_file_copy_path.shortcut().toString() == "Ctrl+Shift+C"
         assert window._act_file_copy_path_relative.shortcut().isEmpty()
@@ -4618,7 +4617,7 @@ class TestDeferredVerdicts:
         os.utime(folder, (old, old))
         window._local_path = str(tmp_path)
 
-        from hsync_desktop.file_panel.models import FileTransfer, TransferStatus
+        from hsync_desktop.file_panel.models import TransferStatus
         from hsync_desktop.file_panel.transfer_table import FileTransferTable
 
         assert isinstance(window._file_panel.table, FileTransferTable)

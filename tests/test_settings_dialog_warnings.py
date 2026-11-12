@@ -12,18 +12,12 @@ Covers the API-key security constraint of the desktop settings:
 
 from __future__ import annotations
 
-import pytest
 from PySide6.QtWidgets import (
-    QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QMessageBox,
 )
 
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX, SettingsDialog
+from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, SettingsDialog
 
 
 class TestPreferMasterLiveWarning:
