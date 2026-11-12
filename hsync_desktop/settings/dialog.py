@@ -1773,6 +1773,21 @@ class SettingsDialog(QDialog):
     def load(self) -> None:
         """Restore settings from QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self._load_connection(s)
+        self._load_sync(s)
+        self._load_advanced(s)
+        self._load_p2p(s)
+        self._load_output(s)
+        self._load_appearance(s)
+        # Apply p2p mode state to Server Mode tab
+        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+
+        # Size last: the advanced visibility and the p2p-mode gate above change
+        # which rows are shown, and the size must clamp to the screen.
+        finalize_size(self)
+
+    def _load_connection(self, s: QSettings) -> None:
+        """Restore the server-connection fields (Server Mode tab)."""
         self.shared_path.setText(str(s.value("path/local", "", str)))
         self.server_url.setText(str(s.value("connection/server_url", "", str)))
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
@@ -1785,6 +1800,9 @@ class SettingsDialog(QDialog):
         self.http_timeout.setValue(
             cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int))
         )
+
+    def _load_sync(self, s: QSettings) -> None:
+        """Restore the Sync tab fields."""
         self.bucket.setText(str(s.value("sync/bucket", DEFAULT_BUCKET, str)))
         self.continuous.setChecked(bool(s.value("sync/continuous", DEFAULT_CONTINUOUS, bool)))
         self.resync.setValue(cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int)))
@@ -1825,7 +1843,9 @@ class SettingsDialog(QDialog):
         self.ignore_patterns.setText(
             str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
         )
-        # Advanced tab (engine tuning)
+
+    def _load_advanced(self, s: QSettings) -> None:
+        """Restore the Advanced tab (engine tuning) fields."""
         self.autotune.setChecked(bool(s.value("advanced/autotune", DEFAULT_AUTOTUNE, bool)))
         self.max_concurrent_transfers.setValue(
             cast(
@@ -1867,6 +1887,9 @@ class SettingsDialog(QDialog):
         upload_bps, download_bps = get_bandwidth_limits()
         self.bandwidth_upload.setValue((upload_bps or 0) / (1024 * 1024))
         self.bandwidth_download.setValue((download_bps or 0) / (1024 * 1024))
+
+    def _load_p2p(self, s: QSettings) -> None:
+        """Restore the P2P tab fields."""
         self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
         self.p2p_rendezvous.setText(
@@ -1912,9 +1935,15 @@ class SettingsDialog(QDialog):
         self.peer_sources_max.setValue(
             cast(int, s.value("p2p/peer_sources_max", DEFAULT_P2P_PEER_SOURCES_MAX, int))
         )
+
+    def _load_output(self, s: QSettings) -> None:
+        """Restore the output (verbose/quiet/logfile) fields."""
         self.verbose.setChecked(bool(s.value("output/verbose", DEFAULT_VERBOSE, bool)))
         self.quiet.setChecked(bool(s.value("output/quiet", DEFAULT_QUIET, bool)))
         self.logfile.setText(str(s.value("output/logfile", DEFAULT_LOGFILE, str)))
+
+    def _load_appearance(self, s: QSettings) -> None:
+        """Restore the appearance, language, and notification fields."""
         theme_setting = str(s.value("appearance/theme", THEME_SYSTEM, str))
         theme_index = self.theme_combo.findData(theme_setting)
         if theme_index < 0:
@@ -1937,7 +1966,6 @@ class SettingsDialog(QDialog):
         for i in range(self.lang_combo.count()):
             if self.lang_combo.itemData(i) == saved_lang:
                 self.lang_combo.setCurrentIndex(i)
-                break
                 break
         # Tooltips
         self.tooltips_enabled.setChecked(
@@ -1964,12 +1992,6 @@ class SettingsDialog(QDialog):
         self.show_log_panel.setChecked(
             bool(s.value("appearance/show_log", DEFAULT_SHOW_LOG_PANEL, bool))
         )
-        # Apply p2p mode state to Server Mode tab
-        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
-
-        # Size last: the advanced visibility and the p2p-mode gate above change
-        # which rows are shown, and the size must clamp to the screen.
-        finalize_size(self)
 
     # ── Connection-active state management ────────────────────────────────
 
