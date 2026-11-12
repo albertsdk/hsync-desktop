@@ -16,11 +16,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from hsync_common.constants import HSYNCIGNORE_FILENAME, RDV_DEFAULT_PORT
+from hsync_common.constants import RDV_DEFAULT_PORT
 from hsync_common.endpoint import (
     format_authority,
     parse_endpoint_list,
-    parse_host_port,
     server_fallback_url,
 )
 from hsync_common.protocol.capabilities import supports_cli_option, supports_subcommand
@@ -31,24 +30,16 @@ from hsync_common.protocol.rdv_tokens import (
 from PySide6.QtCore import QSettings, QTimer, Slot
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
-    QFrame,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
-    QSpinBox,
     QTabWidget,
-    QToolButton,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -129,16 +120,12 @@ from hsync_desktop.engine import (
     p2p_secret_mode,
     probe_server_bucket_access,
     probe_server_health,
-    server_failure_reason,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
-    SUPPORTED_LANGUAGES,
-    get_language,
     set_language,
     tr,
 )
-from hsync_desktop.icons import icon, style_ok_cancel_button_box
 from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.settings.cli_args import (
     get_bandwidth_limits,
@@ -147,11 +134,7 @@ from hsync_desktop.settings.cli_args import (
 )
 from hsync_desktop.settings.credential_dialogs import GroupKeyDialog, resolve_group_key
 from hsync_desktop.settings.form_helpers import (
-    _action_row,
-    _insert_row_after,
     _maybe_tip,
-    _paired_label,
-    _replace_checkbox_with_toggle,
     _set_field_tooltip,
 )
 from hsync_desktop.settings.hsyncignore_dialog import HsyncIgnoreEditorDialog
@@ -191,6 +174,31 @@ from hsync_desktop.widgets.dialogs import build_choice_box, confirm
 from hsync_desktop.widgets.secret_reveal import refresh_reveal_tooltip
 from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
+
+
+def _populate_combo(
+    combo: QComboBox,
+    options: tuple[tuple[str, str], ...],
+    *,
+    block_signals: bool = False,
+) -> None:
+    """Rebuild *combo* from ``(value, i18n key)`` options, preserving selection.
+
+    ``block_signals`` suppresses ``currentIndexChanged`` during the rebuild
+    (the intermediate empty, then first-item states): combos whose handler pops
+    a confirmation dialog must not fire it for a selection the user never made.
+    """
+    current = combo.currentData()
+    previous = combo.blockSignals(True) if block_signals else False
+    try:
+        combo.clear()
+        for value, key in options:
+            combo.addItem(tr(key), value)
+        index = combo.findData(current)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+    finally:
+        if block_signals:
+            combo.blockSignals(previous)
 
 
 class SettingsDialog(QDialog):
@@ -287,17 +295,15 @@ class SettingsDialog(QDialog):
 
     def _populate_rendezvous_trust(self) -> None:
         """Fill the rendezvous trust-policy combo (ADR-0035), preserving selection."""
-        current = self.p2p_rendezvous_trust.currentData()
-        self.p2p_rendezvous_trust.clear()
-        for value, key in (
-            ("ask", "settings.p2p_rendezvous_trust_ask"),
-            ("accept-new", "settings.p2p_rendezvous_trust_accept_new"),
-            ("strict", "settings.p2p_rendezvous_trust_strict"),
-            ("none", "settings.p2p_rendezvous_trust_none"),
-        ):
-            self.p2p_rendezvous_trust.addItem(tr(key), value)
-        index = self.p2p_rendezvous_trust.findData(current)
-        self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
+        _populate_combo(
+            self.p2p_rendezvous_trust,
+            (
+                ("ask", "settings.p2p_rendezvous_trust_ask"),
+                ("accept-new", "settings.p2p_rendezvous_trust_accept_new"),
+                ("strict", "settings.p2p_rendezvous_trust_strict"),
+                ("none", "settings.p2p_rendezvous_trust_none"),
+            ),
+        )
 
     def _populate_rendezvous_transport(self) -> None:
         """Fill the rendezvous transport combo (auto|quic|tcp), preserving selection.
@@ -307,16 +313,14 @@ class SettingsDialog(QDialog):
         the shared ``hsync_common.constants.RDV_TRANSPORTS``, so the desktop can
         never drift from the client's accepted values.
         """
-        current = self.p2p_rendezvous_transport.currentData()
-        self.p2p_rendezvous_transport.clear()
-        for value, key in (
-            ("auto", "settings.p2p_rendezvous_transport_auto"),
-            ("quic", "settings.p2p_rendezvous_transport_quic"),
-            ("tcp", "settings.p2p_rendezvous_transport_tcp"),
-        ):
-            self.p2p_rendezvous_transport.addItem(tr(key), value)
-        index = self.p2p_rendezvous_transport.findData(current)
-        self.p2p_rendezvous_transport.setCurrentIndex(index if index >= 0 else 0)
+        _populate_combo(
+            self.p2p_rendezvous_transport,
+            (
+                ("auto", "settings.p2p_rendezvous_transport_auto"),
+                ("quic", "settings.p2p_rendezvous_transport_quic"),
+                ("tcp", "settings.p2p_rendezvous_transport_tcp"),
+            ),
+        )
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         """Re-align the tab purpose lines: their wrap depends on the width."""
@@ -332,32 +336,25 @@ class SettingsDialog(QDialog):
         selections would otherwise re-enter `_on_deletion_policy_changed` and
         pop the confirmation dialog for a user who already chose `keep`.
         """
-        current = self.deletion_policy.currentData()
-        blocked = self.deletion_policy.blockSignals(True)
-        try:
-            self.deletion_policy.clear()
-            for value, key in (
+        _populate_combo(
+            self.deletion_policy,
+            (
                 ("propagate", "settings.deletion_policy_propagate"),
                 ("keep", "settings.deletion_policy_keep"),
-            ):
-                self.deletion_policy.addItem(tr(key), value)
-            index = self.deletion_policy.findData(current)
-            self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
-        finally:
-            self.deletion_policy.blockSignals(blocked)
+            ),
+            block_signals=True,
+        )
 
     def _populate_p2p_trust(self) -> None:
         """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""
-        current = self.p2p_trust.currentData()
-        self.p2p_trust.clear()
-        for value, key in (
-            ("ask", "settings.p2p_trust_ask"),
-            ("accept-new", "settings.p2p_trust_accept_new"),
-            ("strict", "settings.p2p_trust_strict"),
-        ):
-            self.p2p_trust.addItem(tr(key), value)
-        index = self.p2p_trust.findData(current)
-        self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
+        _populate_combo(
+            self.p2p_trust,
+            (
+                ("ask", "settings.p2p_trust_ask"),
+                ("accept-new", "settings.p2p_trust_accept_new"),
+                ("strict", "settings.p2p_trust_strict"),
+            ),
+        )
 
     def _open_trusted_keys(self) -> None:
         """Open the trust dialog on the rendezvous tab (p2p panel button)."""
@@ -369,18 +366,16 @@ class SettingsDialog(QDialog):
 
     def _populate_server_trust(self) -> None:
         """Fill the server trust-policy combo (ADR-0036), preserving selection."""
-        current = self.server_trust.currentData()
-        self.server_trust.clear()
-        for value, key in (
-            ("chain", "settings.server_trust_chain"),
-            ("ask", "settings.server_trust_ask"),
-            ("accept-new", "settings.server_trust_accept_new"),
-            ("strict", "settings.server_trust_strict"),
-            ("none", "settings.server_trust_none"),
-        ):
-            self.server_trust.addItem(tr(key), value)
-        index = self.server_trust.findData(current)
-        self.server_trust.setCurrentIndex(index if index >= 0 else 0)
+        _populate_combo(
+            self.server_trust,
+            (
+                ("chain", "settings.server_trust_chain"),
+                ("ask", "settings.server_trust_ask"),
+                ("accept-new", "settings.server_trust_accept_new"),
+                ("strict", "settings.server_trust_strict"),
+                ("none", "settings.server_trust_none"),
+            ),
+        )
 
     def _reorganize_general_tab(self) -> None:
         """Regroup the General tab (implementation in ``tab_layout.py``)."""
