@@ -4254,6 +4254,22 @@ class TestSyncState:
         assert "barbara" in warnings[0].detail
         assert "bucket" not in warnings[0].detail.lower()
 
+    def test_a_missing_share_notifies_once_per_episode(self, window, tmp_path, monkeypatch):
+        """The preview and the sync both fail: one notification, not two."""
+        settings = window._share_store._s
+        settings.setValue("path/local", str(tmp_path / "barbara"))
+        settings.setValue("sync/bucket", "barbara")
+        window._share_store.sync_from_flat()
+        notified: list[str] = []
+        monkeypatch.setattr(
+            window, "_notify_warning", lambda title, _text, **_kw: notified.append(title)
+        )
+
+        window._on_engine_error("Preview failed: Bucket 'barbara' does not exist", "share_missing")
+        window._on_engine_error("Sync failed: Bucket 'barbara' does not exist", "share_missing")
+
+        assert notified == [tr("notif.share_missing_title")]
+
     def test_a_connection_failure_never_claims_a_lost_link_it_never_had(self, window):
         """A one-shot that never linked reads "idle", not "connection lost"."""
         window._ever_connected = False

@@ -1152,8 +1152,13 @@ class UiBuildMixin:
         name = share.name if share is not None else ""
         title = tr("notif.share_missing_title")
         text = tr("notif.share_missing_msg").replace("{name}", name)
+        # The preview fails before the sync does, so the same condition arrives
+        # twice per cycle: notify once per episode (the warning clears on the
+        # first cycle that completes).
+        already = any(w.key == "share_missing" for w in self._problems.warnings)
         self._problems.record_warning("share_missing", title, text)
-        self._notify_warning(title, text)
+        if not already:
+            self._notify_warning(title, text)
 
     def _is_p2p_mode(self) -> bool:
         return bool(
