@@ -742,10 +742,39 @@ class FilePanel(QWidget):
 
     @Slot()
     def _check_directory_consistency(self) -> None:
-        if not self._current_directory or not os.path.isdir(self._current_directory):
+        """Reconcile the table with the on-disk state on a timer tick."""
+        base = self._current_directory
+        if not base or not os.path.isdir(base):
             self._consistency_timer.stop()
             return
-        base = self._current_directory
+        current_files = self._scan_current_files(base)
+        if current_files is None:
+            # The share root itself is unreadable: abort rather than diff an
+            # empty set, which would drop every row.
+            return
+        table_files = set(self._table._transfers)
+        new_files = current_files - table_files
+        if new_files:
+            # Batch the additions: one rebuild instead of one per new path.
+            self._table.add_transfers_batch(self._scanned_transfers(base, new_files))
+        removed = self._remove_vanished_rows(table_files - current_files)
+        if new_files:
+            # A path appeared on disk that the event flow never reported (e.g. a
+            # rename destination whose live event was lost). Let the window
+            # refresh the statuses so it stops reading as a stale "Local".
+            self.scan_found_new_files.emit()
+        if new_files or removed:
+            from hsync_desktop import debug_events
+
+            debug_events.log("consistency", added=sorted(new_files), removed=removed)
+        self._request_status_for_stalled_rows()
+
+    def _scan_current_files(self, base: str) -> set[str] | None:
+        """Return the relative paths currently on disk under *base*.
+
+        Returns ``None`` when the share root itself is unreadable (a nested
+        unreadable directory only skips its subtree, like ``os.walk``).
+        """
         prefix = _scandir_child_prefix(base)
         matcher = self._refresh_matcher()
         current_files: set[str] = set()
@@ -780,9 +809,7 @@ class FilePanel(QWidget):
                             visible.append(entry)
             except OSError:
                 if root == base:
-                    # The share root itself is unreadable: abort rather than
-                    # diff an empty set, which would drop every row.
-                    return
+                    return None
                 # A nested directory vanished or is unreadable: skip that
                 # subtree only, like os.walk(onerror=None).
                 continue
@@ -791,33 +818,44 @@ class FilePanel(QWidget):
             for entry in visible:
                 current_files.add(entry.path[len(prefix) :])
             stack.extend(recurse)
-        table_files = set(self._table._transfers)
-        new_files = current_files - table_files
-        if new_files:
-            # Batch the additions: one rebuild instead of one per new path.
-            new_transfers: list[FileTransfer] = []
-            for rel_path in new_files:
-                full_path = Path(base) / rel_path
-                is_dir_entry = rel_path.endswith("/")
-                try:
-                    stat = full_path.stat()
-                    size = 0 if is_dir_entry else stat.st_size
-                    mtime = stat.st_mtime
-                except OSError:
-                    size = 0
-                    mtime = 0.0
-                new_transfers.append(
-                    FileTransfer(
-                        filepath=rel_path,
-                        direction="—",
-                        size=size,
-                        bytes_transferred=0,
-                        status=TransferStatus.LOCAL,
-                        mtime=mtime,
-                    )
+        return current_files
+
+    @staticmethod
+    def _scanned_transfers(base: str, new_files: set[str]) -> list[FileTransfer]:
+        """Build resting LOCAL rows for paths found on disk but not yet shown."""
+        transfers: list[FileTransfer] = []
+        for rel_path in new_files:
+            full_path = Path(base) / rel_path
+            is_dir_entry = rel_path.endswith("/")
+            try:
+                stat = full_path.stat()
+                size = 0 if is_dir_entry else stat.st_size
+                mtime = stat.st_mtime
+            except OSError:
+                size = 0
+                mtime = 0.0
+            transfers.append(
+                FileTransfer(
+                    filepath=rel_path,
+                    direction="—",
+                    size=size,
+                    bytes_transferred=0,
+                    status=TransferStatus.LOCAL,
+                    mtime=mtime,
                 )
-            self._table.add_transfers_batch(new_transfers)
-        deleted_files = table_files - current_files
+            )
+        return transfers
+
+    def _remove_vanished_rows(self, deleted_files: set[str]) -> list[str]:
+        """Drop rows whose path is gone from disk; return the removed paths.
+
+        A resting LOCAL row is a stale scan entry and is removed at once; a
+        SYNCED/ERROR row was a real file deleted locally after a previous sync,
+        so it mirrors the remote-deletion UX (red "Deleted" for 3 s) even when
+        the structured delete event was missed. In-flight rows (the final file
+        is not on disk yet) and rows already showing the deletion marker are
+        left alone.
+        """
         removed: list[str] = []
         remove_now: list[str] = []
         for rel_path in deleted_files:
@@ -829,34 +867,16 @@ class FilePanel(QWidget):
                 TransferStatus.UPLOADING,
                 TransferStatus.DELETED,
             ):
-                # In flight (the final file is not on disk yet) or already
-                # showing the deletion marker: leave it alone.
                 continue
-            # The path is gone from disk. A resting LOCAL row is a stale scan
-            # entry, while a SYNCED/ERROR/... row was a real file deleted
-            # locally after a previous sync: it must disappear from the view
-            # too, even when the structured delete event was missed.
             removed.append(rel_path)
             if existing.status == TransferStatus.LOCAL:
-                # Never-synced scan entry: nothing to announce, remove at once.
                 remove_now.append(rel_path)
             else:
-                # Mirror the remote-deletion UX (red "Deleted" for 3 s) even
-                # when the scan is the one detecting the local deletion.
                 self._table.mark_deleted(rel_path)
         if remove_now:
             # Batch the removals into a single rebuild too.
             self._table.remove_transfers(remove_now)
-        if new_files:
-            # A path appeared on disk that the event flow never reported (e.g. a
-            # rename destination whose live event was lost). Let the window
-            # refresh the statuses so it stops reading as a stale "Local".
-            self.scan_found_new_files.emit()
-        if new_files or removed:
-            from hsync_desktop import debug_events
-
-            debug_events.log("consistency", added=sorted(new_files), removed=removed)
-        self._request_status_for_stalled_rows()
+        return removed
 
     def _request_status_for_stalled_rows(self) -> None:
         """Ask for a status refresh when an in-flight row stopped reporting.
