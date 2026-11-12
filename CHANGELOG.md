@@ -16,9 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   client-state reset), each share keeping its own log buffer. Folder uniqueness
   and a duplicate-bucket warning guard the store, and the previous single-share
   configuration is migrated.
-- A changed bucket is verified before the settings dialog saves it, and the
-  settings dialog and the wizard's connection test offer to create a share the
-  server reports as missing instead of letting the sync fail on it.
+- A changed bucket is verified before the settings dialog saves it — including
+  the one a share you just created carries — and the settings dialog and the
+  wizard's connection test offer to create a share the server reports as missing
+  instead of letting the sync fail on it.
 
 ### Changed
 
@@ -33,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deleting a share removes the selected row instead of the first one, and the
   reset/confirm dialogs stay in front of the share manager.
 - A missing share raises one notification per episode instead of two.
+- A share created from the header selector is checked against the server when its
+  settings are saved: the check was skipped because the new record already held
+  its bucket name, so the first sync stopped on a `404` and the share was never
+  created.
+- A comparison that failed no longer reports "nothing to sync": the run ends with
+  the engine's own error (a missing share, an unreachable server) instead of a
+  green toast followed by a second, identical failure.
 - The Properties title stays bold after a font reset, the detail pane can widen,
   the rename dialog keeps long names readable, and Server Mode no longer shows
   the placeholder dash of the bottom-bar group label.
