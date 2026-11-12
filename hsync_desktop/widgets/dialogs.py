@@ -20,7 +20,7 @@ Consumers: ``main_window/{actions,events,lifecycle,start,trust,ui,window}``,
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QCheckBox, QMessageBox, QPushButton, QWidget
+from PySide6.QtWidgets import QApplication, QCheckBox, QMessageBox, QPushButton, QWidget
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
@@ -30,7 +30,18 @@ __all__ = [
     "build_destructive_confirm_box",
     "build_optout_confirm_box",
     "confirm",
+    "dialog_parent",
 ]
+
+
+def dialog_parent(fallback: QWidget | None = None) -> QWidget | None:
+    """Parent a box raised from a slot: the modal window that is actually in front.
+
+    A box parented to the main window while a modal dialog is open is stacked
+    behind that dialog, so the user answers a prompt they cannot read. Every
+    message box reached from a dialog action goes through here.
+    """
+    return QApplication.activeModalWidget() or fallback
 
 
 def build_confirm_box(

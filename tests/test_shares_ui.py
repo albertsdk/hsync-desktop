@@ -50,6 +50,26 @@ def _add_share(window, name, folder):
     return next(s for s in window._share_store.shares() if s.id == share.id)
 
 
+def _accepting_confirm(monkeypatch, *, clear_state: bool = False) -> None:
+    """Make the destructive share-delete box confirm itself."""
+    import types
+
+    accept = object()
+    checkbox = types.SimpleNamespace(isChecked=lambda: clear_state)
+
+    class _Box:
+        def exec(self) -> int:
+            return 0
+
+        def clickedButton(self):  # noqa: N802 - Qt spelling
+            return accept
+
+    monkeypatch.setattr(
+        "hsync_desktop.shares.dialog.build_destructive_confirm_box",
+        lambda *_args, **_kwargs: (_Box(), accept, checkbox),
+    )
+
+
 class TestSharesMenu:
     def test_selector_is_hidden_without_shares(self, window):
         assert not window._share_store.has_shares()
@@ -138,16 +158,42 @@ class TestCreateRenameDelete:
         assert window._delete_share(window._share_store.active_id(), False) is False
         assert len(window._share_store.shares()) == 1
 
-    def test_deleting_the_active_share_applies_the_first_remaining(self, window, tmp_path):
+    def test_deleting_the_active_share_applies_the_visible_neighbour(self, window, tmp_path):
         _configure(window, tmp_path, bucket="team")
-        first_id = window._share_store.active_id()
+        team_id = window._share_store.active_id()
         beta = _add_share(window, "Beta", tmp_path / "beta")
         window._switch_to_share(beta.id)
+        # Display order is Beta, team: the row after Beta is "team".
 
-        assert window._delete_share(beta.id, False) is True
+        assert window._delete_share(beta.id, False, team_id) is True
 
-        assert window._share_store.active_id() == first_id
+        assert window._share_store.active_id() == team_id
         assert window._local_path == str(tmp_path / "team")
+
+    def test_deleting_the_active_share_without_a_hint_uses_the_display_order(
+        self, window, tmp_path
+    ):
+        """The neighbour is passed in, but the store must stay deterministic."""
+        _configure(window, tmp_path, bucket="Mike")
+        mike_id = window._share_store.active_id()
+        alfa = _add_share(window, "Alfa", tmp_path / "alfa")
+        _add_share(window, "Zeta", tmp_path / "zeta")
+
+        assert window._delete_share(mike_id, False) is True
+
+        # Insertion order would pick nothing sensible; the first row shown wins.
+        assert window._share_store.active_id() == alfa.id
+
+    def test_deleting_the_active_last_row_lands_on_the_previous_one(self, window, tmp_path):
+        _configure(window, tmp_path, bucket="Alfa")
+        mike = _add_share(window, "Mike", tmp_path / "mike")
+        zeta = _add_share(window, "Zeta", tmp_path / "zeta")
+        window._switch_to_share(zeta.id)
+
+        assert window._delete_share(zeta.id, False, mike.id) is True
+
+        assert window._share_store.active_id() == mike.id
+        assert window._local_path == str(tmp_path / "mike")
 
 
 class TestLogsAndIdentity:
@@ -176,6 +222,20 @@ class TestLogsAndIdentity:
 
 
 class TestManageDialog:
+    @staticmethod
+    def _dialog(window, qtbot):
+        """Open the dialog like the app does: shown, with the list focused."""
+        from PySide6.QtWidgets import QApplication
+
+        from hsync_desktop.shares.dialog import SharesDialog
+
+        dialog = SharesDialog(window, window)
+        qtbot.addWidget(dialog)
+        dialog.show()
+        dialog._list.setFocus()
+        QApplication.processEvents()
+        return dialog
+
     def test_dialog_lists_the_shares_sorted(self, window, tmp_path, qtbot):
         from hsync_desktop.shares.dialog import SharesDialog
 
@@ -187,6 +247,70 @@ class TestManageDialog:
 
         names = [dialog._list.item(i).text() for i in range(dialog._list.count())]
         assert names == ["Beta", "team"]
+
+    def test_current_row_follows_the_active_share(self, window, tmp_path, qtbot):
+        """Qt makes row 0 current on focus: the highlight and the action must agree."""
+        _configure(window, tmp_path, bucket="alberto")
+        barbara = _add_share(window, "barbara", tmp_path / "barbara")
+        window._switch_to_share(barbara.id)
+
+        dialog = self._dialog(window, qtbot)
+
+        assert dialog._list.item(0).text() == "alberto"
+        assert dialog._current_id() == barbara.id
+        assert dialog._current_name() == "barbara"
+
+    def test_delete_acts_on_the_row_the_user_sees(self, window, tmp_path, qtbot, monkeypatch):
+        _configure(window, tmp_path, bucket="alberto")
+        barbara = _add_share(window, "barbara", tmp_path / "barbara")
+        window._switch_to_share(barbara.id)
+        dialog = self._dialog(window, qtbot)
+        _accepting_confirm(monkeypatch)
+
+        dialog._on_delete()
+
+        assert [s.name for s in window._share_store.shares()] == ["alberto"]
+        assert window._share_store.active_id() != barbara.id
+
+    def test_dialog_selects_the_next_row_after_delete(self, window, tmp_path, qtbot, monkeypatch):
+        _configure(window, tmp_path, bucket="Mike")
+        alfa = _add_share(window, "Alfa", tmp_path / "alfa")
+        _add_share(window, "Zeta", tmp_path / "zeta")
+        window._switch_to_share(alfa.id)
+        dialog = self._dialog(window, qtbot)
+        _accepting_confirm(monkeypatch)
+
+        dialog._on_delete()
+
+        # Display order is Alfa, Mike, Zeta: the row after Alfa is Mike.
+        assert dialog._current_name() == "Mike"
+        assert window._share_store.active().name == "Mike"
+
+
+class TestDialogStacking:
+    """A box raised from a modal dialog must sit on top of that dialog."""
+
+    def test_dialog_parent_falls_back_to_the_caller(self, window):
+        from hsync_desktop.widgets.dialogs import dialog_parent
+
+        assert dialog_parent(window) is window
+
+    def test_dialog_parent_prefers_the_active_modal(self, window, qtbot):
+        from PySide6.QtWidgets import QApplication, QDialog
+
+        from hsync_desktop.widgets.dialogs import dialog_parent
+
+        modal = QDialog(window)
+        qtbot.addWidget(modal)
+        modal.setModal(True)
+        modal.show()
+        QApplication.processEvents()
+        try:
+            if QApplication.activeModalWidget() is None:
+                pytest.skip("this platform reports no active modal widget")
+            assert dialog_parent(window) is modal
+        finally:
+            modal.close()
 
 
 class TestReviewFixes:
@@ -252,6 +376,22 @@ class TestReviewFixes:
             assert window._delete_share(beta.id, True) is True
 
         assert reset == [str(tmp_path / "beta")]
+
+    def test_the_state_reset_runs_while_the_share_still_exists(self, window, tmp_path, monkeypatch):
+        """A failed reset must leave the share in place so it can be retried."""
+        _configure(window, tmp_path, bucket="team")
+        beta = _add_share(window, "Beta", tmp_path / "beta")
+        seen: list[bool] = []
+        monkeypatch.setattr(
+            window,
+            "_reset_sync_state",
+            lambda _folder: seen.append(window._share_store.get(beta.id) is not None),
+        )
+
+        assert window._delete_share(beta.id, True) is True
+
+        assert seen == [True]
+        assert window._share_store.get(beta.id) is None
 
     def test_delete_reclaims_the_log_buffer(self, window, tmp_path):
         _configure(window, tmp_path, bucket="team")

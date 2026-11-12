@@ -106,6 +106,7 @@ from hsync_desktop.widgets.dialogs import (
     build_confirm_box,
     build_optout_confirm_box,
     confirm,
+    dialog_parent,
 )
 from hsync_desktop.wizard import SetupWizard
 from hsync_desktop.wizard.model import mark_auto_shown, should_auto_open
@@ -886,7 +887,9 @@ class StartMixin:
         """
         if self._engine.is_running:
             QMessageBox.warning(
-                self, tr("settings.reset_state.title"), tr("settings.reset_state.stop_first")
+                dialog_parent(self),
+                tr("settings.reset_state.title"),
+                tr("settings.reset_state.stop_first"),
             )
             return
         binary = self._engine.binary_path
@@ -894,14 +897,16 @@ class StartMixin:
             # No bundled client (broken install): report it instead of letting
             # ``subprocess.run([None, ...])`` raise out of this slot.
             QMessageBox.warning(
-                self, tr("settings.reset_state.title"), tr("settings.reset_state.failed")
+                dialog_parent(self),
+                tr("settings.reset_state.title"),
+                tr("settings.reset_state.failed"),
             )
             return
         result = reset_sync_state(binary, folder)
         if not result.ok:
             detail = result.message or tr("settings.reset_state.failed")
             self._append_desktop_log("ERROR", f"[STATE RESET] {detail}")
-            QMessageBox.warning(self, tr("settings.reset_state.title"), detail)
+            QMessageBox.warning(dialog_parent(self), tr("settings.reset_state.title"), detail)
             return
         if not result.found:
             message = tr("settings.reset_state.nothing")
@@ -914,7 +919,7 @@ class StartMixin:
                 .replace("{tombstones}", str(result.tombstones))
             )
         self._append_desktop_log("INFO", f"[STATE RESET] {message}")
-        QMessageBox.information(self, tr("settings.reset_state.title"), message)
+        QMessageBox.information(dialog_parent(self), tr("settings.reset_state.title"), message)
 
     def _refresh_menu_fonts(self) -> None:
         """Re-apply the resolved app font to the menu bar and its popups.

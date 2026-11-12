@@ -67,6 +67,11 @@ Deleting a share **never touches your files**. It offers a checked box to also
 state lets a later re-add of the same folder resume quickly; clearing it avoids
 leaving unused state behind.
 
+The list stays open, so you can keep working. After a deletion it selects the row
+that took the deleted row's place (the previous one when you deleted the last
+row), and if you deleted the share the window was showing, the window switches to
+that same neighbour and **stays stopped**. The last share cannot be deleted.
+
 ## One folder per share
 
 Each share must use its **own folder**: a folder owns one sync database and one

@@ -10,6 +10,6 @@ engine argument builder and every reader stay unchanged.
 """
 
 from hsync_desktop.shares.model import Share
-from hsync_desktop.shares.store import BOOK_KEY, ShareStore
+from hsync_desktop.shares.store import BOOK_KEY, ShareStore, sort_key
 
-__all__ = ["BOOK_KEY", "Share", "ShareStore"]
+__all__ = ["BOOK_KEY", "Share", "ShareStore", "sort_key"]

@@ -25,7 +25,7 @@ from hsync_desktop.config import DEFAULT_SYNC_DIRECTION
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 from hsync_desktop.shares import Share, ShareStore
-from hsync_desktop.widgets.dialogs import confirm
+from hsync_desktop.widgets.dialogs import confirm, dialog_parent
 from hsync_desktop.widgets.name_dialog import ask_name
 
 _DIRECTION_KEYS = {
@@ -91,7 +91,7 @@ class SharesMixin:
         self._shares_menu.clear()
         store = self._share_store
         active = store.active_id()
-        for share in sorted(store.shares(), key=lambda s: s.name.casefold()):
+        for share in store.shares_sorted():
             action = QAction(self._shares_menu)
             action.setText(share.name or tr("shares.untitled"))
             action.setCheckable(True)
@@ -116,7 +116,7 @@ class SharesMixin:
         if not self._engine.is_running:
             return True
         if not confirm(
-            self,
+            dialog_parent(self),
             title=tr("shares.switch.confirm_title"),
             text=tr("shares.switch.confirm_stop"),
         ):
@@ -207,7 +207,7 @@ class SharesMixin:
         return False
 
     def _warn(self, message: str) -> None:
-        QMessageBox.warning(self, tr("shares.manage.title"), message)
+        QMessageBox.warning(dialog_parent(self), tr("shares.manage.title"), message)
 
     def _create_share(self, name: str, folder: str) -> bool:
         store = self._share_store
@@ -269,7 +269,13 @@ class SharesMixin:
             self._update_path_display()
         return True
 
-    def _delete_share(self, share_id: str, clear_state: bool) -> bool:
+    def _delete_share(self, share_id: str, clear_state: bool, next_active: str = "") -> bool:
+        """Delete a share; *next_active* is the neighbour the caller wants next.
+
+        The client-state reset runs before the record is removed: a failed reset
+        (unreadable state, missing client) would otherwise leave the user without
+        the share that could be retried.
+        """
         store = self._share_store
         if len(store.shares()) <= 1:
             self._warn(tr("shares.error.last"))
@@ -278,14 +284,14 @@ class SharesMixin:
         folder = str(share.values.get("path/local", "")) if share else ""
         was_active = share_id == store.active_id()
         # Clearing the client state needs the engine stopped: its reset is
-        # refused while any sync runs, and afterwards the share is already gone.
+        # refused while any sync runs.
         if self._engine.is_running and (was_active or clear_state):
             if not self._confirm_stop_for_switch():
                 return False
-        new_active = store.delete(share_id)
-        self._log_buffers.pop(share_id, None)
         if clear_state and folder:
             self._reset_sync_state(folder)
+        new_active = store.delete(share_id, next_active=next_active)
+        self._log_buffers.pop(share_id, None)
         if was_active and new_active:
             store.apply(new_active)
             self._reset_for_share_switch()

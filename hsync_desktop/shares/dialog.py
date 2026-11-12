@@ -66,29 +66,58 @@ class SharesDialog(QDialog):
         self._btn_rename.clicked.connect(self._on_rename)
         self._btn_delete.clicked.connect(self._on_delete)
 
-    def _refresh(self) -> None:
+    def _refresh(self, select_id: str = "") -> None:
+        """Rebuild the list and make *select_id* (default: the active share) current.
+
+        ``setSelected`` alone leaves ``currentItem`` unset, and Qt then makes the
+        first row current as soon as the list takes focus: the highlight says one
+        share while every action reads another. ``setCurrentItem`` sets both.
+        """
         store = self._host._share_store
-        active = store.active_id()
+        target = select_id or store.active_id()
         self._list.clear()
-        for share in sorted(store.shares(), key=lambda s: s.name.casefold()):
+        current: QListWidgetItem | None = None
+        for share in store.shares_sorted():
             item = QListWidgetItem(share.name or tr("shares.untitled"), self._list)
             item.setData(Qt.ItemDataRole.UserRole, share.id)
             p2p = bool(share.values.get("p2p/enabled", True))
             item.setIcon(icon("network-p2p" if p2p else "network-cloud"))
-            if share.id == active:
-                item.setSelected(True)
+            if share.id == target:
+                current = item
+        if current is None and self._list.count():
+            current = self._list.item(0)
+        if current is not None:
+            self._list.setCurrentItem(current)
         self._update_buttons()
 
+    def _current_item(self) -> QListWidgetItem | None:
+        """The row the user sees selected, falling back to the current one."""
+        selected = self._list.selectedItems()
+        return selected[0] if selected else self._list.currentItem()
+
     def _current_id(self) -> str:
-        item = self._list.currentItem()
+        item = self._current_item()
         return str(item.data(Qt.ItemDataRole.UserRole)) if item is not None else ""
 
     def _current_name(self) -> str:
-        item = self._list.currentItem()
+        item = self._current_item()
         return item.text() if item is not None else ""
 
+    def _neighbour_id(self, share_id: str) -> str:
+        """The row that takes *share_id*'s place once it is deleted."""
+        ids = [
+            str(self._list.item(row).data(Qt.ItemDataRole.UserRole))
+            for row in range(self._list.count())
+        ]
+        if share_id not in ids:
+            return ""
+        index = ids.index(share_id)
+        if index + 1 < len(ids):
+            return ids[index + 1]
+        return ids[index - 1] if index > 0 else ""
+
     def _update_buttons(self) -> None:
-        has_selection = self._list.currentItem() is not None
+        has_selection = self._current_item() is not None
         for button in (self._btn_duplicate, self._btn_rename, self._btn_delete):
             button.setEnabled(has_selection)
 
@@ -143,6 +172,7 @@ class SharesDialog(QDialog):
         share_id = self._current_id()
         if not share_id:
             return
+        neighbour = self._neighbour_id(share_id)
         box, delete, clear = build_destructive_confirm_box(
             self,
             title=tr("shares.delete.title"),
@@ -153,5 +183,5 @@ class SharesDialog(QDialog):
         box.exec()
         if box.clickedButton() is not delete:
             return
-        if self._host._delete_share(share_id, bool(clear and clear.isChecked())):
-            self._refresh()
+        if self._host._delete_share(share_id, bool(clear and clear.isChecked()), neighbour):
+            self._refresh(select_id=neighbour)

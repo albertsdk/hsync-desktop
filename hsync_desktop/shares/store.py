@@ -45,6 +45,11 @@ def _is_share_key(key: str) -> bool:
     return key == "output/logfile" or key.startswith(SHARE_PREFIXES)
 
 
+def sort_key(share: Share) -> str:
+    """Display order shared by the selector, the manage dialog and the delete fallback."""
+    return (share.name or "").casefold()
+
+
 class ShareStore:
     """CRUD over the saved shares plus the active-projection swap."""
 
@@ -85,6 +90,10 @@ class ShareStore:
     # ── queries ─────────────────────────────────────────────────────────────
     def shares(self) -> list[Share]:
         return self._book().shares
+
+    def shares_sorted(self) -> list[Share]:
+        """The shares in the one order every view shows them (by name)."""
+        return sorted(self._book().shares, key=sort_key)
 
     def has_shares(self) -> bool:
         return bool(self._book().shares)
@@ -268,10 +277,13 @@ class ShareStore:
         share.name = name.strip()
         self._write(book)
 
-    def delete(self, share_id: str) -> str:
+    def delete(self, share_id: str, *, next_active: str = "") -> str:
         """Remove a share; returns the new active id (``""`` when none remain).
 
-        The caller owns the engine stop and the optional client-state reset; the
+        *next_active* is the id the caller wants to activate when the removed
+        share was the active one — its visible neighbour — so the window lands on
+        the row the user is looking at instead of an arbitrary record. The
+        caller owns the engine stop and the optional client-state reset; the
         store never touches files.
         """
         book = self._book()
@@ -279,6 +291,12 @@ class ShareStore:
             raise ValueError("cannot delete the last share")
         book.shares = [s for s in book.shares if s.id != share_id]
         if book.active == share_id:
-            book.active = book.shares[0].id if book.shares else ""
+            survivors = {s.id for s in book.shares}
+            if next_active in survivors:
+                book.active = next_active
+            elif book.shares:
+                book.active = sorted(book.shares, key=sort_key)[0].id
+            else:
+                book.active = ""
         self._write(book)
         return book.active
