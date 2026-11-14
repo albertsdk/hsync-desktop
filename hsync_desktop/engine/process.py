@@ -5,9 +5,16 @@
 HSYNC Engine - subprocess bridge to hsync-client.
 
 Manages the hsync-client binary as a child process and consumes the structured
-JSON-Lines status events it publishes on a dedicated pipe (``--events-json-fd``),
+JSON-Lines status events it publishes on a dedicated channel (``--events-json-fd``),
 mapping each event to a Qt signal so the UI can react to state changes.
-The merged stdout/stderr stream is captured purely as a diagnostic log feed.
+The stdout stream is captured purely as a diagnostic log feed.
+
+Secret and event transport is POSIX pipe file descriptors, which Windows cannot
+carry: ``CreateProcess`` inherits handles but not the C runtime fd table, so a
+child cannot reopen an inherited fd, and QProcess offers no fd handoff. On
+Windows the desktop therefore delivers secrets through the process environment
+and the events channel through the child's stderr (fd 2), a standard handle that
+is always inherited — including across the PyInstaller one-file bootloader.
 """
 
 from __future__ import annotations
@@ -47,7 +54,7 @@ from hsync_desktop.config import (
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine.cli import find_hsync_binary
 
-# How many merged stdout/stderr lines are kept during the startup phase, so a
+# How many client output lines are kept during the startup phase, so a
 # failure report can show the client's own diagnostic instead of a bare exit
 # code. The tail is discarded as soon as the engine reports readiness.
 _STARTUP_TAIL_LINES = 40
@@ -78,6 +85,11 @@ _RECENT_ERROR_LEVELS = ("ERROR", "CRITICAL")
 _STOP_GRACE_MS = 5000
 _STOP_SAFETY_MS = 3000
 
+# Windows cannot carry inherited pipe fds across QProcess + the PyInstaller
+# one-file bootloader (see the module docstring), so the secret/event transport
+# switches to the environment and stderr there.
+_IS_WINDOWS = os.name == "nt"
+
 
 def _read_process_parents() -> dict[int, int]:
     """Return the current ``pid -> ppid`` table (best-effort).
@@ -88,7 +100,7 @@ def _read_process_parents() -> dict[int, int]:
     (``_taskkill_tree``) instead of per-PID signalling.
     """
     table: dict[int, int] = {}
-    if os.name == "nt":
+    if _IS_WINDOWS:
         # Windows has no ``ps`` with this syntax; tree signalling stays off and
         # the engine stops only the QProcess child, as before.
         return table
@@ -314,6 +326,16 @@ def p2p_secret_option(key_mode: str) -> str:
     :func:`p2p_secret_mode` to resolve the mode from the stored value.
     """
     return "--p2p-passphrase-fd" if key_mode == "passphrase" else "--p2p-key-fd"
+
+
+def p2p_secret_env_var(key_mode: str) -> str:
+    """Return the environment variable matching the resolved secret input mode.
+
+    The Windows transport delivers the p2p secret through the environment
+    instead of an fd; this mirrors :func:`p2p_secret_option` so the two
+    transport mappings stay in lockstep.
+    """
+    return "HSYNC_P2P_PASSPHRASE" if key_mode == "passphrase" else "HSYNC_P2P_KEY"
 
 
 def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
@@ -589,7 +611,6 @@ class HsyncEngine(QObject):
         self._set_status("connecting")
 
         proc = QProcess(self)
-        proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         proc.readyReadStandardOutput.connect(self._on_stdout)
         proc.finished.connect(self._on_finished)
         proc.errorOccurred.connect(self._on_error)
@@ -603,49 +624,68 @@ class HsyncEngine(QObject):
         # selected mode (the client rejects both forms being set at once).
         env.remove("HSYNC_P2P_KEY")
         env.remove("HSYNC_P2P_PASSPHRASE")
-        proc.setProcessEnvironment(env)
 
-        # Pass secrets via pipe file descriptors so they never appear in
-        # process arguments (visible in ``ps``) or environment variables
-        # (visible in ``/proc/<pid>/environ``).
-        #
-        # write_secret_pipe marks the read end inheritable (required for
-        # QProcess fork+exec) and closes the write end so the child sees
-        # EOF. The parent keeps the read fd until waitForStarted succeeds.
+        # Secret transport is subcommand-specific: the server subcommand reads
+        # the API key and the p2p subcommand the p2p key. Injecting the wrong
+        # transport would make the child fail with an unknown-option error.
+        mode = args[0] if args else ""
+
         pipe_fds: list[int] = []
         pipe_args: list[str] = []
 
-        # Secret fds are subcommand-specific: the server subcommand reads the
-        # API key and the p2p subcommand reads the p2p key. Injecting the wrong
-        # fd would make the child fail with an unknown-option error.
-        mode = args[0] if args else ""
-
+        # On POSIX the secrets travel through an inherited pipe fd, so they
+        # never appear in process arguments (visible in ``ps``) or environment
+        # variables (visible in ``/proc/<pid>/environ``). Windows cannot inherit
+        # those fds (see the module docstring), so the value goes through the
+        # environment instead; the client reads the same HSYNC_* variables.
         api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
         if api_key and mode == "server":
-            read_fd = write_secret_pipe(api_key)
-            pipe_fds.append(read_fd)
-            pipe_args.extend(["--api-key-fd", str(read_fd)])
+            if _IS_WINDOWS:
+                env.insert("HSYNC_API_KEY", api_key)
+            else:
+                # write_secret_pipe marks the read end inheritable (required for
+                # QProcess fork+exec) and closes the write end so the child sees
+                # EOF. The parent keeps the read fd until waitForStarted succeeds.
+                read_fd = write_secret_pipe(api_key)
+                pipe_fds.append(read_fd)
+                pipe_args.extend(["--api-key-fd", str(read_fd)])
 
         p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
         p2p_key_mode = str(s.value("p2p/key_mode", "raw", str)) or "raw"
         if p2p_key and mode == "p2p":
-            read_fd = write_secret_pipe(p2p_key)
-            pipe_fds.append(read_fd)
-            secret_option = p2p_secret_option(p2p_secret_mode(p2p_key, p2p_key_mode))
-            pipe_args.extend([secret_option, str(read_fd)])
+            secret_mode = p2p_secret_mode(p2p_key, p2p_key_mode)
+            if _IS_WINDOWS:
+                env.insert(p2p_secret_env_var(secret_mode), p2p_key)
+            else:
+                read_fd = write_secret_pipe(p2p_key)
+                pipe_fds.append(read_fd)
+                pipe_args.extend([p2p_secret_option(secret_mode), str(read_fd)])
         elif not p2p_key and mode == "p2p":
             # Keyless P2P: the desktop already confirmed via its own pre-flight
             # dialog, so acknowledge the posture for the CLI subprocess.
             pipe_args.append("--allow-unauthenticated-p2p")
 
-        # Structured-event channel: the child writes JSON-Lines status events to
-        # the write end, which it inherits across exec. Same inheritable
-        # requirement as the secret read fds (Python 3.4+ fds are CLOEXEC).
-        events_read_fd, events_write_fd = os.pipe()
-        os.set_inheritable(events_write_fd, True)
-        pipe_args.extend(["--events-json-fd", str(events_write_fd)])
+        proc.setProcessEnvironment(env)
 
-        # Build final args with pipe fds at the end
+        # Structured-event channel. On POSIX the child writes JSON-Lines status
+        # events to the write end of a pipe it inherits across exec (same
+        # inheritable requirement as the secret read fds). On Windows that fd is
+        # not usable, so the events go to the child's stderr (fd 2, an always
+        # inherited std handle): the desktop reads stderr for events and keeps
+        # stdout as the diagnostic log feed.
+        events_read_fd: int | None = None
+        events_write_fd: int | None = None
+        if _IS_WINDOWS:
+            proc.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
+            proc.readyReadStandardError.connect(self._on_events_channel_stderr)
+            pipe_args.extend(["--events-json-fd", "2"])
+        else:
+            proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+            events_read_fd, events_write_fd = os.pipe()
+            os.set_inheritable(events_write_fd, True)
+            pipe_args.extend(["--events-json-fd", str(events_write_fd)])
+
+        # Build final args with the transport flags at the end.
         args = [*args, *pipe_args]
 
         proc.start(self._binary, args)
@@ -653,8 +693,10 @@ class HsyncEngine(QObject):
 
         debug_events.log("engine_start", binary=self._binary)
         if not proc.waitForStarted(5000):
-            # Failed to start - close all pipe fds (secrets + events)
+            # Failed to start - close every parent-side fd we opened.
             for fd in (*pipe_fds, events_read_fd, events_write_fd):
+                if fd is None:
+                    continue
                 try:
                     os.close(fd)
                 except OSError:
@@ -663,22 +705,23 @@ class HsyncEngine(QObject):
             self._set_status("error")
             return False
 
-        # Close parent's copy of the read fds - child has inherited them.
-        # We close after waitForStarted to ensure the child has forked
-        # and has access to the inherited file descriptors.
+        # Close parent's copy of the secret read fds - the child has inherited
+        # them. We close after waitForStarted to ensure the child has forked and
+        # has access to the inherited file descriptors.
         for fd in pipe_fds:
             try:
                 os.close(fd)
             except OSError:
                 pass  # FD may have been closed already
 
-        # The child now owns the events write end; close the parent's copy so a
-        # child exit surfaces as EOF, then watch the read end for inbound events.
-        try:
-            os.close(events_write_fd)
-        except OSError:
-            pass
-        self._open_events_channel(events_read_fd)
+        if events_read_fd is not None and events_write_fd is not None:
+            # The child now owns the events write end; close the parent's copy so
+            # a child exit surfaces as EOF, then watch the read end for events.
+            try:
+                os.close(events_write_fd)
+            except OSError:
+                pass
+            self._open_events_channel(events_read_fd)
 
         self._process = proc
         self._running = True
@@ -727,7 +770,7 @@ class HsyncEngine(QObject):
         if not pid:
             self._process.terminate()
             return
-        if os.name == "nt":
+        if _IS_WINDOWS:
             _taskkill_tree(pid, force=False)
             return
         if hasattr(signal, "SIGTERM"):
@@ -749,7 +792,7 @@ class HsyncEngine(QObject):
         if not pid:
             self._process.kill()
             return
-        if os.name == "nt":
+        if _IS_WINDOWS:
             _taskkill_tree(pid, force=True)
             return
         if hasattr(signal, "SIGKILL"):
@@ -800,7 +843,12 @@ class HsyncEngine(QObject):
         """
         if proc is None:
             return
-        for name in ("finished", "readyReadStandardOutput", "errorOccurred"):
+        for name in (
+            "finished",
+            "readyReadStandardOutput",
+            "readyReadStandardError",
+            "errorOccurred",
+        ):
             signal = getattr(proc, name, None)
             if signal is None:
                 continue
@@ -861,9 +909,11 @@ class HsyncEngine(QObject):
 
     @Slot()
     def _on_stdout(self) -> None:
-        # The merged stdout/stderr stream is now purely a diagnostic log feed;
-        # all UI state transitions arrive on the structured events channel
-        # (see ``_on_events_available`` / ``_handle_event``).
+        # The client's stdout is purely a diagnostic log feed; all UI state
+        # transitions arrive on the structured events channel (the events pipe
+        # on POSIX, the child's stderr on Windows — see ``_on_events_available``
+        # / ``_on_events_channel_stderr`` / ``_handle_event``). POSIX merges
+        # stderr into this stream; Windows keeps them separate.
         if not self._process:
             return
         data = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
@@ -879,19 +929,26 @@ class HsyncEngine(QObject):
         if lines:
             self.log_received.emit("\n".join(lines))
         for line in lines:
-            # Keep the level-bearing lines of the whole run: the startup tail is
-            # discarded at readiness and cannot explain a later fatal exit. The
-            # substring test avoids stripping the escapes on every line of a burst.
-            if "ERROR" in line or "CRITICAL" in line:
-                parsed = LOG_LINE_RE.match(strip_sgr(line))
-                if parsed is not None and parsed.group("level") in _RECENT_ERROR_LEVELS:
-                    self._recent_errors.append(parsed.group("message").strip())
-            if not self._ready:
-                # Keep the startup output so a failure can show the client's own
-                # reason instead of only the exit code.
-                self._startup_tail.append(line)
+            self._capture_output_line(line)
             if debug_enabled:
                 debug_events.log("client_log", line=line)
+
+    def _capture_output_line(self, line: str) -> None:
+        """Capture one client output line for failure reporting.
+
+        Level-bearing lines are kept for the whole run (the startup tail is
+        discarded at readiness and cannot explain a later fatal exit); pre-ready
+        lines are kept as the startup tail so a failure can show the client's own
+        reason instead of only the exit code. The substring test avoids stripping
+        the escapes on every line of a burst. Fed by both transports — stdout and
+        the Windows stderr events channel.
+        """
+        if "ERROR" in line or "CRITICAL" in line:
+            parsed = LOG_LINE_RE.match(strip_sgr(line))
+            if parsed is not None and parsed.group("level") in _RECENT_ERROR_LEVELS:
+                self._recent_errors.append(parsed.group("message").strip())
+        if not self._ready:
+            self._startup_tail.append(line)
 
     @Slot(int, QProcess.ExitStatus)
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
@@ -1009,12 +1066,42 @@ class HsyncEngine(QObject):
             # EOF: the child closed its write end (it exited or finished).
             self._close_events_channel()
             return
-        self._events_buf += chunk.decode("utf-8", errors="replace")
+        self._consume_event_lines(chunk.decode("utf-8", errors="replace"))
+
+    @Slot()
+    def _on_events_channel_stderr(self) -> None:
+        """Consume JSON-Lines events from the child's stderr (Windows transport).
+
+        Only wired on Windows, where the events travel on stderr instead of a
+        pipe fd (see the module docstring). A non-JSON line (the client's rare
+        pre-logging fatal prints and crash tracebacks) is forwarded to the log
+        feed rather than dropped.
+        """
+        if not self._process:
+            return
+        data = bytes(self._process.readAllStandardError().data())
+        self._consume_event_lines(data.decode("utf-8", errors="replace"), log_non_events=True)
+
+    def _consume_event_lines(self, chunk: str, *, log_non_events: bool = False) -> None:
+        """Buffer *chunk* and dispatch every complete JSON-Lines record.
+
+        With *log_non_events*, a line that is not an event is forwarded to the
+        log feed: the Windows stderr transport also carries the client's rare
+        non-JSON output (crash tracebacks, pre-logging fatal prints), which must
+        not vanish from the panel.
+        """
+        self._events_buf += chunk
         *lines, self._events_buf = self._events_buf.split("\n")
         for line in lines:
             event = parse_event_line(line)
             if event is not None:
                 self._handle_event(event)
+            elif log_non_events and line.strip():
+                # The Windows stderr transport also carries the client's rare
+                # non-JSON output (crash tracebacks, pre-logging fatal prints);
+                # surface it in the log feed and the failure capture.
+                self._capture_output_line(line)
+                self.log_received.emit(line)
 
     def _handle_event(self, event: UiEventDict) -> None:
         """Translate one structured client event into Qt signal(s).

@@ -3,11 +3,13 @@
 
 """Tests for hsync_desktop.engine module."""
 
+import json
 import os
 import signal
 import subprocess
 
 import pytest
+from hsync_common.logger import format_log_line
 from hsync_common.protocol.events import UiEventName, build_event
 from PySide6.QtCore import QProcess, QProcessEnvironment
 
@@ -15,6 +17,7 @@ from hsync_desktop.engine import (
     HsyncEngine,
     TransferStats,
     apply_settings_env,
+    p2p_secret_env_var,
     p2p_secret_mode,
     p2p_secret_option,
     write_secret_pipe,
@@ -318,6 +321,16 @@ class _StdoutProcess:
         return _StdoutData(self._text.encode("utf-8"))
 
 
+class _StderrProcess:
+    """Minimal QProcess stand-in feeding one stderr chunk to the events parser."""
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    def readAllStandardError(self) -> _StdoutData:
+        return _StdoutData(self._text.encode("utf-8"))
+
+
 class TestFatalExitAfterReady:
     """A fatal exit that happens *after* readiness must not stay silent.
 
@@ -575,6 +588,168 @@ class TestApplySettingsEnv:
         env.insert("HSYNC_NTP_HOSTS", "ambient.local")
         apply_settings_env(env, _EnvFakeSettings({"p2p/ntp_hosts": "gui.local"}))
         assert env.value("HSYNC_NTP_HOSTS") == "gui.local"
+
+
+class _TpSignal:
+    def connect(self, *_args, **_kwargs):
+        pass
+
+
+class _TpProcess:
+    """QProcess stand-in recording the channel mode, environment and argv."""
+
+    def __init__(self, _parent=None):
+        self.channel_mode = None
+        self.env = None
+        self.argv = None
+        self.readyReadStandardOutput = _TpSignal()
+        self.readyReadStandardError = _TpSignal()
+        self.finished = _TpSignal()
+        self.errorOccurred = _TpSignal()
+
+    def setProcessChannelMode(self, mode):
+        self.channel_mode = mode
+
+    def setProcessEnvironment(self, env):
+        self.env = env
+
+    def start(self, _binary, args):
+        self.argv = list(args)
+
+    def waitForStarted(self, _ms):
+        return True
+
+
+class _TpEnv:
+    """Minimal QProcessEnvironment stand-in."""
+
+    def __init__(self):
+        self.vars: dict[str, str] = {}
+
+    @classmethod
+    def systemEnvironment(cls):
+        return cls()
+
+    def insert(self, key, value):
+        self.vars[key] = value
+
+    def remove(self, key):
+        self.vars.pop(key, None)
+
+
+class _TpSettings:
+    """Minimal QSettings stand-in backed by a dict."""
+
+    def __init__(self, values):
+        self._values = dict(values)
+
+    def value(self, key, default=None, type=None):  # noqa: A002 - Qt signature
+        return self._values.get(key, default)
+
+
+class TestSubprocessTransport:
+    """Secret/event transport: POSIX pipe fds, Windows environment + stderr.
+
+    Regression: Windows cannot inherit the pipe fds the POSIX path relies on
+    (``CreateProcess`` does not carry the C runtime fd table, and the
+    PyInstaller one-file bootloader re-exec drops them), so a configured P2P key
+    never reached the client and the sync aborted with the keyless-P2P error;
+    the events channel was dead too.
+    """
+
+    @pytest.fixture
+    def spawn(self, monkeypatch):
+        settings = _TpSettings(
+            {
+                "p2p/enabled": True,
+                "p2p/key": "correct horse battery staple",
+                "p2p/key_mode": "passphrase",
+            }
+        )
+        created: dict[str, _TpProcess] = {}
+
+        def _factory(_parent=None):
+            proc = _TpProcess()
+            created["proc"] = proc
+            return proc
+
+        # ``start`` reads ``QProcess.ProcessChannelMode`` off the patched name.
+        _factory.ProcessChannelMode = QProcess.ProcessChannelMode  # type: ignore[attr-defined]
+
+        monkeypatch.setattr(process_module, "QSettings", lambda *_a, **_k: settings)
+        monkeypatch.setattr(process_module, "QProcess", _factory)
+        monkeypatch.setattr(process_module, "QProcessEnvironment", _TpEnv)
+        monkeypatch.setattr(process_module, "write_secret_pipe", lambda _secret: 99)
+        monkeypatch.setattr(process_module.os, "pipe", lambda: (100, 101))
+        monkeypatch.setattr(process_module.os, "set_inheritable", lambda *_a: None)
+        # The engine closes the fake fds after start; never touch real ones.
+        monkeypatch.setattr(process_module.os, "close", lambda *_a: None)
+        monkeypatch.setattr(HsyncEngine, "_open_events_channel", lambda self, _fd: None)
+        return created
+
+    def test_windows_delivers_secret_via_env_and_events_via_stderr(self, qtbot, monkeypatch, spawn):
+        monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
+        engine = HsyncEngine(binary_path="/fake/hsync")
+        assert engine.start(["p2p", "-b", "shared", "-p", "/tmp"])
+
+        proc = spawn["proc"]
+        assert proc.channel_mode == QProcess.ProcessChannelMode.SeparateChannels
+        assert "--p2p-passphrase-fd" not in proc.argv
+        assert proc.argv[proc.argv.index("--events-json-fd") + 1] == "2"
+        assert proc.env.vars["HSYNC_P2P_PASSPHRASE"] == "correct horse battery staple"
+        assert "HSYNC_P2P_KEY" not in proc.env.vars
+
+    def test_posix_keeps_fd_secret_and_fd_events(self, qtbot, monkeypatch, spawn):
+        monkeypatch.setattr(process_module, "_IS_WINDOWS", False)
+        engine = HsyncEngine(binary_path="/fake/hsync")
+        assert engine.start(["p2p", "-b", "shared", "-p", "/tmp"])
+
+        proc = spawn["proc"]
+        assert proc.channel_mode == QProcess.ProcessChannelMode.MergedChannels
+        assert proc.argv[proc.argv.index("--p2p-passphrase-fd") + 1] == "99"
+        assert proc.argv[proc.argv.index("--events-json-fd") + 1] == "101"
+        assert "HSYNC_P2P_PASSPHRASE" not in proc.env.vars
+
+    def test_windows_stderr_channel_parses_events_and_logs_the_rest(self, qtbot):
+        engine = HsyncEngine(binary_path="/fake/hsync")
+        events = _capture(engine.status_changed)
+        logs = _capture(engine.log_received)
+        payload = (
+            json.dumps(build_event(UiEventName.status, status="connected"))
+            + "\n"
+            + "Traceback (most recent call last):\n"
+        )
+        engine._process = _StderrProcess(payload)
+        engine._on_events_channel_stderr()
+        assert events == [("connected",)]
+        assert logs == [("Traceback (most recent call last):",)]
+
+    def test_windows_stderr_non_events_reach_failure_capture(self, qtbot):
+        """Non-event stderr lines must feed the startup tail and recent errors.
+
+        Regression: on POSIX stderr was merged into stdout and captured by
+        ``_on_stdout``; the Windows stderr transport must reach the same
+        collectors, or a stderr-only startup failure shows an empty reason.
+        """
+        engine = HsyncEngine(binary_path="/fake/hsync")
+        assert not engine._ready
+        payload = format_log_line("ERROR", "boom: bad option") + "\nusage: hsync\n"
+        engine._process = _StderrProcess(payload)
+        engine._on_events_channel_stderr()
+        assert "usage: hsync" in engine._startup_tail
+        assert any("boom: bad option" in message for message in engine._recent_errors)
+
+    @pytest.mark.parametrize(
+        ("key_mode", "option", "env_var"),
+        [
+            ("passphrase", "--p2p-passphrase-fd", "HSYNC_P2P_PASSPHRASE"),
+            ("raw", "--p2p-key-fd", "HSYNC_P2P_KEY"),
+        ],
+    )
+    def test_p2p_secret_mappings_agree(self, key_mode, option, env_var):
+        """The fd flag and the env var must split on the same mode."""
+        assert p2p_secret_option(key_mode) == option
+        assert p2p_secret_env_var(key_mode) == env_var
 
 
 class TestHandleEvent:
@@ -1032,7 +1207,7 @@ class TestProcessTreeSignalling:
         assert list_process_descendants(5) == []
 
     def test_parent_table_is_empty_on_windows(self, monkeypatch):
-        monkeypatch.setattr(process_module.os, "name", "nt")
+        monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         assert process_module._read_process_parents() == {}
 
@@ -1120,7 +1295,7 @@ class TestProcessTreeSignalling:
             "_taskkill_tree",
             lambda pid, force: calls.append((pid, force)),
         )
-        monkeypatch.setattr(process_module.os, "name", "nt")
+        monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         engine._send_stop_signal()
 
@@ -1136,7 +1311,7 @@ class TestProcessTreeSignalling:
             "_taskkill_tree",
             lambda pid, force: calls.append((pid, force)),
         )
-        monkeypatch.setattr(process_module.os, "name", "nt")
+        monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         engine._kill_process_tree()
 
