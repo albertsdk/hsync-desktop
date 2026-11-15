@@ -50,6 +50,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_RENDEZVOUS_TRUST,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_SERVER_TRUST,
+    normalize_trust_value,
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine.cli import find_hsync_binary
@@ -362,7 +363,7 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     # pin itself lives in the shared server known-hosts store.
     env.insert(
         "HSYNC_SERVER_TRUST",
-        str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)),
+        normalize_trust_value(str(s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str))),
     )
     # ADR-0023: SNTP host list for p2p-mode clock correction.
     ntp_hosts = str(s.value("p2p/ntp_hosts", "", str)).strip()
@@ -385,7 +386,9 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
         # "Manage trusted keys" dialog), not in a GUI-only setting.
         env.insert(
             "HSYNC_RENDEZVOUS_SERVER_TRUST",
-            str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str)),
+            normalize_trust_value(
+                str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str))
+            ),
         )
     # Periodic full check: 0 disables it. The client has no CLI "off" for
     # -i (absence means its 300 s default), so the off state travels through

@@ -36,7 +36,7 @@ DEFAULT_INSECURE = False
 DEFAULT_CA_CERT = ""
 # Server TLS trust policy (ADR-0036): chain (default) | ask | accept-new |
 # strict | none. Passed to hsync-client via --server-trust.
-DEFAULT_SERVER_TRUST = "chain"
+DEFAULT_SERVER_TRUST = "auto"
 DEFAULT_HTTP_TIMEOUT = defaults.HTTP_TIMEOUT_DEFAULT
 
 # Sync defaults
@@ -116,13 +116,26 @@ DEFAULT_NEVER_MASTER = False
 # P2P master trust policy (ADR-0040): ask (default) | accept-new | strict.
 # Passed to hsync-client via --p2p-trust; chain/none never pin, so they are not
 # selectable here.
-DEFAULT_P2P_TRUST = "ask"
+DEFAULT_P2P_TRUST = "auto"
 # Optional rendezvous host for cross-network rendezvous (bare hostname; empty =
 # mDNS-only). Passed to hsync-client via HSYNC_RENDEZVOUS_SERVER_ENDPOINTS.
 DEFAULT_P2P_RENDEZVOUS = ""
 # Rendezvous TLS trust policy (ADR-0035): ask | accept-new | strict | none.
 # Passed via HSYNC_RENDEZVOUS_TRUST.
-DEFAULT_P2P_RENDEZVOUS_TRUST = "ask"
+DEFAULT_P2P_RENDEZVOUS_TRUST = "auto"
+
+
+def normalize_trust_value(value: str) -> str:
+    """Normalize a stored trust policy to the values the desktop menu offers.
+
+    The legacy ``chain``/``accept-new`` policies are no longer in the GUI; an
+    install that still stores one is treated as ``auto`` (prefer a CA chain,
+    otherwise pin the first sighting). ``ask``/``strict``/``none`` round-trip
+    unchanged.
+    """
+    return "auto" if value in {"chain", "accept-new"} else value
+
+
 # Rendezvous transport selector: auto (race QUIC/UDP and TLS/TCP, QUIC
 # preferred) | quic | tcp. Passed via --rendezvous-transport. The default is the
 # shared ``hsync_common.constants.RDV_TRANSPORT_DEFAULT`` (SSOT).

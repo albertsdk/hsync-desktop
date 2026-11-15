@@ -55,6 +55,11 @@ class TestRemedyText:
             "notif.remedy_rdv_token_required"
         )
 
+    def test_the_first_use_acceptance_has_a_remedy(self):
+        """A TOFU acceptance points at the audit list; a later change is refused."""
+        for source in ("server", "rendezvous", "peer"):
+            assert remedy_text(source, {"reason": "tofu_first_use"}) == tr("notif.remedy_tofu")
+
     def test_the_relay_unavailable_warning_has_a_remedy(self):
         """Two NATed peers that cannot pair the data relay need a concrete fix."""
         assert remedy_text("relay", {"reason": "relay_unavailable"}) == tr(

@@ -224,15 +224,19 @@ class TestCapabilityGating:
 class TestRendezvousTrustPolicy:
     """The rendezvous trust policy is a combo offering the four ADR-0035 policies."""
 
-    def test_combo_offers_the_four_policies_and_defaults_to_ask(self, dialog):
+    def test_combo_offers_the_four_policies_and_defaults_to_auto(self, dialog, settings):
         combo = dialog.p2p_rendezvous_trust
         assert [combo.itemData(i) for i in range(combo.count())] == [
+            "auto",
             "ask",
-            "accept-new",
             "strict",
             "none",
         ]
-        assert combo.currentData() == "ask"
+        # The shared fixture seeds ``ask`` (pre-flight tests); a fresh profile
+        # has no stored value and falls back to the new ``auto`` default.
+        settings.remove("p2p/rendezvous_server_trust")
+        dialog._load_p2p(settings)
+        assert combo.currentData() == "auto"
 
     def test_label_sits_in_form_label_column(self, dialog):
         """The trust label is the caption of the trust combo's own form row."""
@@ -315,16 +319,15 @@ class TestTrustedKeysUi:
 class TestServerTrustPolicy:
     """The server trust combo replaces the dead fingerprint field (ADR-0036)."""
 
-    def test_combo_offers_the_five_policies_and_defaults_to_chain(self, dialog):
+    def test_combo_offers_the_four_policies_and_defaults_to_auto(self, dialog):
         combo = dialog.server_trust
         assert [combo.itemData(i) for i in range(combo.count())] == [
-            "chain",
+            "auto",
             "ask",
-            "accept-new",
             "strict",
             "none",
         ]
-        assert combo.currentData() == "chain"
+        assert combo.currentData() == "auto"
 
     def test_server_cert_fingerprint_widget_is_absent(self, dialog):
         assert dialog.findChild(QLineEdit, "serverCertFingerprint") is None
@@ -332,8 +335,8 @@ class TestServerTrustPolicy:
     def test_test_connection_ssl_context_follows_the_policy(self, dialog):
         import ssl
 
-        # chain -> standard verification
-        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("chain"))
+        # auto -> standard verification (the CA chain is preferred)
+        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("auto"))
         assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_REQUIRED
         # none -> no verification
         dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("none"))

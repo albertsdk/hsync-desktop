@@ -51,9 +51,10 @@ class TestSharedDefaultsAreAliases:
         assert config.DEFAULT_P2P_PEER_READ_CAP is defaults.P2P_PEER_READ_CAP_DEFAULT
         assert config.DEFAULT_P2P_PEER_SOURCES_MAX is defaults.P2P_PEER_SOURCES_MAX_DEFAULT
 
-    def test_p2p_master_trust_default_is_the_shared_self_signed_policy(self):
-        """The GUI must not pin its own default for a security decision (ADR-0040)."""
-        assert DEFAULT_SELF_SIGNED_POLICY.value == config.DEFAULT_P2P_TRUST
+    def test_p2p_master_trust_default_is_auto(self):
+        """The GUI defaults to ``auto``; the CLI keeps the conservative ``ask``."""
+        assert config.DEFAULT_P2P_TRUST == "auto"
+        assert DEFAULT_SELF_SIGNED_POLICY.value == "ask"
 
     def test_delta_floors_are_derived_from_the_client_byte_constants(self):
         """The dialog works in KB; the engine's constants are bytes."""

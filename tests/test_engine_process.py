@@ -539,17 +539,28 @@ class TestApplySettingsEnv:
         assert not env.contains("HSYNC_RENDEZVOUS_SERVER_ENDPOINTS")
         assert not env.contains("HSYNC_MAP_DATA_PORT")
 
-    def test_rendezvous_trust_defaults_to_ask(self):
+    def test_rendezvous_trust_defaults_to_auto(self):
         env = self._env_with({"p2p/rendezvous_server_endpoints": "rdv.example.net"})
-        assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "ask"
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "auto"
+
+    def test_legacy_trust_values_are_normalized_to_auto(self):
+        env = self._env_with({"connection/server_trust": "chain"})
+        assert env.value("HSYNC_SERVER_TRUST") == "auto"
+        env = self._env_with(
+            {
+                "p2p/rendezvous_server_endpoints": "rdv.example.net",
+                "p2p/rendezvous_server_trust": "accept-new",
+            }
+        )
+        assert env.value("HSYNC_RENDEZVOUS_SERVER_TRUST") == "auto"
 
     def test_server_trust_policy_is_exported(self):
         env = self._env_with({"connection/server_trust": "strict"})
         assert env.value("HSYNC_SERVER_TRUST") == "strict"
 
-    def test_server_trust_defaults_to_chain(self):
+    def test_server_trust_defaults_to_auto(self):
         env = self._env_with({})
-        assert env.value("HSYNC_SERVER_TRUST") == "chain"
+        assert env.value("HSYNC_SERVER_TRUST") == "auto"
 
     def test_server_pin_is_not_exported_as_env(self):
         # The pin lives in the shared server known-hosts store, not a GUI env var.

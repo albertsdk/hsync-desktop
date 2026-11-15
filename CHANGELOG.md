@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The three identity checks default to **Automatic** (a saved pin, then a CA
+  chain, then the first sighting) and share one wording; a stored `chain` or
+  `accept-new` is normalized to `auto`.
+
 ### Fixed
 
 - Windows: a configured P2P/API key now reaches the client and the structured

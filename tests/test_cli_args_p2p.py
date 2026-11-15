@@ -205,25 +205,26 @@ class TestNeverMasterFlag:
 class TestP2PTrustFlag:
     """Coverage for the --p2p-trust (new-primary trust policy) setting."""
 
-    def test_default_emits_ask(self):
-        """With p2p enabled and no stored policy the client default (ask) is sent."""
+    def test_default_emits_auto(self):
+        """With p2p enabled and no stored policy the GUI default (auto) is sent."""
         args = _build_args({"p2p/enabled": True})
 
-        assert args[args.index("--p2p-trust") + 1] == "ask"
+        assert args[args.index("--p2p-trust") + 1] == "auto"
 
     def test_explicit_policies_are_emitted(self):
         """Each supported policy is forwarded exactly once, unchanged."""
-        for policy in ("ask", "accept-new", "strict"):
+        for policy in ("auto", "ask", "strict"):
             args = _build_args({"p2p/enabled": True, "p2p/trust": policy})
 
             assert args.count("--p2p-trust") == 1
             assert args[args.index("--p2p-trust") + 1] == policy
 
-    def test_unknown_stored_policy_falls_back_to_default(self):
-        """A hand-edited value outside the contract is never forwarded."""
-        args = _build_args({"p2p/enabled": True, "p2p/trust": "chain"})
+    def test_removed_policies_fall_back_to_auto(self):
+        """Legacy ``chain``/``accept-new`` are normalized to the new default."""
+        for policy in ("chain", "accept-new", "bogus"):
+            args = _build_args({"p2p/enabled": True, "p2p/trust": policy})
 
-        assert args[args.index("--p2p-trust") + 1] == "ask"
+            assert args[args.index("--p2p-trust") + 1] == "auto"
 
     def test_flag_not_emitted_when_p2p_disabled(self):
         """p2p disabled: the trust policy is skipped with the rest of the block."""

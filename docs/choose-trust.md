@@ -32,27 +32,31 @@ command line agree on what is trusted.
 
 ## Choosing how strict to be
 
-The exact option names differ a little between the p2p and Server tabs, but the
-idea is the same:
+The three identity checks — **server**, **discovery server** and **primary
+device** — use the same names and the same idea:
 
 | Behaviour | What it means | Good for |
 | --------- | ------------- | -------- |
-| **Ask on first use** (default for devices and the discovery server) | Trust the first fingerprint once you confirm it; refuse later changes. | Most people: one confirmation, then silence. |
-| **Accept automatically** | Pin the first fingerprint with no question. | A closed, trusted network where you cannot be interrupted. |
+| **Automatic (recommended)** (default) | Use the best check the endpoint supports: an already-saved fingerprint, else a certificate the operating system trusts (a real CA), else remember the first fingerprint. A later change is always refused. | Most people: works with public-CA and self-signed endpoints without a question. |
+| **Ask on first use** | Show the fingerprint and ask on first contact; refuse later changes. | When you want to confirm every new endpoint yourself. |
 | **Require the saved identity** | Only accept a fingerprint you have already pinned. | Strict setups: nothing new is trusted by chance. |
 | **Don't verify** | Accept any fingerprint. | Never, unless you fully control the network. |
 
-The **sync server** tab starts at **Standard verification** instead: it accepts
-only a certificate the operating system already trusts, which is what a reverse
-proxy with a real CA provides. A server that presents its own self-signed
-certificate — the HSYNC Server Debian package generates one — is refused in that
-mode, so pick **Ask on first use** once (or pin its `sha256:…` fingerprint shown
-by `sudo hsync-server admin tls fingerprint` on the server host).
+**Automatic** is the right choice for almost everyone. For a self-signed server or
+discovery server it remembers the first fingerprint and shows a non-blocking
+notice with the code; verify that code under **Manage trusted servers &
+devices…** when you can, and a later change is still refused.
 
-In **p2p Mode** the same idea applies to the device that becomes primary, through
-**New primary device** (*Settings → p2p Mode*): **Ask for confirmation** by
-default, **Accept automatically**, or **Require an explicit confirmation** (which
-waits for you to pin the fingerprint with **Confirm a primary device…**).
+The `hsync` command line offers two extra modes for scripts — **Standard
+verification** (a public CA only, nothing remembered) and **Accept automatically**
+(remember the first fingerprint without a notice). They are not part of the
+desktop menus.
+
+The **sync server** uses the same **Automatic** default: it prefers a certificate
+the operating system trusts (a reverse proxy with a real CA) and only falls back
+to remembering the fingerprint when the server presents its own self-signed
+certificate — which the HSYNC Server Debian package generates. Its fingerprint is
+shown by `sudo hsync-server admin tls fingerprint` on the server host.
 
 The **discovery server** is optional, so its identity check never blocks a sync: if
 it cannot be reached when a sync starts, the app warns you and keeps syncing on

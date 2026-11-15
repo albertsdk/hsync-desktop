@@ -38,6 +38,11 @@ _RENDEZVOUS_TOKEN_REMEDY_KEY = "notif.remedy_rdv_token_required"
 # endpoint on the device that serves as primary (UPnP) or the node's relay.
 _RELAY_UNAVAILABLE_REMEDY_KEY = "notif.remedy_relay_unavailable"
 
+# The "Automatic" policy accepted an unknown endpoint's identity on first use.
+# The connection is legitimate for now; the remedy points at the audit list so
+# the user can verify the fingerprint out of band (a later change is refused).
+_TOFU_REMEDY_KEY = "notif.remedy_tofu"
+
 
 def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
     """Return the localized remedy for a warning, or ``""`` when there is none.
@@ -50,6 +55,8 @@ def remedy_text(source: str, details: Mapping[str, Any] | None) -> str:
         return tr(_RENDEZVOUS_TOKEN_REMEDY_KEY)
     if source == "relay" and str((details or {}).get("reason")) == "relay_unavailable":
         return tr(_RELAY_UNAVAILABLE_REMEDY_KEY)
+    if str((details or {}).get("reason")) == "tofu_first_use":
+        return tr(_TOFU_REMEDY_KEY)
     if source != "watcher":
         return ""
     reason = str((details or {}).get("reason") or "")

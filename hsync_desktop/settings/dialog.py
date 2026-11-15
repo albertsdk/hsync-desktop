@@ -294,12 +294,16 @@ class SettingsDialog(QDialog):
     # ── Sync tab grouping ─────────────────────────────────────────
 
     def _populate_rendezvous_trust(self) -> None:
-        """Fill the rendezvous trust-policy combo (ADR-0035), preserving selection."""
+        """Fill the rendezvous trust-policy combo (ADR-0035), preserving selection.
+
+        The four values are the unified "identity check" set: ``auto`` (default),
+        ``ask``, ``strict`` and ``none``. ``chain``/``accept-new`` stay CLI-only.
+        """
         _populate_combo(
             self.p2p_rendezvous_trust,
             (
+                ("auto", "trust_option.auto"),
                 ("ask", "settings.p2p_rendezvous_trust_ask"),
-                ("accept-new", "settings.p2p_rendezvous_trust_accept_new"),
                 ("strict", "settings.p2p_rendezvous_trust_strict"),
                 ("none", "settings.p2p_rendezvous_trust_none"),
             ),
@@ -346,12 +350,16 @@ class SettingsDialog(QDialog):
         )
 
     def _populate_p2p_trust(self) -> None:
-        """Fill the new-primary trust-policy combo (ADR-0040), preserving selection."""
+        """Fill the new-primary trust-policy combo (ADR-0040), preserving selection.
+
+        ``auto`` (default), ``ask`` and ``strict``: the primary is self-signed, so
+        ``none`` is not offered (it would disable the identity check entirely).
+        """
         _populate_combo(
             self.p2p_trust,
             (
+                ("auto", "trust_option.auto"),
                 ("ask", "settings.p2p_trust_ask"),
-                ("accept-new", "settings.p2p_trust_accept_new"),
                 ("strict", "settings.p2p_trust_strict"),
             ),
         )
@@ -365,13 +373,16 @@ class SettingsDialog(QDialog):
         TrustedKeysDialog(self, initial_tab="servers").exec()
 
     def _populate_server_trust(self) -> None:
-        """Fill the server trust-policy combo (ADR-0036), preserving selection."""
+        """Fill the server trust-policy combo (ADR-0036), preserving selection.
+
+        ``auto`` (default), ``ask``, ``strict`` and ``none``; ``chain`` and
+        ``accept-new`` stay CLI-only.
+        """
         _populate_combo(
             self.server_trust,
             (
-                ("chain", "settings.server_trust_chain"),
+                ("auto", "trust_option.auto"),
                 ("ask", "settings.server_trust_ask"),
-                ("accept-new", "settings.server_trust_accept_new"),
                 ("strict", "settings.server_trust_strict"),
                 ("none", "settings.server_trust_none"),
             ),

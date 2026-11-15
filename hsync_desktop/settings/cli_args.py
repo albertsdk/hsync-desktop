@@ -307,7 +307,7 @@ def _append_advanced_args(args: list[str], s: QSettings) -> None:
 
 # P2P master trust policies the client accepts (ADR-0040). A stored value
 # outside this set comes from a hand-edited settings file and is dropped.
-_P2P_TRUST_POLICIES = frozenset({"ask", "accept-new", "strict"})
+_P2P_TRUST_POLICIES = frozenset({"auto", "ask", "strict"})
 
 
 def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
