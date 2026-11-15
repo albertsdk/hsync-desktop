@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   events reach the GUI — secrets travel through the process environment and
   events through the child's stderr — instead of the keyless-P2P startup failure
   and dead event channel caused by Windows not inheriting the POSIX pipe FDs.
+- Windows: the GUI no longer opens an extra console window (at launch or during
+  a sync), and the app and its shortcuts show the app icon.
 
 ## [1.1.2] - 2026-11-12
 

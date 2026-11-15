@@ -55,10 +55,11 @@ UninstallDisplayIcon={app}\hsync-desktop.exe
 Source: "{#SourceExe}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\HSYNC"; Filename: "{app}\hsync-desktop.exe"
+Name: "{group}\HSYNC"; Filename: "{app}\hsync-desktop.exe"; \
+    IconFilename: "{app}\hsync-desktop.exe"
 Name: "{group}\Uninstall HSYNC"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\HSYNC"; Filename: "{app}\hsync-desktop.exe"; \
-    Tasks: desktopicon
+    IconFilename: "{app}\hsync-desktop.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; \

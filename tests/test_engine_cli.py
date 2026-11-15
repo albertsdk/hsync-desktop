@@ -142,6 +142,24 @@ class TestGetBinaryVersion:
         assert get_binary_version("/fake/hsync") is None
 
 
+class TestRunHsyncCaptureConsole:
+    """The shared probe entry point must not open a console window on Windows."""
+
+    def test_forwards_no_console_flags(self, monkeypatch):
+        from hsync_desktop.engine import cli as engine
+
+        captured: dict[str, object] = {}
+
+        def _fake_run(cmd, **kwargs):
+            captured.update(kwargs)
+            return _FakeCompleted()
+
+        monkeypatch.setattr(engine.subprocess, "run", _fake_run)
+        monkeypatch.setattr(engine, "no_console_kwargs", lambda: {"creationflags": 0x08000000})
+        engine._run_hsync_capture("hsync", ["--version"])
+        assert captured["creationflags"] == 0x08000000
+
+
 class TestIsBinaryVersionCompatible:
     """Test the is_binary_version_compatible predicate."""
 

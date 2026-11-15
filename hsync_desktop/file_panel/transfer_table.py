@@ -86,6 +86,7 @@ from hsync_desktop.file_panel.utils import (
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
+from hsync_desktop.subprocess_utils import no_console_kwargs
 from hsync_desktop.widgets.name_dialog import ask_name
 
 # Folder aggregation status priority (lower wins) and the matching i18n keys.
@@ -1904,6 +1905,7 @@ class FileTransferTable(QTableView):
                     ["rundll32.exe", "shell32.dll,OpenAs_RunDLL", abs_path],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    **no_console_kwargs(),
                 )
             else:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(abs_path))
@@ -2203,6 +2205,7 @@ class FileTransferTable(QTableView):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 env=env,
+                **no_console_kwargs(),
             )
             return
         raise OSError("Unsupported platform for trash operation")

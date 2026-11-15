@@ -602,6 +602,7 @@ class _TpProcess:
         self.channel_mode = None
         self.env = None
         self.argv = None
+        self.create_process_modifiers = []
         self.readyReadStandardOutput = _TpSignal()
         self.readyReadStandardError = _TpSignal()
         self.finished = _TpSignal()
@@ -612,6 +613,9 @@ class _TpProcess:
 
     def setProcessEnvironment(self, env):
         self.env = env
+
+    def setCreateProcessArgumentsModifier(self, modifier):
+        self.create_process_modifiers.append(modifier)
 
     def start(self, _binary, args):
         self.argv = list(args)
@@ -750,6 +754,39 @@ class TestSubprocessTransport:
         """The fd flag and the env var must split on the same mode."""
         assert p2p_secret_option(key_mode) == option
         assert p2p_secret_env_var(key_mode) == env_var
+
+    def test_child_gets_a_no_console_modifier(self, qtbot, monkeypatch):
+        """On Windows the QProcess child is created with CREATE_NO_WINDOW.
+
+        A ``--windowed`` parent has no console, so without the modifier the
+        console client would open its own window for the whole sync.
+        """
+        monkeypatch.setattr(process_module, "create_no_window", lambda: 0x08000000)
+        engine = HsyncEngine(binary_path="/fake/hsync")
+
+        class _Proc:
+            def __init__(self):
+                self.modifiers = []
+
+            def setCreateProcessArgumentsModifier(self, modifier):
+                self.modifiers.append(modifier)
+
+        class _Args:
+            flags = 0
+
+        proc = _Proc()
+        engine._configure_no_console(proc)
+        assert len(proc.modifiers) == 1
+        args = _Args()
+        proc.modifiers[0](args)
+        assert args.flags == 0x08000000
+        assert engine._create_process_modifier is proc.modifiers[0]
+
+    def test_missing_qt_modifier_api_is_a_noop(self, qtbot):
+        """A wheel without the Windows-only API must not break startup."""
+        engine = HsyncEngine(binary_path="/fake/hsync")
+        engine._configure_no_console(object())
+        assert engine._create_process_modifier is None
 
 
 class TestHandleEvent:

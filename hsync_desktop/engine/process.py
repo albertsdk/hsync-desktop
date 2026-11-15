@@ -53,6 +53,7 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value
 from hsync_desktop.engine.cli import find_hsync_binary
+from hsync_desktop.subprocess_utils import create_no_window, no_console_kwargs
 
 # How many client output lines are kept during the startup phase, so a
 # failure report can show the client's own diagnostic instead of a bare exit
@@ -209,7 +210,7 @@ def _taskkill_tree(pid: int, *, force: bool) -> None:
             capture_output=True,
             check=False,
             timeout=5,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            **no_console_kwargs(),
         )
     except (OSError, subprocess.SubprocessError):
         pass
@@ -516,6 +517,8 @@ class HsyncEngine(QObject):
         super().__init__(parent)
         self._binary = binary_path or find_hsync_binary()
         self._process: QProcess | None = None
+        # Keeps the Windows CreateProcess modifier reachable while the child runs.
+        self._create_process_modifier: Callable[..., None] | None = None
         self._running = False
         self._stopping = False  # True when stop() was called programmatically
         self._is_master = False
@@ -587,6 +590,27 @@ class HsyncEngine(QObject):
 
     # ── Start / Stop ─────────────────────────────────────────────────────
 
+    def _configure_no_console(self, proc: QProcess) -> None:
+        """Keep the client child from opening its own console window on Windows.
+
+        A ``--windowed`` parent has no console, so Qt would give the
+        console-subsystem client a new one (visible for the whole sync).
+        ``setCreateProcessArgumentsModifier`` is Windows-only; the attribute is
+        absent on other wheels, so it is probed rather than assumed. The
+        callback is held on the engine because Qt keeps only a weak view of the
+        Python callable.
+        """
+        set_modifier = getattr(proc, "setCreateProcessArgumentsModifier", None)
+        if set_modifier is None:
+            return
+        flag = create_no_window()
+
+        def _no_console(args: object) -> None:
+            args.flags |= flag  # type: ignore[attr-defined]
+
+        set_modifier(_no_console)
+        self._create_process_modifier = _no_console
+
     def start(self, args: list[str]) -> bool:
         """Start the hsync-client with the given CLI arguments.
 
@@ -611,6 +635,7 @@ class HsyncEngine(QObject):
         self._set_status("connecting")
 
         proc = QProcess(self)
+        self._configure_no_console(proc)
         proc.readyReadStandardOutput.connect(self._on_stdout)
         proc.finished.connect(self._on_finished)
         proc.errorOccurred.connect(self._on_error)

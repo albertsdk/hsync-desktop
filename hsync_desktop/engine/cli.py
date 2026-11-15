@@ -29,6 +29,7 @@ from hsync_common.runtime import platform_tag
 from PySide6.QtCore import QObject, QProcess, QSettings, QTimer, Signal, Slot
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.subprocess_utils import no_console_kwargs
 
 
 def _platform_tag() -> str:
@@ -46,7 +47,12 @@ def _run_hsync_capture(
     """
     try:
         return subprocess.run(
-            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+            [binary, *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+            **no_console_kwargs(),
         )
     except (OSError, subprocess.SubprocessError):
         return None

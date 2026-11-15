@@ -402,6 +402,16 @@ _arch_to_rpm() {
     esac
 }
 
+# Windows-only: build the GUI as a GUI-subsystem executable so launching it
+# opens no console window. Kept out of the shared flag sets because on macOS
+# ``--windowed`` turns a ``--onefile`` build into a ``.app`` and would change the
+# native artifact contract. Prints nothing elsewhere, so the expansion is inert.
+_windowed_flag() {
+    if [[ "${OS_NAME}" == "windows" ]]; then
+        printf '%s' "--windowed"
+    fi
+}
+
 # PyInstaller flags shared by the native (host) and rpi (container) onefile
 # builds. --strip and --distpath are added by the caller; --workpath/--specpath
 # are added by the rpi caller only. Backslash continuations (not embedded
@@ -576,6 +586,7 @@ build_binary() {
         --strip \
         --distpath "${OUTPUT_DIR}" \
         $(_onefile_pyi_flags) \
+        $(_windowed_flag) \
         "${add_data_args[@]}" \
         "${ENTRY_POINT}"
 
@@ -1846,25 +1857,29 @@ build_windows() {
         exit 1
     }
 
-    # --- 1. onefile .exe (client engine bundled) -----------------------------
+    # --- 1. installer icon (the .exe embeds it, so build it first) -----------
+    _windows_build_ico "${WINDOWS_ICON}" "${DEB_ICON_PNG}"
+
+    # --- 2. onefile .exe (client engine bundled) -----------------------------
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
     _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
-    # --strip is omitted: it is unsupported on Windows.
+    # --strip is omitted: it is unsupported on Windows. --windowed gives the
+    # executable the GUI subsystem (no console window at launch); --icon embeds
+    # the app icon so the .exe and the shortcuts show it.
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
         --distpath "${OUTPUT_DIR}" \
         $(_onefile_pyi_flags) \
+        $(_windowed_flag) \
+        --icon "${WINDOWS_ICON}" \
         "${add_data_args[@]}" \
         "${ENTRY_POINT}"
     rm -f "${APP_NAME}.spec"
 
     local exe="${OUTPUT_DIR}/${APP_NAME}${BIN_EXT}"
     [[ -f "${exe}" ]] || { log_error "Windows executable not produced at ${exe}"; exit 1; }
-
-    # --- 2. installer icon ---------------------------------------------------
-    _windows_build_ico "${WINDOWS_ICON}" "${DEB_ICON_PNG}"
 
     # --- 3. Inno Setup installer ---------------------------------------------
     mkdir -p "${WINDOWS_OUTPUT_DIR}" "${BUILD_DIR}"
