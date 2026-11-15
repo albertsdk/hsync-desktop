@@ -44,6 +44,19 @@ class TestTranslationConsistency:
                 f"{module.__name__} has different keys than English"
             )
 
+    def test_identity_check_labels_are_plain_and_shared(self):
+        """The three trust labels read just "Identity check" in every locale.
+
+        Each field already sits in its own tab and group box (server, discovery
+        server, primary device), so the label must not repeat the endpoint type;
+        the three must stay identical so no locale drifts back to a typed wording
+        (the previous "New primary device" drift).
+        """
+        keys = ("settings.server_trust", "settings.p2p_rendezvous_trust", "settings.p2p_trust")
+        for module in ALL_MODULES:
+            values = {module.translations[key] for key in keys}
+            assert len(values) == 1, f"{module.__name__}: {sorted(values)}"
+
 
 class TestImportantTranslations:
     """Test that important translations exist in all languages."""
@@ -124,7 +137,6 @@ class TestTerminologyConsistency:
         "settings.test_rendezvous_failure",
         "settings.invalid_rendezvous_endpoint",
         "settings.p2p_rendezvous",
-        "settings.p2p_rendezvous_trust",
         "dialogs.rendezvous_trust_title",
         "dialogs.rendezvous_trust_body",
         "dialogs.rendezvous_unreachable",
