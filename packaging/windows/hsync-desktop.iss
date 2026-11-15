@@ -54,6 +54,13 @@ UninstallDisplayIcon={app}\hsync-desktop.exe
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; Flags: ignoreversion
 
+[Registry]
+; The app writes this autostart value at runtime (autostart.py::_WINDOWS_RUN_VALUE);
+; remove it on uninstall so login does not point at a deleted executable.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
+    ValueType: none; ValueName: "HSYNC Desktop"; \
+    Flags: uninsdeletevalue dontcreatekey
+
 [Icons]
 Name: "{group}\HSYNC"; Filename: "{app}\hsync-desktop.exe"; \
     IconFilename: "{app}\hsync-desktop.exe"

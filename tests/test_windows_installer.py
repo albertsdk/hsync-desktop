@@ -41,6 +41,18 @@ def test_installer_refuses_windows_below_the_qt_floor():
     assert _setup_value("MinVersion") == MIN_WINDOWS_VERSION
 
 
+def test_uninstall_removes_the_autostart_value():
+    """The runtime HKCU Run value must not outlive the uninstalled executable."""
+    from hsync_desktop import autostart
+
+    text = ISS.read_text(encoding="utf-8")
+    registry = text.split("[Registry]", 1)[1].split("\n[", 1)[0]
+    assert autostart._WINDOWS_RUN_KEY in registry
+    assert f'ValueName: "{autostart._WINDOWS_RUN_VALUE}"' in registry
+    assert "uninsdeletevalue" in registry
+    assert "dontcreatekey" in registry
+
+
 def test_installer_refuses_arm64():
     architectures = _setup_value("ArchitecturesAllowed")
     assert "x64compatible" in architectures

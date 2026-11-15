@@ -191,20 +191,19 @@ def _signal_process_tree(pid: int, signum: int) -> None:
             pass
 
 
-def _taskkill_tree(pid: int, *, force: bool) -> None:
-    """End *pid* and its descendants with ``taskkill /T`` (Windows only).
+def _taskkill_tree(pid: int) -> None:
+    """Force-end *pid* and its descendants with ``taskkill /T /F`` (Windows only).
 
     ``taskkill`` walks the real process tree, so the PyInstaller payload that
-    owns the instance lock dies with the bootloader. ``force`` maps to ``/F``:
-    the graceful pass is best-effort (a console child may refuse it), the
-    escalation always forces. A non-zero exit (process already gone) is not an
+    owns the instance lock dies with the bootloader. ``/F`` is always required:
+    without it ``taskkill`` only posts ``WM_CLOSE``, which the console-subsystem
+    client never receives, so a "graceful" pass would just stall the stop for
+    the whole grace period. A non-zero exit (process already gone) is not an
     error here. ``CREATE_NO_WINDOW`` keeps the tool's own console hidden.
     """
     import subprocess
 
-    cmd = ["taskkill", "/PID", str(pid), "/T"]
-    if force:
-        cmd.append("/F")
+    cmd = ["taskkill", "/PID", str(pid), "/T", "/F"]
     try:
         subprocess.run(
             cmd,
@@ -791,7 +790,7 @@ class HsyncEngine(QObject):
         self._stop_safety_timer.stop()
 
     def _send_stop_signal(self) -> None:
-        """Ask the child process tree to exit: SIGTERM (``taskkill /T`` on Windows)."""
+        """Ask the child process tree to exit: SIGTERM (``taskkill /T /F`` on Windows)."""
         if self._process is None:
             return
         pid = self._process.processId()
@@ -799,7 +798,8 @@ class HsyncEngine(QObject):
             self._process.terminate()
             return
         if _IS_WINDOWS:
-            _taskkill_tree(pid, force=False)
+            # No graceful signal reaches a console child here (see _taskkill_tree).
+            _taskkill_tree(pid)
             return
         if hasattr(signal, "SIGTERM"):
             _signal_process_tree(pid, signal.SIGTERM)
@@ -821,7 +821,7 @@ class HsyncEngine(QObject):
             self._process.kill()
             return
         if _IS_WINDOWS:
-            _taskkill_tree(pid, force=True)
+            _taskkill_tree(pid)
             return
         if hasattr(signal, "SIGKILL"):
             _signal_process_tree(pid, signal.SIGKILL)

@@ -1337,33 +1337,27 @@ class TestProcessTreeSignalling:
         fake = _FakeProcess(pid=4242)
         engine = HsyncEngine()
         engine._process = fake
-        calls: list[tuple[int, bool]] = []
-        monkeypatch.setattr(
-            process_module,
-            "_taskkill_tree",
-            lambda pid, force: calls.append((pid, force)),
-        )
+        calls: list[int] = []
+        monkeypatch.setattr(process_module, "_taskkill_tree", calls.append)
         monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         engine._send_stop_signal()
 
-        assert calls == [(4242, False)]
+        # A console child never gets WM_CLOSE: the stop must force at once
+        # instead of stalling the full grace period.
+        assert calls == [4242]
 
     def test_kill_process_tree_forces_taskkill_on_windows(self, monkeypatch):
         fake = _FakeProcess(pid=4242)
         engine = HsyncEngine()
         engine._process = fake
-        calls: list[tuple[int, bool]] = []
-        monkeypatch.setattr(
-            process_module,
-            "_taskkill_tree",
-            lambda pid, force: calls.append((pid, force)),
-        )
+        calls: list[int] = []
+        monkeypatch.setattr(process_module, "_taskkill_tree", calls.append)
         monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         engine._kill_process_tree()
 
-        assert calls == [(4242, True)]
+        assert calls == [4242]
 
     def test_taskkill_tree_builds_the_command(self, monkeypatch):
         run_calls: list[list[str]] = []
@@ -1373,13 +1367,9 @@ class TestProcessTreeSignalling:
             lambda cmd, *a, **k: run_calls.append(list(cmd)),
         )
 
-        process_module._taskkill_tree(4242, force=False)
-        process_module._taskkill_tree(4242, force=True)
+        process_module._taskkill_tree(4242)
 
-        assert run_calls == [
-            ["taskkill", "/PID", "4242", "/T"],
-            ["taskkill", "/PID", "4242", "/T", "/F"],
-        ]
+        assert run_calls == [["taskkill", "/PID", "4242", "/T", "/F"]]
 
 
 class TestStopEscalation:

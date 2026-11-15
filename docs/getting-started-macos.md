@@ -1,6 +1,6 @@
 # Getting Started — macOS (.app / .dmg)
 
-The `.dmg` contains a standard **HSYNC.app** bundle: open it and drag the app to
+The `.dmg` contains a standard **hsync-desktop.app** bundle: open it and drag the app to
 **Applications**. The app embeds the `hsync` client engine, so there is nothing
 else to install.
 
@@ -10,7 +10,7 @@ else to install.
 
 ## Prerequisites
 
-- <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS 11 (Big Sur) or later
+- <img src="assets/os/apple.svg" alt="macOS" width="16" height="16"> macOS 14 (Sonoma) or later
 - The matching `.dmg`: `hsync-desktop-darwin-arm64.dmg` (Apple silicon)
   or `hsync-desktop-darwin-amd64.dmg` (Intel)
 
@@ -24,7 +24,7 @@ open hsync-desktop-darwin-arm64.dmg
 Use `darwin-amd64` instead of `darwin-arm64` on an Intel Mac. The URL always
 points to the **latest stable** release; to pin a version, use
 `https://github.com/albertsdk/hsync-desktop/releases/download/vX.Y.Z/hsync-desktop-<version>-darwin-<arch>.dmg`.
-Then drag **HSYNC** into the **Applications** folder shown in the window.
+Then drag **hsync-desktop** into the **Applications** folder shown in the window.
 
 ### Build from the checkout (alternative)
 
@@ -43,12 +43,12 @@ The `.app` is assembled under `build/macos/` and the `.dmg` is written to
 
 The app is **not notarized**, so macOS blocks the first launch:
 
-- Open **Applications**, **right-click HSYNC → Open**, then click **Open** in the
+- Open **Applications**, **right-click hsync-desktop → Open**, then click **Open** in the
   dialog; or
 - Remove the quarantine flag:
 
   ```bash
-  xattr -dr com.apple.quarantine /Applications/HSYNC.app
+  xattr -dr com.apple.quarantine /Applications/hsync-desktop.app
   ```
 
 After that it opens normally.
@@ -62,7 +62,7 @@ tray icon. On first launch open **Settings** and configure a connection; see the
 ## Update and remove
 
 Download the newer `.dmg` and replace the app in **Applications**. To remove it,
-drag **HSYNC.app** to the Trash.
+drag **hsync-desktop.app** to the Trash.
 
 ## Next
 

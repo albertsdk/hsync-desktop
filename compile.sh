@@ -166,7 +166,9 @@ readonly MACOS_DIR="packaging/macos"
 readonly MACOS_OUTPUT_DIR="${OUTPUT_BASE}/macos"
 readonly MACOS_INFO_TEMPLATE="${MACOS_DIR}/Info.plist"
 readonly MACOS_BUNDLE_ID="io.hsync.desktop"
-readonly MACOS_MIN_VERSION="11.0"
+# Floor of the bundled PySide6/Qt wheels (macosx_14_0 tag in poetry.lock):
+# older macOS installs the .app but dyld refuses to load it.
+readonly MACOS_MIN_VERSION="14.0"
 
 # Windows target (Windows x64 only). PyInstaller produces the onefile .exe on the
 # host; Inno Setup (ISCC.exe) wraps it in a per-user installer and a portable zip
@@ -1755,8 +1757,8 @@ build_dmg() {
     echo -e "  ${BOLD}Size:${RESET}     ${size}"
     echo -e "  ${BOLD}Version:${RESET}  ${version}"
     echo
-    echo -e "${DIM}The .app is unsigned: open the dmg, drag HSYNC to Applications, then${RESET}"
-    echo -e "${DIM}right-click → Open the first time (or: xattr -dr com.apple.quarantine /Applications/HSYNC.app).${RESET}"
+    echo -e "${DIM}The .app is unsigned: open the dmg, drag ${APP_NAME} to Applications, then${RESET}"
+    echo -e "${DIM}right-click → Open the first time (or: xattr -dr com.apple.quarantine /Applications/${APP_NAME}.app).${RESET}"
 }
 
 # -----------------------------------------------------------------------------
