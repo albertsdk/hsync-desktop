@@ -459,7 +459,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_watches": "Raise the file-watch limit for your user, make it permanent, then restart the sync.",
     "notif.remedy_inotify_instances": "Too many programs use file watches: close some, or raise the per-user inotify instance limit permanently, then restart the sync.",
     "notif.remedy_fd_exhaustion": "Raise the open-files limit for this user, then restart the sync.",
-    "notif.remedy_rdv_token_required": "Set the Shared password in Settings → P2P: it is also the access token for the protected discovery server and must be identical on every device.",
+    "notif.remedy_rdv_token_required": "Set the same Shared password in Settings → P2P on every device, and put the group key derived from it (hsync derive-group-key) in the discovery server's bucket=<key> line.",
     "notif.remedy_relay_unavailable": "A device cannot be reached directly (NAT). In Settings → p2p Mode enable “Open the port on my router automatically”, or ask the discovery-server operator to keep its data relay enabled.",
     "notif.remedy_numbers": "This folder needs {needed} watches; the current limit is {limit}.",
     "notif.success": "Done",

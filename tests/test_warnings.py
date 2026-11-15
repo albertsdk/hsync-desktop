@@ -49,8 +49,8 @@ class TestRemedyText:
         assert remedy_text("watcher", {"reason": "transient"}) == ""
 
     def test_the_token_required_rendezvous_refusal_has_a_remedy(self):
-        """A protected bucket refusal is actionable: point at the Shared password
-        (the discovery-server token is derived from it, not typed directly)."""
+        """A protected bucket refusal is actionable: the same shared password on
+        every device, and the derived group key in the server's bucket line."""
         assert remedy_text("rendezvous", {"reason": "token_required"}) == tr(
             "notif.remedy_rdv_token_required"
         )

@@ -371,7 +371,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_watches": "Augmentez la limite de surveillance de fichiers de votre utilisateur, rendez-la permanente, puis redémarrez la synchronisation.",
     "notif.remedy_inotify_instances": "Trop de programmes utilisent la surveillance de fichiers : fermez-en quelques-uns ou augmentez durablement la limite d'instances inotify par utilisateur, puis redémarrez la synchronisation.",
     "notif.remedy_fd_exhaustion": "Augmentez la limite de fichiers ouverts de cet utilisateur, puis redémarrez la synchronisation.",
-    "notif.remedy_rdv_token_required": "Définissez le mot de passe partagé dans Paramètres → P2P : il sert aussi de jeton d'accès au serveur de découverte protégé et doit être identique sur chaque appareil.",
+    "notif.remedy_rdv_token_required": "Définissez le même mot de passe partagé dans Paramètres → P2P sur chaque appareil, et placez la clé de groupe qui en est dérivée (hsync derive-group-key) dans la ligne bucket=<key> du serveur de découverte.",
     "notif.remedy_relay_unavailable": "Un appareil n’est pas joignable directement (NAT). Dans Paramètres → P2P, activez « Ouvrir automatiquement le port sur le routeur », ou demandez à l’opérateur du serveur de découverte de garder le relais de données actif.",
     "notif.remedy_numbers": "Ce dossier a besoin de {needed} surveillances ; la limite actuelle est {limit}.",
     "notif.success": "Terminé",

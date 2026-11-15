@@ -459,7 +459,7 @@ translations: dict[str, str] = {
     "notif.remedy_inotify_watches": "Verhoog de bestandsbewakinglimiet voor je gebruiker, maak die permanent en herstart de synchronisatie.",
     "notif.remedy_inotify_instances": "Te veel programma's gebruiken bestandsbewaking: sluit er enkele of verhoog permanent de inotify-instantielimiet per gebruiker, en herstart daarna de synchronisatie.",
     "notif.remedy_fd_exhaustion": "Verhoog de limiet voor geopende bestanden van deze gebruiker en herstart de synchronisatie.",
-    "notif.remedy_rdv_token_required": "Stel het gedeelde wachtwoord in onder Instellingen → P2P: het is ook de toegangstoken voor de beveiligde detectieserver en moet op elk apparaat identiek zijn.",
+    "notif.remedy_rdv_token_required": "Stel op elk apparaat hetzelfde gedeelde wachtwoord in onder Instellingen → P2P en zet de daarvan afgeleide groepssleutel (hsync derive-group-key) in de regel bucket=<key> van de detectieserver.",
     "notif.remedy_relay_unavailable": "Een apparaat is niet rechtstreeks bereikbaar (NAT). Schakel in Instellingen → P2P “Poort automatisch openen op de router” in, of vraag de beheerder van de ontdekkingsserver om de datarelay actief te houden.",
     "notif.remedy_numbers": "Deze map heeft {needed} bewakingen nodig; de huidige limiet is {limit}.",
     "notif.success": "Klaar",
