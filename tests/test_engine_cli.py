@@ -159,6 +159,22 @@ class TestRunHsyncCaptureConsole:
         engine._run_hsync_capture("hsync", ["--version"])
         assert captured["creationflags"] == 0x08000000
 
+    @pytest.mark.parametrize("probe", ["get_binary_version", "_get_binary_capabilities_raw"])
+    def test_direct_probes_forward_no_console_flags(self, monkeypatch, probe):
+        """Version/capability probes must not flash a console window on Windows."""
+        from hsync_desktop.engine import cli as engine
+
+        captured: dict[str, object] = {}
+
+        def _fake_run(cmd, **kwargs):
+            captured.update(kwargs)
+            return _FakeCompleted()
+
+        monkeypatch.setattr(engine.subprocess, "run", _fake_run)
+        monkeypatch.setattr(engine, "no_console_kwargs", lambda: {"creationflags": 0x08000000})
+        getattr(engine, probe)("hsync")
+        assert captured["creationflags"] == 0x08000000
+
 
 class TestIsBinaryVersionCompatible:
     """Test the is_binary_version_compatible predicate."""

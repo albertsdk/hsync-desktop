@@ -164,6 +164,28 @@ def test_windows_installer_is_wired() -> None:
     assert "innosetup" in workflow
 
 
+def test_native_build_skips_strip_on_a_windows_host() -> None:
+    """``--strip`` is unsupported on Windows; the native target must drop it there."""
+    script = _script()
+    body = script.split("build_binary() {", 1)[1].split("\n}\n", 1)[0]
+    assert '[[ "${OS_NAME}" == "windows" ]] && strip_flag=()' in body
+    assert '"${strip_flag[@]}"' in body
+    assert "        --strip \\" not in body
+
+
+def test_release_bundles_the_tagged_engine() -> None:
+    """A tag push must build the sibling client/common at the same tag, and every
+    artifact of a job must carry the same version."""
+    workflow = (COMPILE_SH.parent / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "ref: main" not in workflow
+    assert (
+        "SIBLING_REF: ${{ github.event_name == 'push' && github.ref_name || 'main' }}" in workflow
+    )
+    assert 'run: ./compile.sh -v "${{ steps.version.outputs.version }}"' in workflow
+
+
 def test_windows_target_is_registered_in_dispatch() -> None:
     """``windows`` must be wired into main() and help like the other targets."""
     script = _script()
@@ -196,6 +218,15 @@ def test_windows_target_builds_installer_and_portable_zip() -> None:
     assert "_onefile_pyi_flags" in body
     assert "make_archive" in body
     assert _shell_fn_body("_windows_build_ico")
+
+
+def test_dmg_builds_an_onedir_app() -> None:
+    """PyInstaller deprecates onefile .app bundles (an error in v7): the dmg must
+    package an onedir .app and drop the stray COLLECT folder."""
+    body = _shell_fn_body("build_dmg")
+    assert "$(_onedir_pyi_flags)" in body
+    assert "_onefile_pyi_flags" not in body
+    assert 'rm -rf "${dist_dir:?}/${APP_NAME}"' in body
 
 
 def test_docs_latest_download_names_are_created_by_the_release() -> None:

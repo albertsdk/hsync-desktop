@@ -197,9 +197,10 @@ def _taskkill_tree(pid: int) -> None:
     ``taskkill`` walks the real process tree, so the PyInstaller payload that
     owns the instance lock dies with the bootloader. ``/F`` is always required:
     without it ``taskkill`` only posts ``WM_CLOSE``, which the console-subsystem
-    client never receives, so a "graceful" pass would just stall the stop for
-    the whole grace period. A non-zero exit (process already gone) is not an
-    error here. ``CREATE_NO_WINDOW`` keeps the tool's own console hidden.
+    client never receives. The graceful step is the stdin ``STOP`` command sent
+    by ``HsyncEngine._send_stop_signal``; this is the escalation. A non-zero
+    exit (process already gone) is not an error here. ``CREATE_NO_WINDOW`` keeps
+    the tool's own console hidden.
     """
     import subprocess
 
@@ -790,7 +791,7 @@ class HsyncEngine(QObject):
         self._stop_safety_timer.stop()
 
     def _send_stop_signal(self) -> None:
-        """Ask the child process tree to exit: SIGTERM (``taskkill /T /F`` on Windows)."""
+        """Ask the child process tree to exit: SIGTERM (stdin ``STOP`` on Windows)."""
         if self._process is None:
             return
         pid = self._process.processId()
@@ -798,8 +799,10 @@ class HsyncEngine(QObject):
             self._process.terminate()
             return
         if _IS_WINDOWS:
-            # No graceful signal reaches a console child here (see _taskkill_tree).
-            _taskkill_tree(pid)
+            # No console control event reaches the child from here, so ask it on
+            # its stdin command channel; the grace timer forces the tree with
+            # taskkill if it does not exit (e.g. no reader in the current phase).
+            self._send_command({"cmd": "STOP"})
             return
         if hasattr(signal, "SIGTERM"):
             _signal_process_tree(pid, signal.SIGTERM)

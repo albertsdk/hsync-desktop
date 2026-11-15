@@ -11,6 +11,8 @@ to bring its window to the foreground and then exits.
 
 from __future__ import annotations
 
+import getpass
+
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -26,12 +28,27 @@ class SingleInstance(QObject):
     # Emitted when another instance tries to start
     activate_requested = Signal()
 
-    # Unique identifier for the application
+    # Base identifier; the effective name is per user (see ``_server_name``).
     _SERVER_NAME = "hsync-desktop-single-instance"
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._server: QLocalServer | None = None
+
+    @classmethod
+    def _server_name(cls) -> str:
+        """Return the per-user server name.
+
+        Windows named pipes are machine-global and macOS/Linux sockets share
+        ``/tmp``: with one fixed name, a second logged-in user would reach the
+        first user's instance (or fail to listen) and exit silently.
+        """
+        try:
+            user = getpass.getuser()
+        except (KeyError, OSError):
+            user = ""
+        safe = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in user)
+        return f"{cls._SERVER_NAME}-{safe}" if safe else cls._SERVER_NAME
 
     def try_start(self) -> bool:
         """Try to become the primary instance.
@@ -42,7 +59,7 @@ class SingleInstance(QObject):
         """
         # First, try to connect to an existing instance
         socket = QLocalSocket(self)
-        socket.connectToServer(self._SERVER_NAME)
+        socket.connectToServer(self._server_name())
 
         if socket.waitForConnected(500):
             # Another instance is running - send activation message
@@ -56,10 +73,10 @@ class SingleInstance(QObject):
         self._server.newConnection.connect(self._on_new_connection)
 
         # Remove stale socket file (Linux/macOS)
-        QLocalServer.removeServer(self._SERVER_NAME)
+        QLocalServer.removeServer(self._server_name())
 
         # Failure here shouldn't happen normally.
-        return bool(self._server.listen(self._SERVER_NAME))
+        return bool(self._server.listen(self._server_name()))
 
     def _on_new_connection(self) -> None:
         """Handle incoming connection from another instance."""

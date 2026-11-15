@@ -18,6 +18,45 @@ class TestSingleInstance:
         assert hasattr(SingleInstance, "_SERVER_NAME")
         assert SingleInstance._SERVER_NAME == "hsync-desktop-single-instance"
 
+    def test_server_name_is_per_user(self, monkeypatch):
+        """Two logged-in users must not share one machine-global pipe/socket."""
+        from hsync_desktop import single_instance
+        from hsync_desktop.single_instance import SingleInstance
+
+        monkeypatch.setattr(single_instance.getpass, "getuser", lambda: "alice")
+        alice = SingleInstance._server_name()
+        monkeypatch.setattr(single_instance.getpass, "getuser", lambda: "DOMAIN\\bob smith")
+        bob = SingleInstance._server_name()
+        assert alice == "hsync-desktop-single-instance-alice"
+        assert bob == "hsync-desktop-single-instance-DOMAIN_bob_smith"
+
+    def test_server_name_without_a_resolvable_user(self, monkeypatch):
+        from hsync_desktop import single_instance
+        from hsync_desktop.single_instance import SingleInstance
+
+        def _fail():
+            raise OSError("no user")
+
+        monkeypatch.setattr(single_instance.getpass, "getuser", _fail)
+        assert SingleInstance._server_name() == SingleInstance._SERVER_NAME
+
+    @patch("hsync_desktop.single_instance.QLocalSocket")
+    @patch("hsync_desktop.single_instance.QLocalServer")
+    def test_try_start_uses_the_per_user_name(self, mock_server_class, mock_socket_class):
+        from hsync_desktop.single_instance import SingleInstance
+
+        mock_socket = MagicMock()
+        mock_socket.waitForConnected.return_value = False
+        mock_socket_class.return_value = mock_socket
+        mock_server_class.return_value.listen.return_value = True
+
+        SingleInstance().try_start()
+
+        name = SingleInstance._server_name()
+        mock_socket.connectToServer.assert_called_once_with(name)
+        mock_server_class.removeServer.assert_called_once_with(name)
+        mock_server_class.return_value.listen.assert_called_once_with(name)
+
     def test_activate_requested_signal_exists(self):
         """Test that activate_requested signal exists."""
         from hsync_desktop.single_instance import SingleInstance

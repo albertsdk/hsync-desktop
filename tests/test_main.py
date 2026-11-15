@@ -6,6 +6,8 @@
 import os
 from unittest.mock import MagicMock
 
+import pytest
+
 
 class _FakeSettings:
     """Duck-typed QSettings for the pure splash-gating helper (no Qt state)."""
@@ -139,6 +141,14 @@ class TestAppMetadata:
         out = capsys.readouterr().out
         assert "Usage: hsync-desktop" in out
         assert "--minimized" in out
+
+    @pytest.mark.parametrize("flag", ["--version", "--help"])
+    def test_early_flags_survive_a_missing_stdout(self, monkeypatch, flag):
+        """A windowed Windows exe launched from Explorer has ``sys.stdout = None``."""
+        import hsync_desktop.main as main_module
+
+        monkeypatch.setattr(main_module.sys, "stdout", None)
+        assert main_module.main([flag]) == 0
 
     def test_minimized_flag_needs_a_usable_tray(self):
         """--minimized starts hidden only when a tray is available."""

@@ -584,8 +584,12 @@ build_binary() {
     _require_bundled_client
     add_data_args=("${ADD_DATA_ARGS[@]}")
 
+    # --strip is unsupported on Windows (see build_windows).
+    local -a strip_flag=(--strip)
+    [[ "${OS_NAME}" == "windows" ]] && strip_flag=()
+
     LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONWARNINGS=ignore "${PYINSTALLER}" \
-        --strip \
+        "${strip_flag[@]}" \
         --distpath "${OUTPUT_DIR}" \
         $(_onefile_pyi_flags) \
         $(_windowed_flag) \
@@ -1709,7 +1713,10 @@ build_dmg() {
         -e "s|__MIN_MACOS__|${MACOS_MIN_VERSION}|g" \
         "${MACOS_INFO_TEMPLATE}" > "${rendered_plist}"
 
-    # --- 2. .app via PyInstaller (--windowed) --------------------------------
+    # --- 2. .app via PyInstaller (--windowed, onedir) ------------------------
+    # onedir, not onefile: PyInstaller deprecates onefile .app bundles (an error
+    # in v7) because unpacking to a temp dir at each launch clashes with macOS
+    # app security; onedir keeps the code inside Contents/ where it is loaded.
     local -a add_data_args=()
     _collect_add_data_args "${CLIENT_BINARY}"
     _require_bundled_client
@@ -1721,10 +1728,12 @@ build_dmg() {
         --icon "${icns}" \
         --distpath "${dist_dir}" \
         --workpath "${work_dir}/pyinstaller" \
-        $(_onefile_pyi_flags) \
+        $(_onedir_pyi_flags) \
         "${add_data_args[@]}" \
         "${ENTRY_POINT}"
     rm -f "${APP_NAME}.spec"
+    # onedir also leaves a bare COLLECT folder next to the .app; only the .app ships.
+    rm -rf "${dist_dir:?}/${APP_NAME}"
 
     local app="${dist_dir}/${APP_NAME}.app"
     [[ -d "${app}" ]] || { log_error "macOS .app not produced at ${app}"; exit 1; }

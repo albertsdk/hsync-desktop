@@ -1333,19 +1333,23 @@ class TestProcessTreeSignalling:
 
         assert fake.killed == 1
 
-    def test_send_stop_signal_uses_taskkill_on_windows(self, monkeypatch):
+    def test_send_stop_signal_asks_stdin_stop_on_windows(self, monkeypatch):
         fake = _FakeProcess(pid=4242)
         engine = HsyncEngine()
         engine._process = fake
-        calls: list[int] = []
-        monkeypatch.setattr(process_module, "_taskkill_tree", calls.append)
+        engine._running = True
+        kills: list[int] = []
+        commands: list[dict] = []
+        monkeypatch.setattr(process_module, "_taskkill_tree", kills.append)
+        monkeypatch.setattr(engine, "_send_command", commands.append)
         monkeypatch.setattr(process_module, "_IS_WINDOWS", True)
 
         engine._send_stop_signal()
 
-        # A console child never gets WM_CLOSE: the stop must force at once
-        # instead of stalling the full grace period.
-        assert calls == [4242]
+        # A console child gets no WM_CLOSE or control event: the graceful step is
+        # the stdin STOP command; taskkill is left to the grace escalation.
+        assert commands == [{"cmd": "STOP"}]
+        assert kills == []
 
     def test_kill_process_tree_forces_taskkill_on_windows(self, monkeypatch):
         fake = _FakeProcess(pid=4242)

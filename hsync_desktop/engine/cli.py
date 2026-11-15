@@ -285,6 +285,7 @@ def get_binary_version(binary_path: str) -> str | None:
             text=True,
             timeout=5,
             check=False,
+            **no_console_kwargs(),
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -317,6 +318,7 @@ def _get_binary_capabilities_raw(path: str) -> str | None:
             text=True,
             check=False,
             timeout=5,
+            **no_console_kwargs(),
         )
     except (OSError, subprocess.SubprocessError):
         return None
