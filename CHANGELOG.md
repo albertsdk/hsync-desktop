@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The three identity checks default to **Automatic** (a saved pin, then a CA
   chain, then the first sighting) and share one wording; a stored `chain` or
   `accept-new` is normalized to `auto`.
+- Windows: the log panel uses a slightly larger font (one point below the system
+  monospace, 9 pt floor) instead of the uniform two-point reduction, which read
+  too small there.
 
 ### Fixed
 

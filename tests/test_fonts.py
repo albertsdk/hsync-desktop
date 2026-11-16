@@ -335,6 +335,56 @@ class TestLogMonospaceFont:
         assert fonts.log_monospace_font().pointSizeF() <= 0
 
 
+class TestLogMonospaceFontWindows:
+    """Windows' fixed font is already small: a gentler cut with a capped floor."""
+
+    @staticmethod
+    def _windows_base(monkeypatch, size: float) -> None:
+        base = QFont("Probe Mono")
+        base.setPointSizeF(size)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+        monkeypatch.setattr(fonts, "_IS_WINDOWS", True)
+
+    def test_one_point_smaller(self, qapp, monkeypatch):
+        self._windows_base(monkeypatch, 12.0)
+
+        assert fonts.log_monospace_font().pointSizeF() == pytest.approx(11.0)
+
+    def test_native_size_at_the_floor(self, qapp, monkeypatch):
+        # The typical Windows fixed font (~9 pt) keeps its size.
+        self._windows_base(monkeypatch, 9.0)
+
+        assert fonts.log_monospace_font().pointSizeF() == pytest.approx(9.0)
+
+    def test_floor_is_capped_at_the_base(self, qapp, monkeypatch):
+        # Never larger than the monospace it derives from (Compact drops it to 8).
+        for size in (8.0, 6.0):
+            self._windows_base(monkeypatch, size)
+
+            assert fonts.log_monospace_font().pointSizeF() == pytest.approx(size)
+
+    def test_pixel_sized_font_is_unchanged(self, qapp, monkeypatch):
+        base = QFont("Probe Mono")
+        base.setPixelSize(12)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+        monkeypatch.setattr(fonts, "_IS_WINDOWS", True)
+
+        assert fonts.log_monospace_font().pointSizeF() <= 0
+
+    def test_license_font_is_not_affected(self, qapp, monkeypatch):
+        self._windows_base(monkeypatch, 11.0)
+
+        assert fonts.small_monospace_font().pointSizeF() == pytest.approx(10.0)
+
+    def test_other_platforms_keep_the_two_point_cut(self, qapp, monkeypatch):
+        base = QFont("Probe Mono")
+        base.setPointSizeF(11.0)
+        monkeypatch.setattr(fonts, "_mono_font", base)
+        monkeypatch.setattr(fonts, "_IS_WINDOWS", False)
+
+        assert fonts.log_monospace_font().pointSizeF() == pytest.approx(9.0)
+
+
 class TestTableFont:
     """The file table follows the global UI font scale (no extra delta)."""
 

@@ -47,6 +47,16 @@ _MIN_SMALL_POINT_SIZE = 8.0
 _LOG_FONT_DELTA = -2.0
 _MIN_LOG_POINT_SIZE = 7.0
 
+# Windows' fixed font (Consolas) is already small, so the -2 pt reduction lands on
+# the floor there; take a gentler cut. The floor is capped at the base (see
+# ``_point_smaller_monospace``) so the log never outgrows the monospace, e.g.
+# under the Compact font scale where the base drops to 8 pt.
+_LOG_FONT_DELTA_WINDOWS = -1.0
+_MIN_LOG_POINT_SIZE_WINDOWS = 9.0
+
+# Platform gate for the font policy (monkeypatchable in tests).
+_IS_WINDOWS = sys.platform.startswith("win")
+
 # Compact appearance: one point smaller across the UI and monospace bases.
 _COMPACT_FONT_DELTA = -1.0
 _MIN_COMPACT_POINT_SIZE = 8.0
@@ -318,13 +328,21 @@ def monospace_font() -> QFont:
     return QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
 
 
-def _point_smaller_monospace(delta: float, floor: float) -> QFont:
-    """Return the monospace font *delta* points smaller, never below *floor*."""
+def _point_smaller_monospace(
+    delta: float, floor: float, *, cap_floor_at_base: bool = False
+) -> QFont:
+    """Return the monospace font *delta* points smaller, never below *floor*.
+
+    ``cap_floor_at_base`` clamps the floor to the base size: a caller that must not
+    exceed the monospace (the log viewer) would otherwise end up larger than it
+    when the floor is above the base (e.g. a flat 9 pt floor under Compact).
+    """
 
     font = monospace_font()
     size = font.pointSizeF()
     if size > 0:
-        font.setPointSizeF(max(size + delta, floor))
+        effective_floor = min(floor, size) if cap_floor_at_base else floor
+        font.setPointSizeF(max(size + delta, effective_floor))
     return font
 
 
@@ -359,11 +377,17 @@ def small_monospace_font() -> QFont:
 
 
 def log_monospace_font() -> QFont:
-    """Return the log-viewer font: two points below the desktop monospace (floor 7 pt).
+    """Return the log-viewer font: below the desktop monospace by a platform rule.
 
-    The log lines are long, so the panel spends one extra point of size to fit
-    more characters per line without horizontal scrolling. Consumers:
-    the main window log panel.
+    The log lines are long, so the panel spends size for more characters per line
+    without horizontal scrolling. Linux/macOS take two points off (floor 7 pt);
+    Windows' fixed font is already small, so it takes one point off with a 9 pt
+    floor capped at the base. A pixel-sized base is left unchanged (the OS size).
+    Consumers: the main window log panel.
     """
 
+    if _IS_WINDOWS:
+        return _point_smaller_monospace(
+            _LOG_FONT_DELTA_WINDOWS, _MIN_LOG_POINT_SIZE_WINDOWS, cap_floor_at_base=True
+        )
     return _point_smaller_monospace(_LOG_FONT_DELTA, _MIN_LOG_POINT_SIZE)
