@@ -934,14 +934,16 @@ class StartMixin:
             self._set_path(new_path)
             if new_path:
                 self._load_local_files(new_path)
+        # The Settings dialog and the wizard both land here: adopt the flat keys
+        # into the active share's record before rebuilding the header, because the
+        # share name and its tooltip are rendered from that record (adopting after
+        # would leave them showing the values from before the edit).
+        self._share_store.sync_from_flat()
+        self._sync_shares_button()
         # Refresh path display (settings may have changed p2p/server/direction)
         self._update_path_display()
         # The presence title follows the mode (devices vs connected members).
         self._update_peers_label_title()
-        # The Settings dialog and the wizard both land here: keep the active
-        # share's record in sync with the flat keys and refresh the selector.
-        self._share_store.sync_from_flat()
-        self._sync_shares_button()
         self._adopt_log_share()
 
     def _open_setup_wizard(self) -> None:

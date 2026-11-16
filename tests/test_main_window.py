@@ -714,6 +714,33 @@ class TestShareNameInActionBar:
         assert "demo-p2p" in window._path_label.text()
         assert window._path_label.toolTip() == str(tmp_path)
 
+    def test_settings_change_refreshes_the_share_tooltip(
+        self, window, settings, monkeypatch, tmp_path
+    ):
+        """Editing mode/sync settings must refresh the header tooltip.
+
+        The tooltip is rendered from the active share record, but the Settings
+        dialog writes only the flat keys: ``_apply_settings_changes`` must adopt
+        them into the share *before* rebuilding the header, or the tooltip keeps
+        the values from before the edit.
+        """
+        settings.setValue("path/local", str(tmp_path))
+        settings.setValue("p2p/enabled", True)
+        settings.setValue("p2p/group", "old-group")
+        _patch_all(monkeypatch, "QSettings", lambda *a, **k: settings)
+
+        window._local_path = str(tmp_path)
+        window._share_store.sync_from_flat()
+        window._update_path_display()
+        assert "old-group" in window._path_label.toolTip()
+
+        # The user changes the group in Settings: the dialog writes the flat key.
+        settings.setValue("p2p/group", "new-group")
+        window._apply_settings_changes()
+
+        assert "new-group" in window._path_label.toolTip()
+        assert "old-group" not in window._path_label.toolTip()
+
     def test_saved_share_name_is_used_before_detection(self, window, monkeypatch, tmp_path):
         s = _settings(tmp_path)
         s.setValue("sync/bucket", "saved-share")
