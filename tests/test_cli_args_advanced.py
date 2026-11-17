@@ -13,6 +13,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 
 class _FakeQSettings:
     """Minimal QSettings stand-in driven by a plain dict."""
@@ -236,3 +238,44 @@ class TestLoggingFlags:
 
         assert "-v" in args
         assert _value_after(args, "--log-file") == "/tmp/hsync.log"
+
+
+class TestSubdirFilter:
+    """``--subdir`` is bucket-relative: the persisted filter must never be resolved."""
+
+    def test_relative_subfolder_is_passed_verbatim(self):
+        assert (
+            _value_after(_build_args({"sync/filter_path": "media/sub"}), "--subdir") == "media/sub"
+        )
+
+    def test_backslashes_are_normalised(self):
+        assert (
+            _value_after(_build_args({"sync/filter_path": "media\\sub"}), "--subdir") == "media/sub"
+        )
+
+    def test_a_trailing_slash_is_trimmed(self):
+        assert _value_after(_build_args({"sync/filter_path": "media/"}), "--subdir") == "media"
+
+    def test_dot_and_empty_components_are_dropped(self):
+        for raw, expected in (
+            ("./media", "media"),
+            ("media/.", "media"),
+            ("media//sub", "media/sub"),
+        ):
+            assert _value_after(_build_args({"sync/filter_path": raw}), "--subdir") == expected
+
+    def test_absolute_paths_fail_closed(self):
+        for value in ("/home/u/bucket", "C:\\bucket", "C:bucket", "\\\\server\\share"):
+            with pytest.raises(ValueError):
+                _build_args({"sync/filter_path": value})
+
+    def test_traversal_fails_closed(self):
+        with pytest.raises(ValueError):
+            _build_args({"sync/filter_path": "a/../b"})
+
+    def test_empty_value_emits_nothing(self):
+        assert _value_after(_build_args({"sync/filter_path": "   "}), "--subdir") is None
+
+    def test_filter_is_not_absolutised(self):
+        """Regression: the value used to be resolved against the process CWD."""
+        assert _value_after(_build_args({"sync/filter_path": "photos"}), "--subdir") == "photos"

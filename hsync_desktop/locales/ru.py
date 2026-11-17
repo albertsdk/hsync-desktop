@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Сервер обнаружения доступен\nОтпечаток: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Сервер обнаружения недоступен. Проверьте адрес сервера обнаружения и сеть.",
     "settings.invalid_rendezvous_endpoint": "Недопустимый адрес сервера обнаружения. Введите адрес вида rdv.example.net или rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Недопустимая подпапка. Укажите путь относительно общей папки, например photos или media/2024.",
     # Settings sync
     "settings.bucket": "Имя общего ресурса",
     "settings.watch": "Отслеживать изменения (постоянно)",

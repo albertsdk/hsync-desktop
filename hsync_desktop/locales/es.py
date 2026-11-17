@@ -150,6 +150,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Servidor de descubrimiento accesible\nHuella: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Servidor de descubrimiento no accesible. Comprueba la dirección del servidor de descubrimiento y tu red.",
     "settings.invalid_rendezvous_endpoint": "Dirección de servidor de descubrimiento no válida. Introduce una dirección como rdv.example.net o rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Subcarpeta no válida. Introduce una ruta relativa a la carpeta compartida, por ejemplo photos o media/2024.",
     "settings.bucket": "Nombre de la compartición",
     "settings.watch": "Monitorear cambios (continuo)",
     "settings.resync": "Comprobación completa periódica",

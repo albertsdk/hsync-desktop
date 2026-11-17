@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Detectieserver bereikbaar\nVingerafdruk: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Detectieserver niet bereikbaar. Controleer het adres van de detectieserver en uw netwerk.",
     "settings.invalid_rendezvous_endpoint": "Ongeldig adres van detectieserver. Voer een adres in zoals rdv.example.net of rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Ongeldige submap. Voer een pad in ten opzichte van de gedeelde map, bijvoorbeeld photos of media/2024.",
     # Settings sync
     "settings.bucket": "Naam van share",
     "settings.watch": "Wijzigingen volgen (continu)",

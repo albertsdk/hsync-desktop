@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ 探索サーバーに到達可能\nフィンガープリント：{fingerprint}",
     "settings.test_rendezvous_failure": "✗ 探索サーバーに到達できません。探索サーバーのアドレスとネットワークを確認してください。",
     "settings.invalid_rendezvous_endpoint": "無効な探索サーバーアドレスです。rdv.example.net や rdv.example.net:8443 のようなアドレスを入力してください。",
+    "settings.invalid_filter_path": "無効なサブフォルダーです。共有フォルダーからの相対パスを入力してください（例: photos や media/2024）。",
     # Settings sync
     "settings.bucket": "共有名",
     "settings.watch": "変更を監視（継続的）",

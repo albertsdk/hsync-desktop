@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Serwer wykrywania osiągalny\nOdcisk: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Serwer wykrywania nieosiągalny. Sprawdź adres serwera wykrywania i sieć.",
     "settings.invalid_rendezvous_endpoint": "Nieprawidłowy adres serwera wykrywania. Wprowadź adres taki jak rdv.example.net lub rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Nieprawidłowy podfolder. Podaj ścieżkę względną do folderu udostępnionego, np. photos lub media/2024.",
     # Settings sync
     "settings.bucket": "Nazwa udziału",
     "settings.watch": "Śledź zmiany (ciągle)",

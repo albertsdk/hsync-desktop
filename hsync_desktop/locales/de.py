@@ -150,6 +150,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Erkennungsserver erreichbar\nFingerabdruck: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Erkennungsserver nicht erreichbar. Prüfen Sie die Adresse des Erkennungsservers und Ihr Netzwerk.",
     "settings.invalid_rendezvous_endpoint": "Ungültige Adresse des Erkennungsservers. Geben Sie eine Adresse wie rdv.example.net oder rdv.example.net:8443 ein.",
+    "settings.invalid_filter_path": "Ungültiger Unterordner. Gib einen Pfad relativ zum freigegebenen Ordner ein, z. B. photos oder media/2024.",
     "settings.bucket": "Freigabename",
     "settings.watch": "Änderungen überwachen (kontinuierlich)",
     "settings.resync": "Periodischer Vollabgleich",

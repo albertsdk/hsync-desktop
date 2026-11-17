@@ -224,3 +224,76 @@ class TestFolderCheckFreeBytes:
 
         check = validate_sync_folder(str(tmp_path / "nope"))
         assert check.free_bytes is None and check.free_mb is None
+
+
+class TestSystemDirectoryProtection:
+    """The whole-tree warning must cover Windows, macOS and Linux roots."""
+
+    def test_linux_roots_are_the_posix_list(self):
+        from hsync_desktop.settings import validators
+
+        roots = validators.protected_system_roots(platform="linux", environ={})
+        assert "/etc" in roots
+        assert "/usr" in roots
+
+    def test_macos_roots(self):
+        from hsync_desktop.settings import validators
+
+        roots = validators.protected_system_roots(platform="darwin", environ={})
+        assert set(roots) == {"/System", "/Library", "/Applications"}
+
+    def test_windows_roots_come_from_the_environment(self):
+        from hsync_desktop.settings import validators
+
+        environ = {
+            "SystemRoot": "D:\\Windows",
+            "windir": "D:\\Windows",
+            "ProgramFiles": "D:\\Program Files",
+            "ProgramFiles(x86)": "D:\\Program Files (x86)",
+            "ProgramData": "D:\\ProgramData",
+        }
+        roots = validators.protected_system_roots(platform="win32", environ=environ)
+
+        assert "D:\\Windows" in roots
+        assert "D:\\Program Files" in roots
+        # SystemRoot and windir are the same root, so it is listed once.
+        assert len(roots) == 4
+
+    def test_windows_match_is_case_insensitive_and_directory_bounded(self):
+        from hsync_desktop.settings import validators
+
+        environ = {"SystemRoot": "C:\\Windows"}
+        is_system = validators._is_protected_system_dir
+
+        assert is_system("c:/windows", platform="win32", environ=environ)
+        assert is_system("C:\\Windows\\System32", platform="win32", environ=environ)
+        assert not is_system("C:\\Windows.old", platform="win32", environ=environ)
+
+    def test_macos_match_is_case_insensitive(self):
+        from hsync_desktop.settings import validators
+
+        is_system = validators._is_protected_system_dir
+
+        assert is_system("/system/library", platform="darwin", environ={})
+        assert is_system("/System/Library", platform="darwin", environ={})
+        assert not is_system("/System2", platform="darwin", environ={})
+
+    def test_linux_match_is_exact_and_case_sensitive(self):
+        from hsync_desktop.settings import validators
+
+        is_system = validators._is_protected_system_dir
+
+        assert is_system("/etc", platform="linux", environ={})
+        assert is_system("/var", platform="linux", environ={})
+        # Only the roots themselves warn on Linux: a data folder inside one does not.
+        assert not is_system("/var/www", platform="linux", environ={})
+        assert not is_system("/etc2", platform="linux", environ={})
+        assert not is_system("/ETC", platform="linux", environ={})
+
+    def test_validate_sync_folder_warns_for_a_protected_tree(self, tmp_path, monkeypatch):
+        from hsync_desktop.settings import validators
+
+        monkeypatch.setattr(validators, "_is_protected_system_dir", lambda *a, **k: True)
+        result = validators.validate_sync_folder(str(tmp_path))
+
+        assert (result.level, result.code) == ("warning", "system")

@@ -128,6 +128,7 @@ from hsync_desktop.i18n import (
 )
 from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.settings.cli_args import (
+    _relative_subdir,
     get_bandwidth_limits,
     save_bandwidth_limits,
     secure_config_file,
@@ -1556,6 +1557,12 @@ class SettingsDialog(QDialog):
         dialog through the same validated path: neither may close as Accepted
         (which makes the window re-apply the settings) without saving.
         """
+        # Validate: the subfolder filter is bucket-relative and never resolved.
+        try:
+            _relative_subdir(self.filter_path.text())
+        except ValueError:
+            QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_filter_path"))
+            return False
         # Validate: prefer-master is incompatible with directional sync
         if self._prefer_master_conflict():
             if not self._maybe_warn_prefer_master("warn.prefer_master_msg"):

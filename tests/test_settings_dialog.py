@@ -695,3 +695,15 @@ class TestNotificationCategoriesUi:
         dlg.load()
 
         assert dlg.notification_toggles["peers"][0].isChecked() is False
+
+
+class TestSubfolderFilterGate:
+    """A non-empty filter that is not bucket-relative blocks the save."""
+
+    def test_invalid_filter_blocks_save(self, dialog, monkeypatch):
+        shown = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a))
+        dialog.filter_path.setText("/absolute/path")
+
+        assert dialog._commit() is False
+        assert shown

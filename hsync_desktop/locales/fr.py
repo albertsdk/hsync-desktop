@@ -150,6 +150,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Serveur de découverte joignable\nEmpreinte : {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Serveur de découverte injoignable. Vérifiez l'adresse du serveur de découverte et votre réseau.",
     "settings.invalid_rendezvous_endpoint": "Adresse de serveur de découverte non valide. Saisissez une adresse comme rdv.example.net ou rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Sous-dossier non valide. Saisissez un chemin relatif au dossier partagé, par exemple photos ou media/2024.",
     "settings.bucket": "Nom du partage",
     "settings.watch": "Surveiller les modifications (continu)",
     "settings.resync": "Vérification complète périodique",

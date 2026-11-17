@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and dead event channel caused by Windows not inheriting the POSIX pipe FDs.
 - Windows: the GUI no longer opens an extra console window (at launch or during
   a sync), and the app and its shortcuts show the app icon.
+- The **Sync only a specific subfolder** setting now restricts the sync: the value
+  was resolved to an absolute path before being passed as `--subdir` (which is
+  bucket-relative), so the filter matched nothing. An invalid value is now rejected
+  instead of silently widening the run to the whole folder.
+- The whole-system-tree warning now also appears on Windows and macOS, not only on
+  Linux (system trees, `Program Files`/`ProgramData`, `/System`, `/Library`,
+  `/Applications`).
 
 ## [1.1.2] - 2026-11-12
 

@@ -98,6 +98,27 @@ from hsync_desktop.settings.validators import (
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM, detect_system_theme
 
 
+def _relative_subdir(raw: str) -> str | None:
+    """Return the bucket-relative subdirectory in *raw*, or None when it is blank.
+
+    The engine's ``--subdir`` is bucket-relative (it prefixes bucket-relative
+    paths), so an absolute value would silently match nothing; resolving it (as
+    ``_validate_path`` does) is wrong. A non-empty value that cannot be a
+    bucket-relative directory raises ``ValueError`` so the caller fails closed
+    instead of widening the sync to the whole bucket. ``.`` and empty components
+    are dropped, matching how the engine compares the path.
+    """
+    rel = raw.replace("\\", "/").strip()
+    if not rel:
+        return None
+    if rel.startswith("/") or (len(rel) >= 2 and rel[1] == ":" and rel[0].isalpha()):
+        raise ValueError(f"Invalid subdirectory filter: {raw}")
+    parts = [part for part in rel.split("/") if part and part != "."]
+    if not parts or ".." in parts:
+        raise ValueError(f"Invalid subdirectory filter: {raw}")
+    return "/".join(parts)
+
+
 def build_hsync_args(local_path: str, force_dry_run: bool = False) -> list[str]:
     """Read persisted settings and return hsync CLI argument list.
 
@@ -234,12 +255,11 @@ def _append_sync_mode_args(
 
 def _append_filter_args(args: list[str], s: QSettings) -> None:
     """Append the subdirectory filter and extra ignore patterns."""
-    # Validate filter path
-    filter_path_raw = str(s.value("sync/filter_path", "", str))
-    if filter_path_raw:
-        validated_filter = _validate_path(filter_path_raw)
-        if validated_filter:
-            args += ["--subdir", validated_filter]
+    # ``--subdir`` is bucket-relative: resolving it (as _validate_path does)
+    # would make the filter match nothing, so keep the value relative.
+    subdir = _relative_subdir(str(s.value("sync/filter_path", "", str)))
+    if subdir:
+        args += ["--subdir", subdir]
 
     # Sync hidden files (default False: hidden/system files are excluded)
 
@@ -424,13 +444,9 @@ def build_selection_args(
         # bidirectional master anyway.
         args = _drop_option(args, "--prefer-master")
         args += ["--sync-direction", direction]
-    if subdir:
-        # ``--subdir`` is bucket-relative: keep it relative (never absolutize)
-        # and reject traversal. ``_validate_path`` would resolve it to an
-        # absolute path, so it is not used here.
-        rel = subdir.replace("\\", "/").strip("/")
-        if rel and ".." not in rel.split("/"):
-            args += ["--subdir", rel]
+    rel = _relative_subdir(subdir)
+    if rel:
+        args += ["--subdir", rel]
     if dry_run:
         args.append("--dry-run")
     args.append("--once")

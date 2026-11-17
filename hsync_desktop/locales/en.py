@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ Discovery server reachable\nFingerprint: {fingerprint}",
     "settings.test_rendezvous_failure": "✗ Discovery server not reachable. Check the discovery server address and your network.",
     "settings.invalid_rendezvous_endpoint": "Invalid discovery server address. Enter an address like rdv.example.net or rdv.example.net:8443.",
+    "settings.invalid_filter_path": "Invalid subfolder. Enter a path relative to the shared folder, for example photos or media/2024.",
     # Settings sync
     "settings.bucket": "Share name",
     "settings.watch": "Real-time sync",

@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,6 +42,64 @@ _SYSTEM_DIRS = frozenset(
         "/var",
     }
 )
+
+# The macOS counterpart: the canonical system trees.
+_MACOS_SYSTEM_DIRS = ("/System", "/Library", "/Applications")
+
+# Windows roots come from the environment so a system on a non-``C:`` drive is
+# handled without hard-coding a letter.
+_WINDOWS_SYSTEM_ENV = (
+    "SystemRoot",
+    "windir",
+    "ProgramFiles",
+    "ProgramFiles(x86)",
+    "ProgramData",
+)
+
+
+def protected_system_roots(
+    *, platform: str | None = None, environ: Mapping[str, str] | None = None
+) -> tuple[str, ...]:
+    """Return the system trees that need a warning before syncing them.
+
+    Linux uses the fixed POSIX list (exact match), macOS the three system trees,
+    Windows the roots named by the environment. ``platform``/``environ`` are
+    injectable so the Linux CI can exercise every branch.
+    """
+    plat = sys.platform if platform is None else platform
+    if plat == "win32":
+        env = os.environ if environ is None else environ
+        roots = (env.get(name, "") for name in _WINDOWS_SYSTEM_ENV)
+        return tuple(dict.fromkeys(root for root in roots if root))
+    if plat == "darwin":
+        return _MACOS_SYSTEM_DIRS
+    return tuple(sorted(_SYSTEM_DIRS))
+
+
+def _is_protected_system_dir(
+    path: str, *, platform: str | None = None, environ: Mapping[str, str] | None = None
+) -> bool:
+    """Whether *path* is a platform system tree or a directory inside one.
+
+    Separators are folded to ``/`` so a Windows path matches whichever form the
+    OS reports. Windows and macOS match a root **or a directory inside it**,
+    case-insensitively (macOS defaults to a case-insensitive filesystem); Linux
+    matches a root exactly, so a data folder such as ``/var/www`` is not flagged.
+    """
+    plat = sys.platform if platform is None else platform
+    nested = plat in ("win32", "darwin")
+    target = path.replace("\\", "/").rstrip("/")
+    if nested:
+        target = target.casefold()
+    for root in protected_system_roots(platform=plat, environ=environ):
+        candidate = root.replace("\\", "/").rstrip("/")
+        if not candidate:
+            continue
+        if nested:
+            candidate = candidate.casefold()
+        if target == candidate or (nested and target.startswith(candidate + "/")):
+            return True
+    return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +152,7 @@ def validate_sync_folder(path: str, *, min_free_mb: int = 0) -> FolderCheck:
 
     if resolved == Path.home():
         return FolderCheck("warning", "home", free_mb, free_bytes)
-    if str(resolved) in _SYSTEM_DIRS:
+    if _is_protected_system_dir(str(resolved)):
         return FolderCheck("warning", "system", free_mb, free_bytes)
     # Same free-space rule as the client/server (`hsync_common.disk`); the GUI
     # setting is edited in whole MB.

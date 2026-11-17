@@ -160,6 +160,7 @@ translations: dict[str, str] = {
     "settings.test_rendezvous_success": "✓ 发现服务器可访问\n指纹：{fingerprint}",
     "settings.test_rendezvous_failure": "✗ 无法访问发现服务器。请检查发现服务器地址和网络。",
     "settings.invalid_rendezvous_endpoint": "发现服务器地址无效。请输入类似 rdv.example.net 或 rdv.example.net:8443 的地址。",
+    "settings.invalid_filter_path": "子文件夹无效。请输入相对于共享文件夹的路径，例如 photos 或 media/2024。",
     # Settings sync
     "settings.bucket": "共享名称",
     "settings.watch": "监视更改（持续）",
