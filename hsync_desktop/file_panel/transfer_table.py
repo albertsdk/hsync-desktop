@@ -2072,7 +2072,7 @@ class FileTransferTable(QTableView):
         is_dir = transfer.filepath.endswith("/")
         parent = transfer.path
         new_rel = (
-            (parent + new_name + "/")
+            (f"{parent}/{new_name}/" if parent else f"{new_name}/")
             if is_dir
             else (f"{parent}/{new_name}" if parent else new_name)
         )

@@ -1828,6 +1828,40 @@ class TestContextMenuGating:
         assert table._transfers["c.bin"] is transfer
         assert "a.bin" not in table._transfers
 
+    def test_renaming_a_nested_directory_keeps_its_parent(self, qtbot, tmp_path):
+        """A nested folder re-keys under its parent, not as a joined name."""
+        table = self._table(qtbot)
+        table.set_base_directory(str(tmp_path))
+        (tmp_path / "sub" / "dir").mkdir(parents=True)
+        table.add_transfer(
+            FileTransfer(filepath="sub/dir/", direction="—", size=0, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+        transfer = table._transfers["sub/dir/"]
+
+        table._apply_rename(transfer, "newdir")
+
+        assert (tmp_path / "sub" / "newdir").is_dir()
+        assert not (tmp_path / "sub" / "dir").exists()
+        assert table._transfers["sub/newdir/"] is transfer
+        assert "sub/dir/" not in table._transfers
+
+    def test_renaming_a_top_level_directory_keeps_its_trailing_slash(self, qtbot, tmp_path):
+        """The top-level branch still appends the folder marker."""
+        table = self._table(qtbot)
+        table.set_base_directory(str(tmp_path))
+        (tmp_path / "dir").mkdir()
+        table.add_transfer(
+            FileTransfer(filepath="dir/", direction="—", size=0, status=TransferStatus.LOCAL)
+        )
+        table.refresh_view()
+        transfer = table._transfers["dir/"]
+
+        table._apply_rename(transfer, "newdir")
+
+        assert (tmp_path / "newdir").is_dir()
+        assert table._transfers["newdir/"] is transfer
+
     def test_a_successful_rename_never_reports_a_failure(self, qtbot, tmp_path, monkeypatch):
         """An engine-side re-key must not turn the on-disk rename into an error.
 
