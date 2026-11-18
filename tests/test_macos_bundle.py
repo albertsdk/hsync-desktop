@@ -90,3 +90,17 @@ def test_the_signing_identity_is_overridable():
     assert re.search(
         r'^readonly MACOS_SIGN_IDENTITY="\$\{MACOS_SIGN_IDENTITY:-', COMPILE_SH.read_text(), re.M
     )
+
+
+RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
+
+
+def test_the_release_signature_check_does_not_hardcode_the_bundle_name():
+    """The verification step globs the mounted app and creates its mount point, so
+    renaming ``APP_NAME`` or moving the dmg output cannot silently desynchronise the
+    check from the build."""
+    workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert 'app="$(ls -d "${mnt}"/*.app' in workflow
+    assert 'mkdir -p "${mnt}"' in workflow
+    assert "/hsync-desktop.app" not in workflow

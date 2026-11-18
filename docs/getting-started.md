@@ -47,7 +47,7 @@ methods are ordered from the simplest and most immediate to the most involved.
 - The **Snap** needs `snapd` with `core24` support and is installed with
   `--classic`; it ships its own runtime (the host's glibc version does not matter)
   and updates automatically
-- The **macOS `.dmg`** is **unsigned**: macOS needs a one-time confirmation
+- The **macOS `.dmg`** is signed ad hoc but **not notarized**: macOS needs a one-time confirmation
   (right-click → Open, or `xattr -dr com.apple.quarantine`)
 - The **Windows** build is **x64 only** and requires Windows 10 (version 1809 or
   later) or Windows 11; it is **not** supported under Wine/CrossOver (the Qt

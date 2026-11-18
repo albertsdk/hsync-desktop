@@ -47,6 +47,7 @@ from hsync_desktop.icons import icon
 from hsync_desktop.settings import (
     SETTINGS_APP,
     SETTINGS_ORG,
+    InvalidSubdirFilter,
     SettingsDialog,
     are_notifications_enabled,
     build_hsync_args,
@@ -518,9 +519,26 @@ class StartMixin:
         # UI thread, so the start continues from its callback.
         self._ensure_trust(lambda: self._start_preview_run(local_path))
 
+    def _build_run_args(self, local_path: str, *, force_dry_run: bool) -> list[str] | None:
+        """Build the engine arguments, or None after warning about a bad filter.
+
+        A subfolder filter saved by an older version (absolute, ``..``, or a drive
+        letter) is rejected when the arguments are built; raising out of a run
+        callback would show a traceback instead of the message the Settings dialog
+        already uses, so the caller aborts the run instead.
+        """
+        try:
+            return build_hsync_args(local_path, force_dry_run=force_dry_run)
+        except InvalidSubdirFilter:
+            QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_filter_path"))
+            return None
+
     def _start_preview_run(self, local_path: str) -> None:
         """Start the dry-run preview that precedes a full sync."""
-        args = build_hsync_args(local_path, force_dry_run=True)
+        args = self._build_run_args(local_path, force_dry_run=True)
+        if args is None:
+            self._reset_ui_stopped()
+            return
 
         self._prepare_engine_run(local_path)
         # Set flags to show preview summary when dry-run completes

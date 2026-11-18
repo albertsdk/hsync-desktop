@@ -3,7 +3,9 @@
 
 """Tests for hsync_desktop.__main__ and main entry points."""
 
+import io
 import os
+import sys
 from unittest.mock import MagicMock
 
 import PySide6.QtWidgets as _qt_widgets
@@ -165,7 +167,7 @@ class TestAppMetadata:
         import hsync_desktop.main as main_module
 
         monkeypatch.setattr(main_module.sys, "stdout", None)
-        monkeypatch.setattr(main_module, "_attach_parent_console", lambda: False)
+        monkeypatch.setattr(main_module, "_attach_console_stream", lambda: False)
         _stub_early_dialog(monkeypatch)
 
         assert main_module.main([flag]) == 0
@@ -176,11 +178,37 @@ class TestAppMetadata:
         import hsync_desktop.main as main_module
 
         monkeypatch.setattr(main_module.sys, "stdout", None)
-        monkeypatch.setattr(main_module, "_attach_parent_console", lambda: False)
+        monkeypatch.setattr(main_module, "_attach_console_stream", lambda: False)
         shown = _stub_early_dialog(monkeypatch)
 
         assert main_module.main([flag]) == 0
         assert shown and ("hsync-desktop " in shown[0] or "Usage: hsync-desktop" in shown[0])
+
+    @pytest.mark.parametrize("flag", ["--version", "--help"])
+    def test_a_windowed_build_without_a_stream_shows_the_dialog(self, monkeypatch, qapp, flag):
+        """A macOS ``.app`` (or any windowed build) has ``sys.stdout = None`` and no
+        console to attach, so the dialog is the only way to show the text."""
+        import hsync_desktop.main as main_module
+
+        monkeypatch.setattr(main_module.sys, "stdout", None)
+        monkeypatch.setattr(main_module.os, "name", "posix")
+        shown = _stub_early_dialog(monkeypatch)
+
+        assert main_module.main([flag]) == 0
+        assert shown
+
+    def test_a_closed_stream_does_not_escape_main(self, monkeypatch, qapp):
+        """A closed stdout must degrade to the dialog, not raise from main()."""
+        import hsync_desktop.main as main_module
+
+        closed = open(os.devnull, "w", encoding="utf-8")
+        closed.close()
+        monkeypatch.setattr(main_module.sys, "stdout", closed)
+        monkeypatch.setattr(main_module.os, "name", "posix")
+        shown = _stub_early_dialog(monkeypatch)
+
+        assert main_module.main(["--version"]) == 0
+        assert shown
 
     def test_early_flags_prefer_the_stream_over_the_dialog(self, monkeypatch, capsys):
         """With a usable console no Qt object is created (scripting keeps working)."""
@@ -195,12 +223,67 @@ class TestAppMetadata:
         assert main_module.main(["--version"]) == 0
         assert "hsync-desktop " in capsys.readouterr().out
 
-    def test_parent_console_attach_is_a_noop_off_windows(self, monkeypatch):
-        """Off Windows the stream is already usable; the helper reports success."""
+    def test_attach_console_stream_is_windows_only(self, monkeypatch):
+        """Off Windows there is no console to attach; the caller falls back."""
         import hsync_desktop.main as main_module
 
         monkeypatch.setattr(main_module.os, "name", "posix")
-        assert main_module._attach_parent_console() is True
+        assert main_module._attach_console_stream() is False
+
+    def test_attach_console_stream_rebinds_stdout_on_windows(self, monkeypatch):
+        """The Windows path attaches and replaces the stream with CONOUT$."""
+        import hsync_desktop.main as main_module
+
+        attached: list[int] = []
+
+        class _Kernel32:
+            @staticmethod
+            def AttachConsole(pid: int) -> int:
+                attached.append(pid)
+                return 1
+
+        class _Windll:
+            kernel32 = _Kernel32()
+
+        class _Ctypes:
+            windll = _Windll()
+
+        opened: list[str] = []
+
+        def _fake_open(name, mode="r", **_kwargs):
+            opened.append(name)
+            return io.StringIO()
+
+        monkeypatch.setattr(main_module.os, "name", "nt")
+        monkeypatch.setattr(main_module.sys, "stdout", None)
+        monkeypatch.setitem(sys.modules, "ctypes", _Ctypes())
+        monkeypatch.setattr(main_module, "open", _fake_open, raising=False)
+
+        assert main_module._attach_console_stream() is True
+        assert attached == [-1]  # ATTACH_PARENT_PROCESS
+        assert opened == ["CONOUT$"]
+        assert main_module._stdout_is_usable() is True
+
+    def test_attach_console_stream_reports_failure_without_a_parent_console(self, monkeypatch):
+        """Started from Explorer ``AttachConsole`` fails and the dialog takes over."""
+        import hsync_desktop.main as main_module
+
+        class _Kernel32:
+            @staticmethod
+            def AttachConsole(_pid: int) -> int:
+                return 0
+
+        class _Windll:
+            kernel32 = _Kernel32()
+
+        class _Ctypes:
+            windll = _Windll()
+
+        monkeypatch.setattr(main_module.os, "name", "nt")
+        monkeypatch.setattr(main_module.sys, "stdout", None)
+        monkeypatch.setitem(sys.modules, "ctypes", _Ctypes())
+
+        assert main_module._attach_console_stream() is False
 
     def test_minimized_flag_needs_a_usable_tray(self):
         """--minimized starts hidden only when a tray is available."""

@@ -19,7 +19,7 @@ from hsync_desktop.busy import SPINNER_FRAMES
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
 from hsync_desktop.fonts import ui_font
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings import SettingsDialog
+from hsync_desktop.settings import InvalidSubdirFilter, SettingsDialog
 from tests._helpers import _patch_all, _settings
 
 
@@ -3083,6 +3083,28 @@ class TestPreviewChanges:
 
         assert started == [str(tmp_path)]
         assert window._preview_intent == "preview"
+
+    def test_an_invalid_saved_filter_warns_instead_of_raising(self, window, monkeypatch, tmp_path):
+        """A subfolder filter saved by an older version is rejected when the run
+        arguments are built: the run aborts with the Settings dialog's message
+        instead of raising a traceback out of the start callback."""
+        warned: list[str] = []
+
+        def _reject(*_args, **_kwargs):
+            raise InvalidSubdirFilter("Invalid subdirectory filter: /abs/path")
+
+        _patch_all(monkeypatch, "build_hsync_args", _reject)
+        monkeypatch.setattr(
+            QMessageBox, "warning", staticmethod(lambda *_a: warned.append("warned"))
+        )
+        window._local_path = str(tmp_path)
+
+        window._start_preview_run(str(tmp_path))
+
+        assert warned == ["warned"]
+        # The UI is back in the stopped state, so Start is usable again.
+        assert window._btn_start.isEnabled()
+        assert not window._btn_stop.isEnabled()
 
     def test_start_keeps_the_start_intent(self, window, monkeypatch, tmp_path):
         _stop_the_deferred_timer(monkeypatch)

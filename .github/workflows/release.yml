@@ -195,9 +195,11 @@ jobs:
           set -euo pipefail
           img="$(ls dist/macos/*.dmg | head -1)"
           mnt="${RUNNER_TEMP}/dmg-mnt"
+          mkdir -p "${mnt}"
           hdiutil attach "${img}" -nobrowse -readonly -mountpoint "${mnt}"
-          trap 'hdiutil detach "${mnt}" >/dev/null 2>&1 || true' EXIT
-          codesign --verify --deep --strict --verbose=2 "${mnt}/hsync-desktop.app"
+          trap 'hdiutil detach "${mnt}" >/dev/null 2>&1 || true; rmdir "${mnt}" 2>/dev/null || true' EXIT
+          app="$(ls -d "${mnt}"/*.app | head -1)"
+          codesign --verify --deep --strict --verbose=2 "${app}"
       - name: Package binary
         # Windows is packaged by the `windows` target (installer + zip).
         if: matrix.target != 'windows-amd64'

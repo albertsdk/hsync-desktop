@@ -45,7 +45,6 @@ from hsync_desktop.settings import (
     SETTINGS_ORG,
     ApiKeyDialog,
     P2PKeyDialog,
-    build_hsync_args,
 )
 
 
@@ -315,7 +314,10 @@ class TrustMixin:
         self._show_info_banner(f"🔄 {tr('banner.reconnecting')}", kind="progress")
         local_path = self._local_path
         if local_path:
-            args = build_hsync_args(local_path, force_dry_run=True)
+            args = self._build_run_args(local_path, force_dry_run=True)
+            if args is None:
+                self._reset_ui_stopped()
+                return
             self._mark_new_run()
             self._file_panel.load_local_files(local_path)
             self._awaiting_preview_for_sync = True

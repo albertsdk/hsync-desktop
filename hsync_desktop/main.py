@@ -29,24 +29,31 @@ if TYPE_CHECKING:
 SPLASH_MS = 1500
 
 
-def _attach_parent_console() -> bool:
-    """Attach to the launching console on Windows; a no-op elsewhere.
+def _stdout_is_usable() -> bool:
+    """Whether writing to ``sys.stdout`` reaches a console or a redirection."""
+    stream = sys.stdout
+    return stream is not None and not getattr(stream, "closed", False)
+
+
+def _attach_console_stream() -> bool:
+    """Rebind ``sys.stdout`` to the launching console (Windows only).
 
     A GUI-subsystem executable has no console of its own, so PyInstaller leaves
-    ``sys.stdout`` as ``None`` when it is started from cmd/PowerShell;
-    ``ATTACH_PARENT_PROCESS`` (-1) reopens the parent's, which makes
-    ``--version``/``--help`` visible and redirectable like any other CLI.
-    Returns False when there is no parent console (started from Explorer).
+    ``sys.stdout`` as ``None`` when the app is started from cmd/PowerShell;
+    attaching to the parent console and reopening ``CONOUT$`` makes
+    ``--version``/``--help`` visible and redirectable like any other CLI. Returns
+    False when there is no parent console (started from Explorer) or off Windows,
+    so the caller falls back to a dialog.
     """
     if os.name != "nt":
-        return True
+        return False
     try:
         import ctypes
 
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         if not kernel32.AttachConsole(-1):
             return False
-        sys.stdout = open("CONOUT$", "w", encoding="utf-8", closefd=False)
+        sys.stdout = open("CONOUT$", "w", encoding="utf-8")
         return True
     except (AttributeError, OSError, ValueError):
         return False
@@ -57,14 +64,14 @@ def _report_early(text: str) -> None:
 
     ``--version``/``--help`` are answered before Qt starts (see
     ``_handle_early_cli_args``), so a plain stream is kept whenever one exists —
-    scripting and redirected output keep working. Only a windowed build without
-    any console falls back to a dialog, because printing there would be
-    invisible and the documented verification step would look like a no-op.
+    scripting and redirected output keep working. A windowed build without a
+    usable stream (Windows started from Explorer, any ``--windowed`` macOS
+    ``.app``) would otherwise print into nothing, so it shows a dialog instead.
     """
-    if sys.stdout is not None and not getattr(sys.stdout, "closed", False):
+    if _stdout_is_usable():
         print(text)
         return
-    if _attach_parent_console():
+    if _attach_console_stream() and _stdout_is_usable():
         print(text)
         return
 

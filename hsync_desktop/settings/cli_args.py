@@ -98,24 +98,28 @@ from hsync_desktop.settings.validators import (
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM, detect_system_theme
 
 
+class InvalidSubdirFilter(ValueError):
+    """A saved subfolder filter that cannot be a bucket-relative directory."""
+
+
 def _relative_subdir(raw: str) -> str | None:
     """Return the bucket-relative subdirectory in *raw*, or None when it is blank.
 
     The engine's ``--subdir`` is bucket-relative (it prefixes bucket-relative
     paths), so an absolute value would silently match nothing; resolving it (as
     ``_validate_path`` does) is wrong. A non-empty value that cannot be a
-    bucket-relative directory raises ``ValueError`` so the caller fails closed
-    instead of widening the sync to the whole bucket. ``.`` and empty components
+    bucket-relative directory raises ``InvalidSubdirFilter`` so the caller fails
+    closed instead of widening the sync to the whole bucket. ``.`` and empty components
     are dropped, matching how the engine compares the path.
     """
     rel = raw.replace("\\", "/").strip()
     if not rel:
         return None
     if rel.startswith("/") or (len(rel) >= 2 and rel[1] == ":" and rel[0].isalpha()):
-        raise ValueError(f"Invalid subdirectory filter: {raw}")
+        raise InvalidSubdirFilter(f"Invalid subdirectory filter: {raw}")
     parts = [part for part in rel.split("/") if part and part != "."]
     if not parts or ".." in parts:
-        raise ValueError(f"Invalid subdirectory filter: {raw}")
+        raise InvalidSubdirFilter(f"Invalid subdirectory filter: {raw}")
     return "/".join(parts)
 
 

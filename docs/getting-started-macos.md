@@ -5,7 +5,7 @@ The `.dmg` contains a standard **hsync-desktop.app** bundle: open it and drag th
 else to install.
 
 > Provided for **Apple silicon (arm64)** and **Intel (amd64)** separately — pick
-> the `.dmg` matching your Mac. The app is **unsigned**, so macOS asks for
+> the `.dmg` matching your Mac. The app is signed ad hoc but not notarized, so macOS asks for
 > confirmation on the first launch (see below).
 
 ## Prerequisites

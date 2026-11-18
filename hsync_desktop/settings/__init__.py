@@ -10,6 +10,7 @@ Provides settings dialog, validators, and CLI argument builder.
 from hsync_desktop.settings.cli_args import (
     SETTINGS_APP,
     SETTINGS_ORG,
+    InvalidSubdirFilter,
     are_notifications_enabled,
     build_hsync_args,
     build_selection_args,
@@ -35,6 +36,7 @@ __all__ = [
     "SETTINGS_ORG",
     "ApiKeyDialog",
     "P2PKeyDialog",
+    "InvalidSubdirFilter",
     "SettingsDialog",
     "are_notifications_enabled",
     "build_hsync_args",

@@ -23,7 +23,7 @@
 #                               appimage  Portable Linux x86_64 .AppImage
 #                                         (self-contained, client bundled)
 #                               dmg       macOS .app bundle wrapped in a .dmg
-#                                         (darwin only, unsigned)
+#                                         (darwin only, ad-hoc signed)
 #                               rpi       Raspberry Pi OS 64-bit (arm64)
 #                                         onefile binary via Docker
 #                               windows   Windows x64 installer (Inno Setup)
@@ -289,7 +289,8 @@ ${BOLD}Targets:${RESET}
     rpm-all   .rpm for x86_64 and aarch64 via Docker (Rocky Linux 9), each
               bundling a per-arch hsync-client built inside the container.
     appimage  Portable self-contained .AppImage for Linux x86_64.
-    dmg       macOS .app bundle wrapped in a .dmg (unsigned).
+    dmg       macOS .app bundle wrapped in a .dmg (ad-hoc signed, not
+              notarized).
     rpi       Raspberry Pi OS 64-bit (arm64) onefile binary via Docker.
     windows   Windows x64 per-user installer (Inno Setup) plus a portable
               .zip, both self-contained (client engine bundled).
@@ -303,7 +304,7 @@ ${BOLD}Examples:${RESET}
     ./compile.sh --target rpm       # .rpm for host arch (RHEL-family)
     ./compile.sh --target rpm-all   # .rpm for x86_64 + aarch64
     ./compile.sh --target appimage  # Portable Linux x86_64 .AppImage
-    ./compile.sh --target dmg       # macOS .app + .dmg (unsigned)
+    ./compile.sh --target dmg       # macOS .app + .dmg (ad-hoc signed)
     ./compile.sh --target rpi       # Raspberry Pi OS 64-bit (arm64)
     ./compile.sh --target windows   # Windows x64 installer + portable zip
 
@@ -1718,8 +1719,9 @@ _macos_create_dmg() {
 # universal2 .app would require a universal `lipo`-merged client, so per-arch
 # dmgs are the supported form.
 #
-# The .app is unsigned: Gatekeeper needs the documented right-click / `xattr`
-# workaround (docs/getting-started-macos.md).
+# The .app is ad-hoc signed but not notarized (see _macos_sign_app), so
+# Gatekeeper needs the documented right-click / `xattr` workaround
+# (docs/getting-started-macos.md).
 # Output: dist/macos/hsync-desktop-<ver>-darwin-<arch>.dmg
 build_dmg() {
     local version
@@ -1813,8 +1815,8 @@ build_dmg() {
     echo -e "  ${BOLD}Size:${RESET}     ${size}"
     echo -e "  ${BOLD}Version:${RESET}  ${version}"
     echo
-    echo -e "${DIM}The .app is unsigned: open the dmg, drag ${APP_NAME} to Applications, then${RESET}"
-    echo -e "${DIM}right-click → Open the first time (or: xattr -dr com.apple.quarantine /Applications/${APP_NAME}.app).${RESET}"
+    echo -e "${DIM}The .app is ad-hoc signed but not notarized: open the dmg, drag ${APP_NAME} to Applications,${RESET}"
+    echo -e "${DIM}then right-click → Open the first time (or: xattr -dr com.apple.quarantine /Applications/${APP_NAME}.app).${RESET}"
 }
 
 # -----------------------------------------------------------------------------

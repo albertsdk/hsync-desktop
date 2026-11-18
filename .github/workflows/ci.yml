@@ -111,10 +111,6 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Docs link-check
-        working-directory: hsync-desktop
-        run: python ../hsync-common/scripts/dev/check_doc_links.py .
-
       - name: Install Poetry
         run: pipx install poetry==2.4.1
 

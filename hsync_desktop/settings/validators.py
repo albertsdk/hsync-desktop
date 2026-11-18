@@ -46,6 +46,10 @@ _SYSTEM_DIRS = frozenset(
 # The macOS counterpart: the canonical system trees.
 _MACOS_SYSTEM_DIRS = ("/System", "/Library", "/Applications")
 
+# Sorted once: ``_is_protected_system_dir`` runs on every folder-validation call
+# (the wizard's folder page validates on each text change).
+_SYSTEM_DIRS_SORTED = tuple(sorted(_SYSTEM_DIRS))
+
 # Windows roots come from the environment so a system on a non-``C:`` drive is
 # handled without hard-coding a letter.
 _WINDOWS_SYSTEM_ENV = (
@@ -73,7 +77,7 @@ def protected_system_roots(
         return tuple(dict.fromkeys(root for root in roots if root))
     if plat == "darwin":
         return _MACOS_SYSTEM_DIRS
-    return tuple(sorted(_SYSTEM_DIRS))
+    return _SYSTEM_DIRS_SORTED
 
 
 def _is_protected_system_dir(
