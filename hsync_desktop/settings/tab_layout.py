@@ -61,13 +61,15 @@ _DESCRIPTION_MARGINS = (20, 12, 20, 16)
 
 
 class _CenteredColumn(QWidget):
-    """Keep one child centred, never wider than ``max_width``, full height.
+    """Keep one child centred in one reading column, full height.
 
     A plain box layout either stretches the column across the whole window or
     leaves it at its size hint beside the spacer items (Qt gives the extra space
     to the spacers). This wrapper gives the child exactly
     ``min(width, max_width)``, so the settings page keeps one bounded reading
-    column, centred when the window grows.
+    column, centred when the window grows. ``max_width`` is a preference, not a
+    hard cap: the column widens when the content itself cannot fit inside it
+    (see ``_max_child_width``).
 
     The width always belongs to the host: a parent layout stretches the wrapper,
     a scroll area sizes it to its viewport. ``reapply_size_on_layout_request``
@@ -87,9 +89,19 @@ class _CenteredColumn(QWidget):
         self._reapply_size_on_layout_request = reapply_size_on_layout_request
         child.setParent(self)
 
+    def _max_child_width(self) -> int:
+        """The column cap, raised when the content itself needs more room.
+
+        A large system font makes a localized label wider than ``max_width``,
+        and a ``QPushButton`` clips its text instead of eliding it: capping at
+        the preference there would hide part of the label, so the child's own
+        hint wins.
+        """
+        return max(self._max_width, self._child.sizeHint().width())
+
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         super().resizeEvent(event)
-        width = min(self.width(), self._max_width)
+        width = min(self.width(), self._max_child_width())
         self._child.setGeometry((self.width() - width) // 2, 0, width, self.height())
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt override)
@@ -98,7 +110,7 @@ class _CenteredColumn(QWidget):
         # label with a reserved minimum height): never advertise less than the
         # child's minimum, or the wrapper clips it.
         height = max(hint.height(), self._child.minimumSizeHint().height())
-        return QSize(min(hint.width(), self._max_width), height)
+        return QSize(min(hint.width(), self._max_child_width()), height)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt override)
         # The scroll area sizes this wrapper to its minimum height when the

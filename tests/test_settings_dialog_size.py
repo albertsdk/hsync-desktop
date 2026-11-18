@@ -189,6 +189,25 @@ class TestActionRow:
         row._apply_direction()
         assert row.layout().direction() == QBoxLayout.Direction.LeftToRight
 
+    def test_the_stacked_row_still_advertises_the_pair_width(self, qtbot, monkeypatch):
+        """A stacked row keeps reporting the width that would unfold it.
+
+        The settings page measures this row to size the dialog. Advertising only
+        the stacked column made a narrow measurement permanent: the page asked
+        for a width that could never fit the pair, so the buttons stayed stacked.
+        """
+        from hsync_desktop.settings.form_helpers import _action_row
+
+        first, second = QPushButton("Manage trusted servers"), QPushButton("Test Connection")
+        row = _action_row(first, second)
+        qtbot.addWidget(row)
+        pair_need = first.sizeHint().width() + second.sizeHint().width() + row.layout().spacing()
+
+        monkeypatch.setattr(type(row), "width", lambda self: pair_need - 40)
+        row._apply_direction()
+        assert row.layout().direction() == QBoxLayout.Direction.TopToBottom
+        assert row.sizeHint().width() >= pair_need
+
     def test_the_pair_is_trailing_aligned_when_side_by_side(self, qtbot, monkeypatch):
         """The pair ends on the content's trailing edge, not under the captions.
 
@@ -218,6 +237,71 @@ class TestActionRow:
 
         assert lead.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Fixed
         assert trail.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding
+
+
+class TestContentWiderThanTheReadingColumn:
+    """A pair wider than the reading column widens the dialog instead of clipping.
+
+    The Windows CI leg runs with much larger system metrics: the Spanish pair no
+    longer fit the 640 px reading column, the dialog stayed at its estimate and
+    ``QPushButton`` (which clips instead of eliding) lost characters — the pair
+    also stayed stacked even on a roomy screen. A label repeated past the cap
+    reproduces the same geometry on every platform, without depending on the
+    running platform's font metrics.
+    """
+
+    @staticmethod
+    def _widen_labels(buttons, row, cap: int) -> int:
+        """Repeat the labels until the pair outgrows the column; return its need."""
+        label = buttons[0].text()
+        for _ in range(6):
+            need = sum(button.sizeHint().width() for button in buttons) + row.layout().spacing()
+            if need > cap:
+                return need
+            for button in buttons:
+                button.setText(f"{button.text()} {label}")
+        return need
+
+    def test_the_pair_widens_the_dialog_past_the_reading_column(self, qtbot, dialog, monkeypatch):
+        from hsync_desktop.settings.tab_layout import _CONTENT_MAX_WIDTH
+
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        pairs = (
+            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
+            (
+                _SERVER_TAB_INDEX,
+                (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection),
+            ),
+        )
+        previous = get_language()
+        try:
+            set_language("es")  # the shipped translations stay inside the cap
+            dialog._apply_translations()
+            dialog.show()
+            qtbot.waitExposed(dialog)
+            qtbot.wait(10)
+
+            for index, buttons in pairs:
+                dialog.set_current_tab(index)
+                tab_builders.fit_current_tab(dialog)
+                qtbot.wait(10)
+
+                row = buttons[0].parent()
+                assert row is buttons[1].parent()
+                need = self._widen_labels(buttons, row, _CONTENT_MAX_WIDTH)
+                assert need > _CONTENT_MAX_WIDTH, "the scenario needs a pair past the cap"
+
+                # The new labels reach the page on the next layout pass, the way
+                # a translation change does in the running application.
+                qtbot.wait(10)
+                tab_builders.fit_current_tab(dialog)
+                qtbot.wait(10)
+                assert row.layout().direction() == QBoxLayout.Direction.LeftToRight
+                for button in buttons:
+                    assert button.width() >= button.sizeHint().width(), button.text()
+        finally:
+            set_language(previous)
+            dialog._apply_translations()
 
 
 class TestPageNeverSqueezesRows:

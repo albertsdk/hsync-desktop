@@ -561,6 +561,20 @@ def _available_screen_size(dlg: SettingsDialog) -> QSize | None:
 _CONTENT_WIDTH_MARGIN = 40
 
 
+def _chrome_width(dlg: SettingsDialog, scroll: QScrollArea) -> int:
+    """Width the dialog spends outside the page viewport (frame, bars, tabs).
+
+    Style- and font-dependent, so take it from the live geometry: the constant
+    above is only the pre-show estimate, and it under-sizes the dialog where the
+    platform rounds its metrics up, leaving the widest row clipped.
+    """
+
+    viewport = scroll.viewport().width()
+    if viewport <= 0:
+        return _CONTENT_WIDTH_MARGIN
+    return max(_CONTENT_WIDTH_MARGIN, dlg.width() - viewport)
+
+
 def _content_width(dlg: SettingsDialog) -> int:
     """Widest tab content plus the scroll chrome, or 0 when not measurable."""
     widest = 0
@@ -634,7 +648,7 @@ def fit_current_tab(dlg: SettingsDialog) -> None:
     limit_h = int(available.height() * _SCREEN_SIZE_FRACTION) if available is not None else None
 
     # Width first: a wider viewport can change the wrapped height.
-    needed_w = content.sizeHint().width() + _CONTENT_WIDTH_MARGIN
+    needed_w = content.sizeHint().width() + _chrome_width(dlg, scroll)
     target_w = min(needed_w, limit_w) if limit_w is not None else needed_w
     if target_w > dlg.width():
         dlg.resize(target_w, dlg.height())

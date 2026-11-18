@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QEvent, QSize
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -110,11 +110,24 @@ class _ActionRow(QWidget):
             self._box.addWidget(button)
         self._box.addSpacerItem(self._trail)
 
+    def _row_width(self) -> int:
+        """Width the visible buttons need side by side, whatever the direction."""
+        widths = [button.sizeHint().width() for button in self._buttons if not button.isHidden()]
+        if not widths:
+            return 0
+        return sum(widths) + self._box.spacing() * (len(widths) - 1)
+
     def _needs_stack(self) -> bool:
         if self.width() <= 0:
             return False
-        widths = [button.sizeHint().width() for button in self._buttons if not button.isHidden()]
-        return self.width() < sum(widths) + self._box.spacing() * max(0, len(widths) - 1)
+        return self.width() < self._row_width()
+
+    def sizeHint(self) -> QSize:
+        # Always advertise the side-by-side width: the settings page measures
+        # this row to size the dialog, and a stacked row reports one column of
+        # buttons, so the page would never ask for the width that unfolds them.
+        hint = super().sizeHint()
+        return QSize(max(hint.width(), self._row_width()), hint.height())
 
     def _apply_direction(self) -> None:
         stacked = self._needs_stack()
