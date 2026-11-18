@@ -542,23 +542,37 @@ class TestActionButtonRows:
     def test_server_verify_button_is_labelled(self, dialog):
         assert dialog.btn_test_connection.text() == tr("settings.test_connection")
 
-    def test_p2p_actions_share_one_responsive_row(self, dialog):
+    def test_p2p_actions_are_horizontal_when_the_row_fits(self, dialog, qtbot, monkeypatch):
+        from PySide6.QtCore import QSize
+
+        import hsync_desktop.settings.tab_builders as tab_builders
+
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        dialog.set_current_tab(_P2P_TAB_INDEX)
+        tab_builders.fit_current_tab(dialog)
+        qtbot.wait(10)
+
         parent = dialog.btn_manage_trusted_keys.parent()
         assert parent is dialog.btn_test_rendezvous.parent()
-        # Horizontal when it fits, stacked (TopToBottom) on a narrow column or
-        # a wide system font instead of clipping the labels.
-        assert parent.layout().direction() in (
-            QBoxLayout.Direction.LeftToRight,
-            QBoxLayout.Direction.TopToBottom,
-        )
+        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
 
-    def test_server_actions_share_one_responsive_row(self, dialog):
+    def test_server_actions_are_horizontal_when_the_row_fits(self, dialog, qtbot, monkeypatch):
+        from PySide6.QtCore import QSize
+
+        import hsync_desktop.settings.tab_builders as tab_builders
+
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        dialog.show()
+        qtbot.waitExposed(dialog)
+        dialog.set_current_tab(_SERVER_TAB_INDEX)
+        tab_builders.fit_current_tab(dialog)
+        qtbot.wait(10)
+
         parent = dialog.btn_manage_trusted_keys_server.parent()
         assert parent is dialog.btn_test_connection.parent()
-        assert parent.layout().direction() in (
-            QBoxLayout.Direction.LeftToRight,
-            QBoxLayout.Direction.TopToBottom,
-        )
+        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
 
 
 class TestDisabledDuringSyncVisual:

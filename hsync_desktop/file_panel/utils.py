@@ -9,12 +9,24 @@ Contains formatting functions and file type classification.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QLocale
 
 from hsync_desktop.i18n import get_language, tr
+
+
+def to_posix_separators(path: str) -> str:
+    """Map the host separators in a scanned relative path to POSIX ``/``.
+
+    The file panel compares scan keys against the worker- and
+    engine-produced bucket-relative paths, which always use ``/`` on every
+    host; a host separator here would shift or split every key.
+    """
+    return path.replace(os.sep, "/")
+
 
 # Column indices, in the default visual order. The row icon is drawn inside the
 # Name cell, so the identifying column leads; Direction follows it because it

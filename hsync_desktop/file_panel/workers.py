@@ -27,6 +27,7 @@ from hsync_desktop.file_panel.import_ops import (
     copy_tree,
     count_tree,
 )
+from hsync_desktop.file_panel.utils import to_posix_separators
 
 # Minimum time between progress updates (seconds) to avoid flooding the UI
 _PROGRESS_THROTTLE_MS = 100
@@ -158,7 +159,7 @@ class DirectoryScanWorker(QObject):
                 except OSError:
                     mtime = 0.0
                 try:
-                    rel_path = dir_path.relative_to(base_path).as_posix()
+                    rel_path = to_posix_separators(str(dir_path.relative_to(base_path)))
                 except ValueError:
                     rel_path = str(dir_path)
                 batch.append((rel_path + "/", 0, mtime))
@@ -186,7 +187,7 @@ class DirectoryScanWorker(QObject):
                     continue
 
                 try:
-                    rel_path = Path(entry.path).relative_to(base_path).as_posix()
+                    rel_path = to_posix_separators(str(Path(entry.path).relative_to(base_path)))
                 except ValueError:
                     rel_path = entry.path
 

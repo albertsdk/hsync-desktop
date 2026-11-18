@@ -46,6 +46,7 @@ from hsync_desktop.file_panel.models import (
 )
 from hsync_desktop.file_panel.overlay import LoadingOverlay
 from hsync_desktop.file_panel.transfer_table import FileTransferTable
+from hsync_desktop.file_panel.utils import to_posix_separators
 from hsync_desktop.file_panel.workers import DirectoryScanWorker, ImportWorker
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
@@ -813,9 +814,9 @@ class FilePanel(QWidget):
                 # subtree only, like os.walk(onerror=None).
                 continue
             if not visible and not has_dir and root != base:
-                current_files.add(root[len(prefix) :].replace(os.sep, "/") + "/")
+                current_files.add(to_posix_separators(root[len(prefix) :]) + "/")
             for entry in visible:
-                current_files.add(entry.path[len(prefix) :].replace(os.sep, "/"))
+                current_files.add(to_posix_separators(entry.path[len(prefix) :]))
             stack.extend(recurse)
         return current_files
 
