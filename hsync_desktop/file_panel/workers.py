@@ -158,7 +158,7 @@ class DirectoryScanWorker(QObject):
                 except OSError:
                     mtime = 0.0
                 try:
-                    rel_path = str(dir_path.relative_to(base_path))
+                    rel_path = dir_path.relative_to(base_path).as_posix()
                 except ValueError:
                     rel_path = str(dir_path)
                 batch.append((rel_path + "/", 0, mtime))
@@ -186,7 +186,7 @@ class DirectoryScanWorker(QObject):
                     continue
 
                 try:
-                    rel_path = str(Path(entry.path).relative_to(base_path))
+                    rel_path = Path(entry.path).relative_to(base_path).as_posix()
                 except ValueError:
                     rel_path = entry.path
 

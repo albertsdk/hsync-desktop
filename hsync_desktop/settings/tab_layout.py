@@ -433,7 +433,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
     add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
     dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
-    g2.addRow("", dlg._lbl_help_rendezvous)
+    g2.addRow(dlg._lbl_help_rendezvous)
     vbox.addWidget(dlg._grp_p2p_rendezvous)
 
     # Group 3: role election + pairing
@@ -497,7 +497,7 @@ def reorganize_server_tab(dlg: SettingsDialog) -> None:
     # (same reasoning as the p2p twin).
     g1.addRow(action_row)
     dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
-    g1.addRow("", dlg._lbl_help_server)
+    g1.addRow(dlg._lbl_help_server)
     vbox.addWidget(dlg._grp_server)
 
     # Group 2: TLS/certificate behaviour.

@@ -7,6 +7,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 
 import pytest
 from hsync_common.logger import format_log_line
@@ -1278,6 +1279,10 @@ class TestProcessTreeSignalling:
         for parent, child in ((1, 2), (1, 3), (2, 5)):
             assert positions[child] < positions[parent]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX signals; Windows uses taskkill",
+    )
     def test_send_stop_signal_covers_the_child_and_its_tree(self, monkeypatch):
         fake = _FakeProcess(pid=4242)
         engine = HsyncEngine()
@@ -1308,6 +1313,10 @@ class TestProcessTreeSignalling:
 
         assert fake.terminated == 1
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX SIGKILL; Windows uses taskkill",
+    )
     def test_kill_process_tree_signals_the_child_and_its_descendants(self, monkeypatch):
         fake = _FakeProcess(pid=4242)
         engine = HsyncEngine()

@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import unicodedata
+from pathlib import Path
 
 from hsync_common.path_validation import is_valid_bucket_name
 from PySide6.QtCore import QStandardPaths
@@ -80,5 +81,5 @@ def suggested_folders() -> list[tuple[str, str | None]]:
         ("wizard.folder.suggest_pictures", pictures or None),
         ("wizard.folder.suggest_music", music or None),
         ("wizard.folder.suggest_videos", videos or None),
-        ("wizard.folder.suggest_home", os.path.join(home, "HSYNC")),
+        ("wizard.folder.suggest_home", str(Path(home) / "HSYNC")),
     ]

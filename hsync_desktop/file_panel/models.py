@@ -9,10 +9,10 @@ Contains TransferStatus enum, FileTransfer dataclass, and related constants.
 
 from __future__ import annotations
 
+import posixpath
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from time import time
 
 from PySide6.QtGui import QColor
@@ -179,12 +179,13 @@ class FileTransfer:
 
     @property
     def filename(self) -> str:
-        return Path(self.filepath).name
+        # Directory rows carry a trailing "/": strip it so the name is the
+        # entry itself, not an empty basename.
+        return posixpath.basename(self.filepath.rstrip("/"))
 
     @property
     def path(self) -> str:
-        parent = Path(self.filepath).parent
-        return str(parent) if str(parent) != "." else ""
+        return posixpath.dirname(self.filepath.rstrip("/"))
 
     @property
     def total_bytes(self) -> int:

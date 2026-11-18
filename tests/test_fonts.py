@@ -309,6 +309,11 @@ class TestSmallMonospaceFont:
 class TestLogMonospaceFont:
     """The log viewer is two points smaller than the desktop monospace."""
 
+    @pytest.fixture(autouse=True)
+    def _non_windows(self, monkeypatch):
+        # The Windows rule is covered by TestLogMonospaceFontWindows.
+        monkeypatch.setattr(fonts, "_IS_WINDOWS", False)
+
     def test_two_points_smaller(self, qapp, monkeypatch):
         base = QFont("Probe Mono")
         base.setPointSizeF(11.0)

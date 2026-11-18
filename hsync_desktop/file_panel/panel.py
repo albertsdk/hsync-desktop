@@ -780,8 +780,7 @@ class FilePanel(QWidget):
         current_files: set[str] = set()
         # Iterative scandir: no Path object per entry and no Path.relative_to
         # per file. ``entry.path`` is already absolute and the relative key is a
-        # plain prefix slice, keeping the native separators the scan worker also
-        # produces.
+        # plain prefix slice, normalized to POSIX like the scan worker's keys.
         stack = [base]
         while stack:
             root = stack.pop()
@@ -814,9 +813,9 @@ class FilePanel(QWidget):
                 # subtree only, like os.walk(onerror=None).
                 continue
             if not visible and not has_dir and root != base:
-                current_files.add(root[len(prefix) :] + "/")
+                current_files.add(root[len(prefix) :].replace(os.sep, "/") + "/")
             for entry in visible:
-                current_files.add(entry.path[len(prefix) :])
+                current_files.add(entry.path[len(prefix) :].replace(os.sep, "/"))
             stack.extend(recurse)
         return current_files
 

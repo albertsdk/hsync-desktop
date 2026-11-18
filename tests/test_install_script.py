@@ -12,10 +12,18 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INSTALL_SCRIPT = PROJECT_ROOT / "install.sh"
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="POSIX install.sh; Windows uses the .exe installer",
+)
 
 
 def _restricted_bin(tmp_path: Path, names: tuple[str, ...]) -> Path:

@@ -17,7 +17,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 COMPILE_SH = Path(__file__).resolve().parents[1] / "compile.sh"
 # Shared build-time gate (version parsing + exact-match rule), sourced by both
@@ -31,6 +34,12 @@ _FIXED = "poetry install --only main,build"
 
 def _script() -> str:
     return COMPILE_SH.read_text(encoding="utf-8")
+
+
+def _require_posix_shell() -> None:
+    """``compile.sh`` is POSIX; the Windows runner has no usable bash."""
+    if sys.platform == "win32":
+        pytest.skip("POSIX shell required (compile.sh)")
 
 
 def _poetry_install_lines() -> list[str]:
@@ -116,6 +125,7 @@ def test_appimage_is_x86_64_only() -> None:
 def _run_shell_fn(fn_name: str, args: list[str]) -> str:
     """Run a top-level ``fn_name`` from compile.sh in a fresh bash and return
     its stdout. Only used for pure helpers with no side effects."""
+    _require_posix_shell()
     match = re.search(rf"{fn_name}\(\) \{{.*?\n\}}", _script(), re.DOTALL)
     assert match, f"{fn_name} not found in compile.sh"
     result = subprocess.run(
@@ -306,6 +316,7 @@ def _run_verify(
     tmp_path: Path, expected: str, client_version: str | None
 ) -> subprocess.CompletedProcess[str]:
     """Run the extracted verifier against a fake client binary."""
+    _require_posix_shell()
     client = tmp_path / "hsync"
     body = "exit 1\n" if client_version is None else f'echo "hsync {client_version}"\n'
     client.write_text(f"#!/usr/bin/env bash\n{body}", encoding="utf-8")
@@ -482,6 +493,7 @@ def _shell_fn_body(name: str) -> str:
 
 
 def _run_stage_harness(script: str) -> subprocess.CompletedProcess[str]:
+    _require_posix_shell()
     preamble = "\n".join(
         [
             "set -euo pipefail",

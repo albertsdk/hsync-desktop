@@ -92,6 +92,10 @@ class TestCommandValidation:
 
 
 class TestLinuxEntry:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Linux Exec uses a POSIX absolute path",
+    )
     def test_write_read_remove(self, linux_home, monkeypatch):
         monkeypatch.setattr(
             autostart,
@@ -123,6 +127,10 @@ class TestLinuxEntry:
 
 
 class TestMacosEntry:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="LaunchAgent uses a POSIX absolute path",
+    )
     def test_launch_agent_plist(self, macos_home, monkeypatch):
         command = ["/Applications/HSYNC.app/Contents/MacOS/hsync-desktop", "--minimized"]
         monkeypatch.setattr(autostart, "_launch_command", lambda: command)

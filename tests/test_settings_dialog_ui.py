@@ -534,7 +534,7 @@ class TestTabOrderAndDefaultMode:
 
 
 class TestActionButtonRows:
-    """Manage-keys / Verify are labelled and share one horizontal row per panel."""
+    """Manage-keys / Verify share one responsive row per panel."""
 
     def test_p2p_verify_button_is_labelled(self, dialog):
         assert dialog.btn_test_rendezvous.text() == tr("settings.test_connection")
@@ -542,15 +542,23 @@ class TestActionButtonRows:
     def test_server_verify_button_is_labelled(self, dialog):
         assert dialog.btn_test_connection.text() == tr("settings.test_connection")
 
-    def test_p2p_actions_are_in_one_horizontal_row(self, dialog):
+    def test_p2p_actions_share_one_responsive_row(self, dialog):
         parent = dialog.btn_manage_trusted_keys.parent()
         assert parent is dialog.btn_test_rendezvous.parent()
-        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
+        # Horizontal when it fits, stacked (TopToBottom) on a narrow column or
+        # a wide system font instead of clipping the labels.
+        assert parent.layout().direction() in (
+            QBoxLayout.Direction.LeftToRight,
+            QBoxLayout.Direction.TopToBottom,
+        )
 
-    def test_server_actions_are_in_one_horizontal_row(self, dialog):
+    def test_server_actions_share_one_responsive_row(self, dialog):
         parent = dialog.btn_manage_trusted_keys_server.parent()
         assert parent is dialog.btn_test_connection.parent()
-        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
+        assert parent.layout().direction() in (
+            QBoxLayout.Direction.LeftToRight,
+            QBoxLayout.Direction.TopToBottom,
+        )
 
 
 class TestDisabledDuringSyncVisual:

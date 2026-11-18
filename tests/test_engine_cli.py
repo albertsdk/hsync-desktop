@@ -5,6 +5,7 @@
 
 import json
 import os
+import sys
 
 import pytest
 
@@ -60,7 +61,8 @@ class TestFindHsyncBinary:
 
         pkg_root = tmp_path / "hsync_desktop"
         (pkg_root / "engine").mkdir(parents=True)
-        bundled = pkg_root / "bin" / "hsync"
+        bin_name = "hsync.exe" if sys.platform == "win32" else "hsync"
+        bundled = pkg_root / "bin" / bin_name
         bundled.parent.mkdir(parents=True)
         bundled.write_text("#!/bin/sh\n", encoding="utf-8")
         bundled.chmod(0o755)
@@ -326,6 +328,10 @@ class TestBinaryProbeCache:
         probe.start()
         assert received == ["3.1.4"]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX shebang stub; QProcess cannot run it directly",
+    )
     def test_binary_version_probe_qprocess(self, tmp_path, monkeypatch, qtbot):
         """A cache miss spawns a QProcess and emits the parsed version."""
         from hsync_desktop.engine import cli as engine

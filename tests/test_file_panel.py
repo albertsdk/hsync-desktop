@@ -101,6 +101,16 @@ class TestFileTransfer:
         transfer = FileTransfer(filepath="file.txt", direction="↓")
         assert transfer.path == ""
 
+    def test_directory_trailing_separator_keeps_the_name_and_parent(self):
+        """Directory rows end with "/": the name is the folder, not ""."""
+        top = FileTransfer(filepath="sub/", direction="↓")
+        assert top.filename == "sub"
+        assert top.path == ""
+
+        nested = FileTransfer(filepath="sub/dir/", direction="↓")
+        assert nested.filename == "dir"
+        assert nested.path == "sub"
+
     def test_remaining_property(self):
         """Test remaining bytes calculation."""
         transfer = FileTransfer(

@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from hsync_desktop.wizard.defaults import (
     default_share_name,
     generate_group_name,
@@ -196,7 +198,7 @@ class TestSuggestedFolders:
         assert folders["wizard.folder.suggest_pictures"] == "/home/u/Immagini"
         assert folders["wizard.folder.suggest_music"] == "/home/u/Musica"
         assert folders["wizard.folder.suggest_videos"] == "/home/u/Video"
-        assert folders["wizard.folder.suggest_home"] == "/home/u/HSYNC"
+        assert folders["wizard.folder.suggest_home"] == str(Path("/home/u") / "HSYNC")
 
     def test_unset_standard_dir_is_none(self, monkeypatch):
 

@@ -412,6 +412,9 @@ class SettingsDialog(QDialog):
     def _apply_translations(self) -> None:
         """Apply i18n strings (implementation in ``tab_translations.py``)."""
         apply_translations(self)
+        # Longer labels (or a wider system font) can outgrow the fitted
+        # width; re-fit so the new text is not clipped.
+        self._fit_current_tab()
 
     def _apply_tooltips(self) -> None:
         """Apply tooltips to widgets if enabled."""

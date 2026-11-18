@@ -94,6 +94,9 @@ class _ActionRow(QWidget):
 
     def __init__(self, *buttons: QWidget) -> None:
         super().__init__()
+        # Never let a short page squeeze the buttons below their own height;
+        # the enclosing scroll area grows instead.
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self._buttons = buttons
         self._box = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
         self._box.setContentsMargins(0, 0, 0, 0)
@@ -120,6 +123,7 @@ class _ActionRow(QWidget):
         )
         if self._box.direction() != direction:
             self._box.setDirection(direction)
+            self.updateGeometry()
         # Horizontal: the leading stretch holds the pair against the content's
         # trailing edge. Stacked: drop it so the pair stays top-aligned.
         self._lead.changeSize(

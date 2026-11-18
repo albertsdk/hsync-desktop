@@ -2144,7 +2144,7 @@ class TestOpenShareFolder:
 
         window._open_share_folder()
 
-        assert opened == [str(tmp_path)]
+        assert opened == [tmp_path.as_posix()]
 
     def test_it_stays_silent_without_a_reachable_folder(self, window, monkeypatch):
         from PySide6.QtGui import QDesktopServices

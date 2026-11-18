@@ -2074,7 +2074,7 @@ class FileTransferTable(QTableView):
         new_rel = (
             (parent + new_name + "/")
             if is_dir
-            else (os.path.join(parent, new_name) if parent else new_name)
+            else (f"{parent}/{new_name}" if parent else new_name)
         )
         if self._rename_collides_with_engine(new_rel):
             QMessageBox.warning(self, tr("ctx.rename_title"), tr("ctx.rename_busy_dest"))
