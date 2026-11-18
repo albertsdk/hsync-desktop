@@ -6,6 +6,7 @@
 import os
 from unittest.mock import MagicMock
 
+import PySide6.QtWidgets as _qt_widgets
 import pytest
 
 
@@ -17,6 +18,22 @@ class _FakeSettings:
 
     def value(self, key: str, default: object = None, _type: object = None) -> object:
         return self._values.get(key, default)
+
+
+def _stub_early_dialog(monkeypatch) -> list[str]:
+    """Capture the early-CLI dialog texts instead of showing a modal box.
+
+    The dialog path reuses the running ``QApplication``, so the caller requests
+    pytest-qt's ``qapp`` fixture; only ``QMessageBox`` is stubbed (patching the
+    ``QApplication`` class itself would break pytest-qt's event processing).
+    """
+    shown: list[str] = []
+    monkeypatch.setattr(
+        _qt_widgets.QMessageBox,
+        "information",
+        staticmethod(lambda _parent, _title, text, *args: shown.append(text)),
+    )
+    return shown
 
 
 class TestMainModule:
@@ -143,12 +160,47 @@ class TestAppMetadata:
         assert "--minimized" in out
 
     @pytest.mark.parametrize("flag", ["--version", "--help"])
-    def test_early_flags_survive_a_missing_stdout(self, monkeypatch, flag):
+    def test_early_flags_survive_a_missing_stdout(self, monkeypatch, qapp, flag):
         """A windowed Windows exe launched from Explorer has ``sys.stdout = None``."""
         import hsync_desktop.main as main_module
 
         monkeypatch.setattr(main_module.sys, "stdout", None)
+        monkeypatch.setattr(main_module, "_attach_parent_console", lambda: False)
+        _stub_early_dialog(monkeypatch)
+
         assert main_module.main([flag]) == 0
+
+    @pytest.mark.parametrize("flag", ["--version", "--help"])
+    def test_early_flags_use_a_dialog_without_any_console(self, monkeypatch, qapp, flag):
+        """Windows GUI build with no parent console: the text must still be shown."""
+        import hsync_desktop.main as main_module
+
+        monkeypatch.setattr(main_module.sys, "stdout", None)
+        monkeypatch.setattr(main_module, "_attach_parent_console", lambda: False)
+        shown = _stub_early_dialog(monkeypatch)
+
+        assert main_module.main([flag]) == 0
+        assert shown and ("hsync-desktop " in shown[0] or "Usage: hsync-desktop" in shown[0])
+
+    def test_early_flags_prefer_the_stream_over_the_dialog(self, monkeypatch, capsys):
+        """With a usable console no Qt object is created (scripting keeps working)."""
+        import hsync_desktop.main as main_module
+
+        monkeypatch.setattr(
+            _qt_widgets.QMessageBox,
+            "information",
+            staticmethod(lambda *args: pytest.fail("the dialog must not be used")),
+        )
+
+        assert main_module.main(["--version"]) == 0
+        assert "hsync-desktop " in capsys.readouterr().out
+
+    def test_parent_console_attach_is_a_noop_off_windows(self, monkeypatch):
+        """Off Windows the stream is already usable; the helper reports success."""
+        import hsync_desktop.main as main_module
+
+        monkeypatch.setattr(main_module.os, "name", "posix")
+        assert main_module._attach_parent_console() is True
 
     def test_minimized_flag_needs_a_usable_tray(self):
         """--minimized starts hidden only when a tray is available."""

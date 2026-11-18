@@ -77,3 +77,53 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: poetry run pytest -q
+
+  # Cross-platform signal: the `python` job above is Linux-only, so the win32
+  # and darwin branches (autostart, protected-path validation, release-asset
+  # channel, console/subsystem handling, engine discovery) would otherwise only
+  # ever run through monkeypatched seams. Ruff is platform-independent, so it
+  # stays in the Linux job.
+  platforms:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout hsync-desktop
+        uses: actions/checkout@v7.0.1
+        with:
+          path: hsync-desktop
+
+      # Path dependency: ../hsync-common must sit next to this repo (see the
+      # `python` job for the PAT requirement).
+      - name: Checkout hsync-common
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: albertsdk/hsync-common
+          ref: main
+          path: hsync-common
+          token: ${{ secrets.HSYNC_COMMON_PAT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Docs link-check
+        working-directory: hsync-desktop
+        run: python ../hsync-common/scripts/dev/check_doc_links.py .
+
+      - name: Install Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Install dependencies
+        working-directory: hsync-desktop
+        run: poetry install --no-interaction
+
+      - name: Tests
+        working-directory: hsync-desktop
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: poetry run pytest -q

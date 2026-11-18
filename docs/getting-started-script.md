@@ -59,11 +59,16 @@ new version (settings and secrets are kept separately by Qt `QSettings`):
 ./install.sh
 ```
 
-To uninstall, remove the app directory and the command link:
+To uninstall, remove the app directory, the command link and the Linux login
+entry that **Start at login** creates (disable the toggle in Settings first):
 
 ```bash
 rm -rf "$HOME/.local/share/hsync-desktop" "$HOME/.local/bin/hsync-desktop"
+rm -f "$HOME/.config/autostart/hsync-desktop.desktop"
 ```
+
+On macOS the login entry is a LaunchAgent instead — see
+[macOS](getting-started-macos.md).
 
 ## Next
 

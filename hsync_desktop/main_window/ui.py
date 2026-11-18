@@ -704,7 +704,8 @@ class UiBuildMixin:
         self._menu_file = menubar.addMenu(tr("menu.file"))
 
         self._act_file_open = QAction(tr("menu.file.open"), self)
-        # Ctrl+O is the platform-standard "open"; Return stays as the list
+        # Ctrl+O is the platform-standard "open" (Qt renders it as Cmd+O on
+        # macOS, where Control maps to Meta); Return stays as the list
         # convenience. "Open with…" has no standard key of its own.
         self._act_file_open.setShortcuts(["Return", QKeySequence("Ctrl+O")])
         self._act_file_open.triggered.connect(self._menu_file_open)

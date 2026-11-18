@@ -11,7 +11,12 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from hsync_desktop.config import MINIMIZED_FLAG, SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.config import (
+    APP_DISPLAY_NAME,
+    MINIMIZED_FLAG,
+    SETTINGS_APP,
+    SETTINGS_ORG,
+)
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
@@ -22,6 +27,54 @@ if TYPE_CHECKING:
 # How long the first-launch welcome overlay stays on top (ms). The main window
 # is already visible underneath, so this only controls the branding stay.
 SPLASH_MS = 1500
+
+
+def _attach_parent_console() -> bool:
+    """Attach to the launching console on Windows; a no-op elsewhere.
+
+    A GUI-subsystem executable has no console of its own, so PyInstaller leaves
+    ``sys.stdout`` as ``None`` when it is started from cmd/PowerShell;
+    ``ATTACH_PARENT_PROCESS`` (-1) reopens the parent's, which makes
+    ``--version``/``--help`` visible and redirectable like any other CLI.
+    Returns False when there is no parent console (started from Explorer).
+    """
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        if not kernel32.AttachConsole(-1):
+            return False
+        sys.stdout = open("CONOUT$", "w", encoding="utf-8", closefd=False)
+        return True
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def _report_early(text: str) -> None:
+    """Emit early CLI *text*: to the console, or to a dialog when there is none.
+
+    ``--version``/``--help`` are answered before Qt starts (see
+    ``_handle_early_cli_args``), so a plain stream is kept whenever one exists —
+    scripting and redirected output keep working. Only a windowed build without
+    any console falls back to a dialog, because printing there would be
+    invisible and the documented verification step would look like a no-op.
+    """
+    if sys.stdout is not None and not getattr(sys.stdout, "closed", False):
+        print(text)
+        return
+    if _attach_parent_console():
+        print(text)
+        return
+
+    from PySide6.QtWidgets import QApplication, QMessageBox
+
+    app = QApplication.instance()
+    if app is None:
+        # Held in a local so the application outlives the modal box.
+        app = QApplication([])
+    QMessageBox.information(None, APP_DISPLAY_NAME, text)
 
 
 def _handle_early_cli_args(argv: list[str]) -> int | None:
@@ -35,11 +88,13 @@ def _handle_early_cli_args(argv: list[str]) -> int | None:
     if "--version" in argv or "-V" in argv:
         from hsync_desktop import __version__
 
-        print(f"hsync-desktop {__version__}")
+        _report_early(f"hsync-desktop {__version__}")
         return 0
     if "--help" in argv or "-h" in argv:
-        print(f"Usage: hsync-desktop [--version] [--help] [{MINIMIZED_FLAG}]")
-        print("HSYNC Desktop - Cross-platform GUI for HSYNC Client.")
+        _report_early(
+            f"Usage: hsync-desktop [--version] [--help] [{MINIMIZED_FLAG}]\n"
+            "HSYNC Desktop - Cross-platform GUI for HSYNC Client."
+        )
         return 0
     return None
 
@@ -118,7 +173,7 @@ def _configure_app(app: QApplication) -> None:
     from hsync_desktop import __version__
     from hsync_desktop.icons import icon
 
-    app.setApplicationName("HSYNC Desktop")
+    app.setApplicationName(APP_DISPLAY_NAME)
     app.setOrganizationName("HSYNC")
     app.setApplicationVersion(__version__)
     app.setDesktopFileName("hsync-desktop")

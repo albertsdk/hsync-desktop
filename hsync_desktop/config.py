@@ -23,6 +23,10 @@ from hsync_common.disk import BYTES_PER_MB
 SETTINGS_ORG = "HSYNC"
 SETTINGS_APP = "HSYNCDesktop"
 
+# User-facing name: the QApplication name, the Windows logon-item value
+# (autostart.py) and the early-CLI dialog title (main.py).
+APP_DISPLAY_NAME = "HSYNC Desktop"
+
 # Start hidden in the tray. Shared contract between the OS autostart entry
 # (autostart.py writes it) and the startup gate (main.py recognizes it).
 MINIMIZED_FLAG = "--minimized"

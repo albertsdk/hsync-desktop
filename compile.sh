@@ -159,9 +159,9 @@ readonly DEB_ICON_SVG="packaging/deb/usr/share/icons/hicolor/scalable/apps/${APP
 readonly DEB_DESKTOP_FILE="packaging/deb/usr/share/applications/${APP_NAME}.desktop"
 
 # macOS .app + .dmg target (darwin only). PyInstaller --windowed produces a real
-# .app bundle; the .dmg wraps it with the usual /Applications symlink. Artifacts
-# are unsigned — signing/notarization are intentionally not performed (see
-# docs/getting-started-macos.md for the Gatekeeper workaround).
+# .app bundle; the .dmg wraps it with the usual /Applications symlink. The bundle
+# is signed ad hoc (see _macos_sign_app): not notarized, so Gatekeeper still asks
+# for the documented one-time confirmation (docs/getting-started-macos.md).
 readonly MACOS_DIR="packaging/macos"
 readonly MACOS_OUTPUT_DIR="${OUTPUT_BASE}/macos"
 readonly MACOS_INFO_TEMPLATE="${MACOS_DIR}/Info.plist"
@@ -169,6 +169,10 @@ readonly MACOS_BUNDLE_ID="io.hsync.desktop"
 # Floor of the bundled PySide6/Qt wheels (macosx_14_0 tag in poetry.lock):
 # older macOS installs the .app but dyld refuses to load it.
 readonly MACOS_MIN_VERSION="14.0"
+# Signing identity for the .app: ad hoc by default (no Apple account, no
+# notarization). Set MACOS_SIGN_IDENTITY to a "Developer ID Application: ..."
+# identity to sign distributable builds without touching this script.
+readonly MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:--}"
 
 # Windows target (Windows x64 only). PyInstaller produces the onefile .exe on the
 # host; Inno Setup (ISCC.exe) wraps it in a per-user installer and a portable zip
@@ -1655,6 +1659,44 @@ with open(target, "wb") as fh:
 PY
 }
 
+# Sign the .app and its nested engine, then verify the seal.
+#
+# Every write inside the bundle after PyInstaller's own (ad-hoc) signing — the
+# Info.plist merge, any later staging — invalidates the signature, and
+# Gatekeeper then reports the app as *damaged*, which the documented
+# right-click → Open workaround cannot clear. Signing last keeps the seal valid;
+# --deep covers the nested code, and the bundled engine is signed explicitly
+# first because it arrives through --add-data as plain data.
+# $1 = .app path
+_macos_sign_app() {
+    local app="$1"
+    if ! command -v codesign >/dev/null 2>&1; then
+        log_error "codesign not found; install the Xcode Command Line Tools"
+        exit 1
+    fi
+
+    local engine
+    engine="$(find "${app}" -type f -path '*/hsync_desktop/bin/hsync' -print 2>/dev/null | head -1)"
+    [[ -n "${engine}" ]] || {
+        log_error "bundled hsync engine not found inside ${app}"
+        exit 1
+    }
+
+    log_step "Signing the .app (identity: ${MACOS_SIGN_IDENTITY})..."
+    codesign --force --sign "${MACOS_SIGN_IDENTITY}" "${engine}"
+    codesign --force --deep --sign "${MACOS_SIGN_IDENTITY}" "${app}"
+
+    # A broken seal must fail the build, not reach a user's Mac.
+    codesign --verify --deep --strict "${app}" || {
+        log_error "code signature verification failed for ${app}"
+        exit 1
+    }
+    codesign --verify --strict "${engine}" || {
+        log_error "code signature verification failed for the bundled engine"
+        exit 1
+    }
+}
+
 # Wrap a .app in a .dmg with the conventional /Applications symlink.
 # $1 = .app path  $2 = output .dmg  $3 = staging dir
 _macos_create_dmg() {
@@ -1739,6 +1781,11 @@ build_dmg() {
     [[ -d "${app}" ]] || { log_error "macOS .app not produced at ${app}"; exit 1; }
 
     _macos_apply_info_plist "${app}" "${rendered_plist}"
+
+    # Sign AFTER every bundle write: the Info.plist merge above breaks the seal
+    # PyInstaller applied, and shipping that bundle makes Gatekeeper report it as
+    # damaged (see _macos_sign_app).
+    _macos_sign_app "${app}"
 
     # The PyInstaller workpath is no longer needed once the .app exists; drop it
     # before packaging so hdiutil has room for its temp image (the CI runners are

@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The whole-system-tree warning now also appears on Windows and macOS, not only on
   Linux (system trees, `Program Files`/`ProgramData`, `/System`, `/Library`,
   `/Applications`).
+- macOS: the `.dmg` bundle is now signed after the `Info.plist` merge, so
+  Gatekeeper no longer reports the app as **damaged** on first launch (the
+  documented right-click → Open workaround could not clear that state).
+- Windows: `hsync-desktop --version` and `--help` now show their output — in a
+  terminal window, or in a dialog when the app is started without a console.
 
 ## [1.1.2] - 2026-11-12
 

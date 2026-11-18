@@ -68,6 +68,17 @@ warns on the first run (choose **More info → Run anyway**).
 Download the archive for the new version and repeat the install step; settings
 and secrets are kept separately by Qt `QSettings`.
 
+## Remove
+
+Delete what you extracted (the archive holds a folder with `hsync-desktop`, or
+`hsync-desktop.exe` on Windows), plus the `~/.local/bin/hsync-desktop` link if you
+created one.
+
+A login item created by **Start at login** is not part of those files: disable the
+toggle in Settings first, or follow the removal step for
+[macOS](getting-started-macos.md) / the
+[Windows installer](getting-started-windows.md).
+
 ## Next
 
 - Prefer the automated installer? [Installer script](getting-started-script.md).

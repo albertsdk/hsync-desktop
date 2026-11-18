@@ -34,7 +34,13 @@ On first launch open **Settings** and configure a connection — see the
 ## Update and remove
 
 Download and run the newer installer; it upgrades in place. To remove it, go to
-**Settings → Apps → HSYNC Desktop**.
+**Settings → Apps → HSYNC Desktop**: the uninstaller also clears the login item
+that **Start at login** registers.
+
+The portable `.zip` has no uninstaller: delete the extracted folder. If **Start
+at login** was enabled, clear its logon entry first — the value
+`HSYNC Desktop` under
+`HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 ## Next
 

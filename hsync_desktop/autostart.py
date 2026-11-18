@@ -26,13 +26,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from hsync_desktop.config import MINIMIZED_FLAG
+from hsync_desktop.config import APP_DISPLAY_NAME, MINIMIZED_FLAG
 
 _APP_NAME = "hsync-desktop"
 # Reverse-DNS label for the macOS LaunchAgent; matches the bundle id used by
 # packaging/macos/Info.plist.
 _MACOS_LABEL = "io.hsync.desktop"
-_WINDOWS_RUN_VALUE = "HSYNC Desktop"
+_WINDOWS_RUN_VALUE = APP_DISPLAY_NAME
 _WINDOWS_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 # Reserved characters that force double-quoting in an XDG Exec field.

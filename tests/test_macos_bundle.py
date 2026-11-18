@@ -52,3 +52,41 @@ def test_guide_names_the_built_bundle():
     text = MACOS_GUIDE.read_text(encoding="utf-8")
     assert f"/Applications/{bundle}" in text
     assert "HSYNC.app" not in text
+
+
+def _function_body(name: str) -> str:
+    match = re.search(rf"^{name}\(\) \{{\n(.*?)^\}}", COMPILE_SH.read_text(), re.M | re.S)
+    assert match is not None, f"{name}() is missing from compile.sh"
+    return match.group(1)
+
+
+def test_the_app_is_signed_after_every_bundle_write():
+    """The Info.plist merge invalidates the seal PyInstaller applied, so the
+    bundle must be signed last; a stale seal makes Gatekeeper report the shipped
+    app as damaged, which right-click → Open cannot clear."""
+    body = _function_body("build_dmg")
+    assert "_macos_apply_info_plist" in body
+    assert "_macos_sign_app" in body
+    assert body.index("_macos_apply_info_plist") < body.index("_macos_sign_app")
+
+    after_signing = body.split('_macos_sign_app "${app}"', 1)[1]
+    assert "_macos_apply_info_plist" not in after_signing
+
+
+def test_the_signer_resigns_and_verifies_the_seal():
+    body = _function_body("_macos_sign_app")
+    assert "codesign --force --sign" in body
+    assert "codesign --force --deep --sign" in body
+    assert "codesign --verify --deep --strict" in body
+    # The bundled engine arrives through --add-data as data, so it is signed
+    # explicitly and verified on its own.
+    assert "hsync_desktop/bin/hsync" in body
+    assert "codesign --verify --strict" in body
+
+
+def test_the_signing_identity_is_overridable():
+    """A Developer ID can be passed through the environment without editing the
+    script; the default stays ad hoc (no Apple account required)."""
+    assert re.search(
+        r'^readonly MACOS_SIGN_IDENTITY="\$\{MACOS_SIGN_IDENTITY:-', COMPILE_SH.read_text(), re.M
+    )

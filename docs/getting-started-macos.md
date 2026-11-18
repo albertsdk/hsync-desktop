@@ -64,8 +64,22 @@ tray icon. On first launch open **Settings** and configure a connection; see the
 Download the newer `.dmg` and replace the app in **Applications**. To remove it,
 drag **hsync-desktop.app** to the Trash.
 
+A login item created by **Start at login** lives outside the app bundle, so
+remove it too — disable the toggle in Settings first, or delete the entry:
+
+```bash
+rm -f "$HOME/Library/LaunchAgents/io.hsync.desktop.plist"
+```
+
+On macOS 13 and later macOS also lists the item under **System Settings → General
+→ Login Items**, where it may need to be allowed in the background; a leftover
+entry keeps pointing at the deleted app until it is removed.
+
+Settings and secrets are stored outside the bundle as well (Qt `QSettings` under
+`~/Library/Preferences`); deleting them resets the app to its first-run state.
+
 ## Next
 
-- Prefer no Gatekeeper prompt? There is no signed build yet; use the
-  [standalone binary](getting-started-binary.md) (same unsigned caveat) or run
-  [from source](getting-started-source.md).
+- Prefer no confirmation prompt? The app is signed ad hoc but not notarized, so
+  macOS still asks once — the [standalone binary](getting-started-binary.md) has
+  the same caveat, while [running from source](getting-started-source.md) avoids it.
