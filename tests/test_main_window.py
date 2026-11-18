@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from contextlib import contextmanager
 
 import pytest
@@ -3490,7 +3491,11 @@ class TestDeletionRiskGate:
 
         assert window._check_deletion_risk() is True
         assert len(shown) == 1
-        assert shown[0].windowTitle() == tr("notif.deletion_risk")
+        if sys.platform == "darwin":
+            # macOS does not show message-box titles (Qt ignores them).
+            assert shown[0].text() == tr("notif.deletion_risk_msg")
+        else:
+            assert shown[0].windowTitle() == tr("notif.deletion_risk")
         # Silence is always an explicit act: the opt-out starts unchecked.
         checkbox = shown[0].checkBox()
         assert checkbox is not None
@@ -3752,7 +3757,11 @@ class TestKeylessP2pPrompt:
         assert window._check_keyless_p2p() is True
 
         assert len(shown) == 1
-        assert shown[0].windowTitle() == tr("warn.keyless_p2p_title")
+        if sys.platform == "darwin":
+            # macOS does not show message-box titles (Qt ignores them).
+            assert shown[0].text() == tr("warn.keyless_p2p_msg")
+        else:
+            assert shown[0].windowTitle() == tr("warn.keyless_p2p_title")
         from hsync_desktop.icons import icon
 
         yes = shown[0].button(QMessageBox.StandardButton.Yes)

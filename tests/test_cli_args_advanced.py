@@ -10,6 +10,7 @@ default/auto behaviour, and the mass-deletion thresholds are always clamped.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -237,7 +238,7 @@ class TestLoggingFlags:
         args = _build_args({"output/verbose": True, "output/logfile": "/tmp/hsync.log"})
 
         assert "-v" in args
-        assert _value_after(args, "--log-file") == "/tmp/hsync.log"
+        assert _value_after(args, "--log-file") == str(Path("/tmp/hsync.log").resolve())
 
 
 class TestSubdirFilter:

@@ -174,6 +174,7 @@ class TestKdeFontFile:
 
 class TestResolveSystemFonts:
     def test_gnome_uses_the_configured_fonts(self, qapp, monkeypatch):
+        monkeypatch.setattr(fonts.sys, "platform", "linux")
         values = {
             "font-name": "'Probe UI 11'",
             "monospace-font-name": "'Probe Mono 12'",
@@ -190,6 +191,7 @@ class TestResolveSystemFonts:
         assert result.mono.pointSizeF() == pytest.approx(12.0)
 
     def test_gnome_text_scaling_is_applied(self, qapp, monkeypatch):
+        monkeypatch.setattr(fonts.sys, "platform", "linux")
         values = {
             "font-name": "'Probe UI 10'",
             "monospace-font-name": "'Probe Mono 10'",
@@ -204,6 +206,7 @@ class TestResolveSystemFonts:
         assert result.mono.pointSizeF() == pytest.approx(15.0)
 
     def test_an_uninstalled_family_keeps_the_configured_name_and_size(self, qapp, monkeypatch):
+        monkeypatch.setattr(fonts.sys, "platform", "linux")
         monkeypatch.setattr(fonts, "_desktop", lambda: "gnome")
         monkeypatch.setattr(
             fonts, "_gsettings_values", lambda keys: {"font-name": "'Missing Font 11'"}
@@ -217,6 +220,7 @@ class TestResolveSystemFonts:
         assert result.ui.pointSizeF() == pytest.approx(11.0)
 
     def test_kde_reads_kdeglobals(self, qapp, monkeypatch):
+        monkeypatch.setattr(fonts.sys, "platform", "linux")
         values = {
             "font": "Probe KDE,10,-1,5,50,0,0,0,0,0",
             "fixed": "Probe KDE Mono,11,-1,5,50,0,0,0,0,0",
