@@ -721,6 +721,8 @@ translations: dict[str, str] = {
     "license.unavailable": "Licentietekst niet beschikbaar.",
     # Bandwidth dialog
     "bandwidth.title": "Bandbreedtelimieten",
+    "details.button": "Details",
+    "tip.details_button": "De mapgrootte, de deelnemende apparaten, de sessietotalen en de bandbreedtelimiet tonen.",
     "bandwidth.upload": "Uploaden",
     "bandwidth.download": "Downloaden",
     "bandwidth.limit_enabled": "Snelheid beperken",

@@ -14,7 +14,14 @@ import pytest
 from hsync_common.protocol.events import UiEventName, build_event
 from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QFont, QMouseEvent
-from PySide6.QtWidgets import QApplication, QLabel, QMenu, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QWidgetAction,
+)
 
 from hsync_desktop.busy import SPINNER_FRAMES
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS
@@ -5820,3 +5827,72 @@ class TestConnectionBadge:
 
         assert window._conn_state == "stopped"
         assert window._conn_reason == tr("conn.state.stopped")
+
+
+class TestStatusBarLevels:
+    """The bar answers the two questions that matter; the rest lives in Details."""
+
+    @staticmethod
+    def _bar_names(window) -> list[str]:
+        layout = window.findChild(QHBoxLayout, "bottomBarLayout")
+        names = []
+        for index in range(layout.count()):
+            widget = layout.itemAt(index).widget()
+            if widget is not None:
+                names.append(widget.objectName())
+        return names
+
+    def test_the_bar_keeps_only_the_primary_indicators(self, window):
+        names = self._bar_names(window)
+
+        assert names[:2] == ["statusDot", "statusLabel"]
+        assert names.index("simulationBadge") > names.index("statusLabel")
+        assert "deletionBadge" in names
+        assert "problemsBadge" in names
+        assert names[-1] == "btnDetails"
+        for moved in ("roleLabel", "groupLabel", "lblPeers", "sentLabel", "recvLabel"):
+            assert moved not in names
+
+    def test_the_sync_state_sits_next_to_the_connection_state(self, window):
+        layout = window.findChild(QHBoxLayout, "bottomBarLayout")
+        status_idx = layout.indexOf(window._status_label)
+        assert layout.indexOf(window._sync_state_label) == status_idx + 1
+        # A stretch separates the two answers from the badges on the right.
+        assert layout.itemAt(status_idx + 2).spacerItem() is not None
+
+    def test_the_diagnostics_are_children_of_the_details_card(self, window):
+        for widget in (
+            window._role_icon,
+            window._role_label,
+            window._group_label,
+            window._share_size_label,
+            window._lbl_peers,
+            window._peers_label,
+            window._lbl_sent,
+            window._sent_label,
+            window._lbl_recv,
+            window._recv_label,
+        ):
+            assert window._details_widget.isAncestorOf(widget)
+
+    def test_the_details_menu_hosts_the_card_and_the_bandwidth_action(self, window):
+        actions = window._details_menu.actions()
+        assert isinstance(actions[0], QWidgetAction)
+        assert actions[0].defaultWidget() is window._details_widget
+        assert window._act_bandwidth is actions[-1]
+        assert window._act_bandwidth.text() == tr("bandwidth.title")
+        assert window._btn_details.menu() is window._details_menu
+
+    def test_the_card_hides_the_role_row_until_the_election(self, window):
+        window._is_master = None
+        window._role_known = False
+        window._retranslate_role()
+        window._refresh_details_card()
+        assert window._details_form.isRowVisible(0) is False
+
+        window._is_master = True
+        window._role_known = True
+        window._connected = True
+        window._retranslate_role()
+        window._refresh_details_card()
+        assert window._details_form.isRowVisible(0) is True

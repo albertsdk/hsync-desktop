@@ -27,8 +27,9 @@ devices. It is not a secret — the shared password is.
 
 In p2p Mode one device serves the files to the others: the **primary**. The others
 are **secondary**. **Prefer primary role** asks for that role and **Never become
-primary** removes the device from the election; the status bar shows the role once
-it is decided. (The engine's own log lines still say "master" for this role.)
+primary** removes the device from the election; the role appears in the status
+bar's **Details ▾** popover once it is decided. (The engine's own log lines still
+say "master" for this role.)
 
 ## Search server
 

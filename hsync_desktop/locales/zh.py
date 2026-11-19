@@ -721,6 +721,8 @@ translations: dict[str, str] = {
     "license.unavailable": "许可证文本不可用。",
     # Bandwidth dialog
     "bandwidth.title": "带宽限制",
+    "details.button": "详情",
+    "tip.details_button": "显示文件夹大小、参与设备、会话总计和带宽限制。",
     "bandwidth.upload": "上传",
     "bandwidth.download": "下载",
     "bandwidth.limit_enabled": "限制速度",

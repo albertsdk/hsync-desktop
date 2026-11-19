@@ -698,6 +698,8 @@ translations: dict[str, str] = {
     "license.unavailable": "Texte de la licence indisponible.",
     # Bandwidth dialog
     "bandwidth.title": "Limites de bande passante",
+    "details.button": "Détails",
+    "tip.details_button": "Afficher la taille du dossier, les appareils participants, les totaux de la session et la limite de bande passante.",
     "bandwidth.upload": "Téléversement",
     "bandwidth.download": "Téléchargement",
     "bandwidth.limit_enabled": "Limiter la vitesse",

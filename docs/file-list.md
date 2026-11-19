@@ -61,9 +61,9 @@ status bar keep counting every file.
 
 ## The shared-folder size
 
-The status bar's **Shared: X / Y** indicator shows the shared folder's size on
-this device (**X**) and the size of the whole share (**Y**, a dash while it is not
-yet known). The whole-share value is approximate when the two sides disagree on a
+The **Shared: X / Y** row of the status bar's **Details ▾** popover shows the
+shared folder's size on this device (**X**) and the size of the whole share
+(**Y**, a dash while it is not yet known). The whole-share value is approximate when the two sides disagree on a
 file's size.
 
 ## Right-click actions

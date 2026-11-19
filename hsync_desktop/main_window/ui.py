@@ -19,6 +19,7 @@ from PySide6.QtGui import (
     QTextCursor,
 )
 from PySide6.QtWidgets import (
+    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -30,6 +31,7 @@ from PySide6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
 
 from hsync_desktop.busy import BusyText
@@ -319,14 +321,9 @@ class UiBuildMixin:
         # endpoint badge's reason, without re-plumbing those events.
         self._problems.changed.connect(self._render_connection_badge)
         self._role_label: QLabel = self.findChild(QLabel, "roleLabel")  # type: ignore[assignment]
-        # Add role icon before roleLabel in the bottom bar layout
         self._role_icon = QLabel()
         self._role_icon.setFixedSize(16, 16)
         bottom_layout: QHBoxLayout = self.findChild(QHBoxLayout, "bottomBarLayout")  # type: ignore[assignment]
-        if bottom_layout:
-            role_idx = bottom_layout.indexOf(self._role_label)
-            if role_idx >= 0:
-                bottom_layout.insertWidget(role_idx, self._role_icon)
         self._group_label: QLabel = self.findChild(QLabel, "groupLabel")  # type: ignore[assignment]
         self._lbl_peers: QLabel = self.findChild(QLabel, "lblPeers")  # type: ignore[assignment]
         self._peers_label: QLabel = self.findChild(QLabel, "peersLabel")  # type: ignore[assignment]
@@ -354,16 +351,22 @@ class UiBuildMixin:
         # Busy feedback for this label, created here so the first
         # ``_render_sync_state`` (from ``_apply_translations``) already finds it.
         self._sync_busy = BusyText(self._sync_state_label)
+        # Level 1 answers the two questions that matter — connected? file sets
+        # aligned? — and keeps the status badges; the diagnostics moved to the
+        # Details popover so the bar is not a row of thirteen read-only labels.
         if bottom_layout:
-            peers_idx = bottom_layout.indexOf(self._lbl_peers)
-            if peers_idx >= 0:
-                bottom_layout.insertWidget(peers_idx, self._share_size_label)
-                bottom_layout.insertSpacing(peers_idx + 1, 14)
-                bottom_layout.insertWidget(peers_idx + 2, self._sync_state_label)
-                bottom_layout.insertSpacing(peers_idx + 3, 14)
+            status_idx = bottom_layout.indexOf(self._status_label)
+            if status_idx >= 0:
+                bottom_layout.insertWidget(status_idx + 1, self._sync_state_label)
+                bottom_layout.insertSpacing(status_idx + 2, 14)
             else:
-                bottom_layout.addWidget(self._share_size_label)
                 bottom_layout.addWidget(self._sync_state_label)
+            badge_idx = bottom_layout.indexOf(self._simulation_badge)
+            if badge_idx >= 0:
+                bottom_layout.insertStretch(badge_idx, 1)
+            else:
+                bottom_layout.addStretch(1)
+        self._build_details_card(bottom_layout)
 
         # Clicking the state opens the comparison while it reports pending work
         # (``EventsMixin._render_sync_state`` turns the cursor on and
@@ -383,6 +386,59 @@ class UiBuildMixin:
         # Connect bandwidth label click handlers using event filter
         for label in [self._lbl_sent, self._sent_label, self._lbl_recv, self._recv_label]:
             label.installEventFilter(self)
+
+    def _build_details_card(self, bottom_layout: QHBoxLayout | None) -> None:
+        """Build the level-2 popover with the diagnostics the bar used to show.
+
+        The same widget instances are reparented into the card, so every renderer
+        (role icon/label, share size, peers, session totals and the bandwidth
+        click targets) keeps working untouched; only the layout changes. The menu
+        gives outside-click/Esc dismissal and a reachable keyboard path for free.
+        """
+        self._details_menu = QMenu(self)
+        self._details_widget = QWidget(self._details_menu)
+        self._details_form = QFormLayout(self._details_widget)
+        self._details_form.setContentsMargins(10, 8, 10, 8)
+
+        role_row = QWidget(self._details_widget)
+        role_layout = QHBoxLayout(role_row)
+        role_layout.setContentsMargins(0, 0, 0, 0)
+        role_layout.setSpacing(6)
+        role_layout.addWidget(self._role_icon)
+        role_layout.addWidget(self._role_label, 1)
+
+        # Row order is fixed: _refresh_details_card addresses them by index.
+        self._details_form.addRow(role_row)  # 0 — p2p role, once elected
+        self._details_form.addRow(self._group_label)  # 1 — the group name
+        self._details_form.addRow(self._share_size_label)  # 2 — local / total
+        self._details_form.addRow(self._lbl_peers, self._peers_label)  # 3
+        self._details_form.addRow(self._lbl_sent, self._sent_label)  # 4
+        self._details_form.addRow(self._lbl_recv, self._recv_label)  # 5
+
+        holder = QWidgetAction(self._details_menu)
+        holder.setDefaultWidget(self._details_widget)
+        self._details_menu.addAction(holder)
+
+        self._act_bandwidth = QAction(tr("bandwidth.title"), self)
+        self._act_bandwidth.triggered.connect(self._show_bandwidth_dialog)
+        self._details_menu.addSeparator()
+        self._details_menu.addAction(self._act_bandwidth)
+        self._details_menu.aboutToShow.connect(self._refresh_details_card)
+
+        self._btn_details = QToolButton(self)
+        self._btn_details.setObjectName("btnDetails")
+        self._btn_details.setText(f"{tr('details.button')} ▾")
+        self._btn_details.setToolTip(tr("tip.details_button"))
+        self._btn_details.setAutoRaise(True)
+        self._btn_details.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._btn_details.setMenu(self._details_menu)
+        if bottom_layout is not None:
+            bottom_layout.addWidget(self._btn_details)
+
+    def _refresh_details_card(self) -> None:
+        """Mirror the app's own visibility instead of inventing a second one."""
+        self._details_form.setRowVisible(0, not self._role_label.isHidden())
+        self._details_form.setRowVisible(1, not self._group_label.isHidden())
 
     def _install_file_panel(self) -> None:
         """Replace the .ui placeholder with the real FilePanel."""
@@ -476,6 +532,10 @@ class UiBuildMixin:
             self._act_help_updates.setText(tr("menu.help.updates"))
             self._act_help_license.setText(tr("menu.help.license"))
             self._act_help_about.setText(tr("menu.help.about"))
+        if hasattr(self, "_btn_details"):
+            self._btn_details.setText(f"{tr('details.button')} ▾")
+            self._btn_details.setToolTip(tr("tip.details_button"))
+            self._act_bandwidth.setText(tr("bandwidth.title"))
 
         # Simulation Mode and backup-policy badges follow the language too.
         self._refresh_simulation_state()

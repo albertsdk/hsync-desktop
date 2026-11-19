@@ -80,24 +80,23 @@ panel from **Settings → General**.
 
 ## The status bar
 
-<img src="assets/screens/02-status-bar.png" alt="The status bar: sync state, share size, pending counts, devices and sent/received totals" width="720">
+<img src="assets/screens/02-status-bar.png" alt="The status bar: connection state, sync state, status badges and the Details button" width="720">
 
-The bottom bar answers, left to right:
+The bottom bar answers the two questions that matter, left to right:
 
 - **Are we connected?** — the coloured dot and its label (`Connecting…`,
   `Syncing…`, `Stopping…`, `Connected`, …).
 - **Is everything in sync?** — `All files in sync`, `2 to download · 1 to send`,
   `No devices`, `Checking…` and the other states described in
-  [Warnings and notifications](warnings.md).
-- **How big is the share?** — `Shared: X / Y`: **X** is this device's folder,
-  **Y** is the whole share.
-- **Who is taking part?** — `Devices: 2/2` in p2p Mode, or `Connected users` in
-  Server Mode; in p2p Mode the primary/secondary role also appears here.
-- **How much has moved?** — `↑ Sent` and `↓ Received` for this session (the count
-  is of distinct files; the size in parentheses is the total bytes).
+  [Warnings and notifications](warnings.md). While it names pending work, clicking
+  it compares.
 
-The bandwidth limits are editable straight from this bar: click the sent/received
-labels.
+On the right it keeps the badges that explain an active behaviour —
+**Simulation — no changes**, **Deletions kept** — the **⚠ problems** badge, and
+**Details ▾**, which opens the rest: the share size, the primary/secondary role
+(p2p), the group, the participating devices and the session totals
+(`↑ Sent` / `↓ Received`, files and bytes). The bandwidth limits are editable
+from there too (or by clicking the sent/received values).
 
 ## Closing the window and the tray
 

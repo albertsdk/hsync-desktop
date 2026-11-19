@@ -721,6 +721,8 @@ translations: dict[str, str] = {
     "license.unavailable": "ライセンス本文を表示できません。",
     # Bandwidth dialog
     "bandwidth.title": "帯域幅の制限",
+    "details.button": "詳細",
+    "tip.details_button": "フォルダーのサイズ、参加デバイス、セッション合計、帯域制限を表示します。",
     "bandwidth.upload": "アップロード",
     "bandwidth.download": "ダウンロード",
     "bandwidth.limit_enabled": "速度を制限",

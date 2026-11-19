@@ -258,8 +258,9 @@ silenced with its own checkbox, for the folder and settings it was confirmed for
 start asks again; nothing else changes. See
 [Warnings and notifications](warnings.md#warnings-before-a-sync).
 
-**Bandwidth limits** are also editable from the status bar: click the
-sent/received labels in the bottom-right of the main window. Both entry points
+**Bandwidth limits** are also editable from the status bar: open **Details ▾**
+in the bottom-right of the main window (or click the sent/received values
+inside it). Both entry points
 share the same values, and 0 means unlimited in both.
 
 The action labels the log panel can show are listed in
