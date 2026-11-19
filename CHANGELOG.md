@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documented right-click → Open workaround could not clear that state).
 - Windows: `hsync-desktop --version` and `--help` now show their output — in a
   terminal window, or in a dialog when the app is started without a console.
+- The Settings window no longer truncates a localized action button: the content
+  column widens past its reading width when a label needs it (a large system
+  font, as on Windows), and the button pair unfolds whenever the screen allows.
 
 ## [1.1.2] - 2026-11-12
 
