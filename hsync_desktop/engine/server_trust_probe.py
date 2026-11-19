@@ -9,9 +9,11 @@ certificate: an unverified context would leak the key to a man-in-the-middle.
 
 ``resolve_bucket_trust`` mirrors the client's ADR-0051 resolution using the
 shared policy (:mod:`hsync_common.protocol.tls_trust`) and the client trust
-store (``hsync trust server``). ``auto`` pins the first sighting (TOFU) with a
-notice; ``ask``/``strict`` require an explicit pin and fail closed otherwise; a
-changed fingerprint is always refused.
+store (``hsync trust server``). ``auto`` confines a self-signed first sighting to
+the presented certificate and reports ``needs_pin``; ``ask``/``strict`` require an
+explicit pin and fail closed otherwise; a changed fingerprint is always refused.
+This module never writes the store: ``pin_observed_fingerprint`` is the single
+write path, which its callers use once the request it gates has succeeded.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ __all__ = [
     "REASON_TRUST_MISSING",
     "REASON_TRUST_PIN_FAILED",
     "BucketTrust",
+    "pin_observed_fingerprint",
     "resolve_bucket_trust",
 ]
 
@@ -57,13 +60,14 @@ class BucketTrust:
 
     ``ssl_context`` is ``None`` only when ``reason`` explains why the request
     must not be sent. ``fingerprint`` is the observed server certificate (for the
-    UI notice) and ``pinned`` says a TOFU pin was stored by this resolution.
+    UI notice) and ``needs_pin`` says it is a first sighting: the caller stores it
+    once the request it gates has succeeded (``pin_observed_fingerprint``).
     """
 
     ssl_context: ssl.SSLContext | None
     reason: str = ""
     fingerprint: str = ""
-    pinned: bool = False
+    needs_pin: bool = False
 
 
 def resolve_bucket_trust(
@@ -80,6 +84,10 @@ def resolve_bucket_trust(
     ``none``/``insecure`` return an unverified context only because the user
     explicitly asked for it; every pinning policy returns a verified context or
     one anchored to the server's certificate, never an unverified one.
+
+    The resolver never writes the trust store: a first sighting comes back with
+    ``needs_pin`` and its request may proceed confined to that certificate, so a
+    check that fails afterwards leaves no stored identity behind.
     """
     selected = policy or TrustPolicy.auto.value
     if insecure or selected == TrustPolicy.none.value:
@@ -99,7 +107,6 @@ def resolve_bucket_trust(
     if certificate is None:
         return BucketTrust(None, reason=REASON_UNREACHABLE)
     observed, pem = certificate
-    stored = _stored_fingerprint(binary, host, port)
 
     if selected == TrustPolicy.auto.value:
         resolved = resolve_auto_policy(TrustPolicy.auto, stored, chain_trusted=chain_trusted)
@@ -115,9 +122,7 @@ def resolve_bucket_trust(
         context = verified if chain_trusted else certificate_ssl_context(pem)
         return BucketTrust(context, fingerprint=observed)
     if action is TrustAction.pin_and_proceed:
-        if not _pin(binary, host, port, observed):
-            return BucketTrust(None, reason=REASON_TRUST_PIN_FAILED, fingerprint=observed)
-        return BucketTrust(certificate_ssl_context(pem), fingerprint=observed, pinned=True)
+        return BucketTrust(certificate_ssl_context(pem), fingerprint=observed, needs_pin=True)
     if action is TrustAction.prompt:
         return BucketTrust(None, reason=REASON_TRUST_MISSING, fingerprint=observed)
     reason = REASON_TRUST_CHANGED if stored else REASON_TRUST_MISSING
@@ -158,3 +163,17 @@ def _pin(binary: str | None, host: str, port: int, fingerprint: str) -> bool:
     if not binary or not host:
         return False
     return add_server_trust(binary, host, fingerprint, port)
+
+
+def pin_observed_fingerprint(binary: str | None, base_url: str, fingerprint: str) -> bool:
+    """Store *fingerprint* as the pin of *base_url*'s endpoint; True on success.
+
+    The caller uses it after a probe that resolved the trust and then passed, so a
+    settings change only remembers an identity that was really reached and
+    authorised — a failed check leaves the store untouched. Consumers:
+    ``hsync_desktop/settings/dialog.py`` (the bucket check and the share creation).
+    """
+    if not fingerprint:
+        return False
+    host, port = _host_port(base_url)
+    return _pin(binary, host, port, fingerprint)

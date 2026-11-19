@@ -789,6 +789,7 @@ translations: dict[str, str] = {
     "wizard.connection.server_cert_check": "このサーバーの証明書を信頼",
     "wizard.connection.testing": "確認中…",
     "wizard.connection.test_rendezvous_server_ok": "検索サーバーを確認しました。フィンガープリント: {fingerprint}",
+    "wizard.connection.test_server_ok": "サーバーを確認しました。フィンガープリント: {fingerprint}",
     "wizard.connection.backup_share_hint": "共有は最初のアップロード時に作成されます。",
     "wizard.connection.lan_no_test": "開始前のネットワークテストはありません。接続は初回起動時に確認されます。",
     "wizard.connection.trust_save": "この検索サーバーを信頼して保存",

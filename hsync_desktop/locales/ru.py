@@ -789,6 +789,7 @@ translations: dict[str, str] = {
     "wizard.connection.server_cert_check": "Доверять сертификату этого сервера",
     "wizard.connection.testing": "Проверка…",
     "wizard.connection.test_rendezvous_server_ok": "Сервер поиска проверен. Отпечаток: {fingerprint}",
+    "wizard.connection.test_server_ok": "Сервер проверен. Отпечаток: {fingerprint}",
     "wizard.connection.backup_share_hint": "Общий ресурс создаётся при первой загрузке.",
     "wizard.connection.lan_no_test": "Перед запуском сеть не проверяется: соединение проверяется при первом запуске.",
     "wizard.connection.trust_save": "Доверять этому серверу поиска и сохранить",

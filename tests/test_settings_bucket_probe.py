@@ -295,6 +295,117 @@ class TestOutcome:
         assert _persisted(settings) == "old"
 
 
+class TestThePinFollowsTheCheck:
+    """The store remembers only an identity that was reached and authorised."""
+
+    TRUST_ARGS = ("auto", False, "", "hsync")
+
+    @staticmethod
+    def _needs_pin(monkeypatch, fingerprint: str) -> None:
+        import ssl
+
+        from hsync_desktop.engine.server_trust_probe import BucketTrust
+
+        monkeypatch.setattr(
+            settings_dialog,
+            "resolve_bucket_trust",
+            lambda **_kwargs: BucketTrust(
+                ssl.create_default_context(), fingerprint=fingerprint, needs_pin=True
+            ),
+        )
+
+    def test_a_passing_first_sighting_is_pinned_and_announced(
+        self, server_dialog, settings, monkeypatch
+    ):
+        settings.setValue("sync/bucket", "old")
+        server_dialog.bucket.setText("new")
+        fingerprint = "aa" * 32
+        self._needs_pin(monkeypatch, fingerprint)
+        monkeypatch.setattr(
+            settings_dialog,
+            "probe_server_bucket_access",
+            lambda *_a, **_k: (ServerProbeResult(True, 200, 1, True), ""),
+        )
+        pinned: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            settings_dialog,
+            "pin_observed_fingerprint",
+            lambda _binary, url, fp: pinned.append((url, fp)) or True,
+        )
+        job = server_dialog._bucket_probe_job("https://host/")
+
+        assert job is not None
+        assert job() == ProbeOutcome(True, 200, fingerprint=fingerprint, pinned=True)
+        # The pin names the endpoint that answered, and is written only now.
+        assert pinned == [("https://host", fingerprint)]
+
+    def test_a_missing_share_leaves_the_store_untouched(self, server_dialog, monkeypatch):
+        fingerprint = "aa" * 32
+        self._needs_pin(monkeypatch, fingerprint)
+        monkeypatch.setattr(
+            settings_dialog,
+            "probe_server_bucket_access",
+            lambda *_a, **_k: (ServerProbeResult(False, 404, 1, True), "share_missing"),
+        )
+        pinned: list[tuple] = []
+        monkeypatch.setattr(
+            settings_dialog,
+            "pin_observed_fingerprint",
+            lambda *args: pinned.append(args) or True,
+        )
+
+        outcome = server_dialog._bucket_probe_outcome(
+            "https://host", "new", "key", self.TRUST_ARGS, 5.0
+        )
+
+        assert outcome.reason == "share_missing"
+        assert outcome.pinned is False
+        assert pinned == []
+
+    def test_a_pin_that_cannot_be_stored_blocks_the_save(self, server_dialog, monkeypatch):
+        from hsync_desktop.engine.server_trust_probe import REASON_TRUST_PIN_FAILED
+
+        fingerprint = "aa" * 32
+        self._needs_pin(monkeypatch, fingerprint)
+        monkeypatch.setattr(
+            settings_dialog,
+            "probe_server_bucket_access",
+            lambda *_a, **_k: (ServerProbeResult(True, 200, 1, True), ""),
+        )
+        monkeypatch.setattr(settings_dialog, "pin_observed_fingerprint", lambda *_a, **_k: False)
+
+        outcome = server_dialog._bucket_probe_outcome(
+            "https://host", "new", "key", self.TRUST_ARGS, 5.0
+        )
+
+        assert outcome.ok is False
+        assert outcome.reason == REASON_TRUST_PIN_FAILED
+        assert outcome.fingerprint == fingerprint
+
+    def test_the_notice_names_the_fingerprint_that_was_written(
+        self, server_dialog, settings, monkeypatch
+    ):
+        settings.setValue("sync/bucket", "old")
+        server_dialog.bucket.setText("new")
+        shown: list[str] = []
+
+        class _Box:
+            @staticmethod
+            def information(_parent, _title, text):
+                shown.append(text)
+
+        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+        fingerprint = "aa" * 32
+
+        server_dialog._on_bucket_probe_done(
+            ProbeOutcome(True, 200, fingerprint=fingerprint, pinned=True)
+        )
+
+        assert shown == [
+            tr("settings.bucket_probe.tofu_saved").replace("{fingerprint}", fingerprint)
+        ]
+
+
 class TestBusyState:
     def test_the_ok_button_reports_the_check_and_is_restored(self, server_dialog):
         box = server_dialog.findChild(QDialogButtonBox)

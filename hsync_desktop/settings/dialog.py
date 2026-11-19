@@ -128,6 +128,7 @@ from hsync_desktop.engine.server_trust_probe import (
     REASON_TRUST_CHANGED,
     REASON_TRUST_MISSING,
     REASON_TRUST_PIN_FAILED,
+    pin_observed_fingerprint,
     resolve_bucket_trust,
 )
 from hsync_desktop.i18n import (
@@ -261,9 +262,9 @@ class SettingsDialog(QDialog):
         self._probe = AsyncProbe(self)
         self._probe.done.connect(self._on_probe_done)
         self._probe_target: str | None = None
-        # (base_url, bucket, api_key, ssl_context, timeout) of the bucket check in
-        # flight, so "create the share on the server" can reuse exactly what was
-        # probed instead of re-reading the form.
+        # (base_url, bucket, api_key, (trust policy, insecure, ca cert, binary),
+        # timeout) of the bucket check in flight, so "create the share on the
+        # server" can reuse exactly what was probed instead of re-reading the form.
         self._bucket_probe_args: (
             tuple[str, str, str, tuple[str | None, bool, str, str | None], float] | None
         ) = None
@@ -1297,7 +1298,9 @@ class SettingsDialog(QDialog):
         """Resolve the TLS trust, then reach the server and check the bucket.
 
         Runs on the probe thread; the API key only travels over the verified or
-        certificate-pinned context from ``resolve_bucket_trust``.
+        certificate-confined context from ``resolve_bucket_trust``. The first
+        sighting is pinned here, once the check passed: a save never remembers an
+        identity that could not be used.
         """
         policy, insecure, ca_cert, binary = trust_args
         trust = resolve_bucket_trust(
@@ -1318,12 +1321,17 @@ class SettingsDialog(QDialog):
         result, reason = probe_server_bucket_access(
             base_url, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
         )
+        if reason:
+            return ProbeOutcome(False, result.status, fingerprint=trust.fingerprint, reason=reason)
+        if trust.needs_pin and not pin_observed_fingerprint(binary, base_url, trust.fingerprint):
+            return ProbeOutcome(
+                False,
+                result.status,
+                fingerprint=trust.fingerprint,
+                reason=REASON_TRUST_PIN_FAILED,
+            )
         return ProbeOutcome(
-            not reason,
-            result.status,
-            fingerprint=trust.fingerprint,
-            reason=reason,
-            pinned=trust.pinned,
+            True, result.status, fingerprint=trust.fingerprint, pinned=trust.needs_pin
         )
 
     def _start_bucket_probe(self, job: Callable[[], ProbeOutcome]) -> None:
@@ -1928,7 +1936,7 @@ class SettingsDialog(QDialog):
         finalize_size(self)
 
     def _load_connection(self, s: QSettings) -> None:
-        """Restore the server-connection fields (Server Mode tab)."""
+        """Restore the local folder and the server-connection fields."""
         self.shared_path.setText(str(s.value("path/local", "", str)))
         self._folder_loaded = self.shared_path.text().strip()
         self.server_url.setText(str(s.value("connection/server_url", "", str)))

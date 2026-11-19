@@ -790,6 +790,7 @@ translations: dict[str, str] = {
     "wizard.connection.server_cert_check": "Trust this server's certificate",
     "wizard.connection.testing": "Checking…",
     "wizard.connection.test_rendezvous_server_ok": "Search server verified. Fingerprint: {fingerprint}",
+    "wizard.connection.test_server_ok": "Server verified. Fingerprint: {fingerprint}",
     "wizard.connection.backup_share_hint": "The share is created on the first upload.",
     "wizard.connection.lan_no_test": "No network test before starting: the connection is verified on first start.",
     "wizard.connection.trust_save": "Trust this search server and save",

@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
 
 from PySide6.QtWidgets import (
     QComboBox,
@@ -28,17 +27,19 @@ from hsync_desktop.engine import (
     REASON_UNREACHABLE,
     AsyncProbe,
     ProbeOutcome,
-    build_probe_ssl_context,
-    certificate_ssl_context,
     create_server_bucket,
     fetch_rendezvous_fingerprint,
-    fetch_server_certificate,
     find_hsync_binary,
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
     probe_server_bucket_access,
     probe_server_health,
     server_failure_reason,
+)
+from hsync_desktop.engine.server_trust_probe import (
+    REASON_TRUST_CHANGED,
+    BucketTrust,
+    resolve_bucket_trust,
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.probe_messages import probe_reason_text
@@ -63,6 +64,39 @@ _DIRECTIONS = ("bidirectional", "upload-only", "download-only")
 _TRANSPORTS = ("auto", "quic", "tcp")
 
 _STATUS_OBJECT_NAMES = {"working": "mutedHint", "ok": "statusOk", "error": "statusError"}
+
+# A changed server certificate is refused before the API key leaves: the sentence
+# is the one the Settings bucket check shows for the same reason.
+_TRUST_CHANGED_KEY = "settings.bucket_probe.trust_changed"
+
+
+def _resolve_server_trust(
+    base_url: str,
+    *,
+    accept_certificate: bool,
+    binary: str | None,
+    timeout: float,
+) -> BucketTrust:
+    """TLS context for the server test and the share creation.
+
+    The "trust this server's certificate" switch is the user accepting that
+    certificate, so ``auto`` applies the client's ADR-0051 resolution: an
+    existing pin is enforced, a changed one is refused, and a self-signed first
+    sighting is confined to the presented certificate instead of sending the API
+    key over an unverified connection. With the switch off only a CA-validated
+    chain is accepted. The probe never writes the trust store, so ``needs_pin``
+    is deliberately left to Finish, which pins the verified fingerprint with the
+    trust choice the draft carries.
+    """
+    return resolve_bucket_trust(
+        base_url=base_url,
+        policy="auto" if accept_certificate else "chain",
+        insecure=False,
+        ca_cert="",
+        binary=binary,
+        timeout=timeout,
+    )
+
 
 # Shared form-label width: keeps the share-name field aligned with the
 # mode-specific fields; longer translations wrap instead of squeezing the field.
@@ -406,8 +440,9 @@ class ConnectionPage(WizardPage):
         bucket = self.bucket.text().strip()
         api_key = self.api_key.text().strip()
         check_bucket = bool(bucket and api_key)
-        trust_switch = self.cert_switch.isChecked()
-        ssl_context = build_probe_ssl_context(insecure=False, trust_policy="chain")
+        # Read on the GUI thread: the job runs on the probe thread.
+        accept_certificate = self.cert_switch.isChecked()
+        binary = find_hsync_binary()
         timeout = self._timeout()
         set_field_error(self.bucket, self._rows["bucket"][2], "")
         self._share_missing = False
@@ -420,30 +455,31 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
-            context = ssl_context
-            fingerprint = ""
-            if trust_switch:
-                # The user accepted this server's certificate (trust switch):
-                # pin the presented certificate for the test so the API key is
-                # never sent over an unverified connection.
-                parsed = urlsplit(base)
-                certificate = fetch_server_certificate(
-                    parsed.hostname or "", parsed.port or 443, timeout
+            trust = _resolve_server_trust(
+                base,
+                accept_certificate=accept_certificate,
+                binary=binary,
+                timeout=timeout,
+            )
+            if trust.ssl_context is None:
+                # Fail closed: a refused trust resolution means the key must not
+                # be sent at all.
+                return ProbeOutcome(
+                    False,
+                    None,
+                    fingerprint=trust.fingerprint,
+                    reason=trust.reason or REASON_UNREACHABLE,
                 )
-                if certificate is None:
-                    return ProbeOutcome(False, None, reason=REASON_UNREACHABLE)
-                fingerprint, pem = certificate
-                context = certificate_ssl_context(pem)
             if not check_bucket:
-                health = probe_server_health(base, ssl_context=context, timeout=timeout)
+                health = probe_server_health(base, ssl_context=trust.ssl_context, timeout=timeout)
                 if health.ok:
-                    return ProbeOutcome(True, health.status, fingerprint=fingerprint)
+                    return ProbeOutcome(True, health.status, fingerprint=trust.fingerprint)
                 return ProbeOutcome(False, health.status, reason=server_failure_reason(health))
             result, reason = probe_server_bucket_access(
-                base, bucket, api_key, ssl_context=context, timeout=timeout
+                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
             )
             if not reason:
-                return ProbeOutcome(True, result.status, fingerprint=fingerprint)
+                return ProbeOutcome(True, result.status, fingerprint=trust.fingerprint)
             # A missing share is a real blocker in both modes: the first upload
             # never creates it (the listing comes first), so the page offers to
             # create it instead of promising an implicit one.
@@ -467,10 +503,9 @@ class ConnectionPage(WizardPage):
         api_key = self.api_key.text().strip()
         if not bucket or not api_key:
             return
-        ssl_context = build_probe_ssl_context(
-            insecure=False,
-            trust_policy="ask" if self.cert_switch.isChecked() else "chain",
-        )
+        # Read on the GUI thread: the job runs on the probe thread.
+        accept_certificate = self.cert_switch.isChecked()
+        binary = find_hsync_binary()
         timeout = self._timeout()
         self._active_target = "server"
         self._set_status(self.server_status, "working", tr("wizard.connection.testing"))
@@ -478,17 +513,38 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
+            trust = _resolve_server_trust(
+                base,
+                accept_certificate=accept_certificate,
+                binary=binary,
+                timeout=timeout,
+            )
+            if trust.ssl_context is None:
+                # The creation is an authenticated call: never send the key
+                # without the verified or pinned context.
+                return ProbeOutcome(
+                    False,
+                    None,
+                    fingerprint=trust.fingerprint,
+                    reason=trust.reason or REASON_UNREACHABLE,
+                )
             created = create_server_bucket(
-                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
             )
             if not created.ok:
                 reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
-                return ProbeOutcome(False, created.status, reason=reason, limit=created.limit)
+                return ProbeOutcome(
+                    False,
+                    created.status,
+                    reason=reason,
+                    limit=created.limit,
+                    fingerprint=trust.fingerprint,
+                )
             result, reason = probe_server_bucket_access(
-                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
             )
             if not reason:
-                return ProbeOutcome(True, result.status)
+                return ProbeOutcome(True, result.status, fingerprint=trust.fingerprint)
             return ProbeOutcome(False, result.status, reason=reason)
 
         self._probe.start(job)
@@ -577,9 +633,30 @@ class ConnectionPage(WizardPage):
         if outcome.ok:
             self._server_verified = True
             self._server_verified_at = datetime.now(UTC).isoformat()
-            self._set_status(self.server_status, "ok", tr("settings.test_connection_success"))
+            # The verified certificate is what Finish pins: keeping the observed
+            # fingerprint avoids a second handshake that could see another one.
+            self._server_fingerprint = outcome.fingerprint
+            self._set_status(
+                self.server_status,
+                "ok",
+                tr("wizard.connection.test_server_ok").format(fingerprint=outcome.fingerprint)
+                if outcome.fingerprint
+                else tr("settings.test_connection_success"),
+            )
             self._share_missing = False
             self.create_server_share.setVisible(False)
+            self.changed.emit()
+            return
+        if outcome.reason == REASON_TRUST_CHANGED:
+            # The certificate no longer matches the stored pin: nothing was sent
+            # and nothing was created, and the sentence names what was observed.
+            self._share_missing = False
+            self.create_server_share.setVisible(False)
+            self._set_status(
+                self.server_status,
+                "error",
+                tr(_TRUST_CHANGED_KEY).replace("{fingerprint}", outcome.fingerprint),
+            )
             self.changed.emit()
             return
         if outcome.reason == "create_quota":

@@ -789,6 +789,7 @@ translations: dict[str, str] = {
     "wizard.connection.server_cert_check": "信任此服务器的证书",
     "wizard.connection.testing": "正在检查…",
     "wizard.connection.test_rendezvous_server_ok": "搜索服务器已验证。指纹：{fingerprint}",
+    "wizard.connection.test_server_ok": "服务器已验证。指纹：{fingerprint}",
     "wizard.connection.backup_share_hint": "共享将在首次上传时创建。",
     "wizard.connection.lan_no_test": "开始前不进行网络测试：连接将在首次启动时验证。",
     "wizard.connection.trust_save": "信任此搜索服务器并保存",

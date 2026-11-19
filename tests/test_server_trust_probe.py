@@ -47,12 +47,13 @@ def test_a_trusted_chain_needs_no_pin_for_auto(monkeypatch):
     trust = _resolve("auto")
 
     assert trust.reason == ""
-    assert trust.pinned is False
+    assert trust.needs_pin is False
     assert trust.ssl_context is not None
     assert trust.ssl_context.verify_mode == ssl.CERT_REQUIRED
 
 
-def test_auto_pins_a_first_sighting_and_uses_the_certificate(monkeypatch):
+def test_auto_confines_a_first_sighting_to_the_certificate(monkeypatch):
+    """The resolver does not pin: it hands the decision to its caller."""
     added: list[str] = []
     sentinel = ssl.create_default_context()
     monkeypatch.setattr(stp, "probe_server_health", _untrusted)
@@ -66,9 +67,10 @@ def test_auto_pins_a_first_sighting_and_uses_the_certificate(monkeypatch):
     trust = _resolve("auto")
 
     assert trust.reason == ""
-    assert trust.pinned is True
     assert trust.ssl_context is sentinel
-    assert added == [FP]
+    assert trust.fingerprint == FP
+    assert trust.needs_pin is True
+    assert added == []
 
 
 def test_strict_without_a_pin_refuses(monkeypatch):
@@ -106,6 +108,7 @@ def test_a_changed_pin_is_refused(monkeypatch):
 
     assert trust.ssl_context is None
     assert trust.reason == stp.REASON_TRUST_CHANGED
+    assert trust.needs_pin is False
 
 
 def test_a_matching_pin_proceeds(monkeypatch):
@@ -123,4 +126,39 @@ def test_a_matching_pin_proceeds(monkeypatch):
 
     assert trust.reason == ""
     assert trust.ssl_context is sentinel
-    assert trust.pinned is False
+    assert trust.needs_pin is False
+
+
+class TestPinObservedFingerprint:
+    """The caller pins only an identity it reached, so the URL names the endpoint."""
+
+    def test_it_pins_the_url_endpoint(self, monkeypatch):
+        seen: list[tuple[str, str, int]] = []
+        monkeypatch.setattr(
+            stp,
+            "add_server_trust",
+            lambda _binary, host, fingerprint, port: seen.append((host, fingerprint, port)) or True,
+        )
+
+        assert stp.pin_observed_fingerprint("hsync", "https://host:9753/", FP) is True
+
+        assert seen == [("host", FP, 9753)]
+
+    def test_an_implicit_port_is_443(self, monkeypatch):
+        seen: list[int] = []
+        monkeypatch.setattr(
+            stp, "add_server_trust", lambda _binary, _host, _fp, port: seen.append(port) or True
+        )
+
+        assert stp.pin_observed_fingerprint("hsync", "https://host", FP) is True
+
+        assert seen == [443]
+
+    def test_an_empty_fingerprint_or_missing_binary_pins_nothing(self, monkeypatch):
+        called: list[tuple] = []
+        monkeypatch.setattr(stp, "add_server_trust", lambda *args: called.append(args) or True)
+
+        assert stp.pin_observed_fingerprint("hsync", "https://host", "") is False
+        assert stp.pin_observed_fingerprint(None, "https://host", FP) is False
+
+        assert called == []

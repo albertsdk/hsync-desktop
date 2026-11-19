@@ -802,6 +802,128 @@ class TestModeDocumentationLink:
         assert label.property("docsUrl") == docs_links.CONNECTION_MODES
 
 
+class TestServerTrust:
+    """The server test and the share creation never send the key unverified."""
+
+    @staticmethod
+    def _page(wizard):
+        page = wizard.connection_page
+        page.set_mode(WizardMode.TEAM_SHARE)
+        page.server_url.setText("https://server.example.com:9753")
+        page.api_key.setText("hs_1_secret")
+        page.bucket.setText("team")
+        return page
+
+    def test_the_switch_selects_the_pinning_policy(self, monkeypatch):
+        """The switch accepts the certificate, so ``auto`` resolves ADR-0051."""
+        import ssl
+
+        from hsync_desktop.engine.server_trust_probe import BucketTrust
+        from hsync_desktop.wizard.pages import connection as conn
+
+        seen: list[str] = []
+
+        def fake_resolve(**kwargs):
+            seen.append(kwargs["policy"])
+            return BucketTrust(ssl.create_default_context())
+
+        monkeypatch.setattr(conn, "resolve_bucket_trust", fake_resolve)
+
+        conn._resolve_server_trust(
+            "https://host:9753", accept_certificate=True, binary="hsync", timeout=5.0
+        )
+        conn._resolve_server_trust(
+            "https://host:9753", accept_certificate=False, binary="hsync", timeout=5.0
+        )
+
+        # The probe never writes the store: Finish pins with the draft's choice.
+        assert seen == ["auto", "chain"]
+
+    def test_the_create_path_uses_the_resolved_verified_context(self, wizard, qtbot, monkeypatch):
+        """Regression: the creation is authenticated, so it never runs unverified."""
+        import ssl
+
+        from hsync_desktop.engine.probes import ServerProbeResult
+        from hsync_desktop.engine.server_trust_probe import BucketTrust
+        from hsync_desktop.wizard.pages import connection as conn
+
+        page = self._page(wizard)
+        page.cert_switch.setChecked(True)
+        context = ssl.create_default_context()
+        monkeypatch.setattr(conn, "resolve_bucket_trust", lambda **_k: BucketTrust(context))
+        used: list[ssl.SSLContext] = []
+
+        def fake_create(_base, _bucket, _key, *, ssl_context, timeout):
+            used.append(ssl_context)
+            return ServerProbeResult(True, 201, 1, True)
+
+        def fake_access(_base, _bucket, _key, *, ssl_context, timeout):
+            used.append(ssl_context)
+            return ServerProbeResult(True, 200, 1, True), ""
+
+        monkeypatch.setattr(conn, "create_server_bucket", fake_create)
+        monkeypatch.setattr(conn, "probe_server_bucket_access", fake_access)
+
+        page._on_create_server_share()
+        qtbot.waitUntil(lambda: not page._probing, timeout=5000)
+
+        # The creation and the re-check use the resolver's context, never one the
+        # page builds itself (the unverified context this regression fixed).
+        assert used == [context, context]
+
+    def test_a_changed_pin_refuses_before_sending_the_key(self, wizard, qtbot, monkeypatch):
+        from hsync_desktop.engine.server_trust_probe import (
+            REASON_TRUST_CHANGED,
+            BucketTrust,
+        )
+        from hsync_desktop.wizard.pages import connection as conn
+
+        changed = "bb" * 32
+        page = self._page(wizard)
+        page.cert_switch.setChecked(True)
+        calls: list[str] = []
+        monkeypatch.setattr(
+            conn,
+            "resolve_bucket_trust",
+            lambda **_k: BucketTrust(None, reason=REASON_TRUST_CHANGED, fingerprint=changed),
+        )
+        monkeypatch.setattr(
+            conn, "probe_server_bucket_access", lambda *a, **k: calls.append("bucket")
+        )
+
+        page._on_test_server()
+        qtbot.waitUntil(lambda: not page._probing, timeout=5000)
+
+        assert calls == []
+        assert page.server_status.text() == tr("settings.bucket_probe.trust_changed").replace(
+            "{fingerprint}", changed
+        )
+
+    def test_the_verified_fingerprint_reaches_the_draft(self, wizard):
+        """Finish pins the certificate the test verified, not a later one."""
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = self._page(wizard)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(True, 200, fingerprint="AA:BB"))
+
+        draft = WizardDraft()
+        page.store(draft)
+
+        assert draft.server_fingerprint == "AA:BB"
+
+    def test_the_verified_certificate_is_reported_with_its_fingerprint(self, wizard):
+        from hsync_desktop.engine import ProbeOutcome
+
+        page = self._page(wizard)
+        page._active_target = "server"
+        page._on_probe_done(ProbeOutcome(True, 200, fingerprint="AA:BB"))
+
+        assert page.server_status.text() == tr("wizard.connection.test_server_ok").format(
+            fingerprint="AA:BB"
+        )
+
+
 class TestModePageFitsWithoutClipping:
     """The mode cards keep their wrapped caption readable on a short window."""
 

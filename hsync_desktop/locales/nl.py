@@ -789,6 +789,7 @@ translations: dict[str, str] = {
     "wizard.connection.server_cert_check": "Vertrouw het certificaat van deze server",
     "wizard.connection.testing": "Controleren…",
     "wizard.connection.test_rendezvous_server_ok": "Zoekserver geverifieerd. Vingerafdruk: {fingerprint}",
+    "wizard.connection.test_server_ok": "Server geverifieerd. Vingerafdruk: {fingerprint}",
     "wizard.connection.backup_share_hint": "De share wordt bij de eerste upload aangemaakt.",
     "wizard.connection.lan_no_test": "Geen netwerktest vooraf: de verbinding wordt bij de eerste start gecontroleerd.",
     "wizard.connection.trust_save": "Deze zoekserver vertrouwen en opslaan",
