@@ -61,7 +61,8 @@ from hsync_desktop.ui.loader import load_ui_widget
 _BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
 _NAV_ICON_PX = 20
 _NAV_FILTER_ICON_PX = 16
-_SEARCH_FIELD_MAX_PX = 220
+_SEARCH_FIELD_MIN_PX = 200
+_SEARCH_FIELD_MAX_PX = 280
 _SEARCH_DEBOUNCE_MS = 120
 # Remember the "only changes" view across restarts (least surprise: off first).
 _FILTER_SETTINGS_KEY = "ui/file_filter_only_changes"
@@ -237,6 +238,7 @@ class FilePanel(QWidget):
         self._search.setObjectName("fileFilterField")
         self._search.setPlaceholderText(tr("file.filter_placeholder"))
         self._search.setClearButtonEnabled(True)
+        self._search.setMinimumWidth(_SEARCH_FIELD_MIN_PX)
         self._search.setMaximumWidth(_SEARCH_FIELD_MAX_PX)
         self._search.hide()
         self._search.textChanged.connect(self._on_search_text)

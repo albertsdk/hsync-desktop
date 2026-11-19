@@ -101,7 +101,7 @@ class TestSwitch:
         assert window._share_store.active_id() == beta.id
         assert window._local_path == str(tmp_path / "beta")
         assert window._share_store._s.value("path/local") == str(tmp_path / "beta")
-        assert "Beta" in window._path_label.text()
+        assert "Beta" in window._shares_button.text()
         assert not window._engine.is_running
 
     def test_switch_while_running_needs_confirmation(self, window, tmp_path, monkeypatch):
@@ -151,7 +151,7 @@ class TestCreateRenameDelete:
 
         assert window._share_store.get(share.id).name == "Renamed"
         assert window._share_store.get(share.id).values["sync/bucket"] == "team"
-        assert "Renamed" in window._path_label.text()
+        assert "Renamed" in window._shares_button.text()
 
     def test_delete_refuses_the_last_share(self, window, tmp_path):
         _configure(window, tmp_path, bucket="team")
@@ -214,8 +214,11 @@ class TestLogsAndIdentity:
     def test_the_header_shows_the_share_name_and_a_rich_tooltip(self, window, tmp_path):
         _configure(window, tmp_path, bucket="team")
 
-        assert window._path_label.text() == "team"
-        tip = window._path_label.toolTip()
+        # One control: the selector button carries the name and the chevron;
+        # the label is only the empty state's placeholder.
+        assert window._shares_button.text() == "team ▾"
+        assert window._path_label.isHidden()
+        tip = window._shares_button.toolTip()
         assert str(tmp_path / "team") in tip
         assert tr("shares.tip.bucket") in tip
         assert tr("shares.tip.mode_p2p") in tip or tr("shares.tip.mode_server") in tip
@@ -408,15 +411,19 @@ class TestReviewFixes:
 class TestSelectorChrome:
     """The header selector draws one chevron, from the app's own styling."""
 
-    def test_the_selector_keeps_a_single_arrow(self, window):
+    def test_the_selector_keeps_a_single_arrow(self, window, tmp_path):
         from PySide6.QtCore import Qt
 
         from hsync_desktop.themes import _dark_qss, _light_qss
 
-        # The arrow comes from the arrowType; the style must not paint its own
-        # menu indicator as well, or some styles show two chevrons.
+        _configure(window, tmp_path, bucket="team")
+
+        # One chevron, drawn as the same text glyph the Details button uses; the
+        # style must not paint its own menu indicator as well.
         assert window._shares_button.objectName() == "sharesButton"
-        assert window._shares_button.arrowType() == Qt.ArrowType.DownArrow
+        assert window._shares_button.arrowType() == Qt.ArrowType.NoArrow
+        assert window._shares_button.text() == "team ▾"
+        assert window._btn_details.text().endswith(" ▾")
         for qss in (_light_qss(), _dark_qss()):
             assert "QToolButton#sharesButton::menu-indicator" in qss
 

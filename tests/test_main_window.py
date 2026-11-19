@@ -740,14 +740,14 @@ class TestShareNameInActionBar:
         window._local_path = str(tmp_path)
         window._share_store.sync_from_flat()
         window._update_path_display()
-        assert "old-group" in window._path_label.toolTip()
+        assert "old-group" in window._shares_button.toolTip()
 
         # The user changes the group in Settings: the dialog writes the flat key.
         settings.setValue("p2p/group", "new-group")
         window._apply_settings_changes()
 
-        assert "new-group" in window._path_label.toolTip()
-        assert "old-group" not in window._path_label.toolTip()
+        assert "new-group" in window._shares_button.toolTip()
+        assert "old-group" not in window._shares_button.toolTip()
 
     def test_saved_share_name_is_used_before_detection(self, window, monkeypatch, tmp_path):
         s = _settings(tmp_path)

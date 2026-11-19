@@ -160,18 +160,27 @@ class StartMixin:
             )
             self._path_icon_label.show()
             share_name = self._share_display_name()
-            # Elide the name if it's too long (max ~300px)
-            max_name_px = 300
-            fm = QFontMetrics(self._path_label.font())
+            has_shares = self._share_store.has_shares()
+            # The selector button owns the name when there is a share: one hit
+            # area for the menu, and the chevron makes it look like one control.
+            target = self._shares_button if has_shares else self._path_label
+            chevron = " ▾" if has_shares else ""
+            fm = QFontMetrics(target.font())
+            # Elide the name if it's too long (~300px, chevron included).
+            max_name_px = 300 - fm.horizontalAdvance(" ▾")
             elided = fm.elidedText(share_name, Qt.TextElideMode.ElideMiddle, max_name_px)
             # The name is the active share's identity (the selector, and the
             # folder icon, own the click actions); the tooltip carries the rest.
-            self._path_label.setText(elided)
+            target.setText(f"{elided}{chevron}")
             # The full local path + bucket/direction/target are always reachable
             # here: this tooltip is intentionally exempt from the "Show tooltips"
             # preference, which only governs the settings fields.
-            self._path_label.setToolTip(self._active_header_tooltip())
-            self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+            target.setToolTip(self._active_header_tooltip())
+            # Only the placeholder keeps the clickable label; a real share uses
+            # the button (keyboard reachable, native dropdown), so the label goes.
+            self._path_label.setVisible(not has_shares)
+            if not has_shares:
+                self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
 
             # ── Sync direction icon ───────────────────────────────────
             s = QSettings(SETTINGS_ORG, SETTINGS_APP)
@@ -241,6 +250,7 @@ class StartMixin:
             self._path_label.setText(tr("label.path_placeholder"))
             self._path_label.setToolTip(tr("label.path_placeholder_tip"))
             self._path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._path_label.show()
 
     def _build_disclaimer_dialog(
         self,

@@ -17,9 +17,10 @@ check are **not** per-share: they apply to the whole application.
 
 ## The share selector
 
-The share name sits in the header, next to a small dropdown arrow:
+The share name in the header is one control, with a small chevron at its right
+(the same one the **Details** button uses):
 
-- click the **name or the arrow** to open the list of shares;
+- click the **name** to open the list of shares;
 - the list shows each share with its mode icon (p2p or server), the active one
   ticked; hover for its folder, bucket, direction and target;
 - the **folder icon** opens the active share's folder in your file manager.

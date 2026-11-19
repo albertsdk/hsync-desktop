@@ -40,9 +40,9 @@ over the live connection. `F5` and `Ctrl+Shift+P` both reach it.
 
 The path bar tells you **what** you are looking at and **where it goes**:
 
-- the **folder icon** with the **share name** (here `my-share`) opens the shared
-  folder in your file manager when you click it; the tooltip shows the folder's
-  full path on this computer;
+- the **folder icon** opens the shared folder in your file manager; the **share
+  name** next to it is a dropdown (chevron on its right) that switches share and
+  offers **New share…**, and its tooltip shows the folder's full path here;
 - the **⇄** and the remote icon with the connection (here `my-group`) name
   the other side: a peer group in **p2p Mode**, or the server in **Server Mode**.
   If you left the group name empty, the bar shows `No group`: the peer set is
