@@ -174,6 +174,7 @@ nothing is lost; the log names the file. The rules behind it are the client's
 | `Ctrl+Shift+S` | Start |
 | `Ctrl+F2` | Stop |
 | `F5`, `Ctrl+Shift+P` | Compare: show what a sync would do, without applying it |
+| `Ctrl+F` | Filter the current folder by name (`Esc` clears and closes it) |
 | `Ctrl+,` | Settings |
 | `F1` | Documentation |
 | `Ctrl+Q` | Quit |

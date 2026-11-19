@@ -14,12 +14,13 @@ from time import time
 
 from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, QSettings, QSize, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QPalette
+from PySide6.QtGui import QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QSplitter,
     QTableWidget,
@@ -60,6 +61,8 @@ from hsync_desktop.ui.loader import load_ui_widget
 _BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
 _NAV_ICON_PX = 20
 _NAV_FILTER_ICON_PX = 16
+_SEARCH_FIELD_MAX_PX = 220
+_SEARCH_DEBOUNCE_MS = 120
 # Remember the "only changes" view across restarts (least surprise: off first).
 _FILTER_SETTINGS_KEY = "ui/file_filter_only_changes"
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
@@ -219,8 +222,6 @@ class FilePanel(QWidget):
         self._btn_only_changes.setObjectName("btnOnlyChanges")
         self._btn_only_changes.setCheckable(True)
         self._btn_only_changes.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self._btn_only_changes.setIcon(get_icon("system-search"))
-        self._btn_only_changes.setIconSize(QSize(_NAV_FILTER_ICON_PX, _NAV_FILTER_ICON_PX))
         self._btn_only_changes.setAutoRaise(True)
         self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
         self._btn_only_changes.setText(tr("file.filter_only_changes"))
@@ -228,6 +229,28 @@ class FilePanel(QWidget):
             bool(QSettings(SETTINGS_ORG, SETTINGS_APP).value(_FILTER_SETTINGS_KEY, False, bool))
         )
         nav_layout.addWidget(self._btn_only_changes)
+
+        # Collapsible name filter: the magnifier reveals it, Ctrl+F opens it,
+        # Esc clears and closes it. Closing clears the query, so the view never
+        # hides rows behind a filter the user cannot see.
+        self._search = QLineEdit(nav_bar)
+        self._search.setObjectName("fileFilterField")
+        self._search.setPlaceholderText(tr("file.filter_placeholder"))
+        self._search.setClearButtonEnabled(True)
+        self._search.setMaximumWidth(_SEARCH_FIELD_MAX_PX)
+        self._search.hide()
+        self._search.textChanged.connect(self._on_search_text)
+        self._search.installEventFilter(self)
+
+        self._btn_search = QToolButton(nav_bar)
+        self._btn_search.setObjectName("btnSearch")
+        self._btn_search.setCheckable(True)
+        self._btn_search.setIcon(get_icon("system-search"))
+        self._btn_search.setIconSize(QSize(_NAV_FILTER_ICON_PX, _NAV_FILTER_ICON_PX))
+        self._btn_search.setAutoRaise(True)
+        self._btn_search.setToolTip(self._search_tooltip())
+        nav_layout.addWidget(self._search)
+        nav_layout.addWidget(self._btn_search)
 
         table_layout.addWidget(nav_bar)
         table_layout.addWidget(self._table)
@@ -269,6 +292,15 @@ class FilePanel(QWidget):
         self._table.files_dropped.connect(self._on_files_dropped)
         self._loading_overlay.cancel_requested.connect(self._cancel_import)
         self._btn_only_changes.toggled.connect(self._on_only_changes_toggled)
+        self._btn_search.toggled.connect(self._on_search_toggled)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(_SEARCH_DEBOUNCE_MS)
+        self._search_timer.timeout.connect(self._apply_text_filter)
+        # Ctrl+F (Cmd+F on macOS) opens the filter from anywhere in the window.
+        self._search_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Find), self)
+        self._search_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self._search_shortcut.activated.connect(self._focus_search)
         self._table.rows_refreshed.connect(self._sync_filter_state)
         self._update_breadcrumb()
         # Apply the restored preference once the wiring exists, then paint it.
@@ -762,6 +794,16 @@ class FilePanel(QWidget):
     def eventFilter(self, watched: QObject, event) -> bool:
         from PySide6.QtCore import QEvent
 
+        if (
+            watched == self._search
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() == Qt.Key.Key_Escape
+        ):
+            # Esc clears and closes the filter; the list must not keep hiding
+            # rows behind a field that is no longer on screen.
+            self._btn_search.setChecked(False)
+            self._table.setFocus(Qt.FocusReason.OtherFocusReason)
+            return True
         if watched == self._table_container and event.type() == QEvent.Type.Resize:
             if self._loading_overlay.isVisible():
                 self._loading_overlay.setGeometry(self._table_container.rect())
@@ -1010,6 +1052,43 @@ class FilePanel(QWidget):
         self._comparing = comparing
         self._sync_filter_state()
 
+    def _search_tooltip(self) -> str:
+        """Tooltip with the real platform chord (⌘F on macOS, not "Ctrl+F")."""
+        chord = QKeySequence(QKeySequence.StandardKey.Find).toString(
+            QKeySequence.SequenceFormat.NativeText
+        )
+        return tr("tip.file_filter").replace("{shortcut}", chord)
+
+    def _focus_search(self) -> None:
+        """Open the filter from the keyboard and select what is there."""
+        self._btn_search.setChecked(True)
+        self._search.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self._search.selectAll()
+
+    @Slot(bool)
+    def _on_search_toggled(self, checked: bool) -> None:
+        self._search.setVisible(checked)
+        if checked:
+            self._search.setFocus(Qt.FocusReason.OtherFocusReason)
+            self._search.selectAll()
+            return
+        # Closing the field must not leave an invisible filter behind: clear it
+        # and apply the empty filter at once (the debounce would leave the old
+        # query active for a moment).
+        self._search.blockSignals(True)
+        self._search.clear()
+        self._search.blockSignals(False)
+        self._search_timer.stop()
+        self._apply_text_filter()
+
+    @Slot()
+    def _apply_text_filter(self) -> None:
+        self._table.set_text_filter(self._search.text())
+
+    @Slot(str)
+    def _on_search_text(self, _text: str) -> None:
+        self._search_timer.start()
+
     def _filter_button_text(self, count: int) -> str:
         """The toggle's label: the pending count doubles as a summary."""
         label = tr("file.filter_only_changes")
@@ -1026,21 +1105,27 @@ class FilePanel(QWidget):
         """Re-render the filter label and the empty state it can create."""
         count = self._table.change_count()
         self._btn_only_changes.setText(self._filter_button_text(count))
+        query = self._search.text().strip()
+        filtered_out = self._btn_only_changes.isChecked() or bool(query)
         empty = (
-            self._btn_only_changes.isChecked() and count == 0 and self._table.level_item_count() > 0
+            filtered_out
+            and self._table.model().rowCount() == 0
+            and self._table.level_item_count() > 0
         )
         if empty:
-            # A running check outranks everything (its result may change the
-            # answer); otherwise "nothing pending" is only true once the engine
-            # classified the folder, and before that the honest answer is
-            # "unknown".
-            if self._comparing:
-                key = "file.filter_comparing"
+            # A query that matches nothing is the most specific answer; then a
+            # running check outranks everything (its result may change the
+            # answer), and "nothing pending" is only true once the engine
+            # classified the folder.
+            if query:
+                text = tr("file.filter_no_match").replace("{query}", query)
+            elif self._comparing:
+                text = tr("file.filter_comparing")
             elif self._table.has_classified_rows():
-                key = "file.filter_no_changes"
+                text = tr("file.filter_no_changes")
             else:
-                key = "file.filter_not_compared"
-            self._filter_empty_label.setText(tr(key))
+                text = tr("file.filter_not_compared")
+            self._filter_empty_label.setText(text)
         self._filter_empty_label.setVisible(empty)
         if empty:
             self._filter_empty_label.setGeometry(self._table.geometry())
@@ -1049,6 +1134,8 @@ class FilePanel(QWidget):
     def retranslate_view_filter(self) -> None:
         """Re-apply the filter control's wording after a language change."""
         self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
+        self._btn_search.setToolTip(self._search_tooltip())
+        self._search.setPlaceholderText(tr("file.filter_placeholder"))
         self._filter_empty_label.setText(tr("file.filter_no_changes"))
         self._sync_filter_state()
 

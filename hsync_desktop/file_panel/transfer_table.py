@@ -283,6 +283,8 @@ class FileTransferModel(QAbstractTableModel):
         # filter is a pure view concern, so toggling it never re-reads the disk.
         self._rows_all: list[tuple[str, FileTransfer | None, dict]] = []
         self._only_changes = False
+        # Case-folded name filter, empty when the field is closed/cleared.
+        self._text_filter = ""
         self._connected = False
         self._default_text_color = QColor()
         self._status_palette: dict = STATUS_COLORS
@@ -323,6 +325,26 @@ class FileTransferModel(QAbstractTableModel):
         if enabled == self._only_changes:
             return
         self._only_changes = enabled
+        self._refilter()
+
+    @property
+    def text_filter(self) -> str:
+        """The case-folded name filter currently applied (empty when off)."""
+        return self._text_filter
+
+    def set_text_filter(self, text: str) -> None:
+        """Filter the visible rows by display name (case-insensitive substring).
+
+        A pure view concern like ``set_only_changes``: it never re-reads the disk,
+        and the two compose because both go through ``_filtered``.
+        """
+        needle = text.strip().casefold()
+        if needle == self._text_filter:
+            return
+        self._text_filter = needle
+        self._refilter()
+
+    def _refilter(self) -> None:
         self.beginResetModel()
         self._rows = self._filtered(self._rows_all)
         self.endResetModel()
@@ -330,9 +352,13 @@ class FileTransferModel(QAbstractTableModel):
     def _filtered(
         self, rows: list[tuple[str, FileTransfer | None, dict]]
     ) -> list[tuple[str, FileTransfer | None, dict]]:
-        if not self._only_changes:
-            return rows
-        return [row for row in rows if row_is_change(row[1], row[2])]
+        filtered = rows
+        if self._only_changes:
+            filtered = [row for row in filtered if row_is_change(row[1], row[2])]
+        if self._text_filter:
+            needle = self._text_filter
+            filtered = [row for row in filtered if needle in row[0].casefold()]
+        return filtered
 
     def clear_sort(self) -> None:
         """Drop the user sort so the view keeps the natural folders-first order."""
@@ -801,6 +827,26 @@ class FileTransferTable(QTableView):
         self._last_selected_row = -1
         self.clearSelection()
         self._model.set_only_changes(enabled)
+        self._row_index = {
+            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
+        }
+        self.selected_rows_changed.emit(self.selected_transfers())
+        self.rows_refreshed.emit()
+
+    @property
+    def text_filter(self) -> str:
+        """The name filter currently applied (empty when off)."""
+        return self._model.text_filter
+
+    def set_text_filter(self, text: str) -> None:
+        """Filter the visible rows by name, keeping the selection honest."""
+        if text.strip().casefold() == self._model._text_filter:
+            return
+        # Same contract as ``set_only_changes``: the reset drops the selection,
+        # and the sticky row must not re-select a different entry by index.
+        self._last_selected_row = -1
+        self.clearSelection()
+        self._model.set_text_filter(text)
         self._row_index = {
             name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
         }

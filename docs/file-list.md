@@ -38,6 +38,19 @@ at all cannot aggregate anything, so it reports its own state instead: **Synced*
 once every device holds it, **To upload** / **To download** while one side is
 still missing it.
 
+## Filter by name
+
+The magnifier in the list bar (or `Ctrl+F`, `Cmd+F` on macOS) opens a name filter
+for the folder you are browsing: rows whose name does not contain what you typed
+are hidden, capitalisation is ignored, and folders match on their own name (their
+contents are not searched). It composes with **Only changes**, so you can look at
+the pending work that matches, and it stays active when you open another folder.
+
+Closing the field — the magnifier again, or `Esc` while the field has focus —
+clears the filter, so rows are never hidden behind a field you cannot see. The
+clear button inside the field empties it without closing it. The filter is a view
+only: it changes nothing on disk and is not remembered after a restart.
+
 ## Hidden files
 
 Files and folders whose name starts with a dot are hidden from the list. Enable

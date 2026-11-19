@@ -4276,3 +4276,132 @@ class TestColumnMenuOrder:
         texts = self._texts(table._build_header_menu())
 
         assert texts.index(tr("file.status")) + 1 == texts.index(tr("file.progress"))
+
+
+class TestSearchFilter:
+    """The collapsible name filter narrows the visible rows, and never hides state."""
+
+    @staticmethod
+    def _panel(qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        import hsync_desktop.file_panel.panel as panel_mod
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(panel_mod, "QSettings", lambda *a, **k: store)
+        panel = panel_mod.FilePanel()
+        qtbot.addWidget(panel)
+        panel._table.set_base_directory("/base")
+        for filepath, status in (
+            ("Report.txt", TransferStatus.SYNCED),
+            ("notes.md", TransferStatus.TO_UPLOAD),
+            ("archive/report-old.txt", TransferStatus.SYNCED),
+        ):
+            panel._table.add_transfer(
+                FileTransfer(filepath=filepath, direction="—", size=1, status=status)
+            )
+        panel._table.refresh_view()
+        return panel
+
+    @staticmethod
+    def _names(panel) -> list[str]:
+        model = panel._table.model()
+        return [model.display_name(row) for row in range(model.rowCount())]
+
+    def test_the_field_starts_hidden_and_the_button_opens_it(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        assert panel._search.isHidden()
+        assert panel._btn_search.isChecked() is False
+
+        panel._btn_search.setChecked(True)
+
+        assert panel._search.isVisibleTo(panel)
+
+    def test_typing_filters_by_name_case_insensitively(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+
+        panel._search.setText("REPORT")
+        qtbot.wait(200)  # debounce
+
+        # Only the file matches: a folder row matches on its own name, not on
+        # the names of the files it contains (that would be the global view).
+        assert self._names(panel) == ["Report.txt"]
+
+    def test_it_composes_with_the_only_changes_filter(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+        panel._search.setText("report")
+        qtbot.wait(200)
+
+        panel._btn_only_changes.setChecked(True)
+
+        # The report files are synced: "only changes" hides them even if they match.
+        assert self._names(panel) == []
+
+    def test_closing_the_field_clears_the_filter(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+        panel._search.setText("report")
+        qtbot.wait(200)
+        assert panel._table.text_filter == "report"
+
+        panel._btn_search.setChecked(False)
+
+        assert panel._search.text() == ""
+        assert panel._table.text_filter == ""
+        assert self._names(panel) == ["archive", "notes.md", "Report.txt"]
+
+    def test_escape_closes_the_filter_and_returns_focus_to_the_list(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+        panel._search.setText("report")
+        qtbot.wait(200)
+
+        QTest.keyClick(panel._search, Qt.Key.Key_Escape)
+
+        assert panel._btn_search.isChecked() is False
+        assert panel._search.isHidden()
+        assert panel._table.text_filter == ""
+
+    def test_a_query_that_matches_nothing_says_so(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+
+        panel._search.setText("zzz")
+        qtbot.wait(200)
+
+        assert panel._table.model().rowCount() == 0
+        assert not panel._filter_empty_label.isHidden()
+        assert panel._filter_empty_label.text() == tr("file.filter_no_match").replace(
+            "{query}", "zzz"
+        )
+
+    def test_the_filter_survives_navigation(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+        panel._search.setText("report")
+        qtbot.wait(200)
+
+        panel._table.navigate_to("archive")
+
+        assert panel._search.text() == "report"
+        assert panel._table.text_filter == "report"
+
+    def test_find_shortcut_opens_the_filter(self, qtbot, monkeypatch, tmp_path):
+        from PySide6.QtGui import QKeySequence
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        assert panel._search_shortcut.key() == QKeySequence(QKeySequence.StandardKey.Find)
+
+        panel._focus_search()
+
+        assert panel._btn_search.isChecked() is True
+        assert panel._search.isVisibleTo(panel)
