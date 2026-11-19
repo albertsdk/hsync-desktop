@@ -12,7 +12,7 @@ using the app — it is here to answer "what is that icon?".
 
 - **File** — actions on the file or folder you selected (open, copy, rename, …)
   and **Quit** at the bottom.
-- **Sync** — start, compare and stop, **Send now** / **Receive now** for one
+- **Sync** — start, stop and compare, **Send now** / **Receive now** for one
   selection, and the sync direction.
 - **Settings** — the configuration dialog; see the
   [Configuration Reference](configuration.md).
@@ -102,7 +102,7 @@ from there too (or by clicking the sent/received values).
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: the connection state, Show, Open synced folder, Start, Compare, Stop, Settings, Setup wizard, About and Quit" width="200">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: the connection state, Show, Open synced folder, Start, Stop, Compare, Settings, Setup wizard, About and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
 the system-tray icon. The menu names the current state and offers the everyday

@@ -112,15 +112,15 @@ class SystemTray(QSystemTrayIcon):
         self._act_start.triggered.connect(self.start_requested.emit)
         menu.addAction(self._act_start)
 
-        self._act_preview_changes = QAction(tr("tray.preview_changes"), menu)
-        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
-        self._act_preview_changes.triggered.connect(self.preview_changes_requested.emit)
-        menu.addAction(self._act_preview_changes)
-
         self._act_stop = QAction(tr("tray.stop"), menu)
         self._act_stop.triggered.connect(self.stop_requested.emit)
         self._act_stop.setEnabled(False)
         menu.addAction(self._act_stop)
+
+        self._act_preview_changes = QAction(tr("tray.preview_changes"), menu)
+        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
+        self._act_preview_changes.triggered.connect(self.preview_changes_requested.emit)
+        menu.addAction(self._act_preview_changes)
 
         menu.addSeparator()
         self._act_settings = QAction(tr("tray.settings"), menu)

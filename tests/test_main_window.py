@@ -3061,10 +3061,20 @@ class TestPreviewChanges:
 
         assert stops == []
 
-    def test_the_action_sits_next_to_start_in_the_sync_menu(self, window):
+    def test_the_run_controls_read_in_the_action_bar_order(self, window):
+        """Start and Stop are the transport pair; Compare follows them, as on the bar."""
         texts = [act.text() for act in window._menu_sync.actions() if not act.isSeparator()]
 
-        assert texts.index(tr("menu.sync.preview")) == texts.index(tr("menu.sync.start")) + 1
+        assert texts[:3] == [
+            tr("menu.sync.start"),
+            tr("menu.sync.stop"),
+            tr("menu.sync.preview"),
+        ]
+        assert [
+            window._btn_start.text(),
+            window._btn_stop.text(),
+            window._btn_preview_changes.text(),
+        ] == texts[:3]
 
     def test_the_action_carries_its_shortcuts_and_a_tooltip(self, window):
         """The menu names the action; the tooltip says which answer it gives.

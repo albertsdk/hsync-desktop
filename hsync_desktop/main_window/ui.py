@@ -719,15 +719,6 @@ class UiBuildMixin:
         self._act_start.triggered.connect(self._on_start)
         self._menu_sync.addAction(self._act_start)
 
-        self._act_preview_changes = QAction(tr("menu.sync.preview"), self)
-        # Comparison first, like the analog tools (FreeFileSync compares on F5):
-        # one action that answers whether the engine runs or not, with the older
-        # preview-only chord kept as a second shortcut.
-        self._act_preview_changes.setShortcuts([QKeySequence("F5"), QKeySequence("Ctrl+Shift+P")])
-        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
-        self._act_preview_changes.triggered.connect(self._on_preview_changes)
-        self._menu_sync.addAction(self._act_preview_changes)
-
         self._act_stop = QAction(tr("menu.sync.stop"), self)
         self._act_stop.setEnabled(False)
         # Ctrl+F2 is the chord desktop tools give "stop the running job"
@@ -737,6 +728,15 @@ class UiBuildMixin:
         self._act_stop.setShortcut(QKeySequence("Ctrl+F2"))
         self._act_stop.triggered.connect(self._on_stop)
         self._menu_sync.addAction(self._act_stop)
+
+        # Same order as the action bar: Start and Stop are the transport pair,
+        # Compare the check that works whether or not the engine runs (F5 plus
+        # the preview chord).
+        self._act_preview_changes = QAction(tr("menu.sync.preview"), self)
+        self._act_preview_changes.setShortcuts([QKeySequence("F5"), QKeySequence("Ctrl+Shift+P")])
+        self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
+        self._act_preview_changes.triggered.connect(self._on_preview_changes)
+        self._menu_sync.addAction(self._act_preview_changes)
 
         # A scoped one-shot run acts on the selection, so it sits with the run
         # controls instead of among the per-file actions in File.
