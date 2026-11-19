@@ -771,7 +771,7 @@ class TestTableTypography:
 
 
 class TestOptionalColumns:
-    """Speed is hidden by default; Direction is visible by default."""
+    """Operation, the live metrics and Type are opt-in; the rest is visible."""
 
     @staticmethod
     def _table(qtbot):
@@ -791,13 +791,14 @@ class TestOptionalColumns:
         table = self._table(qtbot)
         header = table.horizontalHeader()
 
-        # The icon conveys the type; Time left and Speed only say something while
-        # a transfer runs (and ETA needs samples before it can).
+        # Operation is drawn next to the type icon in the Name cell; the two live
+        # metrics only say something while a transfer runs (ETA needs samples);
+        # the type is conveyed by the icon.
+        assert header.isSectionHidden(tt.COL_DIRECTION)
         assert header.isSectionHidden(tt.COL_TYPE)
         assert header.isSectionHidden(tt.COL_ETA)
         assert header.isSectionHidden(tt.COL_SPEED)
-        assert not header.isSectionHidden(tt.COL_DIRECTION)
-        for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_STATUS):
+        for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_PROGRESS, tt.COL_STATUS):
             assert not header.isSectionHidden(col)
 
     def test_the_default_order_puts_direction_next_to_the_name(self, qtbot):
@@ -963,7 +964,8 @@ class TestOptionalColumns:
         assert not table.horizontalHeader().isSectionHidden(tt.COL_SPEED)
         fresh = self._table(qtbot)
         assert not fresh.horizontalHeader().isSectionHidden(tt.COL_SPEED)
-        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
+        # Untouched columns keep their default (Operation is opt-in).
+        assert fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
 
     def test_showing_both_optional_columns_is_persisted(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
@@ -1566,13 +1568,12 @@ class TestRequiredViewportWidth:
         # widths) restored into an 800 px table.
         header = table.horizontalHeader()
         for col, width in (
-            (tt.COL_SIZE, 100),
-            (tt.COL_TYPE, 100),
-            (tt.COL_MODIFIED, 100),
-            (tt.COL_PROGRESS, 130),
-            (tt.COL_ETA, 100),
-            (tt.COL_STATUS, 100),
-            (tt.COL_DIRECTION, 100),
+            (tt.COL_SIZE, 130),
+            (tt.COL_TYPE, 120),
+            (tt.COL_MODIFIED, 140),
+            (tt.COL_PROGRESS, 150),
+            (tt.COL_ETA, 120),
+            (tt.COL_STATUS, 130),
         ):
             header.resizeSection(col, width)
         table.resize(800, 300)
@@ -4187,6 +4188,7 @@ class TestResetColumns:
             tt.COL_SPEED,
         ]
         assert {col for col in range(header.count()) if header.isSectionHidden(col)} == {
+            tt.COL_DIRECTION,
             tt.COL_TYPE,
             tt.COL_ETA,
             tt.COL_SPEED,
@@ -4212,6 +4214,7 @@ class TestResetColumns:
         assert {
             c for c in range(reopened_header.count()) if reopened_header.isSectionHidden(c)
         } == {
+            tt.COL_DIRECTION,
             tt.COL_TYPE,
             tt.COL_ETA,
             tt.COL_SPEED,
@@ -4405,3 +4408,77 @@ class TestSearchFilter:
 
         assert panel._btn_search.isChecked() is True
         assert panel._search.isVisibleTo(panel)
+
+
+class TestOperationGlyph:
+    """The operation is drawn next to the type icon; the column is opt-in."""
+
+    @staticmethod
+    def _table(qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        # The defaults under test only hold for a profile with no saved layout.
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        return table, tt
+
+    @staticmethod
+    def _icon_image(table, row, tt):
+        from PySide6.QtCore import Qt
+
+        model = table.model()
+        icon = model.data(model.index(row, tt.COL_NAME), Qt.ItemDataRole.DecorationRole)
+        return icon.pixmap(tt._TABLE_ICON_PX + tt._OP_GLYPH_PX, tt._TABLE_ICON_PX).toImage()
+
+    def test_the_column_is_opt_in(self, qtbot, monkeypatch, tmp_path):
+        table, tt = self._table(qtbot, monkeypatch, tmp_path)
+        header = table.horizontalHeader()
+
+        assert header.isSectionHidden(tt.COL_DIRECTION)
+
+        table._toggle_column(tt.COL_DIRECTION, True)
+
+        assert not header.isSectionHidden(tt.COL_DIRECTION)
+
+    def test_rows_with_and_without_an_operation_have_different_icons(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        table, tt = self._table(qtbot, monkeypatch, tmp_path)
+        for filepath, direction, status in (
+            ("up.bin", "↑", TransferStatus.TO_UPLOAD),
+            ("down.bin", "↓", TransferStatus.TO_DOWNLOAD),
+            ("idle.bin", "—", TransferStatus.SYNCED),
+        ):
+            table.add_transfer(
+                FileTransfer(filepath=filepath, direction=direction, size=1, status=status)
+            )
+        table.refresh_view()
+
+        up = self._icon_image(table, 0, tt)
+        down = self._icon_image(table, 1, tt)
+        idle = self._icon_image(table, 2, tt)
+
+        # Same type icon, different operation (or none) -> different composition.
+        assert up != down
+        assert up != idle
+
+    def test_the_composed_icon_is_cached_per_type_and_operation(self, qtbot, monkeypatch, tmp_path):
+        table, tt = self._table(qtbot, monkeypatch, tmp_path)
+        transfer = FileTransfer(
+            filepath="up.bin", direction="↑", size=1, status=TransferStatus.TO_UPLOAD
+        )
+        table.add_transfer(transfer)
+        table.refresh_view()
+        model = table.model()
+
+        first = model._row_icon(transfer, None, False)
+        second = model._row_icon(transfer, None, False)
+
+        assert first is second
+        sizes = first.availableSizes()
+        assert sizes and sizes[0].width() == tt._TABLE_ICON_PX + tt._OP_GLYPH_PX

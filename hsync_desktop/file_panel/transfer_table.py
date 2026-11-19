@@ -23,7 +23,9 @@ from PySide6.QtCore import (
     QMutex,
     QMutexLocker,
     QPersistentModelIndex,
+    QRect,
     QSettings,
+    QSize,
     Qt,
     QTimer,
     QUrl,
@@ -40,8 +42,11 @@ from PySide6.QtGui import (
     QFont,
     QGuiApplication,
     QHideEvent,
+    QIcon,
     QKeyEvent,
+    QPainter,
     QPalette,
+    QPixmap,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -220,6 +225,10 @@ _DELETED_MARKER_MS = 1500
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
+# The row icon is the file type; the operation glyph gets its own slot after
+# it, so the type icons stay aligned whether or not the row has an operation.
+_TABLE_ICON_PX = 16
+_OP_GLYPH_PX = 12
 
 
 def _folder_status_key(status_priority: int, sending: int, receiving: int) -> str:
@@ -289,6 +298,8 @@ class FileTransferModel(QAbstractTableModel):
         self._default_text_color = QColor()
         self._status_palette: dict = STATUS_COLORS
         self._direction_font: QFont | None = None
+        # Composed Name-cell icons, keyed by type icon, glyph, colour and font.
+        self._row_icon_cache: dict[tuple[str, str, str, str], QIcon] = {}
         # ``None`` keeps the natural folders-first order produced by the view;
         # a column/order is set only when the user sorts by a header.
         self._sort_column: int | None = None
@@ -314,6 +325,7 @@ class FileTransferModel(QAbstractTableModel):
         self._connected = connected
         self._default_text_color = default_text_color
         self._status_palette = status_palette
+        self._row_icon_cache.clear()
         self._direction_font = direction_font
         self._verified_at = verified_at if verified_at is not None else self._verified_at
         self._rows_all = self._sorted(rows)
@@ -370,6 +382,7 @@ class FileTransferModel(QAbstractTableModel):
 
     def set_direction_font(self, font: QFont) -> None:
         self._direction_font = font
+        self._row_icon_cache.clear()
         if self._rows:
             self.dataChanged.emit(
                 self.index(0, COL_DIRECTION),
@@ -409,7 +422,7 @@ class FileTransferModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self._display_value(display_name, transfer, folder_data, is_folder, col)
         if role == Qt.ItemDataRole.DecorationRole:
-            return self._icon(transfer, is_folder) if col == COL_NAME else None
+            return self._row_icon(transfer, folder_data, is_folder) if col == COL_NAME else None
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return self._alignment(col)
         if role == Qt.ItemDataRole.UserRole:
@@ -554,11 +567,46 @@ class FileTransferModel(QAbstractTableModel):
             return ""
         return transfer.direction
 
-    @staticmethod
-    def _icon(transfer: FileTransfer | None, is_folder: bool):
-        if is_folder or transfer is None:
-            return get_icon("folder")
-        return get_icon(_classify_file(transfer.filepath)[0])
+    def _row_icon(
+        self,
+        transfer: FileTransfer | None,
+        folder_data: dict | None,
+        is_folder: bool,
+    ) -> QIcon:
+        """File-type icon with the operation glyph beside it.
+
+        The operation is a property of the row, like the type: keeping it in the
+        same slot is what lets the Operation column stay opt-in. Rows without an
+        operation keep the slot empty instead of drawing a placeholder, so every
+        file icon is aligned at the column's left edge.
+        """
+        base = "folder" if (is_folder or transfer is None) else _classify_file(transfer.filepath)[0]
+        glyph = self._direction_text(transfer, is_folder, folder_data)
+        colour = self._foreground(transfer, folder_data, is_folder)
+        font = self._direction_font or QApplication.font()
+        key = (base, glyph, colour.name(), font.key())
+        cached = self._row_icon_cache.get(key)
+        if cached is not None:
+            return cached
+
+        canvas = QPixmap(_TABLE_ICON_PX + _OP_GLYPH_PX, _TABLE_ICON_PX)
+        canvas.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(canvas)
+        try:
+            painter.drawPixmap(0, 0, get_icon(base).pixmap(_TABLE_ICON_PX, _TABLE_ICON_PX))
+            if glyph:
+                painter.setFont(font)
+                painter.setPen(colour)
+                painter.drawText(
+                    QRect(_TABLE_ICON_PX, 0, _OP_GLYPH_PX, _TABLE_ICON_PX),
+                    Qt.AlignmentFlag.AlignCenter,
+                    glyph,
+                )
+        finally:
+            painter.end()
+        icon = QIcon(canvas)
+        self._row_icon_cache[key] = icon
+        return icon
 
     @staticmethod
     def _alignment(col: int) -> int | None:
@@ -727,11 +775,12 @@ class FileTransferTable(QTableView):
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden: the row icon already conveys the type,
     # and the live rate matters only while a transfer runs.
-    # Type is conveyed by the row icon, and the two live metrics only say
-    # something while a transfer runs (Time left needs samples, Speed idles at
-    # zero). They stay one click away in the header menu; Progress is the column
-    # that carries the per-file activity, so it stays visible.
-    _DEFAULT_HIDDEN = (COL_TYPE, COL_ETA, COL_SPEED)
+    # Operation is drawn next to the type icon in the Name cell (``_row_icon``)
+    # and the Status column names it in words; the column is opt-in for those who
+    # want to sort by it. Type is conveyed by the icon, and the two live metrics
+    # only say something while a transfer runs. Progress stays visible: it is the
+    # per-file activity column.
+    _DEFAULT_HIDDEN = (COL_DIRECTION, COL_TYPE, COL_ETA, COL_SPEED)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -925,6 +974,8 @@ class FileTransferTable(QTableView):
         self.verticalHeader().setDefaultSectionSize(table_row_height())
         self._direction_font = table_font()
         self._direction_font.setBold(True)
+        # Composed Name-cell icons, keyed by type icon, glyph, colour and font.
+        self.setIconSize(QSize(_TABLE_ICON_PX + _OP_GLYPH_PX, _TABLE_ICON_PX))
         self.horizontalHeader().setFont(table_font())
         self._ensure_readable_headers()
         self._model.set_direction_font(self._direction_font)
@@ -936,9 +987,6 @@ class FileTransferTable(QTableView):
         self.setAlternatingRowColors(True)
         self.verticalHeader().setVisible(False)
         self.refresh_fonts()
-        from PySide6.QtCore import QSize
-
-        self.setIconSize(QSize(16, 16))
 
         # Column sizing and behavior
         header = self.horizontalHeader()
