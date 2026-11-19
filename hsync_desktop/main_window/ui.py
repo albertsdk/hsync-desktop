@@ -898,7 +898,7 @@ class UiBuildMixin:
         self._menu_help.addAction(self._act_help_about)
 
     def _set_file_menu_enabled(self, enabled: bool) -> None:
-        """Enable or disable all File menu actions."""
+        """Enable the selection-driven actions (File menu plus Send/Receive)."""
         for act in (
             self._act_file_open,
             self._act_file_open_containing,
