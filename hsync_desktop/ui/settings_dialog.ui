@@ -38,7 +38,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="lblSharedPath">
          <property name="text">
-          <string>Shared path:</string>
+          <string>Local folder</string>
          </property>
         </widget>
        </item>
@@ -66,7 +66,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="lblBucket">
          <property name="text">
-          <string>Bucket:</string>
+          <string>Share name</string>
          </property>
         </widget>
        </item>
@@ -80,7 +80,7 @@
        <item row="2" column="1">
         <widget class="QCheckBox" name="continuous">
          <property name="text">
-          <string>Watch for changes</string>
+          <string>Real-time sync</string>
          </property>
          <property name="checked">
           <bool>true</bool>
@@ -100,7 +100,7 @@
        <item row="4" column="0">
         <widget class="QLabel" name="lblResync">
          <property name="text">
-          <string>Resync interval:</string>
+          <string>Periodic full check</string>
          </property>
         </widget>
        </item>
@@ -126,7 +126,7 @@
        <item row="5" column="0">
         <widget class="QLabel" name="lblRetryDelay">
          <property name="text">
-          <string>Retry delay:</string>
+          <string>Wait before retry</string>
          </property>
         </widget>
        </item>
@@ -149,7 +149,7 @@
        <item row="6" column="0">
         <widget class="QLabel" name="lblStabilityDelay">
          <property name="text">
-          <string>Stability delay:</string>
+          <string>Wait for file to settle</string>
          </property>
         </widget>
        </item>
@@ -175,7 +175,7 @@
        <item row="7" column="0">
         <widget class="QLabel" name="lblMaxWait">
          <property name="text">
-          <string>Max wait:</string>
+          <string>Maximum wait</string>
          </property>
         </widget>
        </item>
@@ -198,7 +198,7 @@
        <item row="8" column="0">
         <widget class="QLabel" name="lblFilterPath">
          <property name="text">
-          <string>Filter path:</string>
+          <string>Sync only a specific subfolder</string>
          </property>
         </widget>
        </item>
@@ -212,14 +212,14 @@
        <item row="9" column="1">
         <widget class="QCheckBox" name="noCompression">
          <property name="text">
-          <string>Disable compression</string>
+          <string>Enable compression</string>
          </property>
         </widget>
        </item>
        <item row="10" column="1">
         <widget class="QCheckBox" name="dryRun">
          <property name="text">
-          <string>Dry run (preview only)</string>
+          <string>Simulation Mode</string>
          </property>
         </widget>
        </item>
@@ -278,7 +278,7 @@
        <item row="2" column="0">
         <widget class="QLabel" name="lblP2pKey">
          <property name="text">
-          <string>p2p Key:</string>
+          <string>Shared password</string>
          </property>
         </widget>
        </item>
@@ -295,7 +295,7 @@
        <item row="3" column="0">
         <widget class="QLabel" name="lblP2pPort">
          <property name="text">
-          <string>p2p Port:</string>
+          <string>Port</string>
          </property>
         </widget>
        </item>
@@ -318,7 +318,7 @@
        <item row="4" column="0">
         <widget class="QLabel" name="lblRendezvousTimeout">
          <property name="text">
-          <string>Rendezvous timeout:</string>
+          <string>Device search timeout</string>
          </property>
         </widget>
        </item>
@@ -341,7 +341,7 @@
        <item row="6" column="1">
         <widget class="QCheckBox" name="preferMaster">
          <property name="text">
-          <string>Prefer master</string>
+          <string>Prefer primary role</string>
          </property>
          <property name="checked">
           <bool>false</bool>
@@ -362,7 +362,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="lblServerUrl">
          <property name="text">
-          <string>Server URL:</string>
+          <string>Server address</string>
          </property>
         </widget>
        </item>
@@ -376,7 +376,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="lblApiKey">
          <property name="text">
-          <string>API Key:</string>
+          <string>API Key</string>
          </property>
         </widget>
        </item>
@@ -393,14 +393,14 @@
        <item row="2" column="1">
         <widget class="QCheckBox" name="insecure">
          <property name="text">
-          <string>Skip SSL verification</string>
+          <string>Skip certificate check (insecure)</string>
          </property>
         </widget>
        </item>
        <item row="3" column="0">
         <widget class="QLabel" name="lblCaCert">
          <property name="text">
-          <string>CA Certificate:</string>
+          <string>Certificate authority file</string>
          </property>
         </widget>
        </item>
@@ -414,7 +414,7 @@
        <item row="4" column="0">
         <widget class="QLabel" name="lblHttpTimeout">
          <property name="text">
-          <string>HTTP Timeout:</string>
+          <string>Request timeout</string>
          </property>
         </widget>
        </item>
@@ -448,7 +448,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="lblLanguage">
          <property name="text">
-          <string>Language:</string>
+          <string>Language</string>
          </property>
         </widget>
        </item>
@@ -458,7 +458,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="lblTheme">
          <property name="text">
-          <string>Theme:</string>
+          <string>Theme</string>
          </property>
         </widget>
        </item>
@@ -537,7 +537,7 @@
        <item row="1" column="1">
         <widget class="QCheckBox" name="deltaEnabled">
          <property name="text">
-          <string>Enable delta transfer</string>
+          <string>Send only the parts that changed</string>
          </property>
          <property name="checked">
           <bool>true</bool>
@@ -557,21 +557,21 @@
        <item row="3" column="1">
         <widget class="QCheckBox" name="verbose">
          <property name="text">
-          <string>Verbose output</string>
+          <string>Detailed log output</string>
          </property>
         </widget>
        </item>
        <item row="4" column="1">
         <widget class="QCheckBox" name="quiet">
          <property name="text">
-          <string>Quiet mode</string>
+          <string>Quiet (suppress output)</string>
          </property>
         </widget>
        </item>
        <item row="5" column="0">
         <widget class="QLabel" name="lblLogfile">
          <property name="text">
-          <string>Log file:</string>
+          <string>Log file</string>
          </property>
         </widget>
        </item>

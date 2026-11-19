@@ -59,9 +59,9 @@ title bar ends with **— Simulation**, the Start tooltip says the run only
 previews, and every run opens with `--- Simulation: no changes will be applied ---`
 in the log. The summary dialog's only action is **Close**.
 
-With **Keep deleted files** selected (Settings → Sync → Deletions) the status bar
+With **Never delete files on this device** selected (Settings → Sync → Deletions) the status bar
 shows a **Deletions kept** badge for as long as the policy is active. Click the
-badge (or open Settings) to switch to **Apply deletions**; the change is confirmed
+badge (or open Settings) to switch to **Deletions reach every device**; the change is confirmed
 first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 
 ## Preview changes

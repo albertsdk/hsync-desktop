@@ -70,25 +70,25 @@ A **warning** is something the sync keeps running through, for example:
 
 - the file watcher degraded to polling because the system ran out of inotify
   resources;
-- a discovery server could not be reached while device discovery retried;
-- a discovery server refused the group token (`token_required`) because the
+- a search server could not be reached while device discovery retried;
+- a search server refused the group token (`token_required`) because the
   **Shared password** in the p2p tab does not match the key configured on the
   server — there is no token to type; see
-  [Troubleshooting → The discovery server refuses the shared password](troubleshooting.md#the-discovery-server-refuses-the-shared-password-token_required);
+  [Troubleshooting → The search server refuses the shared password](troubleshooting.md#the-search-server-refuses-the-shared-password-token_required);
 - free disk space fell below the configured reserve;
 - the shared folder is no longer accessible (drive unplugged, network mount
   dropped).
 
 ### The data relay could not be paired (`relay_unavailable`)
 
-Only with a discovery server. Two devices that no port map can reach directly
+Only with a search server. Two devices that no port map can reach directly
 (strict NAT / CGNAT — mobile data, hotspots) still try to sync *through* the
 node. When the node cannot pair that relay, the app keeps the run going and
 shows a warning whose remedy names what to do: a public endpoint on the
 **primary** device (UPnP) or the node's data relay enabled (it is **on by
 default** — check that the operator did not start it with `--no-relay` or
 `HSYNC_RENDEZVOUS_RELAY=0`). See
-[Troubleshooting → Devices stay on "Connecting…"](troubleshooting.md#devices-stay-on-connecting-or-flip-to-disconnected-though-the-discovery-server-is-fine).
+[Troubleshooting → Devices stay on "Connecting…"](troubleshooting.md#devices-stay-on-connecting-or-flip-to-disconnected-though-the-search-server-is-fine).
 
 A warning that heals itself — real-time changes queued faster than they could be
 sent, a file that kept changing while it was being sent, files that could not be
@@ -107,7 +107,7 @@ what to do:
   on the other device are applied here too. Check the folder and confirm to
   continue. It is the only posture that asks: a bidirectional run uploads the
   files that exist only here, **Send only** never deletes on this device,
-  Simulation Mode only previews and the **Keep deleted files** policy cannot
+  Simulation Mode only previews and the **Never delete files on this device** policy cannot
   remove anything, so none of them ever prompts.
   Tick **Don't warn me again for this folder and these settings** to stop it for
   the folder and the configuration you confirmed: another folder, or a changed
@@ -118,7 +118,7 @@ what to do:
   a cycle that would remove too many files.
   See [Choose what happens to deleted files](choose-deletion-policy.md).
 - **Deletions skipped (deletion protection)** — a cycle wanted to delete more
-  local files than **Max deletions per cycle** or **Max deletions percent** allow.
+  local files than **Stop after this many deletions** or **Stop when this share of files would be deleted** allow.
   Those deletions were skipped and the sync kept running; a later cycle retries
   them. If the removal is expected, raise the limits in *Settings → Advanced*;
   otherwise check the primary device or the source first.
@@ -150,7 +150,7 @@ Accepting a fingerprint pins it in the client's trust store, so the app and the
 ## Badges in the window
 
 - **Simulation — no changes** — Simulation Mode is on; runs only preview.
-- **Deletions kept** — the **Keep deleted files** policy is active.
+- **Deletions kept** — the **Never delete files on this device** policy is active.
 - **— Simulation** in the title bar while Simulation Mode is on.
 - **Status dot on the connection icon** — amber while a link is being established, red on a
   connection problem, grey when the sync is stopped. A red or grey warning replaces the mode

@@ -91,17 +91,17 @@ acknowledgement that silences the prompt and the control that brings it back.
   [Key concepts → Share](concepts.md#share).
 - The devices must be on the same network, with mDNS allowed through the
   firewall.
-- Devices on different networks need a **discovery servers** set in the p2p tab.
-- If a discovery server is set but cannot be reached, the app warns you and keeps
+- Devices on different networks need a **search servers** set in the p2p tab.
+- If a search server is set but cannot be reached, the app warns you and keeps
   working on the local network — devices on this network are still found. The
   server only adds devices on *other* networks.
 - A shared password is only needed to authorize writes.
 
-## Devices stay on "Connecting…" (or flip to "Disconnected") though the discovery server is fine
+## Devices stay on "Connecting…" (or flip to "Disconnected") though the search server is fine
 
-Two devices can *find* each other through the discovery server (the log keeps
+Two devices can *find* each other through the search server (the log keeps
 saying `refresh ok (1 peer(s))`) yet never *link*: the file traffic between
-them cannot flow. The discovery server only introduces the peers — it does not
+them cannot flow. The search server only introduces the peers — it does not
 carry the sync in most cases — so the remaining step is for the two devices to
 reach each other.
 
@@ -111,9 +111,9 @@ Common causes, in order:
    acts as **primary**, open *Settings → p2p Mode → Open the port on my router
    automatically* (UPnP). Without a port the router can forward, devices on
    other networks cannot dial in.
-2. **The data relay needs to be active on the discovery server.** If neither
+2. **The data relay needs to be active on the search server.** If neither
    device has a publicly reachable port (both behind strict NAT — mobile
-   data, hotspots, CGNAT), the sync can run *through* the discovery server.
+   data, hotspots, CGNAT), the sync can run *through* the search server.
    The operator must run it with the data relay **enabled** (the default; check
    that `--no-relay` or `HSYNC_RENDEZVOUS_RELAY=0` were not set). The app shows a
    warning that names this case and a remedy when it cannot pair the relay.
@@ -123,7 +123,7 @@ Common causes, in order:
 
 If you see a warning containing `[RELAY]` and `could not relay the data plane`,
 read its remedy: it says whether to open a port on the primary or to enable the
-relay on the discovery server. See
+relay on the search server. See
 [Warnings → The data relay could not be paired](warnings.md#the-data-relay-could-not-be-paired-relay_unavailable).
 
 ## p2p authentication failed
@@ -143,16 +143,16 @@ characters). A shorter value is refused at startup. Generate a password with
 `openssl rand -hex 16` and use the exact same string on every device in the group.
 See [Secrets](secrets.md).
 
-## The discovery server refuses the shared password (`token_required`)
+## The search server refuses the shared password (`token_required`)
 
-A protected discovery server (a *private* node, or one that protects its
+A protected search server (a *private* node, or one that protects its
 buckets) only introduces devices that know the group's key. When the key does
 not match, the app keeps the run going but shows a warning that reads
 `Rendezvous <server> refused the lease frame: token_required`.
 
 There is **no token to type**: the app derives the key from the **Shared
 password** in the p2p tab, so a `token_required` warning means that password
-does not match the key configured on the discovery server.
+does not match the key configured on the search server.
 
 To fix it:
 
@@ -162,10 +162,10 @@ To fix it:
 3. Start the sync again. If the warning returns, the server's key was not
    derived from that password. To get the value to give the operator, use
    **Settings → p2p Mode → Finding devices → Show group key…** (only shown
-   when a discovery server is configured) — it shows the `bucket=<key>` line
+   when a search server is configured) — it shows the `bucket=<key>` line
    masked, with a reveal toggle and a Copy button, ready to add to the
    server's key file (see
-   [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password)).
+   [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password)).
    If you already changed the Shared password in the settings, the app reminds
    you about this same line before applying.
 

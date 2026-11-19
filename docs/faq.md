@@ -40,7 +40,7 @@ bucket between
 devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
 
 In p2p Mode they must use the **same group name** and the **same share name**, and
-be on the same network (or reach the same discovery servers). A device with no
+be on the same network (or reach the same search servers). A device with no
 group only sees other no-group devices. The full checklist is in
 [Troubleshooting → Devices are not found in p2p Mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
 
@@ -48,7 +48,7 @@ group only sees other no-group devices. The full checklist is in
 
 The folder is not empty and the current settings allow deletions — p2p Mode with
 **Prefer primary role** off, or a **Receive only** sync type. It is a warning
-before anything happens, not an action. Choose **Keep deleted files**
+before anything happens, not an action. Choose **Never delete files on this device**
 (Settings → Sync → Deletions) and the warning disappears, because the app can no
 longer delete anything; the status bar then shows a **Deletions kept** badge. See
 [Warnings and notifications](warnings.md#warnings-before-a-sync) and

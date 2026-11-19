@@ -30,7 +30,7 @@ a one-way type is active offers to go back to **Keep aligned**.
 
 With **Send only** or **Receive only**, deletions travel in one direction only.
 If you have ever worried about losing files, pair a one-way type with the
-**Keep deleted files** policy — see
+**Never delete files on this device** policy — see
 [Choose what happens to deleted files](choose-deletion-policy.md).
 
 ## Related

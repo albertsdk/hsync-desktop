@@ -41,12 +41,12 @@ openssl rand -hex 16
 
 Copy the result to every device in the group.
 
-### The discovery server uses the same password
+### The search server uses the same password
 
 If your devices find each other across networks, your setup may include a
-**discovery server** (an *HSYNC Rendezvous*). Its operator can run it
+**search server** (an *HSYNC Rendezvous*). Its operator can run it
 **protected** — a *private* node, or a node that protects its buckets — and a
-protected discovery server only introduces devices that know the group's key.
+protected search server only introduces devices that know the group's key.
 
 There is **no separate token to type**: the app derives the key automatically
 from the **Shared password** in the p2p tab. The only thing that matters is
@@ -56,7 +56,7 @@ that the password matches the key the operator configured on the server:
   was created** (ideally the same password as the rest of the group).
 - To get the exact value to give the server operator, use **Settings →
   p2p Mode → Finding devices → Show group key…** (the action only appears when
-  a discovery server is configured): it opens a dialog where the whole
+  a search server is configured): it opens a dialog where the whole
   `bucket=<key>` line stays **masked** until you reveal it with the eye icon,
   and the Copy button puts that line on the clipboard. There is no terminal
   involved — the app computes the key from your Shared password.
@@ -74,7 +74,7 @@ that the password matches the key the operator configured on the server:
 
 If the password does not match, the app shows a warning that names
 `token_required` — see
-[Troubleshooting → The discovery server refuses the shared password](troubleshooting.md#the-discovery-server-refuses-the-shared-password-token_required).
+[Troubleshooting → The search server refuses the shared password](troubleshooting.md#the-search-server-refuses-the-shared-password-token_required).
 
 ## Server Mode: the account key
 

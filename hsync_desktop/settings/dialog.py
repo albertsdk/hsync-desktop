@@ -680,6 +680,14 @@ class SettingsDialog(QDialog):
         ):
             if group is not None:
                 group.setVisible(show)
+        # The transport choice is a protocol detail (UDP/TCP), not something an
+        # everyday user should have to decide: it lives with the advanced options.
+        for widget in (
+            getattr(self, "_lbl_p2p_rendezvous_transport", None),
+            getattr(self, "p2p_rendezvous_transport", None),
+        ):
+            if widget is not None:
+                widget.setVisible(show)
         if not show and self._tabs.currentIndex() == _ADVANCED_TAB_INDEX:
             self._tabs.setCurrentIndex(_GENERAL_TAB_INDEX)
 

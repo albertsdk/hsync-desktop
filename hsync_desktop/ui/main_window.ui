@@ -203,7 +203,7 @@
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Problems</string>
+         <string/>
         </property>
         <property name="toolButtonStyle">
          <enum>Qt::ToolButtonTextOnly</enum>
@@ -229,7 +229,7 @@
       <item>
        <widget class="QLabel" name="roleLabel">
         <property name="text">
-         <string>⬡ Client</string>
+         <string/>
         </property>
        </widget>
       </item>
@@ -291,7 +291,7 @@
       <item>
        <widget class="QLabel" name="lblPeers">
         <property name="text">
-         <string>Peers:</string>
+         <string>Devices:</string>
         </property>
        </widget>
       </item>

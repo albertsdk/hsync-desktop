@@ -111,20 +111,21 @@ class TestTerminologyConsistency:
 
     ALL = ALL_MODULES
 
-    # User-facing name of the `rdv/1` node in each locale. It is a discovery
-    # service (it never relays file data), so "relay" and "rendezvous" are jargon.
+    # User-facing name of the `rdv/1` node in each locale. It helps devices find
+    # each other (it never relays file data), so "relay", "rendezvous" and
+    # "discovery" are jargon: the UI says "search server".
     RENDEZVOUS_TERMS = {
-        "en": "discovery",
-        "it": "individuazione",
-        "de": "erkennung",
-        "fr": "découverte",
-        "es": "descubrimiento",
-        "pt": "descoberta",
-        "zh": "发现",
-        "ru": "обнаружения",
-        "nl": "detectie",
-        "pl": "wykrywania",
-        "ja": "探索",
+        "en": "search",
+        "it": "ricerca",
+        "de": "such",
+        "fr": "recherche",
+        "es": "búsqueda",
+        "pt": "pesquisa",
+        "zh": "搜索",
+        "ru": "поиска",
+        "nl": "zoek",
+        "pl": "wyszukiwania",
+        "ja": "検索",
     }
 
     # Locale-independent tokens that wrongly imply a data relay.
@@ -182,7 +183,7 @@ class TestTerminologyConsistency:
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
 
     def test_rendezvous_terms_avoid_relay_jargon(self):
-        """The rdv/1 node is a discovery server; the wording must never use a relay term."""
+        """The rdv/1 node is a search server; the wording must never use a relay term."""
         for module in self.ALL:
             name = module.__name__.rsplit(".", 1)[-1]
             term = self.RENDEZVOUS_TERMS[name]
@@ -192,8 +193,44 @@ class TestTerminologyConsistency:
                 for token in self.RELAY_TOKENS:
                     assert token not in text, f"{module.__name__}:{key}: {token!r}"
 
+    def test_the_deletion_warning_quotes_the_visible_option(self):
+        """The warning must name the option exactly as its label reads."""
+        for module in self.ALL:
+            label = module.translations["settings.deletion_policy_propagate"]
+            assert label in module.translations["warn.deletion_policy_msg"], module.__name__
+
+    def test_deletion_wording_describes_the_outcome(self):
+        """The policy labels say what happens to a file, not "propagate"/"backup"."""
+        tokens = (
+            "propagat",
+            "backup",
+            "back-up",
+            "sauvegarde",
+            "copia de seguridad",
+            "cópia de segurança",
+            "резервн",
+            "kopia zapasowa",
+            "バックアップ",
+            "备份",
+        )
+        for module in self.ALL:
+            for key in (
+                "settings.deletion_policy_propagate",
+                "settings.deletion_policy_keep",
+                "deletion.tip",
+            ):
+                text = module.translations[key].lower()
+                for token in tokens:
+                    assert token not in text, f"{module.__name__}:{key}: {token}"
+
+    def test_the_file_table_uses_plain_column_names(self):
+        """No locale falls back to the "ETA"/"Direction" tool jargon."""
+        for module in self.ALL:
+            assert module.translations["file.eta"].strip() != "ETA", module.__name__
+            assert module.translations["file.direction"].strip(), module.__name__
+
     def test_device_finding_group_is_about_devices_only(self):
-        """The settings group names device finding, not the discovery server."""
+        """The settings group names device finding, not the search server."""
         for module in self.ALL:
             text = module.translations["settings.group.p2p_rendezvous"].lower()
             for token in self.RELAY_TOKENS:

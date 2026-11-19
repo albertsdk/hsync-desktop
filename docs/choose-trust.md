@@ -1,6 +1,6 @@
 # Trust, fingerprints and identity checks
 
-When HSYNC Desktop connects to another device, a discovery server or a sync
+When HSYNC Desktop connects to another device, a search server or a sync
 server, it first checks **that it is talking to the right one**. Each of them
 proves its identity with a certificate, and the app remembers the "fingerprint" of
 that certificate — a short code that uniquely names it. This page explains the
@@ -32,7 +32,7 @@ command line agree on what is trusted.
 
 ## Choosing how strict to be
 
-The three identity checks — **server**, **discovery server** and **primary
+The three identity checks — **server**, **search server** and **primary
 device** — use the same names and the same idea:
 
 | Behaviour | What it means | Good for |
@@ -43,7 +43,7 @@ device** — use the same names and the same idea:
 | **Don't verify** | Accept any fingerprint. | Never, unless you fully control the network. |
 
 **Automatic** is the right choice for almost everyone. For a self-signed server or
-discovery server it remembers the first fingerprint and shows a non-blocking
+search server it remembers the first fingerprint and shows a non-blocking
 notice with the code; verify that code under **Manage trusted servers &
 devices…** when you can, and a later change is still refused.
 
@@ -58,7 +58,7 @@ to remembering the fingerprint when the server presents its own self-signed
 certificate — which the HSYNC Server Debian package generates. Its fingerprint is
 shown by `sudo hsync-server admin tls fingerprint` on the server host.
 
-The **discovery server** is optional, so its identity check never blocks a sync: if
+The **search server** is optional, so its identity check never blocks a sync: if
 it cannot be reached when a sync starts, the app warns you and keeps syncing on
 the local network, and it stops using the server until you pin its fingerprint.
 The **sync server** has no alternative path, so an unreachable or refused one keeps
@@ -69,7 +69,7 @@ the sync from starting.
 <img src="assets/screens/15-trusted-keys.png" alt="Manage trusted servers and devices dialog with tabs per mode" width="640">
 
 Open **Settings → p2p Mode → Manage trusted servers & devices…** (in Server Mode
-the dialog shows the **Server HSYNC** store). It lists the discovery servers, sync
+the dialog shows the **Server HSYNC** store). It lists the search servers, sync
 servers and devices whose fingerprints are stored, with the date they were added,
 and lets you add or remove entries. There is no separate setting: this dialog
 edits the same store the engine uses.

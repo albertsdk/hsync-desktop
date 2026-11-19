@@ -12,10 +12,10 @@ Open it from **Settings → Sync → Deletions**.
 
 | Choice | What happens | Choose it when |
 | ------ | ------------ | -------------- |
-| **Apply deletions (propagate)** | Deleting a file on one device deletes it on the others, so every device stays identical. | You trust your devices and want a true mirror. |
-| **Keep deleted files (backup)** | Nothing is ever deleted here: local deletions are not sent, and deletions coming from elsewhere are not applied. The folder only grows. | You want safety above all — an accidental delete never spreads. |
+| **Deletions reach every device** | Deleting a file on one device deletes it on the others, so every device stays identical. | You trust your devices and want a true mirror. |
+| **Never delete files on this device** | Nothing is ever deleted here: local deletions are not sent, and deletions coming from elsewhere are not applied. The folder only grows. | You want safety above all — an accidental delete never spreads. |
 
-While **Keep deleted files** is active, the main window shows a **Deletions
+While **Never delete files on this device** is active, the main window shows a **Deletions
 kept** badge next to the status, so a device that never removes files says so.
 Clicking the badge (or opening Settings) switches back; the app confirms first.
 
@@ -32,7 +32,7 @@ a warning appears, and the sync keeps running; a later cycle retries them. See
 
 If the folder is not empty and the current settings **can** delete local files,
 the app asks once before starting the first sync. That prompt is a heads-up, not
-a change: enabling **Keep deleted files** — or choosing a one-way **Send only**
+a change: enabling **Never delete files on this device** — or choosing a one-way **Send only**
 type — is what makes it stop asking. See
 [Warnings and notifications → Warnings before a sync](warnings.md#warnings-before-a-sync).
 

@@ -30,16 +30,16 @@ are **secondary**. **Prefer primary role** asks for that role and **Never become
 primary** removes the device from the election; the status bar shows the role once
 it is decided. (The engine's own log lines still say "master" for this role.)
 
-## Discovery server
+## Search server
 
 An optional helper (an **HSYNC Rendezvous**) that only lets devices on different
 networks find each other. It never carries or stores your files. With no
-discovery server, the app uses mDNS on the local network.
+search server, the app uses mDNS on the local network.
 
-A discovery server can be **protected** (*private*, or protecting its buckets):
+A search server can be **protected** (*private*, or protecting its buckets):
 it then only lets in devices that know the group's key. The app earns that key
 from the **Shared password** in the p2p tab — there is no separate token. See
-[Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password).
+[Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
 ## Trust and fingerprints
 

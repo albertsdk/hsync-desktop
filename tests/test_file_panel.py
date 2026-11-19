@@ -848,7 +848,7 @@ class TestOptionalColumns:
         headers = _header_texts(table)
         assert len(headers) == len(tt._COLUMN_KEYS)
         assert "Speed" in headers
-        assert "Direction" in headers
+        assert "Operation" in headers
 
     def test_a_downloading_row_reports_direction_and_speed(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt

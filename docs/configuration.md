@@ -36,7 +36,7 @@ transfer behaviour. It is used in both p2p and Server Mode.
 | Share name | Name of the share: the folder name on the HSYNC server, or the share name in p2p mode. Devices that sync the same folder must use the **same share name** (and, in p2p, the same group name) |
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync type](choose-sync-type.md) |
 | Real-time sync | Keep syncing automatically as files change |
-| Deletions | `Apply deletions (propagate)` keeps this device aligned: a file deleted on one device is deleted on the others. `Keep deleted files (backup)` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Apply deletions` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
+| Deletions | `Deletions reach every device` keeps this device aligned: a file deleted on one device is deleted on the others. `Never delete files on this device` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Deletions reach every device` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
 | Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files and the deletion-risk warning has not been acknowledged for this folder, when the one-time disclaimer has not been accepted yet, or when the plan the run computed includes deletions, the startup run stops and warns you instead of asking (and never opens a dialog) — press **Start** or **Preview changes** to review the plan and confirm it |
 | Sync without asking | Apply the plan without the confirmation dialog when it deletes nothing — transfers and renames run straight away. Off by default. A plan that deletes anything still opens the dialog, and so does **Preview changes**, which exists to show the plan |
 | Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
@@ -50,8 +50,8 @@ transfer behaviour. It is used in both p2p and Server Mode.
 | Extra ignore patterns | Additional gitignore-style exclusion patterns |
 | Ignore rules… | Edit the ignore patterns for the selected folder (stored as `.hsyncignore`) |
 
-Large files are transferred with rsync-style delta blocks automatically by
-default; delta transfer and its minimum sizes are tunable on the **Advanced** tab.
+Large files already transfer only their changed blocks by default; the option
+and its minimum sizes are on the **Advanced** tab.
 
 ## p2p Mode
 
@@ -65,13 +65,13 @@ for when to use it.
 | Setting | Description |
 |---------|-------------|
 | p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected discovery server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
-| Discovery servers (optional) | Endpoint of an optional discovery server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the p2p tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The discovery server uses the same password](secrets.md#the-discovery-server-uses-the-same-password) |
-| Discovery servers identity check | How the app checks the discovery server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
-| Reach the discovery server via | How the app connects to the discovery server: **Auto** (default) races QUIC/UDP (preferred) and TLS/TCP; **QUIC/UDP only** and **TLS/TCP only** use one transport. Choose TLS/TCP when the network filters UDP |
-| Manage trusted servers & devices | List, add and remove the discovery servers, server and device fingerprints the client actually uses |
-| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a discovery server set) |
-| Exclude the local network | Find devices only through the discovery servers, not mDNS, so the app ignores the local network. Useful on a shared network or when the local interface is a VPN; only takes effect with a discovery server set |
+| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected search server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
+| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the p2p tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
+| Search servers identity check | How the app checks the search server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
+| Reach the search server via | How the app connects to the search server: **Auto** (default) races QUIC/UDP (preferred) and TLS/TCP; **QUIC/UDP only** and **TLS/TCP only** use one transport. Choose TLS/TCP when the network filters UDP |
+| Manage trusted servers & devices | List, add and remove the search servers, server and device fingerprints the client actually uses |
+| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a search server set) |
+| Exclude the local network | Find devices only through the search servers, not mDNS, so the app ignores the local network. Useful on a shared network or when the local interface is a VPN; only takes effect with a search server set |
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | Primary device identity check | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
@@ -94,7 +94,7 @@ to the Sync tab). Declining either prompt keeps your choice and repeats the
 generic warning when saving.
 
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
-known-hosts (discovery servers and sync server) and known-devices stores directly —
+known-hosts (search servers and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
 source of truth. The dialog shows only the stores relevant to the active mode: p2p
 shows the discovery-server and device stores, Server Mode shows the **Server
@@ -105,7 +105,7 @@ devices are not authenticated and reads are open to anyone who can reach this
 device. Set a shared password in the p2p tab to avoid the prompt; the confirmation
 is requested on every start and is not a stored setting. See [Secrets](secrets.md).
 
-**Test Connection.** *Test Connection* contacts the configured discovery server
+**Test Connection.** *Test Connection* contacts the configured search server
 and shows the certificate fingerprint it presents, which proves the address is
 reachable; no pin is written. The button reads **Checking…** while the request
 runs and the window stays responsive, so the result arrives in a dialog when the
@@ -227,12 +227,12 @@ options** is enabled in General. Changes apply at the next sync start.
 |---------|-------------|
 | Auto-tune performance | Let the engine tune transfer concurrency, timeouts and retries |
 | Max concurrent transfers | Ceiling on simultaneous transfers; **Auto** uses the engine default |
-| Enable delta transfer | Transfer only changed blocks of large files |
-| Delta minimum size | Minimum file size for delta transfer in server mode |
-| Delta minimum size (p2p) | Minimum file size for delta transfer in p2p mode |
+| Send only the parts that changed | Transfer only changed blocks of large files |
+| Only for files larger than | Send only the changed parts of files at least this large (server mode) |
+| Only for files larger than (direct) | Send only the changed parts of files at least this large (p2p mode) |
 | Deletion protection | Pause a cycle that would delete too many local files (see below) |
-| Max deletions per cycle | Number of deletions that trips the guard; 0 disables this rule |
-| Max deletions percent | Percentage of local files whose deletion trips the guard; 0 disables this rule |
+| Stop after this many deletions | Number of deletions that trips the guard; 0 disables this rule |
+| Stop when this share of files would be deleted | Percentage of local files whose deletion trips the guard; 0 disables this rule |
 | Show the deletion-risk warning again | Bring back the warning silenced from its own dialog; it is scoped to the folder and settings you confirmed |
 | Upload limit / Download limit | Bandwidth caps (1 MB/s = 1 MiB/s), enforced from the first byte and shared by all transfers of that direction; 0 (**Unlimited**) uses all available bandwidth |
 | Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
