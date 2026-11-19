@@ -289,6 +289,34 @@ class TestServerTestConnection:
         qtbot.waitUntil(lambda: bool(infos), timeout=5000)
         assert infos == [tr("settings.test_connection_success")]
 
+    def test_auto_trust_retries_a_self_signed_server_without_verification(
+        self, dialog, qtbot, monkeypatch
+    ):
+        """auto falls back to TOFU when the chain is not trusted (ADR-0051)."""
+        import ssl
+
+        import hsync_desktop.settings.dialog as dialog_mod
+        from hsync_desktop.engine.probes import REASON_UNREACHABLE, ServerProbeResult
+
+        infos = self._capture(monkeypatch, "information")
+        seen: list[ssl.VerifyMode] = []
+
+        def fake_probe(_url, *, ssl_context, timeout):
+            seen.append(ssl_context.verify_mode)
+            if ssl_context.verify_mode == ssl.CERT_REQUIRED:
+                return ServerProbeResult(False, None, 3, False, REASON_UNREACHABLE)
+            return ServerProbeResult(True, 200, 3, False)
+
+        monkeypatch.setattr(dialog_mod, "probe_server_health", fake_probe)
+        dialog.p2p_mode.setChecked(False)
+        dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("auto"))
+        dialog.server_url.setText("https://self-signed.example.com:9753")
+        dialog._on_test_connection()
+
+        qtbot.waitUntil(lambda: bool(infos), timeout=5000)
+        assert infos == [tr("settings.test_connection_success")]
+        assert seen == [ssl.CERT_REQUIRED, ssl.CERT_NONE]
+
     def test_the_rendezvous_button_label_is_untouched(self, dialog, qtbot, monkeypatch):
         import hsync_desktop.settings.dialog as dialog_mod
         from hsync_desktop.engine.probes import ServerProbeResult

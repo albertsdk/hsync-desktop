@@ -110,6 +110,7 @@ from hsync_desktop.engine import (
     REASON_QUOTA,
     AsyncProbe,
     ProbeOutcome,
+    ServerProbeResult,
     build_probe_ssl_context,
     create_server_bucket,
     fetch_rendezvous_fingerprint,
@@ -120,6 +121,7 @@ from hsync_desktop.engine import (
     p2p_secret_mode,
     probe_server_bucket_access,
     probe_server_health,
+    unverified_ssl_context,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -991,10 +993,13 @@ class SettingsDialog(QDialog):
             )
             return
         ssl_context = self._test_connection_ssl_context()
+        trust_policy = self.server_trust.currentData()
         timeout = float(max(5, self.http_timeout.value()))
         self._start_probe(
             "server",
-            lambda: self._server_probe_outcome(base, ssl_context, timeout),
+            lambda: self._server_probe_outcome(
+                base, ssl_context, timeout, trust_policy=trust_policy
+            ),
         )
 
     def _on_test_rendezvous(self) -> None:
@@ -1162,7 +1167,11 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _server_probe_outcome(
-        base_url: str, ssl_context: ssl.SSLContext, timeout: float
+        base_url: str,
+        ssl_context: ssl.SSLContext,
+        timeout: float,
+        *,
+        trust_policy: str | None = None,
     ) -> ProbeOutcome:
         """Probe the server health endpoint, from the probe thread.
 
@@ -1170,14 +1179,25 @@ class SettingsDialog(QDialog):
         answer, try the shared 443 fallback (a reverse proxy) so this test agrees
         with the client's startup port resolution instead of failing a server
         the sync will actually reach.
+
+        Under ``auto`` a failed chain check is retried without verification: the
+        health probe sends no credentials, and ADR-0051 resolves ``auto`` to
+        accept-new (TOFU) when the CA chain is not trusted, so a self-signed
+        server is reachable here and pinned by the real sync.
         """
-        result = probe_server_health(base_url, ssl_context=ssl_context, timeout=timeout)
+        tofu_context = unverified_ssl_context() if trust_policy == "auto" else None
+
+        def probe(url: str) -> ServerProbeResult:
+            result = probe_server_health(url, ssl_context=ssl_context, timeout=timeout)
+            if not result.ok and tofu_context is not None:
+                result = probe_server_health(url, ssl_context=tofu_context, timeout=timeout)
+            return result
+
+        result = probe(base_url)
         if not result.ok:
             fallback = server_fallback_url(base_url)
             if fallback is not None:
-                fallback_result = probe_server_health(
-                    fallback, ssl_context=ssl_context, timeout=timeout
-                )
+                fallback_result = probe(fallback)
                 if fallback_result.ok:
                     return ProbeOutcome(True, fallback_result.status, reason=f"fallback:{fallback}")
         return ProbeOutcome(result.ok, result.status, reason=result.reason)
