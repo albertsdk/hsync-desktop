@@ -63,6 +63,7 @@ from hsync_desktop.file_panel.models import (
     _NO_PROGRESS_STATUSES,
     IN_FLIGHT_STALE_SECONDS,
     IN_FLIGHT_STATUSES,
+    RESTING_STATUSES,
     STATUS_COLORS,
     STATUS_COLORS_DARK,
     FileTransfer,
@@ -253,6 +254,18 @@ def selection_subdir(filepath: str) -> str:
     return os.path.dirname(path)
 
 
+def row_is_change(transfer: FileTransfer | None, folder: dict) -> bool:
+    """Whether a row carries work the user still has to see.
+
+    A folder row reports its children (``folder["has_changes"]``); a plain row
+    reports its own status. One definition serves the view filter and the count
+    next to it, so the button can never disagree with the list it controls.
+    """
+    if folder:
+        return bool(folder.get("has_changes"))
+    return transfer is not None and transfer.status not in RESTING_STATUSES
+
+
 class FileTransferModel(QAbstractTableModel):
     """Row data for :class:`FileTransferTable`, rendered on demand.
 
@@ -266,6 +279,10 @@ class FileTransferModel(QAbstractTableModel):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._rows: list[tuple[str, FileTransfer | None, dict]] = []
+        # Every row the view handed over, before the "only changes" filter: the
+        # filter is a pure view concern, so toggling it never re-reads the disk.
+        self._rows_all: list[tuple[str, FileTransfer | None, dict]] = []
+        self._only_changes = False
         self._connected = False
         self._default_text_color = QColor()
         self._status_palette: dict = STATUS_COLORS
@@ -297,8 +314,25 @@ class FileTransferModel(QAbstractTableModel):
         self._status_palette = status_palette
         self._direction_font = direction_font
         self._verified_at = verified_at if verified_at is not None else self._verified_at
-        self._rows = self._sorted(rows)
+        self._rows_all = self._sorted(rows)
+        self._rows = self._filtered(self._rows_all)
         self.endResetModel()
+
+    def set_only_changes(self, enabled: bool) -> None:
+        """Hide the rows without pending work (``row_is_change``)."""
+        if enabled == self._only_changes:
+            return
+        self._only_changes = enabled
+        self.beginResetModel()
+        self._rows = self._filtered(self._rows_all)
+        self.endResetModel()
+
+    def _filtered(
+        self, rows: list[tuple[str, FileTransfer | None, dict]]
+    ) -> list[tuple[str, FileTransfer | None, dict]]:
+        if not self._only_changes:
+            return rows
+        return [row for row in rows if row_is_change(row[1], row[2])]
 
     def clear_sort(self) -> None:
         """Drop the user sort so the view keeps the natural folders-first order."""
@@ -650,6 +684,9 @@ class FileTransferTable(QTableView):
     # The full selection (0..N entries), emitted on every change so the window
     # can enable the File menu from the selection instead of one row at a time.
     selected_rows_changed = Signal(list)
+    # Emitted after refresh_view rebuilt the rows: the panel re-renders the
+    # filter count and the empty state from it.
+    rows_refreshed = Signal()
     # Emitted when files are dropped from the OS file manager: the accepted
     # absolute source paths, the destination folder relative to the share root,
     # and the requested action ("copy" or "move").
@@ -732,6 +769,9 @@ class FileTransferTable(QTableView):
         # Cache for computed items at current level to avoid redundant computation
         self._cached_items: list[tuple[str, FileTransfer | None, dict]] | None = None
         self._cached_path: str = ""
+        # "Only changes" view filter: applied by the model, so hidden rows can
+        # never stay selected or be acted on.
+        self._only_changes = False
 
         self._direction_font: QFont | None = None
         # Read before the header lays out: see has_saved_layout.
@@ -741,6 +781,45 @@ class FileTransferTable(QTableView):
 
         self._setup_table()
         self._setup_drop()
+
+    @property
+    def only_changes(self) -> bool:
+        """Whether the table hides the rows without pending work."""
+        return self._only_changes
+
+    def set_only_changes(self, enabled: bool) -> None:
+        """Show only the rows with pending work (see ``row_is_change``)."""
+        if enabled == self._only_changes:
+            return
+        self._only_changes = enabled
+        # The model reset drops the selection; the sticky row is cleared too,
+        # because its index would now point at a different entry.
+        self._last_selected_row = -1
+        self.clearSelection()
+        self._model.set_only_changes(enabled)
+        self._row_index = {
+            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
+        }
+        self.selected_rows_changed.emit(self.selected_transfers())
+        self.rows_refreshed.emit()
+
+    def change_count(self) -> int:
+        """How many rows at the current level carry pending work."""
+        return sum(
+            1
+            for _name, transfer, folder in self._current_items()
+            if row_is_change(transfer, folder)
+        )
+
+    def level_item_count(self) -> int:
+        """How many rows the current level holds before the view filter."""
+        return len(self._current_items())
+
+    def _current_items(self) -> list[tuple[str, FileTransfer | None, dict]]:
+        """The current level's items, filtered or not (the cache is unfiltered)."""
+        if self._cached_items is None or self._cached_path != self._current_path:
+            return self._get_items_at_current_level()
+        return self._cached_items
 
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
@@ -1485,6 +1564,7 @@ class FileTransferTable(QTableView):
         total_transferred = 0
         max_mtime = 0.0
         status_priority = 100
+        has_changes = False
         uploading = False
         sending = 0
         receiving = 0
@@ -1508,6 +1588,8 @@ class FileTransferTable(QTableView):
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
+            if f.status not in RESTING_STATUSES:
+                has_changes = True
             if f.status is TransferStatus.UPLOADING:
                 uploading = True
             if f.status in ops:
@@ -1538,6 +1620,9 @@ class FileTransferTable(QTableView):
 
         return {
             "count": count,
+            # Whether any descendant still has pending work: the row filter and
+            # the "only changes" count read it instead of re-aggregating.
+            "has_changes": has_changes,
             "total_size": total_size,
             "size_bytes": size_bytes,
             "mtime": max_mtime,
@@ -1654,6 +1739,7 @@ class FileTransferTable(QTableView):
         finally:
             self._restoring_selection = False
         self.selected_rows_changed.emit(self.selected_transfers())
+        self.rows_refreshed.emit()
 
     def _get_transfer_at_row(self, row: int) -> FileTransfer | None:
         """Return the FileTransfer for the given row."""

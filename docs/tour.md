@@ -58,8 +58,9 @@ the folder button returns to the shared folder's root.
 
 The file list shows every file the sync is working on, one row each, with the
 folder tree above it. Columns are resizable and reorderable; the header menu
-toggles the optional columns and can reset the layout. Right-clicking a row opens
-the actions for that file or folder. The full description is in
+toggles the optional columns and can reset the layout. **Only changes** filters
+the list to the rows with pending work and shows how many there are.
+Right-clicking a row opens the actions for that file or folder. The full description is in
 [The file list](file-list.md).
 
 ## The log panel

@@ -13,7 +13,8 @@ from pathlib import Path
 from time import time
 
 from hsync_common.ignore import IgnoreMatcher
-from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QSettings, QSize, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -27,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS
+from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS, SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.file_panel.detail_panel import FileDetailPanel
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import ignore_file_stamp, is_synced_entry
@@ -58,6 +59,9 @@ from hsync_desktop.ui.loader import load_ui_widget
 # path.
 _BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
 _NAV_ICON_PX = 20
+_NAV_FILTER_ICON_PX = 16
+# Remember the "only changes" view across restarts (least surprise: off first).
+_FILTER_SETTINGS_KEY = "ui/file_filter_only_changes"
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
 
@@ -205,6 +209,23 @@ class FilePanel(QWidget):
         self._breadcrumb_label.linkActivated.connect(self._on_breadcrumb_clicked)
         nav_layout.addWidget(self._breadcrumb_label, 1)
 
+        # View filter: the same question a comparison tool answers with "show
+        # differences only", next to the navigation it filters. The count in the
+        # label makes it a summary even while the filter is off.
+        self._btn_only_changes = QToolButton(nav_bar)
+        self._btn_only_changes.setObjectName("btnOnlyChanges")
+        self._btn_only_changes.setCheckable(True)
+        self._btn_only_changes.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._btn_only_changes.setIcon(get_icon("system-search"))
+        self._btn_only_changes.setIconSize(QSize(_NAV_FILTER_ICON_PX, _NAV_FILTER_ICON_PX))
+        self._btn_only_changes.setAutoRaise(True)
+        self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
+        self._btn_only_changes.setText(tr("file.filter_only_changes"))
+        self._btn_only_changes.setChecked(
+            bool(QSettings(SETTINGS_ORG, SETTINGS_APP).value(_FILTER_SETTINGS_KEY, False, bool))
+        )
+        nav_layout.addWidget(self._btn_only_changes)
+
         table_layout.addWidget(nav_bar)
         table_layout.addWidget(self._table)
 
@@ -212,6 +233,18 @@ class FilePanel(QWidget):
         self._splitter.insertWidget(table_idx, self._table_container)
 
         self._loading_overlay = LoadingOverlay(self._table_container)
+        # Shown when the filter hides everything: an empty table without a reason
+        # reads as a broken view.
+        self._filter_empty_label = QLabel(tr("file.filter_no_changes"), self._table_container)
+        self._filter_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._filter_empty_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        muted = self._filter_empty_label.palette()
+        muted.setColor(
+            QPalette.ColorRole.WindowText,
+            self.palette().color(QPalette.ColorRole.PlaceholderText),
+        )
+        self._filter_empty_label.setPalette(muted)
+        self._filter_empty_label.hide()
         self._table_container.installEventFilter(self)
 
         detail_frame: QFrame = self.findChild(QFrame, "detailPanel")  # type: ignore[assignment]
@@ -232,7 +265,12 @@ class FilePanel(QWidget):
         self._table.path_changed.connect(self._update_nav_buttons)
         self._table.files_dropped.connect(self._on_files_dropped)
         self._loading_overlay.cancel_requested.connect(self._cancel_import)
+        self._btn_only_changes.toggled.connect(self._on_only_changes_toggled)
+        self._table.rows_refreshed.connect(self._sync_filter_state)
         self._update_breadcrumb()
+        # Apply the restored preference once the wiring exists, then paint it.
+        self._table.set_only_changes(self._btn_only_changes.isChecked())
+        self._sync_filter_state()
 
     @Slot()
     def _on_detail_close(self) -> None:
@@ -264,6 +302,7 @@ class FilePanel(QWidget):
         self._btn_forward.setEnabled(self._table.can_go_forward())
         self._btn_up.setEnabled(bool(self._table.current_path))
         self._update_breadcrumb()
+        self._sync_filter_state()
 
     def _navigate_to_root(self) -> None:
         """Open the share root, unless the visible list already shows it."""
@@ -720,12 +759,12 @@ class FilePanel(QWidget):
     def eventFilter(self, watched: QObject, event) -> bool:
         from PySide6.QtCore import QEvent
 
-        if (
-            watched == self._table_container
-            and event.type() == QEvent.Type.Resize
-            and self._loading_overlay.isVisible()
-        ):
-            self._loading_overlay.setGeometry(self._table_container.rect())
+        if watched == self._table_container and event.type() == QEvent.Type.Resize:
+            if self._loading_overlay.isVisible():
+                self._loading_overlay.setGeometry(self._table_container.rect())
+            if self._filter_empty_label.isVisible():
+                # Centre the message over the rows, not over the navigation bar.
+                self._filter_empty_label.setGeometry(self._table.geometry())
         return super().eventFilter(watched, event)
 
     def _refresh_matcher(self) -> IgnoreMatcher:
@@ -955,6 +994,36 @@ class FilePanel(QWidget):
     @property
     def table(self) -> FileTransferTable:
         return self._table
+
+    def _filter_button_text(self, count: int) -> str:
+        """The toggle's label: the pending count doubles as a summary."""
+        label = tr("file.filter_only_changes")
+        return f"{label} ({count})" if count else label
+
+    @Slot(bool)
+    def _on_only_changes_toggled(self, checked: bool) -> None:
+        self._table.set_only_changes(checked)
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(_FILTER_SETTINGS_KEY, checked)
+        self._sync_filter_state()
+
+    @Slot()
+    def _sync_filter_state(self) -> None:
+        """Re-render the filter label and the empty state it can create."""
+        count = self._table.change_count()
+        self._btn_only_changes.setText(self._filter_button_text(count))
+        empty = (
+            self._btn_only_changes.isChecked() and count == 0 and self._table.level_item_count() > 0
+        )
+        self._filter_empty_label.setVisible(empty)
+        if empty:
+            self._filter_empty_label.setGeometry(self._table.geometry())
+            self._filter_empty_label.raise_()
+
+    def retranslate_view_filter(self) -> None:
+        """Re-apply the filter control's wording after a language change."""
+        self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
+        self._filter_empty_label.setText(tr("file.filter_no_changes"))
+        self._sync_filter_state()
 
     def retranslate_columns(self) -> None:
         """Re-apply the localized table column headers (on language change)."""

@@ -40,6 +40,20 @@ Files and folders whose name starts with a dot are hidden from the list. Enable
 **Show hidden files** from the header menu to see them — this changes only the
 list, not what is synchronised.
 
+## Only changes
+
+**Only changes** in the list bar (the magnifier next to the breadcrumb) hides the
+rows with nothing pending: files already in sync, entries the engine has not
+classified yet and finished transfers stay out of the way, while transfers,
+renames, deletions and errors remain. The number next to the label is how many
+rows at the current folder carry pending work, so the toggle doubles as a summary.
+
+The choice is remembered across restarts and applies to the folder you are
+browsing, like the rest of the list. When it hides everything, the list says
+nothing is pending in that folder instead of showing an empty table. It changes
+only what you see: actions act on the visible rows, and the folder size and the
+status bar keep counting every file.
+
 ## The shared-folder size
 
 The status bar's **Shared: X / Y** indicator shows the shared folder's size on

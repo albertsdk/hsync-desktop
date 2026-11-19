@@ -48,6 +48,18 @@ IN_FLIGHT_STATUSES = frozenset(
     }
 )
 
+# Statuses that mean "nothing pending": the row is not a change the user still
+# has to see. LOCAL is the pre-comparison state (exists here, not classified
+# yet), so it is not pending work either; DELETED only lives for a moment.
+RESTING_STATUSES = frozenset(
+    {
+        TransferStatus.LOCAL,
+        TransferStatus.SYNCED,
+        TransferStatus.COMPLETED,
+        TransferStatus.DELETED,
+    }
+)
+
 
 # Status colors for the file table. The light-theme palette is deliberately
 # darker than the material 400 shades: on a white background the green, amber
