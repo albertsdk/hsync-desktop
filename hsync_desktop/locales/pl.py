@@ -816,6 +816,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "To plik, nie folder.",
     "wizard.error.no_access": "Brak uprawnień do odczytu/zapisu tego folderu.",
     "wizard.error.root": "Nie można synchronizować katalogu głównego systemu plików.",
+    "wizard.error.folder_in_use": "Inny udział już używa tego folderu.",
     "wizard.error.server_required": "Wprowadź adres serwera.",
     "wizard.error.server_invalid": "Nieprawidłowy adres serwera.",
     "wizard.error.api_key_required": "Wprowadź klucz dostępu.",
@@ -931,4 +932,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "Nie udało się utworzyć udziału na serwerze.",
     "settings.bucket_probe.quota": "Osiągnięto maksimum {max} udziałów dla Twojego konta. Usuń udział lub poproś administratora serwera o zwiększenie limitu.",
     "settings.bucket_probe.offline": "Nie można połączyć się z serwerem, więc udział nie został zweryfikowany. Zapisać mimo to?",
+    "settings.bucket_probe.trust_missing": "Certyfikat tego serwera nie jest jeszcze zapisany. Potwierdź jego odcisk w Zarządzaj zaufanymi kluczami lub ustaw Weryfikację tożsamości na Automatyczną.\n\nOdcisk:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "Certyfikat serwera nie odpowiada już zapisanemu odciskowi (możliwe podszycie). Klucz API nie został wysłany. Jeśli serwer został zainstalowany ponownie, zaktualizuj odcisk w Zarządzaj zaufanymi kluczami.\n\nNowy odcisk:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "Nie udało się zapisać odcisku certyfikatu serwera, więc klucz API nie został wysłany. Spróbuj ponownie lub potwierdź go w Zarządzaj zaufanymi kluczami.",
+    "settings.bucket_probe.tofu_saved": "Odcisk certyfikatu tego serwera został zapamiętany (pierwsze użycie). Późniejsza zmiana zostanie odrzucona. Możesz go sprawdzić w Zarządzaj zaufanymi kluczami.\n\nOdcisk:\n{fingerprint}",
 }

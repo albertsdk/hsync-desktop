@@ -793,6 +793,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "C'est un fichier, pas un dossier.",
     "wizard.error.no_access": "Vous n'avez pas la permission de lire/écrire ce dossier.",
     "wizard.error.root": "La racine du système de fichiers ne peut pas être synchronisée.",
+    "wizard.error.folder_in_use": "Un autre partage utilise déjà ce dossier.",
     "wizard.error.server_required": "Saisissez l'adresse du serveur.",
     "wizard.error.server_invalid": "Adresse de serveur non valide.",
     "wizard.error.api_key_required": "Saisissez la clé d'accès.",
@@ -908,4 +909,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "Le partage n'a pas pu être créé sur le serveur.",
     "settings.bucket_probe.quota": "Vous avez atteint le maximum de {max} partages pour votre compte. Supprimez un partage ou demandez à l'administrateur du serveur d'augmenter la limite.",
     "settings.bucket_probe.offline": "Le serveur est injoignable, le partage n'a donc pas été vérifié. Enregistrer quand même ?",
+    "settings.bucket_probe.trust_missing": "Le certificat de ce serveur n'est pas encore enregistré. Confirmez son empreinte dans Gérer les clés de confiance, ou réglez la Vérification d'identité sur Automatique.\n\nEmpreinte :\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "Le certificat du serveur ne correspond plus à l'empreinte enregistrée (usurpation possible). La clé API n'a pas été envoyée. Si le serveur a été réinstallé, mettez à jour son empreinte dans Gérer les clés de confiance.\n\nNouvelle empreinte :\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "L'empreinte du certificat du serveur n'a pas pu être enregistrée ; la clé API n'a donc pas été envoyée. Réessayez ou confirmez-la dans Gérer les clés de confiance.",
+    "settings.bucket_probe.tofu_saved": "L'empreinte du certificat de ce serveur a été mémorisée (première utilisation). Tout changement ultérieur sera refusé. Vous pouvez la vérifier dans Gérer les clés de confiance.\n\nEmpreinte :\n{fingerprint}",
 }

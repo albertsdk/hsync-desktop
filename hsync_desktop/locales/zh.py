@@ -816,6 +816,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "这是文件，不是文件夹。",
     "wizard.error.no_access": "你没有读取/写入此文件夹的权限。",
     "wizard.error.root": "无法同步文件系统根目录。",
+    "wizard.error.folder_in_use": "另一个共享已使用此文件夹。",
     "wizard.error.server_required": "请输入服务器地址。",
     "wizard.error.server_invalid": "服务器地址无效。",
     "wizard.error.api_key_required": "请输入访问密钥。",
@@ -931,4 +932,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "无法在服务器上创建该共享。",
     "settings.bucket_probe.quota": "你的账户已达到 {max} 个共享的上限。请删除一个共享，或请服务器管理员提高上限。",
     "settings.bucket_probe.offline": "无法连接服务器，未验证该共享。仍要保存吗？",
+    "settings.bucket_probe.trust_missing": "尚未保存此服务器的证书。请在“管理受信任的密钥”中确认其指纹，或将身份检查设为“自动”。\n\n指纹：\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "服务器证书与已保存的指纹不再匹配（可能被冒充）。API 密钥未发送。如果服务器已重装，请在“管理受信任的密钥”中更新其指纹。\n\n新指纹：\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "无法保存服务器证书的指纹，因此未发送 API 密钥。请重试，或在“管理受信任的密钥”中确认。",
+    "settings.bucket_probe.tofu_saved": "已记住此服务器证书的指纹（首次使用）。之后的变化将被拒绝。可在“管理受信任的密钥”中查看。\n\n指纹：\n{fingerprint}",
 }

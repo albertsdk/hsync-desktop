@@ -793,6 +793,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "Esto es un archivo, no una carpeta.",
     "wizard.error.no_access": "No tienes permiso para leer/escribir esta carpeta.",
     "wizard.error.root": "La raíz del sistema de archivos no se puede sincronizar.",
+    "wizard.error.folder_in_use": "Otro recurso ya usa esta carpeta.",
     "wizard.error.server_required": "Introduce la dirección del servidor.",
     "wizard.error.server_invalid": "Dirección de servidor no válida.",
     "wizard.error.api_key_required": "Introduce la clave de acceso.",
@@ -908,4 +909,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "No se pudo crear la compartición en el servidor.",
     "settings.bucket_probe.quota": "Has alcanzado el máximo de {max} comparticiones para tu cuenta. Elimina una compartición o pide al administrador del servidor que aumente el límite.",
     "settings.bucket_probe.offline": "No se pudo contactar con el servidor, así que el recurso no se verificó. ¿Guardar de todos modos?",
+    "settings.bucket_probe.trust_missing": "El certificado de este servidor aún no está guardado. Confirma su huella en Gestionar claves de confianza, o pon la Comprobación de identidad en Automático.\n\nHuella:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "El certificado del servidor ya no coincide con la huella guardada (posible suplantación). No se envió la clave API. Si el servidor se reinstaló, actualiza su huella en Gestionar claves de confianza.\n\nNueva huella:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "No se pudo guardar la huella del certificado del servidor, así que no se envió la clave API. Inténtalo de nuevo o confírmala en Gestionar claves de confianza.",
+    "settings.bucket_probe.tofu_saved": "Se ha recordado la huella del certificado de este servidor (primer uso). Un cambio posterior será rechazado. Puedes revisarla en Gestionar claves de confianza.\n\nHuella:\n{fingerprint}",
 }

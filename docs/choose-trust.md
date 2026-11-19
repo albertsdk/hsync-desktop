@@ -47,6 +47,10 @@ search server it remembers the first fingerprint and shows a non-blocking
 notice with the code; verify that code under **Manage trusted servers &
 devices…** when you can, and a later change is still refused.
 
+The share and API-key check made when you save the settings follows the same
+rule: the key is only sent over a verified or pinned connection, so a
+self-signed server is checked after its fingerprint is remembered.
+
 The `hsync` command line offers two extra modes for scripts — **Standard
 verification** (a public CA only, nothing remembered) and **Accept automatically**
 (remember the first fingerprint without a notice). They are not part of the

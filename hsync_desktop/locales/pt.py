@@ -816,6 +816,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "Isto é um ficheiro, não uma pasta.",
     "wizard.error.no_access": "Não tem permissão para ler/escrever esta pasta.",
     "wizard.error.root": "A raiz do sistema de ficheiros não pode ser sincronizada.",
+    "wizard.error.folder_in_use": "Outro compartilhamento já usa esta pasta.",
     "wizard.error.server_required": "Introduza o endereço do servidor.",
     "wizard.error.server_invalid": "Endereço de servidor inválido.",
     "wizard.error.api_key_required": "Introduza a chave de acesso.",
@@ -931,4 +932,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "Não foi possível criar a partilha no servidor.",
     "settings.bucket_probe.quota": "Atingiu o máximo de {max} partilhas para a sua conta. Elimine uma partilha ou peça ao administrador do servidor para aumentar o limite.",
     "settings.bucket_probe.offline": "Não foi possível contatar o servidor, então o compartilhamento não foi verificado. Salvar mesmo assim?",
+    "settings.bucket_probe.trust_missing": "O certificado deste servidor ainda não está guardado. Confirme a impressão digital em Gerir chaves de confiança, ou defina a Verificação de identidade como Automática.\n\nImpressão digital:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "O certificado do servidor já não corresponde à impressão digital guardada (possível personificação). A chave API não foi enviada. Se o servidor foi reinstalado, atualize a impressão digital em Gerir chaves de confiança.\n\nNova impressão digital:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "Não foi possível guardar a impressão digital do certificado do servidor, por isso a chave API não foi enviada. Tente novamente ou confirme-a em Gerir chaves de confiança.",
+    "settings.bucket_probe.tofu_saved": "A impressão digital do certificado deste servidor foi memorizada (primeira utilização). Uma alteração posterior será recusada. Pode revê-la em Gerir chaves de confiança.\n\nImpressão digital:\n{fingerprint}",
 }

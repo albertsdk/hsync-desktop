@@ -40,8 +40,11 @@ from hsync_desktop.engine.endpoints import (
 )
 from hsync_desktop.engine.probes import (
     REASON_QUOTA,
+    REASON_UNREACHABLE,
     ServerProbeResult,
+    certificate_ssl_context,
     create_server_bucket,
+    fetch_server_certificate,
     probe_server_bucket,
     probe_server_bucket_access,
     probe_server_health,
@@ -90,8 +93,11 @@ __all__ = [
     "probe_server_bucket",
     "probe_server_bucket_access",
     "probe_server_health",
+    "certificate_ssl_context",
     "create_server_bucket",
+    "fetch_server_certificate",
     "REASON_QUOTA",
+    "REASON_UNREACHABLE",
     "server_failure_reason",
     "remove_rendezvous_trust",
     "remove_peer_pin",

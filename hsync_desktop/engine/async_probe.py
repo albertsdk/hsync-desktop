@@ -45,6 +45,8 @@ class ProbeOutcome:
     #: A server-imposed cap the probe hit (the per-account bucket quota), so the
     #: UI can name the limit instead of a generic failure.
     limit: int | None = None
+    #: True when the probe stored a first-sighting (TOFU) server pin.
+    pinned: bool = False
 
 
 class _Worker(QObject):

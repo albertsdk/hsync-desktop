@@ -76,7 +76,13 @@ class TestWhenTheCheckRuns:
     def test_a_passing_check_marks_the_bucket_verified(self, server_dialog, settings):
         settings.setValue("sync/bucket", "old")
         server_dialog.bucket.setText("new")
-        server_dialog._bucket_probe_args = ("https://host", "new", "key", object(), 5.0)
+        server_dialog._bucket_probe_args = (
+            "https://host",
+            "new",
+            "key",
+            ("none", False, "", None),
+            5.0,
+        )
 
         server_dialog._on_bucket_probe_done(ProbeOutcome(True, 200))
 
@@ -123,6 +129,15 @@ class TestWhenTheCheckRuns:
             seen.update(base=base_url, bucket=bucket, key=api_key)
             return ServerProbeResult(True, 200, 1, True), ""
 
+        import ssl
+
+        from hsync_desktop.engine.server_trust_probe import BucketTrust
+
+        monkeypatch.setattr(
+            settings_dialog,
+            "resolve_bucket_trust",
+            lambda **_kwargs: BucketTrust(ssl._create_unverified_context()),
+        )
         monkeypatch.setattr(settings_dialog, "probe_server_bucket_access", fake_probe)
         job = server_dialog._bucket_probe_job("https://host/")
 
@@ -226,7 +241,13 @@ class TestOutcome:
     def test_create_then_commit_creates_and_rechecks(self, server_dialog, settings, monkeypatch):
         settings.setValue("sync/bucket", "old")
         server_dialog.bucket.setText("new")
-        server_dialog._bucket_probe_args = ("https://host", "new", "key", object(), 5.0)
+        server_dialog._bucket_probe_args = (
+            "https://host",
+            "new",
+            "key",
+            ("none", False, "", None),
+            5.0,
+        )
         calls: list[str] = []
         monkeypatch.setattr(
             settings_dialog,

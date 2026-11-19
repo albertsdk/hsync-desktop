@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 from PySide6.QtWidgets import (
     QComboBox,
@@ -24,11 +25,14 @@ from hsync_desktop import autostart
 from hsync_desktop.config import DEFAULT_HTTP_TIMEOUT
 from hsync_desktop.engine import (
     REASON_QUOTA,
+    REASON_UNREACHABLE,
     AsyncProbe,
     ProbeOutcome,
     build_probe_ssl_context,
+    certificate_ssl_context,
     create_server_bucket,
     fetch_rendezvous_fingerprint,
+    fetch_server_certificate,
     find_hsync_binary,
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
@@ -402,10 +406,8 @@ class ConnectionPage(WizardPage):
         bucket = self.bucket.text().strip()
         api_key = self.api_key.text().strip()
         check_bucket = bool(bucket and api_key)
-        ssl_context = build_probe_ssl_context(
-            insecure=False,
-            trust_policy="ask" if self.cert_switch.isChecked() else "chain",
-        )
+        trust_switch = self.cert_switch.isChecked()
+        ssl_context = build_probe_ssl_context(insecure=False, trust_policy="chain")
         timeout = self._timeout()
         set_field_error(self.bucket, self._rows["bucket"][2], "")
         self._share_missing = False
@@ -418,16 +420,30 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
+            context = ssl_context
+            fingerprint = ""
+            if trust_switch:
+                # The user accepted this server's certificate (trust switch):
+                # pin the presented certificate for the test so the API key is
+                # never sent over an unverified connection.
+                parsed = urlsplit(base)
+                certificate = fetch_server_certificate(
+                    parsed.hostname or "", parsed.port or 443, timeout
+                )
+                if certificate is None:
+                    return ProbeOutcome(False, None, reason=REASON_UNREACHABLE)
+                fingerprint, pem = certificate
+                context = certificate_ssl_context(pem)
             if not check_bucket:
-                health = probe_server_health(base, ssl_context=ssl_context, timeout=timeout)
+                health = probe_server_health(base, ssl_context=context, timeout=timeout)
                 if health.ok:
-                    return ProbeOutcome(True, health.status)
+                    return ProbeOutcome(True, health.status, fingerprint=fingerprint)
                 return ProbeOutcome(False, health.status, reason=server_failure_reason(health))
             result, reason = probe_server_bucket_access(
-                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+                base, bucket, api_key, ssl_context=context, timeout=timeout
             )
             if not reason:
-                return ProbeOutcome(True, result.status)
+                return ProbeOutcome(True, result.status, fingerprint=fingerprint)
             # A missing share is a real blocker in both modes: the first upload
             # never creates it (the listing comes first), so the page offers to
             # create it instead of promising an implicit one.

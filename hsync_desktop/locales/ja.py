@@ -816,6 +816,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "これはファイルであり、フォルダーではありません。",
     "wizard.error.no_access": "このフォルダーの読み取り/書き込み権限がありません。",
     "wizard.error.root": "ファイルシステムのルートは同期できません。",
+    "wizard.error.folder_in_use": "別の共有がこのフォルダーを既に使用しています。",
     "wizard.error.server_required": "サーバーアドレスを入力してください。",
     "wizard.error.server_invalid": "サーバーアドレスが無効です。",
     "wizard.error.api_key_required": "アクセスキーを入力してください。",
@@ -931,4 +932,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "サーバーに共有を作成できませんでした。",
     "settings.bucket_probe.quota": "アカウントの共有数が上限（{max} 件）に達しました。共有を 1 つ削除するか、サーバー管理者に上限の引き上げを依頼してください。",
     "settings.bucket_probe.offline": "サーバーに接続できないため、共有を確認できませんでした。それでも保存しますか？",
+    "settings.bucket_probe.trust_missing": "このサーバーの証明書はまだ保存されていません。「信頼済みキーの管理」で証明書のフィンガープリントを確認するか、本人確認を「自動」に設定してください。\n\nフィンガープリント:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "サーバーの証明書が保存されたフィンガープリントと一致しなくなりました（なりすましの可能性）。API キーは送信されていません。サーバーを再インストールした場合は、「信頼済みキーの管理」でフィンガープリントを更新してください。\n\n新しいフィンガープリント:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "サーバー証明書のフィンガープリントを保存できなかったため、API キーは送信されていません。再試行するか、「信頼済みキーの管理」で確認してください。",
+    "settings.bucket_probe.tofu_saved": "このサーバーの証明書フィンガープリントを記憶しました（初回使用）。以降の変更は拒否されます。「信頼済みキーの管理」で確認できます。\n\nフィンガープリント:\n{fingerprint}",
 }

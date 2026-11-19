@@ -793,6 +793,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "Dies ist eine Datei, kein Ordner.",
     "wizard.error.no_access": "Du hast keine Berechtigung zum Lesen/Schreiben dieses Ordners.",
     "wizard.error.root": "Das Dateisystem-Stammverzeichnis kann nicht synchronisiert werden.",
+    "wizard.error.folder_in_use": "Eine andere Freigabe verwendet diesen Ordner bereits.",
     "wizard.error.server_required": "Gib die Serveradresse ein.",
     "wizard.error.server_invalid": "Ungültige Serveradresse.",
     "wizard.error.api_key_required": "Gib den Zugriffsschlüssel ein.",
@@ -908,4 +909,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "Die Freigabe konnte auf dem Server nicht erstellt werden.",
     "settings.bucket_probe.quota": "Sie haben das Maximum von {max} Freigaben für Ihr Konto erreicht. Löschen Sie eine Freigabe oder bitten Sie den Serveradministrator, das Limit zu erhöhen.",
     "settings.bucket_probe.offline": "Der Server ist nicht erreichbar, die Freigabe wurde also nicht geprüft. Trotzdem speichern?",
+    "settings.bucket_probe.trust_missing": "Das Zertifikat dieses Servers ist noch nicht gespeichert. Bestätigen Sie den Fingerabdruck unter Vertrauenswürdige Schlüssel verwalten oder stellen Sie die Identitätsprüfung auf Automatisch.\n\nFingerabdruck:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "Das Serverzertifikat stimmt nicht mehr mit dem gespeicherten Fingerabdruck überein (mögliche Identitätstäuschung). Der API-Schlüssel wurde nicht gesendet. Wenn der Server neu installiert wurde, aktualisieren Sie den Fingerabdruck unter Vertrauenswürdige Schlüssel verwalten.\n\nNeuer Fingerabdruck:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "Der Fingerabdruck des Serverzertifikats konnte nicht gespeichert werden, daher wurde der API-Schlüssel nicht gesendet. Erneut versuchen oder unter Vertrauenswürdige Schlüssel verwalten bestätigen.",
+    "settings.bucket_probe.tofu_saved": "Der Fingerabdruck des Serverzertifikats wurde gespeichert (erste Verwendung). Eine spätere Änderung wird abgelehnt. Prüfen Sie ihn unter Vertrauenswürdige Schlüssel verwalten.\n\nFingerabdruck:\n{fingerprint}",
 }

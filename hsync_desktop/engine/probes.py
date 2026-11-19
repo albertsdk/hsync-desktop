@@ -10,7 +10,9 @@ and the reason codes live here instead of being duplicated.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import socket
 import ssl
 import time
 from dataclasses import dataclass
@@ -27,7 +29,9 @@ from hsync_common.protocol.rest import (
 __all__ = [
     "REASON_QUOTA",
     "ServerProbeResult",
+    "certificate_ssl_context",
     "create_server_bucket",
+    "fetch_server_certificate",
     "probe_server_bucket",
     "probe_server_bucket_access",
     "probe_server_health",
@@ -61,6 +65,40 @@ class ServerProbeResult:
     authenticated: bool
     reason: str = ""
     limit: int | None = None
+
+
+def fetch_server_certificate(host: str, port: int, timeout: float) -> tuple[str, str] | None:
+    """Read a server certificate without trusting it: ``(sha256_hex, pem)``.
+
+    A raw unverified handshake, so no credential is sent; the fingerprint is the
+    canonical lowercase SHA-256 hex digest the client trust store uses.
+    """
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as raw:
+            with context.wrap_socket(raw, server_hostname=host) as tls:
+                der = tls.getpeercert(binary_form=True)
+    except (OSError, ssl.SSLError, ValueError):
+        return None
+    if not der:
+        return None
+    return hashlib.sha256(der).hexdigest(), ssl.DER_cert_to_PEM_cert(der)
+
+
+def certificate_ssl_context(pem: str) -> ssl.SSLContext:
+    """An SSLContext that trusts exactly *pem* as its anchor.
+
+    Used for the authenticated probe of a self-signed or pinned server: the
+    request is only sent when the peer presents that certificate, so the API key
+    never travels over an unverified connection.
+    """
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_REQUIRED
+    context.load_verify_locations(cadata=pem)
+    return context
 
 
 def _probe(

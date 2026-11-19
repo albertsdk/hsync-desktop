@@ -816,6 +816,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "Dit is een bestand, geen map.",
     "wizard.error.no_access": "Je hebt geen rechten om deze map te lezen/schrijven.",
     "wizard.error.root": "De hoofdmap van het bestandssysteem kan niet worden gesynchroniseerd.",
+    "wizard.error.folder_in_use": "Een andere deling gebruikt deze map al.",
     "wizard.error.server_required": "Voer het serveradres in.",
     "wizard.error.server_invalid": "Ongeldig serveradres.",
     "wizard.error.api_key_required": "Voer de toegangssleutel in.",
@@ -931,4 +932,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "De share kon niet op de server worden aangemaakt.",
     "settings.bucket_probe.quota": "Je hebt het maximum van {max} shares voor je account bereikt. Verwijder een share of vraag de serverbeheerder de limiet te verhogen.",
     "settings.bucket_probe.offline": "De server is niet bereikbaar, dus de deling is niet gecontroleerd. Toch opslaan?",
+    "settings.bucket_probe.trust_missing": "Het certificaat van deze server is nog niet opgeslagen. Bevestig de vingerafdruk onder Vertrouwde sleutels beheren, of zet Identiteitscontrole op Automatisch.\n\nVingerafdruk:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "Het servercertificaat komt niet meer overeen met de opgeslagen vingerafdruk (mogelijke nabootsing). De API-sleutel is niet verzonden. Als de server opnieuw is geïnstalleerd, werk de vingerafdruk bij onder Vertrouwde sleutels beheren.\n\nNieuwe vingerafdruk:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "De vingerafdruk van het servercertificaat kon niet worden opgeslagen, dus de API-sleutel is niet verzonden. Probeer het opnieuw of bevestig deze onder Vertrouwde sleutels beheren.",
+    "settings.bucket_probe.tofu_saved": "De vingerafdruk van het certificaat van deze server is onthouden (eerste gebruik). Een latere wijziging wordt geweigerd. Je kunt deze controleren onder Vertrouwde sleutels beheren.\n\nVingerafdruk:\n{fingerprint}",
 }

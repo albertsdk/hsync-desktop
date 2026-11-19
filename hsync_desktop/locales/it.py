@@ -793,6 +793,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "Questo è un file, non una cartella.",
     "wizard.error.no_access": "Non hai i permessi per leggere/scrivere questa cartella.",
     "wizard.error.root": "La radice del filesystem non può essere sincronizzata.",
+    "wizard.error.folder_in_use": "Un'altra condivisione usa già questa cartella.",
     "wizard.error.server_required": "Inserisci l'indirizzo del server.",
     "wizard.error.server_invalid": "Indirizzo server non valido.",
     "wizard.error.api_key_required": "Inserisci la chiave di accesso.",
@@ -908,4 +909,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "Non è stato possibile creare la condivisione sul server.",
     "settings.bucket_probe.quota": "Hai raggiunto il massimo di {max} condivisioni per il tuo account. Elimina una condivisione, oppure chiedi all'amministratore del server di alzare il limite.",
     "settings.bucket_probe.offline": "Il server non è raggiungibile, quindi la condivisione non è stata verificata. Salvare comunque?",
+    "settings.bucket_probe.trust_missing": "Il certificato di questo server non è ancora salvato. Confermane l'impronta in Gestisci chiavi fidate, oppure imposta il Controllo identità su Automatico.\n\nImpronta:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "Il certificato del server non corrisponde più all'impronta salvata (possibile impersonificazione). La chiave API non è stata inviata. Se il server è stato reinstallato, aggiorna l'impronta in Gestisci chiavi fidate.\n\nNuova impronta:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "Non è stato possibile salvare l'impronta del certificato, quindi la chiave API non è stata inviata. Riprova, oppure confermala in Gestisci chiavi fidate.",
+    "settings.bucket_probe.tofu_saved": "L'impronta del certificato di questo server è stata memorizzata (primo utilizzo). Un cambiamento futuro verrà rifiutato. Puoi verificarla in Gestisci chiavi fidate.\n\nImpronta:\n{fingerprint}",
 }

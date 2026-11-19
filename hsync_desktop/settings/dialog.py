@@ -108,6 +108,7 @@ from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.deletion_risk import forget_acknowledgement
 from hsync_desktop.engine import (
     REASON_QUOTA,
+    REASON_UNREACHABLE,
     AsyncProbe,
     ProbeOutcome,
     ServerProbeResult,
@@ -122,6 +123,12 @@ from hsync_desktop.engine import (
     probe_server_bucket_access,
     probe_server_health,
     unverified_ssl_context,
+)
+from hsync_desktop.engine.server_trust_probe import (
+    REASON_TRUST_CHANGED,
+    REASON_TRUST_MISSING,
+    REASON_TRUST_PIN_FAILED,
+    resolve_bucket_trust,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -229,6 +236,9 @@ class SettingsDialog(QDialog):
         self._tab_descriptions: dict[int, QLabel] = {}
         # Folder whose sync state the user asked to reset ("" = no request).
         self._reset_state_folder = ""
+        # Folder the dialog opened with: the uniqueness check vetoes an edit
+        # only, so a claim that predates the dialog cannot block a save.
+        self._folder_loaded = ""
         # Snapshot of the stored p2p secret + its input mode, so save() can tell
         # an edited user password from an untouched legacy raw key.
         self._p2p_key_loaded = ""
@@ -254,7 +264,9 @@ class SettingsDialog(QDialog):
         # (base_url, bucket, api_key, ssl_context, timeout) of the bucket check in
         # flight, so "create the share on the server" can reuse exactly what was
         # probed instead of re-reading the form.
-        self._bucket_probe_args: tuple[str, str, str, ssl.SSLContext, float] | None = None
+        self._bucket_probe_args: (
+            tuple[str, str, str, tuple[str | None, bool, str, str | None], float] | None
+        ) = None
         # Bucket the server confirmed in this session (probe or creation). It is
         # what lets an unchanged, already-verified field skip the next check.
         self._verified_bucket = ""
@@ -1264,20 +1276,55 @@ class SettingsDialog(QDialog):
         if bucket == persisted.strip() and bucket == verified.strip():
             return None
         base = normalized_server.rstrip("/")
-        ssl_context = self._test_connection_ssl_context()
+        trust_args = (
+            self.server_trust.currentData(),
+            self.insecure.isChecked(),
+            self.ca_cert.text().strip(),
+            find_hsync_binary(),
+        )
         timeout = float(max(5, self.http_timeout.value()))
-        self._bucket_probe_args = (base, bucket, api_key, ssl_context, timeout)
-        return lambda: self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
+        self._bucket_probe_args = (base, bucket, api_key, trust_args, timeout)
+        return lambda: self._bucket_probe_outcome(base, bucket, api_key, trust_args, timeout)
 
     @staticmethod
     def _bucket_probe_outcome(
-        base_url: str, bucket: str, api_key: str, ssl_context: ssl.SSLContext, timeout: float
+        base_url: str,
+        bucket: str,
+        api_key: str,
+        trust_args: tuple[str | None, bool, str, str | None],
+        timeout: float,
     ) -> ProbeOutcome:
-        """Reach the server and check the bucket, from the probe thread."""
-        result, reason = probe_server_bucket_access(
-            base_url, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+        """Resolve the TLS trust, then reach the server and check the bucket.
+
+        Runs on the probe thread; the API key only travels over the verified or
+        certificate-pinned context from ``resolve_bucket_trust``.
+        """
+        policy, insecure, ca_cert, binary = trust_args
+        trust = resolve_bucket_trust(
+            base_url=base_url,
+            policy=policy,
+            insecure=insecure,
+            ca_cert=ca_cert,
+            binary=binary,
+            timeout=timeout,
         )
-        return ProbeOutcome(not reason, result.status, reason=reason)
+        if trust.reason or trust.ssl_context is None:
+            return ProbeOutcome(
+                False,
+                None,
+                fingerprint=trust.fingerprint,
+                reason=trust.reason or REASON_UNREACHABLE,
+            )
+        result, reason = probe_server_bucket_access(
+            base_url, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
+        )
+        return ProbeOutcome(
+            not reason,
+            result.status,
+            fingerprint=trust.fingerprint,
+            reason=reason,
+            pinned=trust.pinned,
+        )
 
     def _start_bucket_probe(self, job: Callable[[], ProbeOutcome]) -> None:
         """Run the bucket check, gating the OK button instead of the test ones."""
@@ -1305,7 +1352,29 @@ class SettingsDialog(QDialog):
         self._set_commit_busy(False)
         if outcome.ok:
             self._mark_bucket_verified()
+            if outcome.pinned:
+                QMessageBox.information(
+                    self,
+                    tr("settings.bucket_probe.title"),
+                    tr("settings.bucket_probe.tofu_saved").replace(
+                        "{fingerprint}", outcome.fingerprint
+                    ),
+                )
             self._finish_deferred_commit()
+            return
+        if outcome.reason in (
+            REASON_TRUST_MISSING,
+            REASON_TRUST_CHANGED,
+            REASON_TRUST_PIN_FAILED,
+        ):
+            QMessageBox.warning(
+                self,
+                tr("settings.bucket_probe.title"),
+                tr(f"settings.bucket_probe.{outcome.reason}").replace(
+                    "{fingerprint}", outcome.fingerprint
+                ),
+            )
+            self._abandon_deferred_commit()
             return
         if outcome.reason == "share_missing":
             # 404 is ambiguous by design: missing *or* no membership. Creating it
@@ -1388,18 +1457,34 @@ class SettingsDialog(QDialog):
         if args is None:
             self._abandon_deferred_commit()
             return
-        base, bucket, api_key, ssl_context, timeout = args
+        base, bucket, api_key, trust_args, timeout = args
 
         def job() -> ProbeOutcome:
+            policy, insecure, ca_cert, binary = trust_args
+            trust = resolve_bucket_trust(
+                base_url=base,
+                policy=policy,
+                insecure=insecure,
+                ca_cert=ca_cert,
+                binary=binary,
+                timeout=timeout,
+            )
+            if trust.reason or trust.ssl_context is None:
+                return ProbeOutcome(
+                    False,
+                    None,
+                    fingerprint=trust.fingerprint,
+                    reason=trust.reason or REASON_UNREACHABLE,
+                )
             created = create_server_bucket(
-                base, bucket, api_key, ssl_context=ssl_context, timeout=timeout
+                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
             )
             if not created.ok:
                 # A quota refusal is actionable (delete a share or raise the cap),
                 # so it keeps its own reason and the server's limit.
                 reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
                 return ProbeOutcome(False, created.status, reason=reason, limit=created.limit)
-            return self._bucket_probe_outcome(base, bucket, api_key, ssl_context, timeout)
+            return self._bucket_probe_outcome(base, bucket, api_key, trust_args, timeout)
 
         self._start_bucket_probe(job)
 
@@ -1643,8 +1728,14 @@ class SettingsDialog(QDialog):
         if self._rdv_key_mismatch() and not self._rdv_key_reminder_ack:
             if not self._confirm_rdv_key_update():
                 return False
-        # The local folder must stay unique across shares.
-        if self._folder_in_use is not None and self._folder_in_use(self.shared_path.text().strip()):
+        # The local folder must stay unique across shares. Only an edit can claim
+        # another share's folder, so the check is scoped to a changed field.
+        folder = self.shared_path.text().strip()
+        if (
+            self._folder_in_use is not None
+            and folder != self._folder_loaded
+            and self._folder_in_use(folder)
+        ):
             QMessageBox.warning(self, tr("settings.title"), tr("shares.error.folder_duplicate"))
             return False
         # A duplicate p2p bucket is allowed but means the same device: warn only.
@@ -1713,6 +1804,7 @@ class SettingsDialog(QDialog):
         """Persist all settings to QSettings."""
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         s.setValue("path/local", self.shared_path.text())
+        self._folder_loaded = self.shared_path.text().strip()
         s.setValue("connection/server_url", self.server_url.text())
         s.setValue("connection/api_key", encrypt_value(self.api_key.text()))
         s.setValue("connection/insecure", self.insecure.isChecked())
@@ -1838,6 +1930,7 @@ class SettingsDialog(QDialog):
     def _load_connection(self, s: QSettings) -> None:
         """Restore the server-connection fields (Server Mode tab)."""
         self.shared_path.setText(str(s.value("path/local", "", str)))
+        self._folder_loaded = self.shared_path.text().strip()
         self.server_url.setText(str(s.value("connection/server_url", "", str)))
         self.api_key.setText(decrypt_value(str(s.value("connection/api_key", "", str))))
         self.insecure.setChecked(bool(s.value("connection/insecure", DEFAULT_INSECURE, bool)))

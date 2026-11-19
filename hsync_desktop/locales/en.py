@@ -817,6 +817,7 @@ translations: dict[str, str] = {
     "wizard.error.not_dir": "This is a file, not a folder.",
     "wizard.error.no_access": "You do not have permission to read/write this folder.",
     "wizard.error.root": "The filesystem root cannot be synced.",
+    "wizard.error.folder_in_use": "Another share already uses this folder.",
     "wizard.error.server_required": "Enter the server address.",
     "wizard.error.server_invalid": "Invalid server address.",
     "wizard.error.api_key_required": "Enter the access key.",
@@ -932,4 +933,8 @@ translations: dict[str, str] = {
     "settings.bucket_probe.create_failed": "The share could not be created on the server.",
     "settings.bucket_probe.quota": "You have reached the maximum of {max} shares for your account. Delete a share, or ask the server administrator to raise the limit.",
     "settings.bucket_probe.offline": "The server could not be reached, so the share was not verified. Save anyway?",
+    "settings.bucket_probe.trust_missing": "This server's certificate is not saved yet. Confirm its fingerprint under Manage trusted keys, or set Identity check to Automatic.\n\nFingerprint:\n{fingerprint}",
+    "settings.bucket_probe.trust_changed": "The server's certificate no longer matches the saved fingerprint (possible impersonation). The API key was not sent. If the server was reinstalled, update its fingerprint under Manage trusted keys.\n\nNew fingerprint:\n{fingerprint}",
+    "settings.bucket_probe.trust_pin_failed": "The server's certificate fingerprint could not be saved, so the API key was not sent. Try again, or confirm it under Manage trusted keys.",
+    "settings.bucket_probe.tofu_saved": "This server's certificate fingerprint was remembered (first use). A later change is refused. You can review it under Manage trusted keys.\n\nFingerprint:\n{fingerprint}",
 }
