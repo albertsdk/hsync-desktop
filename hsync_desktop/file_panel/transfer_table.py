@@ -895,19 +895,21 @@ class FileTransferTable(QTableView):
         return self._model.text_filter
 
     def set_text_filter(self, text: str) -> None:
-        """Filter the visible rows by name, keeping the selection honest."""
-        if text.strip().casefold() == self._model._text_filter:
+        """Search or filter by name (see ``refresh_view`` for the row source).
+
+        In the browser the query selects a recursive result list; in the pending
+        list it filters the rows. Either way the selection is cleared first, so
+        a hidden row is never acted on.
+        """
+        if text.strip().casefold() == self._model.text_filter:
             return
-        # Same contract as ``set_only_changes``: the reset drops the selection,
-        # and the sticky row must not re-select a different entry by index.
         self._last_selected_row = -1
         self.clearSelection()
         self._model.set_text_filter(text)
-        self._row_index = {
-            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
-        }
-        self.selected_rows_changed.emit(self.selected_transfers())
-        self.rows_refreshed.emit()
+        # The source may have changed: rebuild the rows (refresh_view publishes
+        # the selection and the refreshed signal once).
+        self._cached_items = None
+        self.refresh_view()
 
     def row_operation(self, row: int) -> str:
         """The operation glyph of a visible row (drawn in the Name cell icon)."""
@@ -1401,8 +1403,9 @@ class FileTransferTable(QTableView):
         display_name = self._model.display_name(row)
         if display_name is None:
             return
-        if self._pending_scope:
-            # A pending download may not exist on disk yet: show where it lives.
+        if self._pending_scope or self._model.text_filter:
+            # A pending download may not exist on disk yet, and a search result
+            # lives in a subfolder: show where it is instead of opening it.
             transfer = self._get_transfer_at_row(row)
             if transfer is not None:
                 self.reveal_requested.emit(transfer.filepath)
@@ -1685,6 +1688,26 @@ class FileTransferTable(QTableView):
             for path, transfer in self._transfers.items()
         )
 
+    def _search_items(
+        self, prefix: str, needle: str
+    ) -> list[tuple[str, FileTransfer | None, dict]]:
+        """Files under *prefix* whose relative path contains *needle*.
+
+        The search a file manager's box performs: recursive within the current
+        folder, matching file and folder names, with the path relative to the
+        folder as the row name so ``current_path/display_name`` still resolves.
+        """
+        base = f"{prefix}/" if prefix else ""
+        items: list[tuple[str, FileTransfer | None, dict]] = []
+        for path, transfer in self._transfers.items():
+            if path.endswith("/") or not path.startswith(base):
+                continue
+            relative = path[len(base) :]
+            if needle in relative.casefold():
+                items.append((relative, transfer, {}))
+        items.sort(key=lambda item: item[0].casefold())
+        return items
+
     def _pending_items(self) -> list[tuple[str, FileTransfer | None, dict]]:
         """Every file with pending work, as bucket-relative paths.
 
@@ -1937,13 +1960,20 @@ class FileTransferTable(QTableView):
             for path, transfer in self._transfers.items()
             if not path.endswith("/") and row_is_change(transfer, {})
         )
-        cache_key = _PENDING_SCOPE_CACHE_KEY if self._pending_scope else self._current_path
-        # Use cached items if the scope/path hasn't changed and cache is valid
+        cache_key = (
+            _PENDING_SCOPE_CACHE_KEY
+            if self._pending_scope
+            else f"{self._current_path}\x00{self._model.text_filter}"
+        )
+        # Use cached items if the scope/search/path hasn't changed and cache is valid
         if self._cached_path != cache_key or self._cached_items is None:
             self._cached_path = cache_key
-            self._cached_items = (
-                self._pending_items() if self._pending_scope else self._get_items_at_current_level()
-            )
+            if self._pending_scope:
+                self._cached_items = self._pending_items()
+            elif self._model.text_filter:
+                self._cached_items = self._search_items(self._current_path, self._model.text_filter)
+            else:
+                self._cached_items = self._get_items_at_current_level()
 
         items = self._cached_items
         if items is None:

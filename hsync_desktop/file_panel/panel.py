@@ -1095,9 +1095,17 @@ class FilePanel(QWidget):
 
     @Slot(str)
     def _on_reveal_requested(self, filepath: str) -> None:
-        """Leave the list, open the item's folder and select it."""
+        """Leave the list or the search, open the item's folder and select it."""
         folder, _separator, name = filepath.rpartition("/")
         self._btn_pending.setChecked(False)
+        if self._search.text():
+            # A search result points inside a subfolder: clearing the query is
+            # what makes the revealed folder show its contents again.
+            self._search.blockSignals(True)
+            self._search.clear()
+            self._search.blockSignals(False)
+            self._search_timer.stop()
+            self._apply_text_filter()
         self._table.restore_view(folder, name or None)
 
     def _search_tooltip(self) -> str:
@@ -1156,11 +1164,8 @@ class FilePanel(QWidget):
         self._btn_only_changes.setText(self._filter_button_text(count))
         self._btn_pending.setText(self._pending_button_text(self._table.pending_count()))
         query = self._search.text().strip()
-        filtered_out = self._btn_only_changes.isChecked() or bool(query) or scope
-        empty = (
-            filtered_out
-            and self._table.model().rowCount() == 0
-            and (scope or self._table.level_item_count() > 0)
+        empty = self._table.model().rowCount() == 0 and (
+            bool(query) or scope or self._table.level_item_count() > 0
         )
         if empty:
             # A query that matches nothing is the most specific answer; then a

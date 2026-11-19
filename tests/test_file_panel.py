@@ -4304,16 +4304,45 @@ class TestSearchFilter:
 
         assert panel._search.isVisibleTo(panel)
 
-    def test_typing_filters_by_name_case_insensitively(self, qtbot, monkeypatch, tmp_path):
+    def test_typing_searches_names_and_paths_recursively(self, qtbot, monkeypatch, tmp_path):
+        """The query is a file-manager search: it reaches subfolders."""
         panel = self._panel(qtbot, monkeypatch, tmp_path)
         panel._btn_search.setChecked(True)
 
         panel._search.setText("REPORT")
         qtbot.wait(200)  # debounce
 
-        # Only the file matches: a folder row matches on its own name, not on
-        # the names of the files it contains (that would be the global view).
-        assert self._names(panel) == ["Report.txt"]
+        # Paths relative to the folder being browsed, sorted; the subfolder match
+        # is found without opening it.
+        assert self._names(panel) == ["archive/report-old.txt", "Report.txt"]
+
+    def test_the_search_matches_folder_names_in_the_path(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+
+        panel._search.setText("arch")
+        qtbot.wait(200)
+
+        assert self._names(panel) == ["archive/report-old.txt"]
+
+    def test_double_click_on_a_result_reveals_it_and_clears_the_search(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+        panel._search.setText("report-old")
+        qtbot.wait(200)
+        assert self._names(panel) == ["archive/report-old.txt"]
+
+        panel._table._on_cell_double_clicked(0, tt.COL_NAME)
+
+        assert panel._search.text() == ""
+        assert panel._table.current_path == "archive"
+        assert [transfer.filepath for transfer in panel._table.selected_transfers()] == [
+            "archive/report-old.txt"
+        ]
 
     def test_it_composes_with_the_only_changes_filter(self, qtbot, monkeypatch, tmp_path):
         panel = self._panel(qtbot, monkeypatch, tmp_path)
@@ -4355,6 +4384,24 @@ class TestSearchFilter:
         assert panel._btn_search.isChecked() is False
         assert panel._search.isHidden()
         assert panel._table.text_filter == ""
+
+    def test_a_result_two_levels_down_is_found_with_its_path(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table.add_transfer(
+            FileTransfer(
+                filepath="Peter Gabriel/i-o/1-01 Panopticom (Bright-Side mix).mp3",
+                direction="—",
+                size=1,
+                status=TransferStatus.SYNCED,
+            )
+        )
+        panel._table.refresh_view()
+        panel._btn_search.setChecked(True)
+
+        panel._search.setText("pan")
+        qtbot.wait(200)
+
+        assert self._names(panel) == ["Peter Gabriel/i-o/1-01 Panopticom (Bright-Side mix).mp3"]
 
     def test_a_query_that_matches_nothing_says_so(self, qtbot, monkeypatch, tmp_path):
         panel = self._panel(qtbot, monkeypatch, tmp_path)

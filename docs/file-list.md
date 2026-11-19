@@ -53,18 +53,18 @@ it — useful for a file that has not been downloaded yet. Leaving the list (the
 button again, or opening a folder) restores the folder and the rows you had
 selected.
 
-## Filter by name
+## Search
 
-The magnifier in the list bar (or `Ctrl+F`, `Cmd+F` on macOS) opens a name filter
-for the folder you are browsing: rows whose name does not contain what you typed
-are hidden, capitalisation is ignored, and folders match on their own name (their
-contents are not searched). It composes with **Only changes**, so you can look at
-the pending work that matches, and it stays active when you open another folder.
+The magnifier in the list bar (or `Ctrl+F`, `Cmd+F` on macOS) searches **this
+folder and everything under it**: every file whose name or path contains what
+you typed is listed with its path relative to the folder, so a match three
+levels down needs no drilling. Capitalisation is ignored.
 
-Closing the field — the magnifier again, or `Esc` while the field has focus —
-clears the filter, so rows are never hidden behind a field you cannot see. The
-clear button inside the field empties it without closing it. The filter is a view
-only: it changes nothing on disk and is not remembered after a restart.
+The results are the same table — columns, actions and **Only changes** apply —
+and double-clicking a result takes you to its folder with the row selected.
+Clearing the field, closing it (the magnifier again, or `Esc` while it has focus),
+or opening a folder returns to the browser. The search is a view: it changes
+nothing on disk and is not remembered after a restart.
 
 ## Hidden files
 
