@@ -4145,3 +4145,51 @@ class TestOnlyChangesControl:
 
         assert panel._btn_only_changes.toolTip() == tr("tip.file_filter_only_changes")
         assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
+
+
+class TestColumnMenuOrder:
+    """The column menu lists the columns in the order the table shows them."""
+
+    @staticmethod
+    def _table(qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table, tt
+
+    @staticmethod
+    def _texts(menu) -> list[str]:
+        return [action.text() for action in menu.actions() if not action.isSeparator()]
+
+    def test_the_menu_follows_the_default_order(self, qtbot, monkeypatch, tmp_path):
+        table, tt = self._table(qtbot, monkeypatch, tmp_path)
+        header = table.horizontalHeader()
+
+        texts = self._texts(table._build_header_menu())
+
+        expected = [
+            tr(tt._COLUMN_KEYS[header.logicalIndex(visual)])
+            for visual in range(header.count())
+            if header.logicalIndex(visual) != tt.COL_NAME
+        ]
+        assert texts[: len(expected)] == expected
+        # Name never hides, so it is not offered.
+        assert tr("file.name") not in texts
+
+    def test_the_menu_follows_a_reordered_header(self, qtbot, monkeypatch, tmp_path):
+        """Dragging a column reorders the menu with it, or the menu would lie."""
+        table, tt = self._table(qtbot, monkeypatch, tmp_path)
+        header = table.horizontalHeader()
+        # A reorder the user can perform: Name stays pinned as the first section,
+        # the data columns move among themselves.
+        assert header.logicalIndex(0) == tt.COL_NAME
+        header.moveSection(header.visualIndex(tt.COL_STATUS), header.visualIndex(tt.COL_PROGRESS))
+
+        texts = self._texts(table._build_header_menu())
+
+        assert texts.index(tr("file.status")) + 1 == texts.index(tr("file.progress"))

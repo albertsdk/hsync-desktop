@@ -1112,14 +1112,24 @@ class FileTransferTable(QTableView):
         finally:
             self._restoring_columns = was_restoring
 
-    def _show_header_context_menu(self, pos) -> None:
-        """Show context menu to toggle column visibility."""
+    def _build_header_menu(self) -> QMenu:
+        """Build the column menu in the order the columns are shown.
+
+        The header is reorderable and its layout is persisted, so iterating the
+        logical indices would list the columns in an order the user no longer
+        sees once a column has been dragged; ``logicalIndex`` maps each visual
+        position back to its column, keeping the menu in step with the table.
+        """
         menu = QMenu(self)
         header = self.horizontalHeader()
 
-        for col, key in enumerate(_COLUMN_KEYS):
+        for visual in range(header.count()):
+            col = header.logicalIndex(visual)
             if col == COL_NAME:
                 # Name is the row identity: it never hides.
+                continue
+            key = _COLUMN_KEYS[col]
+            if not key:
                 continue
             action = QAction(tr(key), menu)
             action.setCheckable(True)
@@ -1142,7 +1152,12 @@ class FileTransferTable(QTableView):
         hidden_action.toggled.connect(self.set_show_hidden)
         menu.addAction(hidden_action)
 
-        menu.exec(header.mapToGlobal(pos))
+        return menu
+
+    def _show_header_context_menu(self, pos) -> None:
+        """Show the column menu at *pos* (see ``_build_header_menu``)."""
+        menu = self._build_header_menu()
+        menu.exec(self.horizontalHeader().mapToGlobal(pos))
 
     def _toggle_column(self, col: int, visible: bool) -> None:
         """Toggle visibility of a column, keeping its header readable when shown."""
