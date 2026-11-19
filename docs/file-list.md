@@ -6,6 +6,12 @@ move and act on your files.
 
 <img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row, grouped by action" width="200">
 
+A name can change in two places only, both outside the table: an upload to the
+server replaces the characters Windows cannot store with `_` (the server logs the
+change), and a rename that only changes the capitalisation adjusts it to the
+destination's spelling on a case-insensitive filesystem. Nothing else rewrites a
+name, and the shared folder always shows what is actually on this device.
+
 ## Columns
 
 Each row starts with an icon that carries the file type and, when the row has an
@@ -14,7 +20,7 @@ The columns are:
 
 | Column | Meaning |
 | ------ | ------- |
-| **Name** | The file or folder, with the icon above. Always shown, always first. |
+| **Name** | The file or folder, with the icon above. Always shown, always first. Names appear exactly as they are on disk: spaces, punctuation, underscores and accented characters are never normalised for display. |
 | **Size** | The size on disk. For a folder, the sum of the files it contains; its item count is shown in the tooltip and in the properties pane. |
 | **Type** | The kind of file (hidden until you enable it). |
 | **Modified** | The last modification date. |

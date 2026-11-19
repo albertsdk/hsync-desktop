@@ -4634,3 +4634,30 @@ class TestPendingScope:
 
         assert panel._btn_pending.toolTip() == tr("tip.pending_toggle")
         assert panel._btn_pending.text().startswith(tr("file.pending_toggle"))
+
+
+class TestNameFidelity:
+    """The table renders the filesystem name verbatim, never a normalised one."""
+
+    def test_names_are_displayed_exactly_as_stored(self, qtbot):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        table.set_base_directory("/share")
+        names = (
+            "a_b c (d) Ë.txt",
+            "i_o",
+            "  leading and trailing.txt ",
+            "cafe\u0301.txt",  # NFD: identity folds to NFC, the display must not
+        )
+        for name in names:
+            table.add_transfer(
+                FileTransfer(filepath=name, direction="—", size=1, status=TransferStatus.SYNCED)
+            )
+        table.refresh_view()
+
+        model = table.model()
+        displayed = {model.display_name(row) for row in range(model.rowCount())}
+
+        assert displayed == set(names)
