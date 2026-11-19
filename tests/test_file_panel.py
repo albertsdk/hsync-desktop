@@ -799,10 +799,15 @@ class TestOptionalColumns:
         for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_PROGRESS, tt.COL_STATUS):
             assert not header.isSectionHidden(col)
 
-    def test_the_default_order_puts_the_metrics_after_the_name(self, qtbot):
+    def test_the_default_order_puts_the_metrics_after_the_name(self, qtbot, tmp_path, monkeypatch):
         """Identity first, then the row's data in the transfer-queue order."""
+        from PySide6.QtCore import QSettings
+
         from hsync_desktop.file_panel import transfer_table as tt
 
+        # A clean profile: an existing user layout (any order) must not decide it.
+        store = QSettings(str(tmp_path / "order.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
         table = self._table(qtbot)
         header = table.horizontalHeader()
 
@@ -3937,205 +3942,6 @@ class TestFolderSizeColumn:
         assert panel._detail._lbl_elements_label.isHidden()
 
 
-class TestOnlyChangesFilter:
-    """The "only changes" view hides the rows with nothing pending."""
-
-    @staticmethod
-    def _table(qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
-
-        table = tt.FileTransferTable()
-        qtbot.addWidget(table)
-        table.set_base_directory("/base")
-        for filepath, status in (
-            ("synced.txt", TransferStatus.SYNCED),
-            ("local.txt", TransferStatus.LOCAL),
-            ("up.txt", TransferStatus.TO_UPLOAD),
-            ("broken.txt", TransferStatus.ERROR),
-            ("sub/pending.txt", TransferStatus.TO_DOWNLOAD),
-            ("quiet/done.txt", TransferStatus.SYNCED),
-        ):
-            table.add_transfer(
-                FileTransfer(filepath=filepath, direction="—", size=1, status=status)
-            )
-        table.refresh_view()
-        return table
-
-    @staticmethod
-    def _names(table) -> list[str]:
-        model = table.model()
-        return [model.display_name(row) for row in range(model.rowCount())]
-
-    def test_it_hides_the_rows_with_nothing_pending(self, qtbot):
-        table = self._table(qtbot)
-
-        table.set_only_changes(True)
-
-        # Folders first: "sub" still has pending work, "quiet" does not.
-        assert self._names(table) == ["sub", "broken.txt", "up.txt"]
-        assert table.level_item_count() == 6
-        assert table.change_count() == 3
-
-    def test_turning_it_off_brings_every_row_back(self, qtbot):
-        table = self._table(qtbot)
-
-        table.set_only_changes(True)
-        table.set_only_changes(False)
-
-        assert self._names(table) == [
-            "quiet",
-            "sub",
-            "broken.txt",
-            "local.txt",
-            "synced.txt",
-            "up.txt",
-        ]
-
-    def test_it_never_leaves_a_hidden_row_selected(self, qtbot):
-        table = self._table(qtbot)
-        model = table.model()
-        row = next(
-            index for index in range(model.rowCount()) if model.display_name(index) == "up.txt"
-        )
-        table.selectRow(row)
-        assert table.selected_transfers()
-
-        table.set_only_changes(True)
-
-        assert table.selected_transfers() == []
-
-
-class TestOnlyChangesControl:
-    """The panel's toggle: remembered across restarts, and a summary by itself."""
-
-    @staticmethod
-    def _panel(qtbot, monkeypatch, tmp_path):
-        from PySide6.QtCore import QSettings
-
-        import hsync_desktop.file_panel.panel as panel_mod
-
-        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
-        monkeypatch.setattr(panel_mod, "QSettings", lambda *a, **k: store)
-        panel = panel_mod.FilePanel()
-        qtbot.addWidget(panel)
-        return panel, store
-
-    def test_the_toggle_is_remembered_across_restarts(self, qtbot, monkeypatch, tmp_path):
-        panel, store = self._panel(qtbot, monkeypatch, tmp_path)
-        assert panel._btn_only_changes.isChecked() is False
-        assert panel._table.only_changes is False
-
-        panel._btn_only_changes.setChecked(True)
-
-        assert store.value("ui/file_filter_only_changes", False, bool) is True
-        assert panel._table.only_changes is True
-
-        reopened, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        assert reopened._btn_only_changes.isChecked() is True
-        assert reopened._table.only_changes is True
-
-    def test_the_label_counts_the_pending_rows(self, qtbot, monkeypatch, tmp_path):
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._table.set_base_directory("/base")
-        for filepath, status in (
-            ("a.txt", TransferStatus.TO_UPLOAD),
-            ("b.txt", TransferStatus.ERROR),
-            ("c.txt", TransferStatus.SYNCED),
-        ):
-            panel._table.add_transfer(
-                FileTransfer(filepath=filepath, direction="—", size=1, status=status)
-            )
-        panel._table.refresh_view()
-
-        assert panel._btn_only_changes.text().endswith("(2)")
-
-        panel._btn_only_changes.setChecked(True)
-        assert panel._btn_only_changes.text().endswith("(2)")
-        assert panel._filter_empty_label.isHidden()
-
-    def test_the_empty_state_explains_a_fully_filtered_folder(self, qtbot, monkeypatch, tmp_path):
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._table.set_base_directory("/base")
-        for filepath in ("a.txt", "b.txt"):
-            panel._table.add_transfer(
-                FileTransfer(filepath=filepath, direction="—", size=1, status=TransferStatus.SYNCED)
-            )
-        panel._table.refresh_view()
-
-        panel._btn_only_changes.setChecked(True)
-
-        assert panel._table.model().rowCount() == 0
-        assert not panel._filter_empty_label.isHidden()
-        # Classified and clean: this folder really has nothing pending.
-        assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
-        assert panel._btn_only_changes.text() == tr("file.filter_only_changes")
-
-    def test_an_unclassified_folder_says_so_instead_of_nothing_to_sync(
-        self, qtbot, monkeypatch, tmp_path
-    ):
-        """Before the first comparison every row is LOCAL: the empty list must
-        not claim the folder is up to date, and the control stays usable."""
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._table.set_base_directory("/base")
-        for filepath in ("a.txt", "b.txt"):
-            panel._table.add_transfer(
-                FileTransfer(filepath=filepath, direction="—", size=1, status=TransferStatus.LOCAL)
-            )
-        panel._table.refresh_view()
-
-        panel._btn_only_changes.setChecked(True)
-
-        assert panel._btn_only_changes.isEnabled()
-        assert panel._table.model().rowCount() == 0
-        assert not panel._filter_empty_label.isHidden()
-        assert panel._filter_empty_label.text() == tr("file.filter_not_compared")
-        # An unknown count is not zero: the summary stays out of the label.
-        assert panel._btn_only_changes.text() == tr("file.filter_only_changes")
-
-    def test_a_running_comparison_is_named_in_the_empty_state(self, qtbot, monkeypatch, tmp_path):
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._table.set_base_directory("/base")
-        panel._table.add_transfer(
-            FileTransfer(filepath="a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
-        )
-        panel._table.refresh_view()
-        panel._btn_only_changes.setChecked(True)
-
-        panel.set_comparing(True)
-
-        assert panel.is_comparing is True
-        assert panel._filter_empty_label.text() == tr("file.filter_comparing")
-
-        panel.set_comparing(False)
-
-        assert panel._filter_empty_label.text() == tr("file.filter_not_compared")
-
-    def test_a_running_comparison_outranks_a_clean_classification(
-        self, qtbot, monkeypatch, tmp_path
-    ):
-        """A re-check may find work: while it runs the list says so, not "in sync"."""
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._table.set_base_directory("/base")
-        panel._table.add_transfer(
-            FileTransfer(filepath="a.txt", direction="—", size=1, status=TransferStatus.SYNCED)
-        )
-        panel._table.refresh_view()
-        panel._btn_only_changes.setChecked(True)
-        assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
-
-        panel.set_comparing(True)
-
-        assert panel._filter_empty_label.text() == tr("file.filter_comparing")
-
-    def test_a_language_change_relabels_the_control(self, qtbot, monkeypatch, tmp_path):
-        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
-
-        panel.retranslate_view_filter()
-
-        assert panel._btn_only_changes.toolTip() == tr("tip.file_filter_only_changes")
-        assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
-
-
 class TestResetColumns:
     """Reset restores the defaults: order, visibility, Name pinned first."""
 
@@ -4269,12 +4075,8 @@ class TestSearchFilter:
 
     @staticmethod
     def _panel(qtbot, monkeypatch, tmp_path):
-        from PySide6.QtCore import QSettings
-
         import hsync_desktop.file_panel.panel as panel_mod
 
-        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
-        monkeypatch.setattr(panel_mod, "QSettings", lambda *a, **k: store)
         panel = panel_mod.FilePanel()
         qtbot.addWidget(panel)
         panel._table.set_base_directory("/base")
@@ -4343,17 +4145,6 @@ class TestSearchFilter:
         assert [transfer.filepath for transfer in panel._table.selected_transfers()] == [
             "archive/report-old.txt"
         ]
-
-    def test_it_composes_with_the_only_changes_filter(self, qtbot, monkeypatch, tmp_path):
-        panel = self._panel(qtbot, monkeypatch, tmp_path)
-        panel._btn_search.setChecked(True)
-        panel._search.setText("report")
-        qtbot.wait(200)
-
-        panel._btn_only_changes.setChecked(True)
-
-        # The report files are synced: "only changes" hides them even if they match.
-        assert self._names(panel) == []
 
     def test_closing_the_field_clears_the_filter(self, qtbot, monkeypatch, tmp_path):
         panel = self._panel(qtbot, monkeypatch, tmp_path)
@@ -4519,12 +4310,8 @@ class TestPendingScope:
 
     @staticmethod
     def _panel(qtbot, monkeypatch, tmp_path):
-        from PySide6.QtCore import QSettings
-
         import hsync_desktop.file_panel.panel as panel_mod
 
-        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
-        monkeypatch.setattr(panel_mod, "QSettings", lambda *a, **k: store)
         panel = panel_mod.FilePanel()
         qtbot.addWidget(panel)
         panel._table.set_base_directory("/base")
@@ -4570,7 +4357,6 @@ class TestPendingScope:
         assert [transfer.filepath for transfer in panel._table.selected_transfers()] == [
             "docs/report.pdf"
         ]
-        assert panel._btn_only_changes.isEnabled()
 
     def test_navigating_from_the_scope_leaves_it(self, qtbot, monkeypatch, tmp_path):
         panel = self._panel(qtbot, monkeypatch, tmp_path)
@@ -4601,7 +4387,6 @@ class TestPendingScope:
 
         panel._btn_pending.setChecked(True)
 
-        assert not panel._btn_only_changes.isEnabled()
         assert not panel._btn_back.isEnabled()
         assert not panel._btn_forward.isEnabled()
         assert not panel._btn_up.isEnabled()

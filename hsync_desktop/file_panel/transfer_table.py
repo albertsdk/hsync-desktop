@@ -289,10 +289,9 @@ class FileTransferModel(QAbstractTableModel):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._rows: list[tuple[str, FileTransfer | None, dict]] = []
-        # Every row the view handed over, before the "only changes" filter: the
-        # filter is a pure view concern, so toggling it never re-reads the disk.
+        # Every row the view handed over, before the text filter: filtering is a
+        # pure view concern, so it never re-reads the disk.
         self._rows_all: list[tuple[str, FileTransfer | None, dict]] = []
-        self._only_changes = False
         # Case-folded name filter, empty when the field is closed/cleared.
         self._text_filter = ""
         # Share-wide pending list instead of the folder browser (see
@@ -335,13 +334,6 @@ class FileTransferModel(QAbstractTableModel):
         self._rows = self._filtered(self._rows_all)
         self.endResetModel()
 
-    def set_only_changes(self, enabled: bool) -> None:
-        """Hide the rows without pending work (``row_is_change``)."""
-        if enabled == self._only_changes:
-            return
-        self._only_changes = enabled
-        self._refilter()
-
     @property
     def text_filter(self) -> str:
         """The case-folded name filter currently applied (empty when off)."""
@@ -350,8 +342,7 @@ class FileTransferModel(QAbstractTableModel):
     def set_text_filter(self, text: str) -> None:
         """Filter the visible rows by display name (case-insensitive substring).
 
-        A pure view concern like ``set_only_changes``: it never re-reads the disk,
-        and the two compose because both go through ``_filtered``.
+        A pure view concern: it never re-reads the disk.
         """
         needle = text.strip().casefold()
         if needle == self._text_filter:
@@ -367,13 +358,10 @@ class FileTransferModel(QAbstractTableModel):
     def _filtered(
         self, rows: list[tuple[str, FileTransfer | None, dict]]
     ) -> list[tuple[str, FileTransfer | None, dict]]:
-        filtered = rows
-        if self._only_changes:
-            filtered = [row for row in filtered if row_is_change(row[1], row[2])]
-        if self._text_filter:
-            needle = self._text_filter
-            filtered = [row for row in filtered if needle in row[0].casefold()]
-        return filtered
+        if not self._text_filter:
+            return rows
+        needle = self._text_filter
+        return [row for row in rows if needle in row[0].casefold()]
 
     def clear_sort(self) -> None:
         """Drop the user sort so the view keeps the natural folders-first order."""
@@ -855,9 +843,6 @@ class FileTransferTable(QTableView):
         self._scope_return_selection: tuple[str, ...] = ()
         self._pending_count = 0
         self._cached_path: str = ""
-        # "Only changes" view filter: applied by the model, so hidden rows can
-        # never stay selected or be acted on.
-        self._only_changes = False
 
         self._direction_font: QFont | None = None
         # Read before the header lays out: see has_saved_layout.
@@ -867,27 +852,6 @@ class FileTransferTable(QTableView):
 
         self._setup_table()
         self._setup_drop()
-
-    @property
-    def only_changes(self) -> bool:
-        """Whether the table hides the rows without pending work."""
-        return self._only_changes
-
-    def set_only_changes(self, enabled: bool) -> None:
-        """Show only the rows with pending work (see ``row_is_change``)."""
-        if enabled == self._only_changes:
-            return
-        self._only_changes = enabled
-        # The model reset drops the selection; the sticky row is cleared too,
-        # because its index would now point at a different entry.
-        self._last_selected_row = -1
-        self.clearSelection()
-        self._model.set_only_changes(enabled)
-        self._row_index = {
-            name: index for index, (name, _transfer, _folder) in enumerate(self._model.rows())
-        }
-        self.selected_rows_changed.emit(self.selected_transfers())
-        self.rows_refreshed.emit()
 
     @property
     def text_filter(self) -> str:
@@ -919,39 +883,6 @@ class FileTransferTable(QTableView):
         _name, transfer, folder_data = rows[row]
         is_folder = transfer is None or transfer.filepath.endswith("/")
         return self._model._direction_text(transfer, is_folder, folder_data)
-
-    def change_count(self) -> int:
-        """How many rows at the current level carry pending work."""
-        return sum(
-            1
-            for _name, transfer, folder in self._current_items()
-            if row_is_change(transfer, folder)
-        )
-
-    def has_classified_rows(self) -> bool:
-        """Whether the engine classified anything at the current level yet.
-
-        Before the first comparison every row is ``LOCAL``: the folder is simply
-        not known, which is not the same as "nothing to sync" (the empty state
-        says which one it is).
-        """
-        for _name, transfer, folder in self._current_items():
-            if folder:
-                if folder.get("has_classification"):
-                    return True
-            elif transfer is not None and transfer.status is not TransferStatus.LOCAL:
-                return True
-        return False
-
-    def level_item_count(self) -> int:
-        """How many rows the current level holds before the view filter."""
-        return len(self._current_items())
-
-    def _current_items(self) -> list[tuple[str, FileTransfer | None, dict]]:
-        """The current level's items, filtered or not (the cache is unfiltered)."""
-        if self._cached_items is None or self._cached_path != self._current_path:
-            return self._get_items_at_current_level()
-        return self._cached_items
 
     def retranslate(self) -> None:
         """Re-apply the localized column headers after a language change."""
@@ -1873,7 +1804,7 @@ class FileTransferTable(QTableView):
         return {
             "count": count,
             # Whether any descendant still has pending work: the row filter and
-            # the "only changes" count read it instead of re-aggregating.
+            # the pending list and its count read it instead of re-aggregating.
             "has_changes": has_changes,
             # Whether the engine has classified anything here yet (see above).
             "has_classification": has_classification,

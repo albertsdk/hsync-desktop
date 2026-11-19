@@ -13,7 +13,7 @@ from pathlib import Path
 from time import time
 
 from hsync_common.ignore import IgnoreMatcher
-from PySide6.QtCore import QObject, QSettings, QSize, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS, SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.config import CONSISTENCY_CHECK_INTERVAL_MS
 from hsync_desktop.file_panel.detail_panel import FileDetailPanel
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import ignore_file_stamp, is_synced_entry
@@ -64,8 +64,6 @@ _NAV_FILTER_ICON_PX = 16
 _SEARCH_FIELD_MIN_PX = 200
 _SEARCH_FIELD_MAX_PX = 280
 _SEARCH_DEBOUNCE_MS = 120
-# Remember the "only changes" view across restarts (least surprise: off first).
-_FILTER_SETTINGS_KEY = "ui/file_filter_only_changes"
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
 
@@ -216,21 +214,6 @@ class FilePanel(QWidget):
         self._breadcrumb_label.linkActivated.connect(self._on_breadcrumb_clicked)
         nav_layout.addWidget(self._breadcrumb_label, 1)
 
-        # View filter: the same question a comparison tool answers with "show
-        # differences only", next to the navigation it filters. The count in the
-        # label makes it a summary even while the filter is off.
-        self._btn_only_changes = QToolButton(nav_bar)
-        self._btn_only_changes.setObjectName("btnOnlyChanges")
-        self._btn_only_changes.setCheckable(True)
-        self._btn_only_changes.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self._btn_only_changes.setAutoRaise(True)
-        self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
-        self._btn_only_changes.setText(tr("file.filter_only_changes"))
-        self._btn_only_changes.setChecked(
-            bool(QSettings(SETTINGS_ORG, SETTINGS_APP).value(_FILTER_SETTINGS_KEY, False, bool))
-        )
-        nav_layout.addWidget(self._btn_only_changes)
-
         # The share-wide pending list: same table, same actions, one row per
         # pending file with its relative path.
         self._btn_pending = QToolButton(nav_bar)
@@ -273,7 +256,7 @@ class FilePanel(QWidget):
         self._loading_overlay = LoadingOverlay(self._table_container)
         # Shown when the filter hides everything: an empty table without a reason
         # reads as a broken view.
-        self._filter_empty_label = QLabel(tr("file.filter_no_changes"), self._table_container)
+        self._filter_empty_label = QLabel(tr("file.pending_empty"), self._table_container)
         self._filter_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._filter_empty_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         muted = self._filter_empty_label.palette()
@@ -303,7 +286,6 @@ class FilePanel(QWidget):
         self._table.path_changed.connect(self._update_nav_buttons)
         self._table.files_dropped.connect(self._on_files_dropped)
         self._loading_overlay.cancel_requested.connect(self._cancel_import)
-        self._btn_only_changes.toggled.connect(self._on_only_changes_toggled)
         self._btn_search.toggled.connect(self._on_search_toggled)
         self._btn_pending.toggled.connect(self._table.set_pending_scope)
         self._table.pending_scope_changed.connect(self._on_pending_scope_changed)
@@ -318,8 +300,6 @@ class FilePanel(QWidget):
         self._search_shortcut.activated.connect(self._focus_search)
         self._table.rows_refreshed.connect(self._sync_filter_state)
         self._update_breadcrumb()
-        # Apply the restored preference once the wiring exists, then paint it.
-        self._table.set_only_changes(self._btn_only_changes.isChecked())
         self._sync_filter_state()
 
     @Slot()
@@ -1081,7 +1061,6 @@ class FilePanel(QWidget):
             self._btn_pending.blockSignals(True)
             self._btn_pending.setChecked(active)
             self._btn_pending.blockSignals(False)
-        self._btn_only_changes.setEnabled(not active)
         self._btn_back.setEnabled(self._table.can_go_back())
         self._btn_forward.setEnabled(self._table.can_go_forward())
         self._btn_up.setEnabled(bool(self._table.current_path) and not active)
@@ -1145,28 +1124,13 @@ class FilePanel(QWidget):
     def _on_search_text(self, _text: str) -> None:
         self._search_timer.start()
 
-    def _filter_button_text(self, count: int) -> str:
-        """The toggle's label: the pending count doubles as a summary."""
-        label = tr("file.filter_only_changes")
-        return f"{label} ({count})" if count else label
-
-    @Slot(bool)
-    def _on_only_changes_toggled(self, checked: bool) -> None:
-        self._table.set_only_changes(checked)
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(_FILTER_SETTINGS_KEY, checked)
-        self._sync_filter_state()
-
     @Slot()
     def _sync_filter_state(self) -> None:
-        """Re-render the filter label and the empty state it can create."""
-        count = self._table.change_count()
+        """Re-render the pending count and the empty state it can create."""
         scope = self._btn_pending.isChecked()
-        self._btn_only_changes.setText(self._filter_button_text(count))
         self._btn_pending.setText(self._pending_button_text(self._table.pending_count()))
         query = self._search.text().strip()
-        empty = self._table.model().rowCount() == 0 and (
-            bool(query) or scope or self._table.level_item_count() > 0
-        )
+        empty = self._table.model().rowCount() == 0 and (bool(query) or scope)
         if empty:
             # A query that matches nothing is the most specific answer; then a
             # running check outranks everything (its result may change the
@@ -1176,16 +1140,10 @@ class FilePanel(QWidget):
                 text = tr("file.filter_no_match").replace("{query}", query)
             elif self._comparing:
                 text = tr("file.filter_comparing")
-            elif scope:
-                text = (
-                    tr("file.pending_empty")
-                    if self._table.share_has_classified_rows()
-                    else tr("file.filter_not_compared")
-                )
-            elif self._table.has_classified_rows():
-                text = tr("file.filter_no_changes")
-            else:
+            elif not self._table.share_has_classified_rows():
                 text = tr("file.filter_not_compared")
+            else:
+                text = tr("file.pending_empty")
             self._filter_empty_label.setText(text)
         self._filter_empty_label.setVisible(empty)
         if empty:
@@ -1193,14 +1151,12 @@ class FilePanel(QWidget):
             self._filter_empty_label.raise_()
 
     def retranslate_view_filter(self) -> None:
-        """Re-apply the filter control's wording after a language change."""
-        self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
+        """Re-apply the pending/search wording after a language change."""
         self._btn_pending.setToolTip(tr("tip.pending_toggle"))
         if self._btn_pending.isChecked():
             self._breadcrumb_label.setText(tr("file.pending_breadcrumb"))
         self._btn_search.setToolTip(self._search_tooltip())
         self._search.setPlaceholderText(tr("file.filter_placeholder"))
-        self._filter_empty_label.setText(tr("file.filter_no_changes"))
         self._sync_filter_state()
 
     def retranslate_columns(self) -> None:
