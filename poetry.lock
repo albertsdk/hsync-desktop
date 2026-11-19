@@ -460,7 +460,7 @@ files = [
 
 [[package]]
 name = "hsync-common"
-version = "1.1.9"
+version = "1.1.10"
 description = "HSYNC Common - shared models, constants, and compression utilities"
 optional = false
 python-versions = ">=3.12,<3.15"
@@ -1468,4 +1468,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.15"
-content-hash = "a3a0f7bbc33b2fc9fc2e3379b43d8eb788cad1e6485bc72b23c7643588f3a845"
+content-hash = "b9c0c64778098a4f31db9432faa3d51df8b67b335e447b188f70194310c68659"
