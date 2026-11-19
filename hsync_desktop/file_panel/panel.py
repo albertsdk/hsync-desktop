@@ -1014,6 +1014,15 @@ class FilePanel(QWidget):
         empty = (
             self._btn_only_changes.isChecked() and count == 0 and self._table.level_item_count() > 0
         )
+        if empty:
+            # "Nothing pending" is only true once the engine classified the
+            # folder; before the first comparison the honest answer is "unknown".
+            key = (
+                "file.filter_no_changes"
+                if self._table.has_classified_rows()
+                else "file.filter_not_compared"
+            )
+            self._filter_empty_label.setText(tr(key))
         self._filter_empty_label.setVisible(empty)
         if empty:
             self._filter_empty_label.setGeometry(self._table.geometry())

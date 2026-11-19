@@ -50,7 +50,10 @@ rows at the current folder carry pending work, so the toggle doubles as a summar
 
 The choice is remembered across restarts and applies to the folder you are
 browsing, like the rest of the list. When it hides everything, the list says
-nothing is pending in that folder instead of showing an empty table. It changes
+nothing is pending in that folder instead of showing an empty table — and it says
+*not compared yet* instead, as long as the app has not classified the folder (the
+first comparison runs on its own when the app connects), so an empty list never
+claims the folder is up to date when its state is simply unknown. It changes
 only what you see: actions act on the visible rows, and the folder size and the
 status bar keep counting every file.
 

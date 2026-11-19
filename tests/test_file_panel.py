@@ -4077,6 +4077,30 @@ class TestOnlyChangesControl:
 
         assert panel._table.model().rowCount() == 0
         assert not panel._filter_empty_label.isHidden()
+        # Classified and clean: this folder really has nothing pending.
+        assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
+        assert panel._btn_only_changes.text() == tr("file.filter_only_changes")
+
+    def test_an_unclassified_folder_says_so_instead_of_nothing_to_sync(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        """Before the first comparison every row is LOCAL: the empty list must
+        not claim the folder is up to date, and the control stays usable."""
+        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table.set_base_directory("/base")
+        for filepath in ("a.txt", "b.txt"):
+            panel._table.add_transfer(
+                FileTransfer(filepath=filepath, direction="—", size=1, status=TransferStatus.LOCAL)
+            )
+        panel._table.refresh_view()
+
+        panel._btn_only_changes.setChecked(True)
+
+        assert panel._btn_only_changes.isEnabled()
+        assert panel._table.model().rowCount() == 0
+        assert not panel._filter_empty_label.isHidden()
+        assert panel._filter_empty_label.text() == tr("file.filter_not_compared")
+        # An unknown count is not zero: the summary stays out of the label.
         assert panel._btn_only_changes.text() == tr("file.filter_only_changes")
 
     def test_a_language_change_relabels_the_control(self, qtbot, monkeypatch, tmp_path):

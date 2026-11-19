@@ -71,6 +71,7 @@ translations: dict[str, str] = {
     "file.direction": "操作",
     "file.filter_only_changes": "変更のみ",
     "file.filter_no_changes": "このフォルダーに同期する変更はありません",
+    "file.filter_not_compared": "まだ比較していません — アプリが接続するとフォルダーが分類されます",
     "tip.file_filter_only_changes": "未処理の項目のみ表示します（転送・名前の変更・削除・エラー）。オフにするとすべてのファイルを表示します。",
     "file.show_hidden": "隠しファイルを表示",
     "file.reset_columns": "列をリセット",

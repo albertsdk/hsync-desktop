@@ -811,6 +811,21 @@ class FileTransferTable(QTableView):
             if row_is_change(transfer, folder)
         )
 
+    def has_classified_rows(self) -> bool:
+        """Whether the engine classified anything at the current level yet.
+
+        Before the first comparison every row is ``LOCAL``: the folder is simply
+        not known, which is not the same as "nothing to sync" (the empty state
+        says which one it is).
+        """
+        for _name, transfer, folder in self._current_items():
+            if folder:
+                if folder.get("has_classification"):
+                    return True
+            elif transfer is not None and transfer.status is not TransferStatus.LOCAL:
+                return True
+        return False
+
     def level_item_count(self) -> int:
         """How many rows the current level holds before the view filter."""
         return len(self._current_items())
@@ -1565,6 +1580,9 @@ class FileTransferTable(QTableView):
         max_mtime = 0.0
         status_priority = 100
         has_changes = False
+        # Distinguishes "nothing pending" from "not compared yet": before the
+        # first comparison every child is LOCAL, which is not a classification.
+        has_classification = False
         uploading = False
         sending = 0
         receiving = 0
@@ -1590,6 +1608,8 @@ class FileTransferTable(QTableView):
             status_priority = min(status_priority, p)
             if f.status not in RESTING_STATUSES:
                 has_changes = True
+            if f.status is not TransferStatus.LOCAL:
+                has_classification = True
             if f.status is TransferStatus.UPLOADING:
                 uploading = True
             if f.status in ops:
@@ -1623,6 +1643,8 @@ class FileTransferTable(QTableView):
             # Whether any descendant still has pending work: the row filter and
             # the "only changes" count read it instead of re-aggregating.
             "has_changes": has_changes,
+            # Whether the engine has classified anything here yet (see above).
+            "has_classification": has_classification,
             "total_size": total_size,
             "size_bytes": size_bytes,
             "mtime": max_mtime,

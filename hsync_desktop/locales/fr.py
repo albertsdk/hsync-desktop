@@ -64,6 +64,7 @@ translations: dict[str, str] = {
     "file.direction": "Opération",
     "file.filter_only_changes": "Modifications uniquement",
     "file.filter_no_changes": "Rien à synchroniser dans ce dossier",
+    "file.filter_not_compared": "Pas encore comparé — le dossier est classé quand l'application se connecte",
     "tip.file_filter_only_changes": "Afficher uniquement les éléments en attente — transferts, renommages, suppressions et erreurs. Désactivez pour voir tous les fichiers.",
     "file.show_hidden": "Afficher les fichiers cachés",
     "file.reset_columns": "Réinitialiser les colonnes",

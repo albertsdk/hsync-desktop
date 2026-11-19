@@ -71,6 +71,7 @@ translations: dict[str, str] = {
     "file.direction": "Operacja",
     "file.filter_only_changes": "Tylko zmiany",
     "file.filter_no_changes": "Brak zmian do synchronizacji w tym folderze",
+    "file.filter_not_compared": "Jeszcze nie porównano — folder zostanie sklasyfikowany po połączeniu aplikacji",
     "tip.file_filter_only_changes": "Pokazuj tylko elementy z zaległą pracą — transfery, zmiany nazw, usunięcia i błędy. Wyłącz, aby zobaczyć wszystkie pliki.",
     "file.show_hidden": "Pokaż ukryte pliki",
     "file.reset_columns": "Zresetuj kolumny",

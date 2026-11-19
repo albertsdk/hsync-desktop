@@ -71,6 +71,7 @@ translations: dict[str, str] = {
     "file.direction": "Operation",
     "file.filter_only_changes": "Only changes",
     "file.filter_no_changes": "Nothing to sync in this folder",
+    "file.filter_not_compared": "Not compared yet — the folder is classified when the app connects",
     "tip.file_filter_only_changes": "Show only the items with pending work — transfers, renames, deletions and errors. Turn it off to see every file.",
     "file.show_hidden": "Show hidden files",
     "file.reset_columns": "Reset columns",
