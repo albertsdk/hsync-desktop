@@ -426,6 +426,7 @@ class TestSelectorChrome:
         assert window._btn_details.text().endswith(" ▾")
         for qss in (_light_qss(), _dark_qss()):
             assert "QToolButton#sharesButton::menu-indicator" in qss
+            assert "QToolButton#btnDetails::menu-indicator" in qss
 
 
 class TestManageDialogChrome:

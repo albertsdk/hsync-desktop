@@ -61,8 +61,8 @@ from hsync_desktop.ui.loader import load_ui_widget
 _BREADCRUMB_SEPARATORS = {"win32": " > ", "default": " / "}
 _NAV_ICON_PX = 20
 _NAV_FILTER_ICON_PX = 16
-_SEARCH_FIELD_MIN_PX = 200
-_SEARCH_FIELD_MAX_PX = 280
+_SEARCH_FIELD_MIN_PX = 220
+_SEARCH_FIELD_MAX_PX = 300
 _SEARCH_DEBOUNCE_MS = 120
 # Click target around the glyph, at the WCAG 2.2 target-size minimum.
 _NAV_ICON_BOX_PX = 24
@@ -1083,6 +1083,7 @@ class FilePanel(QWidget):
             self._search.blockSignals(True)
             self._search.clear()
             self._search.blockSignals(False)
+            self._sync_clear_button()
             self._search_timer.stop()
             self._apply_text_filter()
         self._table.restore_view(folder, name or None)
@@ -1113,6 +1114,7 @@ class FilePanel(QWidget):
         self._search.blockSignals(True)
         self._search.clear()
         self._search.blockSignals(False)
+        self._sync_clear_button()
         self._search_timer.stop()
         self._apply_text_filter()
 
@@ -1120,8 +1122,19 @@ class FilePanel(QWidget):
     def _apply_text_filter(self) -> None:
         self._table.set_text_filter(self._search.text())
 
+    def _sync_clear_button(self) -> None:
+        """Keep Qt's clear button visible only while the query is not empty.
+
+        ``QLineEdit`` leaves its built-in clear button visible once the text
+        becomes empty (Backspace or ``clear()``), so re-evaluate it here.
+        """
+        want = bool(self._search.text())
+        if want != self._search.isClearButtonEnabled():
+            self._search.setClearButtonEnabled(want)
+
     @Slot(str)
     def _on_search_text(self, _text: str) -> None:
+        self._sync_clear_button()
         self._search_timer.start()
 
     @Slot()

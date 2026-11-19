@@ -4106,6 +4106,32 @@ class TestSearchFilter:
 
         assert panel._search.isVisibleTo(panel)
 
+    def test_the_clear_button_hides_once_the_query_is_empty(self, qtbot, monkeypatch, tmp_path):
+        """Qt leaves its clear button visible after the text empties."""
+        from PySide6.QtWidgets import QToolButton
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_search.setChecked(True)
+
+        def visible_clear_buttons() -> list[QToolButton]:
+            return [b for b in panel._search.findChildren(QToolButton) if not b.isHidden()]
+
+        panel._search.setText("report")
+        qtbot.wait(20)
+        assert len(visible_clear_buttons()) == 1
+
+        panel._search.setText("")
+        qtbot.wait(20)
+        assert visible_clear_buttons() == []
+
+        # Closing and reopening must not resurrect a stale clear button.
+        panel._search.setText("report")
+        qtbot.wait(20)
+        panel._btn_search.setChecked(False)
+        panel._btn_search.setChecked(True)
+        qtbot.wait(20)
+        assert visible_clear_buttons() == []
+
     def test_typing_searches_names_and_paths_recursively(self, qtbot, monkeypatch, tmp_path):
         """The query is a file-manager search: it reaches subfolders."""
         panel = self._panel(qtbot, monkeypatch, tmp_path)
