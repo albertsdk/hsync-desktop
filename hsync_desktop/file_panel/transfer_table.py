@@ -77,7 +77,6 @@ from hsync_desktop.file_panel.models import (
 )
 from hsync_desktop.file_panel.utils import (
     _COLUMN_KEYS,
-    COL_DIRECTION,
     COL_ETA,
     COL_MODIFIED,
     COL_NAME,
@@ -224,7 +223,7 @@ _DELETED_MARKER_MS = 1500
 
 # Data columns whose width is fitted to the content once (Name stretches and
 # Progress keeps its explicit default width).
-_FITTED_COLUMNS = (COL_DIRECTION, COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
+_FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
 # The row icon is the file type; the operation glyph gets its own slot after
 # it, so the type icons stay aligned whether or not the row has an operation.
 _TABLE_ICON_PX = 16
@@ -384,10 +383,11 @@ class FileTransferModel(QAbstractTableModel):
         self._direction_font = font
         self._row_icon_cache.clear()
         if self._rows:
+            # The glyph lives in the Name cell's icon.
             self.dataChanged.emit(
-                self.index(0, COL_DIRECTION),
-                self.index(len(self._rows) - 1, COL_DIRECTION),
-                [Qt.ItemDataRole.FontRole],
+                self.index(0, COL_NAME),
+                self.index(len(self._rows) - 1, COL_NAME),
+                [Qt.ItemDataRole.DecorationRole],
             )
 
     def rows(self) -> list[tuple[str, FileTransfer | None, dict]]:
@@ -434,8 +434,6 @@ class FileTransferModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.ForegroundRole:
             return self._foreground(transfer, folder_data, is_folder)
         if role == Qt.ItemDataRole.FontRole:
-            if col == COL_DIRECTION and self._direction_text(transfer, is_folder, folder_data):
-                return self._direction_font
             return None
         if role == Qt.ItemDataRole.ToolTipRole:
             return self._tooltip(transfer, folder_data, is_folder, col)
@@ -536,8 +534,6 @@ class FileTransferModel(QAbstractTableModel):
             else:
                 rate = transfer.speed_bps if transfer else None
             return f"{format_bytes(rate)}/s" if rate else ""
-        if col == COL_DIRECTION:
-            return self._direction_text(transfer, is_folder, folder_data)
         return ""
 
     @staticmethod
@@ -611,8 +607,6 @@ class FileTransferModel(QAbstractTableModel):
     @staticmethod
     def _alignment(col: int) -> int | None:
         right = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        if col == COL_DIRECTION:
-            return int(Qt.AlignmentFlag.AlignCenter)
         if col in (COL_SIZE, COL_MODIFIED, COL_ETA, COL_SPEED):
             return right
         return None
@@ -770,17 +764,15 @@ class FileTransferTable(QTableView):
     # widths, the visual order and the hidden sections. Bump the version suffix
     # whenever the column set changes: restoreState does not validate the section
     # count and would apply a stale blob to the wrong sections.
-    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v2"
+    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v3"
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden: the row icon already conveys the type,
     # and the live rate matters only while a transfer runs.
-    # Operation is drawn next to the type icon in the Name cell (``_row_icon``)
-    # and the Status column names it in words; the column is opt-in for those who
-    # want to sort by it. Type is conveyed by the icon, and the two live metrics
-    # only say something while a transfer runs. Progress stays visible: it is the
-    # per-file activity column.
-    _DEFAULT_HIDDEN = (COL_DIRECTION, COL_TYPE, COL_ETA, COL_SPEED)
+    # Type is conveyed by the row icon (which carries the operation glyph too),
+    # and the two live metrics only say something while a transfer runs. Progress
+    # stays visible: it is the per-file activity column.
+    _DEFAULT_HIDDEN = (COL_TYPE, COL_ETA, COL_SPEED)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -902,6 +894,15 @@ class FileTransferTable(QTableView):
         self.selected_rows_changed.emit(self.selected_transfers())
         self.rows_refreshed.emit()
 
+    def row_operation(self, row: int) -> str:
+        """The operation glyph of a visible row (drawn in the Name cell icon)."""
+        rows = self._model.rows()
+        if not 0 <= row < len(rows):
+            return ""
+        _name, transfer, folder_data = rows[row]
+        is_folder = transfer is None or transfer.filepath.endswith("/")
+        return self._model._direction_text(transfer, is_folder, folder_data)
+
     def change_count(self) -> int:
         """How many rows at the current level carry pending work."""
         return sum(
@@ -995,7 +996,6 @@ class FileTransferTable(QTableView):
         # Name is the row identity: keep it leading whatever the user drags.
         header.setFirstSectionMovable(False)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(COL_DIRECTION, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.Interactive)
@@ -1213,10 +1213,10 @@ class FileTransferTable(QTableView):
     def _build_header_menu(self) -> QMenu:
         """Build the column menu in the order the columns are shown.
 
-        The header is reorderable and its layout is persisted, so iterating the
-        logical indices would list the columns in an order the user no longer
-        sees once a column has been dragged; ``logicalIndex`` maps each visual
-        position back to its column, keeping the menu in step with the table.
+        The header is reorderable and its layout is persisted, so the logical
+        indices do not describe what is on screen after a drag; ``logicalIndex``
+        maps each visual position back to its column, keeping the menu in step
+        with the table.
         """
         menu = QMenu(self)
         header = self.horizontalHeader()
@@ -2312,10 +2312,9 @@ class FileTransferTable(QTableView):
             return
         # The rename is on disk. Re-keying the row and refreshing the view must
         # never turn a successful rename into a failure dialog: during an active
-        # sync the engine can already have removed or re-keyed the row, which
-        # used to raise inside this method and show "cannot rename" after the
-        # filesystem had moved the file. Pop defensively under the same lock the
-        # engine-driven rename path (``rename_file``) uses.
+        # sync the engine can already have removed or re-keyed the row, so the
+        # pop runs defensively under the same lock the engine-driven rename path
+        # (``rename_file``) uses.
         old_rel = transfer.filepath
         with QMutexLocker(self._transfers_mutex):
             self._transfers.pop(old_rel, None)

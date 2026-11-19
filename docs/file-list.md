@@ -8,12 +8,13 @@ move and act on your files.
 
 ## Columns
 
-Each row shows the file's icon next to its name, then:
+Each row starts with an icon that carries the file type and, when the row has an
+operation, its glyph: `↑` upload, `↓` download, `✕` a deleted row, `⇄` a rename.
+The columns are:
 
 | Column | Meaning |
 | ------ | ------- |
-| **Name** | The file or folder, with its type icon. Always shown, always first. |
-| **Operation** | `↑` upload, `↓` download, `✕` a deleted row, `⇄` a rename. Shown as a glyph next to the file-type icon when the row has one (the column itself is hidden by default; enable it to sort by it). |
+| **Name** | The file or folder, with the icon above. Always shown, always first. |
 | **Size** | The size on disk. For a folder, the sum of the files it contains; its item count is shown in the tooltip and in the properties pane. |
 | **Type** | The kind of file (hidden until you enable it). |
 | **Modified** | The last modification date. |
@@ -22,10 +23,10 @@ Each row shows the file's icon next to its name, then:
 | **Time left** | The estimated time left for a running transfer, once the rate is known (hidden until you enable it; blank until the first samples arrive). |
 | **Speed** | The live transfer rate (hidden until you enable it). |
 
-**Operation**, **Type**, **Time left** and **Speed** are hidden by default: the
-operation and the type are drawn next to the name, and the two live metrics only
-say something while a transfer runs. Turn any of them on from the header menu,
-which lists the columns in the order you arranged them (**Name** stays first).
+**Type**, **Time left** and **Speed** are hidden by default: the icon conveys the
+type and the operation, and the two live metrics only say something while a
+transfer runs. Turn them on from the header menu, which lists the columns in the
+order you arranged them (**Name** stays first).
 You can drag a divider to resize a column, drag a header to reorder the columns,
 and double-click a divider to fit a column to its content. Widths, order and
 visible columns are remembered across runs; **Reset columns** in the header menu

@@ -68,7 +68,6 @@ translations: dict[str, str] = {
     "file.eta": "残り時間",
     "file.status": "状態",
     "file.speed": "速度",
-    "file.direction": "操作",
     "file.filter_only_changes": "変更のみ",
     "file.filter_no_changes": "このフォルダーに同期する変更はありません",
     "file.filter_not_compared": "まだ比較していません — アプリが接続するとフォルダーが分類されます",

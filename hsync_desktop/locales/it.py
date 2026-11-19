@@ -61,7 +61,6 @@ translations: dict[str, str] = {
     "file.eta": "Tempo rimanente",
     "file.status": "Stato",
     "file.speed": "Velocità",
-    "file.direction": "Operazione",
     "file.filter_only_changes": "Solo modifiche",
     "file.filter_no_changes": "Nessuna modifica in questa cartella",
     "file.filter_not_compared": "Non ancora confrontata — la cartella viene classificata quando l'app si connette",

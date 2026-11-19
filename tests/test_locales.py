@@ -239,10 +239,9 @@ class TestTerminologyConsistency:
                     assert token not in text, f"{module.__name__}:{key}: {token}"
 
     def test_the_file_table_uses_plain_column_names(self):
-        """No locale falls back to the "ETA"/"Direction" tool jargon."""
+        """No locale falls back to the "ETA" tool jargon."""
         for module in self.ALL:
             assert module.translations["file.eta"].strip() != "ETA", module.__name__
-            assert module.translations["file.direction"].strip(), module.__name__
 
     def test_device_finding_group_is_about_devices_only(self):
         """The settings group names device finding, not the search server."""

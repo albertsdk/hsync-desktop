@@ -68,7 +68,6 @@ translations: dict[str, str] = {
     "file.eta": "Resterende tijd",
     "file.status": "Status",
     "file.speed": "Snelheid",
-    "file.direction": "Bewerking",
     "file.filter_only_changes": "Alleen wijzigingen",
     "file.filter_no_changes": "Niets te synchroniseren in deze map",
     "file.filter_not_compared": "Nog niet vergeleken — de map wordt geclassificeerd zodra de app verbindt",

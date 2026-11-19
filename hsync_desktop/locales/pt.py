@@ -68,7 +68,6 @@ translations: dict[str, str] = {
     "file.eta": "Tempo restante",
     "file.status": "Status",
     "file.speed": "Velocidade",
-    "file.direction": "Operação",
     "file.filter_only_changes": "Apenas alterações",
     "file.filter_no_changes": "Nada para sincronizar nesta pasta",
     "file.filter_not_compared": "Ainda não comparada — a pasta é classificada quando a aplicação se liga",

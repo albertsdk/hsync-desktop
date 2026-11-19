@@ -61,7 +61,6 @@ translations: dict[str, str] = {
     "file.eta": "Temps restant",
     "file.status": "Statut",
     "file.speed": "Vitesse",
-    "file.direction": "Opération",
     "file.filter_only_changes": "Modifications uniquement",
     "file.filter_no_changes": "Rien à synchroniser dans ce dossier",
     "file.filter_not_compared": "Pas encore comparé — le dossier est classé quand l'application se connecte",

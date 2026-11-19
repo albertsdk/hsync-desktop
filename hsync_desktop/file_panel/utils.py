@@ -28,23 +28,20 @@ def to_posix_separators(path: str) -> str:
     return path.replace(os.sep, "/")
 
 
-# Column indices, in the default visual order. The row icon is drawn inside the
-# Name cell, so the identifying column leads; Direction follows it because it
-# explains what will happen to the row (the transfer-queue convention).
+# Column indices, in the default visual order. The row icon (type plus the
+# operation glyph) is drawn inside the Name cell, so the identifying column leads.
 COL_NAME = 0
-COL_DIRECTION = 1
-COL_SIZE = 2
-COL_TYPE = 3
-COL_MODIFIED = 4
-COL_PROGRESS = 5
-COL_STATUS = 6
-COL_ETA = 7
-COL_SPEED = 8
+COL_SIZE = 1
+COL_TYPE = 2
+COL_MODIFIED = 3
+COL_PROGRESS = 4
+COL_STATUS = 5
+COL_ETA = 6
+COL_SPEED = 7
 
 # Column translation keys (in order)
 _COLUMN_KEYS = [
     "file.name",
-    "file.direction",
     "file.size",
     "file.type",
     "file.modified",

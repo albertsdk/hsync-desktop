@@ -68,7 +68,6 @@ translations: dict[str, str] = {
     "file.eta": "剩余时间",
     "file.status": "状态",
     "file.speed": "速度",
-    "file.direction": "操作",
     "file.filter_only_changes": "仅更改项",
     "file.filter_no_changes": "此文件夹没有需要同步的内容",
     "file.filter_not_compared": "尚未比较 — 应用连接后会对此文件夹进行分类",

@@ -791,18 +791,16 @@ class TestOptionalColumns:
         table = self._table(qtbot)
         header = table.horizontalHeader()
 
-        # Operation is drawn next to the type icon in the Name cell; the two live
-        # metrics only say something while a transfer runs (ETA needs samples);
-        # the type is conveyed by the icon.
-        assert header.isSectionHidden(tt.COL_DIRECTION)
+        # The row icon conveys the type (and the operation); the two live metrics
+        # only say something while a transfer runs (ETA needs samples).
         assert header.isSectionHidden(tt.COL_TYPE)
         assert header.isSectionHidden(tt.COL_ETA)
         assert header.isSectionHidden(tt.COL_SPEED)
         for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_PROGRESS, tt.COL_STATUS):
             assert not header.isSectionHidden(col)
 
-    def test_the_default_order_puts_direction_next_to_the_name(self, qtbot):
-        """Identity first, then what will happen to the row, then the metrics."""
+    def test_the_default_order_puts_the_metrics_after_the_name(self, qtbot):
+        """Identity first, then the row's data in the transfer-queue order."""
         from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
@@ -812,7 +810,6 @@ class TestOptionalColumns:
 
         assert order == [
             tt.COL_NAME,
-            tt.COL_DIRECTION,
             tt.COL_SIZE,
             tt.COL_TYPE,
             tt.COL_MODIFIED,
@@ -835,12 +832,8 @@ class TestOptionalColumns:
         model = table.model()
 
         name_icon = model.data(model.index(0, tt.COL_NAME), Qt.ItemDataRole.DecorationRole)
-        direction_icon = model.data(
-            model.index(0, tt.COL_DIRECTION), Qt.ItemDataRole.DecorationRole
-        )
 
         assert name_icon is not None and not name_icon.isNull()
-        assert direction_icon is None
         # No unlabeled section is left: the icon column is gone.
         assert all(tt._COLUMN_KEYS)
 
@@ -852,7 +845,7 @@ class TestOptionalColumns:
         headers = _header_texts(table)
         assert len(headers) == len(tt._COLUMN_KEYS)
         assert "Speed" in headers
-        assert "Operation" in headers
+        assert "Operation" not in headers
 
     def test_a_downloading_row_reports_direction_and_speed(self, qtbot):
         from hsync_desktop.file_panel import transfer_table as tt
@@ -864,7 +857,7 @@ class TestOptionalColumns:
         transfer.note_progress(2048, now=101.0)
         table.add_transfer(transfer)
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+        assert table.row_operation(0) == "↓"
         assert _cell_text(table, 0, tt.COL_SPEED).endswith("/s")
 
     def test_a_completed_row_has_no_speed(self, qtbot):
@@ -964,8 +957,8 @@ class TestOptionalColumns:
         assert not table.horizontalHeader().isSectionHidden(tt.COL_SPEED)
         fresh = self._table(qtbot)
         assert not fresh.horizontalHeader().isSectionHidden(tt.COL_SPEED)
-        # Untouched columns keep their default (Operation is opt-in).
-        assert fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
+        # Untouched columns keep their default.
+        assert fresh.horizontalHeader().isSectionHidden(tt.COL_TYPE)
 
     def test_showing_both_optional_columns_is_persisted(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
@@ -977,11 +970,11 @@ class TestOptionalColumns:
 
         table = self._table(qtbot)
         table._toggle_column(tt.COL_SPEED, True)
-        table._toggle_column(tt.COL_DIRECTION, True)
+        table._toggle_column(tt.COL_TYPE, True)
 
         fresh = self._table(qtbot)
         assert not fresh.horizontalHeader().isSectionHidden(tt.COL_SPEED)
-        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_DIRECTION)
+        assert not fresh.horizontalHeader().isSectionHidden(tt.COL_TYPE)
 
     def test_restored_selection_is_correct_under_a_column_sort(self, qtbot):
         from PySide6.QtCore import Qt
@@ -1140,28 +1133,25 @@ class TestDirectionColumn:
         return table
 
     def test_a_resting_file_has_no_direction_text(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         table.add_transfer(
             FileTransfer(filepath="idle.bin", direction="—", size=10, status=TransferStatus.LOCAL)
         )
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == ""
+        assert table.row_operation(0) == ""
 
     def test_a_planned_operation_is_shown_in_bold(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         table.add_transfer(
             FileTransfer(filepath="up.bin", direction="↑", size=10, status=TransferStatus.TO_UPLOAD)
         )
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
-        assert _cell(table, 0, tt.COL_DIRECTION, Qt.ItemDataRole.FontRole).bold()
+        assert table.row_operation(0) == "↑"
+        assert table._model._direction_font.bold()
 
     def test_a_folder_has_no_direction(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         table.add_transfer(
@@ -1170,7 +1160,7 @@ class TestDirectionColumn:
             )
         )
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == ""
+        assert table.row_operation(0) == ""
 
 
 class TestColumnResizing:
@@ -1200,7 +1190,6 @@ class TestColumnResizing:
             tt.COL_ETA,
             tt.COL_STATUS,
             tt.COL_SPEED,
-            tt.COL_DIRECTION,
         ):
             assert header.sectionResizeMode(col) is QHeaderView.ResizeMode.Interactive
         assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Stretch
@@ -2831,7 +2820,7 @@ class TestLiveTransferProgress:
         table.refresh_view()  # flush the debounce
 
         assert table.model().rowCount() == 1
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+        assert table.row_operation(0) == "↓"
         assert _cell_text(table, 0, tt.COL_SIZE) == _format_size(1_024_000)
         pct = _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole)
         assert pct == 50
@@ -2855,7 +2844,7 @@ class TestLiveTransferProgress:
 
         assert table._transfers["big.bin"].size == 1_000_000  # the file
         assert table._transfers["big.bin"].total_bytes == 400_000  # the wire
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+        assert table.row_operation(0) == "↑"
         # The wire payload is fully handed over, but the peer has not confirmed
         # it: an in-flight upload never reads as finished.
         assert _cell(table, 0, tt.COL_PROGRESS, Qt.ItemDataRole.UserRole) == 99
@@ -3646,7 +3635,6 @@ class TestFolderDirection:
         assert data["sending"] == 1
 
     def test_the_column_shows_the_folder_arrow(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         for path, direction, status in (
@@ -3658,10 +3646,9 @@ class TestFolderDirection:
             )
         table.refresh_view()
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↑"
+        assert table.row_operation(0) == "↑"
 
     def test_a_mixed_folder_column_shows_both(self, qtbot):
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         table.add_transfer(
@@ -3676,11 +3663,10 @@ class TestFolderDirection:
         )
         table.refresh_view()
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↕"
+        assert table.row_operation(0) == "↕"
 
     def test_a_single_file_keeps_its_own_arrow(self, qtbot):
         """Regression: the per-file Direction column is unchanged."""
-        from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot)
         table.add_transfer(
@@ -3688,7 +3674,7 @@ class TestFolderDirection:
         )
         table.refresh_view()
 
-        assert _cell_text(table, 0, tt.COL_DIRECTION) == "↓"
+        assert table.row_operation(0) == "↓"
 
     def test_the_folder_tooltip_names_the_transfers_in_progress(self, qtbot):
         from hsync_desktop.i18n import tr
@@ -4178,7 +4164,6 @@ class TestResetColumns:
 
         assert [header.logicalIndex(visual) for visual in range(header.count())] == [
             tt.COL_NAME,
-            tt.COL_DIRECTION,
             tt.COL_SIZE,
             tt.COL_TYPE,
             tt.COL_MODIFIED,
@@ -4188,7 +4173,6 @@ class TestResetColumns:
             tt.COL_SPEED,
         ]
         assert {col for col in range(header.count()) if header.isSectionHidden(col)} == {
-            tt.COL_DIRECTION,
             tt.COL_TYPE,
             tt.COL_ETA,
             tt.COL_SPEED,
@@ -4214,7 +4198,6 @@ class TestResetColumns:
         assert {
             c for c in range(reopened_header.count()) if reopened_header.isSectionHidden(c)
         } == {
-            tt.COL_DIRECTION,
             tt.COL_TYPE,
             tt.COL_ETA,
             tt.COL_SPEED,
@@ -4435,15 +4418,15 @@ class TestOperationGlyph:
         icon = model.data(model.index(row, tt.COL_NAME), Qt.ItemDataRole.DecorationRole)
         return icon.pixmap(tt._TABLE_ICON_PX + tt._OP_GLYPH_PX, tt._TABLE_ICON_PX).toImage()
 
-    def test_the_column_is_opt_in(self, qtbot, monkeypatch, tmp_path):
+    def test_the_glyph_is_reachable_for_a_visible_row(self, qtbot, monkeypatch, tmp_path):
         table, tt = self._table(qtbot, monkeypatch, tmp_path)
-        header = table.horizontalHeader()
+        table.add_transfer(
+            FileTransfer(filepath="up.bin", direction="↑", size=1, status=TransferStatus.TO_UPLOAD)
+        )
+        table.refresh_view()
 
-        assert header.isSectionHidden(tt.COL_DIRECTION)
-
-        table._toggle_column(tt.COL_DIRECTION, True)
-
-        assert not header.isSectionHidden(tt.COL_DIRECTION)
+        assert table.row_operation(0) == "↑"
+        assert table.row_operation(1) == ""
 
     def test_rows_with_and_without_an_operation_have_different_icons(
         self, qtbot, monkeypatch, tmp_path

@@ -114,7 +114,7 @@ class FilePanel(QWidget):
 
     # Emits the scanned local size in bytes (-1 = unknown, 0 = empty share).
     # Arbitrary-size Python int: shares exceed the 2 GiB ceiling of a 32-bit
-    # ``Signal(int)``, which used to overflow.
+    # ``Signal(int)``, so the signal carries an object instead.
     share_size_changed = Signal(object)
     # Emits when the consistency scan added paths that were not tracked (a
     # missed live event, e.g. a remote rename): the window refreshes statuses.
