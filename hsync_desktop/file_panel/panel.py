@@ -231,6 +231,16 @@ class FilePanel(QWidget):
         )
         nav_layout.addWidget(self._btn_only_changes)
 
+        # The share-wide pending list: same table, same actions, one row per
+        # pending file with its relative path.
+        self._btn_pending = QToolButton(nav_bar)
+        self._btn_pending.setObjectName("btnPending")
+        self._btn_pending.setCheckable(True)
+        self._btn_pending.setAutoRaise(True)
+        self._btn_pending.setToolTip(tr("tip.pending_toggle"))
+        self._btn_pending.setText(tr("file.pending_toggle"))
+        nav_layout.addWidget(self._btn_pending)
+
         # Collapsible name filter: the magnifier reveals it, Ctrl+F opens it,
         # Esc clears and closes it. Closing clears the query, so the view never
         # hides rows behind a filter the user cannot see.
@@ -295,6 +305,9 @@ class FilePanel(QWidget):
         self._loading_overlay.cancel_requested.connect(self._cancel_import)
         self._btn_only_changes.toggled.connect(self._on_only_changes_toggled)
         self._btn_search.toggled.connect(self._on_search_toggled)
+        self._btn_pending.toggled.connect(self._table.set_pending_scope)
+        self._table.pending_scope_changed.connect(self._on_pending_scope_changed)
+        self._table.reveal_requested.connect(self._on_reveal_requested)
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(_SEARCH_DEBOUNCE_MS)
@@ -1054,6 +1067,39 @@ class FilePanel(QWidget):
         self._comparing = comparing
         self._sync_filter_state()
 
+    def _pending_button_text(self, count: int) -> str:
+        """The scope toggle's label; the count is the share's pending total."""
+        label = tr("file.pending_toggle")
+        return f"{label} ({count})" if count else label
+
+    @Slot(bool)
+    def _on_pending_scope_changed(self, active: bool) -> None:
+        """The global list has no folder to navigate: swap the chrome for it."""
+        # A navigation from inside the list leaves the scope: keep the button in
+        # step without bouncing the toggle back into the table.
+        if self._btn_pending.isChecked() != active:
+            self._btn_pending.blockSignals(True)
+            self._btn_pending.setChecked(active)
+            self._btn_pending.blockSignals(False)
+        self._btn_only_changes.setEnabled(not active)
+        self._btn_back.setEnabled(self._table.can_go_back())
+        self._btn_forward.setEnabled(self._table.can_go_forward())
+        self._btn_up.setEnabled(bool(self._table.current_path) and not active)
+        self._breadcrumb_icon.setVisible(not active)
+        if active:
+            self._breadcrumb_label.setText(tr("file.pending_breadcrumb"))
+            self._breadcrumb_label.setToolTip(tr("tip.pending_toggle"))
+        else:
+            self._update_breadcrumb()
+        self._sync_filter_state()
+
+    @Slot(str)
+    def _on_reveal_requested(self, filepath: str) -> None:
+        """Leave the list, open the item's folder and select it."""
+        folder, _separator, name = filepath.rpartition("/")
+        self._btn_pending.setChecked(False)
+        self._table.restore_view(folder, name or None)
+
     def _search_tooltip(self) -> str:
         """Tooltip with the real platform chord (⌘F on macOS, not "Ctrl+F")."""
         chord = QKeySequence(QKeySequence.StandardKey.Find).toString(
@@ -1106,23 +1152,31 @@ class FilePanel(QWidget):
     def _sync_filter_state(self) -> None:
         """Re-render the filter label and the empty state it can create."""
         count = self._table.change_count()
+        scope = self._btn_pending.isChecked()
         self._btn_only_changes.setText(self._filter_button_text(count))
+        self._btn_pending.setText(self._pending_button_text(self._table.pending_count()))
         query = self._search.text().strip()
-        filtered_out = self._btn_only_changes.isChecked() or bool(query)
+        filtered_out = self._btn_only_changes.isChecked() or bool(query) or scope
         empty = (
             filtered_out
             and self._table.model().rowCount() == 0
-            and self._table.level_item_count() > 0
+            and (scope or self._table.level_item_count() > 0)
         )
         if empty:
             # A query that matches nothing is the most specific answer; then a
             # running check outranks everything (its result may change the
             # answer), and "nothing pending" is only true once the engine
-            # classified the folder.
+            # classified what it is showing.
             if query:
                 text = tr("file.filter_no_match").replace("{query}", query)
             elif self._comparing:
                 text = tr("file.filter_comparing")
+            elif scope:
+                text = (
+                    tr("file.pending_empty")
+                    if self._table.share_has_classified_rows()
+                    else tr("file.filter_not_compared")
+                )
             elif self._table.has_classified_rows():
                 text = tr("file.filter_no_changes")
             else:
@@ -1136,6 +1190,9 @@ class FilePanel(QWidget):
     def retranslate_view_filter(self) -> None:
         """Re-apply the filter control's wording after a language change."""
         self._btn_only_changes.setToolTip(tr("tip.file_filter_only_changes"))
+        self._btn_pending.setToolTip(tr("tip.pending_toggle"))
+        if self._btn_pending.isChecked():
+            self._breadcrumb_label.setText(tr("file.pending_breadcrumb"))
         self._btn_search.setToolTip(self._search_tooltip())
         self._search.setPlaceholderText(tr("file.filter_placeholder"))
         self._filter_empty_label.setText(tr("file.filter_no_changes"))

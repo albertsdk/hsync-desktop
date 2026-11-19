@@ -4465,3 +4465,125 @@ class TestOperationGlyph:
         assert first is second
         sizes = first.availableSizes()
         assert sizes and sizes[0].width() == tt._TABLE_ICON_PX + tt._OP_GLYPH_PX
+
+
+class TestPendingScope:
+    """The share-wide pending list: one row per pending file, revealed in its folder."""
+
+    @staticmethod
+    def _panel(qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        import hsync_desktop.file_panel.panel as panel_mod
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(panel_mod, "QSettings", lambda *a, **k: store)
+        panel = panel_mod.FilePanel()
+        qtbot.addWidget(panel)
+        panel._table.set_base_directory("/base")
+        for filepath, status in (
+            ("docs/report.pdf", TransferStatus.TO_UPLOAD),
+            ("docs/old.txt", TransferStatus.SYNCED),
+            ("img/photo.jpg", TransferStatus.TO_DOWNLOAD),
+            ("notes.md", TransferStatus.SYNCED),
+        ):
+            panel._table.add_transfer(
+                FileTransfer(filepath=filepath, direction="—", size=1, status=status)
+            )
+        panel._table.refresh_view()
+        return panel
+
+    @staticmethod
+    def _names(panel) -> list[str]:
+        model = panel._table.model()
+        return [model.display_name(row) for row in range(model.rowCount())]
+
+    def test_it_lists_only_pending_files_by_relative_path(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        panel._btn_pending.setChecked(True)
+
+        assert self._names(panel) == ["docs/report.pdf", "img/photo.jpg"]
+        assert panel._btn_pending.text() == f"{tr('file.pending_toggle')} (2)"
+        assert panel._breadcrumb_label.text() == tr("file.pending_breadcrumb")
+
+    def test_leaving_the_scope_restores_the_browser(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table.navigate_to("docs")
+        assert self._names(panel) == ["old.txt", "report.pdf"]
+        panel._table.selectRow(1)  # report.pdf
+        assert panel._table.selected_transfers()
+
+        panel._btn_pending.setChecked(True)
+        assert panel._table.selected_transfers() == []
+        panel._btn_pending.setChecked(False)
+
+        assert panel._table.current_path == "docs"
+        assert self._names(panel) == ["old.txt", "report.pdf"]
+        assert [transfer.filepath for transfer in panel._table.selected_transfers()] == [
+            "docs/report.pdf"
+        ]
+        assert panel._btn_only_changes.isEnabled()
+
+    def test_navigating_from_the_scope_leaves_it(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_pending.setChecked(True)
+
+        panel._table.navigate_to("img")
+
+        assert panel._btn_pending.isChecked() is False
+        assert panel._table.current_path == "img"
+        assert self._names(panel) == ["photo.jpg"]
+
+    def test_double_click_reveals_the_file_in_its_folder(self, qtbot, monkeypatch, tmp_path):
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_pending.setChecked(True)
+
+        panel._table._on_cell_double_clicked(0, tt.COL_NAME)
+
+        assert panel._btn_pending.isChecked() is False
+        assert panel._table.current_path == "docs"
+        assert [transfer.filepath for transfer in panel._table.selected_transfers()] == [
+            "docs/report.pdf"
+        ]
+
+    def test_the_scope_disables_the_folder_chrome(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        panel._btn_pending.setChecked(True)
+
+        assert not panel._btn_only_changes.isEnabled()
+        assert not panel._btn_back.isEnabled()
+        assert not panel._btn_forward.isEnabled()
+        assert not panel._btn_up.isEnabled()
+
+    def test_the_name_filter_composes_with_the_scope(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_pending.setChecked(True)
+        panel._btn_search.setChecked(True)
+
+        panel._search.setText("report")
+        qtbot.wait(200)
+
+        assert self._names(panel) == ["docs/report.pdf"]
+
+    def test_an_empty_scope_says_nothing_is_pending(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        for transfer in panel._table._transfers.values():
+            transfer.status = TransferStatus.SYNCED
+        panel._table.refresh_view()
+
+        panel._btn_pending.setChecked(True)
+
+        assert panel._table.model().rowCount() == 0
+        assert panel._filter_empty_label.text() == tr("file.pending_empty")
+
+    def test_a_language_change_relabels_the_scope(self, qtbot, monkeypatch, tmp_path):
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        panel.retranslate_view_filter()
+
+        assert panel._btn_pending.toolTip() == tr("tip.pending_toggle")
+        assert panel._btn_pending.text().startswith(tr("file.pending_toggle"))

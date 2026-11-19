@@ -228,6 +228,8 @@ _FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SP
 # it, so the type icons stay aligned whether or not the row has an operation.
 _TABLE_ICON_PX = 16
 _OP_GLYPH_PX = 12
+# Cache key for the share-wide pending list (a NUL never appears in a path).
+_PENDING_SCOPE_CACHE_KEY = "\x00pending"
 
 
 def _folder_status_key(status_priority: int, sending: int, receiving: int) -> str:
@@ -293,6 +295,8 @@ class FileTransferModel(QAbstractTableModel):
         self._only_changes = False
         # Case-folded name filter, empty when the field is closed/cleared.
         self._text_filter = ""
+        # Share-wide pending list instead of the folder browser (see
+        # ``set_pending_scope``); the folder to return to is remembered.
         self._connected = False
         self._default_text_color = QColor()
         self._status_palette: dict = STATUS_COLORS
@@ -753,8 +757,12 @@ class FileTransferTable(QTableView):
     # can enable the File menu from the selection instead of one row at a time.
     selected_rows_changed = Signal(list)
     # Emitted after refresh_view rebuilt the rows: the panel re-renders the
-    # filter count and the empty state from it.
+    # filter counts and the empty state from it.
     rows_refreshed = Signal()
+    # Entering/leaving the share-wide pending list (see ``set_pending_scope``).
+    pending_scope_changed = Signal(bool)
+    # A pending row was activated: the panel reveals it in its folder.
+    reveal_requested = Signal(str)
     # Emitted when files are dropped from the OS file manager: the accepted
     # absolute source paths, the destination folder relative to the share root,
     # and the requested action ("copy" or "move").
@@ -839,6 +847,13 @@ class FileTransferTable(QTableView):
 
         # Cache for computed items at current level to avoid redundant computation
         self._cached_items: list[tuple[str, FileTransfer | None, dict]] | None = None
+        # Share-wide pending list instead of the folder browser (see
+        # ``set_pending_scope``); the folder to return to is remembered.
+        self._pending_scope = False
+        self._scope_return_path = ""
+        # Rows selected when the list was entered, restored when it is left.
+        self._scope_return_selection: tuple[str, ...] = ()
+        self._pending_count = 0
         self._cached_path: str = ""
         # "Only changes" view filter: applied by the model, so hidden rows can
         # never stay selected or be acted on.
@@ -1379,12 +1394,18 @@ class FileTransferTable(QTableView):
         self.selected_rows_changed.emit(self.selected_transfers())
 
     def _on_cell_double_clicked(self, row: int, _col: int) -> None:
-        """Handle double-click: navigate into folder or open file."""
+        """Handle double-click: navigate into folder, open a file, reveal a pending one."""
         self._click_timer.stop()
         self._clear_sticky_selection()
         self._last_selected_row = row
         display_name = self._model.display_name(row)
         if display_name is None:
+            return
+        if self._pending_scope:
+            # A pending download may not exist on disk yet: show where it lives.
+            transfer = self._get_transfer_at_row(row)
+            if transfer is not None:
+                self.reveal_requested.emit(transfer.filepath)
             return
         # Check if it's a synthesized folder (exists in current level)
         full_path = f"{self._current_path}/{display_name}" if self._current_path else display_name
@@ -1541,6 +1562,12 @@ class FileTransferTable(QTableView):
 
     def navigate_to(self, path: str) -> None:
         """Navigate to a folder path (relative to base directory)."""
+        if self._pending_scope:
+            # Any navigation leaves the share-wide list (reveal relies on this).
+            self._pending_scope = False
+            self._current_path = self._scope_return_path
+            self._cached_items = None
+            self.pending_scope_changed.emit(False)
         path = path.strip("/")
         if path == self._current_path:
             return
@@ -1637,11 +1664,77 @@ class FileTransferTable(QTableView):
 
     def can_go_back(self) -> bool:
         """Check if back navigation is possible."""
+        if self._pending_scope:
+            return False
         return self._nav_index > 0
 
     def can_go_forward(self) -> bool:
         """Check if forward navigation is possible."""
+        if self._pending_scope:
+            return False
         return self._nav_index < len(self._nav_history) - 1
+
+    def pending_count(self) -> int:
+        """Files with pending work in the whole share (as of the last refresh)."""
+        return self._pending_count
+
+    def share_has_classified_rows(self) -> bool:
+        """Whether any file in the share has been classified (the scope's state)."""
+        return any(
+            not path.endswith("/") and transfer.status is not TransferStatus.LOCAL
+            for path, transfer in self._transfers.items()
+        )
+
+    def _pending_items(self) -> list[tuple[str, FileTransfer | None, dict]]:
+        """Every file with pending work, as bucket-relative paths.
+
+        One row per file: the flat list groups by itself once the paths are
+        sorted, and a folder row would only repeat its children.
+        """
+        items: list[tuple[str, FileTransfer | None, dict]] = [
+            (path, transfer, {})
+            for path, transfer in self._transfers.items()
+            if not path.endswith("/") and row_is_change(transfer, {})
+        ]
+        items.sort(key=lambda item: item[0].casefold())
+        return items
+
+    def set_pending_scope(self, enabled: bool) -> None:
+        """Show the whole share's pending work instead of the folder browser.
+
+        The global list is a view of the same table (same columns, filters and
+        actions): ``_current_path`` is emptied so a row's relative name resolves
+        against ``_transfers`` exactly like a folder entry does.
+        """
+        if enabled == self._pending_scope:
+            return
+        selection = tuple(
+            name
+            for name in (
+                self._model.display_name(index.row())
+                for index in self.selectionModel().selectedRows()
+            )
+            if name is not None
+        )
+        self._clear_sticky_selection()
+        self.clearSelection()
+        if enabled:
+            self._scope_return_path = self._current_path
+            self._scope_return_selection = selection
+            self._pending_scope = True
+            self._current_path = ""
+        else:
+            self._pending_scope = False
+            self._current_path = self._scope_return_path
+        self._cached_items = None
+        self.refresh_view()
+        if not enabled:
+            # Back in the folder: the rows the user had selected come back too.
+            self._sticky_selection = self._scope_return_selection or None
+            self._sticky_applied_row = -1
+            self.refresh_view()
+            self.path_changed.emit(self._current_path)
+        self.pending_scope_changed.emit(enabled)
 
     def _get_items_at_current_level(self) -> list[tuple[str, FileTransfer | None, dict]]:
         """Get items to display at the current navigation level."""
@@ -1837,10 +1930,20 @@ class FileTransferTable(QTableView):
         self._refresh_timer.stop()
         self._refresh_pending = False
 
-        # Use cached items if path hasn't changed and cache is valid
-        if self._cached_path != self._current_path or self._cached_items is None:
-            self._cached_path = self._current_path
-            self._cached_items = self._get_items_at_current_level()
+        # The share-wide count feeds the panel's "Pending (n)" label even while
+        # the browser is showing a folder.
+        self._pending_count = sum(
+            1
+            for path, transfer in self._transfers.items()
+            if not path.endswith("/") and row_is_change(transfer, {})
+        )
+        cache_key = _PENDING_SCOPE_CACHE_KEY if self._pending_scope else self._current_path
+        # Use cached items if the scope/path hasn't changed and cache is valid
+        if self._cached_path != cache_key or self._cached_items is None:
+            self._cached_path = cache_key
+            self._cached_items = (
+                self._pending_items() if self._pending_scope else self._get_items_at_current_level()
+            )
 
         items = self._cached_items
         if items is None:
@@ -1898,7 +2001,8 @@ class FileTransferTable(QTableView):
         row context menu) can act on the row exactly like on a catalogued one.
         """
         transfer = self._get_transfer_at_row(row)
-        if not synthesize or transfer is not None:
+        # The flat list holds files only: nothing to synthesize there.
+        if self._pending_scope or not synthesize or transfer is not None:
             return transfer
         display_name = self._model.display_name(row)
         if display_name is None:

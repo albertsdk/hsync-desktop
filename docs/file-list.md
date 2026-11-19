@@ -39,6 +39,20 @@ at all cannot aggregate anything, so it reports its own state instead: **Synced*
 once every device holds it, **To upload** / **To download** while one side is
 still missing it.
 
+## Pending items
+
+**Pending** in the list bar lists every file that still has work to do anywhere in
+the share, one row per file with its path (for example `docs/report.pdf`). The
+number on the button is the total; **Only changes** counts the same kind of work
+per folder, so the two always agree.
+
+The list is a view of the same table: the columns, the actions and the name filter
+work as usual. **Only changes** is off while it is open (the list is already only
+changes). Double-click a row to leave the list, open that file's folder and select
+it — useful for a file that has not been downloaded yet. Leaving the list (the
+button again, or opening a folder) restores the folder and the rows you had
+selected.
+
 ## Filter by name
 
 The magnifier in the list bar (or `Ctrl+F`, `Cmd+F` on macOS) opens a name filter
