@@ -86,10 +86,8 @@ jobs:
   platforms:
     name: tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Windows is not green yet (failures plus a hang): keep the leg visible but
-    # non-blocking. The timeout bounds a hang so it cannot hold the run open for
-    # the 6-hour default. Remove both once the Windows suite passes.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    # Bounds a hang (a stuck GUI test) so it cannot hold the run open for the
+    # 6-hour default.
     timeout-minutes: 20
     strategy:
       fail-fast: false
