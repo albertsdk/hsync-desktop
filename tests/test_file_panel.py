@@ -4446,6 +4446,34 @@ class TestPendingScope:
         assert panel._btn_pending.toolTip() == tr("tip.pending_toggle")
         assert panel._btn_pending.text().startswith(tr("file.pending_toggle"))
 
+    def test_double_click_reveals_a_root_file_from_a_subfolder(self, qtbot, monkeypatch, tmp_path):
+        """A root-level item must leave the subfolder the browser was showing."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table._transfers["notes.md"].status = TransferStatus.TO_UPLOAD
+        panel._table.refresh_view()
+        panel._table.navigate_to("docs")
+        panel._btn_pending.setChecked(True)
+
+        panel._table._on_cell_double_clicked(self._names(panel).index("notes.md"), tt.COL_NAME)
+
+        assert panel._btn_pending.isChecked() is False
+        assert panel._table.current_path == ""
+        assert [transfer.filepath for transfer in panel._table.selected_transfers()] == ["notes.md"]
+
+    def test_navigating_to_the_scope_return_path_restores_the_rows(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        """Leaving the list refreshes even when the folder path does not move."""
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._btn_pending.setChecked(True)
+
+        panel._table.navigate_to("")
+
+        assert panel._btn_pending.isChecked() is False
+        assert self._names(panel) == ["docs", "img", "notes.md"]
+
 
 class TestNameFidelity:
     """The table renders the filesystem name verbatim, never a normalised one."""

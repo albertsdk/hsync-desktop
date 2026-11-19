@@ -76,3 +76,7 @@ nothing on disk and is not remembered after a restart.
 Files and folders whose name starts with a dot are hidden from the list. Enable
 **Show hidden files** from the header menu to see them — this changes only the
 list, not what is synchronised.
+
+**Pending** and the search always include them: they answer "what work is left"
+and "where is this file", so hiding an entry there would hide work that is really
+going to happen.

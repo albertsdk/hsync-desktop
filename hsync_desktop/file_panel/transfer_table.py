@@ -264,15 +264,12 @@ def selection_subdir(filepath: str) -> str:
     return os.path.dirname(path)
 
 
-def row_is_change(transfer: FileTransfer | None, folder: dict) -> bool:
+def row_is_change(transfer: FileTransfer | None) -> bool:
     """Whether a row carries work the user still has to see.
 
-    A folder row reports its children (``folder["has_changes"]``); a plain row
-    reports its own status. One definition serves the view filter and the count
-    next to it, so the button can never disagree with the list it controls.
+    One definition serves the pending list and the count next to its button, so
+    the button can never disagree with the list it controls.
     """
-    if folder:
-        return bool(folder.get("has_changes"))
     return transfer is not None and transfer.status not in RESTING_STATUSES
 
 
@@ -759,8 +756,9 @@ class FileTransferTable(QTableView):
     # Persisted header layout: one QHeaderView state blob carrying the section
     # widths, the visual order and the hidden sections. Bump the version suffix
     # whenever the column set changes: restoreState does not validate the section
-    # count and would apply a stale blob to the wrong sections.
-    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v3"
+    # count and would apply a stale blob to the wrong sections (v4 = eight
+    # columns, after the Direction column was dropped).
+    _HEADER_STATE_SETTINGS_KEY = "ui/file_table_header_state_v4"
     # Persisted "show hidden files" view option (display only).
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden: the row icon already conveys the type,
@@ -1496,14 +1494,20 @@ class FileTransferTable(QTableView):
 
     def navigate_to(self, path: str) -> None:
         """Navigate to a folder path (relative to base directory)."""
-        if self._pending_scope:
+        path = path.strip("/")
+        left_scope = self._pending_scope
+        if left_scope:
             # Any navigation leaves the share-wide list (reveal relies on this).
             self._pending_scope = False
             self._current_path = self._scope_return_path
             self._cached_items = None
             self.pending_scope_changed.emit(False)
-        path = path.strip("/")
         if path == self._current_path:
+            if left_scope:
+                # Leaving the scope is itself a view change: the folder rows it
+                # replaced must come back even when the path did not move.
+                self.refresh_view()
+                self.path_changed.emit(path)
             return
         self._clear_sticky_selection()
         # Add to history (truncate forward history if navigating from middle)
@@ -1544,9 +1548,9 @@ class FileTransferTable(QTableView):
         the root. A string is accepted for the single-row callers and a sequence
         restores a multi-selection. The selection stays applied across the
         asynchronous scan's refreshes until the user navigates or selects
-        another row.
+        another row. An empty *path* is the share root, so it navigates too.
         """
-        if path and path != self._current_path:
+        if path != self._current_path:
             self.navigate_to(path)  # clears any previous sticky selection
         if selected is None:
             names: tuple[str, ...] = ()
@@ -1648,7 +1652,7 @@ class FileTransferTable(QTableView):
         items: list[tuple[str, FileTransfer | None, dict]] = [
             (path, transfer, {})
             for path, transfer in self._transfers.items()
-            if not path.endswith("/") and row_is_change(transfer, {})
+            if not path.endswith("/") and row_is_change(transfer)
         ]
         items.sort(key=lambda item: item[0].casefold())
         return items
@@ -1742,10 +1746,6 @@ class FileTransferTable(QTableView):
         total_transferred = 0
         max_mtime = 0.0
         status_priority = 100
-        has_changes = False
-        # Distinguishes "nothing pending" from "not compared yet": before the
-        # first comparison every child is LOCAL, which is not a classification.
-        has_classification = False
         uploading = False
         sending = 0
         receiving = 0
@@ -1769,10 +1769,6 @@ class FileTransferTable(QTableView):
             max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
-            if f.status not in RESTING_STATUSES:
-                has_changes = True
-            if f.status is not TransferStatus.LOCAL:
-                has_classification = True
             if f.status is TransferStatus.UPLOADING:
                 uploading = True
             if f.status in ops:
@@ -1803,11 +1799,6 @@ class FileTransferTable(QTableView):
 
         return {
             "count": count,
-            # Whether any descendant still has pending work: the row filter and
-            # the pending list and its count read it instead of re-aggregating.
-            "has_changes": has_changes,
-            # Whether the engine has classified anything here yet (see above).
-            "has_classification": has_classification,
             "total_size": total_size,
             "size_bytes": size_bytes,
             "mtime": max_mtime,
@@ -1889,7 +1880,7 @@ class FileTransferTable(QTableView):
         self._pending_count = sum(
             1
             for path, transfer in self._transfers.items()
-            if not path.endswith("/") and row_is_change(transfer, {})
+            if not path.endswith("/") and row_is_change(transfer)
         )
         cache_key = (
             _PENDING_SCOPE_CACHE_KEY
