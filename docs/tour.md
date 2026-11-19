@@ -44,7 +44,7 @@ The path bar tells you **what** you are looking at and **where it goes**:
   name** next to it is a dropdown (chevron on its right) that switches share and
   offers **New share…**, and its tooltip shows the folder's full path here;
 - the **⇄** and the remote icon with the connection (here `my-group`) name
-  the other side: a peer group in **p2p Mode**, or the server in **Server Mode**.
+  the other side: a peer group in **Direct mode**, or the server in **Server mode**.
   If you left the group name empty, the bar shows `No group`: the peer set is
   every other device that also has no group.
 
@@ -95,8 +95,8 @@ The bottom bar answers the two questions that matter, left to right:
 
 On the right it keeps the badges that explain an active behaviour —
 **Simulation — no changes**, **Deletions kept** — the **⚠ problems** badge, and
-**Details ▾**, which opens the rest: the share size, the primary/secondary role
-(p2p), the group, the participating devices and the session totals
+**Details ▾**, which opens the rest: the share size, the primary/secondary role in
+Direct mode, the group, the participating devices and the session totals
 (`↑ Sent` / `↓ Received`, files and bytes). The bandwidth limits are editable
 from there too (or by clicking the sent/received values).
 

@@ -68,7 +68,7 @@ the sync from starting.
 
 <img src="assets/screens/15-trusted-keys.png" alt="Manage trusted servers and devices dialog with tabs per mode" width="640">
 
-Open **Settings → p2p Mode → Manage trusted servers & devices…** (in Server Mode
+Open **Settings → Direct mode → Manage trusted servers & devices…** (in Server mode
 the dialog shows the **Server HSYNC** store). It lists the search servers, sync
 servers and devices whose fingerprints are stored, with the date they were added,
 and lets you add or remove entries. There is no separate setting: this dialog
@@ -76,6 +76,6 @@ edits the same store the engine uses.
 
 ## Related
 
-- [Choose how your devices connect](choose-connection.md) — server vs p2p.
+- [Choose how your devices connect](choose-connection.md) — server vs Direct mode.
 - [Warnings and notifications](warnings.md) — the runtime security prompts.
 - [Troubleshooting](troubleshooting.md) — when authentication fails.

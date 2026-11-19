@@ -245,10 +245,10 @@
        </item>
       </layout>
      </widget>
-     <!-- Tab: p2p -->
+     <!-- Direct mode tab -->
      <widget class="QWidget" name="tabP2p">
       <attribute name="title">
-       <string>p2p Mode</string>
+       <string>Direct mode</string>
       </attribute>
       <attribute name="icon">
        <iconset theme="network-p2p"/>
@@ -257,14 +257,14 @@
        <item row="0" column="1">
         <widget class="QCheckBox" name="p2pMode">
          <property name="text">
-          <string>Enable p2p mode</string>
+          <string>Enable direct mode</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
         <widget class="QLabel" name="lblP2pGroup">
          <property name="text">
-          <string>p2p Group:</string>
+          <string>Group:</string>
          </property>
         </widget>
        </item>
@@ -350,10 +350,10 @@
        </item>
       </layout>
      </widget>
-     <!-- Tab: Server Mode (was Connection) -->
+     <!-- Server mode tab -->
      <widget class="QWidget" name="tabConnection">
       <attribute name="title">
-       <string>Server Mode</string>
+       <string>Server mode</string>
       </attribute>
       <attribute name="icon">
        <iconset theme="preferences-system-network"/>

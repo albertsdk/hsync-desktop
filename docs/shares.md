@@ -1,14 +1,14 @@
 # Managing multiple shares
 
 A **share** is one sync configuration: a local folder, the way it connects
-(Server Mode or p2p), and every sync setting. HSYNC Desktop keeps several named
+(Server mode or Direct mode), and every sync setting. HSYNC Desktop keeps several named
 shares and lets you switch between them from the window header; only one share
 syncs at a time.
 
 ## What a share contains
 
 - the **local folder** that is synced;
-- the **connection mode**: Server Mode (a server URL) or p2p (a group);
+- the **connection mode**: Server mode (a server URL) or Direct mode (a group);
 - the sync parameters: direction, deletion policy, filters, bandwidth limits,
   advanced tuning, the log file and the secrets (API key, group password).
 
@@ -21,7 +21,7 @@ The share name in the header is one control, with a small chevron at its right
 (the same one the **Details** button uses):
 
 - click the **name** to open the list of shares;
-- the list shows each share with its mode icon (p2p or server), the active one
+- the list shows each share with its mode icon (Direct or Server), the active one
   ticked; hover for its folder, bucket, direction and target;
 - the **folder icon** opens the active share's folder in your file manager.
 
@@ -39,7 +39,7 @@ The name is only a label: it can contain spaces and capital letters. The
 **bucket** (the identifier the peers/servers use) is derived from the name when
 the share is created and can be changed later in the Settings dialog.
 
-In Server Mode the new share is checked against the server the first time you
+In Server mode the new share is checked against the server the first time you
 save those settings: when its name does not exist there yet, the app offers to
 **create it on the server** before saving, so the first sync does not stop on a
 share the server has never heard of.

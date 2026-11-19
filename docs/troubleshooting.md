@@ -84,14 +84,14 @@ explained in
 [Warnings and notifications](warnings.md#warnings-before-a-sync), with the
 acknowledgement that silences the prompt and the control that brings it back.
 
-## Devices are not found in p2p Mode
+## Devices are not found in Direct mode
 
 - Every device must use the **same group name** (a device with no group only sees
   other no-group devices) and the **same share name** — see
   [Key concepts → Share](concepts.md#share).
 - The devices must be on the same network, with mDNS allowed through the
   firewall.
-- Devices on different networks need a **search servers** set in the p2p tab.
+- Devices on different networks need a **search servers** set in the Direct mode tab.
 - If a search server is set but cannot be reached, the app warns you and keeps
   working on the local network — devices on this network are still found. The
   server only adds devices on *other* networks.
@@ -108,7 +108,7 @@ reach each other.
 Common causes, in order:
 
 1. **Better to enable the link through a public endpoint.** On the device that
-   acts as **primary**, open *Settings → p2p Mode → Open the port on my router
+   acts as **primary**, open *Settings → Direct mode → Open the port on my router
    automatically* (UPnP). Without a port the router can forward, devices on
    other networks cannot dial in.
 2. **The data relay needs to be active on the search server.** If neither
@@ -126,7 +126,7 @@ read its remedy: it says whether to open a port on the primary or to enable the
 relay on the search server. See
 [Warnings → The data relay could not be paired](warnings.md#the-data-relay-could-not-be-paired-relay_unavailable).
 
-## p2p authentication failed
+## Direct mode authentication failed
 
 A device you are syncing with requires a shared password that this device is
 missing or has differently. The app stops and opens the password prompt so you can
@@ -135,9 +135,9 @@ identical on every device in the group.
 
 <img src="assets/screens/17-credentials.png" alt="The password dialog opened after an authentication failure" width="480">
 
-## The p2p password is rejected
+## The shared password is rejected
 
-The p2p tab field accepts a **shared password** (at least 12 characters; the
+The Direct mode tab field accepts a **shared password** (at least 12 characters; the
 client derives the group key from it) or a **raw group key** (at least 32
 characters). A shorter value is refused at startup. Generate a password with
 `openssl rand -hex 16` and use the exact same string on every device in the group.
@@ -151,17 +151,17 @@ not match, the app keeps the run going but shows a warning that reads
 `Rendezvous <server> refused the lease frame: token_required`.
 
 There is **no token to type**: the app derives the key from the **Shared
-password** in the p2p tab, so a `token_required` warning means that password
+password** in the Direct mode tab, so a `token_required` warning means that password
 does not match the key configured on the search server.
 
 To fix it:
 
-1. Open *Settings → p2p Mode → Shared password*.
+1. Open *Settings → Direct mode → Shared password*.
 2. Enter the **same password** that was used to create the key on the server
    (ideally the password the rest of the group already uses).
 3. Start the sync again. If the warning returns, the server's key was not
    derived from that password. To get the value to give the operator, use
-   **Settings → p2p Mode → Finding devices → Show group key…** (only shown
+   **Settings → Direct mode → Finding devices → Show group key…** (only shown
    when a search server is configured) — it shows the `bucket=<key>` line
    masked, with a reveal toggle and a Copy button, ready to add to the
    server's key file (see
@@ -175,7 +175,7 @@ These are the trust prompts; they appear when a device presents a new or changed
 certificate. What to do is in
 [Trust, fingerprints and identity checks](choose-trust.md).
 
-## TLS errors in Server Mode
+## TLS errors in Server mode
 
 Verify the server address and its certificate. Enable **Skip certificate check**
 only on a trusted network, for a self-signed server; for a permanent setup use the

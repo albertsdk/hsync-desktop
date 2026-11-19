@@ -21,9 +21,9 @@ A two-way sync is what most people want: it is what makes two computers feel lik
 the same set of files. The two one-way types are for a deliberate one-way flow
 and they reduce what the sync can do, so pick one only when you really mean it.
 
-If you are in **p2p Mode** and **Prefer primary role** is on, a one-way type
+If you are in **Direct mode** and **Prefer primary role** is on, a one-way type
 conflicts with it: the app catches this and offers to turn it off (accepting jumps
-to the p2p tab). The reverse also holds — turning **Prefer primary role** on while
+to the Direct mode tab). The reverse also holds — turning **Prefer primary role** on while
 a one-way type is active offers to go back to **Keep aligned**.
 
 ## A one-way type and deletions
@@ -36,4 +36,4 @@ If you have ever worried about losing files, pair a one-way type with the
 ## Related
 
 - [Deletions](configuration.md#sync) — the other half of "what happens to my files".
-- [Choose how your devices connect](choose-connection.md) — server or p2p.
+- [Choose how your devices connect](choose-connection.md) — server or Direct mode.

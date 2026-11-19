@@ -79,7 +79,7 @@ to change any step, then **Finish setup**.
 
 ## After finishing
 
-For network (p2p) setups the success screen shows the share name, group name and
+For Direct mode setups the success screen shows the share name, group name and
 shared password under *Use these details on another device to connect it to this
 one*. Copy them to your other devices — the invite uses the same field names as
 the Connection step; use the same values there. The invite can be selected

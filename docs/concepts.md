@@ -6,26 +6,26 @@ Each entry points to the page that goes deeper.
 ## Share
 
 A **share** is one folder kept in sync, under a name — the folder name on an HSYNC
-server, or the name devices use in p2p Mode. Devices that must see the same
+server, or the name devices use in Direct mode. Devices that must see the same
 content use the **same share name**. The folder on *this* computer can be
 somewhere else: that location is the **Local folder** (*Settings → Sync*).
 
 ## Connection mode
 
-**Server Mode** syncs through a central **HSYNC server**; **p2p Mode** syncs your
+**Server mode** syncs through a central **HSYNC server**; **Direct mode** syncs your
 devices directly, with no server. See
 [Choose how your devices connect](choose-connection.md).
 
-## Group (p2p Mode)
+## Group (Direct mode)
 
-The **p2p group name** is a way to keep separate sets of devices apart: devices
+The **group name** is a way to keep separate sets of devices apart in Direct mode: devices
 see and sync only with other devices using the **exact same group name**. Leaving
 it empty puts the device in the "no group" set, which sees only other no-group
 devices. It is not a secret — the shared password is.
 
-## Primary and secondary role (p2p Mode)
+## Primary and secondary role (Direct mode)
 
-In p2p Mode one device serves the files to the others: the **primary**. The others
+In Direct mode one device serves the files to the others: the **primary**. The others
 are **secondary**. **Prefer primary role** asks for that role and **Never become
 primary** removes the device from the election; the role appears in the status
 bar's **Details ▾** popover once it is decided. (The engine's own log lines still
@@ -39,7 +39,7 @@ search server, the app uses mDNS on the local network.
 
 A search server can be **protected** (*private*, or protecting its buckets):
 it then only lets in devices that know the group's key. The app earns that key
-from the **Shared password** in the p2p tab — there is no separate token. See
+from the **Shared password** in the Direct mode tab — there is no separate token. See
 [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
 ## Trust and fingerprints

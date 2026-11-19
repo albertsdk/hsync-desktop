@@ -31,7 +31,7 @@ the CLI moves it aside with `hsync state reset --folder DIR --quarantine`.
 
 ## Why do my two devices not see each other?
 
-In **Server Mode** both devices must point at the same server, use the **same
+In **Server mode** both devices must point at the same server, use the **same
 share name**, and hold an **API key that is the server admin's or a member of
 that share**. The share name is the shared thing; the key only proves a device
 may use it, so the same key on both devices works and one key per device keeps
@@ -39,14 +39,14 @@ revoking and rotating per device — see [Roles and Permissions → Sharing one
 bucket between
 devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
 
-In p2p Mode they must use the **same group name** and the **same share name**, and
+In Direct mode they must use the **same group name** and the **same share name**, and
 be on the same network (or reach the same search servers). A device with no
 group only sees other no-group devices. The full checklist is in
-[Troubleshooting → Devices are not found in p2p Mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
+[Troubleshooting → Devices are not found in Direct mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
 
 ## Why does HSYNC warn that local files may be deleted?
 
-The folder is not empty and the current settings allow deletions — p2p Mode with
+The folder is not empty and the current settings allow deletions — Direct mode with
 **Prefer primary role** off, or a **Receive only** sync type. It is a warning
 before anything happens, not an action. Choose **Never delete files on this device**
 (Settings → Sync → Deletions) and the warning disappears, because the app can no

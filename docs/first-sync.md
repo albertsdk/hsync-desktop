@@ -88,7 +88,7 @@ show a percentage and a speed, and turn **Synced** when they are done.
 
 - `Connecting…`, then `Syncing…`, then `All files in sync` in the status bar.
 - Rows filling in the file list as files move.
-- In p2p Mode, a role appears once the devices have agreed who serves the files
+- In Direct mode, a role appears once the devices have agreed who serves the files
   (see [Key concepts](concepts.md)).
 
 ## Where to go next

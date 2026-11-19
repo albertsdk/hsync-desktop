@@ -1,6 +1,6 @@
 # Secrets and credentials
 
-Your account key (Server Mode) and your shared group password (p2p Mode) are
+Your account key (Server mode) and your shared group password (Direct mode) are
 secrets. The app treats them that way: you enter them through dedicated dialogs,
 never on a command line, and they never appear in logs or process listings.
 
@@ -8,7 +8,7 @@ never on a command line, and they never appear in logs or process listings.
 
 ## How they are stored and used
 
-- Entered in a **dedicated dialog** (see the p2p and Server tabs in
+- Entered in a **dedicated dialog** (see the Direct mode and Server tabs in
   [Settings](configuration.md)).
 - Stored **encrypted on disk**, with a key derived from your machine.
 - Handed to the sync engine over a **private channel**, so they are not visible as
@@ -22,9 +22,9 @@ never on a command line, and they never appear in logs or process listings.
   the app stops the engine itself, shows the dialog and retries with what you
   save there.
 
-## p2p Mode: the shared password
+## Direct mode: the shared password
 
-The p2p password is what authorises changes in a group. The same password on every
+The shared password is what authorises changes in a group. The same password on every
 device yields the same group key, so **every device in the group must use the exact
 same string**.
 
@@ -49,13 +49,13 @@ If your devices find each other across networks, your setup may include a
 protected search server only introduces devices that know the group's key.
 
 There is **no separate token to type**: the app derives the key automatically
-from the **Shared password** in the p2p tab. The only thing that matters is
+from the **Shared password** in the Direct mode tab. The only thing that matters is
 that the password matches the key the operator configured on the server:
 
 - The password you enter here must be the **same one used when the server's key
   was created** (ideally the same password as the rest of the group).
 - To get the exact value to give the server operator, use **Settings →
-  p2p Mode → Finding devices → Show group key…** (the action only appears when
+  Direct mode → Finding devices → Show group key…** (the action only appears when
   a search server is configured): it opens a dialog where the whole
   `bucket=<key>` line stays **masked** until you reveal it with the eye icon,
   and the Copy button puts that line on the clipboard. There is no terminal
@@ -76,7 +76,7 @@ If the password does not match, the app shows a warning that names
 `token_required` — see
 [Troubleshooting → The search server refuses the shared password](troubleshooting.md#the-search-server-refuses-the-shared-password-token_required).
 
-## Server Mode: the account key
+## Server mode: the account key
 
 The server account key looks like `hs_<id>_<secret>`; it is issued by your HSYNC
 server. Enter it in the Server tab's **API key** dialog.
@@ -87,9 +87,9 @@ key, the previous one stops working (immediately, or at the end of the rotation'
 grace window): enter the new token and restart the sync (see *How they are
 stored and used* above).
 
-## Keyless p2p runs
+## Keyless Direct mode runs
 
-If the p2p password is empty, devices are **not authenticated** and reads are open
+If the shared password is empty, devices are **not authenticated** and reads are open
 to anyone who can reach this device. The app warns you before starting and asks
 you to confirm; setting a password stops the prompt. See
 [Warnings and notifications](warnings.md#warnings-before-a-sync).
@@ -98,4 +98,4 @@ you to confirm; setting a password stops the prompt. See
 
 - [Trust, fingerprints and identity checks](choose-trust.md) — how devices prove
   who they are, beyond the password.
-- [Configuration Reference](configuration.md) — the p2p and Server tabs.
+- [Configuration Reference](configuration.md) — the Direct mode and Server tabs.

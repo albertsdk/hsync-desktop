@@ -5,7 +5,7 @@ one that matches where your devices are and who should hold the authoritative
 copy. The two modes are compatible with each other only in the sense that a device
 can be switched later; a given setup uses one or the other.
 
-| | **Server Mode** | **p2p Mode** |
+| | **Server mode** | **Direct mode** |
 | --- | --- | --- |
 | Needs an always-on server | Yes — an HSYNC server | No |
 | Authoritative copy lives | On the server | On one of your own devices (the *primary*) |
@@ -19,9 +19,9 @@ can be switched later; a given setup uses one or the other.
 
 - **One copy to protect, or several people editing the same folder** → **Server
   Mode**. The server is always reachable and holds the share.
-- **Your own devices, mostly on the same Wi-Fi** → **p2p Mode**. One device
+- **Your own devices, mostly on the same Wi-Fi** → **Direct mode**. One device
   becomes the primary and serves the others; no server needed.
-- **Your own devices on different networks** → **p2p Mode plus a discovery
+- **Your own devices on different networks** → **Direct mode plus a discovery
   server**. The search server only helps the devices find each other; it never
   carries or stores your files. If the server is protected, it also checks the
   group's shared password (no separate token) — see
@@ -34,8 +34,8 @@ can be switched later; a given setup uses one or the other.
 
 ## The words you will meet
 
-- **Server Mode** talks to a central **HSYNC server** using an account key.
-- **p2p Mode** connects your devices directly. In a group, one device is the
+- **Server mode** talks to a central **HSYNC server** using an account key.
+- **Direct mode** connects your devices directly. In a group, one device is the
   **primary** (it serves the files) and the others are **secondary**.
 - A **search server** (an *HSYNC Rendezvous*) is the optional helper that lets
   devices on different networks find each other.
@@ -45,7 +45,7 @@ See [Key concepts](concepts.md) for these terms in more detail.
 ## Where the mode is chosen
 
 The mode is the first thing the [Setup wizard](setup-wizard.md) asks. To change it
-later, use the wizard again or the **p2p Mode** / **Server Mode** tabs in
+later, use the wizard again or the **Direct mode** / **Server mode** tabs in
 **Settings** — every field is documented in the
 [Configuration Reference](configuration.md).
 

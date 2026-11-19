@@ -32,13 +32,13 @@ methods are ordered from the simplest and most immediate to the most involved.
 - The `hsync` engine is bundled by every installation method on this page —
   installer script, standalone binary, AppImage, `.deb`, `.rpm`, Snap, macOS `.dmg`
   and Windows installer (no separate `hsync-client` install needed)
-- **Server Mode** needs an HSYNC Server with an account token (the share itself is
-  created on the first upload); **p2p Mode** needs no server — see the
+- **Server mode** needs an HSYNC Server with an account token (the share itself is
+  created on the first upload); **Direct mode** needs no server — see the
   [server getting started](https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md)
-- Cross-network **p2p** uses a search server over **QUIC/UDP or TLS/TCP** (the
+- Cross-network **Direct mode** uses a search server over **QUIC/UDP or TLS/TCP** (the
   client races both by default and remembers which one works; a network that
-  filters UDP can pin **TLS/TCP only** in Settings → p2p → *Reach the discovery
-  server via*)
+  filters UDP can pin **TLS/TCP only** in **Settings → Direct mode →
+  Connection to the search server**)
 - One folder per installation: **Settings → Sync → Local folder** holds the folder
   this device keeps in sync
 - Raspberry Pi OS: **64-bit (arm64) only** — PySide6 publishes no 32-bit (armhf)

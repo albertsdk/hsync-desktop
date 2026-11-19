@@ -13,7 +13,7 @@ with Qt `QSettings`. This page is the single source of truth for the settings.
   and link back here for the exact field.
 
 Open **Settings** from the main window (or the tray menu). The dialog is organised
-into five tabs: **Sync**, **p2p Mode**, **Server Mode**, **General** and
+into five tabs: **Sync**, **Direct mode**, **Server mode**, **General** and
 **Advanced**. The **Advanced** tab is hidden until you enable **Show advanced
 options** in General; the same toggle also reveals the **Advanced Options**
 sections in the other tabs, so the standard view stays uncluttered. Controls for
@@ -22,18 +22,18 @@ with a tooltip explaining why. Settings are read when a sync starts: while one r
 the connection-critical controls are disabled, and a change takes effect at the
 next start. **Apply** (with **Cancel**) saves the changes and closes the dialog —
 an editor or credential prompt keeps its **Save** label instead. On a fresh
-install (no saved settings yet) the app starts in **p2p Mode**.
+install (no saved settings yet) the app starts in **Direct mode**.
 
 ## Sync
 
 <img src="assets/screens/05-settings-sync.png" alt="Settings, Sync tab" width="640">
 
 This tab holds the share name, local folder and compression toggle, plus the
-transfer behaviour. It is used in both p2p and Server Mode.
+transfer behaviour. It is used in both Direct mode and Server mode.
 
 | Setting | Description |
 |---------|-------------|
-| Share name | Name of the share: the folder name on the HSYNC server, or the share name in p2p mode. Devices that sync the same folder must use the **same share name** (and, in p2p, the same group name) |
+| Share name | Name of the share: the folder name on the HSYNC server, or the share name in direct mode. Devices that sync the same folder must use the **same share name** (and, in Direct mode, the same group name) |
 | Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync type](choose-sync-type.md) |
 | Real-time sync | Keep syncing automatically as files change |
 | Deletions | `Deletions reach every device` keeps this device aligned: a file deleted on one device is deleted on the others. `Never delete files on this device` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Deletions reach every device` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
@@ -53,9 +53,9 @@ transfer behaviour. It is used in both p2p and Server Mode.
 Large files already transfer only their changed blocks by default; the option
 and its minimum sizes are on the **Advanced** tab.
 
-## p2p Mode
+## Direct mode
 
-<img src="assets/screens/06-settings-p2p.png" alt="Settings, p2p Mode tab" width="640">
+<img src="assets/screens/06-settings-p2p.png" alt="Settings, Direct mode tab" width="640">
 
 For peer-to-peer sync with no server. See the
 [client p2p guide](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-mode.md)
@@ -64,9 +64,9 @@ for when to use it.
 
 | Setting | Description |
 |---------|-------------|
-| p2p Group Name | Partition key for p2p discovery: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the p2p group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected search server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
-| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the p2p tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
+| Group name | Partition key for device discovery in Direct mode: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
+| Shared password | Password shared by the devices in the group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected search server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
+| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the Direct mode tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
 | Search servers identity check | How the app checks the search server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
 | Reach the search server via | How the app connects to the search server: **Auto** (default) races QUIC/UDP (preferred) and TLS/TCP; **QUIC/UDP only** and **TLS/TCP only** use one transport. Choose TLS/TCP when the network filters UDP |
 | Manage trusted servers & devices | List, add and remove the search servers, server and device fingerprints the client actually uses |
@@ -75,19 +75,19 @@ for when to use it.
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | Primary device identity check | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
-| Download from other devices | In p2p mode, fetch file blocks from other devices, not only the primary |
-| Port | Fixed p2p listening port |
+| Download from other devices | In direct mode, fetch file blocks from other devices, not only the primary |
+| Port | Fixed listening port in Direct mode |
 | Device search timeout | How long to wait for device discovery |
-| Time servers | Comma-separated time servers (SNTP) for p2p clock-offset measurement; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
+| Time servers | Comma-separated time servers (SNTP) for clock-offset measurement in Direct mode; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
-The tab also holds **Enable p2p mode**, **Max simultaneous reads from other
+The tab also holds **Enable direct mode**, **Max simultaneous reads from other
 devices** (1–32) and **Max devices per file** (1–8).
 
 **Prefer primary role and sync type.** *Prefer primary role* is a preference, and
 it only applies to the **Keep aligned (Send & Receive)** sync type, so the
 conflict is caught as soon as it appears. Picking a one-way type (send-only or
-receive-only) while p2p mode and *Prefer primary role* are both on offers to turn
-it off because it is incompatible (accept jumps to the p2p tab); switching
+receive-only) while direct mode and *Prefer primary role* are both on offers to turn
+it off because it is incompatible (accept jumps to the Direct mode tab); switching
 *Prefer primary role* on while a one-way type is active offers to go back to the
 **Keep aligned (Send & Receive)** type because they are incompatible (accept jumps
 to the Sync tab). Declining either prompt keeps your choice and repeats the
@@ -96,13 +96,13 @@ generic warning when saving.
 **Trust stores.** *Manage trusted servers & devices…* edits the client's
 known-hosts (search servers and sync server) and known-devices stores directly —
 there is no separate setting — so the GUI and the `hsync` CLI share the same
-source of truth. The dialog shows only the stores relevant to the active mode: p2p
-shows the discovery-server and device stores, Server Mode shows the **Server
+source of truth. The dialog shows only the stores relevant to the active mode: Direct mode
+shows the discovery-server and device stores, Server mode shows the **Server
 HSYNC** store.
 
 **Keyless runs.** Without a shared password the app confirms before starting:
 devices are not authenticated and reads are open to anyone who can reach this
-device. Set a shared password in the p2p tab to avoid the prompt; the confirmation
+device. Set a shared password in the Direct mode tab to avoid the prompt; the confirmation
 is requested on every start and is not a stored setting. See [Secrets](secrets.md).
 
 **Test Connection.** *Test Connection* contacts the configured search server
@@ -111,9 +111,9 @@ reachable; no pin is written. The button reads **Checking…** while the request
 runs and the window stays responsive, so the result arrives in a dialog when the
 server answers or the request times out.
 
-## Server Mode
+## Server mode
 
-<img src="assets/screens/07-settings-server.png" alt="Settings, Server Mode tab" width="640">
+<img src="assets/screens/07-settings-server.png" alt="Settings, Server mode tab" width="640">
 
 For syncing against a central HSYNC server.
 
@@ -123,7 +123,7 @@ manage/test actions), **Certificates** (skip certificate check and CA file) and
 
 | Setting | Description |
 |---------|-------------|
-| Server address | Hostname, IP or `host:port` of the HSYNC server, e.g. `my-nas` or `my-nas:9753`; `https://` and port 9753 are implied. Leave empty for p2p only |
+| Server address | Hostname, IP or `host:port` of the HSYNC server, e.g. `my-nas` or `my-nas:9753`; `https://` and port 9753 are implied. Leave empty for Direct mode only |
 | API key | Account token (`hs_<id>_<secret>`); entered through a dedicated dialog (see [Secrets](secrets.md)) |
 | Server identity check | How the app checks the server identity: standard verification (default), ask on first use, accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
 | Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
@@ -229,7 +229,7 @@ options** is enabled in General. Changes apply at the next sync start.
 | Max concurrent transfers | Ceiling on simultaneous transfers; **Auto** uses the engine default |
 | Send only the parts that changed | Transfer only changed blocks of large files |
 | Only for files larger than | Send only the changed parts of files at least this large (server mode) |
-| Only for files larger than (direct) | Send only the changed parts of files at least this large (p2p mode) |
+| Only for files larger than (direct) | Send only the changed parts of files at least this large (direct mode) |
 | Deletion protection | Pause a cycle that would delete too many local files (see below) |
 | Stop after this many deletions | Number of deletions that trips the guard; 0 disables this rule |
 | Stop when this share of files would be deleted | Percentage of local files whose deletion trips the guard; 0 disables this rule |
@@ -268,7 +268,7 @@ The action labels the log panel can show are listed in
 
 ## Where settings are stored
 
-Settings are persisted by Qt `QSettings`; secrets (API and p2p keys) are stored
+Settings are persisted by Qt `QSettings`; secrets (the API key and the shared password) are stored
 encrypted with a machine-derived key and handed to the engine over a private
 channel, never on the command line. See [Secrets](secrets.md).
 

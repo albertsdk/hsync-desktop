@@ -72,7 +72,7 @@ A **warning** is something the sync keeps running through, for example:
   resources;
 - a search server could not be reached while device discovery retried;
 - a search server refused the group token (`token_required`) because the
-  **Shared password** in the p2p tab does not match the key configured on the
+  **Shared password** in the Direct mode tab does not match the key configured on the
   server — there is no token to type; see
   [Troubleshooting → The search server refuses the shared password](troubleshooting.md#the-search-server-refuses-the-shared-password-token_required);
 - free disk space fell below the configured reserve;
@@ -111,7 +111,7 @@ what to do:
   remove anything, so none of them ever prompts.
   Tick **Don't warn me again for this folder and these settings** to stop it for
   the folder and the configuration you confirmed: another folder, or a changed
-  sync type, deletion policy or p2p posture, asks again. **Settings → Advanced →
+  sync type, deletion policy or direct-mode settings, asks again. **Settings → Advanced →
   Deletion protection → Show the deletion-risk warning again** brings it back.
   Neither choice weakens the run: the plan is always listed before it is applied
   and its deletions are confirmed there, and the mass-deletion guard still pauses
@@ -122,9 +122,9 @@ what to do:
   Those deletions were skipped and the sync kept running; a later cycle retries
   them. If the removal is expected, raise the limits in *Settings → Advanced*;
   otherwise check the primary device or the source first.
-- **No shared password** — with an empty p2p password the app confirms before
+- **No shared password** — with an empty shared password the app confirms before
   starting, because reads are open to anyone who can reach this device. Set the
-  password in the p2p tab to stop the prompt; see [Secrets](secrets.md).
+  password in the Direct mode tab to stop the prompt; see [Secrets](secrets.md).
 - **A sync plan awaits confirmation** — an automatic start (auto-sync on startup
   or launch at login) stops when the plan it computed would delete files:
   nothing is applied and the app says so (under **Synchronisation events** in
@@ -134,7 +134,7 @@ what to do:
 
 ## Trust prompts while running
 
-While a p2p sync runs, the app may prompt you when a device presents an
+While a direct sync runs, the app may prompt you when a device presents an
 unrecognised or changed certificate fingerprint:
 
 - **Pairing required** — strict pairing refuses a first-seen fingerprint. Trust it
@@ -158,7 +158,7 @@ Accepting a fingerprint pins it in the client's trust store, so the app and the
 
 ## When the connection is lost
 
-A link that was up and then drops — the server or a p2p device becomes
+A link that was up and then drops — the server or a peer device becomes
 unreachable — raises a **Disconnected** notification (a toast in the window, and
 a system notification while it is in the background) and the status dot reads
 **Waiting…**. Recovery is automatic: the client keeps retrying and, as soon as

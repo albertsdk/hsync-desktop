@@ -107,5 +107,5 @@ Settings and secrets are kept separately by Qt `QSettings`.
 
 ## Next
 
-- Configure Server Mode or p2p Mode: [Configuration Reference](configuration.md).
+- Configure Server mode or Direct mode: [Configuration Reference](configuration.md).
 - Prefer a packaged install? [Debian package](getting-started-deb.md).

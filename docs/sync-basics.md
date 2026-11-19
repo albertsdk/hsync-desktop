@@ -82,7 +82,7 @@ the pending-changes text in the status bar.
    comparison, so what you saw is exactly what runs.
 
 Compare goes through the same checks as Start (disclaimer, deletion
-risk, keyless p2p warning, free disk space, server/device trust): those protect
+risk, keyless Direct mode warning, free disk space, server/device trust): those protect
 the connection, not the decision to apply. **Start** itself is unchanged — it
 still shows the plan and asks for **Synchronize** first; its tooltip says so.
 

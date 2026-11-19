@@ -243,6 +243,12 @@ class TestTerminologyConsistency:
         for module in self.ALL:
             assert module.translations["file.eta"].strip() != "ETA", module.__name__
 
+    def test_the_mode_labels_never_use_the_p2p_acronym(self):
+        """The modes are named by their mechanism: Direct mode and Server mode."""
+        for module in self.ALL:
+            for key in ("settings.p2p", "settings.server_mode", "tip.p2p_mode"):
+                assert "p2p" not in module.translations[key].lower(), f"{module.__name__}:{key}"
+
     def test_device_finding_group_is_about_devices_only(self):
         """The settings group names device finding, not the search server."""
         for module in self.ALL:
