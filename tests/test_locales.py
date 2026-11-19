@@ -182,6 +182,21 @@ class TestTerminologyConsistency:
             ):
                 assert "master" not in module.translations[key].lower(), f"{module.__name__}:{key}"
 
+    def test_role_labels_name_the_role(self):
+        """The status-bar pill says which role the device holds.
+
+        "This device" (the previous secondary label) named the device instead and
+        read as redundant next to the connection state, so the pair must stay
+        symmetric and role-shaped in every locale.
+        """
+        assert en.translations["role.master"] == "Primary device"
+        assert en.translations["role.client"] == "Secondary device"
+        for module in self.ALL:
+            primary = module.translations["role.master"].strip()
+            secondary = module.translations["role.client"].strip()
+            assert primary and secondary, module.__name__
+            assert primary != secondary, module.__name__
+
     def test_rendezvous_terms_avoid_relay_jargon(self):
         """The rdv/1 node is a search server; the wording must never use a relay term."""
         for module in self.ALL:

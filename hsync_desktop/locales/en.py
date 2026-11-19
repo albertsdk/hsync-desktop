@@ -30,10 +30,10 @@ translations: dict[str, str] = {
     "tip.start": "Start syncing — a confirmation shows the plan first",
     "tip.start_simulation": "Simulation Mode: this run only previews, nothing is applied.",
     # Roles
-    "role.master": "Principal device",
-    "role.client": "This device",
-    "role.master_tip": "This device is the principal device",
-    "role.client_tip": "This device follows the principal device",
+    "role.master": "Primary device",
+    "role.client": "Secondary device",
+    "role.master_tip": "This device is the primary device",
+    "role.client_tip": "This device is a secondary device",
     # Labels
     "label.bucket": "Share name:",
     "label.group": "p2p Group:",
@@ -873,7 +873,7 @@ translations: dict[str, str] = {
     "conn.reason.unreachable": "Server unreachable",
     "conn.reason.proxy": "Proxy error",
     "conn.reason.unknown": "Could not reach the server",
-    "conn.p2p.no_master": "No principal device found",
+    "conn.p2p.no_master": "No primary device found",
     "conn.p2p.rendezvous_unreachable": "Search server unreachable",
     "conn.p2p.rendezvous_token": "Group key required",
     "conn.p2p.relay_unavailable": "Relay unavailable",

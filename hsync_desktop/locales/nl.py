@@ -31,9 +31,9 @@ translations: dict[str, str] = {
     "tip.start_simulation": "Simulatiemodus: deze run toont alleen een voorbeeld, er wordt niets toegepast.",
     # Roles
     "role.master": "Hoofdapparaat",
-    "role.client": "Dit apparaat",
+    "role.client": "Tweede apparaat",
     "role.master_tip": "Dit apparaat is het hoofdapparaat",
-    "role.client_tip": "Dit apparaat volgt het hoofdapparaat",
+    "role.client_tip": "Dit apparaat is een tweede apparaat",
     # Labels
     "label.bucket": "Naam van share:",
     "label.group": "p2p-groep:",

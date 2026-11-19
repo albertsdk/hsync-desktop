@@ -31,9 +31,9 @@ translations: dict[str, str] = {
     "tip.start_simulation": "模拟模式：本次运行仅显示预览，不会应用任何内容。",
     # Roles
     "role.master": "主设备",
-    "role.client": "此设备",
+    "role.client": "从设备",
     "role.master_tip": "此设备为主设备",
-    "role.client_tip": "此设备跟随主设备",
+    "role.client_tip": "此设备为从设备",
     # Labels
     "label.bucket": "共享名称：",
     "label.group": "p2p 组：",

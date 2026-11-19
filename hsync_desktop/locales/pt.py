@@ -31,9 +31,9 @@ translations: dict[str, str] = {
     "tip.start_simulation": "Modo de simulação: esta execução mostra apenas a pré-visualização, nada é aplicado.",
     # Roles
     "role.master": "Dispositivo principal",
-    "role.client": "Este dispositivo",
+    "role.client": "Dispositivo secundário",
     "role.master_tip": "Este dispositivo é o principal",
-    "role.client_tip": "Este dispositivo segue o principal",
+    "role.client_tip": "Este dispositivo é secundário",
     # Labels
     "label.bucket": "Nome do compartilhamento:",
     "label.group": "Grupo p2p:",

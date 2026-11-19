@@ -31,9 +31,9 @@ translations: dict[str, str] = {
     "tip.start_simulation": "Режим симуляции: этот запуск только показывает предпросмотр, ничего не применяется.",
     # Roles
     "role.master": "Основное устройство",
-    "role.client": "Это устройство",
+    "role.client": "Вторичное устройство",
     "role.master_tip": "Это устройство — основное",
-    "role.client_tip": "Это устройство следует за основным",
+    "role.client_tip": "Это устройство — вторичное",
     # Labels
     "label.bucket": "Имя общего ресурса:",
     "label.group": "Группа p2p:",

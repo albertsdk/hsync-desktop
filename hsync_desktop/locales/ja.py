@@ -31,9 +31,9 @@ translations: dict[str, str] = {
     "tip.start_simulation": "シミュレーションモード：この実行はプレビューのみで、何も適用されません。",
     # Roles
     "role.master": "プライマリデバイス",
-    "role.client": "このデバイス",
+    "role.client": "セカンダリデバイス",
     "role.master_tip": "このデバイスがプライマリです",
-    "role.client_tip": "このデバイスはプライマリに従います",
+    "role.client_tip": "このデバイスはセカンダリです",
     # Labels
     "label.bucket": "共有名：",
     "label.group": "p2p グループ：",
