@@ -49,7 +49,7 @@ the disclaimer text changes.
 
 With **Sync without asking** (Settings → Sync) enabled, a plan that transfers or
 renames files but deletes nothing is applied without the confirmation dialog. A
-plan with any deletion still asks, and **Preview changes** always shows the plan:
+plan with any deletion still asks, and **Compare** always shows the plan:
 that entry point exists to review it.
 
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
@@ -64,11 +64,11 @@ shows a **Deletions kept** badge for as long as the policy is active. Click the
 badge (or open Settings) to switch to **Deletions reach every device**; the change is confirmed
 first. See [Choose what happens to deleted files](choose-deletion-policy.md).
 
-## Preview changes
+## Compare
 
-**Preview changes** is the app's one way to ask *what would be synced?* It answers
+**Compare** is the app's one way to ask *what would be synced?* It answers
 whether or not a sync is running: **F5**, `Ctrl+Shift+P`, the refresh button in the
-action bar, `Sync → Preview changes` in the menu bar, the tray entry, or a click on
+action bar, `Sync → Compare` in the menu bar, the tray entry, or a click on
 the pending-changes text in the status bar.
 
 **While no sync is running** the app starts a preview run:
@@ -81,7 +81,7 @@ the pending-changes text in the status bar.
    plan in the session that computed it — no second connection and no new
    comparison, so what you saw is exactly what runs.
 
-Preview changes goes through the same checks as Start (disclaimer, deletion
+Compare goes through the same checks as Start (disclaimer, deletion
 risk, keyless p2p warning, free disk space, server/device trust): those protect
 the connection, not the decision to apply. **Start** itself is unchanged — it
 still shows the plan and asks for **Synchronize** first; its tooltip says so.
@@ -107,7 +107,7 @@ An **automatic** start (auto-sync on startup or launch at login) never opens a
 dialog: it applies the plan when the plan deletes nothing — reported in the log
 and, while the window sits in the tray, by a desktop notification — and stops
 with a warning when the plan includes deletions, so you can review it with
-Preview changes or Start. If the app has to ask you for a password again after
+Compare or Start. If the app has to ask you for a password again after
 an authentication failure, the next plan is shown for confirmation instead of
 being applied. In Simulation Mode the plan is only ever shown.
 
@@ -171,8 +171,9 @@ nothing is lost; the log names the file. The rules behind it are the client's
 | `Alt+Enter` | Properties |
 | `Ctrl+Shift+C` | Copy path |
 | `Ctrl+Alt+C` | Copy to a folder |
-| `F5`, `Ctrl+Shift+P` | Preview changes: show what a sync would do, without applying it |
 | `Ctrl+Shift+S` | Start |
+| `Ctrl+F2` | Stop |
+| `F5`, `Ctrl+Shift+P` | Compare: show what a sync would do, without applying it |
 | `Ctrl+,` | Settings |
 | `F1` | Documentation |
 | `Ctrl+Q` | Quit |

@@ -361,7 +361,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimizar a la bandeja del sistema",
     "tray.open_folder": "Abrir carpeta sincronizada…",
     "tray.start": "Iniciar",
-    "tray.preview_changes": "Vista previa de cambios",
+    "tray.preview_changes": "Comparar",
     "tray.stop": "Detener",
     "tray.settings": "Ajustes…",
     "tray.quit": "Salir",
@@ -625,7 +625,7 @@ translations: dict[str, str] = {
     # Barra de menú
     "menu.sync": "&Sincronización",
     "menu.sync.start": "Iniciar",
-    "menu.sync.preview": "Vista previa de cambios",
+    "menu.sync.preview": "Comparar",
     "menu.sync.stop": "Detener",
     "menu.sync.direction": "Tipo de sincronización",
     "menu.sync.direction.bidirectional": "Mantener alineado",

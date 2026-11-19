@@ -448,7 +448,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimaliseren naar systeemvak",
     "tray.open_folder": "Gesynchroniseerde map openen…",
     "tray.start": "Starten",
-    "tray.preview_changes": "Wijzigingen bekijken",
+    "tray.preview_changes": "Vergelijken",
     "tray.stop": "Stoppen",
     "tray.settings": "Instellingen…",
     "tray.quit": "Afsluiten",
@@ -648,7 +648,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Synchronisatie",
     "menu.sync.start": "Starten",
-    "menu.sync.preview": "Wijzigingen bekijken",
+    "menu.sync.preview": "Vergelijken",
     "menu.sync.stop": "Stoppen",
     "menu.sync.direction": "Synchronisatietype",
     "menu.sync.direction.bidirectional": "Uitgelijnd houden",

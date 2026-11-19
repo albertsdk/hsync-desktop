@@ -448,7 +448,7 @@ translations: dict[str, str] = {
     "tray.minimize": "トレイに最小化",
     "tray.open_folder": "同期フォルダーを開く…",
     "tray.start": "開始",
-    "tray.preview_changes": "変更をプレビュー",
+    "tray.preview_changes": "比較",
     "tray.stop": "停止",
     "tray.settings": "設定…",
     "tray.quit": "終了",
@@ -648,7 +648,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&同期",
     "menu.sync.start": "開始",
-    "menu.sync.preview": "変更をプレビュー",
+    "menu.sync.preview": "比較",
     "menu.sync.stop": "停止",
     "menu.sync.direction": "同期の種類",
     "menu.sync.direction.bidirectional": "整合を保つ",

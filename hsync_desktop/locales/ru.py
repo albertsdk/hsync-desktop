@@ -448,7 +448,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Свернуть в трей",
     "tray.open_folder": "Открыть синхронизированную папку…",
     "tray.start": "Запустить",
-    "tray.preview_changes": "Предпросмотр изменений",
+    "tray.preview_changes": "Сравнить",
     "tray.stop": "Остановить",
     "tray.settings": "Настройки…",
     "tray.quit": "Выход",
@@ -648,7 +648,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Синхронизация",
     "menu.sync.start": "Запустить",
-    "menu.sync.preview": "Предпросмотр изменений",
+    "menu.sync.preview": "Сравнить",
     "menu.sync.stop": "Остановить",
     "menu.sync.direction": "Тип синхронизации",
     "menu.sync.direction.bidirectional": "Поддерживать синхронность",

@@ -62,7 +62,7 @@ each device with what it still has to receive (`↓`) or send (`↑`), and its f
 list shows `Synced · 2/3` for a file that only some devices have.
 
 While it reports pending work the text is clickable: the click opens
-[Preview changes](sync-basics.md#preview-changes), the plan behind those counts.
+[Compare](sync-basics.md#compare), the plan behind those counts.
 
 ## Warnings during a sync
 
@@ -129,8 +129,8 @@ what to do:
   or launch at login) stops when the plan it computed would delete files:
   nothing is applied and the app says so (under **Synchronisation events** in
   *Settings → General → Notifications*). Open the window and use
-  **Preview changes** or **Start** to review that plan and confirm it. See
-  [Preview changes](sync-basics.md#preview-changes).
+  **Compare** or **Start** to review that plan and confirm it. See
+  [Compare](sync-basics.md#compare).
 
 ## Trust prompts while running
 

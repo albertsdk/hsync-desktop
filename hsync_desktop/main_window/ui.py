@@ -203,14 +203,17 @@ class UiBuildMixin:
         from hsync_desktop.icons import icon as get_icon
 
         icon_size = QSize(18, 18)
-        for btn, ico_name in (
-            (self._btn_start, "media-playback-start"),
-            (self._btn_stop, "media-playback-stop"),
-            (self._btn_preview_changes, "view-refresh"),
+        # Icon + label: the everyday controls must be readable without hovering
+        # (the action bar is the first thing a new user looks at), and the label
+        # is the same string the menu and the tray use.
+        for btn, ico_name, label_key in (
+            (self._btn_start, "media-playback-start", "menu.sync.start"),
+            (self._btn_stop, "media-playback-stop", "menu.sync.stop"),
+            (self._btn_preview_changes, "view-refresh", "menu.sync.preview"),
         ):
             btn.setIcon(get_icon(ico_name))
             btn.setIconSize(icon_size)
-            btn.setText("")
+            btn.setText(tr(label_key))
         self._path_label: QLabel = self.findChild(QLabel, "pathLabel")  # type: ignore[assignment]
         self._local_path: str = ""
         # Active share name (bucket) shown next to the folder icon; empty until
@@ -438,6 +441,11 @@ class UiBuildMixin:
             self._act_start.setText(tr("menu.sync.start"))
             self._act_preview_changes.setText(tr("menu.sync.preview"))
             self._act_stop.setText(tr("menu.sync.stop"))
+            # The action bar mirrors these three, so a language change must
+            # re-translate the buttons too (they are no longer icon-only).
+            self._btn_start.setText(tr("menu.sync.start"))
+            self._btn_preview_changes.setText(tr("menu.sync.preview"))
+            self._btn_stop.setText(tr("menu.sync.stop"))
             # The menu shows these, so a language change must re-translate them
             # like the labels above. The preview wording is state-dependent and
             # owned by ``_update_preview_changes_tooltip``.
@@ -654,6 +662,11 @@ class UiBuildMixin:
 
         self._act_stop = QAction(tr("menu.sync.stop"), self)
         self._act_stop.setEnabled(False)
+        # Ctrl+F2 is the chord desktop tools give "stop the running job"
+        # (JetBrains IDE stop; Visual Studio uses a function-key pair). Esc, the
+        # usual "cancel", is deliberately not used: on the main window it would
+        # stop a running sync on a stray key press.
+        self._act_stop.setShortcut(QKeySequence("Ctrl+F2"))
         self._act_stop.triggered.connect(self._on_stop)
         self._menu_sync.addAction(self._act_stop)
 

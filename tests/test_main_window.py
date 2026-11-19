@@ -5059,15 +5059,39 @@ class TestPreviewActionWhileRunning:
         assert window._pending_initial_reconcile is True
         assert window._last_check_at is None
 
-    def test_the_button_is_icon_only_with_an_explanatory_tooltip(self, window):
-        """The action-bar button is icon-only, so the tooltip has to explain it."""
-        assert window._btn_preview_changes.text() == ""
+    def test_the_button_shows_its_label_and_an_explanatory_tooltip(self, window):
+        """The action bar is readable without hovering; the tooltip still explains."""
+        assert window._btn_preview_changes.text() == tr("menu.sync.preview")
         assert not window._btn_preview_changes.icon().isNull()
-        # Idle: one sentence covers both engine states and names the shortcut,
-        # so the icon-only control is never a guess.
+        # Idle: one sentence covers both engine states and names the shortcut.
         tooltip = window._btn_preview_changes.toolTip()
         assert tooltip == tr("tip.preview_changes")
         assert "F5" in tooltip
+
+    def test_the_action_bar_buttons_show_the_menu_labels(self, window):
+        """Button, menu and tray share one wording: no icon-only primary action."""
+        assert window._btn_start.text() == tr("menu.sync.start")
+        assert window._btn_stop.text() == tr("menu.sync.stop")
+        assert window._btn_preview_changes.text() == tr("menu.sync.preview")
+        assert window._btn_start.text() == window._act_start.text()
+        assert window._btn_stop.text() == window._act_stop.text()
+        assert window._btn_preview_changes.text() == window._act_preview_changes.text()
+
+    def test_the_action_bar_labels_follow_a_language_change(self, window):
+        """``_apply_translations`` re-labels the buttons, not just the menu."""
+        window._btn_start.setText("stale")
+        window._btn_stop.setText("stale")
+        window._btn_preview_changes.setText("stale")
+
+        window._apply_translations()
+
+        assert window._btn_start.text() == tr("menu.sync.start")
+        assert window._btn_stop.text() == tr("menu.sync.stop")
+        assert window._btn_preview_changes.text() == tr("menu.sync.preview")
+
+    def test_stop_has_a_shortcut_like_start(self, window):
+        """Stop is reachable from the keyboard, with the desktop-tools chord."""
+        assert window._act_stop.shortcut().toString() == "Ctrl+F2"
 
     def test_the_waiting_hint_stays_out_of_the_click_toast(self, window):
         """The pointer belongs to the tooltip: a toast must stay a short message."""

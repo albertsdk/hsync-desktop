@@ -29,11 +29,11 @@ The three buttons on the left are the everyday controls:
 
 | Button | What it does |
 | ------ | ------------ |
-| ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. To see that plan without starting a sync, use **Sync → Preview changes**. |
+| ▶ **Start** | Begins syncing. A confirmation shows the plan before anything happens. To see that plan without starting a sync, use **Sync → Compare**. |
 | ■ **Stop** | Stops the running sync; while it winds down the status shows `Stopping…` and the buttons stay disabled until it has exited. |
-| 🔄 **Preview changes** | Shows what a sync would do: it compares your folder with the other devices and updates the list, whether or not a sync is running. While a comparison runs it is disabled; before a connection exists it explains that the comparison starts on its own. |
+| 🔄 **Compare** | Shows what a sync would do: it compares your folder with the other devices and updates the list, whether or not a sync is running. While a comparison runs it is disabled; before a connection exists it explains that the comparison starts on its own. |
 
-**Preview changes** is the one way to ask *what would be synced?* With the sync
+**Compare** is the one way to ask *what would be synced?* With the sync
 stopped it runs a preview and offers **Sync now**; with the sync running it compares
 over the live connection. `F5` and `Ctrl+Shift+P` both reach it.
 
@@ -101,7 +101,7 @@ labels.
 
 ## Closing the window and the tray
 
-<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: the connection state, Show, Open synced folder, Start, Preview changes, Stop, Settings, Setup wizard, About and Quit" width="200">
+<img src="assets/screens/04-tray-menu.png" alt="The tray icon menu: the connection state, Show, Open synced folder, Start, Compare, Stop, Settings, Setup wizard, About and Quit" width="200">
 
 Closing the window **does not stop a running sync**: the app keeps working from
 the system-tray icon. The menu names the current state and offers the everyday

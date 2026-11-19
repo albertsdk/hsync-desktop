@@ -361,7 +361,7 @@ translations: dict[str, str] = {
     "tray.minimize": "In Taskleiste minimieren",
     "tray.open_folder": "Synchronisierten Ordner öffnen…",
     "tray.start": "Start",
-    "tray.preview_changes": "Vorschau der Änderungen",
+    "tray.preview_changes": "Vergleichen",
     "tray.stop": "Stopp",
     "tray.settings": "Einstellungen…",
     "tray.quit": "Beenden",
@@ -625,7 +625,7 @@ translations: dict[str, str] = {
     # Menüleiste
     "menu.sync": "&Synchronisation",
     "menu.sync.start": "Starten",
-    "menu.sync.preview": "Vorschau der Änderungen",
+    "menu.sync.preview": "Vergleichen",
     "menu.sync.stop": "Stoppen",
     "menu.sync.direction": "Synchronisierungstyp",
     "menu.sync.direction.bidirectional": "Ausgerichtet halten",

@@ -448,7 +448,7 @@ translations: dict[str, str] = {
     "tray.minimize": "Minimize to tray",
     "tray.open_folder": "Open synced folder…",
     "tray.start": "Start",
-    "tray.preview_changes": "Preview changes",
+    "tray.preview_changes": "Compare",
     "tray.stop": "Stop",
     "tray.settings": "Settings…",
     "tray.quit": "Quit",
@@ -649,7 +649,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&Sync",
     "menu.sync.start": "Start",
-    "menu.sync.preview": "Preview changes",
+    "menu.sync.preview": "Compare",
     "menu.sync.stop": "Stop",
     "menu.sync.direction": "Sync Type",
     "menu.sync.direction.bidirectional": "Keep aligned",

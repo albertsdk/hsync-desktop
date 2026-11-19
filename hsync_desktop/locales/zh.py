@@ -448,7 +448,7 @@ translations: dict[str, str] = {
     "tray.minimize": "最小化到托盘",
     "tray.open_folder": "打开同步文件夹…",
     "tray.start": "启动",
-    "tray.preview_changes": "预览更改",
+    "tray.preview_changes": "比较",
     "tray.stop": "停止",
     "tray.settings": "设置…",
     "tray.quit": "退出",
@@ -648,7 +648,7 @@ translations: dict[str, str] = {
     # Menu bar
     "menu.sync": "&同步",
     "menu.sync.start": "启动",
-    "menu.sync.preview": "预览更改",
+    "menu.sync.preview": "比较",
     "menu.sync.stop": "停止",
     "menu.sync.direction": "同步类型",
     "menu.sync.direction.bidirectional": "保持一致",
