@@ -634,10 +634,15 @@ class UiBuildMixin:
     # ── Menu bar ──────────────────────────────────────────────────────────
 
     def _create_menu_bar(self) -> None:
-        """Create the classic menu bar with Sync, File, Settings, Help."""
+        """Create the classic menu bar: File, Sync, Settings, Help."""
         menubar = self.menuBar()
         # Use Qt menu bar (not native) so Alt mnemonics work on GNOME/Ubuntu
         menubar.setNativeMenuBar(False)
+
+        # ── File menu ─────────────────────────────────────────────────
+        # Created first so the bar follows the conventional order; its actions
+        # are added further down, once the file selection helpers exist.
+        self._menu_file = menubar.addMenu(tr("menu.file"))
 
         # ── Sync menu ─────────────────────────────────────────────────
         self._menu_sync = menubar.addMenu(tr("menu.sync"))
@@ -670,6 +675,20 @@ class UiBuildMixin:
         self._act_stop.setShortcut(QKeySequence("Ctrl+F2"))
         self._act_stop.triggered.connect(self._on_stop)
         self._menu_sync.addAction(self._act_stop)
+
+        # A scoped one-shot run acts on the selection, so it sits with the run
+        # controls instead of among the per-file actions in File.
+        self._menu_sync.addSeparator()
+
+        self._act_file_send = QAction(tr("action.send_now"), self)
+        self._act_file_send.triggered.connect(self._menu_file_send)
+        self._menu_sync.addAction(self._act_file_send)
+
+        self._act_file_receive = QAction(tr("action.receive_now"), self)
+        self._act_file_receive.triggered.connect(self._menu_file_receive)
+        self._menu_sync.addAction(self._act_file_receive)
+
+        self._menu_sync.addSeparator()
 
         # ── Sync direction submenu ──────────────────────────────────
         self._menu_direction = self._menu_sync.addMenu(tr("menu.sync.direction"))
@@ -707,16 +726,7 @@ class UiBuildMixin:
 
         self._direction_group.triggered.connect(self._on_direction_changed)
 
-        self._menu_sync.addSeparator()
-
-        self._act_quit = QAction(tr("menu.sync.quit"), self)
-        self._act_quit.setShortcuts(_standard_shortcuts(QKeySequence.StandardKey.Quit, "Ctrl+Q"))
-        self._act_quit.triggered.connect(self._quit)
-        self._menu_sync.addAction(self._act_quit)
-
-        # ── File menu ─────────────────────────────────────────────────
-        self._menu_file = menubar.addMenu(tr("menu.file"))
-
+        # ── File actions ─────────────────────────────────────────────
         self._act_file_open = QAction(tr("menu.file.open"), self)
         # Ctrl+O is the platform-standard "open" (Qt renders it as Cmd+O on
         # macOS, where Control maps to Meta); Return stays as the list
@@ -758,16 +768,6 @@ class UiBuildMixin:
 
         self._menu_file.addSeparator()
 
-        self._act_file_send = QAction(tr("action.send_now"), self)
-        self._act_file_send.triggered.connect(self._menu_file_send)
-        self._menu_file.addAction(self._act_file_send)
-
-        self._act_file_receive = QAction(tr("action.receive_now"), self)
-        self._act_file_receive.triggered.connect(self._menu_file_receive)
-        self._menu_file.addAction(self._act_file_receive)
-
-        self._menu_file.addSeparator()
-
         self._act_file_trash = QAction(tr("menu.file.trash"), self)
         self._act_file_trash.setShortcut("Delete")
         self._act_file_trash.triggered.connect(self._menu_file_trash)
@@ -779,6 +779,15 @@ class UiBuildMixin:
         self._act_file_properties.setShortcut("Alt+Return")
         self._act_file_properties.triggered.connect(self._menu_file_properties)
         self._menu_file.addAction(self._act_file_properties)
+
+        self._menu_file.addSeparator()
+
+        # Leaving the app is a File-menu command everywhere else, never a sync
+        # control: a stray click on the run menu must not close the window.
+        self._act_quit = QAction(tr("menu.sync.quit"), self)
+        self._act_quit.setShortcuts(_standard_shortcuts(QKeySequence.StandardKey.Quit, "Ctrl+Q"))
+        self._act_quit.triggered.connect(self._quit)
+        self._menu_file.addAction(self._act_quit)
 
         # Disable all File menu actions initially (no selection)
         self._set_file_menu_enabled(False)
@@ -793,7 +802,6 @@ class UiBuildMixin:
 
         self._act_setup_wizard = QAction(tr("menu.setup_wizard"), self)
         self._act_setup_wizard.triggered.connect(self._open_setup_wizard)
-        menubar.addAction(self._act_setup_wizard)
 
         # ── Help menu ─────────────────────────────────────────────────
         # External links first, then a separator and the local app-info
@@ -804,6 +812,10 @@ class UiBuildMixin:
         self._act_help_docs.setShortcut("F1")
         self._act_help_docs.triggered.connect(self._open_documentation)
         self._menu_help.addAction(self._act_help_docs)
+
+        # Onboarding is a "help me" flow, not a permanent top-level command (the
+        # same convention as a Welcome page); it is re-runnable from here.
+        self._menu_help.addAction(self._act_setup_wizard)
 
         self._act_help_github = QAction(tr("menu.help.github"), self)
         self._act_help_github.triggered.connect(self._open_github)

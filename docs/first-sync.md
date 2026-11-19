@@ -12,7 +12,7 @@ Before you start, install the app with one of the methods in
 
 On the very first launch, with no folder configured yet, the **Setup wizard**
 opens by itself after the main window appears. If you closed it, open it again
-from **Menu bar → Setup wizard**, from the tray menu, or by clicking the folder
+from **Help → Setup wizard**, from the tray menu, or by clicking the folder
 placeholder in the main window.
 
 ## 2. Choose what you want to do

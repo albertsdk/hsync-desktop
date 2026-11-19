@@ -8,18 +8,17 @@ using the app — it is here to answer "what is that icon?".
 
 ## The menu bar
 
-<img src="assets/screens/03-menu-bar.png" alt="The menu bar: Sync, File, Settings, Setup wizard, Help" width="720">
+<img src="assets/screens/03-menu-bar.png" alt="The menu bar: File, Sync, Settings, Help" width="720">
 
-- **Sync** — start and stop a sync, preview the changes a sync would apply (also
-  while one runs), choose the sync direction.
-- **File** — actions on the file or folder you selected (open, copy, rename,
-  send/receive now, …).
+- **File** — actions on the file or folder you selected (open, copy, rename, …)
+  and **Quit** at the bottom.
+- **Sync** — start, compare and stop, **Send now** / **Receive now** for one
+  selection, and the sync direction.
 - **Settings** — the configuration dialog; see the
   [Configuration Reference](configuration.md).
-- **Setup wizard** — the guided setup for the common cases;
-  see [Set up with the wizard](setup-wizard.md).
-- **Help** — this documentation, the project on GitHub, the license and **About**
-  (which shows the app and engine versions).
+- **Help** — this documentation, the [Setup wizard](setup-wizard.md) to re-run
+  the guided setup, the project on GitHub, the license and **About** (which shows
+  the app and engine versions).
 
 On macOS the same items live in the application menu, as usual on a Mac.
 

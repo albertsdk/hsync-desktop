@@ -858,11 +858,13 @@ class TestLanguageChangeRetranslatesTable:
 class TestHelpMenu:
     """Help menu: external links first, then the app actions (About last)."""
 
-    def test_order_is_links_then_license_then_about(self, window):
+    def test_order_is_help_entries_then_app_dialogs(self, window):
+        """Docs and onboarding first, then the app-info dialogs, About last."""
         from hsync_desktop.i18n import tr
 
         assert [action.text() for action in window._menu_help.actions()] == [
             tr("menu.help.docs"),
+            tr("menu.setup_wizard"),
             tr("menu.help.github"),
             "",
             tr("menu.help.updates"),
@@ -4498,6 +4500,45 @@ class TestDryRunSyncRetry:
         assert sync.call_count == 2
 
 
+class TestMenuConventions:
+    """The bar and the menus follow the desktop conventions."""
+
+    @staticmethod
+    def _bar_texts(window) -> list[str]:
+        return [action.text() for action in window.menuBar().actions()]
+
+    @staticmethod
+    def _texts(menu) -> list[str]:
+        return [action.text() for action in menu.actions() if not action.isSeparator()]
+
+    def test_the_bar_reads_file_sync_settings_help(self, window):
+        assert self._bar_texts(window) == [
+            tr("menu.file"),
+            tr("menu.sync"),
+            tr("menu.settings"),
+            tr("menu.help"),
+        ]
+
+    def test_quit_lives_in_the_file_menu(self, window):
+        """A run menu must not be able to close the window."""
+        assert tr("menu.sync.quit") in self._texts(window._menu_file)
+        assert tr("menu.sync.quit") not in self._texts(window._menu_sync)
+
+    def test_the_scoped_runs_live_with_the_run_controls(self, window):
+        """Send/Receive now act on the selection but are one-shot runs."""
+        sync_texts = self._texts(window._menu_sync)
+        file_texts = self._texts(window._menu_file)
+        assert tr("action.send_now") in sync_texts
+        assert tr("action.receive_now") in sync_texts
+        assert tr("action.send_now") not in file_texts
+        assert tr("action.receive_now") not in file_texts
+
+    def test_the_setup_wizard_is_help_not_a_top_level_command(self, window):
+        """Onboarding is re-run from Help, like a Welcome page."""
+        assert tr("menu.setup_wizard") not in self._bar_texts(window)
+        assert tr("menu.setup_wizard") in self._texts(window._menu_help)
+
+
 class TestFileMenuCopyPath:
     """The copy-path commands are in the File menu, with conventional keys."""
 
@@ -4511,9 +4552,10 @@ class TestFileMenuCopyPath:
         assert texts.index(tr("menu.file.copy_path_relative")) + 1 == texts.index(
             tr("menu.file.rename")
         )
-        # "Open containing folder" follows Open; Properties stays last.
+        # "Open containing folder" follows Open; Quit closes the menu last.
         assert texts.index(tr("menu.file.open")) + 1 == texts.index(tr("menu.file.open_containing"))
-        assert texts[-1] == tr("menu.file.properties")
+        assert texts.index(tr("menu.file.properties")) + 1 == texts.index(tr("menu.sync.quit"))
+        assert texts[-1] == tr("menu.sync.quit")
 
     def test_the_shortcuts_follow_the_platform_conventions(self, window):
 

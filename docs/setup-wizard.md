@@ -11,7 +11,7 @@ every setting. If you are following the guided path instead, see
 On the very first launch (no folder configured yet) the wizard opens once after
 the main window appears. You can always reopen it later:
 
-- **Menu bar → Setup wizard**
+- **Help → Setup wizard**
 - **Tray icon → Setup wizard…**
 - Click the folder placeholder in the main window when no folder is set.
 

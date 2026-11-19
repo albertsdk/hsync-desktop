@@ -142,8 +142,8 @@ to import files by dragging them into it.
 
 ## Sync one folder on demand
 
-To sync a single folder without a full run, right-click it (or use the **File**
-menu) and choose:
+To sync a single folder without a full run, right-click it (or use
+**Sync → Send now / Receive now**) and choose:
 
 - **Send now** — push it to the other devices.
 - **Receive now** — pull it from them.
