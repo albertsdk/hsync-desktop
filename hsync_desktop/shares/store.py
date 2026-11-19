@@ -135,14 +135,30 @@ class ShareStore:
                 values[key] = self._s.value(key, default, kind)
         return values
 
-    def snapshot_active(self) -> None:
-        """Write the current flat keys into the active share's record."""
+    def snapshot_active(self) -> Share | None:
+        """Write the current flat keys into the active share's record.
+
+        The flat keys are the live configuration, so they are adopted as they
+        are, with one exception: a folder belongs to exactly one share (the
+        client takes a per-directory instance lock and keeps a per-folder state
+        DB), so a flat ``path/local`` another share claims is refused — the
+        record keeps its own folder and that value is written back. The
+        claiming share is returned so the caller can report the discarded
+        write; ``None`` means the record was adopted unchanged.
+        """
         book = self._book()
         share = next((s for s in book.shares if s.id == book.active), None)
         if share is None:
-            return
-        share.values = self._capture()
+            return None
+        values = self._capture()
+        conflict = self.folder_in_use(str(values.get("path/local", "")), exclude_id=share.id)
+        if conflict is not None:
+            values["path/local"] = str(share.values.get("path/local", ""))
+            self._s.setValue("path/local", values["path/local"])
+            self._s.sync()
+        share.values = values
         self._write(book)
+        return conflict
 
     def apply(self, share_id: str) -> None:
         """Write *share_id*'s record into the flat keys (the active projection)."""
@@ -160,28 +176,14 @@ class ShareStore:
         book.active = share_id
         self._write(book)
 
-    def sync_from_flat(self) -> None:
-        """Ensure a share exists for the flat keys and refresh it (Settings/wizard)."""
-        self.ensure_first_share()
-        self.snapshot_active()
+    def sync_from_flat(self) -> Share | None:
+        """Ensure a share exists for the flat keys and refresh it (Settings/wizard).
 
-    def enforce_unique_folder(self) -> bool:
-        """Revert a flat ``path/local`` owned by another share; True if reverted.
-
-        The Settings dialog blocks the collision up front, but the setup wizard
-        writes ``path/local`` directly; re-checking here keeps the
-        one-folder-per-share invariant before the record adopts the wizard value.
+        Returns the share whose folder the flat keys claimed when the active
+        share kept its own (see ``snapshot_active``).
         """
-        book = self._book()
-        active = next((s for s in book.shares if s.id == book.active), None)
-        if active is None:
-            return False
-        flat_path = str(self._s.value("path/local", "", str)).strip()
-        if self.folder_in_use(flat_path, exclude_id=active.id) is None:
-            return False
-        self._s.setValue("path/local", str(active.values.get("path/local", "")))
-        self._s.sync()
-        return True
+        self.ensure_first_share()
+        return self.snapshot_active()
 
     # ── migration ───────────────────────────────────────────────────────────
     def _is_configured(self) -> bool:

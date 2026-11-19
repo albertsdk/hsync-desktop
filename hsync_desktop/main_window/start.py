@@ -949,12 +949,6 @@ class StartMixin:
         # follow the saved settings too.
         self._refresh_simulation_state()
         self._refresh_deletion_badge()
-        # The wizard writes path/local directly (the Settings dialog validates
-        # earlier): keep one folder per share before adopting the new value.
-        if self._share_store.enforce_unique_folder():
-            QMessageBox.warning(
-                self, tr("shares.manage.title"), tr("shares.error.folder_duplicate")
-            )
         # Reload path in case it changed in settings
         s = QSettings(SETTINGS_ORG, SETTINGS_APP)
         new_path = str(s.value("path/local", "", str))
@@ -966,7 +960,15 @@ class StartMixin:
         # into the active share's record before rebuilding the header, because the
         # share name and its tooltip are rendered from that record (adopting after
         # would leave them showing the values from before the edit).
-        self._share_store.sync_from_flat()
+        conflict = self._share_store.sync_from_flat()
+        if conflict is not None:
+            # Only a direct write can reach this: every entry point refuses a
+            # folder another share claims, so the share kept its own folder and
+            # the log names the claim that was discarded.
+            self._append_desktop_log(
+                "WARNING",
+                f"[SHARE] {tr('shares.error.folder_duplicate')} ({conflict.name})",
+            )
         self._sync_shares_button()
         # Refresh path display (settings may have changed p2p/server/direction)
         self._update_path_display()
@@ -987,7 +989,7 @@ class StartMixin:
             # The wizard may start the engine right after, so the child must
             # really be gone: this path waits instead of showing "Stopping…".
             self._engine.stop_and_wait()
-        dlg = SetupWizard(self)
+        dlg = SetupWizard(self, folder_in_use=self._folder_is_taken)
         self._setup_wizard = dlg
         try:
             dlg.exec()

@@ -10,6 +10,7 @@ Kept Qt-free and pure so the rules can be unit-tested directly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from hsync_common.protocol.rdv_tokens import (
@@ -64,13 +65,23 @@ def validate_purpose(draft: WizardDraft) -> list[Issue]:
     return []
 
 
-def validate_folder(draft: WizardDraft, *, min_free_mb: int = 0) -> list[Issue]:
-    """Step 2: the folder must exist, be writable and not be a system root."""
+def validate_folder(
+    draft: WizardDraft,
+    *,
+    min_free_mb: int = 0,
+    folder_in_use: Callable[[str], bool] | None = None,
+) -> list[Issue]:
+    """Step 2: the folder must exist, be writable, not be a system root, and
+    not be the folder of another share."""
     check = validate_sync_folder(draft.local_path, min_free_mb=min_free_mb)
-    if check.level == "ok":
-        return []
-    level = "error" if check.level == "error" else "warning"
-    return [Issue(level, check.code, "local_path")]
+    if check.level != "ok":
+        level = "error" if check.level == "error" else "warning"
+        return [Issue(level, check.code, "local_path")]
+    # A folder belongs to exactly one share: a second one on the same directory
+    # would share its client state DB and instance lock.
+    if folder_in_use is not None and folder_in_use(draft.local_path.strip()):
+        return [Issue("error", "folder_in_use", "local_path")]
+    return []
 
 
 def _check_share(draft: WizardDraft) -> Issue | None:
@@ -138,20 +149,32 @@ def validate_connection(draft: WizardDraft) -> list[Issue]:
     return issues
 
 
-def validate_step(draft: WizardDraft, step: int, *, min_free_mb: int = 0) -> list[Issue]:
+def validate_step(
+    draft: WizardDraft,
+    step: int,
+    *,
+    min_free_mb: int = 0,
+    folder_in_use: Callable[[str], bool] | None = None,
+) -> list[Issue]:
     """Validate all fields owned by *step* (review owns none)."""
     if step == STEP_PURPOSE:
         return validate_purpose(draft)
     if step == STEP_FOLDER:
-        return validate_folder(draft, min_free_mb=min_free_mb)
+        return validate_folder(draft, min_free_mb=min_free_mb, folder_in_use=folder_in_use)
     if step == STEP_CONNECTION:
         return validate_connection(draft)
     return []
 
 
-def first_error(draft: WizardDraft, step: int, *, min_free_mb: int = 0) -> Issue | None:
+def first_error(
+    draft: WizardDraft,
+    step: int,
+    *,
+    min_free_mb: int = 0,
+    folder_in_use: Callable[[str], bool] | None = None,
+) -> Issue | None:
     """Return the first blocking issue for *step*, if any."""
-    for issue in validate_step(draft, step, min_free_mb=min_free_mb):
+    for issue in validate_step(draft, step, min_free_mb=min_free_mb, folder_in_use=folder_in_use):
         if issue.level == "error":
             return issue
     return None

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import QSettings, Qt, QTimer
@@ -64,6 +65,7 @@ from hsync_desktop.wizard.pages import (
 from hsync_desktop.wizard.stepper import StepIndicator
 from hsync_desktop.wizard.validation import (
     STEP_CONNECTION,
+    STEP_FOLDER,
     STEP_REVIEW,
     validate_step,
 )
@@ -84,11 +86,20 @@ _PAGE_TITLE_KEYS = (
 class SetupWizard(QDialog):
     """Guided, re-runnable configuration assistant."""
 
-    def __init__(self, parent: QWidget | None = None, settings: QSettings | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        settings: QSettings | None = None,
+        *,
+        folder_in_use: Callable[[str], bool] | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("wizard.title"))
         self.setModal(True)
         self._settings = settings or QSettings(SETTINGS_ORG, SETTINGS_APP)
+        # Validator supplied by the window: a folder is owned by exactly one
+        # share, so the folder step refuses one another share already uses.
+        self._folder_in_use = folder_in_use
         self._draft = WizardDraft()
         self._step = 0
         self.applied = False
@@ -323,14 +334,24 @@ class SetupWizard(QDialog):
             d.bucket = default_share_name(d.local_path)
 
     def _validate_current(self) -> bool:
+        """Validate the current step and render its issues."""
+        return self._validate_step(self._step)
+
+    def _validate_step(self, step: int) -> bool:
+        """Validate *step*, focus its first error and show the rest."""
         self._general_error.setVisible(False)
         error_map: dict[str, tuple[QWidget, InlineError]] = {}
         for page in self._pages:
             error_map.update(page.field_error_targets())
         for field, error in error_map.values():
             set_field_error(field, error, "")
-        issues = validate_step(self._draft, self._step, min_free_mb=self._min_free_mb)
-        blocked = self._step == STEP_CONNECTION and self.connection_page.blocks_progress()
+        issues = validate_step(
+            self._draft,
+            step,
+            min_free_mb=self._min_free_mb,
+            folder_in_use=self._folder_in_use,
+        )
+        blocked = step == STEP_CONNECTION and self.connection_page.blocks_progress()
         first_field = None
         general = ""
         for issue in issues:
@@ -353,6 +374,11 @@ class SetupWizard(QDialog):
         self._store_pages()
         if not self._validate_current():
             self._set_step(STEP_CONNECTION)
+            return
+        # A resumed draft reaches the review step without passing the folder step
+        # again, so the one-folder-per-share rule is enforced at apply too.
+        if not self._validate_step(STEP_FOLDER):
+            self._set_step(STEP_FOLDER)
             return
         result = apply_draft(self._settings, self._draft)
         if result.pin_error:

@@ -342,15 +342,29 @@ class TestReviewFixes:
         window._append_log("first-run-line")
         assert "first-run-line" in window._log_buffers[share_id]
 
-    def test_enforce_unique_folder_reverts_a_wizard_collision(self, window, tmp_path):
+    def test_a_switch_never_reports_a_folder_collision(self, window, tmp_path, monkeypatch):
+        """Two shares on one folder must never raise a modal while switching.
+
+        Every entry point refuses the collision, so this book can only come from
+        a hand-edited blob; the switch path must stay silent and land on the
+        selected share.
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        shown: list = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a))
         _configure(window, tmp_path, bucket="team")
-        _add_share(window, "Beta", tmp_path / "beta")
-        # Simulate the wizard writing path/local directly to Beta's folder.
-        window._share_store._s.setValue("path/local", str(tmp_path / "beta"))
+        beta = _add_share(window, "Beta", tmp_path / "beta")
+        book = window._share_store._book()
+        next(s for s in book.shares if s.id == beta.id).values["path/local"] = str(
+            tmp_path / "team"
+        )
+        window._share_store._write(book)
 
-        assert window._share_store.enforce_unique_folder() is True
+        window._switch_to_share(beta.id)
 
-        assert window._share_store._s.value("path/local") == str(tmp_path / "team")
+        assert window._share_store.active_id() == beta.id
+        assert shown == []
 
     def test_create_declined_stop_creates_nothing(self, window, tmp_path, monkeypatch):
         _configure(window, tmp_path, bucket="team")

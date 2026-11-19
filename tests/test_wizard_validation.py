@@ -91,6 +91,19 @@ class TestFolderValidation:
         issues = validate_folder(draft)
         assert issues and issues[0].level == "warning"
 
+    def test_a_folder_another_share_claims_is_an_error(self, tmp_path):
+        draft = WizardDraft(mode=WizardMode.BACKUP, local_path=str(tmp_path))
+
+        issues = validate_folder(draft, folder_in_use=lambda _folder: True)
+
+        assert [i.code for i in issues] == ["folder_in_use"]
+        assert issues[0].level == "error"
+
+    def test_a_free_folder_passes_the_ownership_check(self, tmp_path):
+        draft = WizardDraft(mode=WizardMode.BACKUP, local_path=str(tmp_path))
+
+        assert validate_folder(draft, folder_in_use=lambda _folder: False) == []
+
 
 class TestConnectionValidation:
     def test_backup_needs_server_key_and_share(self):

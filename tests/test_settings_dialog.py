@@ -697,6 +697,31 @@ class TestNotificationCategoriesUi:
         assert dlg.notification_toggles["peers"][0].isChecked() is False
 
 
+class TestFolderOwnershipGate:
+    """The one-folder-per-share check vetoes an edit, never a pre-existing claim."""
+
+    def test_an_unchanged_folder_is_never_vetoed(self, dialog, settings, tmp_path, monkeypatch):
+        shown: list = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a))
+        settings.setValue("path/local", str(tmp_path / "team"))
+        dialog.load()
+        dialog._folder_in_use = lambda _folder: True
+
+        assert dialog._commit() is True
+        assert shown == []
+
+    def test_a_changed_folder_claimed_by_another_share_is_refused(
+        self, dialog, tmp_path, monkeypatch
+    ):
+        shown: list = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a))
+        dialog._folder_in_use = lambda _folder: True
+        dialog.shared_path.setText(str(tmp_path / "another-share"))
+
+        assert dialog._commit() is False
+        assert shown
+
+
 class TestSubfolderFilterGate:
     """A non-empty filter that is not bucket-relative blocks the save."""
 

@@ -178,6 +178,38 @@ class TestCrud:
         assert store.get(second.id) is None
 
 
+class TestFolderOwnership:
+    """A folder belongs to one share: the projection can never steal another's."""
+
+    def test_a_clean_snapshot_reports_no_conflict(self, tmp_path):
+        _, store = _store_with_one_share(tmp_path)
+
+        assert store.snapshot_active() is None
+
+    def test_snapshot_refuses_a_folder_another_share_claims(self, tmp_path):
+        s, store = _store_with_one_share(tmp_path)
+        team = store.active()
+        beta = store.create_from_active("Beta", str(tmp_path / "Beta"))
+        # A direct write (a hand-edited blob, a stale UI) claims Beta's folder.
+        s.setValue("path/local", str(tmp_path / "Beta"))
+
+        conflict = store.snapshot_active()
+
+        assert conflict is not None and conflict.id == beta.id
+        assert store.get(team.id).values["path/local"] == str(tmp_path / "Team")
+        # The projection keeps the folder the record owns.
+        assert s.value("path/local") == str(tmp_path / "Team")
+
+    def test_sync_from_flat_reports_the_conflict(self, tmp_path):
+        s, store = _store_with_one_share(tmp_path)
+        beta = store.create_from_active("Beta", str(tmp_path / "Beta"))
+        s.setValue("path/local", str(tmp_path / "Beta"))
+
+        conflict = store.sync_from_flat()
+
+        assert conflict is not None and conflict.id == beta.id
+
+
 class TestModel:
     def test_share_book_round_trip(self):
         text = ShareBook(active="x", shares=[]).to_json_text()

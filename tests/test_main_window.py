@@ -2619,8 +2619,9 @@ class TestSetupWizardIntegration:
 
         created: list[_SpyWizard] = []
 
-        def factory(parent=None, settings=None):
+        def factory(parent=None, settings=None, *, folder_in_use=None):
             wizard = _SpyWizard(parent)
+            wizard.folder_in_use = folder_in_use
             created.append(wizard)
             return wizard
 
@@ -2635,6 +2636,9 @@ class TestSetupWizardIntegration:
         monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
         window._open_setup_wizard()
         assert len(created) == 1
+        # The wizard must carry the window's folder validator: it is the only
+        # thing that keeps the folder step on one folder per share.
+        assert created[0].folder_in_use == window._folder_is_taken
         assert window._setup_wizard is None
 
     def test_second_open_raises_existing(self, window, monkeypatch):
@@ -2662,7 +2666,7 @@ class TestSetupWizardIntegration:
         monkeypatch.setattr(window, "_apply_settings_changes", lambda: None)
         monkeypatch.setattr(window, "_on_start", lambda: started.append(True))
 
-        def factory(parent=None, settings=None):
+        def factory(parent=None, settings=None, *, folder_in_use=None):
             wizard = _SpyWizard(parent)
             wizard.applied = True
             wizard.start_requested = True

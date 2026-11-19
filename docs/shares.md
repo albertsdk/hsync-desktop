@@ -81,9 +81,12 @@ that same neighbour and **stays stopped**. The last share cannot be deleted.
 ## One folder per share
 
 Each share must use its **own folder**: a folder owns one sync database and one
-lock, so two shares pointing at the same folder would interfere. To sync a
-different folder, create a new share (or change the folder of the current one in
-the Settings dialog). To keep using a folder you removed, re-add a share for it.
+lock, so two shares pointing at the same folder would interfere. Creating a
+share, duplicating one, changing the folder in the Settings dialog and the setup
+wizard all refuse a folder another share already uses ("Another share already
+uses this folder."). To sync a different folder, create a new share (or change
+the folder of the current one in the Settings dialog). To keep using a folder
+you removed, re-add a share for it.
 
 ## See also
 
