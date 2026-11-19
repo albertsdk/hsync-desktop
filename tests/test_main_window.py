@@ -2083,6 +2083,7 @@ class TestInitialReconcile:
         stub._stamp_last_check = EventsMixin._stamp_last_check.__get__(stub)
         stub._end_comparison = EventsMixin._end_comparison.__get__(stub)
         stub._flush_verdicts = EventsMixin._flush_verdicts.__get__(stub)
+        stub._set_comparison_in_flight = EventsMixin._set_comparison_in_flight.__get__(stub)
         # ``_end_comparison`` re-renders the state after clearing the flag; this
         # stub has no label/tooltip machinery, and the assertions here are about
         # the catch-up credit, so the render is a no-op.
@@ -4283,6 +4284,18 @@ class TestSyncState:
         assert window._file_panel.table._transfers["a.bin"].status is TransferStatus.SYNCED
         assert window._sync_state[0] == "offline"
         assert window._sync_state_label.text() == tr("sync.state.offline")
+
+    def test_a_running_comparison_reaches_the_file_panel(self, window):
+        """The panel's empty state says "comparing", so the flag must follow."""
+        assert window._file_panel.is_comparing is False
+
+        window._begin_comparison()
+
+        assert window._file_panel.is_comparing is True
+
+        window._end_comparison()
+
+        assert window._file_panel.is_comparing is False
 
     def test_a_connection_failure_says_the_link_is_down(self, window):
         """The client retries a comparison whose link dropped: the state must say

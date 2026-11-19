@@ -65,6 +65,7 @@ translations: dict[str, str] = {
     "file.filter_only_changes": "Solo modifiche",
     "file.filter_no_changes": "Nessuna modifica in questa cartella",
     "file.filter_not_compared": "Non ancora confrontata — la cartella viene classificata quando l'app si connette",
+    "file.filter_comparing": "Confronto con gli altri dispositivi…",
     "tip.file_filter_only_changes": "Mostra solo gli elementi con lavoro in sospeso — trasferimenti, rinomine, eliminazioni ed errori. Disattivalo per vedere tutti i file.",
     "file.show_hidden": "Mostra file nascosti",
     "file.reset_columns": "Ripristina colonne",

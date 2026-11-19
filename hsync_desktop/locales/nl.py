@@ -72,6 +72,7 @@ translations: dict[str, str] = {
     "file.filter_only_changes": "Alleen wijzigingen",
     "file.filter_no_changes": "Niets te synchroniseren in deze map",
     "file.filter_not_compared": "Nog niet vergeleken — de map wordt geclassificeerd zodra de app verbindt",
+    "file.filter_comparing": "Vergelijken met de andere apparaten…",
     "tip.file_filter_only_changes": "Alleen items met openstaand werk tonen — overdrachten, hernoemingen, verwijderingen en fouten. Uitzetten om alle bestanden te zien.",
     "file.show_hidden": "Verborgen bestanden tonen",
     "file.reset_columns": "Kolommen resetten",

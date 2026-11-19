@@ -4103,6 +4103,41 @@ class TestOnlyChangesControl:
         # An unknown count is not zero: the summary stays out of the label.
         assert panel._btn_only_changes.text() == tr("file.filter_only_changes")
 
+    def test_a_running_comparison_is_named_in_the_empty_state(self, qtbot, monkeypatch, tmp_path):
+        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table.set_base_directory("/base")
+        panel._table.add_transfer(
+            FileTransfer(filepath="a.txt", direction="—", size=1, status=TransferStatus.LOCAL)
+        )
+        panel._table.refresh_view()
+        panel._btn_only_changes.setChecked(True)
+
+        panel.set_comparing(True)
+
+        assert panel.is_comparing is True
+        assert panel._filter_empty_label.text() == tr("file.filter_comparing")
+
+        panel.set_comparing(False)
+
+        assert panel._filter_empty_label.text() == tr("file.filter_not_compared")
+
+    def test_a_running_comparison_outranks_a_clean_classification(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        """A re-check may find work: while it runs the list says so, not "in sync"."""
+        panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
+        panel._table.set_base_directory("/base")
+        panel._table.add_transfer(
+            FileTransfer(filepath="a.txt", direction="—", size=1, status=TransferStatus.SYNCED)
+        )
+        panel._table.refresh_view()
+        panel._btn_only_changes.setChecked(True)
+        assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
+
+        panel.set_comparing(True)
+
+        assert panel._filter_empty_label.text() == tr("file.filter_comparing")
+
     def test_a_language_change_relabels_the_control(self, qtbot, monkeypatch, tmp_path):
         panel, _store = self._panel(qtbot, monkeypatch, tmp_path)
 

@@ -65,6 +65,7 @@ translations: dict[str, str] = {
     "file.filter_only_changes": "Nur Änderungen",
     "file.filter_no_changes": "In diesem Ordner ist nichts zu synchronisieren",
     "file.filter_not_compared": "Noch nicht verglichen — der Ordner wird klassifiziert, sobald die App verbunden ist",
+    "file.filter_comparing": "Vergleich mit den anderen Geräten…",
     "tip.file_filter_only_changes": "Nur Einträge mit ausstehender Arbeit anzeigen — Übertragungen, Umbenennungen, Löschungen und Fehler. Ausschalten, um alle Dateien zu sehen.",
     "file.show_hidden": "Versteckte Dateien anzeigen",
     "file.reset_columns": "Spalten zurücksetzen",

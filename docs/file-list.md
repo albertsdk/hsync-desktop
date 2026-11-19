@@ -53,7 +53,9 @@ browsing, like the rest of the list. When it hides everything, the list says
 nothing is pending in that folder instead of showing an empty table — and it says
 *not compared yet* instead, as long as the app has not classified the folder (the
 first comparison runs on its own when the app connects), so an empty list never
-claims the folder is up to date when its state is simply unknown. It changes
+claims the folder is up to date when its state is simply unknown. While a
+comparison is running it says *comparing with the other devices*: that pass may
+still find work, so it outranks both messages. It changes
 only what you see: actions act on the visible rows, and the folder size and the
 status bar keep counting every file.
 

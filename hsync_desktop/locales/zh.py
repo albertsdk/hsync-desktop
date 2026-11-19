@@ -72,6 +72,7 @@ translations: dict[str, str] = {
     "file.filter_only_changes": "仅更改项",
     "file.filter_no_changes": "此文件夹没有需要同步的内容",
     "file.filter_not_compared": "尚未比较 — 应用连接后会对此文件夹进行分类",
+    "file.filter_comparing": "正在与其他设备比较…",
     "tip.file_filter_only_changes": "仅显示有待处理工作的项目 — 传输、重命名、删除和错误。关闭后将显示所有文件。",
     "file.show_hidden": "显示隐藏文件",
     "file.reset_columns": "重置列",

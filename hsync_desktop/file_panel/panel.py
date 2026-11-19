@@ -143,6 +143,9 @@ class FilePanel(QWidget):
         # (see ``_join_thread``/``_detach_thread``).
         self._detached_threads: list[QThread] = []
         self._share_size_bytes: int = -1
+        # True while the window runs a comparison: the filtered-empty state then
+        # says "comparing" instead of "not compared yet".
+        self._comparing: bool = False
         self._current_directory: str = ""
         self._matcher: IgnoreMatcher | None = None
         self._ignore_stamp: tuple[int, int] | None = None
@@ -995,6 +998,18 @@ class FilePanel(QWidget):
     def table(self) -> FileTransferTable:
         return self._table
 
+    @property
+    def is_comparing(self) -> bool:
+        """Whether the window reported a running comparison."""
+        return self._comparing
+
+    def set_comparing(self, comparing: bool) -> None:
+        """Tell the empty state that a comparison is running (or ended)."""
+        if comparing == self._comparing:
+            return
+        self._comparing = comparing
+        self._sync_filter_state()
+
     def _filter_button_text(self, count: int) -> str:
         """The toggle's label: the pending count doubles as a summary."""
         label = tr("file.filter_only_changes")
@@ -1015,13 +1030,16 @@ class FilePanel(QWidget):
             self._btn_only_changes.isChecked() and count == 0 and self._table.level_item_count() > 0
         )
         if empty:
-            # "Nothing pending" is only true once the engine classified the
-            # folder; before the first comparison the honest answer is "unknown".
-            key = (
-                "file.filter_no_changes"
-                if self._table.has_classified_rows()
-                else "file.filter_not_compared"
-            )
+            # A running check outranks everything (its result may change the
+            # answer); otherwise "nothing pending" is only true once the engine
+            # classified the folder, and before that the honest answer is
+            # "unknown".
+            if self._comparing:
+                key = "file.filter_comparing"
+            elif self._table.has_classified_rows():
+                key = "file.filter_no_changes"
+            else:
+                key = "file.filter_not_compared"
             self._filter_empty_label.setText(tr(key))
         self._filter_empty_label.setVisible(empty)
         if empty:

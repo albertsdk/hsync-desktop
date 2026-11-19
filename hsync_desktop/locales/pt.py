@@ -72,6 +72,7 @@ translations: dict[str, str] = {
     "file.filter_only_changes": "Apenas alterações",
     "file.filter_no_changes": "Nada para sincronizar nesta pasta",
     "file.filter_not_compared": "Ainda não comparada — a pasta é classificada quando a aplicação se liga",
+    "file.filter_comparing": "A comparar com os outros dispositivos…",
     "tip.file_filter_only_changes": "Mostrar apenas os itens com trabalho pendente — transferências, renomeações, exclusões e erros. Desative para ver todos os ficheiros.",
     "file.show_hidden": "Mostrar ficheiros ocultos",
     "file.reset_columns": "Repor colunas",

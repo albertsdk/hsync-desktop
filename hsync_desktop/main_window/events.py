@@ -999,11 +999,23 @@ class EventsMixin:
         self._device_stats.clear()
         self._pending_inventory = None
         self._pending_verdicts.clear()
-        self._comparison_in_flight = True
+        self._set_comparison_in_flight(True)
         self._comparison_errored = False
         if not self._link_down:
             self._set_sync_state("checking")
         self._update_menu_state()
+
+    def _set_comparison_in_flight(self, in_flight: bool) -> None:
+        """Track a running comparison and mirror it into the file panel.
+
+        The panel's "only changes" empty state says *comparing* instead of *not
+        compared yet* while a check runs, so the two must flip together; the
+        guard keeps the mixin usable on a host without a panel (test stubs).
+        """
+        self._comparison_in_flight = in_flight
+        panel = getattr(self, "_file_panel", None)
+        if panel is not None:
+            panel.set_comparing(in_flight)
 
     def _finish_comparison(self) -> None:
         """Render the outcome of the preview this window requested."""
@@ -1027,7 +1039,7 @@ class EventsMixin:
         through it while the classification is still running.
         """
         self._flush_verdicts()
-        self._comparison_in_flight = False
+        self._set_comparison_in_flight(False)
         # A pass that classified nothing leaves the label at ``checking`` while
         # the inventory is still missing: that is a wait, not work, and the glyph
         # must stop here instead of animating for the whole wait. Any other state
@@ -1227,7 +1239,7 @@ class EventsMixin:
         self._link_lost_notified = False
         # A dead process cannot finish its comparison: close the window so the
         # manual check is not left disabled for the next run.
-        self._comparison_in_flight = False
+        self._set_comparison_in_flight(False)
         self._comparison_errored = False
         # Its buffered verdicts belong to a run that no longer exists.
         self._pending_verdicts.clear()
