@@ -76,7 +76,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "未処理の項目のみ表示します（転送・名前の変更・削除・エラー）。オフにするとすべてのファイルを表示します。",
     "file.show_hidden": "隠しファイルを表示",
     "file.reset_columns": "列をリセット",
-    "tip.reset_columns": "既定の列レイアウトに戻します: 表示状態と自動調整された幅。",
+    "tip.reset_columns": "既定の列レイアウトに戻します（順序・表示・幅の自動調整）。",
     # File type categories
     "ftype.folder": "フォルダー",
     "ftype.image": "画像",

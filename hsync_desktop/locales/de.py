@@ -69,7 +69,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Nur Einträge mit ausstehender Arbeit anzeigen — Übertragungen, Umbenennungen, Löschungen und Fehler. Ausschalten, um alle Dateien zu sehen.",
     "file.show_hidden": "Versteckte Dateien anzeigen",
     "file.reset_columns": "Spalten zurücksetzen",
-    "tip.reset_columns": "Standard-Spaltenlayout wiederherstellen: Sichtbarkeit und angepasste Breiten.",
+    "tip.reset_columns": "Standard-Spaltenlayout wiederherstellen: Reihenfolge, Sichtbarkeit und angepasste Breiten.",
     # File type categories
     "ftype.folder": "Ordner",
     "ftype.image": "Bild",

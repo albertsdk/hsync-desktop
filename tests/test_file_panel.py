@@ -791,8 +791,10 @@ class TestOptionalColumns:
         table = self._table(qtbot)
         header = table.horizontalHeader()
 
-        # The icon conveys the type and the rate only matters while transferring.
+        # The icon conveys the type; Time left and Speed only say something while
+        # a transfer runs (and ETA needs samples before it can).
         assert header.isSectionHidden(tt.COL_TYPE)
+        assert header.isSectionHidden(tt.COL_ETA)
         assert header.isSectionHidden(tt.COL_SPEED)
         assert not header.isSectionHidden(tt.COL_DIRECTION)
         for col in (tt.COL_NAME, tt.COL_SIZE, tt.COL_MODIFIED, tt.COL_STATUS):
@@ -4145,6 +4147,87 @@ class TestOnlyChangesControl:
 
         assert panel._btn_only_changes.toolTip() == tr("tip.file_filter_only_changes")
         assert panel._filter_empty_label.text() == tr("file.filter_no_changes")
+
+
+class TestResetColumns:
+    """Reset restores the defaults: order, visibility, Name pinned first."""
+
+    @staticmethod
+    def _table(qtbot, monkeypatch, tmp_path):
+        from PySide6.QtCore import QSettings
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+        table = tt.FileTransferTable()
+        qtbot.addWidget(table)
+        return table, tt, store
+
+    def test_it_restores_order_visibility_and_the_pinned_name(self, qtbot, monkeypatch, tmp_path):
+        table, tt, store = self._table(qtbot, monkeypatch, tmp_path)
+        header = table.horizontalHeader()
+        # A user layout: Status hidden, ETA moved to the front, Size narrowed.
+        header.setSectionHidden(tt.COL_STATUS, True)
+        header.moveSection(header.visualIndex(tt.COL_ETA), 1)
+        header.resizeSection(tt.COL_SIZE, 40)
+        table._save_header_state()
+
+        table._reset_columns()
+
+        assert [header.logicalIndex(visual) for visual in range(header.count())] == [
+            tt.COL_NAME,
+            tt.COL_DIRECTION,
+            tt.COL_SIZE,
+            tt.COL_TYPE,
+            tt.COL_MODIFIED,
+            tt.COL_PROGRESS,
+            tt.COL_STATUS,
+            tt.COL_ETA,
+            tt.COL_SPEED,
+        ]
+        assert {col for col in range(header.count()) if header.isSectionHidden(col)} == {
+            tt.COL_TYPE,
+            tt.COL_ETA,
+            tt.COL_SPEED,
+        }
+        assert header.logicalIndex(0) == tt.COL_NAME
+        assert not header.isSectionHidden(tt.COL_NAME)
+
+    def test_a_reopened_profile_sees_the_defaults(self, qtbot, monkeypatch, tmp_path):
+        table, tt, store = self._table(qtbot, monkeypatch, tmp_path)
+        header = table.horizontalHeader()
+        header.setSectionHidden(tt.COL_STATUS, True)
+        table._save_header_state()
+        table._reset_columns()
+        table._save_header_state()  # what the post-reset layout pass persists
+
+        reopened = tt.FileTransferTable()
+        qtbot.addWidget(reopened)
+        reopened_header = reopened.horizontalHeader()
+
+        assert [reopened_header.logicalIndex(v) for v in range(reopened_header.count())] == list(
+            range(reopened_header.count())
+        )
+        assert {
+            c for c in range(reopened_header.count()) if reopened_header.isSectionHidden(c)
+        } == {
+            tt.COL_TYPE,
+            tt.COL_ETA,
+            tt.COL_SPEED,
+        }
+
+    def test_it_leaves_the_active_sort_alone(self, qtbot, monkeypatch, tmp_path):
+        """The sort is a transient view choice the app never persists."""
+        from PySide6.QtCore import Qt
+
+        table, tt, _store = self._table(qtbot, monkeypatch, tmp_path)
+        table.sortByColumn(tt.COL_SIZE, Qt.SortOrder.AscendingOrder)
+
+        table._reset_columns()
+
+        assert table.horizontalHeader().sortIndicatorSection() == tt.COL_SIZE
+        assert table._model._sort_column == tt.COL_SIZE
 
 
 class TestColumnMenuOrder:

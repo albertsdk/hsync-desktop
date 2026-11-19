@@ -69,7 +69,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Afficher uniquement les éléments en attente — transferts, renommages, suppressions et erreurs. Désactivez pour voir tous les fichiers.",
     "file.show_hidden": "Afficher les fichiers cachés",
     "file.reset_columns": "Réinitialiser les colonnes",
-    "tip.reset_columns": "Restaure la disposition par défaut des colonnes : visibilité et largeurs ajustées.",
+    "tip.reset_columns": "Rétablir la disposition par défaut des colonnes : ordre, visibilité et largeurs ajustées.",
     # File type categories
     "ftype.folder": "Dossier",
     "ftype.image": "Image",

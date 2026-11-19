@@ -76,7 +76,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Pokazuj tylko elementy z zaległą pracą — transfery, zmiany nazw, usunięcia i błędy. Wyłącz, aby zobaczyć wszystkie pliki.",
     "file.show_hidden": "Pokaż ukryte pliki",
     "file.reset_columns": "Zresetuj kolumny",
-    "tip.reset_columns": "Przywraca domyślny układ kolumn: widoczność i dopasowane szerokości.",
+    "tip.reset_columns": "Przywróć domyślny układ kolumn: kolejność, widoczność i dopasowane szerokości.",
     # File type categories
     "ftype.folder": "Folder",
     "ftype.image": "Obraz",

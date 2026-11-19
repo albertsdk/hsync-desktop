@@ -701,7 +701,11 @@ class FileTransferTable(QTableView):
     _SHOW_HIDDEN_SETTINGS_KEY = "ui/show_hidden_files"
     # Optional columns that start hidden: the row icon already conveys the type,
     # and the live rate matters only while a transfer runs.
-    _DEFAULT_HIDDEN = (COL_TYPE, COL_SPEED)
+    # Type is conveyed by the row icon, and the two live metrics only say
+    # something while a transfer runs (Time left needs samples, Speed idles at
+    # zero). They stay one click away in the header menu; Progress is the column
+    # that carries the per-file activity, so it stays visible.
+    _DEFAULT_HIDDEN = (COL_TYPE, COL_ETA, COL_SPEED)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1183,9 +1187,12 @@ class FileTransferTable(QTableView):
                 header.moveSection(header.visualIndex(col), col)
         finally:
             self._restoring_columns = was_restoring
-        # Re-fit the widths from the current content, once. Nothing is re-saved:
-        # the next launch must start again from the defaults plus this fit, exactly
-        # what a reset asks for (and the roomier first-run Name floor returns).
+        # Re-fit the widths from the current content, once. The defaults are what
+        # a reset asks for, so letting Qt's post-reset layout pass persist them is
+        # correct — the next launch then opens on the same default layout (with the
+        # compact Name floor, since the profile now has a saved layout). The
+        # active sort is deliberately untouched: it is a transient view choice the
+        # app never persists, not a column property (see ``_restore_sort_indicator``).
         self._columns_sized = False
         self._size_columns_to_contents()
 

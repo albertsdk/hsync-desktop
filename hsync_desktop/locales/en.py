@@ -76,7 +76,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Show only the items with pending work — transfers, renames, deletions and errors. Turn it off to see every file.",
     "file.show_hidden": "Show hidden files",
     "file.reset_columns": "Reset columns",
-    "tip.reset_columns": "Restore the default column layout: visibility and fitted widths.",
+    "tip.reset_columns": "Restore the default column layout: order, visibility and fitted widths.",
     # File type categories
     "ftype.folder": "Folder",
     "ftype.image": "Image",

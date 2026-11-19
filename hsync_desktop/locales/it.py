@@ -69,7 +69,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Mostra solo gli elementi con lavoro in sospeso — trasferimenti, rinomine, eliminazioni ed errori. Disattivalo per vedere tutti i file.",
     "file.show_hidden": "Mostra file nascosti",
     "file.reset_columns": "Ripristina colonne",
-    "tip.reset_columns": "Ripristina il layout predefinito delle colonne: visibilità e larghezze adattate.",
+    "tip.reset_columns": "Ripristina la disposizione predefinita delle colonne: ordine, visibilità e larghezze adattate.",
     # File type categories
     "ftype.folder": "Cartella",
     "ftype.image": "Immagine",

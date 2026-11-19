@@ -19,15 +19,18 @@ Each row shows the file's icon next to its name, then:
 | **Modified** | The last modification date. |
 | **Progress** | A bar with the percentage while a transfer runs. A file you are sending reaches 100% only once the other device has received it. |
 | **Status** | The planned action ("To upload" / "To download" / …) or the result ("Syncing", "Synced"). |
-| **Time left** | The estimated time left for a running transfer, once the rate is known (blank until the first samples arrive). |
+| **Time left** | The estimated time left for a running transfer, once the rate is known (hidden until you enable it; blank until the first samples arrive). |
 | **Speed** | The live transfer rate (hidden until you enable it). |
 
-**Type** and **Speed** are hidden by default; turn them on from the header menu,
-which lists the columns in the order you arranged them (**Name** stays first).
+**Type**, **Time left** and **Speed** are hidden by default — the icon conveys the
+type, and the two live metrics only say something while a transfer runs. Turn
+them on from the header menu, which lists the columns in the order you arranged
+them (**Name** stays first).
 You can drag a divider to resize a column, drag a header to reorder the columns,
 and double-click a divider to fit a column to its content. Widths, order and
 visible columns are remembered across runs; **Reset columns** in the header menu
-restores the default layout.
+restores the default layout — order, visibility and fitted widths. An active sort
+stays: it is a view choice, never persisted.
 
 Files show their precise planned action, while a folder shows a neutral aggregate
 ("To sync") whose tooltip breaks down the mixed operations. A folder with no files

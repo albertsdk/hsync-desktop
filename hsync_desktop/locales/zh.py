@@ -76,7 +76,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "仅显示有待处理工作的项目 — 传输、重命名、删除和错误。关闭后将显示所有文件。",
     "file.show_hidden": "显示隐藏文件",
     "file.reset_columns": "重置列",
-    "tip.reset_columns": "恢复默认列布局：可见性和自适应宽度。",
+    "tip.reset_columns": "恢复默认列布局：顺序、可见性和自适应宽度。",
     # File type categories
     "ftype.folder": "文件夹",
     "ftype.image": "图像",

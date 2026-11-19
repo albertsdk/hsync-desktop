@@ -69,7 +69,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Mostrar solo los elementos con trabajo pendiente: transferencias, renombrados, eliminaciones y errores. Desactívalo para ver todos los archivos.",
     "file.show_hidden": "Mostrar archivos ocultos",
     "file.reset_columns": "Restablecer columnas",
-    "tip.reset_columns": "Restaura el diseño de columnas predeterminado: visibilidad y anchos ajustados.",
+    "tip.reset_columns": "Restaurar la disposición predeterminada de las columnas: orden, visibilidad y anchos ajustados.",
     # File type categories
     "ftype.folder": "Carpeta",
     "ftype.image": "Imagen",

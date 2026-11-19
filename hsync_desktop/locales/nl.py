@@ -76,7 +76,7 @@ translations: dict[str, str] = {
     "tip.file_filter_only_changes": "Alleen items met openstaand werk tonen — overdrachten, hernoemingen, verwijderingen en fouten. Uitzetten om alle bestanden te zien.",
     "file.show_hidden": "Verborgen bestanden tonen",
     "file.reset_columns": "Kolommen resetten",
-    "tip.reset_columns": "Herstelt de standaard kolomindeling: zichtbaarheid en passende breedtes.",
+    "tip.reset_columns": "De standaardkolomindeling herstellen: volgorde, zichtbaarheid en aangepaste breedtes.",
     # File type categories
     "ftype.folder": "Map",
     "ftype.image": "Afbeelding",
