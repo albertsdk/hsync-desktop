@@ -6,11 +6,12 @@ move and act on your files.
 
 <img src="assets/screens/19-file-context-menu.png" alt="The right-click menu on a file row, grouped by action" width="200">
 
-A name can change in two places only, both outside the table: an upload to the
-server replaces the characters Windows cannot store with `_` (the server logs the
-change), and a rename that only changes the capitalisation adjusts it to the
-destination's spelling on a case-insensitive filesystem. Nothing else rewrites a
-name, and the shared folder always shows what is actually on this device.
+A name is never rewritten to make it fit. A file or folder whose name some
+supported device cannot store — the characters `< > : " / \ | ? *`, a trailing dot
+or space, a reserved name such as `CON` — is **not synchronised**: it stays on disk
+and appears in the problems badge so you can rename it. The one exception is a
+rename that changes only the capitalisation, which follows the destination's
+spelling on a case-insensitive filesystem.
 
 ## Columns
 
