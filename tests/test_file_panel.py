@@ -3418,6 +3418,9 @@ class TestMultiSelection:
         monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
         monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/hsync-desktop/_internal")
         monkeypatch.setenv("PYTHONPATH", "/usr/lib/hsync-desktop/_internal")
+        # Windows has no ``HOME`` (it uses ``USERPROFILE``), so the inherited
+        # environment is probed with a variable the test owns.
+        monkeypatch.setenv("HSYNC_HOST_ENV_PROBE", "/home/probe")
 
         self._select(table, 0)
         table._trash_many(table.selected_transfers())
@@ -3426,7 +3429,7 @@ class TestMultiSelection:
         assert isinstance(env, dict)
         assert "LD_LIBRARY_PATH" not in env
         assert "PYTHONPATH" not in env
-        assert env["HOME"] == os.environ["HOME"]
+        assert env["HSYNC_HOST_ENV_PROBE"] == "/home/probe"
 
     def test_a_missing_gio_falls_back_to_the_qt_trash(self, qtbot, monkeypatch):
         """A minimal install carries no GLib tools; Qt's own trash needs none."""
