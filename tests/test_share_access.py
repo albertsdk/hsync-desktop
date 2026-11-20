@@ -54,6 +54,28 @@ def test_a_refused_trust_never_sends_the_key(monkeypatch):
     assert sent == []
 
 
+def test_a_refused_trust_never_creates(monkeypatch):
+    sent: list[str] = []
+    monkeypatch.setattr(
+        share_access,
+        "resolve_bucket_trust",
+        lambda **_kwargs: BucketTrust(None, reason="trust_missing"),
+    )
+    monkeypatch.setattr(
+        share_access,
+        "create_server_bucket",
+        lambda *_a, **_k: sent.append("create") or ServerProbeResult(True, 201, 0, True),
+    )
+
+    outcome = share_access.provision_share_bucket(
+        "https://host", "team", "key", trust=TRUST, timeout=5
+    )
+
+    assert outcome.ok is False
+    assert outcome.reason == "trust_missing"
+    assert sent == []
+
+
 def test_a_passing_first_sighting_is_pinned(monkeypatch):
     pinned: list[tuple[str | None, str, str]] = []
     _resolves_to(monkeypatch, needs_pin=True)
@@ -134,6 +156,32 @@ def test_provisioning_creates_then_rechecks(monkeypatch):
 
     assert outcome.ok is True
     assert calls == ["create", "check"]
+
+
+def test_provisioning_uses_the_resolved_context_for_both_calls(monkeypatch):
+    context = _context()
+    monkeypatch.setattr(
+        share_access, "resolve_bucket_trust", lambda **_kwargs: BucketTrust(context)
+    )
+    used: list[ssl.SSLContext] = []
+
+    def create(*_args, ssl_context, **_kwargs):
+        used.append(ssl_context)
+        return ServerProbeResult(True, 201, 0, True)
+
+    def access(*_args, ssl_context, **_kwargs):
+        used.append(ssl_context)
+        return ServerProbeResult(True, 200, 0, True), ""
+
+    monkeypatch.setattr(share_access, "create_server_bucket", create)
+    monkeypatch.setattr(share_access, "probe_server_bucket_access", access)
+
+    outcome = share_access.provision_share_bucket(
+        "https://host", "team", "key", trust=TRUST, timeout=5
+    )
+
+    assert outcome.ok is True
+    assert used == [context, context]
 
 
 def test_a_quota_refusal_keeps_the_limit(monkeypatch):

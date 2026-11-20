@@ -839,62 +839,53 @@ class TestServerTrust:
         # The probe never writes the store: Finish pins with the draft's choice.
         assert seen == ["auto", "chain"]
 
-    def test_the_create_path_uses_the_resolved_verified_context(self, wizard, qtbot, monkeypatch):
-        """Regression: the creation is authenticated, so it never runs unverified."""
-        import ssl
-
-        from hsync_desktop.engine.probes import ServerProbeResult
-        from hsync_desktop.engine.server_trust_probe import BucketTrust
+    def test_the_create_path_uses_the_shared_verified_provisioner(
+        self, wizard, qtbot, monkeypatch
+    ):
+        """Regression: the creation goes through the authenticated helper."""
+        from hsync_desktop.engine import ProbeOutcome
         from hsync_desktop.wizard.pages import connection as conn
 
         page = self._page(wizard)
         page.cert_switch.setChecked(True)
-        context = ssl.create_default_context()
-        monkeypatch.setattr(conn, "resolve_bucket_trust", lambda **_k: BucketTrust(context))
-        used: list[ssl.SSLContext] = []
+        seen: list[tuple[str | None, bool]] = []
 
-        def fake_create(_base, _bucket, _key, *, ssl_context, timeout):
-            used.append(ssl_context)
-            return ServerProbeResult(True, 201, 1, True)
+        def fake_provision(_base, _bucket, _key, *, trust, timeout, pin_first_sighting):
+            seen.append((trust.policy, pin_first_sighting))
+            return ProbeOutcome(True, 201)
 
-        def fake_access(_base, _bucket, _key, *, ssl_context, timeout):
-            used.append(ssl_context)
-            return ServerProbeResult(True, 200, 1, True), ""
-
-        monkeypatch.setattr(conn, "create_server_bucket", fake_create)
-        monkeypatch.setattr(conn, "probe_server_bucket_access", fake_access)
+        monkeypatch.setattr(conn, "provision_share_bucket", fake_provision)
 
         page._on_create_server_share()
         qtbot.waitUntil(lambda: not page._probing, timeout=5000)
 
-        # The creation and the re-check use the resolver's context, never one the
-        # page builds itself (the unverified context this regression fixed).
-        assert used == [context, context]
+        # The switch accepts the certificate, and the wizard never pins here:
+        # Finish pins with the draft's choice (see share_access tests for the
+        # "the resolved context is the only one used" guarantee).
+        assert seen == [("auto", False)]
 
     def test_a_changed_pin_refuses_before_sending_the_key(self, wizard, qtbot, monkeypatch):
-        from hsync_desktop.engine.server_trust_probe import (
-            REASON_TRUST_CHANGED,
-            BucketTrust,
-        )
+        from hsync_desktop.engine import ProbeOutcome
+        from hsync_desktop.engine.server_trust_probe import REASON_TRUST_CHANGED
         from hsync_desktop.wizard.pages import connection as conn
 
         changed = "bb" * 32
         page = self._page(wizard)
         page.cert_switch.setChecked(True)
-        calls: list[str] = []
-        monkeypatch.setattr(
-            conn,
-            "resolve_bucket_trust",
-            lambda **_k: BucketTrust(None, reason=REASON_TRUST_CHANGED, fingerprint=changed),
-        )
-        monkeypatch.setattr(
-            conn, "probe_server_bucket_access", lambda *a, **k: calls.append("bucket")
-        )
+        seen: list[str | None] = []
+
+        def fake_check(_base, _bucket, _key, *, trust, timeout, pin_first_sighting):
+            seen.append(trust.policy)
+            return ProbeOutcome(
+                False, None, fingerprint=changed, reason=REASON_TRUST_CHANGED
+            )
+
+        monkeypatch.setattr(conn, "check_share_access", fake_check)
 
         page._on_test_server()
         qtbot.waitUntil(lambda: not page._probing, timeout=5000)
 
-        assert calls == []
+        assert seen == ["auto"]
         assert page.server_status.text() == tr("settings.bucket_probe.trust_changed").replace(
             "{fingerprint}", changed
         )
