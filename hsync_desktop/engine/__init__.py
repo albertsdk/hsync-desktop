@@ -59,6 +59,11 @@ from hsync_desktop.engine.process import (
     p2p_secret_option,
     write_secret_pipe,
 )
+from hsync_desktop.engine.share_access import (
+    ShareTrust,
+    check_share_access,
+    provision_share_bucket,
+)
 
 __all__ = [
     "AsyncProbe",
@@ -68,6 +73,7 @@ __all__ = [
     "ResetStateResult",
     "ServerProbeResult",
     "SERVER_DEFAULT_PORT",
+    "ShareTrust",
     "TransferStats",
     "add_rendezvous_trust",
     "add_peer_pin",
@@ -93,7 +99,9 @@ __all__ = [
     "probe_server_bucket",
     "probe_server_bucket_access",
     "probe_server_health",
+    "provision_share_bucket",
     "certificate_ssl_context",
+    "check_share_access",
     "create_server_bucket",
     "fetch_server_certificate",
     "REASON_QUOTA",

@@ -128,6 +128,48 @@ class PreviewStats:
         if len(self.renames) < DETAIL_CAP:
             self.renames.append(PreviewItem("rename", dst, src=src))
 
+    def retire_verdict(self, status: str, path: str, size: int) -> None:
+        """Drop a plan item a terminal event settled before the pass ended.
+
+        The verdict is suppressed on the row (see ``EventsMixin._flush_verdicts``);
+        its counter, size and detail entry must go with it, or the bar and the
+        confirmation summary keep reporting work that is already done.
+        """
+        if status == "to_download":
+            self.to_download = max(self.to_download - 1, 0)
+            self.download_size = max(
+                self.download_size - self._take_largest("download", path, size), 0
+            )
+        elif status == "to_upload":
+            self.to_upload = max(self.to_upload - 1, 0)
+            self.upload_size = max(self.upload_size - self._take_largest("upload", path, size), 0)
+        elif status == "to_delete":
+            self.to_delete = max(self.to_delete - 1, 0)
+            removed = self._take_delete(path)
+            self.delete_size = max(self.delete_size - (removed if removed is not None else size), 0)
+        elif status == "to_rename":
+            self.to_rename = max(self.to_rename - 1, 0)
+            self._take_rename(path)
+
+    def _take_largest(self, action: str, path: str, fallback: int) -> int:
+        for index, item in enumerate(self.largest):
+            if item.action == action and item.path == path:
+                return self.largest.pop(index).size
+        # The entry fell outside LARGEST_CAP; the plan's own size still balances it.
+        return fallback
+
+    def _take_delete(self, path: str) -> int | None:
+        for index, item in enumerate(self.deletes):
+            if item.path == path:
+                return self.deletes.pop(index).size
+        return None
+
+    def _take_rename(self, src: str) -> None:
+        for index, item in enumerate(self.renames):
+            if item.src == src:
+                self.renames.pop(index)
+                return
+
     def record_transfer(self, action: str, path: str, size: int) -> None:
         """Count a transfer and keep the largest ones for the list."""
         if action == "download":

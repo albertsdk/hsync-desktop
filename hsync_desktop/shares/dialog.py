@@ -31,6 +31,8 @@ class SharesDialog(QDialog):
     def __init__(self, host, parent=None) -> None:  # type: ignore[no-untyped-def]
         super().__init__(parent)
         self._host = host
+        # (button, label) of the action whose server check is running, if any.
+        self._busy_source: tuple[QPushButton, str] | None = None
         self.setWindowTitle(tr("shares.manage.title"))
         self._build()
         self._refresh()
@@ -143,15 +145,47 @@ class SharesDialog(QDialog):
 
     def _on_new(self) -> None:
         answer = self._ask_name_and_folder("shares.new.title", "shares.manage.new")
-        if answer and self._host._create_share(*answer):
-            self._refresh()
+        if not answer:
+            return
+        self._set_pending(True, source=self._btn_new)
+        if not self._host._create_share(*answer, on_done=self._after_creation):
+            self._set_pending(False)
 
     def _on_duplicate(self) -> None:
         share_id = self._current_id()
         if not share_id:
             return
         answer = self._ask_name_and_folder("shares.duplicate.title", "shares.manage.duplicate")
-        if answer and self._host._duplicate_share(share_id, *answer):
+        if not answer:
+            return
+        self._set_pending(True, source=self._btn_duplicate)
+        if not self._host._duplicate_share(share_id, *answer, on_done=self._after_creation):
+            self._set_pending(False)
+
+    def _set_pending(self, busy: bool, *, source: QPushButton | None = None) -> None:
+        """Report a creation waiting for the server, like the Settings dialog does.
+
+        A server-mode share is written only after the bucket check answers, so the
+        actions are held (a second click would start a second check) and the button
+        that started it reads ``common.checking`` until the outcome arrives.
+        """
+        for button in (self._btn_new, self._btn_duplicate, self._btn_rename, self._btn_delete):
+            button.setEnabled(not busy)
+        if busy:
+            if source is not None:
+                self._busy_source = (source, source.text())
+                source.setText(tr("common.checking"))
+            return
+        if self._busy_source is not None:
+            button, label = self._busy_source
+            button.setText(label)
+            self._busy_source = None
+        self._update_buttons()
+
+    def _after_creation(self, created: bool) -> None:
+        """Refresh the list: the host may finish the creation after a server check."""
+        self._set_pending(False)
+        if created:
             self._refresh()
 
     def _on_rename(self) -> None:

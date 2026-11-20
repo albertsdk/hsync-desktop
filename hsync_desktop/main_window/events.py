@@ -71,6 +71,10 @@ class EventsMixin:
     # wins; a directory verdict stores the status only and re-reads the mtime at
     # flush time, so the timestamp reflects the settled tree.
     _pending_verdicts: dict[str, tuple[str, int, int, int]]
+    # Paths a terminal transfer or a live ``dir_status`` settled while the
+    # comparison is in flight. Its plan is a snapshot older than that fact, so
+    # ``_flush_verdicts`` must not let the plan downgrade these paths.
+    _settled_during_comparison: set[str]
     # Link facts suppressed while bytes were moving: the bar keeps showing the
     # transfer instead of "no device", and these are applied as soon as the last
     # in-flight row settles (`_settle_deferred_link_state`).
@@ -524,6 +528,10 @@ class EventsMixin:
         elif direction == "✕":
             # File was deleted - show briefly then remove
             self._file_panel.mark_deleted(rel_path)
+        if direction in ("↓", "↑") and self._comparison_in_flight:
+            # The comparison still running may hold a plan for this path from
+            # before it settled; the terminal event is the newer fact.
+            self._settled_during_comparison.add(rel_path)
         # The row above is already settled, so the live backlog the label derives
         # never counts the file that just completed.
         self._note_transfer_progress(direction)
@@ -627,7 +635,9 @@ class EventsMixin:
         if self._comparison_in_flight:
             # The mtime is read when the buffer is flushed (``_flush_verdicts``),
             # against the settled tree, not mid-classification.
-            self._pending_verdicts[dir_key + "/"] = (status, 0, -1, -1)
+            self._buffer_verdict(dir_key + "/", (status, 0, -1, -1))
+            if status == "synced":
+                self._settled_during_comparison.add(dir_key + "/")
             return
         # Read directory metadata from filesystem
         mtime = 0.0
@@ -999,6 +1009,7 @@ class EventsMixin:
         self._device_stats.clear()
         self._pending_inventory = None
         self._pending_verdicts.clear()
+        self._settled_during_comparison.clear()
         self._set_comparison_in_flight(True)
         self._comparison_errored = False
         if not self._link_down:
@@ -1020,9 +1031,12 @@ class EventsMixin:
     def _finish_comparison(self) -> None:
         """Render the outcome of the preview this window requested."""
         self._file_panel.mark_verified()
-        self._set_sync_state(*self._sync_state_after_preview())
         self._stamp_last_check()
+        # Apply the verdicts first: a plan item dropped because a terminal event
+        # settled its path is also retired from the counters, so the bar and the
+        # confirmation summary describe what the pass actually left to do.
         self._end_comparison()
+        self._set_sync_state(*self._sync_state_after_preview())
 
     def _stamp_last_check(self) -> None:
         """Record when a comparison answered (never for a failed one)."""
@@ -1049,6 +1063,18 @@ class EventsMixin:
             self._render_sync_state()
         self._update_menu_state()
 
+    def _buffer_verdict(self, rel_path: str, verdict: tuple[str, int, int, int]) -> None:
+        """Record a comparison verdict without letting a stale plan undo a fact.
+
+        A ``synced`` verdict is a statement about the path (a finished transfer
+        or a directory a peer confirmed); a change verdict from the same
+        comparison was read from an older snapshot and must not replace it.
+        """
+        existing = self._pending_verdicts.get(rel_path)
+        if existing is not None and existing[0] == "synced" and verdict[0] != "synced":
+            return
+        self._pending_verdicts[rel_path] = verdict
+
     def _flush_verdicts(self) -> None:
         """Apply the verdicts buffered during the comparison that just ended.
 
@@ -1062,6 +1088,18 @@ class EventsMixin:
             return
         pending = self._pending_verdicts
         self._pending_verdicts = {}
+        kept: dict[str, tuple[str, int, int, int]] = {}
+        for rel_path, verdict in pending.items():
+            if verdict[0] != "synced" and rel_path in self._settled_during_comparison:
+                # A terminal transfer or a live ``dir_status`` proved this path
+                # settled after the comparison snapshot was taken: its plan is
+                # older than that fact, so it must not downgrade the row (the
+                # next comparison will). Retire it from the plan too: the bar
+                # and the summary must not keep counting completed work.
+                self._preview_stats.retire_verdict(verdict[0], rel_path, verdict[1])
+                continue
+            kept[rel_path] = verdict
+        pending = kept
         for rel_path, (status, size, holders, devices) in pending.items():
             if not rel_path.endswith("/"):
                 self._file_panel.update_file_status(
@@ -1106,7 +1144,9 @@ class EventsMixin:
         rel_path = self._preview_path(filepath)
         base_path = self._local_path
         if self._comparison_in_flight:
-            self._pending_verdicts[rel_path] = (status, size, holders, devices)
+            self._buffer_verdict(rel_path, (status, size, holders, devices))
+            if status == "synced":
+                self._settled_during_comparison.add(rel_path)
         else:
             self._file_panel.update_file_status(
                 rel_path, status, size, holders=holders, devices=devices, preview=True
@@ -1140,7 +1180,7 @@ class EventsMixin:
         """Handle a planned rename: the row keeps the current path, the plan both."""
         rel_src = self._preview_path(src)
         if self._comparison_in_flight:
-            self._pending_verdicts[rel_src] = ("to_rename", size, -1, -1)
+            self._buffer_verdict(rel_src, ("to_rename", size, -1, -1))
         else:
             self._file_panel.update_file_status(rel_src, "to_rename", size, preview=True)
         self._preview_stats.record_rename(rel_src, self._preview_path(dst))
@@ -1243,6 +1283,7 @@ class EventsMixin:
         self._comparison_errored = False
         # Its buffered verdicts belong to a run that no longer exists.
         self._pending_verdicts.clear()
+        self._settled_during_comparison.clear()
         # Nor does its busy animation: stop it before the window shows the
         # disconnected state.
         busy = getattr(self, "_sync_busy", None)

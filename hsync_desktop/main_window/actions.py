@@ -270,6 +270,9 @@ class ActionsMixin:
         self._comparison_in_flight = False
         self._comparison_errored = False
         self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
+        # Paths a terminal event settled while the current comparison ran: its
+        # stale plan must not downgrade them (see ``_flush_verdicts``).
+        self._settled_during_comparison: set[str] = set()
         # No plan is pending application in a fresh process.
         self._preview_run_to_stop = False
         self._deferred_link_status: str | None = None

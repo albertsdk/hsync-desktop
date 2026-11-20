@@ -1972,6 +1972,87 @@ class TestInFlightRowsSurviveStatusFlap:
         assert row.status is TransferStatus.UPLOADING
 
 
+class TestSettledRowsSurviveStalePlan:
+    """A comparison's snapshot never downgrades a path that settled while it ran.
+
+    A scan-triggered preview overlaps live transfers (and the creation of empty
+    directories): its plan still says ``to_download``/``to_upload`` for a path
+    that a terminal event then settles before ``preview_end``. Applying the
+    buffered plan would leave the row at "To download" with 100% progress, or
+    an empty folder at "To sync", until the next comparison.
+    """
+
+    def test_a_completed_transfer_is_not_downgraded_by_the_stale_plan(self, window, tmp_path):
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+        path = str(tmp_path / "a.bin")
+
+        window._on_preview_started()
+        window._on_file_status("to_download", path, 10)  # plan from the snapshot
+        window._on_file_progress(path, 10, 10, "download")
+        window._on_file_transferred("↓", path, 10)  # terminal fact
+        window._on_preview_ended()
+
+        row = window._file_panel.table._transfers["a.bin"]
+        assert row.status is TransferStatus.SYNCED
+        assert row.bytes_transferred == 10
+
+    def test_a_completed_transfer_is_retired_from_the_plan(self, window, tmp_path):
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+        path = str(tmp_path / "a.bin")
+
+        window._on_preview_started()
+        window._on_file_status("to_download", path, 10)
+        window._on_file_progress(path, 10, 10, "download")
+        window._on_file_transferred("↓", path, 10)
+        window._on_preview_ended()
+
+        stats = window._preview_stats
+        assert stats.to_download == 0
+        assert stats.download_size == 0
+        assert stats.largest == []
+        assert window._sync_state[0] != "pending"
+
+    def test_a_settled_empty_folder_is_not_downgraded_by_the_stale_plan(self, window, tmp_path):
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+        folder = str(tmp_path / "empty")
+        (tmp_path / "empty").mkdir()
+
+        window._on_preview_started()
+        window._on_directory_status(folder, "synced")  # live peer fact
+        window._on_directory_status(folder, "to_upload")  # plan read earlier
+        window._on_preview_ended()
+
+        row = window._file_panel.table._transfers["empty/"]
+        assert row.status is TransferStatus.SYNCED
+
+    def test_a_plan_from_a_new_comparison_still_applies(self, window, tmp_path):
+        from hsync_desktop.file_panel.models import TransferStatus
+
+        window._local_path = str(tmp_path)
+        window._file_panel._table.set_base_directory(str(tmp_path))
+        path = str(tmp_path / "b.bin")
+
+        window._on_preview_started()
+        window._on_file_status("to_download", path, 10)
+        window._on_file_progress(path, 10, 10, "download")
+        window._on_file_transferred("↓", path, 10)  # settles while it runs
+        window._on_preview_ended()
+
+        window._on_preview_started()
+        window._on_file_status("to_upload", path, 10)
+        window._on_preview_ended()
+
+        row = window._file_panel.table._transfers["b.bin"]
+        assert row.status is TransferStatus.TO_UPLOAD
+
+
 class TestLogViewScrolling:
     """New log lines must not steal the user's scroll position."""
 
@@ -2079,6 +2160,7 @@ class TestInitialReconcile:
             _comparison_in_flight=False,
             _comparison_errored=False,
             _pending_verdicts={},
+            _settled_during_comparison=set(),
             _preview_run_to_stop=False,
             _preparing_plan=False,
             _exit_preparing_plan_ui=lambda: None,

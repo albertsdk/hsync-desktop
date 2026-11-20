@@ -159,6 +159,9 @@ class MainWindow(
         # still emits its end marker, so only a clean one may claim a last check.
         self._comparison_errored = False
         self._pending_verdicts: dict[str, tuple[str, int, int, int]] = {}
+        # Paths a terminal event settled while the current comparison ran: its
+        # stale plan must not downgrade them (see EventsMixin._flush_verdicts).
+        self._settled_during_comparison: set[str] = set()
         # The engine reported a connection failure: the link is down until the
         # client says otherwise (see UiBuildMixin._on_engine_error).
         self._link_down = False

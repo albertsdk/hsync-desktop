@@ -436,3 +436,32 @@ class TestVerboseLogPanelPrompt:
         assert shown == []
         assert dlg.verbose.isChecked() is True
         assert dlg.show_log_panel.isChecked() is False
+
+
+class TestMessageBoxWidth:
+    def test_every_shared_box_reserves_room_for_its_title(self, qtbot):
+        """Qt sizes a box to its text, so a short message left the title clipped."""
+        from hsync_desktop.widgets.dialogs import (
+            _MESSAGE_BOX_MIN_WIDTH,
+            build_choice_box,
+            build_confirm_box,
+            build_warning_box,
+        )
+
+        choice, _buttons = build_choice_box(
+            None,
+            title=tr("settings.bucket_probe.title"),
+            text=tr("settings.bucket_probe.missing"),
+            choices=[("a", "list-add"), ("b", "dialog-ok")],
+        )
+        boxes = [
+            build_warning_box(None, title=tr("settings.title"), text=tr("wizard.probe.401")),
+            build_confirm_box(
+                None, title=tr("settings.title"), text=tr("settings.bucket_probe.offline")
+            ),
+            choice,
+        ]
+
+        for box in boxes:
+            qtbot.addWidget(box)
+            assert box.minimumWidth() == _MESSAGE_BOX_MIN_WIDTH
