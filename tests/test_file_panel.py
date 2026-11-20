@@ -3378,9 +3378,12 @@ class TestMultiSelection:
         import hsync_desktop.file_panel.transfer_table as tt
 
         table = self._table(qtbot, "a.bin", "b.bin")
-        calls: list[list[str]] = []
+        calls: list[tuple[list[str], dict]] = []
         monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
-        monkeypatch.setattr(tt.subprocess, "run", lambda args, **kw: calls.append(list(args)))
+        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
+        monkeypatch.setattr(
+            tt.subprocess, "run", lambda args, **kw: calls.append((list(args), dict(kw)))
+        )
         monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
 
         table._trash_many(list(table.selected_transfers()) or [])
@@ -3392,9 +3395,83 @@ class TestMultiSelection:
         table._trash_many(table.selected_transfers())
 
         assert len(calls) == 1
-        assert calls[0][:2] == ["gio", "trash"]
-        assert len(calls[0]) == 4
+        args, kwargs = calls[0]
+        assert args[:2] == ["gio", "trash"]
+        assert len(args) == 4
         assert table.model().rowCount() == 0
+        assert kwargs["check"] is True
+        assert isinstance(kwargs["env"], dict)
+
+    def test_trash_runs_the_helper_without_the_bundled_library_env(self, qtbot, monkeypatch):
+        """``gio`` inheriting the bundle's ``LD_LIBRARY_PATH`` exits 127.
+
+        The frozen payload points the environment at its own GLib/GIO; the
+        system helper then fails at dynamic-link time instead of trashing.
+        """
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        table = self._table(qtbot, "a.bin")
+        seen: dict = {}
+        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
+        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
+        monkeypatch.setattr(tt.subprocess, "run", lambda args, **kw: seen.update(kw))
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+        monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/hsync-desktop/_internal")
+        monkeypatch.setenv("PYTHONPATH", "/usr/lib/hsync-desktop/_internal")
+
+        self._select(table, 0)
+        table._trash_many(table.selected_transfers())
+
+        env = seen.get("env")
+        assert isinstance(env, dict)
+        assert "LD_LIBRARY_PATH" not in env
+        assert "PYTHONPATH" not in env
+        assert env["HOME"] == os.environ["HOME"]
+
+    def test_a_missing_gio_falls_back_to_the_qt_trash(self, qtbot, monkeypatch):
+        """A minimal install carries no GLib tools; Qt's own trash needs none."""
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        table = self._table(qtbot, "a.bin", "b.bin")
+        moved: list[str] = []
+        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
+        monkeypatch.setattr(tt.shutil, "which", lambda name: None)
+        monkeypatch.setattr(tt.QFile, "moveToTrash", lambda path: moved.append(path) or True)
+
+        def _never_runs(*_args, **_kwargs):
+            pytest.fail("the gio helper ran although it is not installed")
+
+        monkeypatch.setattr(tt.subprocess, "run", _never_runs)
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+
+        self._select(table, 0, 1)
+        table._trash_many(table.selected_transfers())
+
+        assert [os.path.basename(path) for path in moved] == ["a.bin", "b.bin"]
+        assert table.model().rowCount() == 0
+
+    def test_a_failed_trash_reports_the_helper_message(self, qtbot, monkeypatch):
+        """The dialog shows gio's own stderr, not just ``exit status 127``."""
+        import hsync_desktop.file_panel.transfer_table as tt
+
+        table = self._table(qtbot, "a.bin")
+        shown: list[str] = []
+
+        def _failing_run(args, **_kwargs):
+            raise tt.subprocess.CalledProcessError(127, args, stderr=b"gio: boom\n")
+
+        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
+        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
+        monkeypatch.setattr(tt.subprocess, "run", _failing_run)
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+        monkeypatch.setattr(tt.QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
+
+        self._select(table, 0)
+        table._trash_many(table.selected_transfers())
+
+        assert shown == [tr("ctx.error_trash").format(error="gio: boom")]
+        # The row survives: nothing was moved.
+        assert table.model().rowCount() == 1
 
     def test_copy_many_copies_every_entry(self, qtbot, tmp_path, monkeypatch):
         import hsync_desktop.file_panel.transfer_table as tt

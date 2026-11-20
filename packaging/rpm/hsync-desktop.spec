@@ -15,6 +15,8 @@ Packager:       Alberto Basso <17047798+albertsdk@users.noreply.github.com>
 AutoReqProv:    no
 Requires:       glibc
 Requires:       zlib
+# ``gio trash``: the file panel moves an entry to the desktop trash with it.
+Requires:       glib2
 Requires:       libglvnd-egl
 Requires:       libglvnd-glx
 Requires:       libdrm

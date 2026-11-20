@@ -24,6 +24,7 @@ from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
 from PySide6.QtWidgets import QApplication, QWidget
 
 from hsync_desktop.config import FONT_SCALE_COMPACT, FONT_SCALE_STANDARD
+from hsync_desktop.host_env import host_env
 from hsync_desktop.kde import config_home, read_ini
 
 # GNOME settings that hold the UI font, the monospace font and the text scale.
@@ -63,17 +64,6 @@ _MIN_COMPACT_POINT_SIZE = 8.0
 # Minimum row height in device-independent pixels: WCAG 2.2 target size (24 px)
 # with a little breathing room.
 _MIN_TABLE_ROW_HEIGHT = 26
-
-# Environment variables that must not leak the PyInstaller/AppImage libraries
-# into the host ``gsettings`` binary (it would then load the bundled GLib/schemas
-# and can crash or misread the settings).
-_LIBRARY_ENV_KEYS = (
-    "LD_LIBRARY_PATH",
-    "PYTHONHOME",
-    "PYTHONPATH",
-    "GI_TYPELIB_PATH",
-    "GDK_PIXBUF_MODULE_FILE",
-)
 
 # Pango font description: "<family> <size>", family may contain spaces.
 _PANGO_FONT_RE = re.compile(r"^(?P<family>.+?)\s+(?P<size>\d+(?:[.,]\d+)?)$")
@@ -150,14 +140,6 @@ def parse_kde_font(value: str) -> tuple[str, float | None] | None:
 # ── Desktop probes ───────────────────────────────────────────────────────────
 
 
-def _host_env() -> dict[str, str]:
-    """Environment for host tools: drop the bundled-library overrides."""
-    env = os.environ.copy()
-    for key in _LIBRARY_ENV_KEYS:
-        env.pop(key, None)
-    return env
-
-
 def _gsettings_values(keys: tuple[str, ...]) -> dict[str, str]:
     """Read several keys from ``org.gnome.desktop.interface`` in one call.
 
@@ -173,7 +155,7 @@ def _gsettings_values(keys: tuple[str, ...]) -> dict[str, str]:
             text=True,
             timeout=1.0,
             check=False,
-            env=_host_env(),
+            env=host_env(),
         )
     except (OSError, subprocess.SubprocessError):
         return {}
