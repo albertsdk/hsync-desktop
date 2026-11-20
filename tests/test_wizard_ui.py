@@ -839,9 +839,7 @@ class TestServerTrust:
         # The probe never writes the store: Finish pins with the draft's choice.
         assert seen == ["auto", "chain"]
 
-    def test_the_create_path_uses_the_shared_verified_provisioner(
-        self, wizard, qtbot, monkeypatch
-    ):
+    def test_the_create_path_uses_the_shared_verified_provisioner(self, wizard, qtbot, monkeypatch):
         """Regression: the creation goes through the authenticated helper."""
         from hsync_desktop.engine import ProbeOutcome
         from hsync_desktop.wizard.pages import connection as conn
@@ -876,9 +874,7 @@ class TestServerTrust:
 
         def fake_check(_base, _bucket, _key, *, trust, timeout, pin_first_sighting):
             seen.append(trust.policy)
-            return ProbeOutcome(
-                False, None, fingerprint=changed, reason=REASON_TRUST_CHANGED
-            )
+            return ProbeOutcome(False, None, fingerprint=changed, reason=REASON_TRUST_CHANGED)
 
         monkeypatch.setattr(conn, "check_share_access", fake_check)
 
