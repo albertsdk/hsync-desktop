@@ -32,9 +32,17 @@ __all__ = [
     "build_confirm_box",
     "build_destructive_confirm_box",
     "build_optout_confirm_box",
+    "build_warning_box",
     "confirm",
     "dialog_parent",
+    "show_information",
+    "show_warning",
 ]
+
+# Qt sizes a message box to its text, so a short message leaves a window whose
+# title bar clips the title ("Share access" needs more room than one sentence
+# gives it). Every box the GUI raises shares this floor.
+_MESSAGE_BOX_MIN_WIDTH = 440
 
 
 def dialog_parent(fallback: QWidget | None = None) -> QWidget | None:
@@ -67,6 +75,7 @@ def build_choice_box(
     box.setIcon(QMessageBox.Icon.Question)
     box.setWindowTitle(title)
     box.setText(text)
+    box.setMinimumWidth(_MESSAGE_BOX_MIN_WIDTH)
     buttons: list[QPushButton] = []
     for index, (label, icon_name) in enumerate(choices):
         if index == 0:
@@ -97,6 +106,7 @@ def build_confirm_box(
     box.setIcon(icon_name)
     box.setWindowTitle(title)
     box.setText(text)
+    box.setMinimumWidth(_MESSAGE_BOX_MIN_WIDTH)
     box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
     yes_btn = box.button(QMessageBox.StandardButton.Yes)
     no_btn = box.button(QMessageBox.StandardButton.No)
@@ -161,6 +171,39 @@ def confirm(
         with_icons=with_icons,
     )
     return box.exec() == QMessageBox.StandardButton.Yes
+
+
+def build_warning_box(
+    parent: QWidget | None,
+    *,
+    title: str,
+    text: str,
+    icon_name: QMessageBox.Icon = QMessageBox.Icon.Warning,
+) -> QMessageBox:
+    """Build a localized acknowledgement box (a single ``Ok``).
+
+    The static ``QMessageBox.warning`` sizes the window to its text, so a short
+    message leaves the title clipped in the title bar; building the box here
+    keeps the shared floor.
+    """
+    box = QMessageBox(parent)
+    box.setIcon(icon_name)
+    box.setWindowTitle(title)
+    box.setText(text)
+    box.setStandardButtons(QMessageBox.StandardButton.Ok)
+    box.setMinimumWidth(_MESSAGE_BOX_MIN_WIDTH)
+    return box
+
+
+def show_warning(parent: QWidget | None, *, title: str, text: str) -> None:
+    """Show an acknowledgement box; the shared replacement for ``QMessageBox.warning``."""
+    build_warning_box(parent, title=title, text=text).exec()
+
+
+def show_information(parent: QWidget | None, *, title: str, text: str) -> None:
+    """Show an informational acknowledgement box."""
+    box = build_warning_box(parent, title=title, text=text, icon_name=QMessageBox.Icon.Information)
+    box.exec()
 
 
 def build_destructive_confirm_box(

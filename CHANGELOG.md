@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Saving a preference that is not about the connection (the language, the theme,
+  a sync interval) no longer depends on the server: an unverified share probed
+  the server on every OK press, so a revoked key or an unreachable host made
+  every setting unsavable. The share check now blocks only the connection change
+  it is checking.
+- The share-check and confirmation boxes reserve room for their title, which a
+  short message used to clip in the title bar.
 - **Move to trash** failed with `exit status 127` on hosts whose GLib is newer
   than the bundled one; the helper now runs with the library overrides stripped.
 - Windows: a configured P2P/API key now reaches the client and the structured

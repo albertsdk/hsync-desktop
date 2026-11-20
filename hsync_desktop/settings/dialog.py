@@ -181,7 +181,12 @@ from hsync_desktop.settings.tab_translations import apply_translations
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.trusted_keys import TrustedKeysDialog
 from hsync_desktop.ui.loader import load_ui_widget
-from hsync_desktop.widgets.dialogs import build_choice_box, confirm
+from hsync_desktop.widgets.dialogs import (
+    build_choice_box,
+    confirm,
+    show_information,
+    show_warning,
+)
 from hsync_desktop.widgets.secret_reveal import refresh_reveal_tooltip
 from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
@@ -271,6 +276,10 @@ class SettingsDialog(QDialog):
         # Bucket the server confirmed in this session (probe or creation). It is
         # what lets an unchanged, already-verified field skip the next check.
         self._verified_bucket = ""
+        # The connection fields as the dialog loaded them: a save compares
+        # against this to tell a connection the user is entering (which the
+        # bucket check gates) from an unrelated preference.
+        self._connection_loaded: tuple[object, ...] | None = None
         # What to do once a deferred commit (the bucket check) comes back clean:
         # the caller's continuation, dropped when the check is vetoed.
         self._commit_continuation: Callable[[], None] | None = None
@@ -1253,6 +1262,43 @@ class SettingsDialog(QDialog):
 
     # ── Bucket change check (deferred commit) ────────────────────────────
 
+    def _connection_signature(self) -> tuple[object, ...]:
+        """The widget values the bucket check depends on, as one comparable tuple."""
+        return (
+            self.server_url.text().strip(),
+            self.bucket.text().strip(),
+            self.api_key.text(),
+            self.server_trust.currentData(),
+            self.insecure.isChecked(),
+            self.ca_cert.text().strip(),
+        )
+
+    def _connection_changed(self) -> bool:
+        """True when this dialog session edited a field the bucket check depends on.
+
+        A save that changes no connection field (language, theme, sync cadence…)
+        must never depend on the server: a revoked key or an unreachable host
+        would otherwise make the whole Settings dialog unsavable.
+        """
+        return (
+            self._connection_loaded is not None
+            and self._connection_signature() != self._connection_loaded
+        )
+
+    def _refuse_or_save(self, *, title: str, text: str) -> None:
+        """Warn about a failed bucket check and decide whether it vetoes the save.
+
+        The check gates a connection the user is entering right now. For a save
+        that changed no connection field the warning would be noise on every
+        press, so the preferences go through and the bucket stays unverified for
+        the next real edit instead of trapping the dialog.
+        """
+        if self._connection_changed():
+            show_warning(self, title=title, text=text)
+            self._abandon_deferred_commit()
+            return
+        self._finish_deferred_commit()
+
     def _bucket_probe_job(self, normalized_server: str | None) -> Callable[[], ProbeOutcome] | None:
         """The off-thread check for a bucket that is new to server mode, or ``None``.
 
@@ -1361,10 +1407,10 @@ class SettingsDialog(QDialog):
         if outcome.ok:
             self._mark_bucket_verified()
             if outcome.pinned:
-                QMessageBox.information(
+                show_information(
                     self,
-                    tr("settings.bucket_probe.title"),
-                    tr("settings.bucket_probe.tofu_saved").replace(
+                    title=tr("settings.bucket_probe.title"),
+                    text=tr("settings.bucket_probe.tofu_saved").replace(
                         "{fingerprint}", outcome.fingerprint
                     ),
                 )
@@ -1375,14 +1421,12 @@ class SettingsDialog(QDialog):
             REASON_TRUST_CHANGED,
             REASON_TRUST_PIN_FAILED,
         ):
-            QMessageBox.warning(
-                self,
-                tr("settings.bucket_probe.title"),
-                tr(f"settings.bucket_probe.{outcome.reason}").replace(
+            self._refuse_or_save(
+                title=tr("settings.bucket_probe.title"),
+                text=tr(f"settings.bucket_probe.{outcome.reason}").replace(
                     "{fingerprint}", outcome.fingerprint
                 ),
             )
-            self._abandon_deferred_commit()
             return
         if outcome.reason == "share_missing":
             # 404 is ambiguous by design: missing *or* no membership. Creating it
@@ -1412,24 +1456,22 @@ class SettingsDialog(QDialog):
         if outcome.reason == "create_quota":
             # The account owns as many shares as the server allows: only deleting
             # one (or raising the cap) can help, so name the limit.
-            QMessageBox.warning(
-                self,
-                tr("settings.bucket_probe.title"),
-                tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
+            self._refuse_or_save(
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
             )
-            self._abandon_deferred_commit()
             return
         if outcome.reason == "create_failed":
-            QMessageBox.warning(
-                self,
-                tr("settings.bucket_probe.title"),
-                tr("settings.bucket_probe.create_failed"),
+            self._refuse_or_save(
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.create_failed"),
             )
-            self._abandon_deferred_commit()
             return
         if outcome.reason in ("unreachable", "server_error"):
-            # Offline work must stay possible: the bucket may be fine.
-            if confirm(
+            # Offline work must stay possible: the bucket may be fine. Only a
+            # connection the user is entering right now asks; an unrelated save
+            # goes through without a prompt.
+            if not self._connection_changed() or confirm(
                 self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr("settings.bucket_probe.offline"),
@@ -1439,9 +1481,10 @@ class SettingsDialog(QDialog):
             else:
                 self._abandon_deferred_commit()
             return
-        # A rejected key or a malformed name: nothing is saved.
-        QMessageBox.warning(self, tr("settings.title"), probe_reason_text(outcome.reason))
-        self._abandon_deferred_commit()
+        # A rejected key or a malformed name: a connection the user is entering
+        # is not saved; an unrelated save goes through (the bucket stays
+        # unverified, so the next connection edit checks it again).
+        self._refuse_or_save(title=tr("settings.title"), text=probe_reason_text(outcome.reason))
 
     def _mark_bucket_verified(self) -> None:
         """Record the bucket the server just confirmed for this share.
@@ -1918,6 +1961,8 @@ class SettingsDialog(QDialog):
         # on first run, before the startup hardening runs).
         s.sync()
         secure_config_file()
+        # The form is what is stored now: the next save compares against it.
+        self._connection_loaded = self._connection_signature()
 
     def load(self) -> None:
         """Restore settings from QSettings."""
@@ -1934,6 +1979,7 @@ class SettingsDialog(QDialog):
         # Size last: the advanced visibility and the p2p-mode gate above change
         # which rows are shown, and the size must clamp to the screen.
         finalize_size(self)
+        self._connection_loaded = self._connection_signature()
 
     def _load_connection(self, s: QSettings) -> None:
         """Restore the local folder and the server-connection fields."""

@@ -11,12 +11,15 @@ instead of saving silently.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtWidgets import QDialogButtonBox
 
 import hsync_desktop.settings.dialog as settings_dialog
 from hsync_desktop.engine import ProbeOutcome, ServerProbeResult
 from hsync_desktop.i18n import tr
+from hsync_desktop.probe_messages import probe_reason_text
 
 
 @pytest.fixture
@@ -206,16 +209,14 @@ class TestOutcome:
         server_dialog.bucket.setText("new")
         warned: list[str] = []
 
-        class _Box:
-            @staticmethod
-            def warning(*_args, **_kwargs):
-                warned.append("warning")
+        def fake_warning(_parent, *, title, text):
+            warned.append(text)
 
-        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+        monkeypatch.setattr(settings_dialog, "show_warning", fake_warning)
 
         server_dialog._on_bucket_probe_done(ProbeOutcome(False, 403, reason="create_failed"))
 
-        assert warned == ["warning"]
+        assert warned == [tr("settings.bucket_probe.create_failed")]
         assert _persisted(settings) == "old"
 
     def test_a_quota_refusal_names_the_limit(self, server_dialog, settings, monkeypatch):
@@ -224,12 +225,10 @@ class TestOutcome:
         server_dialog.bucket.setText("new")
         warned: list[str] = []
 
-        class _Box:
-            @staticmethod
-            def warning(_parent, _title, text):
-                warned.append(text)
+        def fake_warning(_parent, *, title, text):
+            warned.append(text)
 
-        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+        monkeypatch.setattr(settings_dialog, "show_warning", fake_warning)
 
         server_dialog._on_bucket_probe_done(
             ProbeOutcome(False, 403, reason="create_quota", limit=3)
@@ -282,16 +281,14 @@ class TestOutcome:
         server_dialog.bucket.setText("new")
         warned: list[str] = []
 
-        class _Box:
-            @staticmethod
-            def warning(*_args, **_kwargs):
-                warned.append("warning")
+        def fake_warning(_parent, *, title, text):
+            warned.append(text)
 
-        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+        monkeypatch.setattr(settings_dialog, "show_warning", fake_warning)
 
         server_dialog._on_bucket_probe_done(ProbeOutcome(False, 401, reason="unauthorized"))
 
-        assert warned == ["warning"]
+        assert warned == [probe_reason_text("unauthorized")]
         assert _persisted(settings) == "old"
 
 
@@ -389,12 +386,10 @@ class TestThePinFollowsTheCheck:
         server_dialog.bucket.setText("new")
         shown: list[str] = []
 
-        class _Box:
-            @staticmethod
-            def information(_parent, _title, text):
-                shown.append(text)
+        def fake_information(_parent, *, title, text):
+            shown.append(text)
 
-        monkeypatch.setattr(settings_dialog, "QMessageBox", _Box)
+        monkeypatch.setattr(settings_dialog, "show_information", fake_information)
         fingerprint = "aa" * 32
 
         server_dialog._on_bucket_probe_done(
@@ -427,3 +422,45 @@ class TestBusyState:
         server_dialog._set_commit_busy(True)
 
         assert cancel.isEnabled() is True
+
+
+class TestAnUnrelatedSaveIsNeverGatedByTheServer:
+    """The check confirms a connection the user is entering, not every save.
+
+    A share whose ``sync/bucket_verified`` marker is empty (created by the
+    selector, imported, or unverified after an offline edit) used to be probed on
+    *every* OK press: with a revoked API key nothing could be saved, not even the
+    language. A save that changes no connection field now goes through.
+    """
+
+    def test_a_rejected_key_does_not_block_a_save_that_kept_the_connection(
+        self, server_dialog, settings
+    ):
+        settings.setValue("sync/bucket", "team")
+        settings.setValue("sync/bucket_verified", "")
+        server_dialog.bucket.setText("team")
+        server_dialog.save()  # the form is the stored baseline
+        server_dialog.continuous.setChecked(True)  # an unrelated preference
+
+        saved: list[str] = []
+        server_dialog._commit_continuation = lambda: saved.append("done")
+        with patch.object(settings_dialog, "show_warning") as warning:
+            server_dialog._on_bucket_probe_done(ProbeOutcome(False, 401, reason="unauthorized"))
+
+        warning.assert_not_called()
+        assert saved == ["done"]
+        assert settings.value("sync/continuous", False, bool) is True
+
+    def test_a_rejected_key_still_blocks_a_bucket_the_user_just_typed(
+        self, server_dialog, settings
+    ):
+        server_dialog.bucket.setText("old")
+        server_dialog.save()
+        server_dialog.bucket.setText("new")
+
+        with patch.object(settings_dialog, "show_warning") as warning:
+            server_dialog._on_bucket_probe_done(ProbeOutcome(False, 401, reason="unauthorized"))
+
+        warning.assert_called_once()
+        assert settings.value("sync/bucket", "", str) == "old"
+        assert server_dialog._commit_continuation is None
