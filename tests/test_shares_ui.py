@@ -554,3 +554,45 @@ class TestServerShareCreation:
         assert warned == [probe_reason_text("unauthorized")]
         assert created == [False]
         assert all(share.name != "Beta" for share in window._share_store.shares())
+
+
+class TestTheBusyState:
+    """The shares dialog reports a creation waiting for the server's answer."""
+
+    def test_the_actions_report_the_server_check(self, qtbot, window, monkeypatch):
+        from hsync_desktop.shares.dialog import SharesDialog
+
+        dlg = SharesDialog(window)
+        qtbot.addWidget(dlg)
+        monkeypatch.setattr(dlg, "_ask_name_and_folder", lambda *_a, **_k: ("Beta", "/tmp/beta"))
+        deferred: list[object] = []
+        monkeypatch.setattr(
+            window,
+            "_create_share",
+            lambda *_a, on_done=None, **_k: deferred.append(on_done) or True,
+        )
+
+        dlg._on_new()
+
+        # Held while the check runs: a second click would start a second check.
+        assert dlg._btn_new.isEnabled() is False
+        assert dlg._btn_new.text() == tr("common.checking")
+        assert deferred  # the host kept the continuation for the outcome
+
+        dlg._after_creation(True)
+
+        assert dlg._btn_new.isEnabled() is True
+        assert dlg._btn_new.text() == tr("shares.manage.new")
+
+    def test_a_refused_creation_releases_the_actions(self, qtbot, window, monkeypatch):
+        from hsync_desktop.shares.dialog import SharesDialog
+
+        dlg = SharesDialog(window)
+        qtbot.addWidget(dlg)
+        monkeypatch.setattr(dlg, "_ask_name_and_folder", lambda *_a, **_k: ("Beta", "/tmp/beta"))
+        monkeypatch.setattr(window, "_create_share", lambda *_a, **_k: False)
+
+        dlg._on_new()
+
+        assert dlg._btn_new.isEnabled() is True
+        assert dlg._btn_new.text() == tr("shares.manage.new")
