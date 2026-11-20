@@ -9,12 +9,15 @@ from contextlib import contextmanager
 
 import pytest
 
+from hsync_desktop.crypto import encrypt_value
+from hsync_desktop.engine import ProbeOutcome
 from hsync_desktop.i18n import tr
+from hsync_desktop.probe_messages import probe_reason_text
 
 
 @pytest.fixture(autouse=True)
 def _no_message_boxes(monkeypatch):
-    """Replace QMessageBox in the shares mixin so warnings never block tests."""
+    """Replace the message boxes in the shares mixin so warnings never block tests."""
 
     class _StubQMessageBox:
         @staticmethod
@@ -22,6 +25,10 @@ def _no_message_boxes(monkeypatch):
             return None
 
     monkeypatch.setattr("hsync_desktop.main_window.shares.QMessageBox", _StubQMessageBox)
+    # The create/duplicate flow reports through the shared helpers, and the
+    # default answer of a confirm is "No".
+    monkeypatch.setattr("hsync_desktop.main_window.shares.show_warning", lambda *_a, **_k: None)
+    monkeypatch.setattr("hsync_desktop.main_window.shares.confirm", lambda *_a, **_k: False)
 
 
 @contextmanager
@@ -480,3 +487,70 @@ class TestManageDialogChrome:
         assert buttons[0].text() == tr("action.close")
         assert not buttons[0].icon().isNull()
         assert box.button(QDialogButtonBox.StandardButton.Close) is None
+
+
+class TestServerShareCreation:
+    """A server-mode share is created only once its new bucket is confirmed.
+
+    The generated bucket name is one the server has never seen, so the record is
+    written after the check — the same rule the setup wizard applies to its
+    connection step. Direct mode has no bucket to confirm and stays synchronous.
+    """
+
+    def _server_mode(self, window, settings) -> None:
+        settings.setValue("p2p/enabled", False)
+        settings.setValue("connection/server_url", "https://host")
+        settings.setValue("connection/api_key", encrypt_value("key"))
+        window._share_store.sync_from_flat()
+
+    def test_the_record_waits_for_the_server(self, window, settings, tmp_path, monkeypatch):
+        _configure(window, tmp_path)
+        self._server_mode(window, settings)
+        checked: list[bool] = []
+        monkeypatch.setattr(
+            window, "_start_share_probe", lambda *, provision: checked.append(provision)
+        )
+        created: list[bool] = []
+
+        accepted = window._create_share("Beta", str(tmp_path / "beta"), on_done=created.append)
+
+        assert accepted is True
+        assert checked == [False]  # the check ran; the bucket was not created yet
+        assert created == []
+        assert all(share.name != "Beta" for share in window._share_store.shares())
+
+        window._on_share_access_outcome(ProbeOutcome(True, 200))
+
+        assert created == [True]
+        assert any(share.name == "Beta" for share in window._share_store.shares())
+
+    def test_a_missing_bucket_offers_to_create_it(self, window, settings, tmp_path, monkeypatch):
+        _configure(window, tmp_path)
+        self._server_mode(window, settings)
+        monkeypatch.setattr(window, "_start_share_probe", lambda *, provision: None)
+        asked: list[str] = []
+        monkeypatch.setattr(window, "_ask_create_missing_bucket", lambda: asked.append("ask"))
+
+        window._create_share("Beta", str(tmp_path / "beta"))
+        window._on_share_access_outcome(ProbeOutcome(False, 404, reason="share_missing"))
+
+        assert asked == ["ask"]
+        assert all(share.name != "Beta" for share in window._share_store.shares())
+
+    def test_a_rejected_key_creates_nothing(self, window, settings, tmp_path, monkeypatch):
+        _configure(window, tmp_path)
+        self._server_mode(window, settings)
+        monkeypatch.setattr(window, "_start_share_probe", lambda *, provision: None)
+        warned: list[str] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.shares.show_warning",
+            lambda _parent, *, title, text: warned.append(text),
+        )
+        created: list[bool] = []
+
+        window._create_share("Beta", str(tmp_path / "beta"), on_done=created.append)
+        window._on_share_access_outcome(ProbeOutcome(False, 401, reason="unauthorized"))
+
+        assert warned == [probe_reason_text("unauthorized")]
+        assert created == [False]
+        assert all(share.name != "Beta" for share in window._share_store.shares())

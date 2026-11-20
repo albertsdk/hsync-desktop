@@ -11,13 +11,11 @@ instead of saving silently.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from PySide6.QtWidgets import QDialogButtonBox
 
 import hsync_desktop.settings.dialog as settings_dialog
-from hsync_desktop.engine import ProbeOutcome, ServerProbeResult
+from hsync_desktop.engine import ProbeOutcome, ShareTrust
 from hsync_desktop.i18n import tr
 from hsync_desktop.probe_messages import probe_reason_text
 
@@ -57,91 +55,65 @@ def _choice_box(monkeypatch, choice: int) -> list[str]:
 
 
 class TestWhenTheCheckRuns:
-    def test_an_unchanged_verified_bucket_needs_no_check(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "team")
-        settings.setValue("sync/bucket_verified", "team")
-        server_dialog.bucket.setText("team")
+    """The check confirms a connection the user is entering, nothing else.
+
+    Saving a preference must not touch the network: a share whose bucket was
+    never verified used to be probed on every OK press, so a revoked key (or an
+    unreachable host) made every setting unsavable and each save waited for the
+    probe.
+    """
+
+    def test_an_unedited_connection_is_not_checked(self, server_dialog):
+        server_dialog.save()  # the form is the stored baseline now
 
         assert server_dialog._bucket_probe_job("https://host") is None
 
-    def test_a_share_whose_bucket_was_never_verified_is_checked(self, server_dialog, settings):
-        """A share created by the selector already holds its fresh bucket name.
-
-        Comparing the field with the persisted value alone skipped the check, so
-        the first sync answered 404 and the bucket was never created.
-        """
-        settings.setValue("sync/bucket", "team")
-        settings.setValue("sync/bucket_verified", "")
-        server_dialog.bucket.setText("team")
-
-        assert server_dialog._bucket_probe_job("https://host") is not None
-
-    def test_a_passing_check_marks_the_bucket_verified(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "old")
-        server_dialog.bucket.setText("new")
-        server_dialog._bucket_probe_args = (
-            "https://host",
-            "new",
-            "key",
-            ("none", False, "", None),
-            5.0,
-        )
-
-        server_dialog._on_bucket_probe_done(ProbeOutcome(True, 200))
-
-        assert str(settings.value("sync/bucket_verified", "", str)) == "new"
-        # The marker is what lets the next save skip the check.
-        assert server_dialog._bucket_probe_job("https://host") is None
-
-    def test_editing_a_verified_bucket_clears_the_marker(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "team")
-        settings.setValue("sync/bucket_verified", "team")
+    def test_an_edited_bucket_is_checked(self, server_dialog):
+        server_dialog.save()
         server_dialog.bucket.setText("other")
 
-        server_dialog.save()
-
-        assert str(settings.value("sync/bucket_verified", "", str)) == ""
         assert server_dialog._bucket_probe_job("https://host") is not None
 
-    def test_p2p_mode_never_checks(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "old")
-        server_dialog.bucket.setText("new")
+    def test_an_edited_key_is_checked(self, server_dialog):
+        server_dialog.save()
+        server_dialog.api_key.setText("rotated")
+
+        assert server_dialog._bucket_probe_job("https://host") is not None
+
+    def test_reverting_the_edit_needs_no_check(self, server_dialog):
+        baseline = server_dialog.bucket.text()
+        server_dialog.save()
+        server_dialog.bucket.setText("other")
+        server_dialog.bucket.setText(baseline)
+
+        assert server_dialog._bucket_probe_job("https://host") is None
+
+    def test_p2p_mode_never_checks(self, server_dialog):
         server_dialog.p2p_mode.setChecked(True)
 
         assert server_dialog._bucket_probe_job("https://host") is None
 
-    def test_a_missing_key_skips_the_check(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "old")
-        server_dialog.bucket.setText("new")
+    def test_a_missing_key_skips_the_check(self, server_dialog):
+        server_dialog.save()
         server_dialog.api_key.setText("")
 
         assert server_dialog._bucket_probe_job("https://host") is None
 
-    def test_an_unset_server_skips_the_check(self, server_dialog, settings):
-        settings.setValue("sync/bucket", "old")
+    def test_an_unset_server_skips_the_check(self, server_dialog):
         server_dialog.bucket.setText("new")
 
         assert server_dialog._bucket_probe_job(None) is None
 
-    def test_a_changed_bucket_probes_the_new_name(self, server_dialog, settings, monkeypatch):
-        settings.setValue("sync/bucket", "old")
+    def test_a_changed_bucket_probes_the_new_name(self, server_dialog, monkeypatch):
+        server_dialog.save()
         server_dialog.bucket.setText("new")
         seen: dict[str, object] = {}
 
-        def fake_probe(base_url, bucket, api_key, *, ssl_context, timeout):
+        def fake_check(base_url, bucket, api_key, *, trust, timeout):
             seen.update(base=base_url, bucket=bucket, key=api_key)
-            return ServerProbeResult(True, 200, 1, True), ""
+            return ProbeOutcome(True, 200)
 
-        import ssl
-
-        from hsync_desktop.engine.server_trust_probe import BucketTrust
-
-        monkeypatch.setattr(
-            settings_dialog,
-            "resolve_bucket_trust",
-            lambda **_kwargs: BucketTrust(ssl._create_unverified_context()),
-        )
-        monkeypatch.setattr(settings_dialog, "probe_server_bucket_access", fake_probe)
+        monkeypatch.setattr(settings_dialog, "check_share_access", fake_check)
         job = server_dialog._bucket_probe_job("https://host/")
 
         assert job is not None
@@ -237,35 +209,27 @@ class TestOutcome:
         assert warned == [tr("settings.bucket_probe.quota").replace("{max}", "3")]
         assert _persisted(settings) == "old"
 
-    def test_create_then_commit_creates_and_rechecks(self, server_dialog, settings, monkeypatch):
-        settings.setValue("sync/bucket", "old")
+    def test_create_then_commit_creates_and_rechecks(self, server_dialog, monkeypatch):
         server_dialog.bucket.setText("new")
         server_dialog._bucket_probe_args = (
             "https://host",
             "new",
             "key",
-            ("none", False, "", None),
+            ShareTrust(policy="none"),
             5.0,
-        )
-        calls: list[str] = []
-        monkeypatch.setattr(
-            settings_dialog,
-            "create_server_bucket",
-            lambda *_a, **_k: calls.append("create") or ServerProbeResult(True, 201, 1, True),
-        )
-        monkeypatch.setattr(
-            settings_dialog,
-            "probe_server_bucket_access",
-            lambda *_a, **_k: (ServerProbeResult(True, 200, 1, True), ""),
         )
         started: list = []
         monkeypatch.setattr(server_dialog, "_start_bucket_probe", lambda job: started.append(job))
+        monkeypatch.setattr(
+            settings_dialog,
+            "provision_share_bucket",
+            lambda *_a, **_k: ProbeOutcome(True, 201),
+        )
 
         server_dialog._create_bucket_then_commit()
 
         assert started
-        assert started[0]() == ProbeOutcome(True, 200)
-        assert calls == ["create"]
+        assert started[0]() == ProbeOutcome(True, 201)
 
     def test_an_offline_server_asks_before_saving(self, server_dialog, settings, monkeypatch):
         settings.setValue("sync/bucket", "old")
@@ -292,115 +256,6 @@ class TestOutcome:
         assert _persisted(settings) == "old"
 
 
-class TestThePinFollowsTheCheck:
-    """The store remembers only an identity that was reached and authorised."""
-
-    TRUST_ARGS = ("auto", False, "", "hsync")
-
-    @staticmethod
-    def _needs_pin(monkeypatch, fingerprint: str) -> None:
-        import ssl
-
-        from hsync_desktop.engine.server_trust_probe import BucketTrust
-
-        monkeypatch.setattr(
-            settings_dialog,
-            "resolve_bucket_trust",
-            lambda **_kwargs: BucketTrust(
-                ssl.create_default_context(), fingerprint=fingerprint, needs_pin=True
-            ),
-        )
-
-    def test_a_passing_first_sighting_is_pinned_and_announced(
-        self, server_dialog, settings, monkeypatch
-    ):
-        settings.setValue("sync/bucket", "old")
-        server_dialog.bucket.setText("new")
-        fingerprint = "aa" * 32
-        self._needs_pin(monkeypatch, fingerprint)
-        monkeypatch.setattr(
-            settings_dialog,
-            "probe_server_bucket_access",
-            lambda *_a, **_k: (ServerProbeResult(True, 200, 1, True), ""),
-        )
-        pinned: list[tuple[str, str]] = []
-        monkeypatch.setattr(
-            settings_dialog,
-            "pin_observed_fingerprint",
-            lambda _binary, url, fp: pinned.append((url, fp)) or True,
-        )
-        job = server_dialog._bucket_probe_job("https://host/")
-
-        assert job is not None
-        assert job() == ProbeOutcome(True, 200, fingerprint=fingerprint, pinned=True)
-        # The pin names the endpoint that answered, and is written only now.
-        assert pinned == [("https://host", fingerprint)]
-
-    def test_a_missing_share_leaves_the_store_untouched(self, server_dialog, monkeypatch):
-        fingerprint = "aa" * 32
-        self._needs_pin(monkeypatch, fingerprint)
-        monkeypatch.setattr(
-            settings_dialog,
-            "probe_server_bucket_access",
-            lambda *_a, **_k: (ServerProbeResult(False, 404, 1, True), "share_missing"),
-        )
-        pinned: list[tuple] = []
-        monkeypatch.setattr(
-            settings_dialog,
-            "pin_observed_fingerprint",
-            lambda *args: pinned.append(args) or True,
-        )
-
-        outcome = server_dialog._bucket_probe_outcome(
-            "https://host", "new", "key", self.TRUST_ARGS, 5.0
-        )
-
-        assert outcome.reason == "share_missing"
-        assert outcome.pinned is False
-        assert pinned == []
-
-    def test_a_pin_that_cannot_be_stored_blocks_the_save(self, server_dialog, monkeypatch):
-        from hsync_desktop.engine.server_trust_probe import REASON_TRUST_PIN_FAILED
-
-        fingerprint = "aa" * 32
-        self._needs_pin(monkeypatch, fingerprint)
-        monkeypatch.setattr(
-            settings_dialog,
-            "probe_server_bucket_access",
-            lambda *_a, **_k: (ServerProbeResult(True, 200, 1, True), ""),
-        )
-        monkeypatch.setattr(settings_dialog, "pin_observed_fingerprint", lambda *_a, **_k: False)
-
-        outcome = server_dialog._bucket_probe_outcome(
-            "https://host", "new", "key", self.TRUST_ARGS, 5.0
-        )
-
-        assert outcome.ok is False
-        assert outcome.reason == REASON_TRUST_PIN_FAILED
-        assert outcome.fingerprint == fingerprint
-
-    def test_the_notice_names_the_fingerprint_that_was_written(
-        self, server_dialog, settings, monkeypatch
-    ):
-        settings.setValue("sync/bucket", "old")
-        server_dialog.bucket.setText("new")
-        shown: list[str] = []
-
-        def fake_information(_parent, *, title, text):
-            shown.append(text)
-
-        monkeypatch.setattr(settings_dialog, "show_information", fake_information)
-        fingerprint = "aa" * 32
-
-        server_dialog._on_bucket_probe_done(
-            ProbeOutcome(True, 200, fingerprint=fingerprint, pinned=True)
-        )
-
-        assert shown == [
-            tr("settings.bucket_probe.tofu_saved").replace("{fingerprint}", fingerprint)
-        ]
-
-
 class TestBusyState:
     def test_the_ok_button_reports_the_check_and_is_restored(self, server_dialog):
         box = server_dialog.findChild(QDialogButtonBox)
@@ -422,45 +277,3 @@ class TestBusyState:
         server_dialog._set_commit_busy(True)
 
         assert cancel.isEnabled() is True
-
-
-class TestAnUnrelatedSaveIsNeverGatedByTheServer:
-    """The check confirms a connection the user is entering, not every save.
-
-    A share whose ``sync/bucket_verified`` marker is empty (created by the
-    selector, imported, or unverified after an offline edit) used to be probed on
-    *every* OK press: with a revoked API key nothing could be saved, not even the
-    language. A save that changes no connection field now goes through.
-    """
-
-    def test_a_rejected_key_does_not_block_a_save_that_kept_the_connection(
-        self, server_dialog, settings
-    ):
-        settings.setValue("sync/bucket", "team")
-        settings.setValue("sync/bucket_verified", "")
-        server_dialog.bucket.setText("team")
-        server_dialog.save()  # the form is the stored baseline
-        server_dialog.continuous.setChecked(True)  # an unrelated preference
-
-        saved: list[str] = []
-        server_dialog._commit_continuation = lambda: saved.append("done")
-        with patch.object(settings_dialog, "show_warning") as warning:
-            server_dialog._on_bucket_probe_done(ProbeOutcome(False, 401, reason="unauthorized"))
-
-        warning.assert_not_called()
-        assert saved == ["done"]
-        assert settings.value("sync/continuous", False, bool) is True
-
-    def test_a_rejected_key_still_blocks_a_bucket_the_user_just_typed(
-        self, server_dialog, settings
-    ):
-        server_dialog.bucket.setText("old")
-        server_dialog.save()
-        server_dialog.bucket.setText("new")
-
-        with patch.object(settings_dialog, "show_warning") as warning:
-            server_dialog._on_bucket_probe_done(ProbeOutcome(False, 401, reason="unauthorized"))
-
-        warning.assert_called_once()
-        assert settings.value("sync/bucket", "", str) == "old"
-        assert server_dialog._commit_continuation is None

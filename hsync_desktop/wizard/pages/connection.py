@@ -23,17 +23,17 @@ from PySide6.QtWidgets import (
 from hsync_desktop import autostart
 from hsync_desktop.config import DEFAULT_HTTP_TIMEOUT
 from hsync_desktop.engine import (
-    REASON_QUOTA,
     REASON_UNREACHABLE,
     AsyncProbe,
     ProbeOutcome,
-    create_server_bucket,
+    ShareTrust,
+    check_share_access,
     fetch_rendezvous_fingerprint,
     find_hsync_binary,
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
-    probe_server_bucket_access,
     probe_server_health,
+    provision_share_bucket,
     server_failure_reason,
 )
 from hsync_desktop.engine.server_trust_probe import (
@@ -455,6 +455,17 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
+            if check_bucket:
+                return check_share_access(
+                    base,
+                    bucket,
+                    api_key,
+                    trust=ShareTrust(
+                        policy="auto" if accept_certificate else "chain", binary=binary
+                    ),
+                    timeout=timeout,
+                    pin_first_sighting=False,
+                )
             trust = _resolve_server_trust(
                 base,
                 accept_certificate=accept_certificate,
@@ -470,20 +481,10 @@ class ConnectionPage(WizardPage):
                     fingerprint=trust.fingerprint,
                     reason=trust.reason or REASON_UNREACHABLE,
                 )
-            if not check_bucket:
-                health = probe_server_health(base, ssl_context=trust.ssl_context, timeout=timeout)
-                if health.ok:
-                    return ProbeOutcome(True, health.status, fingerprint=trust.fingerprint)
-                return ProbeOutcome(False, health.status, reason=server_failure_reason(health))
-            result, reason = probe_server_bucket_access(
-                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
-            )
-            if not reason:
-                return ProbeOutcome(True, result.status, fingerprint=trust.fingerprint)
-            # A missing share is a real blocker in both modes: the first upload
-            # never creates it (the listing comes first), so the page offers to
-            # create it instead of promising an implicit one.
-            return ProbeOutcome(False, result.status, reason=reason)
+            health = probe_server_health(base, ssl_context=trust.ssl_context, timeout=timeout)
+            if health.ok:
+                return ProbeOutcome(True, health.status, fingerprint=trust.fingerprint)
+            return ProbeOutcome(False, health.status, reason=server_failure_reason(health))
 
         self._probe.start(job)
 
@@ -513,39 +514,14 @@ class ConnectionPage(WizardPage):
         self._update_test_enabled()
 
         def job() -> ProbeOutcome:
-            trust = _resolve_server_trust(
+            return provision_share_bucket(
                 base,
-                accept_certificate=accept_certificate,
-                binary=binary,
+                bucket,
+                api_key,
+                trust=ShareTrust(policy="auto" if accept_certificate else "chain", binary=binary),
                 timeout=timeout,
+                pin_first_sighting=False,
             )
-            if trust.ssl_context is None:
-                # The creation is an authenticated call: never send the key
-                # without the verified or pinned context.
-                return ProbeOutcome(
-                    False,
-                    None,
-                    fingerprint=trust.fingerprint,
-                    reason=trust.reason or REASON_UNREACHABLE,
-                )
-            created = create_server_bucket(
-                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
-            )
-            if not created.ok:
-                reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
-                return ProbeOutcome(
-                    False,
-                    created.status,
-                    reason=reason,
-                    limit=created.limit,
-                    fingerprint=trust.fingerprint,
-                )
-            result, reason = probe_server_bucket_access(
-                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
-            )
-            if not reason:
-                return ProbeOutcome(True, result.status, fingerprint=trust.fingerprint)
-            return ProbeOutcome(False, result.status, reason=reason)
 
         self._probe.start(job)
 

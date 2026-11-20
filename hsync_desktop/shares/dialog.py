@@ -143,15 +143,20 @@ class SharesDialog(QDialog):
 
     def _on_new(self) -> None:
         answer = self._ask_name_and_folder("shares.new.title", "shares.manage.new")
-        if answer and self._host._create_share(*answer):
-            self._refresh()
+        if answer:
+            self._host._create_share(*answer, on_done=self._after_creation)
 
     def _on_duplicate(self) -> None:
         share_id = self._current_id()
         if not share_id:
             return
         answer = self._ask_name_and_folder("shares.duplicate.title", "shares.manage.duplicate")
-        if answer and self._host._duplicate_share(share_id, *answer):
+        if answer:
+            self._host._duplicate_share(share_id, *answer, on_done=self._after_creation)
+
+    def _after_creation(self, created: bool) -> None:
+        """Refresh the list: the host may finish the creation after a server check."""
+        if created:
             self._refresh()
 
     def _on_rename(self) -> None:

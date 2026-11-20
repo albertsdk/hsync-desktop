@@ -19,10 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Saving a preference that is not about the connection (the language, the theme,
-  a sync interval) no longer depends on the server: an unverified share probed
-  the server on every OK press, so a revoked key or an unreachable host made
-  every setting unsavable. The share check now blocks only the connection change
-  it is checking.
+  a sync interval) no longer contacts the server: an unverified share used to be
+  probed on every OK press, so a revoked key or an unreachable host made every
+  setting unsavable and each save waited up to the probe timeout. The share check
+  now runs only when the connection itself was edited, and the
+  `sync/bucket_verified` marker is gone with it.
+- Creating or duplicating a share in server mode now confirms the new bucket
+  before the share is written (offering to create it on the server when it is
+  missing), instead of discovering it on the first sync.
 - The share-check and confirmation boxes reserve room for their title, which a
   short message used to clip in the title bar.
 - **Move to trash** failed with `exit status 127` on hosts whose GLib is newer

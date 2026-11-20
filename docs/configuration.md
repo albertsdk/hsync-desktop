@@ -154,9 +154,11 @@ share, or ask the server administrator to raise it. To use a share owned by
 another account, ask its owner (or the server admin) to add you as a member; with
 no membership the server answers *not found* for a share that exists. Saving a
 preference that is not about the connection (the language, the theme, a sync
-interval) never waits for the server: a rejected key or an unreachable host only
-stops the connection change it was checking, so the rest of the settings always
-save.
+interval) does not contact the server at all: only an edited connection is
+checked, so a rejected key or an unreachable host never stops the rest of the
+settings from being saved. Creating or duplicating a share in server mode checks
+its new bucket the same way before the share is saved, and offers to create it
+on the server when it is missing.
 
 ## General
 

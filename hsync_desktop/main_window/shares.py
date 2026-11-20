@@ -12,6 +12,9 @@ The store keeps every saved share and writes the active one into the flat
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import NamedTuple
+
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import (
@@ -21,11 +24,32 @@ from PySide6.QtWidgets import (
     QToolButton,
 )
 
-from hsync_desktop.config import DEFAULT_SYNC_DIRECTION
+from hsync_desktop.config import (
+    DEFAULT_HTTP_TIMEOUT,
+    DEFAULT_P2P_ENABLED,
+    DEFAULT_SERVER_TRUST,
+    DEFAULT_SYNC_DIRECTION,
+)
+from hsync_desktop.crypto import decrypt_value
+from hsync_desktop.engine import (
+    AsyncProbe,
+    ProbeOutcome,
+    ShareTrust,
+    check_share_access,
+    find_hsync_binary,
+    normalize_server_endpoint,
+    provision_share_bucket,
+)
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.shares import Share, ShareStore
-from hsync_desktop.widgets.dialogs import confirm, dialog_parent
+from hsync_desktop.widgets.dialogs import (
+    build_choice_box,
+    confirm,
+    dialog_parent,
+    show_warning,
+)
 from hsync_desktop.widgets.name_dialog import ask_name
 
 _DIRECTION_KEYS = {
@@ -33,6 +57,19 @@ _DIRECTION_KEYS = {
     "upload-only": "menu.sync.direction.upload_only",
     "download-only": "menu.sync.direction.download_only",
 }
+
+
+class _ShareTarget(NamedTuple):
+    """What a share creation must confirm on the server before the record exists."""
+
+    base_url: str
+    bucket: str
+    api_key: str
+    trust: ShareTrust
+    timeout: float
+
+
+_PendingShare = tuple[str, str, str | None, Callable[[bool], None] | None, _ShareTarget]
 
 
 class SharesMixin:
@@ -43,6 +80,8 @@ class SharesMixin:
     _local_path: str
     _bucket: str
     _log_active_share: str
+    _share_probe: AsyncProbe
+    _pending_share: _PendingShare | None
 
     # ── setup ──────────────────────────────────────────────────────────────
     def _init_shares_ui(self) -> None:
@@ -51,6 +90,11 @@ class SharesMixin:
         self._shares_menu.aboutToShow.connect(self._rebuild_shares_menu)
         self._shares_button.setMenu(self._shares_menu)
         self._log_active_share = self._share_store.active_id()
+        # One probe for the create/duplicate check: the record is written only
+        # once the server confirmed the bucket it will sync into.
+        self._pending_share = None
+        self._share_probe = AsyncProbe(self)
+        self._share_probe.done.connect(self._on_share_access_outcome)
         self._sync_shares_button()
 
     def _sync_shares_button(self) -> None:
@@ -209,7 +253,9 @@ class SharesMixin:
     def _warn(self, message: str) -> None:
         QMessageBox.warning(dialog_parent(self), tr("shares.manage.title"), message)
 
-    def _create_share(self, name: str, folder: str) -> bool:
+    def _create_share(
+        self, name: str, folder: str, *, on_done: Callable[[bool], None] | None = None
+    ) -> bool:
         store = self._share_store
         name = name.strip()
         if not name:
@@ -228,12 +274,19 @@ class SharesMixin:
         # never leaves a share that was created but never activated.
         if not self._confirm_stop_for_switch():
             return False
-        share = store.create_from_active(name, folder)
-        self._switch_to_share(share.id)
-        self._sync_shares_button()
-        return True
+        active = store.active()
+        return self._create_with_access_check(
+            name, folder, dict(active.values) if active is not None else {}, None, on_done
+        )
 
-    def _duplicate_share(self, share_id: str, name: str, folder: str) -> bool:
+    def _duplicate_share(
+        self,
+        share_id: str,
+        name: str,
+        folder: str,
+        *,
+        on_done: Callable[[bool], None] | None = None,
+    ) -> bool:
         store = self._share_store
         name = name.strip()
         if not name:
@@ -250,10 +303,169 @@ class SharesMixin:
             return False
         if not self._confirm_stop_for_switch():
             return False
-        share = store.duplicate(share_id, name, folder)
+        source = store.get(share_id)
+        return self._create_with_access_check(
+            name, folder, dict(source.values) if source is not None else {}, share_id, on_done
+        )
+
+    # ── creation with the share-access check ───────────────────────────────
+    def _create_with_access_check(
+        self,
+        name: str,
+        folder: str,
+        values: dict,
+        source_id: str | None,
+        on_done: Callable[[bool], None] | None,
+    ) -> bool:
+        """Create the share now, or once the server confirmed its new bucket.
+
+        A share created in server mode gets a bucket name the server has never
+        seen (``ShareStore.bucket_for``) — the situation the setup wizard's
+        connection step already handles with "create the share on the server".
+        Asking *before* the record exists is what keeps a refused prompt from
+        leaving a share that can never sync. Returns False only when the request
+        was refused; True means created now or deferred to the check.
+        """
+        target = self._share_target(values, ShareStore.bucket_for(name, folder))
+        if target is None:
+            return self._finish_share_creation(name, folder, source_id, on_done)
+        self._pending_share = (name, folder, source_id, on_done, target)
+        self._start_share_probe(provision=False)
+        return True
+
+    def _share_target(self, values: dict, bucket: str) -> _ShareTarget | None:
+        """What a server-mode share must confirm, or ``None`` in direct mode.
+
+        ``None`` also covers a share with no server or no key: there is nothing
+        to confirm, so the creation stays offline and the first sync reports it.
+        """
+        if bool(values.get("p2p/enabled", DEFAULT_P2P_ENABLED)):
+            return None
+        base = normalize_server_endpoint(str(values.get("connection/server_url", "")).strip())
+        api_key = decrypt_value(str(values.get("connection/api_key", ""))).strip()
+        if base is None or not api_key:
+            return None
+        trust = ShareTrust(
+            policy=str(values.get("connection/server_trust", DEFAULT_SERVER_TRUST)),
+            insecure=bool(values.get("connection/insecure", False)),
+            ca_cert=str(values.get("connection/ca_cert", "")),
+            binary=find_hsync_binary(),
+        )
+        timeout = float(max(5, int(values.get("connection/http_timeout", DEFAULT_HTTP_TIMEOUT))))
+        return _ShareTarget(base, bucket, api_key, trust, timeout)
+
+    def _start_share_probe(self, *, provision: bool) -> None:
+        """Run the share check (or the bucket creation) off the UI thread."""
+        pending = self._pending_share
+        if pending is None:
+            return
+        target = pending[4]
+        operation = provision_share_bucket if provision else check_share_access
+        self._share_probe.start(
+            lambda: operation(
+                target.base_url,
+                target.bucket,
+                target.api_key,
+                trust=target.trust,
+                timeout=target.timeout,
+            )
+        )
+
+    def _on_share_access_outcome(self, outcome: object) -> None:
+        """Finish, offer to create, or drop a share creation the server answered."""
+        pending = self._pending_share
+        if pending is None or not isinstance(outcome, ProbeOutcome):
+            return
+        if outcome.ok:
+            self._finish_share_creation(*pending[:4])
+            return
+        if outcome.reason == "share_missing":
+            self._ask_create_missing_bucket()
+            return
+        if outcome.reason in ("unreachable", "server_error"):
+            # Offline work must stay possible: the bucket may be fine, and a
+            # missing share only shows up on the first sync anyway.
+            if confirm(
+                dialog_parent(self),
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.offline"),
+                with_icons=True,
+            ):
+                self._finish_share_creation(*pending[:4])
+            else:
+                self._drop_pending_share()
+            return
+        if outcome.reason == "create_quota":
+            show_warning(
+                dialog_parent(self),
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
+            )
+        elif outcome.reason == "create_failed":
+            show_warning(
+                dialog_parent(self),
+                title=tr("settings.bucket_probe.title"),
+                text=tr("settings.bucket_probe.create_failed"),
+            )
+        else:
+            show_warning(
+                dialog_parent(self),
+                title=tr("shares.manage.title"),
+                text=probe_reason_text(outcome.reason),
+            )
+        self._drop_pending_share()
+
+    def _ask_create_missing_bucket(self) -> None:
+        """404 means "missing" or "no membership": creating it is the way forward."""
+        box, buttons = build_choice_box(
+            dialog_parent(self),
+            title=tr("settings.bucket_probe.title"),
+            text=tr("settings.bucket_probe.missing"),
+            choices=[
+                (tr("settings.bucket_probe.create"), "list-add"),
+                (tr("settings.bucket_probe.save_anyway"), "dialog-ok"),
+                (tr("action.cancel"), "dialog-cancel"),
+            ],
+            default_index=0,
+        )
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is buttons[0]:
+            self._start_share_probe(provision=True)
+            return
+        pending = self._pending_share
+        if clicked is buttons[1] and pending is not None:
+            self._finish_share_creation(*pending[:4])
+            return
+        self._drop_pending_share()
+
+    def _finish_share_creation(
+        self,
+        name: str,
+        folder: str,
+        source_id: str | None,
+        on_done: Callable[[bool], None] | None,
+    ) -> bool:
+        """Write the record, activate the share and report the outcome."""
+        self._pending_share = None
+        store = self._share_store
+        share = (
+            store.duplicate(source_id, name, folder)
+            if source_id is not None
+            else store.create_from_active(name, folder)
+        )
         self._switch_to_share(share.id)
         self._sync_shares_button()
+        if on_done is not None:
+            on_done(True)
         return True
+
+    def _drop_pending_share(self) -> None:
+        """Forget a creation the user (or the server) refused."""
+        pending = self._pending_share
+        self._pending_share = None
+        if pending is not None and pending[3] is not None:
+            pending[3](False)
 
     def _rename_share(self, share_id: str, name: str) -> bool:
         store = self._share_store

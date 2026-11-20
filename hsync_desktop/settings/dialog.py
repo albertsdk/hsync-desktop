@@ -107,29 +107,26 @@ from hsync_desktop.config import (
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.deletion_risk import forget_acknowledgement
 from hsync_desktop.engine import (
-    REASON_QUOTA,
-    REASON_UNREACHABLE,
     AsyncProbe,
     ProbeOutcome,
     ServerProbeResult,
+    ShareTrust,
     build_probe_ssl_context,
-    create_server_bucket,
+    check_share_access,
     fetch_rendezvous_fingerprint,
     find_hsync_binary,
     get_binary_capabilities_cached,
     normalize_rendezvous_server_endpoints,
     normalize_server_endpoint,
     p2p_secret_mode,
-    probe_server_bucket_access,
     probe_server_health,
+    provision_share_bucket,
     unverified_ssl_context,
 )
 from hsync_desktop.engine.server_trust_probe import (
     REASON_TRUST_CHANGED,
     REASON_TRUST_MISSING,
     REASON_TRUST_PIN_FAILED,
-    pin_observed_fingerprint,
-    resolve_bucket_trust,
 )
 from hsync_desktop.i18n import (
     AUTO_LANGUAGE,
@@ -267,15 +264,10 @@ class SettingsDialog(QDialog):
         self._probe = AsyncProbe(self)
         self._probe.done.connect(self._on_probe_done)
         self._probe_target: str | None = None
-        # (base_url, bucket, api_key, (trust policy, insecure, ca cert, binary),
-        # timeout) of the bucket check in flight, so "create the share on the
-        # server" can reuse exactly what was probed instead of re-reading the form.
-        self._bucket_probe_args: (
-            tuple[str, str, str, tuple[str | None, bool, str, str | None], float] | None
-        ) = None
-        # Bucket the server confirmed in this session (probe or creation). It is
-        # what lets an unchanged, already-verified field skip the next check.
-        self._verified_bucket = ""
+        # (base_url, bucket, api_key, trust, timeout) of the bucket check in
+        # flight, so "create the share on the server" can reuse exactly what was
+        # probed instead of re-reading the form.
+        self._bucket_probe_args: tuple[str, str, str, ShareTrust, float] | None = None
         # The connection fields as the dialog loaded them: a save compares
         # against this to tell a connection the user is entering (which the
         # bucket check gates) from an unrelated preference.
@@ -1285,30 +1277,16 @@ class SettingsDialog(QDialog):
             and self._connection_signature() != self._connection_loaded
         )
 
-    def _refuse_or_save(self, *, title: str, text: str) -> None:
-        """Warn about a failed bucket check and decide whether it vetoes the save.
-
-        The check gates a connection the user is entering right now. For a save
-        that changed no connection field the warning would be noise on every
-        press, so the preferences go through and the bucket stays unverified for
-        the next real edit instead of trapping the dialog.
-        """
-        if self._connection_changed():
-            show_warning(self, title=title, text=text)
-            self._abandon_deferred_commit()
-            return
-        self._finish_deferred_commit()
-
     def _bucket_probe_job(self, normalized_server: str | None) -> Callable[[], ProbeOutcome] | None:
-        """The off-thread check for a bucket that is new to server mode, or ``None``.
+        """The off-thread check for a bucket this session edited, or ``None``.
 
-        Two cases reach this: an edit of the field and a share whose bucket was
-        never confirmed (a share created by the selector gets a fresh bucket name,
-        which the flat keys already hold — so comparing the field with the
-        persisted value would silently skip it). Renaming a share never changes
-        the bucket (``ShareStore.rename`` keeps it). A bucket the account cannot
-        reach answers 404 exactly like a missing one: this check turns that into
-        a decision instead of a first sync that fails on it.
+        The check confirms a connection the user is entering: a save that changes
+        no connection field must not depend on the server. Without that gate a
+        revoked key or an unreachable host made every preference unsavable, and
+        every save paid a round trip (and up to the probe timeout) for it. A
+        bucket the account cannot reach answers 404 exactly like a missing one:
+        this check turns that into a decision instead of a first sync that fails
+        on it.
         """
         if self.p2p_mode.isChecked() or not normalized_server:
             return None
@@ -1316,69 +1294,18 @@ class SettingsDialog(QDialog):
         api_key = self.api_key.text().strip()
         if not bucket or not api_key:
             return None
-        persisted = str(
-            QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket", DEFAULT_BUCKET, str)
-        )
-        verified = str(QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket_verified", "", str))
-        if bucket == persisted.strip() and bucket == verified.strip():
+        if not self._connection_changed():
             return None
         base = normalized_server.rstrip("/")
-        trust_args = (
-            self.server_trust.currentData(),
-            self.insecure.isChecked(),
-            self.ca_cert.text().strip(),
-            find_hsync_binary(),
+        trust = ShareTrust(
+            policy=self.server_trust.currentData(),
+            insecure=self.insecure.isChecked(),
+            ca_cert=self.ca_cert.text().strip(),
+            binary=find_hsync_binary(),
         )
         timeout = float(max(5, self.http_timeout.value()))
-        self._bucket_probe_args = (base, bucket, api_key, trust_args, timeout)
-        return lambda: self._bucket_probe_outcome(base, bucket, api_key, trust_args, timeout)
-
-    @staticmethod
-    def _bucket_probe_outcome(
-        base_url: str,
-        bucket: str,
-        api_key: str,
-        trust_args: tuple[str | None, bool, str, str | None],
-        timeout: float,
-    ) -> ProbeOutcome:
-        """Resolve the TLS trust, then reach the server and check the bucket.
-
-        Runs on the probe thread; the API key only travels over the verified or
-        certificate-confined context from ``resolve_bucket_trust``. The first
-        sighting is pinned here, once the check passed: a save never remembers an
-        identity that could not be used.
-        """
-        policy, insecure, ca_cert, binary = trust_args
-        trust = resolve_bucket_trust(
-            base_url=base_url,
-            policy=policy,
-            insecure=insecure,
-            ca_cert=ca_cert,
-            binary=binary,
-            timeout=timeout,
-        )
-        if trust.reason or trust.ssl_context is None:
-            return ProbeOutcome(
-                False,
-                None,
-                fingerprint=trust.fingerprint,
-                reason=trust.reason or REASON_UNREACHABLE,
-            )
-        result, reason = probe_server_bucket_access(
-            base_url, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
-        )
-        if reason:
-            return ProbeOutcome(False, result.status, fingerprint=trust.fingerprint, reason=reason)
-        if trust.needs_pin and not pin_observed_fingerprint(binary, base_url, trust.fingerprint):
-            return ProbeOutcome(
-                False,
-                result.status,
-                fingerprint=trust.fingerprint,
-                reason=REASON_TRUST_PIN_FAILED,
-            )
-        return ProbeOutcome(
-            True, result.status, fingerprint=trust.fingerprint, pinned=trust.needs_pin
-        )
+        self._bucket_probe_args = (base, bucket, api_key, trust, timeout)
+        return lambda: check_share_access(base, bucket, api_key, trust=trust, timeout=timeout)
 
     def _start_bucket_probe(self, job: Callable[[], ProbeOutcome]) -> None:
         """Run the bucket check, gating the OK button instead of the test ones."""
@@ -1405,7 +1332,6 @@ class SettingsDialog(QDialog):
         """Finish, confirm or veto a save whose bucket needed the server."""
         self._set_commit_busy(False)
         if outcome.ok:
-            self._mark_bucket_verified()
             if outcome.pinned:
                 show_information(
                     self,
@@ -1421,12 +1347,14 @@ class SettingsDialog(QDialog):
             REASON_TRUST_CHANGED,
             REASON_TRUST_PIN_FAILED,
         ):
-            self._refuse_or_save(
+            show_warning(
+                self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr(f"settings.bucket_probe.{outcome.reason}").replace(
                     "{fingerprint}", outcome.fingerprint
                 ),
             )
+            self._abandon_deferred_commit()
             return
         if outcome.reason == "share_missing":
             # 404 is ambiguous by design: missing *or* no membership. Creating it
@@ -1456,22 +1384,24 @@ class SettingsDialog(QDialog):
         if outcome.reason == "create_quota":
             # The account owns as many shares as the server allows: only deleting
             # one (or raising the cap) can help, so name the limit.
-            self._refuse_or_save(
+            show_warning(
+                self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr("settings.bucket_probe.quota").replace("{max}", str(outcome.limit or "")),
             )
+            self._abandon_deferred_commit()
             return
         if outcome.reason == "create_failed":
-            self._refuse_or_save(
+            show_warning(
+                self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr("settings.bucket_probe.create_failed"),
             )
+            self._abandon_deferred_commit()
             return
         if outcome.reason in ("unreachable", "server_error"):
-            # Offline work must stay possible: the bucket may be fine. Only a
-            # connection the user is entering right now asks; an unrelated save
-            # goes through without a prompt.
-            if not self._connection_changed() or confirm(
+            # Offline work must stay possible: the bucket may be fine.
+            if confirm(
                 self,
                 title=tr("settings.bucket_probe.title"),
                 text=tr("settings.bucket_probe.offline"),
@@ -1481,21 +1411,9 @@ class SettingsDialog(QDialog):
             else:
                 self._abandon_deferred_commit()
             return
-        # A rejected key or a malformed name: a connection the user is entering
-        # is not saved; an unrelated save goes through (the bucket stays
-        # unverified, so the next connection edit checks it again).
-        self._refuse_or_save(title=tr("settings.title"), text=probe_reason_text(outcome.reason))
-
-    def _mark_bucket_verified(self) -> None:
-        """Record the bucket the server just confirmed for this share.
-
-        ``save`` persists it as ``sync/bucket_verified``, which the share record
-        picks up right after — that marker is what lets the next save skip the
-        check instead of asking again.
-        """
-        args = self._bucket_probe_args
-        if args is not None:
-            self._verified_bucket = args[1]
+        # A rejected key or a malformed name: nothing is saved.
+        show_warning(self, title=tr("settings.title"), text=probe_reason_text(outcome.reason))
+        self._abandon_deferred_commit()
 
     def _create_bucket_then_commit(self) -> None:
         """Create the share on the server, then save once the re-check passes.
@@ -1508,36 +1426,10 @@ class SettingsDialog(QDialog):
         if args is None:
             self._abandon_deferred_commit()
             return
-        base, bucket, api_key, trust_args, timeout = args
-
-        def job() -> ProbeOutcome:
-            policy, insecure, ca_cert, binary = trust_args
-            trust = resolve_bucket_trust(
-                base_url=base,
-                policy=policy,
-                insecure=insecure,
-                ca_cert=ca_cert,
-                binary=binary,
-                timeout=timeout,
-            )
-            if trust.reason or trust.ssl_context is None:
-                return ProbeOutcome(
-                    False,
-                    None,
-                    fingerprint=trust.fingerprint,
-                    reason=trust.reason or REASON_UNREACHABLE,
-                )
-            created = create_server_bucket(
-                base, bucket, api_key, ssl_context=trust.ssl_context, timeout=timeout
-            )
-            if not created.ok:
-                # A quota refusal is actionable (delete a share or raise the cap),
-                # so it keeps its own reason and the server's limit.
-                reason = "create_quota" if created.reason == REASON_QUOTA else "create_failed"
-                return ProbeOutcome(False, created.status, reason=reason, limit=created.limit)
-            return self._bucket_probe_outcome(base, bucket, api_key, trust_args, timeout)
-
-        self._start_bucket_probe(job)
+        base, bucket, api_key, trust, timeout = args
+        self._start_bucket_probe(
+            lambda: provision_share_bucket(base, bucket, api_key, trust=trust, timeout=timeout)
+        )
 
     def _finish_deferred_commit(self) -> None:
         """Persist the already-validated settings and run the caller's continuation."""
@@ -1862,18 +1754,7 @@ class SettingsDialog(QDialog):
         s.setValue("connection/ca_cert", self.ca_cert.text())
         s.setValue("connection/server_trust", self.server_trust.currentData())
         s.setValue("connection/http_timeout", self.http_timeout.value())
-        bucket = self.bucket.text().strip()
-        s.setValue("sync/bucket", bucket)
-        # The marker survives only while the field still names the bucket the
-        # server confirmed: a name edited without a passing check (an offline
-        # "save anyway") is unverified again and gets checked next time.
-        verified = (
-            self._verified_bucket
-            or str(
-                QSettings(SETTINGS_ORG, SETTINGS_APP).value("sync/bucket_verified", "", str)
-            ).strip()
-        )
-        s.setValue("sync/bucket_verified", bucket if verified == bucket else "")
+        s.setValue("sync/bucket", self.bucket.text().strip())
         s.setValue("sync/continuous", self.continuous.isChecked())
         self._normalize_resync()
         s.setValue("sync/resync", self.resync.value())

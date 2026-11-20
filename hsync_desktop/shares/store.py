@@ -224,7 +224,8 @@ class ShareStore:
 
     # ── CRUD ────────────────────────────────────────────────────────────────
     @staticmethod
-    def _bucket_for(name: str, folder: str) -> str:
+    def bucket_for(name: str, folder: str) -> str:
+        """The bucket a new share created from *name*/*folder* will sync into."""
         return default_share_name(name.strip() or folder or "")
 
     def create_from_active(self, name: str, folder: str) -> Share:
@@ -244,10 +245,7 @@ class ShareStore:
             source = next((s for s in book.shares if s.id == book.active), None)
         values = copy.deepcopy(source.values) if source is not None else self._capture()
         values["path/local"] = folder
-        values["sync/bucket"] = self._bucket_for(name, folder)
-        # A fresh name is a fresh bucket: it has never been confirmed on the
-        # server, so Settings must check (and offer to create) it.
-        values["sync/bucket_verified"] = ""
+        values["sync/bucket"] = self.bucket_for(name, folder)
         share = Share(id=uuid.uuid4().hex, name=name.strip(), values=values)
         book.shares.append(share)
         self._write(book)
@@ -267,10 +265,7 @@ class ShareStore:
                 raise KeyError(share_id)
         values = copy.deepcopy(source.values)
         values["path/local"] = folder
-        values["sync/bucket"] = self._bucket_for(name, folder)
-        # Same rule as ``create_from_active``: the copy gets a new bucket name,
-        # which the server has never confirmed.
-        values["sync/bucket_verified"] = ""
+        values["sync/bucket"] = self.bucket_for(name, folder)
         share = Share(id=uuid.uuid4().hex, name=name.strip(), values=values)
         book.shares.append(share)
         self._write(book)
