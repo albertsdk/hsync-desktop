@@ -930,6 +930,51 @@ class TestOptionalColumns:
         assert f"{tr('detail.to_upload')}: 2" in tooltip
         assert f"{tr('detail.to_download')}: 1" in tooltip
 
+    def test_a_nested_folder_verdict_does_not_reach_its_parent(self, qtbot):
+        """A folder is described by its children, not by its own stale verdict.
+
+        A comparison can store a pending verdict on a folder that was empty when
+        it was read (a copy fills it a moment later). Aggregating that row into
+        its parent made every ancestor read "To sync" with all of its files
+        synced.
+        """
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.set_connected(True)
+        for filepath, status in (
+            ("album/", TransferStatus.TO_DOWNLOAD),
+            ("album/track.txt", TransferStatus.SYNCED),
+            ("album/sub/", TransferStatus.TO_DOWNLOAD),
+            ("album/sub/deep.txt", TransferStatus.SYNCED),
+        ):
+            table.add_transfer(
+                FileTransfer(filepath=filepath, direction="—", size=10, status=status)
+            )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.synced")
+
+    def test_an_empty_folder_verdict_still_reaches_its_parent(self, qtbot):
+        """A leaf folder has no children: its own verdict is the only one."""
+        from hsync_desktop.file_panel import transfer_table as tt
+        from hsync_desktop.i18n import tr
+
+        table = self._table(qtbot)
+        table.set_connected(True)
+        for filepath, status in (
+            ("album/", TransferStatus.SYNCED),
+            ("album/track.txt", TransferStatus.SYNCED),
+            ("album/empty/", TransferStatus.TO_UPLOAD),
+        ):
+            table.add_transfer(
+                FileTransfer(filepath=filepath, direction="—", size=10, status=status)
+            )
+        table.refresh_view()
+
+        assert _cell_text(table, 0, tt.COL_STATUS) == tr("folder.status.to_sync")
+
     def test_folder_shows_the_aggregate_speed_of_its_children(self, qtbot):
         """The Speed column aggregates the in-flight children's rates."""
         from hsync_desktop.file_panel import transfer_table as tt

@@ -9,7 +9,7 @@ import os
 import platform
 import shutil
 import subprocess
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import replace
 from pathlib import Path
 from time import localtime, strftime, time
@@ -1711,12 +1711,20 @@ class FileTransferTable(QTableView):
         self.pending_scope_changed.emit(enabled)
 
     def _get_items_at_current_level(self) -> list[tuple[str, FileTransfer | None, dict]]:
-        """Get items to display at the current navigation level."""
+        """Get items to display at the current navigation level.
+
+        ``nested_dirs`` collects every directory that holds a descendant row: a
+        folder row is described by the rows under it, so its own status must not
+        be aggregated into its parent (a comparison's stale verdict would outvote
+        every synced file). Only a leaf folder — an empty one, which has no
+        children to describe it — carries a verdict of its own.
+        """
         prefix = f"{self._current_path}/" if self._current_path else ""
         prefix_len = len(prefix)
 
         items: dict[str, tuple[FileTransfer | None, dict]] = {}
         folder_files: dict[str, list[FileTransfer]] = {}
+        nested_dirs: set[str] = set()
 
         for filepath, transfer in self._transfers.items():
             if prefix and not filepath.startswith(prefix):
@@ -1729,6 +1737,12 @@ class FileTransferTable(QTableView):
             if not self._show_hidden and head.startswith("."):
                 # Dot-prefixed item: hidden by name, together with its subtree.
                 continue
+            # Every ancestor of this row holds it (the row itself is a parent
+            # only when something lives below it).
+            parent, parent_sep, _tail = remainder_clean.rpartition("/")
+            while parent_sep:
+                nested_dirs.add(f"{prefix}{parent}")
+                parent, parent_sep, _tail = parent.rpartition("/")
             if sep:
                 # The folder row exists even when every child is view-hidden;
                 # only visible children contribute to its counts and size.
@@ -1739,7 +1753,7 @@ class FileTransferTable(QTableView):
                 items[head] = (transfer, {})
 
         for folder_name, files in folder_files.items():
-            folder_data = self._aggregate_folder(files)
+            folder_data = self._aggregate_folder(files, nested_dirs=nested_dirs)
             if folder_name in items:
                 existing_transfer, _ = items[folder_name]
                 items[folder_name] = (existing_transfer, folder_data)
@@ -1754,8 +1768,17 @@ class FileTransferTable(QTableView):
         sorted_items = sorted(items.items(), key=sort_key)
         return [(name, t, fd) for name, (t, fd) in sorted_items]
 
-    def _aggregate_folder(self, files: list[FileTransfer]) -> dict:
-        """Aggregate data for a folder from its contained files."""
+    def _aggregate_folder(
+        self, files: list[FileTransfer], *, nested_dirs: Collection[str] = frozenset()
+    ) -> dict:
+        """Aggregate data for a folder from its contained files.
+
+        ``nested_dirs`` names the folders that have rows under them (see
+        ``_get_items_at_current_level``): their own status is a verdict about the
+        directory, not about the content, and only their children may speak for
+        them. A leaf (empty) folder has no children, so its own status is the
+        only description it has and stays in the aggregate.
+        """
         count = len(files)
         total_size = 0
         size_bytes = 0
@@ -1773,7 +1796,11 @@ class FileTransferTable(QTableView):
         }
 
         for f in files:
-            if not f.filepath.endswith("/"):
+            is_folder = f.filepath.endswith("/")
+            max_mtime = max(max_mtime, f.mtime)
+            if is_folder and f.filepath.rstrip("/") in nested_dirs:
+                continue
+            if not is_folder:
                 # On-disk size for the Size column/properties; ``total_size``
                 # below is the progress scale (wire/compressed while in flight).
                 size_bytes += max(0, f.size)
@@ -1782,7 +1809,6 @@ class FileTransferTable(QTableView):
                 if f.total_bytes > 0:
                     total_size += f.total_bytes
                     total_transferred += f.bytes_transferred
-            max_mtime = max(max_mtime, f.mtime)
             p = _STATUS_PRIORITY.get(f.status, 100)
             status_priority = min(status_priority, p)
             if f.status is TransferStatus.UPLOADING:

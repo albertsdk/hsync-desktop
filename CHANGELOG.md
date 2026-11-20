@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Settings window no longer truncates a localized action button: the content
   column widens past its reading width when a label needs it (a large system
   font, as on Windows), and the button pair unfolds whenever the screen allows.
+- A folder row is described by its children: a pending verdict the engine stored
+  on a folder that has content no longer makes the folder and every ancestor read
+  "To sync" (`hsync_desktop/file_panel/transfer_table.py::FileTransferTable._aggregate_folder`).
 
 ## [1.1.2] - 2026-11-12
 
