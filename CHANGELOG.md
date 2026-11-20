@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A comparison that overlaps a transfer no longer leaves the just-received file
+  at "To Download" (100% progress) or an empty folder at "To Sync": a verdict
+  from the comparison snapshot cannot downgrade a path a terminal event already
+  settled, and the plan counters/summary no longer count it.
 - Saving a preference that is not about the connection (the language, the theme,
   a sync interval) no longer contacts the server: an unverified share used to be
   probed on every OK press, so a revoked key or an unreachable host made every

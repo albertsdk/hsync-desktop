@@ -76,6 +76,38 @@ class TestPlanModel:
         assert stats.renames == [PreviewItem("rename", "new.bin", src="old.bin")]
         assert stats.truncated_deletes() == 0
 
+    def test_retiring_a_transfer_keeps_the_counters_and_list_honest(self):
+        stats = PreviewStats()
+        stats.record_transfer("download", "a.bin", 10)
+        stats.record_transfer("download", "b.bin", 20)
+
+        stats.retire_verdict("to_download", "a.bin", 10)
+
+        assert (stats.to_download, stats.download_size) == (1, 20)
+        assert [item.path for item in stats.largest] == ["b.bin"]
+
+    def test_retiring_a_transfer_outside_the_largest_list_still_balances_it(self):
+        stats = PreviewStats()
+        for index in range(LARGEST_CAP + 1):
+            stats.record_transfer("upload", f"f{index}", index + 1)
+
+        stats.retire_verdict("to_upload", "f0", 1)
+
+        assert stats.to_upload == LARGEST_CAP
+        assert stats.upload_size == sum(range(2, LARGEST_CAP + 2))
+
+    def test_retiring_deletes_and_renames_drops_their_details(self):
+        stats = PreviewStats()
+        stats.record_delete("gone.bin", 12)
+        stats.record_rename("old.bin", "new.bin")
+
+        stats.retire_verdict("to_delete", "gone.bin", 12)
+        stats.retire_verdict("to_rename", "old.bin", 0)
+
+        assert (stats.to_delete, stats.delete_size) == (0, 0)
+        assert stats.deletes == []
+        assert (stats.to_rename, stats.renames) == (0, [])
+
     def test_the_detail_lists_are_bounded_but_the_counts_are_exact(self):
         stats = PreviewStats()
         for index in range(DETAIL_CAP + 3):
