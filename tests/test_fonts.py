@@ -11,6 +11,7 @@ import pytest
 from PySide6.QtGui import QFont, QFontDatabase
 
 import hsync_desktop.fonts as fonts
+from hsync_desktop import host_env
 
 
 class TestParsePangoFont:
@@ -51,13 +52,13 @@ class TestParseKdeFont:
 
 class TestHostEnv:
     def test_bundled_library_overrides_are_removed(self, monkeypatch):
-        for key in fonts._LIBRARY_ENV_KEYS:
+        for key in host_env.LIBRARY_ENV_KEYS:
             monkeypatch.setenv(key, "/bundled")
         monkeypatch.setenv("HOME", "/home/probe")
 
-        env = fonts._host_env()
+        env = host_env.host_env()
 
-        for key in fonts._LIBRARY_ENV_KEYS:
+        for key in host_env.LIBRARY_ENV_KEYS:
             assert key not in env
         assert env["HOME"] == "/home/probe"
 

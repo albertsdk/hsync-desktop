@@ -112,15 +112,20 @@ _compute_shlib_depends() {
 
 # Write the Depends: line of the staged DEBIAN/control from what the frozen
 # payload actually needs at run time: the bootloader's shared-library deps
-# (dpkg-shlibdeps, e.g. libc6/zlib1g, which carry version constraints) plus the
-# external libraries the bundled payload links but does not ship. Replaces the
-# previous hand-maintained list.
+# (dpkg-shlibdeps, e.g. libc6/zlib1g, which carry version constraints), the
+# external libraries the bundled payload links but does not ship, and the host
+# tools it execs without linking against them. Replaces the previous
+# hand-maintained list.
 # $1 = stage_dir
 _inject_shlib_depends() {
     local stage_dir="$1"
     local shlibs runtime entry
     shlibs="$(_compute_shlib_depends "${stage_dir}")"
     runtime="$(_compute_runtime_depends "${stage_dir}")"
+    # Host tools the payload spawns but never links against, so
+    # _compute_runtime_depends cannot see them: the file panel moves an entry to
+    # the desktop trash with ``gio trash`` (libglib2.0-bin).
+    runtime="${runtime:+${runtime}, }libglib2.0-bin"
 
     local -a names=()
     local -a parts=()

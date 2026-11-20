@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Move to trash** failed with `exit status 127` on hosts whose GLib is newer
+  than the bundled one; the helper now runs with the library overrides stripped.
 - Windows: a configured P2P/API key now reaches the client and the structured
   events reach the GUI — secrets travel through the process environment and
   events through the child's stderr — instead of the keyless-P2P startup failure

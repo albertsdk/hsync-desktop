@@ -18,6 +18,7 @@ from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QAbstractTableModel,
     QByteArray,
+    QFile,
     QItemSelectionModel,
     QModelIndex,
     QMutex,
@@ -89,6 +90,7 @@ from hsync_desktop.file_panel.utils import (
     folder_count_text,
     format_mtime,
 )
+from hsync_desktop.host_env import host_env
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.subprocess_utils import no_console_kwargs
@@ -271,6 +273,20 @@ def row_is_change(transfer: FileTransfer | None) -> bool:
     the button can never disagree with the list it controls.
     """
     return transfer is not None and transfer.status not in RESTING_STATUSES
+
+
+def _trash_error(exc: subprocess.CalledProcessError) -> str:
+    """The helper's own stderr line for a failed move, else the exit status.
+
+    ``str(CalledProcessError)`` only reports ``returned non-zero exit status N``,
+    which tells the user nothing actionable; ``gio`` explains the failure on
+    stderr (a locked path, a missing trash directory).
+    """
+    stderr = exc.stderr or ""
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode(errors="replace")
+    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    return lines[-1] if lines else str(exc)
 
 
 class FileTransferModel(QAbstractTableModel):
@@ -2408,19 +2424,34 @@ class FileTransferTable(QTableView):
         if system == "Linux":
             # One invocation: ``gio trash`` accepts several paths and fails as a
             # whole, which is the honest outcome (a partial move would be
-            # indistinguishable from a success).
+            # indistinguishable from a success). It runs with the host
+            # environment: inheriting the bundle's ``LD_LIBRARY_PATH`` makes the
+            # system ``gio`` load the bundled GLib/GIO and die at dynamic-link
+            # time (exit status 127) whenever the host is newer than the bundle.
             paths = [self._absolute_path(transfer) for transfer in allowed]
-            try:
-                subprocess.run(
-                    ["gio", "trash", *paths],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
-            except Exception as exc:
-                failures = [str(exc)]
+            if shutil.which("gio") is None:
+                # Minimal installs carry no GLib tools: fall back to Qt's own
+                # trash implementation, which needs no helper binary.
+                for transfer, path in zip(allowed, paths, strict=True):
+                    if self._move_to_trash(path):
+                        trashed.append(transfer)
+                    else:
+                        failures.append(path)
             else:
-                trashed = allowed
+                try:
+                    subprocess.run(
+                        ["gio", "trash", *paths],
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                        env=host_env(),
+                    )
+                except subprocess.CalledProcessError as exc:
+                    failures = [_trash_error(exc)]
+                except (OSError, subprocess.SubprocessError) as exc:
+                    failures = [str(exc)]
+                else:
+                    trashed = allowed
         else:
             for transfer in allowed:
                 try:
@@ -2441,8 +2472,22 @@ class FileTransferTable(QTableView):
             QMessageBox.warning(self, tr("ctx.error_title"), message)
 
     @staticmethod
+    def _move_to_trash(abs_path: str) -> bool:
+        """Trash one path through Qt (no helper binary, no host libraries).
+
+        Used on Linux when ``gio`` is not installed: Qt implements the
+        freedesktop trash specification itself, so the fallback needs nothing
+        from the host besides the XDG directories every session has.
+        """
+        return bool(QFile.moveToTrash(abs_path))
+
+    @staticmethod
     def _trash_platform(abs_path: str, system: str) -> None:
         """Move one path to the trash on macOS/Windows (Linux uses ``gio``).
+
+        Linux goes through ``gio trash`` (or :meth:`_move_to_trash` when the
+        helper is missing); this path covers the platforms that need a
+        per-file tool.
 
         Windows needs two calls: ``DeleteFile`` refuses a directory, so a folder
         goes through ``DeleteDirectory`` (the old single-target code called
