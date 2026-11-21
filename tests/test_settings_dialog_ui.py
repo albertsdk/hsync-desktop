@@ -620,7 +620,23 @@ class TestActionButtonRows:
     def test_server_verify_button_is_labelled(self, dialog):
         assert dialog.btn_test_connection.text() == tr("settings.test_connection")
 
-    def test_p2p_actions_are_horizontal_when_the_row_fits(self, dialog, qtbot, monkeypatch):
+    @staticmethod
+    def _assert_row_matches_its_room(buttons) -> None:
+        """Side by side when the pair fits the column, stacked when it does not.
+
+        The column is capped, so "the window is roomy" no longer implies the pair
+        fits: Windows' larger metrics stack it at the default font.
+        """
+        parent = buttons[0].parent()
+        assert parent is buttons[1].parent()
+        room = parent.width()
+        needed = sum(button.sizeHint().width() for button in buttons) + parent.layout().spacing()
+        horizontal = parent.layout().direction() == QBoxLayout.Direction.LeftToRight
+        assert horizontal == (needed <= room), (needed, room, horizontal, buttons[0].text())
+        for button in buttons:
+            assert button.width() >= button.sizeHint().width(), button.text()
+
+    def test_p2p_actions_fit_or_stack_with_the_column(self, dialog, qtbot, monkeypatch):
         from PySide6.QtCore import QSize
 
         import hsync_desktop.settings.tab_builders as tab_builders
@@ -632,11 +648,11 @@ class TestActionButtonRows:
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
-        parent = dialog.btn_manage_trusted_keys.parent()
-        assert parent is dialog.btn_test_rendezvous.parent()
-        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
+        self._assert_row_matches_its_room(
+            (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)
+        )
 
-    def test_server_actions_are_horizontal_when_the_row_fits(self, dialog, qtbot, monkeypatch):
+    def test_server_actions_fit_or_stack_with_the_column(self, dialog, qtbot, monkeypatch):
         from PySide6.QtCore import QSize
 
         import hsync_desktop.settings.tab_builders as tab_builders
@@ -648,9 +664,9 @@ class TestActionButtonRows:
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
-        parent = dialog.btn_manage_trusted_keys_server.parent()
-        assert parent is dialog.btn_test_connection.parent()
-        assert parent.layout().direction() == QBoxLayout.Direction.LeftToRight
+        self._assert_row_matches_its_room(
+            (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection)
+        )
 
 
 class TestDisabledDuringSyncVisual:

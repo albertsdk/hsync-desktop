@@ -56,6 +56,7 @@ from hsync_desktop.settings.tab_indices import (
     _GENERAL_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
+from hsync_desktop.settings.tab_layout import _CONTENT_MAX_WIDTH, _CenteredColumn
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
@@ -565,21 +566,80 @@ def _chrome_width(dlg: SettingsDialog, scroll: QScrollArea) -> int:
 
 
 def _content_width(dlg: SettingsDialog) -> int:
-    """Widest tab content plus the scroll chrome, or 0 when not measurable."""
-    widest = 0
+    """Widest tab column plus the scroll chrome, or 0 when not measurable.
+
+    Each column reports ``min(content hint, measure)``, and the measure itself is
+    a floor: a page whose content happens to prefer less must not open the dialog
+    narrower than the column every other tab uses.
+    """
+    for index in range(dlg._tabs.count()):
+        page = dlg._tabs.widget(index)
+        layout = page.layout() if page is not None else None
+        if layout is not None:
+            layout.activate()
+    widest = max(
+        (
+            max(column.sizeHint().width(), column.max_width)
+            for column in dlg.findChildren(_CenteredColumn)
+        ),
+        default=0,
+    )
+    return widest + _CONTENT_WIDTH_MARGIN if widest else 0
+
+
+def _horizontal_insets(widget: QWidget) -> int:
+    """Horizontal margins between *widget* and the column that holds it.
+
+    Sums the layout margins on the way up, plus the frame of every framed
+    container (a group box border is spacing the layout margins do not report).
+    """
+    insets = 0
+    parent = widget.parentWidget()
+    while parent is not None and not isinstance(parent, _CenteredColumn):
+        layout = parent.layout()
+        if layout is not None:
+            margins = layout.contentsMargins()
+            insets += margins.left() + margins.right()
+        if isinstance(parent, QFrame):
+            insets += 2 * parent.frameWidth()
+        parent = parent.parentWidget()
+    return insets
+
+
+def _action_button_floor(dlg: SettingsDialog) -> int:
+    """Width the reading column needs to seat the widest action button whole."""
+    floor = 0
     for index in range(dlg._tabs.count()):
         page = dlg._tabs.widget(index)
         if page is None:
             continue
-        layout = page.layout()
-        if layout is not None:
-            layout.activate()
-        scroll = page.findChild(QScrollArea)
-        content = scroll.widget() if scroll is not None else None
-        if content is None:
-            continue
-        widest = max(widest, content.sizeHint().width())
-    return widest + _CONTENT_WIDTH_MARGIN if widest else 0
+        for button in page.findChildren(QPushButton):
+            # A hidden half (the inactive connection mode, the advanced groups
+            # while the toggle is off) does not have to fit.
+            if button.isVisibleTo(page):
+                floor = max(floor, button.sizeHint().width() + _horizontal_insets(button))
+    return floor
+
+
+# Style frames, form spacing and the spanning-row inset are not all reported as
+# layout margins: keep a few pixels so a label that drives the measure never
+# lands on the edge (the 200% Russian caption did, by six).
+_COLUMN_FLOOR_SLACK = 8
+
+
+def fit_column_width(dlg: SettingsDialog) -> None:
+    """Set every page's reading column to the one measure the content needs.
+
+    The measure is ``_CONTENT_MAX_WIDTH`` unless an action button is wider: a
+    ``QPushButton`` clips its label instead of eliding it and cannot wrap, so a
+    long translation — or another platform's larger system metrics, which is how
+    the Windows build exposed it — leaves it no way to adapt. The column takes
+    the button's width and *every* tab follows, so the pages stay aligned;
+    a pair of buttons stays ``_ActionRow``'s business, which stacks instead.
+    """
+    cap = max(_CONTENT_MAX_WIDTH, _action_button_floor(dlg) + _COLUMN_FLOOR_SLACK)
+    for column in dlg.findChildren(_CenteredColumn):
+        column.set_max_width(cap)
 
 
 def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
@@ -592,6 +652,7 @@ def finalize_size(dlg: SettingsDialog, *, allow_shrink: bool = True) -> None:
     """
 
     hint = dlg.sizeHint()
+    fit_column_width(dlg)
     content_width = _content_width(dlg)
     available = _available_screen_size(dlg)
     if available is None:
@@ -624,10 +685,14 @@ def fit_current_tab(dlg: SettingsDialog) -> None:
     """
     if not dlg.isVisible() or dlg.isMaximized():
         return
+    fit_column_width(dlg)
     page = dlg._tabs.currentWidget()
-    scroll = page.findChild(QScrollArea) if page is not None else None
-    content = scroll.widget() if scroll is not None else None
-    if scroll is None or content is None:
+    column = page.findChild(_CenteredColumn) if page is not None else None
+    if column is None:
+        return
+    viewport = column.parentWidget()
+    scroll = viewport.parentWidget() if viewport is not None else None
+    if not isinstance(scroll, QScrollArea):
         return
     layout = dlg.layout()
     if layout is not None:
@@ -637,7 +702,7 @@ def fit_current_tab(dlg: SettingsDialog) -> None:
     limit_h = int(available.height() * _SCREEN_SIZE_FRACTION) if available is not None else None
 
     # Width first: a wider viewport can change the wrapped height.
-    needed_w = content.sizeHint().width() + _chrome_width(dlg, scroll)
+    needed_w = max(column.sizeHint().width(), column.max_width) + _chrome_width(dlg, scroll)
     target_w = min(needed_w, limit_w) if limit_w is not None else needed_w
     if target_w > dlg.width():
         dlg.resize(target_w, dlg.height())

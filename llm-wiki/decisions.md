@@ -245,7 +245,10 @@ disable unsupported controls) is realized in
   the rows adapt instead — captions wrap, single actions span both columns, a
   button pair stacks — because a cap that yields to the widest label makes one
   tab stretch while the others stay centred, and which tab that is depends on the
-  locale and the system font. Captions carry no trailing colon (the label column separates them; only
+  locale and the system font. The measure does follow an *action button* wider
+  than it (`tab_builders.fit_column_width`): a button neither wraps nor elides,
+  and Windows' larger system metrics make that reachable at the default font.
+  Captions carry no trailing colon (the label column separates them; only
   key/value rows such as the detail panel or the status bar keep one), matching
   the WD OS5 web UI and the modern desktop convention. Switches are kept although
   a checkbox matches a Save/Cancel dialog better (NN/g: a toggle switch should

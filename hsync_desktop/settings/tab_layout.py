@@ -44,8 +44,9 @@ if TYPE_CHECKING:
 
 # Desktop settings pages never stretch a form across the whole window: the
 # content keeps one bounded column, centred in the page, so controls stay a
-# readable width whatever the window size. 640 px fits the widest shipped
-# translation with room for a two-column form.
+# readable width whatever the window size. This is the measure every tab shares;
+# ``tab_builders.fit_column_width`` raises it for the one thing that cannot
+# reflow inside it — an action button, whose label neither wraps nor elides.
 _CONTENT_MAX_WIDTH = 640
 # ``tab_builders.finalize_size`` keeps the dialog at least 640 px wide; the mode
 # option sentences must wrap inside that page instead of asking for more. The cap
@@ -92,10 +93,26 @@ class _CenteredColumn(QWidget):
         """The column cap, whatever the content asks for."""
         return self._max_width
 
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
-        super().resizeEvent(event)
+    @property
+    def max_width(self) -> int:
+        """The measure this column was given (``tab_builders.fit_column_width``)."""
+        return self._max_width
+
+    def set_max_width(self, width: int) -> None:
+        """Change the measure (``tab_builders.fit_column_width`` owns the value)."""
+        if width == self._max_width:
+            return
+        self._max_width = width
+        self._apply_child_geometry()
+        self.updateGeometry()
+
+    def _apply_child_geometry(self) -> None:
         width = min(self.width(), self._max_child_width())
         self._child.setGeometry((self.width() - width) // 2, 0, width, self.height())
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        super().resizeEvent(event)
+        self._apply_child_geometry()
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt override)
         hint = self._child.sizeHint()

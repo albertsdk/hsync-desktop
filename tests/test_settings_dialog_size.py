@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QBoxLayout, QPushButton, QScrollArea, QWidget
 import hsync_desktop.i18n as i18n_module
 import hsync_desktop.settings.tab_builders as tab_builders
 from hsync_desktop.i18n import get_language, set_language
-from hsync_desktop.settings.dialog import _CONNECTION_TAB_INDEX
+from hsync_desktop.settings.dialog import _ADVANCED_TAB_INDEX, _CONNECTION_TAB_INDEX
 
 
 def _fresh_dialog(qtbot, monkeypatch, tmp_path):
@@ -28,6 +28,12 @@ def _fresh_dialog(qtbot, monkeypatch, tmp_path):
     dlg = SettingsDialog()
     qtbot.addWidget(dlg)
     return dlg
+
+
+def _column_of(dialog, index) -> QWidget:
+    """The capped column widget of tab *index* (not the wrapper around it)."""
+    wrapper = dialog._tabs.widget(index).findChild(QScrollArea).widget()
+    return wrapper.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)[0]
 
 
 class TestScrollableTabs:
@@ -251,24 +257,19 @@ class TestActionRow:
 
 
 class TestEveryTabKeepsTheReadingColumn:
-    """One bounded measure for every tab; the rows adapt instead of the column.
+    """Every tab shares one measure; the rows adapt instead of the column.
 
     The column used to take its content's size hint as a floor, so the tab whose
     rows asked for more — a large system font, a long translation — stretched
     towards the window edge while the others stayed centred, and the whole
-    dialog grew with it. Labels now wrap and lone buttons span both columns, so
-    the measure holds in every tab and locale; only a pair of action buttons
-    that cannot fit side by side stacks (``form_helpers._ActionRow``).
+    dialog grew with it. Labels now wrap, lone buttons span both columns and a
+    pair that cannot fit side by side stacks (``form_helpers._ActionRow``); the
+    one thing the measure still follows is an action button wider than it, which
+    cannot wrap or elide (``tab_builders.fit_column_width``).
     """
 
     _SCALES = (1.0, 1.25, 1.5)
     _LOCALES = ("en", "it", "de", "pl", "ru", "ja", "zh")
-
-    @staticmethod
-    def _column(dialog, index) -> QWidget:
-        """The capped column widget of tab *index*."""
-        wrapper = dialog._tabs.widget(index).findChild(QScrollArea).widget()
-        return wrapper.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)[0]
 
     def test_every_tab_keeps_the_measure_and_nothing_clips(self, qtbot, monkeypatch, tmp_path):
         from PySide6.QtGui import QFont
@@ -299,10 +300,11 @@ class TestEveryTabKeepsTheReadingColumn:
                         dialog.set_current_tab(index)
                         qtbot.wait(10)
                         assert dialog._tabs.currentIndex() == index, f"tab {index} is hidden"
-                        column = self._column(dialog, index)
+                        column = _column_of(dialog, index)
                         where = f"scale={scale} locale={lang} tab={dialog._tabs.tabText(index)}"
                         wrapper = column.parentWidget()
-                        assert column.width() == min(_CONTENT_MAX_WIDTH, wrapper.width()), where
+                        # The measure is a floor: an uncuttable button may widen it.
+                        assert column.width() >= min(wrapper.width(), _CONTENT_MAX_WIDTH), where
                         widths.append(column.width())
                         for widget in column.findChildren(QWidget):
                             if (
@@ -316,7 +318,6 @@ class TestEveryTabKeepsTheReadingColumn:
                                 f"{where}: {widget.text()!r}"
                             )
                     assert len(set(widths)) == 1, f"scale={scale} locale={lang}: {widths}"
-                    assert widths[0] == _CONTENT_MAX_WIDTH, f"scale={scale} locale={lang}"
         finally:
             app.setFont(base)
             set_language(previous)
@@ -347,8 +348,46 @@ class TestEveryTabKeepsTheReadingColumn:
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
-        assert self._column(dialog, _CONNECTION_TAB_INDEX).width() == _CONTENT_MAX_WIDTH
+        assert _column_of(dialog, _CONNECTION_TAB_INDEX).width() >= _CONTENT_MAX_WIDTH
         assert row.layout().direction() == QBoxLayout.Direction.TopToBottom
+
+
+class TestColumnFitsAnUncuttableControl:
+    """A button cannot wrap or elide, so the measure grows instead of clipping.
+
+    The Windows build runs with larger system metrics: at the default font the
+    Italian "show the deletion-risk warning again" needed 658 px inside the
+    612 px a 640 px column leaves. A longer label reproduces that geometry on
+    every platform, and every tab must keep the same, wider measure.
+    """
+
+    def test_a_long_action_button_widens_every_tab(self, qtbot, monkeypatch, tmp_path):
+        from hsync_desktop.settings.tab_layout import _CONTENT_MAX_WIDTH
+
+        monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
+        dialog = _fresh_dialog(qtbot, monkeypatch, tmp_path)
+        dialog.show_advanced.setChecked(True)
+        dialog.resize(1400, 900)
+        dialog.show()
+        qtbot.waitExposed(dialog)
+
+        button = dialog.btn_deletion_risk_reset
+        button.setText(" ".join([button.text()] * 4))
+        qtbot.wait(10)
+        tab_builders.finalize_size(dialog)
+        qtbot.wait(10)
+
+        widths = []
+        for index in range(dialog._tabs.count()):
+            dialog.set_current_tab(index)
+            qtbot.wait(10)
+            widths.append(_column_of(dialog, index).width())
+        assert len(set(widths)) == 1, widths
+        assert widths[0] > _CONTENT_MAX_WIDTH
+
+        dialog.set_current_tab(_ADVANCED_TAB_INDEX)
+        qtbot.wait(10)
+        assert button.width() >= button.sizeHint().width()
 
 
 class TestPageNeverSqueezesRows:

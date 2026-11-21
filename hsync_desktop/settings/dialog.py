@@ -869,6 +869,9 @@ class SettingsDialog(QDialog):
         # server, so re-evaluate it after the mode-based enable pass.
         self._refresh_no_mdns_enabled()
         self._refresh_rdv_key_warning()
+        # The two halves carry different action buttons, so the reading column
+        # must re-measure against the one now on screen.
+        self._fit_current_tab()
 
     def _set_tab_labels_enabled(
         self, tab_index: int, enabled: bool, exclude: tuple[QWidget, ...] = ()
