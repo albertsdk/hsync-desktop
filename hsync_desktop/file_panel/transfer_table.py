@@ -486,7 +486,7 @@ class FileTransferModel(QAbstractTableModel):
                 return folder_data.get("mtime", 0.0)
             return transfer.mtime if transfer else 0.0
         if column == COL_ETA:
-            eta = transfer.eta_seconds if transfer else None
+            eta = self._row_eta(transfer, folder_data, is_folder)
             return eta if eta is not None else -1.0
         if column == COL_SPEED:
             if is_folder:
@@ -530,7 +530,7 @@ class FileTransferModel(QAbstractTableModel):
             )
             return format_mtime(mtime)
         if col == COL_ETA:
-            return format_duration(transfer.eta_seconds if transfer else None, style="compact")
+            return format_duration(self._row_eta(transfer, folder_data, is_folder), style="compact")
         if col == COL_STATUS:
             return self._row_status(transfer, folder_data, is_folder)[0]
         if col == COL_SPEED:
@@ -671,6 +671,20 @@ class FileTransferModel(QAbstractTableModel):
             if n:
                 parts.append(tr("folder.ops_item").format(operation=tr(label_key), count=n))
         return ", ".join(parts) if parts else None
+
+    @staticmethod
+    def _row_eta(
+        transfer: FileTransfer | None, folder_data: dict | None, is_folder: bool
+    ) -> float | None:
+        """Seconds left for a row: a file's own estimate, a folder's aggregate.
+
+        A folder row is synthetic: its aggregated children carry the samples, so
+        the folder reads the estimate ``_aggregate_folder`` derived from them.
+        """
+        if is_folder:
+            eta = folder_data.get("eta") if folder_data else None
+            return eta if eta is not None and eta > 0 else None
+        return transfer.eta_seconds if transfer else None
 
     @staticmethod
     def _row_progress(
@@ -1838,6 +1852,13 @@ class FileTransferTable(QTableView):
         # Aggregate throughput of the folder's in-flight children
         # (speed_bps is None for anything not transferring).
         speed = sum(f.speed_bps or 0.0 for f in files)
+        # The folder's own arrival estimate: the bytes still to move over the
+        # aggregate rate of the children moving them right now. A folder row is
+        # synthetic (no ``FileTransfer`` of its own), so without this the Time
+        # left column stays empty for every folder — the default view — even
+        # while its status reads "Receiving"/"Sending".
+        remaining = max(0, total_size - total_transferred)
+        eta = remaining / speed if speed > 0 and remaining > 0 else None
 
         return {
             "count": count,
@@ -1848,6 +1869,7 @@ class FileTransferTable(QTableView):
             "status_key": status_key,
             "status_priority": status_priority,
             "speed": speed,
+            "eta": eta,
             # In-flight direction counts: the Direction column and the status
             # label name what the folder is doing (send/receive/both).
             "sending": sending,

@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The "Time left" column is populated on folder rows too: it derives the
+  estimate from the remaining wire bytes and the summed rate of the children in
+  flight (it stayed empty on the default folder view even while the folder read
+  "Sending"/"Receiving").
 - A transfer this device is **sending** shows its in-flight state and a progress
   bar again (first sync, p2p upload and delta): the bundled engine now reports
   the sender's own samples instead of relying on the receiver's delivery echo,

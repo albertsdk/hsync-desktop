@@ -2982,6 +2982,47 @@ class TestLiveTransferProgress:
 
         assert data["progress"] == 100
 
+    def test_a_folder_aggregates_the_time_left_of_its_children(self, qtbot):
+        """The folder row carries an arrival estimate of its own.
+
+        A folder row is synthetic, so the Time left column has nothing to read
+        from a ``FileTransfer``; the aggregate (remaining wire bytes over the
+        summed rate of the moving children) is what the column shows.
+        """
+        table = self._table(qtbot)
+        moving = FileTransfer(filepath="sub/in.bin", direction="↓", size=4000)
+        moving.start_transfer("↓", now=1000.0)
+        moving.progress_total = 4000
+        moving.note_progress(1000, now=1000.0)
+        moving.note_progress(3000, now=1000.5)  # 2000 B in 0.5 s -> 4000 B/s
+        queued = FileTransfer(filepath="sub/next.bin", direction="↓", size=1000)
+
+        data = table._aggregate_folder([moving, queued])
+
+        # 4000 + 1000 bytes to move, 3000 already moved: 2000 left at 4000 B/s.
+        assert data["eta"] == pytest.approx(0.5)
+
+    def test_a_folder_row_shows_a_time_left(self, qtbot):
+        """The default (folder) view shows the column while children move.
+
+        Regression: the column stayed empty for every folder row because only a
+        file's own ``eta_seconds`` was considered, so a sync in progress looked
+        like it had no estimate at all.
+        """
+        import time
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot)
+        table.update_transfer_progress("sub/in.bin", 1_000_000, 200_000_000, "download")
+        time.sleep(0.2)
+        table.update_transfer_progress("sub/in.bin", 2_000_000, 200_000_000, "download")
+        table.refresh_view()
+
+        text = _cell_text(table, 0, tt.COL_ETA)
+
+        assert text and text != "0s", text
+
     def test_a_completed_download_shows_the_final_size(self, qtbot):
         from PySide6.QtCore import Qt
 
