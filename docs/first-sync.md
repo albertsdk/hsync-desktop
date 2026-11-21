@@ -55,7 +55,7 @@ The fields depend on the choice you made in step 2:
   also what lets your device in — there is no separate token; see
   [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
-For the two device-to-device choices, **This device should only receive files**
+For the two device-to-device choices, **Receive only (from other devices)**
 turns this computer into a receiver instead of a two-way peer.
 
 The optional block below decides whether sync runs in real time, starts with the

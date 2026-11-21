@@ -80,7 +80,7 @@
        <item row="2" column="1">
         <widget class="QCheckBox" name="continuous">
          <property name="text">
-          <string>Real-time sync</string>
+          <string>Watch for changes (continuous)</string>
          </property>
          <property name="checked">
           <bool>true</bool>
@@ -358,7 +358,7 @@
        <item row="11" column="0">
         <widget class="QLabel" name="lblApiKey">
          <property name="text">
-          <string>API Key</string>
+          <string>API key</string>
          </property>
         </widget>
        </item>

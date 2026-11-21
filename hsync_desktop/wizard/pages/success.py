@@ -119,9 +119,9 @@ class SuccessPage(WizardPage):
             # exactly as the wizard asked for it.
             self._invite_text.setPlainText(
                 tr("wizard.success.invite_text").format(
-                    share_label=tr("wizard.connection.share"),
-                    group_label=tr("wizard.connection.group"),
-                    password_label=tr("wizard.connection.password"),
+                    share_label=tr("settings.bucket"),
+                    group_label=tr("settings.p2p_group"),
+                    password_label=tr("settings.p2p_key"),
                     bucket=draft.bucket,
                     group=draft.p2p_group,
                     password=draft.p2p_key,

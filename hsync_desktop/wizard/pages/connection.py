@@ -148,7 +148,7 @@ class ConnectionPage(WizardPage):
         self.bucket.setPlaceholderText("my-share")
         self.bucket.textChanged.connect(self._on_edit)
         self.bucket.textChanged.connect(self._on_server_edited)
-        common_form.addRow(*self._row("bucket", "wizard.connection.share", self.bucket))
+        common_form.addRow(*self._row("bucket", "settings.bucket", self.bucket))
 
         # Mode-specific sections: one clean form per topology.
         self._stack = QStackedWidget()
@@ -162,15 +162,13 @@ class ConnectionPage(WizardPage):
         self.server_url.setPlaceholderText("https://hsync.example.com:9753")
         self.server_url.textChanged.connect(self._on_edit)
         self.server_url.textChanged.connect(self._on_server_edited)
-        server_form.addRow(
-            *self._row("server_url", "wizard.connection.server_url", self.server_url)
-        )
+        server_form.addRow(*self._row("server_url", "settings.server_url", self.server_url))
 
         self.api_key = SecretField()
         self.api_key.edit.setPlaceholderText("access-key")
         self.api_key.edit.textChanged.connect(self._on_edit)
         self.api_key.edit.textChanged.connect(self._on_server_edited)
-        server_form.addRow(*self._row("api_key", "wizard.connection.api_key", self.api_key))
+        server_form.addRow(*self._row("api_key", "settings.api_key", self.api_key))
 
         self.test_server = QPushButton()
         self.test_server.clicked.connect(self._on_test_server)
@@ -197,7 +195,7 @@ class ConnectionPage(WizardPage):
         for value in _DIRECTIONS:
             self.direction.addItem("", value)
         self.direction.currentIndexChanged.connect(self._on_edit)
-        server_form.addRow(*self._row("direction", "wizard.connection.direction", self.direction))
+        server_form.addRow(*self._row("direction", "settings.sync_direction", self.direction))
 
         self._network_page = QWidget()
         network_form = QFormLayout(self._network_page)
@@ -207,13 +205,13 @@ class ConnectionPage(WizardPage):
         self.group.setValidator(char_class_validator("A-Za-z0-9._-"))
         self.group.setPlaceholderText("my-devices")
         self.group.textChanged.connect(self._on_edit)
-        network_form.addRow(*self._row("p2p_group", "wizard.connection.group", self.group))
+        network_form.addRow(*self._row("p2p_group", "settings.p2p_group", self.group))
 
         self.password = SecretField(allow_regenerate=True)
         self.password.edit.textChanged.connect(self._on_edit)
         if self.password.regenerate is not None:
             self.password.regenerate.clicked.connect(self._on_regenerate)
-        network_form.addRow(*self._row("p2p_key", "wizard.connection.password", self.password))
+        network_form.addRow(*self._row("p2p_key", "settings.p2p_key", self.password))
 
         self.rendezvous_server = QLineEdit()
         self.rendezvous_server.setPlaceholderText("rdv.example.net")
@@ -235,7 +233,7 @@ class ConnectionPage(WizardPage):
         network_form.addRow(
             *self._row(
                 "rendezvous_transport",
-                "wizard.connection.rendezvous_transport",
+                "settings.p2p_rendezvous_transport",
                 self.rendezvous_transport,
             )
         )
@@ -268,7 +266,7 @@ class ConnectionPage(WizardPage):
         self.receive_only = ToggleSwitch()
         self.receive_only.toggled.connect(self._on_edit)
         network_form.addRow(
-            *self._row("receive_only", "wizard.connection.receive_only", self.receive_only)
+            *self._row("receive_only", "settings.sync_direction.download_only", self.receive_only)
         )
 
         self._stack.addWidget(self._server_page)
@@ -283,9 +281,9 @@ class ConnectionPage(WizardPage):
         self.auto_sync: ToggleSwitch
         self.start_at_login: ToggleSwitch
         for attr, key in (
-            ("continuous", "wizard.automation.continuous"),
-            ("auto_sync", "wizard.automation.auto_sync"),
-            ("start_at_login", "wizard.automation.start_at_login"),
+            ("continuous", "settings.watch"),
+            ("auto_sync", "settings.auto_sync"),
+            ("start_at_login", "settings.start_at_login"),
         ):
             switch = ToggleSwitch()
             switch.toggled.connect(self._on_edit)
@@ -450,7 +448,7 @@ class ConnectionPage(WizardPage):
         self._server_verified = False
         self._server_verified_at = ""
         self._active_target = "server"
-        self._set_status(self.server_status, "working", tr("wizard.connection.testing"))
+        self._set_status(self.server_status, "working", tr("common.checking"))
         self._probing = True
         self._update_test_enabled()
 
@@ -509,7 +507,7 @@ class ConnectionPage(WizardPage):
         binary = find_hsync_binary()
         timeout = self._timeout()
         self._active_target = "server"
-        self._set_status(self.server_status, "working", tr("wizard.connection.testing"))
+        self._set_status(self.server_status, "working", tr("common.checking"))
         self._probing = True
         self._update_test_enabled()
 
@@ -552,7 +550,7 @@ class ConnectionPage(WizardPage):
             )
             return
         self._active_target = "rendezvous_server"
-        self._set_status(self.rendezvous_server_status, "working", tr("wizard.connection.testing"))
+        self._set_status(self.rendezvous_server_status, "working", tr("common.checking"))
         self._probing = True
         self._update_test_enabled()
         from hsync_common.endpoint import parse_host_port
@@ -671,14 +669,14 @@ class ConnectionPage(WizardPage):
         self.test_server.setText(tr("settings.test_connection"))
         self.create_server_share.setText(tr("settings.bucket_probe.create"))
         self.test_rendezvous_server.setText(tr("settings.test_connection"))
-        self.trust_save.setText(tr("wizard.connection.trust_save"))
-        self.trust_ask.setText(tr("wizard.connection.trust_ask"))
+        self.trust_save.setText(tr("settings.p2p_rendezvous_trust_strict"))
+        self.trust_ask.setText(tr("settings.p2p_rendezvous_trust_ask"))
         self.direction.setItemText(0, tr("settings.sync_direction.bidirectional"))
         self.direction.setItemText(1, tr("settings.sync_direction.upload_only"))
         self.direction.setItemText(2, tr("settings.sync_direction.download_only"))
-        self.rendezvous_transport.setItemText(0, tr("wizard.connection.rendezvous_transport_auto"))
-        self.rendezvous_transport.setItemText(1, tr("wizard.connection.rendezvous_transport_quic"))
-        self.rendezvous_transport.setItemText(2, tr("wizard.connection.rendezvous_transport_tcp"))
+        self.rendezvous_transport.setItemText(0, tr("settings.p2p_rendezvous_transport_auto"))
+        self.rendezvous_transport.setItemText(1, tr("settings.p2p_rendezvous_transport_quic"))
+        self.rendezvous_transport.setItemText(2, tr("settings.p2p_rendezvous_transport_tcp"))
         self._automation.setTitle(escape_mnemonics(tr("wizard.automation.title")))
         for label, switch, key in self._automation_rows:
             text = tr(key)

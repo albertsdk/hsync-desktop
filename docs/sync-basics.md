@@ -134,8 +134,8 @@ being applied. In Simulation Mode the plan is only ever shown.
   size in parentheses is the total bytes moved, repeats included.
 - The **Log** panel shows the engine's own messages; the labels are in
   [Log Labels](log-labels.md).
-- With **Real-time sync** enabled, the app keeps running and re-syncs on changes
-  until you stop it.
+- With **Watch for changes (continuous)** enabled, the app keeps running and
+  re-syncs on changes until you stop it.
 
 The status bar also answers **are the files in sync?** — the states are described
 in [Warnings and notifications](warnings.md#is-everything-in-sync).

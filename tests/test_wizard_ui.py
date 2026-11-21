@@ -590,10 +590,12 @@ class TestLayoutImprovements:
             )
         )
         text = wizard.success_page._invite_text.toPlainText()
+        # The invite and the Connection step print the Settings labels for the
+        # same values (one copy of each caption in the app).
         for key in (
-            "wizard.connection.share",
-            "wizard.connection.group",
-            "wizard.connection.password",
+            "settings.bucket",
+            "settings.p2p_group",
+            "settings.p2p_key",
         ):
             assert tr(key) in text, key
         assert "::" not in text
@@ -685,7 +687,7 @@ class TestLayoutImprovements:
             WizardDraft(mode=WizardMode.BACKUP, bucket="data", server_url="h", api_key="k")
         )
         connection = wizard.review_page._sections["connection"][1].text()
-        label = tr("wizard.connection.share")
+        label = tr("settings.bucket")
         assert not label.endswith((":", "："))
         assert connection.startswith(f"{label}: ")
         assert "::" not in connection

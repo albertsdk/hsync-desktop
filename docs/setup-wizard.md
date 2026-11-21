@@ -45,12 +45,11 @@ exist, a file, or a system root is refused.
 
 ### 3. Connection — how does this device reach the others?
 
-<img src="assets/screens/12-wizard-connection.png" alt="Connection step with address, access key and Test connection" width="640">
+<img src="assets/screens/12-wizard-connection.png" alt="Connection step with address, API key and Test connection" width="640">
 
 The fields depend on the purpose:
 
-- *Back up* / *Share* — server address, access key (the **API key** field in
-  Settings), share name. **Test connection** sits next to these fields and becomes
+- *Back up* / *Share* — server address, API key, share name. **Test connection** sits next to these fields and becomes
   available once the address and key are entered; its result appears right below
   the button (grey while checking, green on success, red on error).
 - *Same network* — a group name and a generated shared password.
@@ -61,10 +60,8 @@ The fields depend on the purpose:
   token; see
   [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
-For the two device-to-device setups, **This device should only receive files**
-turns this device into a receiver. It is the same setting as **Sync direction →
-Receive only (from other devices)** in Settings; the next step shows the resulting
-type.
+For the two device-to-device setups, **Receive only (from other devices)** turns
+this device into a receiver; it is the same **Sync direction** as in Settings.
 
 An optional block chooses whether sync runs in real time, starts with the app, and
 launches HSYNC at system login; **Skip** keeps the defaults (its tooltip spells

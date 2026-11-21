@@ -151,7 +151,6 @@ class TestTerminologyConsistency:
         "wizard.mode.remote_sync.desc",
         "wizard.connection.rendezvous_server",
         "wizard.connection.test_rendezvous_server_ok",
-        "wizard.connection.trust_save",
         "wizard.error.rendezvous_server_required",
         "wizard.error.rendezvous_server_invalid",
         "wizard.connection.rendezvous_server_unreachable",
@@ -590,6 +589,50 @@ class TestWizardTerminology:
                     assert "master" not in lowered, f"{module.__name__}:{key}"
                     for token in TestTerminologyConsistency.RELAY_TOKENS:
                         assert token not in lowered, f"{module.__name__}:{key}: {token!r}"
+
+
+class TestWizardReusesSettingsLabels:
+    """One caption per setting: the wizard labels a field with the Settings key.
+
+    The wizard configures the same fields as Settings, so it must not keep a
+    second copy of a caption. The only wizard-only controls are the single
+    required search-server address, the two trust toggles, the password-required
+    error and the status lines, which echo the reference sentences without their
+    status glyph.
+    """
+
+    SETTINGS_LABELS = (
+        "wizard.connection.group",
+        "wizard.connection.password",
+        "wizard.connection.server_url",
+        "wizard.connection.api_key",
+        "wizard.connection.share",
+        "wizard.connection.direction",
+        "wizard.connection.receive_only",
+        "wizard.connection.rendezvous_transport",
+        "wizard.connection.trust_ask",
+        "wizard.connection.trust_save",
+        "wizard.connection.testing",
+        "wizard.automation.continuous",
+        "wizard.automation.auto_sync",
+        "wizard.automation.start_at_login",
+    )
+
+    def test_the_shared_fields_carry_no_wizard_copy(self):
+        for module in ALL_MODULES:
+            for key in self.SETTINGS_LABELS:
+                assert key not in module.translations, f"{module.__name__}:{key}"
+
+    def test_no_wizard_string_duplicates_a_settings_string(self):
+        # Only these namespaces label settings fields: the step names, the mode
+        # scenarios and the folder helpers are the wizard's own vocabulary.
+        for module in ALL_MODULES:
+            settings = {
+                value for key, value in module.translations.items() if key.startswith("settings.")
+            }
+            for key, value in module.translations.items():
+                if key.startswith(("wizard.connection.", "wizard.automation.")):
+                    assert value not in settings, f"{module.__name__}:{key}"
 
 
 class TestEllipsisPolicy:

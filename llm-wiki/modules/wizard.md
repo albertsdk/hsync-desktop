@@ -145,9 +145,9 @@ and the returned mode so the two can never disagree.
   (labelled from `wizard.success.invite`) as a read-only selectable field
   (`SuccessPage._invite_text`) that can also be copied with one click, and the
   action bar is anchored at the bottom of the screen. The invite labels come from
-  `wizard.connection.share/group/password`, so it names each value exactly like
-  the Connection step, and `wizard.success.invite_text` supplies the single
-  separator. When the draft configures a **rendezvous server**, a hint
+  `settings.bucket` / `settings.p2p_group` / `settings.p2p_key`, so it names each
+  value exactly like the Connection step (which reads the same Settings keys), and
+  `wizard.success.invite_text` supplies the single separator. When the draft configures a **rendezvous server**, a hint
   (`wizard.success.rdv_key_hint`) plus **Show group key…**
   (`SuccessPage._on_show_group_key`, opens the masked `GroupKeyDialog` from
   `hsync_desktop/wizard/pages/success.py::SuccessPage` with the derived password key) remind the
@@ -225,9 +225,11 @@ bump discards a stale draft. On finish the draft is cleared and
 
 ## Trust
 
-Search servers and server trust use **TOFU + pin** with policy `ask`: "Trust … and save"
-writes the fingerprint to the client known-hosts store, "Ask on first start"
-leaves the existing first-start pre-flight (`main_window/trust.py`) to confirm.
+Search servers and server trust use **TOFU + pin** with policy `ask`: the
+`settings.p2p_rendezvous_trust_strict` option ("Require the saved identity")
+writes the fingerprint to the client known-hosts store, while
+`settings.p2p_rendezvous_trust_ask` ("Ask on first use") leaves the existing
+first-start pre-flight (`main_window/trust.py`) to confirm.
 Never `strict`/`accept-new` as a *stored* policy. The server probe resolves `auto`
 only to verify (see *Validation, probes and apply* above) and never writes the
 store; the pin it hands to Finish is written by `apply_draft` under `ask`.

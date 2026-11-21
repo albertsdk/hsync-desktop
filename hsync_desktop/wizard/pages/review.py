@@ -148,13 +148,13 @@ class ReviewPage(WizardPage):
         )
         self._set("folder", draft.local_path or "—")
 
-        lines = [f"{tr('wizard.connection.share')}: {draft.bucket or '—'}"]
+        lines = [f"{tr('settings.bucket')}: {draft.bucket or '—'}"]
         if profile is not None and not profile.p2p_enabled:
-            lines.append(f"{tr('wizard.connection.server_url')}: {draft.server_url or '—'}")
-            lines.append(f"{tr('wizard.connection.api_key')}: {_mask(draft.api_key)}")
+            lines.append(f"{tr('settings.server_url')}: {draft.server_url or '—'}")
+            lines.append(f"{tr('settings.api_key')}: {_mask(draft.api_key)}")
         else:
-            lines.append(f"{tr('wizard.connection.group')}: {draft.p2p_group or '—'}")
-            lines.append(f"{tr('wizard.connection.password')}: {_mask(draft.p2p_key)}")
+            lines.append(f"{tr('settings.p2p_group')}: {draft.p2p_group or '—'}")
+            lines.append(f"{tr('settings.p2p_key')}: {_mask(draft.p2p_key)}")
             if profile is not None and profile.requires_rendezvous_server:
                 lines.append(
                     f"{tr('wizard.connection.rendezvous_server')}: {draft.rendezvous_server or '—'}"
@@ -169,9 +169,9 @@ class ReviewPage(WizardPage):
         behaviour = [
             f"{tr('settings.sync_direction')}: {direction_label}",
             f"{tr('wizard.review.deletion_policy')}: {tr('settings.deletion_policy_' + draft.deletion_policy)}",
-            f"{tr('wizard.automation.continuous')}: {_on_off(draft.continuous)}",
-            f"{tr('wizard.automation.auto_sync')}: {_on_off(draft.auto_sync)}",
-            f"{tr('wizard.automation.start_at_login')}: {_on_off(draft.start_at_login)}",
+            f"{tr('settings.watch')}: {_on_off(draft.continuous)}",
+            f"{tr('settings.auto_sync')}: {_on_off(draft.auto_sync)}",
+            f"{tr('settings.start_at_login')}: {_on_off(draft.start_at_login)}",
         ]
         self._set("behaviour", "\n".join(behaviour))
         self._set("checks", _checks_text(draft))
