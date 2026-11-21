@@ -824,11 +824,10 @@ class SettingsDialog(QDialog):
         ]
 
     def _connection_hint_labels(self) -> tuple[QWidget, ...]:
-        """The connection page's explanatory lines: never grayed out."""
+        """The connection page's explanatory lines: the two option sentences."""
         labels: list[QWidget | None] = [
             getattr(self, "_lbl_mode_direct_desc", None),
             getattr(self, "_lbl_mode_server_desc", None),
-            getattr(self, "_inactive_hint", None),
         ]
         return tuple(label for label in labels if label is not None)
 
@@ -837,10 +836,11 @@ class SettingsDialog(QDialog):
 
         The page carries one mode at a time: the selected half is shown and
         enabled, the other is hidden with its values intact (switching back finds
-        them) and named by a single muted line. This is also the one place that
-        composes the page's three enable axes — the selected mode, a running sync
-        (``_connection_active``) and the capabilities this binary advertises
-        (``_unsupported_widgets``) — so they cannot override each other.
+        them), and the two options above keep both modes' sentences on screen.
+        This is also the one place that composes the page's three enable axes —
+        the selected mode, a running sync (``_connection_active``) and the
+        capabilities this binary advertises (``_unsupported_widgets``) — so they
+        cannot override each other.
         """
         if not hasattr(self, "_direct_section"):
             # Wired before the page is regrouped: there is nothing to show yet.
@@ -849,13 +849,6 @@ class SettingsDialog(QDialog):
         locked = self._connection_active
         self._direct_section.setVisible(direct)
         self._server_section.setVisible(not direct)
-        self._inactive_hint.setText(
-            tr(
-                "settings.connection.inactive_server"
-                if direct
-                else "settings.connection.inactive_direct"
-            )
-        )
 
         for widget in self._direct_widgets() + self._server_widgets():
             widget.setEnabled(False)

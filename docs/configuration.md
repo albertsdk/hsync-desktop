@@ -61,9 +61,9 @@ The first thing the tab asks is **how this device reaches the others**:
 **Direct mode** (device to device, with no server) or **Server mode** (through a
 central HSYNC server). The two are mutually exclusive and a setup uses one of
 them; switching later keeps every value of the other, so nothing has to be typed
-again. Only the selected mode's settings are shown — the other is named by one
-line underneath — so the page stays as short as one mode and never doubles. On a
-fresh install the app starts in **Direct mode**.
+again. Only the selected mode's settings are shown, so the page stays as short as
+one mode and never doubles; the option you did not pick stays one click away at
+the top of the tab. On a fresh install the app starts in **Direct mode**.
 Only the selected mode is validated when you apply: a value left in the other mode
 is checked when you select it, so it never blocks a save you did not ask for.
 

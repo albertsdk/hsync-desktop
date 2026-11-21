@@ -80,9 +80,10 @@ consumed as a keyboard mnemonic (see [ui.md](ui.md)).
 **Tab descriptions** (`_add_tab_description`): the Sync tab opens with one muted
 sentence stating what it owns, from `_TAB_DESCRIPTION_KEYS`
 (`settings.sync.description`) — it is the tab whose scope the group titles alone
-do not say, because it applies to both connection modes. Connection needs none:each mode option carries its sentence (`settings.p2p.description` /
-`settings.server_mode.description` as the option subtitles) and the mode not in
-use is named by `settings.connection.inactive_*`, so the page explains itself. The
+do not say, because it applies to both connection modes. Connection needs none:
+each mode option carries its sentence (`settings.p2p.description` /
+`settings.server_mode.description` as the option subtitles), so the page
+explains itself. The
 label uses `hsync_desktop/widgets/labels.py::muted_label` — the same
 `QLabel#mutedHint` rule as the wizard helper text — so it does not introduce a
 second visual language. Its insets come
@@ -121,9 +122,7 @@ subtitles the two mode descriptions). `SettingsDialog._apply_connection_mode`
 (`hsync_desktop/settings/dialog.py::SettingsDialog._apply_connection_mode`) is the
 single place that decides the page: it shows the selected mode's section and hides
 the other (values intact, so switching back finds them — nothing but visibility
-changes), names the hidden one in one muted line
-(`settings.connection.inactive_server` / `settings.connection.inactive_direct`),
-and composes the three enable axes of the page — the selected mode, a running sync
+changes), and composes the three enable axes of the page — the selected mode, a running sync
 (`_connection_active`) and the capability gates (`_unsupported_widgets`). It also
 refreshes the show-group-key row, the "exclude the local network" toggle and the
 changed-password warning, which all depend on the direct half. The choice is

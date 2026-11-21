@@ -500,9 +500,9 @@ class TestDialogButtonIcons:
 class TestConnectionModeSwitch:
     """One mode at a time: the page shows the selected half and keeps both.
 
-    The choice is exclusive, so the page is never as tall as the two modes and
-    the mode not in use is one muted line; its values survive a switch because
-    only its visibility changes.
+    The choice is exclusive, so the page is never as tall as the two modes: the
+    option you did not pick stays one click away at the top, and its values
+    survive a switch because only their visibility changes.
     """
 
     def test_the_selected_mode_shows_only_its_half(self, dialog):
@@ -513,13 +513,6 @@ class TestConnectionModeSwitch:
         dialog.mode_server.setChecked(True)
         assert dialog._direct_section.isHidden()
         assert not dialog._server_section.isHidden()
-
-    def test_the_inactive_mode_is_named_by_one_line(self, dialog):
-        dialog.mode_direct.setChecked(True)
-        assert dialog._inactive_hint.text() == tr("settings.connection.inactive_server")
-
-        dialog.mode_server.setChecked(True)
-        assert dialog._inactive_hint.text() == tr("settings.connection.inactive_direct")
 
     def test_switching_back_keeps_the_other_modes_values(self, dialog):
         dialog.server_url.setText("https://server.example.com")

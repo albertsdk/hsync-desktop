@@ -346,15 +346,13 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.addStretch()
 
 
-def _mode_line(key: str, *, indent: int) -> QLabel:
-    """A muted line explaining a connection mode, capped to the content column.
-
-    Used for the sentence under each option (the one that opened the mode's own
-    page) and for the line naming what the inactive mode holds.
-    """
+def _mode_line(key: str) -> QLabel:
+    """The muted sentence under one connection-mode option, capped to the column."""
 
     label = muted_label(tr(key))
-    label.setContentsMargins(indent, 0, 20, 8)
+    # Indented under the option's own text, so the two sentences read as the
+    # options' subtitles rather than as page paragraphs.
+    label.setContentsMargins(24, 0, 20, 8)
     label.setMaximumWidth(_TAB_DESCRIPTION_MAX_WIDTH)
     return label
 
@@ -399,8 +397,8 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     # Group 1: the choice itself, with the sentence that explains each option.
     dlg._grp_mode = _group_box("settings.group.connection_mode")
     mode_box = QVBoxLayout(dlg._grp_mode)
-    dlg._lbl_mode_direct_desc = _mode_line("settings.p2p.description", indent=24)
-    dlg._lbl_mode_server_desc = _mode_line("settings.server_mode.description", indent=24)
+    dlg._lbl_mode_direct_desc = _mode_line("settings.p2p.description")
+    dlg._lbl_mode_server_desc = _mode_line("settings.server_mode.description")
     mode_box.addWidget(dlg.mode_direct)
     mode_box.addWidget(dlg._lbl_mode_direct_desc)
     mode_box.addWidget(dlg.mode_server)
@@ -459,12 +457,6 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     add_row(g4, dlg._lbl_peer_sources_max, dlg.peer_sources_max)
     direct.addWidget(dlg._grp_p2p_advanced)
     vbox.addWidget(dlg._direct_section)
-
-    # The mode not in use: one line naming what it holds, so the page never
-    # grows to both modes at once while the choice above stays the only way to
-    # reach the other options.
-    dlg._inactive_hint = _mode_line("settings.connection.inactive_server", indent=4)
-    vbox.addWidget(dlg._inactive_hint)
 
     # Server mode: endpoint and identity, certificates, tuning.
     dlg._server_section = QWidget()

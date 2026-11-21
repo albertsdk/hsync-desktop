@@ -363,9 +363,8 @@ disable unsupported controls) is realized in
   devices — directly or through a server — are one exclusive decision, so they share
   the **Connection** tab (`ui/settings_dialog.ui` `tabConnection`, layout
   `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`): a radio pair at the
-  top (`mode_direct` / `mode_server`) and, below it, the selected mode's boxes; the
-  other mode is one muted line naming what it holds
-  (`settings.connection.inactive_server` / `settings.connection.inactive_direct`).
+  top (`mode_direct` / `mode_server`), each with its one-sentence subtitle, and
+  below it the selected mode's boxes; the other mode is hidden, its values kept.
   Rationale: an exclusive choice belongs on radio buttons, not on a checkbox whose
   alternative lives in another tab — `docs/choose-connection.md` states the rule (a
   setup uses one or the other) — the page then stays as tall as one mode instead of
