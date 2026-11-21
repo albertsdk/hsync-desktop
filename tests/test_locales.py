@@ -238,6 +238,39 @@ class TestTerminologyConsistency:
                 for token in tokens:
                     assert token not in text, f"{module.__name__}:{key}: {token}"
 
+    def test_the_scoped_sync_messages_name_no_direction(self):
+        """*Send now* and *Receive now* share these messages, so they stay neutral.
+
+        The direction is already carried by the action the user invoked (its
+        button, banner title and log line); a message that says "nothing to
+        send" after a Receive is wrong for half the cases it is shown in. Only
+        the result messages split by direction. The tokens are the direction
+        verbs each locale used while these strings still claimed one.
+        """
+        tokens_by_locale = {
+            "en": ("send", "receiv"),
+            "it": ("invio", "inviare", "ricev"),
+            "de": ("senden", "empfang"),
+            "es": ("enviar", "enviando", "recib"),
+            "fr": ("envoi", "envoyer", "recevr", "reçoiv"),
+            "nl": ("verzend", "ontvang"),
+            "pl": ("wysył", "odbier"),
+            "pt": ("enviar", "enviando", "receb"),
+            "ru": ("отправ", "получ"),
+            "zh": ("发送", "接收"),
+            "ja": ("送信", "受信"),
+        }
+        for module in self.ALL:
+            name = module.__name__.rsplit(".", 1)[-1]
+            for key in (
+                "sync.sel_peers_fmt",
+                "sync.sel_no_devices_msg",
+                "sync.sel_already_synced",
+            ):
+                text = module.translations[key].lower()
+                for token in tokens_by_locale[name]:
+                    assert token not in text, f"{module.__name__}:{key}: {token!r}"
+
     def test_the_file_table_uses_plain_column_names(self):
         """No locale falls back to the "ETA" tool jargon."""
         for module in self.ALL:

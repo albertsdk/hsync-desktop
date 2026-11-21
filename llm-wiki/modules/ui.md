@@ -1267,7 +1267,14 @@ lifecycle so its result is surfaced exactly once:
   Verified contract: `hsync-client/llm-wiki/modules/p2p-mode.md`.
 - Progress toast: the phase text is `sync.sel_search` (p2p) / `sync.sel_server`
   (server); `_on_peers` (`hsync_desktop/main_window/events.py::EventsMixin._on_peers`) adds the
-  other-device count (`sync.sel_peers_fmt`) while the op is active.
+  other-device count (`sync.sel_peers_fmt`) while the op is active. The scoped-op texts
+  carry **no direction** — `sync.sel_peers_fmt`, `sync.sel_no_devices_msg` and
+  `sync.sel_already_synced` are shared by Send and Receive, because the action label
+  already names it and a direction word in a shared message is wrong for the other
+  half of the cases. Only the applied-count report splits (`sync.sel_sent_fmt` /
+  `sync.sel_received_fmt`, chosen from `direction`). Guarded by
+  `tests/test_locales.py::TestTerminologyConsistency.test_the_scoped_sync_messages_name_no_direction`
+  and `tests/test_selection_sync_flow.py::TestDirectionNeutralResults`.
 - Outcome: `_surface_selection_outcome` (`hsync_desktop/main_window/actions.py::ActionsMixin._surface_selection_outcome`)
   routes an *important* result (no devices, server unreachable, failed) through
   `_important_selection_outcome` — a modal dialog when the window is in the

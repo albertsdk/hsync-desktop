@@ -211,6 +211,34 @@ class TestSuccessOutcomes:
         assert recorded == [tr("sync.sel_sent_fmt").replace("{count}", "1")]
 
 
+class TestDirectionNeutralResults:
+    """A result both directions share says nothing about the direction.
+
+    *Send now* and *Receive now* are two intents of one mechanism, so the
+    messages that do not depend on the intent are shared verbatim; only the
+    applied-count report names what happened ("Sent" / "Received").
+    """
+
+    def test_already_synced_reads_the_same_for_both_directions(self, window, monkeypatch):
+        recorded = _capture_info(monkeypatch, window)
+
+        window._surface_selection_outcome("already_synced", direction="upload-only", count=0)
+        window._surface_selection_outcome("already_synced", direction="download-only", count=0)
+
+        assert recorded == [tr("sync.sel_already_synced")] * 2
+
+    def test_the_applied_count_still_follows_the_direction(self, window, monkeypatch):
+        recorded = _capture_info(monkeypatch, window)
+
+        window._surface_selection_outcome("done", direction="upload-only", count=2)
+        window._surface_selection_outcome("done", direction="download-only", count=2)
+
+        assert recorded == [
+            tr("sync.sel_sent_fmt").replace("{count}", "2"),
+            tr("sync.sel_received_fmt").replace("{count}", "2"),
+        ]
+
+
 class TestProcessLifecycle:
     def test_process_finished_finalizes_a_running_op(self, window, monkeypatch):
         recorded = _capture_important(monkeypatch, window)
