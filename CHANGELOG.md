@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A transfer this device is **sending** shows its in-flight state and a progress
+  bar again (first sync, p2p upload and delta): the bundled engine now reports
+  the sender's own samples instead of relying on the receiver's delivery echo,
+  which does not exist until the peer's control WebSocket is up.
 - A comparison that overlaps a transfer no longer leaves the just-received file
   at "To Download" (100% progress) or an empty folder at "To Sync": a verdict
   from the comparison snapshot cannot downgrade a path a terminal event already

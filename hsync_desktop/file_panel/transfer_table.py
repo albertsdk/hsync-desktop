@@ -1804,8 +1804,8 @@ class FileTransferTable(QTableView):
                 # On-disk size for the Size column/properties; ``total_size``
                 # below is the progress scale (wire/compressed while in flight).
                 size_bytes += max(0, f.size)
-                # An unknown total (compressed serve) is not a size: summing it
-                # would poison the folder percentage.
+                # An unknown total is not a size: summing it would poison the
+                # folder percentage.
                 if f.total_bytes > 0:
                     total_size += f.total_bytes
                     total_transferred += f.bytes_transferred
@@ -2903,10 +2903,10 @@ class FileTransferTable(QTableView):
                 if t.size <= 0:
                     t.size = total_bytes
             elif total_bytes < 0:
-                # Explicitly unknown: a compressed serve moves wire bytes that
-                # cannot be mapped onto the file size, so the row shows an
-                # indeterminate bar instead of falling back to ``size`` and
-                # inventing a percentage that will never reach 100.
+                # Explicitly unknown: the sender cannot map its wire bytes onto
+                # the file size, so the row shows no percentage instead of
+                # falling back to ``size`` and inventing a figure that will never
+                # reach 100.
                 t.progress_total = -1
             t.note_progress(bytes_transferred)
         self._cached_items = None  # Invalidate cache
