@@ -82,11 +82,5 @@ packaging/windows/icon.ico
 # Snap — CI stages the PyInstaller onefile here before snapcraft runs.
 snap/payload/bin/
 
-# AI Agents
-AGENTS.md
-
 # HSYNC
 .hsynckeep
-
-# Internal agent knowledge base (local-only, not versioned)
-/llm-wiki/
