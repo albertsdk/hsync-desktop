@@ -13,11 +13,3 @@ _SYNC_TAB_INDEX = 0
 _CONNECTION_TAB_INDEX = 1
 _GENERAL_TAB_INDEX = 2
 _ADVANCED_TAB_INDEX = 3
-
-# One-line purpose shown at the top of the tab whose scope the groups alone do
-# not say: the Sync tab applies to both connection modes. Connection needs none
-# (each mode option carries its sentence), and General/Advanced read as an index
-# through their group titles.
-_TAB_DESCRIPTION_KEYS: dict[int, str] = {
-    _SYNC_TAB_INDEX: "settings.sync.description",
-}

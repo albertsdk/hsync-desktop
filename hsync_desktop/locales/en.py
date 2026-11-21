@@ -135,7 +135,6 @@ translations: dict[str, str] = {
     "settings.connection": "Connection",
     "settings.server_mode": "Server mode",
     "settings.sync": "Sync",
-    "settings.sync.description": "What to keep in sync and how transfers behave. Applies to both direct and server mode.",
     "settings.p2p.description": "Sync directly between your devices, with no server. A search server only helps devices on different networks find each other.",
     "settings.server_mode.description": "Sync through a central HSYNC server instead of device to device: address, credentials and identity checks.",
     "settings.shared_path": "Local folder",

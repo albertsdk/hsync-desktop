@@ -21,7 +21,6 @@ from hsync_desktop.settings.tab_indices import (
     _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
     _SYNC_TAB_INDEX,
-    _TAB_DESCRIPTION_KEYS,
 )
 from hsync_desktop.widgets.links import set_help_link_text
 from hsync_desktop.widgets.text import escape_mnemonics
@@ -70,12 +69,6 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._tabs.setTabText(_CONNECTION_TAB_INDEX, escape_mnemonics(tr("settings.connection")))
     dlg._tabs.setTabText(_GENERAL_TAB_INDEX, escape_mnemonics(tr("settings.general")))
     dlg._tabs.setTabText(_ADVANCED_TAB_INDEX, escape_mnemonics(tr("settings.advanced")))
-
-    # Tab descriptions (mode tabs only, see _TAB_DESCRIPTION_KEYS)
-    for tab_index, key in _TAB_DESCRIPTION_KEYS.items():
-        hint = dlg._tab_descriptions.get(tab_index)
-        if hint is not None:
-            hint.setText(tr(key))
 
     # Plain labels defined in the .ui file.
     for name, key in _LABEL_TEXTS.items():

@@ -37,9 +37,9 @@ emitted subcommand always agree.
 | ------ | -------- | ---- |
 | `SettingsDialog` | `hsync_desktop/settings/dialog.py::SettingsDialog` | settings tabs (sync, connection, general, advanced); load/save QSettings |
 | tab builders | `hsync_desktop/settings/tab_builders.py::build_sync_tab`, `hsync_desktop/settings/tab_builders.py::build_connection_tab`, `hsync_desktop/settings/tab_builders.py::_build_server_fields`, `hsync_desktop/settings/tab_builders.py::_build_direct_fields`, `hsync_desktop/settings/tab_builders.py::build_advanced_tab`, `hsync_desktop/settings/tab_builders.py::build_general_tab`, `hsync_desktop/settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
-| tab indices | `hsync_desktop/settings/tab_indices.py::_CONNECTION_TAB_INDEX`, `hsync_desktop/settings/tab_indices.py::_TAB_DESCRIPTION_KEYS` | sync/connection tab positions and the per-tab purpose string keys (shared by dialog + builders + layout) |
-| tab layout | `hsync_desktop/settings/tab_layout.py::reorganize_sync_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`, `hsync_desktop/settings/tab_layout.py::_group_box`, `hsync_desktop/settings/tab_layout.py::_mode_line`, `hsync_desktop/settings/tab_layout.py::_add_tab_description` | regroup the Sync and Connection tabs into `QGroupBox` sections and open each with its purpose line |
-| tab translations | `hsync_desktop/settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget, including the tab descriptions and group titles |
+| tab indices | `hsync_desktop/settings/tab_indices.py::_CONNECTION_TAB_INDEX` | sync/connection tab positions (shared by dialog + builders + layout) |
+| tab layout | `hsync_desktop/settings/tab_layout.py::reorganize_sync_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`, `hsync_desktop/settings/tab_layout.py::_scrollable_page`, `hsync_desktop/settings/tab_layout.py::_group_box`, `hsync_desktop/settings/tab_layout.py::_mode_line` | regroup the Sync and Connection tabs into `QGroupBox` sections inside the scrolling page |
+| tab translations | `hsync_desktop/settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget, including the tab titles and group titles |
 | form helpers | `hsync_desktop/settings/form_helpers.py::_replace_checkbox_with_toggle`, `hsync_desktop/settings/form_helpers.py::_maybe_tip`, `hsync_desktop/settings/form_helpers.py::_paired_label`, `hsync_desktop/settings/form_helpers.py::_set_field_tooltip`, `hsync_desktop/settings/form_helpers.py::_action_row`, `hsync_desktop/settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
 | `ApiKeyDialog` | `hsync_desktop/settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `hsync_desktop/settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
@@ -77,32 +77,23 @@ titles are refreshed in `_apply_translations`, and both that refresh and the
 the `&` of "Share & Path" / "Zeiten & Intervalle" is displayed instead of being
 consumed as a keyboard mnemonic (see [ui.md](ui.md)).
 
-**Tab descriptions** (`_add_tab_description`): the Sync tab opens with one muted
-sentence stating what it owns, from `_TAB_DESCRIPTION_KEYS`
-(`settings.sync.description`) — it is the tab whose scope the group titles alone
-do not say, because it applies to both connection modes. Connection needs none:
-each mode option carries its sentence (`settings.p2p.description` /
-`settings.server_mode.description` as the option subtitles), so the page
-explains itself. The
-label uses `hsync_desktop/widgets/labels.py::muted_label` — the same
-`QLabel#mutedHint` rule as the wizard helper text — so it does not introduce a
-second visual language. Its insets come
-from `hsync_desktop/settings/tab_layout.py::_DESCRIPTION_MARGINS` (applied with
-`setContentsMargins`, not QSS, which keeps owning only the muted colour), so the
-sentence is inset from the tab edge, below the tab bar and above the first group
-box. Connection, General and
-Advanced are deliberately left undescribed (each has a self-explanatory index:
-the two options, and their group titles), so `_TAB_DESCRIPTION_KEYS` is the single
-place that decides which tab gets one. Two constraints to keep:
-* `SettingsDialog._set_tab_labels_enabled` skips
-  `SettingsDialog._tab_descriptions` and the connection page's explanatory lines
-  (`_connection_hint_labels`), so the sentences stay readable while a running sync
-  grays the fields.
-* `_TAB_DESCRIPTION_MAX_WIDTH` caps the label: a wrapped `QLabel` reports its
-  unwrapped text width as `sizeHint`, so a longer translation would widen the page
-  instead of wrapping. Keep every locale within
-  `tests/test_locales.py::TestTabDescriptions` (≤ 24 words, no
-  master/rendezvous/relay jargon, rendezvous-server wording in the p2p line).
+**Page padding, no purpose lines**: no settings tab opens with a descriptive
+sentence. The group titles and the connection page's two option sentences are
+the index, so `_scrollable_page` gives every page its breathing room through the
+scroll content's margins (16 px above the first group box, 12 px below the last),
+and the connection page's option sentences come from
+`hsync_desktop/settings/tab_layout.py::_mode_line` — `muted_label` with a 24 px
+indent under the option and a width capped by `_TAB_DESCRIPTION_MAX_WIDTH`, so a
+word-wrapped translation wraps instead of widening the dialog. That cap is also
+what keeps a long translation inside `finalize_size`'s 640 px floor. Two
+constraints to keep:
+* `SettingsDialog._set_tab_labels_enabled` skips the labels passed in `exclude`
+  and the capability-unsupported ones: the connection page passes its two option
+  sentences (`_connection_hint_labels`), so the choice stays readable while a
+  running sync grays the fields.
+* Keep every locale within `tests/test_locales.py::TestModeOptionSentences`
+  (≤ 24 words, no master/rendezvous/relay jargon, rendezvous-server wording in
+  the p2p line).
 
 **Tab order**: the tab widget order is sync (0), connection (1), General (2),
 Advanced (3), sourced from `ui/settings_dialog.ui` (Advanced is last, after the
@@ -151,8 +142,7 @@ window edge, which kept short captions hundreds of pixels away from their switch
 
 **Content column** (`hsync_desktop/settings/tab_layout.py::_CenteredColumn`): every tab hosts
 its groups in one column capped at `_CONTENT_MAX_WIDTH` and centred in the page
-(`_scrollable_page`); the tab description uses the same wrapper
-(`_add_tab_description`). A wider window grows the empty margins, not the form,
+(`_scrollable_page`). A wider window grows the empty margins, not the form,
 so controls keep a readable width and the caption-to-control distance stays
 bounded at any window size. The cap is a **preference**: `_max_child_width`
 raises it to the child's own size hint when the content cannot fit inside it

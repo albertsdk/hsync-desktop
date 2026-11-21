@@ -37,17 +37,23 @@ from hsync_desktop.widgets.text import escape_mnemonics
 class TestConnectionPageStartsAtTheChoice:
     """The connection page explains itself through its options, not a purpose line.
 
-    The two options carry the sentences and the mode not in use is named by one
-    muted line, so the page opens straight on the choice and stays as tall as one
-    mode. Only the Sync tab needs a purpose line (its scope is not visible).
+    The two options carry the sentences, so the page opens straight on the choice
+    and stays as tall as one mode. No settings tab has a purpose line: the group
+    titles and the options read as their own index.
     """
 
-    def test_no_purpose_line_and_the_mode_box_first(self, dialog):
-        assert _CONNECTION_TAB_INDEX not in dialog._tab_descriptions
+    def test_the_mode_box_comes_first(self, dialog):
         content = dialog._tabs.widget(_CONNECTION_TAB_INDEX).layout().itemAt(0).widget()
         assert content is not None
         groups = content.findChildren(QGroupBox)
         assert groups[0] is dialog._grp_mode
+
+    def test_the_option_sentences_stay_readable_while_a_mode_is_hidden(self, dialog):
+        dialog.mode_direct.setChecked(True)
+        assert not dialog.server_url.isEnabled()
+        # Both sentences explain the choice, so hiding a mode must not gray them.
+        for label in dialog._connection_hint_labels():
+            assert label.isEnabled()
 
 
 class TestAdvancedLoggingPanel:
@@ -648,19 +654,18 @@ class TestActionButtonRows:
 
 
 class TestDisabledDuringSyncVisual:
-    """The Sync and p2p panels gray their labels while a sync runs, the same
-    visual the Server Mode tab uses when p2p mode is active."""
+    """The Sync, connection and Advanced panels gray their labels while a sync runs."""
 
     @staticmethod
     def _labels(dialog, index: int, exclude: tuple = ()) -> list[QLabel]:
         tab = dialog._tabs.widget(index)
         assert tab is not None
-        # The tab's purpose line stays readable even when its controls are off.
-        skip = (*exclude, dialog._tab_descriptions.get(index))
+        # The connection page's option sentences stay readable: they explain the
+        # choice, not a setting the lock could freeze.
         return [
             lbl
             for lbl in tab.findChildren(QLabel)
-            if lbl not in dialog._unsupported_labels and lbl not in skip
+            if lbl not in dialog._unsupported_labels and lbl not in exclude
         ]
 
     def _p2p_labels(self, dialog) -> list[QLabel]:

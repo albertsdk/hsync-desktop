@@ -135,7 +135,6 @@ translations: dict[str, str] = {
     "settings.connection": "接続",
     "settings.server_mode": "サーバーモード",
     "settings.sync": "同期",
-    "settings.sync.description": "何を同期するか、転送をどう行うかを設定します。直接モードとサーバーモードの両方に適用されます。",
     "settings.p2p.description": "サーバーを使わず、デバイス間で直接同期します。検索サーバーは別のネットワークにあるデバイスを見つけるときだけ役立ちます。",
     "settings.server_mode.description": "デバイス間ではなく中央の HSYNC サーバー経由で同期します。アドレス、認証情報、身元の確認を設定します。",
     "settings.shared_path": "ローカルフォルダー",

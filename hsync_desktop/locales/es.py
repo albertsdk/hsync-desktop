@@ -126,7 +126,6 @@ translations: dict[str, str] = {
     "settings.connection": "Conexión",
     "settings.server_mode": "Modo servidor",
     "settings.sync": "Sincronización",
-    "settings.sync.description": "Qué se sincroniza y cómo se comportan las transferencias. Se aplica tanto en modo directo como en modo servidor.",
     "settings.p2p.description": "Sincroniza directamente entre tus dispositivos, sin servidor. Un servidor de búsqueda solo ayuda si no están en la misma red.",
     "settings.server_mode.description": "Sincroniza a través de un servidor HSYNC central en lugar de dispositivo a dispositivo: dirección, credenciales y verificación de identidad.",
     "settings.shared_path": "Ruta compartida",

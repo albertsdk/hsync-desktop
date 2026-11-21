@@ -135,7 +135,6 @@ translations: dict[str, str] = {
     "settings.connection": "连接",
     "settings.server_mode": "服务器模式",
     "settings.sync": "同步",
-    "settings.sync.description": "同步哪些内容以及传输如何进行，直连模式和服务器模式均适用。",
     "settings.p2p.description": "在设备之间直接同步，无需服务器。搜索服务器只帮助不同网络中的设备找到彼此。",
     "settings.server_mode.description": "通过中央 HSYNC 服务器同步，而非在设备之间直接同步：地址、凭据和身份验证。",
     "settings.shared_path": "本地文件夹",

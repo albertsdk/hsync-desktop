@@ -28,9 +28,8 @@ class TestScrollableTabs:
 
 class TestResizableDialog:
     def test_minimum_width_covers_the_content_and_description_cap(self, dialog):
-        # tests/test_settings_tab_descriptions.py requires
-        # label.maximumWidth() < dialog.minimumWidth(); the content only raises
-        # the minimum above the historical 640 px floor.
+        # The mode option sentences cap their width below the dialog's; the
+        # content only raises the minimum above the 640 px floor.
         assert dialog.minimumWidth() >= 640
 
     def test_dialog_is_not_fixed_size(self, dialog):

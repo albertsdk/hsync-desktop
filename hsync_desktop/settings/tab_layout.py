@@ -33,7 +33,6 @@ from hsync_desktop.settings.tab_indices import (
     _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
     _SYNC_TAB_INDEX,
-    _TAB_DESCRIPTION_KEYS,
 )
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
@@ -48,15 +47,11 @@ if TYPE_CHECKING:
 # readable width whatever the window size. 640 px fits the widest shipped
 # translation with room for a two-column form.
 _CONTENT_MAX_WIDTH = 640
-# ``tab_builders.finalize_size`` keeps the dialog at least 640 px wide; the
-# description must wrap inside that page instead of asking for more. The cap
-# includes the label's own insets, so it is the text measure plus
-# ``_DESCRIPTION_MARGINS`` left/right.
+# ``tab_builders.finalize_size`` keeps the dialog at least 640 px wide; the mode
+# option sentences must wrap inside that page instead of asking for more. The cap
+# includes the label's own insets, so it is the text measure plus the 24/20 px
+# indents ``_mode_line`` applies.
 _TAB_DESCRIPTION_MAX_WIDTH = _CONTENT_MAX_WIDTH - 40
-# Breathing room around the purpose line, as (left, top, right, bottom): inset
-# from the tab edge, below the tab bar and above the first group box. Applied
-# with ``setContentsMargins`` so the QSS keeps owning only the muted colour.
-_DESCRIPTION_MARGINS = (20, 12, 20, 16)
 
 
 class _CenteredColumn(QWidget):
@@ -161,16 +156,17 @@ def _page_outer(tab: QWidget) -> QVBoxLayout:
 def _scrollable_page(tab: QWidget) -> tuple[QVBoxLayout, QVBoxLayout]:
     """Host a page's content in a scroll area and return ``(outer, inner)``.
 
-    ``outer`` is the page's top-level layout (the description line, then the
-    scroll area); ``inner`` is the scroll content where the groups go, so a tall
-    page scrolls instead of forcing the dialog to grow (see
-    ``tab_builders.finalize_size``).
+    ``outer`` is the page's top-level layout (the scroll area itself); ``inner``
+    is the scroll content where the groups go, so a tall page scrolls instead of
+    forcing the dialog to grow (see ``tab_builders.finalize_size``). The top
+    inset keeps the first group box off the tab bar: the pages carry no purpose
+    line, so the breathing room comes from these margins.
     """
 
     outer = _page_outer(tab)
     content = QWidget()
     inner = QVBoxLayout(content)
-    inner.setContentsMargins(4, 4, 4, 4)
+    inner.setContentsMargins(4, 16, 4, 12)
     inner.setSpacing(8)
     outer.addWidget(
         _scroll_area(
@@ -179,31 +175,6 @@ def _scrollable_page(tab: QWidget) -> tuple[QVBoxLayout, QVBoxLayout]:
         1,
     )
     return outer, inner
-
-
-def _add_tab_description(dlg: SettingsDialog, vbox: QVBoxLayout, tab_index: int) -> None:
-    """Insert the tab's one-line purpose label above its groups.
-
-    The label keeps the ``mutedHint`` style of the wizard helper text and is
-    registered on the dialog so re-translation and the "disable this tab"
-    state machines can reach it.
-    """
-
-    label = muted_label(tr(_TAB_DESCRIPTION_KEYS[tab_index]))
-    label.setContentsMargins(*_DESCRIPTION_MARGINS)
-    # A word-wrapped QLabel reports its *unwrapped* text width as sizeHint;
-    # cap it below the content column so a longer translation wraps instead of
-    # forcing the page wider.
-    label.setMaximumWidth(_TAB_DESCRIPTION_MAX_WIDTH)
-    dlg._tab_descriptions[tab_index] = label
-    # The description shares the centred content column of the groups below, so
-    # the two stay aligned on a wide window. It stays the page's first item,
-    # above the scroll area.
-    column = QWidget()
-    column_layout = QVBoxLayout(column)
-    column_layout.setContentsMargins(0, 0, 0, 0)
-    column_layout.addWidget(label)
-    vbox.insertWidget(0, _CenteredColumn(column, _CONTENT_MAX_WIDTH))
 
 
 def reorganize_general_tab(dlg: SettingsDialog) -> None:
@@ -288,9 +259,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
         _tmp.setLayout(old)
 
     # ── Build new grouped layout inside a scroll area ──────
-    outer, vbox = _scrollable_page(sync_tab)
-
-    _add_tab_description(dlg, outer, _SYNC_TAB_INDEX)
+    _, vbox = _scrollable_page(sync_tab)
 
     # Group 1: Path & Bucket
     dlg._grp_path = _group_box("settings.group.path_bucket")

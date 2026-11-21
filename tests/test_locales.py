@@ -606,11 +606,10 @@ class TestEllipsisPolicy:
             assert not module.translations["menu.setup_wizard"].endswith("…"), module.__name__
 
 
-class TestTabDescriptions:
-    """The Sync tab line and the two mode sentences are short and jargon-free."""
+class TestModeOptionSentences:
+    """The two connection-mode sentences are short and jargon-free."""
 
     KEYS = (
-        "settings.sync.description",
         "settings.p2p.description",
         "settings.server_mode.description",
     )
