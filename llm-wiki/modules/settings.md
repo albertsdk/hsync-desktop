@@ -35,10 +35,10 @@ emitted subcommand always agree.
 
 | Symbol | Location | Role |
 | ------ | -------- | ---- |
-| `SettingsDialog` | `hsync_desktop/settings/dialog.py::SettingsDialog` | settings tabs (sync, p2p, server, general, advanced); load/save QSettings |
-| tab builders | `hsync_desktop/settings/tab_builders.py::build_sync_tab`, `hsync_desktop/settings/tab_builders.py::build_server_tab`, `hsync_desktop/settings/tab_builders.py::build_p2p_tab`, `hsync_desktop/settings/tab_builders.py::build_advanced_tab`, `hsync_desktop/settings/tab_builders.py::build_general_tab`, `hsync_desktop/settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
-| tab indices | `hsync_desktop/settings/tab_indices.py::_P2P_TAB_INDEX`, `hsync_desktop/settings/tab_indices.py::_TAB_DESCRIPTION_KEYS` | sync/direct/server tab positions and the per-tab purpose string keys (shared by dialog + builders + layout) |
-| tab layout | `hsync_desktop/settings/tab_layout.py::reorganize_sync_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_p2p_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_server_tab`, `hsync_desktop/settings/tab_layout.py::_group_box`, `hsync_desktop/settings/tab_layout.py::_add_tab_description` | regroup the Sync/p2p/Server mode tabs into `QGroupBox` sections and open each with its purpose line |
+| `SettingsDialog` | `hsync_desktop/settings/dialog.py::SettingsDialog` | settings tabs (sync, connection, general, advanced); load/save QSettings |
+| tab builders | `hsync_desktop/settings/tab_builders.py::build_sync_tab`, `hsync_desktop/settings/tab_builders.py::build_connection_tab`, `hsync_desktop/settings/tab_builders.py::_build_server_fields`, `hsync_desktop/settings/tab_builders.py::_build_direct_fields`, `hsync_desktop/settings/tab_builders.py::build_advanced_tab`, `hsync_desktop/settings/tab_builders.py::build_general_tab`, `hsync_desktop/settings/tab_builders.py::setup_language_combo` (+ banner/icons/size helpers) | build each tab's widgets on the dialog; `_load_ui` only orchestrates them |
+| tab indices | `hsync_desktop/settings/tab_indices.py::_CONNECTION_TAB_INDEX`, `hsync_desktop/settings/tab_indices.py::_TAB_DESCRIPTION_KEYS` | sync/connection tab positions and the per-tab purpose string keys (shared by dialog + builders + layout) |
+| tab layout | `hsync_desktop/settings/tab_layout.py::reorganize_sync_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`, `hsync_desktop/settings/tab_layout.py::_group_box`, `hsync_desktop/settings/tab_layout.py::_mode_line`, `hsync_desktop/settings/tab_layout.py::_add_tab_description` | regroup the Sync and Connection tabs into `QGroupBox` sections and open each with its purpose line |
 | tab translations | `hsync_desktop/settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget, including the tab descriptions and group titles |
 | form helpers | `hsync_desktop/settings/form_helpers.py::_replace_checkbox_with_toggle`, `hsync_desktop/settings/form_helpers.py::_maybe_tip`, `hsync_desktop/settings/form_helpers.py::_paired_label`, `hsync_desktop/settings/form_helpers.py::_set_field_tooltip`, `hsync_desktop/settings/form_helpers.py::_action_row`, `hsync_desktop/settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
 | `ApiKeyDialog` | `hsync_desktop/settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
@@ -58,13 +58,14 @@ entry is the operation. The dialog closes on Apply (the window re-applies live
 after `hsync_desktop/main_window/start.py::StartMixin._open_settings`); there is no stay-open
 Apply button.
 
-**Tab sections** (`_reorganize_sync_tab` / `_reorganize_p2p_tab` / `_reorganize_server_tab`):
+**Tab sections** (`_reorganize_sync_tab` / `_reorganize_connection_tab`):
 the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
-the Direct mode tab groups Mode & Group, Finding devices, Role & security, Advanced
-Options; the Server mode tab groups Server (URL, API key, server identity check and
-the manage/test action row), Certificates (skip-certificate check, CA file) and
-Advanced Options (request timeout), with the p2p-mode banner kept above the groups
-(the user-facing group titles; the wiki below names the settings keys).
+the connection tab groups the choice itself (Connection mode) and then, per
+selected mode, the direct boxes (Group, Finding devices, Role & security, Advanced
+Options) or the server ones (Server: URL, API key, server identity check and the
+manage/test action row; Certificates: skip-certificate check, CA file; Advanced
+Options: request timeout) — the user-facing group titles; the wiki below names the
+settings keys.
 In the sync "Share & Path" group the remote bucket is shown **first** and
 presented as **Share name** (`settings.bucket`; `tip.bucket` and the
 `trusted_keys.bucket` column use the same share terminology, and `label.bucket`
@@ -76,14 +77,16 @@ titles are refreshed in `_apply_translations`, and both that refresh and the
 the `&` of "Share & Path" / "Zeiten & Intervalle" is displayed instead of being
 consumed as a keyboard mnemonic (see [ui.md](ui.md)).
 
-**Tab descriptions** (`_add_tab_description`): the Sync, p2p and Server mode tabs
-open with one muted sentence stating what the tab is for, built from
+**Tab descriptions** (`_add_tab_description`): the Sync and Connection tabs open
+with one muted sentence stating what the tab is for, built from
 `_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
-`settings.p2p.description` / `settings.server_mode.description`). The label uses
+`settings.connection.description`). The two mode sentences
+(`settings.p2p.description` / `settings.server_mode.description`) are the option
+subtitles inside the Connection mode box instead. The label uses
 `hsync_desktop/widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
 helper text — so it does not introduce a second visual language.
 `hsync_desktop/settings/tab_layout.py::equalize_tab_descriptions` reserves the tallest of the
-three hints on all of them (recomputed from `SettingsDialog.resizeEvent` and on
+two hints on both of them (recomputed from `SettingsDialog.resizeEvent` and on
 re-translation), so the wrap differences between languages do not move the first
 group box by a few pixels when switching tabs. Its insets come
 from `hsync_desktop/settings/tab_layout.py::_DESCRIPTION_MARGINS` (applied with
@@ -94,25 +97,49 @@ Advanced are deliberately left undescribed (their group titles already read as a
 index), so `_TAB_DESCRIPTION_KEYS` is the single place that decides which tabs get
 one. Two constraints to keep:
 * `SettingsDialog._set_tab_labels_enabled` skips
-  `SettingsDialog._tab_descriptions`, so the sentence stays readable while direct mode
-  grays the Server mode tab or a running sync grays the others.
+  `SettingsDialog._tab_descriptions` and the connection page's explanatory lines
+  (`_connection_hint_labels`), so the sentences stay readable while a running sync
+  grays the fields.
 * `_TAB_DESCRIPTION_MAX_WIDTH` caps the label: a wrapped `QLabel` reports its
   unwrapped text width as `sizeHint`, so a longer translation would widen the page
   instead of wrapping. Keep every locale within
   `tests/test_locales.py::TestTabDescriptions` (≤ 24 words, no
   master/rendezvous/relay jargon, rendezvous-server wording in the p2p line).
 
-**Tab order**: the tab widget order is sync (0), p2p (1), Server mode (2),
-General (3), Advanced (4), sourced from `ui/settings_dialog.ui` (the p2p page
-precedes the Server mode page, and Advanced is last, after the app preferences,
-matching comparable tools). `_SYNC_TAB_INDEX` / `_P2P_TAB_INDEX` /
-`_SERVER_TAB_INDEX` / `_GENERAL_TAB_INDEX` / `_ADVANCED_TAB_INDEX`
+**Tab order**: the tab widget order is sync (0), connection (1), General (2),
+Advanced (3), sourced from `ui/settings_dialog.ui` (Advanced is last, after the
+app preferences, matching comparable tools). `_SYNC_TAB_INDEX` /
+`_CONNECTION_TAB_INDEX` / `_GENERAL_TAB_INDEX` / `_ADVANCED_TAB_INDEX`
 (`hsync_desktop/settings/tab_indices.py::_ADVANCED_TAB_INDEX`) name the positions; the
 prefer-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
 them instead of literals. Advanced holds the engine tuning (performance, delta
 transfer, deletion protection, bandwidth, logging); General holds the app
 preferences (font size, language, theme, notifications, tooltips, log panel,
 launch at login).
+
+**Connection mode**: the connection tab asks one thing first — how this device
+reaches the others — through two `QRadioButton`s in an exclusive `QButtonGroup`
+(`mode_direct` / `mode_server`, labels `settings.p2p` / `settings.server_mode`,
+subtitles the two mode descriptions). `SettingsDialog._apply_connection_mode`
+(`hsync_desktop/settings/dialog.py::SettingsDialog._apply_connection_mode`) is the
+single place that decides the page: it shows the selected mode's section and hides
+the other (values intact, so switching back finds them — nothing but visibility
+changes), names the hidden one in one muted line
+(`settings.connection.inactive_server` / `settings.connection.inactive_direct`),
+and composes the three enable axes of the page — the selected mode, a running sync
+(`_connection_active`) and the capability gates (`_unsupported_widgets`). It also
+refreshes the show-group-key row, the "exclude the local network" toggle and the
+changed-password warning, which all depend on the direct half. The choice is
+persisted as `p2p/enabled` (`mode_direct` on = direct mode; the fresh-install
+default is direct) and `ui/settings_dialog.ui` owns the four pages, with both
+modes' fields on `tabConnection`.
+Validation follows the selection: `_commit` normalizes the server endpoint, asks
+about an API key over plain HTTP and runs the share probe only in server mode, and
+validates the shared password plus the discovery-server key reminder only in
+direct mode — a value left in the hidden half never blocks a save.
+Without the `p2p` subcommand the direct option is disabled with the
+capability tooltip and the server option is selected. There is no cross-tab banner
+about a disabled tab: the page it used to gray no longer exists.
 
 **Form rows** (`hsync_desktop/widgets/forms.py::add_row`): every option is a `QFormLayout`
 row — caption in the label column, control (switch, combo box, spin box, line
@@ -146,8 +173,8 @@ the full width, which broke the alignment with the groups below.
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
 drives `SettingsDialog._apply_advanced_visibility`
 (`hsync_desktop/settings/dialog.py::SettingsDialog._apply_advanced_visibility`): it hides the
-Advanced tab (`setTabVisible`) and the Advanced Options groups in the Sync/p2p
-tabs plus the Certificates and Advanced Options groups in the Server mode tab.
+Advanced tab (`setTabVisible`) and the Advanced Options groups in the Sync and
+connection tabs plus the Certificates group of the server mode.
 `set_current_tab` (`hsync_desktop/settings/dialog.py::SettingsDialog.set_current_tab`) falls
 back to the first visible tab so a hidden target never shows a blank page. The
 advanced values themselves are preserved; the toggle only changes visibility.
@@ -254,7 +281,8 @@ resolution and the Test Connection probe try
 `hsync_common/endpoint.py::server_fallback_url` (`SERVER_FALLBACK_PORT`) when the
 standard port does not answer.
 
-**Capability gating (§8)**: p2p toggles (`p2p_mode`, `prefer_master`,
+**Capability gating (§8)**: the direct-mode option (`mode_direct`, which the
+server then replaces as the only choice) and the p2p toggles (`prefer_master`,
 `never_master`, `p2p_trust`, `peer_download` and its caps) are disabled +
 unchecked when the probed `CapabilitiesDoc` (from `engine.get_binary_capabilities`)
 lacks the matching CLI option; the unsupported widgets carry the
@@ -269,19 +297,21 @@ the same applies to the capability and the disabled-during-sync tooltips.
 
 **Disabled while syncing**: `SettingsDialog.set_connection_active`
 (`hsync_desktop/settings/dialog.py::SettingsDialog.set_connection_active`) shows the warning banner
-(`settings.connection_active_warning`) and disables the connection, sync, p2p and
-Advanced fields while a sync runs (the General tab stays live: theme, language
-and the log panel change without a restart). `_set_tab_labels_enabled`
-(`hsync_desktop/settings/dialog.py::SettingsDialog._set_tab_labels_enabled`) also grays each tab's
-field labels — the same visual the Server mode tab uses when direct mode is active
-(`_on_p2p_mode_toggled`, sharing the helper) — so a disabled panel reads as
-disabled; banner labels and capability-unsupported labels are skipped.
+(`settings.connection_active_warning`) and disables the connection page (both
+mode radios included), the sync and the Advanced fields while a sync runs (the
+General tab stays live: theme, language and the log panel change without a
+restart). The connection page's enable state is composed in one place,
+`SettingsDialog._apply_connection_mode`, from the selected mode, this lock and the
+capability gates; `_set_tab_labels_enabled`
+(`hsync_desktop/settings/dialog.py::SettingsDialog._set_tab_labels_enabled`) grays the
+field labels, skipping the banner, the tab description and the connection page's
+explanatory lines.
 
 **Prefer-master live gate**: `--prefer-master` is incompatible with a
 non-bidirectional direction (it only applies to bidirectional syncs, and is
 emitted solely in direct mode). `SettingsDialog._prefer_master_conflict`
 (`hsync_desktop/settings/dialog.py::SettingsDialog._prefer_master_conflict`) is True only when all three hold:
-direction combo != `bidirectional`, `p2p_mode` on, `prefer_master` on.
+direction combo != `bidirectional`, `mode_direct` on, `prefer_master` on.
 `SettingsDialog._maybe_warn_prefer_master` (`hsync_desktop/settings/dialog.py::SettingsDialog._maybe_warn_prefer_master`)
 shows a Yes/No prompt whose message depends on the trigger (`**fmt` fills the
 localized message placeholders, e.g. the active direction label) and returns
@@ -295,7 +325,8 @@ True on "Yes". Three consumers:
   `_connect_signals` to `sync_direction_combo.currentIndexChanged` **after**
   `load()` runs, so restoring a saved conflicting state never warns):
   `warn.prefer_master_disable_msg` offers disabling prefer-master, "Yes"
-  unchecks `prefer_master` and jumps to the Direct mode tab (`_P2P_TAB_INDEX`).
+  unchecks `prefer_master`, selects the direct mode and jumps to the connection tab
+  (`_CONNECTION_TAB_INDEX`).
 * Live toggle check `SettingsDialog._on_prefer_master_toggled`
   (`hsync_desktop/settings/dialog.py::SettingsDialog._on_prefer_master_toggled`, fires only when prefer-master
   is switched **on**): `warn.prefer_master_sync_msg` names the active direction
@@ -419,11 +450,11 @@ saved/loaded under
 `tip.p2p_rendezvous` (what a rendezvous is/does) / `tip.p2p_rendezvous_trust` /
 `tip.p2p_rendezvous_transport` /
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.p2p_no_mdns` / `tip.test_rendezvous`, shown per the
-`tooltips` preference. The tab is grouped (like the sync tab) into four
-`QGroupBox` sections by `_reorganize_p2p_tab`: Mode & Group
-(`settings.group.p2p_mode`), Finding devices (`settings.group.p2p_rendezvous`),
-Role & Pairing (`settings.group.p2p_role`) and Advanced Options
-(`settings.group.advanced`, shared with the sync tab).
+`tooltips` preference. These rows are grouped (like the sync tab) into four
+`QGroupBox` sections by `reorganize_connection_tab`, inside the direct-mode half of
+the page: Group (`settings.group.p2p_group`), Finding devices
+(`settings.group.p2p_rendezvous`), Role & Pairing (`settings.group.p2p_role`) and
+Advanced Options (`settings.group.advanced`, shared with the sync tab).
 Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts
@@ -462,7 +493,8 @@ only grows while the row is horizontal. Both test buttons carry the
 `settings.test_connection` label (set in `_apply_translations`).
 
 The row is added with the **single-widget** `QFormLayout` overload
-(`hsync_desktop/settings/tab_layout.py::reorganize_p2p_tab` → `g2.addRow(manage_container)`,
+(`hsync_desktop/settings/tab_layout.py::reorganize_connection_tab` →
+`g2.addRow(manage_direct)`,
 `reorganize_server_tab` → `g1.addRow(action_row)`), so it spans both columns and
 gets the full form width; `addRow("", container)` would confine it to the field
 column (~330 px at the 640 px dialog minimum), where the localized labels do not
@@ -668,7 +700,7 @@ it is stored as `passphrase`. That normalisation is the same one the engine
 applies at start, so a short secret stored as `raw` is repaired on
 the next save and accepted by the running engine.
 
-### Group key for a protected search server (Direct mode tab)
+### Group key for a protected search server (connection tab, direct mode)
 
 A protected/private search server derives its bucket tokens from the group
 key, so the desktop derives it from the Shared password (`hsync_desktop/settings/credential_dialogs.py::resolve_group_key` →
@@ -676,7 +708,7 @@ key, so the desktop derives it from the Shared password (`hsync_desktop/settings
 
 - **Show group key…** (`hsync_desktop/settings/dialog.py::SettingsDialog._on_show_group_key` /
   `_open_group_key_dialog`) lives in the **Finding devices** group
-  (`hsync_desktop/settings/tab_layout.py::reorganize_p2p_tab`) and is shown **only when a
+  (`hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`) and is shown **only when a
   search server is configured** (`hsync_desktop/settings/dialog.py::SettingsDialog._refresh_group_key_button`,
   driven by the `p2p_rendezvous` text). The `GroupKeyDialog`
   (`hsync_desktop/settings/credential_dialogs.py::GroupKeyDialog`) shows the whole

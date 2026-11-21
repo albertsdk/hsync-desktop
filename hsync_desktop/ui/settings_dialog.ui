@@ -245,23 +245,16 @@
        </item>
       </layout>
      </widget>
-     <!-- Direct mode tab -->
-     <widget class="QWidget" name="tabP2p">
+     <!-- Connection tab -->
+     <widget class="QWidget" name="tabConnection">
       <attribute name="title">
-       <string>Direct mode</string>
+       <string>Connection</string>
       </attribute>
       <attribute name="icon">
-       <iconset theme="network-p2p"/>
+       <iconset theme="preferences-system-network"/>
       </attribute>
-      <layout class="QFormLayout" name="formP2p">
-       <item row="0" column="1">
-        <widget class="QCheckBox" name="p2pMode">
-         <property name="text">
-          <string>Enable direct mode</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
+      <layout class="QFormLayout" name="formConnection">
+       <item row="0" column="0">
         <widget class="QLabel" name="lblP2pGroup">
          <property name="text">
           <string>Group:</string>
@@ -282,7 +275,7 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
+       <item row="3" column="1">
         <widget class="QLineEdit" name="p2pKey">
          <property name="echoMode">
           <enum>QLineEdit::Password</enum>
@@ -292,14 +285,14 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QLabel" name="lblP2pPort">
          <property name="text">
           <string>Port</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
+       <item row="5" column="1">
         <widget class="QSpinBox" name="p2pPort">
          <property name="minimum">
           <number>0</number>
@@ -315,14 +308,14 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="6" column="0">
         <widget class="QLabel" name="lblRendezvousTimeout">
          <property name="text">
           <string>Device search timeout</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
+       <item row="7" column="1">
         <widget class="QSpinBox" name="rendezvousTimeout">
          <property name="minimum">
           <number>5</number>
@@ -338,7 +331,7 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="1">
+       <item row="8" column="1">
         <widget class="QCheckBox" name="preferMaster">
          <property name="text">
           <string>Prefer primary role</string>
@@ -348,39 +341,28 @@
          </property>
         </widget>
        </item>
-      </layout>
-     </widget>
-     <!-- Server mode tab -->
-     <widget class="QWidget" name="tabConnection">
-      <attribute name="title">
-       <string>Server mode</string>
-      </attribute>
-      <attribute name="icon">
-       <iconset theme="preferences-system-network"/>
-      </attribute>
-      <layout class="QFormLayout" name="formConnection">
-       <item row="0" column="0">
+       <item row="9" column="0">
         <widget class="QLabel" name="lblServerUrl">
          <property name="text">
           <string>Server address</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
+       <item row="10" column="1">
         <widget class="QLineEdit" name="serverUrl">
          <property name="placeholderText">
           <string>https://server.example.com</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
+       <item row="11" column="0">
         <widget class="QLabel" name="lblApiKey">
          <property name="text">
           <string>API Key</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="1">
+       <item row="12" column="1">
         <widget class="QLineEdit" name="apiKey">
          <property name="echoMode">
           <enum>QLineEdit::Password</enum>
@@ -390,35 +372,35 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
+       <item row="13" column="1">
         <widget class="QCheckBox" name="insecure">
          <property name="text">
           <string>Skip certificate check (insecure)</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="14" column="0">
         <widget class="QLabel" name="lblCaCert">
          <property name="text">
           <string>Certificate authority file</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
+       <item row="15" column="1">
         <widget class="QLineEdit" name="caCert">
          <property name="placeholderText">
           <string>/path/to/ca.pem</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="16" column="0">
         <widget class="QLabel" name="lblHttpTimeout">
          <property name="text">
           <string>Request timeout</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
+       <item row="17" column="1">
         <widget class="QSpinBox" name="httpTimeout">
          <property name="minimum">
           <number>5</number>

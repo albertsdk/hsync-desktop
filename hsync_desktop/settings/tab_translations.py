@@ -18,9 +18,8 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.icons import style_ok_cancel_button_box
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
@@ -68,8 +67,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
 
     # Tab titles
     dlg._tabs.setTabText(_SYNC_TAB_INDEX, escape_mnemonics(tr("settings.sync")))
-    dlg._tabs.setTabText(_P2P_TAB_INDEX, escape_mnemonics(tr("settings.p2p")))
-    dlg._tabs.setTabText(_SERVER_TAB_INDEX, escape_mnemonics(tr("settings.server_mode")))
+    dlg._tabs.setTabText(_CONNECTION_TAB_INDEX, escape_mnemonics(tr("settings.connection")))
     dlg._tabs.setTabText(_GENERAL_TAB_INDEX, escape_mnemonics(tr("settings.general")))
     dlg._tabs.setTabText(_ADVANCED_TAB_INDEX, escape_mnemonics(tr("settings.advanced")))
 
@@ -122,7 +120,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_sync.setTitle(escape_mnemonics(tr("settings.group.sync_mode")))
     dlg._grp_timing.setTitle(escape_mnemonics(tr("settings.group.timing")))
     dlg._grp_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
-    dlg._grp_p2p_mode.setTitle(escape_mnemonics(tr("settings.group.p2p_mode")))
+    dlg._grp_mode.setTitle(escape_mnemonics(tr("settings.group.connection_mode")))
+    dlg._grp_p2p_group.setTitle(escape_mnemonics(tr("settings.group.p2p_group")))
     dlg._grp_p2p_rendezvous.setTitle(escape_mnemonics(tr("settings.group.p2p_rendezvous")))
     dlg._grp_p2p_role.setTitle(escape_mnemonics(tr("settings.group.p2p_role")))
     dlg._grp_p2p_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
@@ -142,7 +141,11 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._grp_advanced_logging.setTitle(escape_mnemonics(tr("settings.group.logging")))
 
     # p2p tab labels
-    dlg._lbl_p2p_mode.setText(tr("settings.p2p_mode"))
+    dlg.mode_direct.setText(tr("settings.p2p"))
+    dlg.mode_server.setText(tr("settings.server_mode"))
+    dlg._lbl_mode_direct_desc.setText(tr("settings.p2p.description"))
+    dlg._lbl_mode_server_desc.setText(tr("settings.server_mode.description"))
+    dlg._apply_connection_mode()
     dlg._lbl_p2p_rendezvous.setText(tr("settings.p2p_rendezvous"))
     dlg._lbl_p2p_rendezvous_trust.setText(tr("settings.p2p_rendezvous_trust"))
     dlg._populate_rendezvous_trust()

@@ -94,5 +94,5 @@ show a percentage and a speed, and turn **Synced** when they are done.
 ## Where to go next
 
 - [Start, watch and stop a sync](sync-basics.md) — the everyday controls.
-- [Choose your sync type](choose-sync-type.md) — send-only, receive-only, or both.
+- [Choose your sync direction](choose-sync-direction.md) — send-only, receive-only, or both.
 - [Warnings and notifications](warnings.md) — what the prompts and badges mean.

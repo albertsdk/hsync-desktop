@@ -6,17 +6,19 @@ with Qt `QSettings`. This page is the single source of truth for the settings.
 - New to the app? Start from [Your first sync](first-sync.md) or the
   [Setup wizard](setup-wizard.md).
 - Deciding between options? The dedicated guides —
-  [Choose your sync type](choose-sync-type.md),
+  [Choose your sync direction](choose-sync-direction.md),
   [Choose what happens to deleted files](choose-deletion-policy.md),
   [Choose how your devices connect](choose-connection.md) and
   [Trust, fingerprints and identity checks](choose-trust.md) — explain the choice
   and link back here for the exact field.
 
 Open **Settings** from the main window (or the tray menu). The dialog is organised
-into five tabs: **Sync**, **Direct mode**, **Server mode**, **General** and
-**Advanced**. The **Advanced** tab is hidden until you enable **Show advanced
-options** in General; the same toggle also reveals the **Advanced Options**
-sections in the other tabs, so the standard view stays uncluttered. Controls for
+into four tabs: **Sync**, **Connection**, **General** and **Advanced**. The two ways
+of reaching the other devices — **Direct mode** and **Server mode** — live in
+**Connection**, where one of them is selected and the other stays one line away.
+The **Advanced** tab is hidden until you enable **Show advanced options** in
+General; the same toggle also reveals the **Advanced Options** sections in the
+other tabs, so the standard view stays uncluttered. Controls for
 features your installed sync engine does not support are automatically disabled,
 with a tooltip explaining why. Settings are read when a sync starts: while one runs
 the connection-critical controls are disabled, and a change takes effect at the
@@ -34,7 +36,7 @@ transfer behaviour. It is used in both Direct mode and Server mode.
 | Setting | Description |
 |---------|-------------|
 | Share name | Name of the share: the folder name on the HSYNC server, or the share name in direct mode. Devices that sync the same folder must use the **same share name** (and, in Direct mode, the same group name) |
-| Sync Type | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync type](choose-sync-type.md) |
+| Sync direction | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync direction](choose-sync-direction.md) |
 | Real-time sync | Keep syncing automatically as files change |
 | Deletions | `Deletions reach every device` keeps this device aligned: a file deleted on one device is deleted on the others. `Never delete files on this device` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Deletions reach every device` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
 | Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files and the deletion-risk warning has not been acknowledged for this folder, when the one-time disclaimer has not been accepted yet, or when the plan the run computed includes deletions, the startup run stops and warns you instead of asking (and never opens a dialog) — press **Start** or **Compare** to review the plan and confirm it |
@@ -53,9 +55,21 @@ transfer behaviour. It is used in both Direct mode and Server mode.
 Large files already transfer only their changed blocks by default; the option
 and its minimum sizes are on the **Advanced** tab.
 
-## Direct mode
+## Connection
 
-<img src="assets/screens/06-settings-p2p.png" alt="Settings, Direct mode tab" width="640">
+The first thing the tab asks is **how this device reaches the others**:
+**Direct mode** (device to device, with no server) or **Server mode** (through a
+central HSYNC server). The two are mutually exclusive and a setup uses one of
+them; switching later keeps every value of the other, so nothing has to be typed
+again. Only the selected mode's settings are shown — the other is named by one
+line underneath — so the page stays as short as one mode and never doubles. On a
+fresh install the app starts in **Direct mode**.
+Only the selected mode is validated when you apply: a value left in the other mode
+is checked when you select it, so it never blocks a save you did not ask for.
+
+### Direct mode
+
+<img src="assets/screens/06-settings-p2p.png" alt="Settings, Connection tab in Direct mode" width="640">
 
 For peer-to-peer sync with no server. See the
 [client p2p guide](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-mode.md)
@@ -66,7 +80,7 @@ for when to use it.
 |---------|-------------|
 | Group name | Partition key for device discovery in Direct mode: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
 | Shared password | Password shared by the devices in the group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected search server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
-| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the Direct mode tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
+| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the Connection tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
 | Search servers identity check | How the app checks the search server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
 | Reach the search server via | How the app connects to the search server: **Auto** (default) races QUIC/UDP (preferred) and TLS/TCP; **QUIC/UDP only** and **TLS/TCP only** use one transport. Choose TLS/TCP when the network filters UDP |
 | Manage trusted servers & devices | List, add and remove the search servers, server and device fingerprints the client actually uses |
@@ -80,14 +94,14 @@ for when to use it.
 | Device search timeout | How long to wait for device discovery |
 | Time servers | Comma-separated time servers (SNTP) for clock-offset measurement in Direct mode; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
 
-The tab also holds **Enable direct mode**, **Max simultaneous reads from other
-devices** (1–32) and **Max devices per file** (1–8).
+The section also holds **Max simultaneous reads from other devices** (1–32) and
+**Max devices per file** (1–8).
 
 **Prefer primary role and sync type.** *Prefer primary role* is a preference, and
 it only applies to the **Keep aligned (Send & Receive)** sync type, so the
 conflict is caught as soon as it appears. Picking a one-way type (send-only or
 receive-only) while direct mode and *Prefer primary role* are both on offers to turn
-it off because it is incompatible (accept jumps to the Direct mode tab); switching
+it off because it is incompatible (accept jumps to the Connection tab); switching
 *Prefer primary role* on while a one-way type is active offers to go back to the
 **Keep aligned (Send & Receive)** type because they are incompatible (accept jumps
 to the Sync tab). Declining either prompt keeps your choice and repeats the
@@ -102,7 +116,7 @@ HSYNC** store.
 
 **Keyless runs.** Without a shared password the app confirms before starting:
 devices are not authenticated and reads are open to anyone who can reach this
-device. Set a shared password in the Direct mode tab to avoid the prompt; the confirmation
+device. Set a shared password in the Connection tab to avoid the prompt; the confirmation
 is requested on every start and is not a stored setting. See [Secrets](secrets.md).
 
 **Test Connection.** *Test Connection* contacts the configured search server
@@ -111,15 +125,15 @@ reachable; no pin is written. The button reads **Checking…** while the request
 runs and the window stays responsive, so the result arrives in a dialog when the
 server answers or the request times out.
 
-## Server mode
+### Server mode
 
-<img src="assets/screens/07-settings-server.png" alt="Settings, Server mode tab" width="640">
+<img src="assets/screens/07-settings-server.png" alt="Settings, Connection tab in Server mode" width="640">
 
 For syncing against a central HSYNC server.
 
-The tab is grouped into **Server** (URL, API key, identity check and the
-manage/test actions), **Certificates** (skip certificate check and CA file) and
-**Advanced Options** (request timeout).
+The server section is grouped into **Server** (URL, API key, identity check and
+the manage/test actions), **Certificates** (skip certificate check and CA file)
+and **Advanced Options** (request timeout).
 
 | Setting | Description |
 |---------|-------------|
@@ -129,7 +143,7 @@ manage/test actions), **Certificates** (skip certificate check and CA file) and
 | Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
 | Certificate authority file | Use a custom certificate file for a self-signed server |
 
-The tab also holds **Request timeout** (seconds). *Test Connection* contacts the
+It also holds **Request timeout** (seconds). *Test Connection* contacts the
 server health endpoint and reports whether it answers; the button reads
 **Checking…** while the request runs, so the window stays responsive until the
 result appears.
@@ -140,7 +154,7 @@ key on every device works, one key per device keeps revoking and rotating per
 device — see [Roles and Permissions → Sharing one bucket between
 devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
 
-Changing the **share name** in this tab keeps your API key: the key identifies
+Changing the **share name** in server mode keeps your API key: the key identifies
 your account, the share name only says which bucket it works on. The app checks
 the name against the server before saving — an edited name, and a share you just
 created, whose name the server has never seen. When the server answers that the

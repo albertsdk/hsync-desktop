@@ -103,7 +103,6 @@ class TestKnownProseTitles:
         [
             ("en", "_grp_path", "Share && Path"),
             ("en", "_grp_timing", "Timing && Intervals"),
-            ("en", "_grp_p2p_mode", "Mode && Group"),
             ("en", "_grp_p2p_role", "Role && security"),
             ("de", "_grp_timing", "Zeiten && Intervalle"),
         ],

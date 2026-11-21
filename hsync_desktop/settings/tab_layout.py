@@ -30,9 +30,8 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.settings.form_helpers import _action_row
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
@@ -388,47 +387,84 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     vbox.addStretch()
 
 
-def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
-    """Reorganize the p2p tab into grouped sections using QGroupBox."""
-    p2p_tab = dlg._tabs.widget(_P2P_TAB_INDEX)
-    if not p2p_tab:
+def _mode_line(key: str, *, indent: int) -> QLabel:
+    """A muted line explaining a connection mode, capped to the content column.
+
+    Used for the sentence under each option (the one that opened the mode's own
+    page) and for the line naming what the inactive mode holds.
+    """
+
+    label = muted_label(tr(key))
+    label.setContentsMargins(indent, 0, 20, 8)
+    label.setMaximumWidth(_TAB_DESCRIPTION_MAX_WIDTH)
+    return label
+
+
+def reorganize_connection_tab(dlg: SettingsDialog) -> None:
+    """Reorganize the connection tab: the mode choice, then its options.
+
+    Both modes keep their own group boxes and the page shows one of them, so it
+    is never as tall as the two together (see
+    ``SettingsDialog._apply_connection_mode``): the mode not in use is a single
+    muted line naming what it holds.
+    """
+
+    page = dlg._tabs.widget(_CONNECTION_TAB_INDEX)
+    if not page:
         return
 
     lbl_group: QLabel = dlg.findChild(QLabel, "lblP2pGroup")  # type: ignore[assignment]
     lbl_key: QLabel = dlg.findChild(QLabel, "lblP2pKey")  # type: ignore[assignment]
     lbl_port: QLabel = dlg.findChild(QLabel, "lblP2pPort")  # type: ignore[assignment]
     lbl_rendezvous: QLabel = dlg.findChild(QLabel, "lblRendezvousTimeout")  # type: ignore[assignment]
+    lbl_server_url: QLabel = dlg.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
+    lbl_api_key: QLabel = dlg.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
+    lbl_ca_cert: QLabel = dlg.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
+    lbl_timeout: QLabel = dlg.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
 
-    # Rebuild the pair from the buttons: the container created in
-    # ``build_p2p_tab`` is discarded with the old layout, so capturing the
-    # buttons' current parent is fragile. A fresh row is a single aligned unit.
-    manage_container = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_rendezvous)
+    # Rebuild the action pairs from the buttons: the containers created in the
+    # builders are discarded with the old layout, so capturing their current
+    # parent is fragile. A fresh row is a single aligned unit.
+    manage_direct = _action_row(dlg.btn_manage_trusted_keys, dlg.btn_test_rendezvous)
+    manage_server = _action_row(dlg.btn_manage_trusted_keys_server, dlg.btn_test_connection)
 
-    # Detach the original form layout.
-    old = p2p_tab.layout()
+    old = page.layout()
     if old is not None:
         while old.count():
             old.takeAt(0)
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    outer, vbox = _scrollable_page(p2p_tab)
+    outer, vbox = _scrollable_page(page)
+    _add_tab_description(dlg, outer, _CONNECTION_TAB_INDEX)
 
-    _add_tab_description(dlg, outer, _P2P_TAB_INDEX)
+    # Group 1: the choice itself, with the sentence that explains each option.
+    dlg._grp_mode = _group_box("settings.group.connection_mode")
+    mode_box = QVBoxLayout(dlg._grp_mode)
+    dlg._lbl_mode_direct_desc = _mode_line("settings.p2p.description", indent=24)
+    dlg._lbl_mode_server_desc = _mode_line("settings.server_mode.description", indent=24)
+    mode_box.addWidget(dlg.mode_direct)
+    mode_box.addWidget(dlg._lbl_mode_direct_desc)
+    mode_box.addWidget(dlg.mode_server)
+    mode_box.addWidget(dlg._lbl_mode_server_desc)
+    vbox.addWidget(dlg._grp_mode)
 
-    # Group 1: mode + group identity
-    dlg._grp_p2p_mode = _group_box("settings.group.p2p_mode")
-    g1 = QFormLayout(dlg._grp_p2p_mode)
-    add_row(g1, dlg._lbl_p2p_mode, dlg.p2p_mode)
+    # Direct mode: group identity, device finding, role, tuning.
+    dlg._direct_section = QWidget()
+    direct = QVBoxLayout(dlg._direct_section)
+    direct.setContentsMargins(0, 0, 0, 0)
+    direct.setSpacing(8)
+
+    dlg._grp_p2p_group = _group_box("settings.group.p2p_group")
+    g1 = QFormLayout(dlg._grp_p2p_group)
     add_row(g1, lbl_group, dlg.p2p_group)
     add_row(g1, lbl_key, dlg.p2p_key)
     # Spanning warning: changing the shared password invalidates the key a
     # discovery server derives from it. Hidden until that condition holds.
     g1.addRow(dlg._lbl_p2p_key_rdv_warning)
     dlg._lbl_p2p_key_rdv_warning.setVisible(False)
-    vbox.addWidget(dlg._grp_p2p_mode)
+    direct.addWidget(dlg._grp_p2p_group)
 
-    # Group 2: cross-network rendezvous through a rendezvous
     dlg._grp_p2p_rendezvous = _group_box("settings.group.p2p_rendezvous")
     g2 = QFormLayout(dlg._grp_p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
@@ -437,7 +473,7 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     # Spanning row: the pair needs more width than the field column leaves, and
     # ``_ActionRow`` trailing-aligns it to the content edge (stacking when even
     # the full width cannot hold both labels).
-    g2.addRow(manage_container)
+    g2.addRow(manage_direct)
     # The derived group key only matters for a discovery server, so the action
     # lives with the other discovery-server controls; it is hidden until one is
     # configured (see ``SettingsDialog._refresh_group_key_button``).
@@ -446,17 +482,15 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
     dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
     g2.addRow(dlg._lbl_help_rendezvous)
-    vbox.addWidget(dlg._grp_p2p_rendezvous)
+    direct.addWidget(dlg._grp_p2p_rendezvous)
 
-    # Group 3: role election + pairing
     dlg._grp_p2p_role = _group_box("settings.group.p2p_role")
     g3 = QFormLayout(dlg._grp_p2p_role)
     add_row(g3, dlg._lbl_prefer_master, dlg.prefer_master)
     add_row(g3, dlg._lbl_never_master, dlg.never_master)
     add_row(g3, dlg._lbl_p2p_trust, dlg.p2p_trust)
-    vbox.addWidget(dlg._grp_p2p_role)
+    direct.addWidget(dlg._grp_p2p_role)
 
-    # Group 4: advanced tuning
     dlg._grp_p2p_advanced = _group_box("settings.group.advanced")
     g4 = QFormLayout(dlg._grp_p2p_advanced)
     add_row(g4, lbl_port, dlg.p2p_port)
@@ -465,65 +499,43 @@ def reorganize_p2p_tab(dlg: SettingsDialog) -> None:
     add_row(g4, dlg._lbl_peer_download, dlg.peer_download)
     add_row(g4, dlg._lbl_peer_read_cap, dlg.peer_read_cap)
     add_row(g4, dlg._lbl_peer_sources_max, dlg.peer_sources_max)
-    vbox.addWidget(dlg._grp_p2p_advanced)
+    direct.addWidget(dlg._grp_p2p_advanced)
+    vbox.addWidget(dlg._direct_section)
 
-    vbox.addStretch()
+    # The mode not in use: one line naming what it holds, so the page never
+    # grows to both modes at once while the choice above stays the only way to
+    # reach the other options.
+    dlg._inactive_hint = _mode_line("settings.connection.inactive_server", indent=4)
+    vbox.addWidget(dlg._inactive_hint)
 
+    # Server mode: endpoint and identity, certificates, tuning.
+    dlg._server_section = QWidget()
+    server_box = QVBoxLayout(dlg._server_section)
+    server_box.setContentsMargins(0, 0, 0, 0)
+    server_box.setSpacing(8)
 
-def reorganize_server_tab(dlg: SettingsDialog) -> None:
-    """Reorganize the Server Mode tab into grouped sections using QGroupBox."""
-    server_tab = dlg._tabs.widget(_SERVER_TAB_INDEX)
-    if not server_tab:
-        return
-
-    lbl_server_url: QLabel = dlg.findChild(QLabel, "lblServerUrl")  # type: ignore[assignment]
-    lbl_api_key: QLabel = dlg.findChild(QLabel, "lblApiKey")  # type: ignore[assignment]
-    lbl_ca_cert: QLabel = dlg.findChild(QLabel, "lblCaCert")  # type: ignore[assignment]
-    lbl_timeout: QLabel = dlg.findChild(QLabel, "lblHttpTimeout")  # type: ignore[assignment]
-
-    # Rebuild the pair from the buttons (see the p2p twin); `_ActionRow` then
-    # trailing-aligns it to the content edge shared with the inputs.
-    action_row = _action_row(dlg.btn_manage_trusted_keys_server, dlg.btn_test_connection)
-
-    old = server_tab.layout()
-    if old is not None:
-        while old.count():
-            old.takeAt(0)
-        _tmp = QWidget()
-        _tmp.setLayout(old)
-
-    outer, vbox = _scrollable_page(server_tab)
-
-    # Orientation first (stable), then the p2p-mode warning that explains why
-    # the whole tab is disabled.
-    _add_tab_description(dlg, outer, _SERVER_TAB_INDEX)
-    vbox.addWidget(dlg._p2p_banner)
-
-    # Group 1: server endpoint, credentials, identity and actions.
     dlg._grp_server = _group_box("settings.group.server")
-    g1 = QFormLayout(dlg._grp_server)
-    add_row(g1, lbl_server_url, dlg.server_url)
-    add_row(g1, lbl_api_key, dlg.api_key)
-    add_row(g1, dlg._lbl_server_trust, dlg.server_trust)
-    # Spanning row, trailing-aligned to the same content edge as the inputs
-    # (same reasoning as the p2p twin).
-    g1.addRow(action_row)
+    s1 = QFormLayout(dlg._grp_server)
+    add_row(s1, lbl_server_url, dlg.server_url)
+    add_row(s1, lbl_api_key, dlg.api_key)
+    add_row(s1, dlg._lbl_server_trust, dlg.server_trust)
+    # Spanning row, trailing-aligned to the same content edge as the inputs.
+    s1.addRow(manage_server)
     dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
-    g1.addRow(dlg._lbl_help_server)
-    vbox.addWidget(dlg._grp_server)
+    s1.addRow(dlg._lbl_help_server)
+    server_box.addWidget(dlg._grp_server)
 
-    # Group 2: TLS/certificate behaviour.
     dlg._grp_server_certificates = _group_box("settings.group.server_certificates")
-    g2 = QFormLayout(dlg._grp_server_certificates)
-    add_row(g2, dlg._lbl_insecure, dlg.insecure)
-    add_row(g2, lbl_ca_cert, dlg.ca_cert)
-    vbox.addWidget(dlg._grp_server_certificates)
+    s2 = QFormLayout(dlg._grp_server_certificates)
+    add_row(s2, dlg._lbl_insecure, dlg.insecure)
+    add_row(s2, lbl_ca_cert, dlg.ca_cert)
+    server_box.addWidget(dlg._grp_server_certificates)
 
-    # Group 3: advanced request tuning.
     dlg._grp_server_advanced = _group_box("settings.group.advanced")
-    g3 = QFormLayout(dlg._grp_server_advanced)
-    add_row(g3, lbl_timeout, dlg.http_timeout)
-    vbox.addWidget(dlg._grp_server_advanced)
+    s3 = QFormLayout(dlg._grp_server_advanced)
+    add_row(s3, lbl_timeout, dlg.http_timeout)
+    server_box.addWidget(dlg._grp_server_advanced)
+    vbox.addWidget(dlg._server_section)
 
     vbox.addStretch()
 

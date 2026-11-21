@@ -1417,9 +1417,9 @@ class UiBuildMixin:
         if chosen is act_log:
             self._show_log_panel()
         elif act_settings is not None and chosen is act_settings:
-            from hsync_desktop.settings.tab_indices import _SERVER_TAB_INDEX
+            from hsync_desktop.settings.tab_indices import _CONNECTION_TAB_INDEX
 
-            self._open_settings(initial_tab=_SERVER_TAB_INDEX)
+            self._open_settings(initial_tab=_CONNECTION_TAB_INDEX)
 
     @Slot(QPoint)
     def _show_log_context_menu(self, pos: QPoint) -> None:

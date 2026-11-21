@@ -72,7 +72,7 @@ A **warning** is something the sync keeps running through, for example:
   resources;
 - a search server could not be reached while device discovery retried;
 - a search server refused the group token (`token_required`) because the
-  **Shared password** in the Direct mode tab does not match the key configured on the
+  **Shared password** in the Connection tab does not match the key configured on the
   server — there is no token to type; see
   [Troubleshooting → The search server refuses the shared password](troubleshooting.md#the-search-server-refuses-the-shared-password-token_required);
 - free disk space fell below the configured reserve;
@@ -124,7 +124,7 @@ what to do:
   otherwise check the primary device or the source first.
 - **No shared password** — with an empty shared password the app confirms before
   starting, because reads are open to anyone who can reach this device. Set the
-  password in the Direct mode tab to stop the prompt; see [Secrets](secrets.md).
+  password in the Connection tab to stop the prompt; see [Secrets](secrets.md).
 - **A sync plan awaits confirmation** — an automatic start (auto-sync on startup
   or launch at login) stops when the plan it computed would delete files:
   nothing is applied and the app says so (under **Synchronisation events** in

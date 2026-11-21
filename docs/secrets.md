@@ -49,7 +49,7 @@ If your devices find each other across networks, your setup may include a
 protected search server only introduces devices that know the group's key.
 
 There is **no separate token to type**: the app derives the key automatically
-from the **Shared password** in the Direct mode tab. The only thing that matters is
+from the **Shared password** in the Connection tab (direct mode). The only thing that matters is
 that the password matches the key the operator configured on the server:
 
 - The password you enter here must be the **same one used when the server's key

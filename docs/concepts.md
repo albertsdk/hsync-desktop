@@ -39,7 +39,7 @@ search server, the app uses mDNS on the local network.
 
 A search server can be **protected** (*private*, or protecting its buckets):
 it then only lets in devices that know the group's key. The app earns that key
-from the **Shared password** in the Direct mode tab — there is no separate token. See
+from the **Shared password** in the Connection tab (direct mode) — there is no separate token. See
 [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
 ## Trust and fingerprints

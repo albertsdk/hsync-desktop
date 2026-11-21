@@ -38,5 +38,5 @@ type — is what makes it stop asking. See
 
 ## Related
 
-- [Choose your sync type](choose-sync-type.md) — who sends and who receives.
+- [Choose your sync direction](choose-sync-direction.md) — who sends and who receives.
 - [Reset the sync state](reset-sync-state.md) if a folder keeps re-syncing.

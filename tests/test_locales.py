@@ -434,7 +434,7 @@ class TestTerminologyConsistency:
         "it": "direzione",
         "de": "richtung",
         "es": "dirección",
-        "fr": "direction",
+        "fr": "sens",
         "pt": "direção",
         "zh": "方向",
         "ru": "направление",
@@ -491,13 +491,18 @@ class TestTerminologyConsistency:
                 assert "bidirec" not in module.translations[key].lower(), f"{module.__name__}:{key}"
             assert direction in module.translations["warn.prefer_master_msg"], module.__name__
 
-    def test_sync_type_labels_are_not_called_direction(self):
-        """The field and its menu read "sync type" in every locale."""
+    def test_sync_direction_labels_name_the_direction(self):
+        """The field and its menu read "sync direction" in every locale.
+
+        The control is literally the direction of the transfer, and the tooltip
+        already describes it that way: a locale that drifts back to a vague
+        "type" fails here.
+        """
         for module in self.ALL:
-            token = self._DIRECTION_WORD[module.__name__.rsplit(".", 1)[-1]]
+            name = module.__name__.rsplit(".", 1)[-1]
             for key in ("settings.sync_direction", "menu.sync.direction"):
                 value = module.translations[key].lower()
-                assert token not in value, f"{module.__name__}:{key}"
+                assert self._DIRECTION_WORD[name] in value, f"{module.__name__}:{key}"
 
     def test_endpoint_warnings_avoid_raw_host_grammar(self):
         """Invalid-endpoint prompts give an example, not host/port/IPv6 grammar."""

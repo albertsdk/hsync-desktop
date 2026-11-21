@@ -62,7 +62,7 @@ The fields depend on the purpose:
   [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
 
 For the two device-to-device setups, **This device should only receive files**
-turns this device into a receiver. It is the same setting as **Sync Type →
+turns this device into a receiver. It is the same setting as **Sync direction →
 Receive only (from other devices)** in Settings; the next step shows the resulting
 type.
 

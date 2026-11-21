@@ -28,9 +28,8 @@ from PySide6.QtWidgets import (
 from hsync_desktop import docs_links
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import (
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.widgets.text import escape_mnemonics
@@ -44,7 +43,7 @@ class TestTabDescriptionAlignment:
     shift when switching between them.
     """
 
-    _DESCRIBED_TABS = (_SYNC_TAB_INDEX, _P2P_TAB_INDEX, _SERVER_TAB_INDEX)
+    _DESCRIBED_TABS = (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX)
 
     def test_descriptions_reserve_one_height(self, dialog, qtbot):
         dialog.resize(900, 700)
@@ -64,7 +63,7 @@ class TestTabDescriptionAlignment:
         qtbot.waitExposed(dialog)
 
         offsets = {}
-        for index in (_SYNC_TAB_INDEX, _P2P_TAB_INDEX):
+        for index in (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX):
             dialog._tabs.setCurrentIndex(index)
             qtbot.wait(10)
             tab = dialog._tabs.widget(index)
@@ -72,7 +71,7 @@ class TestTabDescriptionAlignment:
             assert group is not None
             offsets[index] = group.mapTo(tab, QPoint(0, 0)).y()
 
-        assert offsets[_SYNC_TAB_INDEX] == offsets[_P2P_TAB_INDEX]
+        assert offsets[_SYNC_TAB_INDEX] == offsets[_CONNECTION_TAB_INDEX]
 
 
 class TestAdvancedLoggingPanel:
@@ -208,9 +207,9 @@ class TestRendezvousTestButton:
         assert infos == [tr("settings.test_rendezvous_success").replace("{fingerprint}", report)]
 
     def test_button_disabled_in_server_mode(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         assert not dialog.btn_test_rendezvous.isEnabled()
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         assert dialog.btn_test_rendezvous.isEnabled()
 
 
@@ -238,7 +237,7 @@ class TestServerTestConnection:
             "probe_server_health",
             lambda *a, **k: ServerProbeResult(True, 200, 3, False),
         )
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
         # Non-blocking: the busy state is visible before the probe returns.
@@ -258,7 +257,7 @@ class TestServerTestConnection:
             "probe_server_health",
             lambda *a, **k: ServerProbeResult(False, None, 3, False, REASON_UNREACHABLE),
         )
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
         qtbot.waitUntil(lambda: bool(warned), timeout=5000)
@@ -282,7 +281,7 @@ class TestServerTestConnection:
             return ServerProbeResult(False, None, 3, False, REASON_UNREACHABLE)
 
         monkeypatch.setattr(dialog_mod, "probe_server_health", fake_probe)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("217.160.132.7")  # bare -> https://...:9753
         dialog._on_test_connection()
 
@@ -308,7 +307,7 @@ class TestServerTestConnection:
             return ServerProbeResult(True, 200, 3, False)
 
         monkeypatch.setattr(dialog_mod, "probe_server_health", fake_probe)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_trust.setCurrentIndex(dialog.server_trust.findData("auto"))
         dialog.server_url.setText("https://self-signed.example.com:9753")
         dialog._on_test_connection()
@@ -327,7 +326,7 @@ class TestServerTestConnection:
             lambda *a, **k: ServerProbeResult(True, 200, 3, False),
         )
         infos = self._capture(monkeypatch, "information")
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
         assert dialog.btn_test_rendezvous.text() == tr("settings.test_connection")
@@ -344,7 +343,7 @@ class TestServerTestConnection:
             return ServerProbeResult(True, 200, 3, False)
 
         monkeypatch.setattr(dialog_mod, "probe_server_health", slow_probe)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
         dialog.done(0)
@@ -364,7 +363,7 @@ class TestServerTestConnection:
             return ServerProbeResult(True, 200, 3, False)
 
         monkeypatch.setattr(dialog_mod, "probe_server_health", slow_probe)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.server_url.setText("https://server.example.com:9753")
         dialog._on_test_connection()
         # A sync starting while the probe runs must keep the button locked: the
@@ -383,7 +382,7 @@ class TestServerTestConnection:
         the Test Connection button enabled because its gate only ran when a probe
         ended.
         """
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
 
         dialog.set_connection_active(True)
 
@@ -394,29 +393,35 @@ class TestServerTestConnection:
         assert dialog.btn_test_connection.isEnabled()
 
 
-class TestP2pPanelSections:
-    """The p2p tab is grouped into four sections like the sync tab."""
+class TestConnectionSections:
+    """The connection page groups one mode at a time into its own sections."""
 
     @staticmethod
     def _groups(dialog) -> dict[str, QGroupBox]:
-        tab = dialog._tabs.widget(_P2P_TAB_INDEX)
+        tab = dialog._tabs.widget(_CONNECTION_TAB_INDEX)
         assert tab is not None
         return {g.title(): g for g in tab.findChildren(QGroupBox)}
 
-    def test_four_sections_with_expected_titles(self, dialog):
+    def test_the_mode_box_and_both_modes_sections(self, dialog):
+        # The choice, the four direct-mode boxes and the three server-mode ones.
         assert set(self._groups(dialog)) == {
-            escape_mnemonics(tr("settings.group.p2p_mode")),
+            escape_mnemonics(tr("settings.group.connection_mode")),
+            escape_mnemonics(tr("settings.group.p2p_group")),
             escape_mnemonics(tr("settings.group.p2p_rendezvous")),
             escape_mnemonics(tr("settings.group.p2p_role")),
             escape_mnemonics(tr("settings.group.advanced")),
+            escape_mnemonics(tr("settings.group.server")),
+            escape_mnemonics(tr("settings.group.server_certificates")),
         }
 
     def test_fields_are_in_the_expected_section(self, dialog):
         groups = self._groups(dialog)
-        mode = groups[escape_mnemonics(tr("settings.group.p2p_mode"))]
+        mode = groups[escape_mnemonics(tr("settings.group.p2p_group"))]
         rendezvous = groups[escape_mnemonics(tr("settings.group.p2p_rendezvous"))]
         role = groups[escape_mnemonics(tr("settings.group.p2p_role"))]
-        advanced = groups[escape_mnemonics(tr("settings.group.advanced"))]
+        # Both modes keep an Advanced box; the direct one is reached by
+        # attribute because the title is shared with the server one.
+        advanced = dialog._grp_p2p_advanced
 
         assert dialog.p2p_group.parent() is mode
         assert dialog.p2p_key.parent() is mode
@@ -457,7 +462,8 @@ class TestShareNameLabel:
 
         monkeypatch.setattr(tr_mod, "tr", lambda key: f"<{key}>")
         dialog._apply_translations()
-        assert dialog._grp_p2p_mode.title() == "<settings.group.p2p_mode>"
+        assert dialog._grp_mode.title() == "<settings.group.connection_mode>"
+        assert dialog._grp_p2p_group.title() == "<settings.group.p2p_group>"
         assert dialog._grp_p2p_advanced.title() == "<settings.group.advanced>"
 
 
@@ -515,17 +521,86 @@ class TestDialogButtonIcons:
         assert cancel.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
 
+class TestConnectionModeSwitch:
+    """One mode at a time: the page shows the selected half and keeps both.
+
+    The choice is exclusive, so the page is never as tall as the two modes and
+    the mode not in use is one muted line; its values survive a switch because
+    only its visibility changes.
+    """
+
+    def test_the_selected_mode_shows_only_its_half(self, dialog):
+        dialog.mode_direct.setChecked(True)
+        assert not dialog._direct_section.isHidden()
+        assert dialog._server_section.isHidden()
+
+        dialog.mode_server.setChecked(True)
+        assert dialog._direct_section.isHidden()
+        assert not dialog._server_section.isHidden()
+
+    def test_the_inactive_mode_is_named_by_one_line(self, dialog):
+        dialog.mode_direct.setChecked(True)
+        assert dialog._inactive_hint.text() == tr("settings.connection.inactive_server")
+
+        dialog.mode_server.setChecked(True)
+        assert dialog._inactive_hint.text() == tr("settings.connection.inactive_direct")
+
+    def test_switching_back_keeps_the_other_modes_values(self, dialog):
+        dialog.server_url.setText("https://server.example.com")
+        dialog.p2p_group.setText("my-group")
+
+        dialog.mode_direct.setChecked(True)
+        dialog.mode_server.setChecked(True)
+
+        assert dialog.server_url.text() == "https://server.example.com"
+        assert dialog.p2p_group.text() == "my-group"
+
+    def test_the_saved_mode_follows_the_selection(self, dialog, settings):
+        dialog.mode_server.setChecked(True)
+        assert dialog._commit() is True
+        assert settings.value("p2p/enabled", True, bool) is False
+
+        dialog.mode_direct.setChecked(True)
+        assert dialog._commit() is True
+        assert settings.value("p2p/enabled", False, bool) is True
+
+    def test_only_the_selected_modes_endpoint_is_validated(self, dialog, monkeypatch):
+        shown: list = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a))
+        dialog.server_url.setText("ftp://example.com")
+
+        dialog.mode_direct.setChecked(True)
+        assert dialog._commit() is True
+        assert shown == []
+
+        dialog.mode_server.setChecked(True)
+        assert dialog._commit() is False
+        assert shown
+
+    def test_the_choice_is_locked_during_a_sync(self, dialog):
+        dialog.set_connection_active(True)
+        assert not dialog.mode_direct.isEnabled()
+        assert not dialog.mode_server.isEnabled()
+
+        dialog.set_connection_active(False)
+        assert dialog.mode_direct.isEnabled()
+        assert dialog.mode_server.isEnabled()
+
+
 class TestTabOrderAndDefaultMode:
     """The p2p tab precedes Server Mode and a fresh install defaults to p2p."""
 
-    def test_p2p_tab_precedes_server_mode_tab(self, dialog):
-        assert dialog._tabs.tabText(_P2P_TAB_INDEX) == tr("settings.p2p")
-        assert dialog._tabs.tabText(_SERVER_TAB_INDEX) == tr("settings.server_mode")
-        assert _P2P_TAB_INDEX < _SERVER_TAB_INDEX
+    def test_the_connection_tab_sits_between_sync_and_general(self, dialog):
+        assert dialog._tabs.tabText(_CONNECTION_TAB_INDEX) == tr("settings.connection")
+        assert _SYNC_TAB_INDEX < _CONNECTION_TAB_INDEX < _GENERAL_TAB_INDEX
 
     def test_tab_indices_point_to_the_right_pages(self, dialog):
-        assert dialog._tabs.widget(_P2P_TAB_INDEX).findChild(QLineEdit, "p2pGroup") is not None
-        assert dialog._tabs.widget(_SERVER_TAB_INDEX).findChild(QLineEdit, "serverUrl") is not None
+        assert (
+            dialog._tabs.widget(_CONNECTION_TAB_INDEX).findChild(QLineEdit, "p2pGroup") is not None
+        )
+        assert (
+            dialog._tabs.widget(_CONNECTION_TAB_INDEX).findChild(QLineEdit, "serverUrl") is not None
+        )
 
     def test_fresh_install_defaults_to_p2p_mode(self, qtbot, monkeypatch, tmp_path):
         from PySide6.QtCore import QSettings
@@ -537,7 +612,7 @@ class TestTabOrderAndDefaultMode:
         monkeypatch.setattr(dialog_mod, "QSettings", lambda *a, **k: s)
         dlg = dialog_mod.SettingsDialog()
         qtbot.addWidget(dlg)
-        assert dlg.p2p_mode.isChecked()
+        assert dlg.mode_direct.isChecked()
         # The transport selector defaults to the shared RFC 8305 default.
         assert dlg.p2p_rendezvous_transport.currentData() == "auto"
 
@@ -578,7 +653,7 @@ class TestActionButtonRows:
         monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
         dialog.show()
         qtbot.waitExposed(dialog)
-        dialog.set_current_tab(_P2P_TAB_INDEX)
+        dialog.set_current_tab(_CONNECTION_TAB_INDEX)
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
@@ -594,7 +669,7 @@ class TestActionButtonRows:
         monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
         dialog.show()
         qtbot.waitExposed(dialog)
-        dialog.set_current_tab(_SERVER_TAB_INDEX)
+        dialog.set_current_tab(_CONNECTION_TAB_INDEX)
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
@@ -620,10 +695,10 @@ class TestDisabledDuringSyncVisual:
         ]
 
     def _p2p_labels(self, dialog) -> list[QLabel]:
-        return self._labels(dialog, _P2P_TAB_INDEX, exclude=(dialog._lbl_p2p_mode,))
+        return self._labels(dialog, _CONNECTION_TAB_INDEX, exclude=dialog._connection_hint_labels())
 
     def test_labels_are_grayed_while_sync_is_active(self, dialog):
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         dialog.set_connection_active(True)
         sync_labels = self._labels(dialog, 0)
         p2p_labels = self._p2p_labels(dialog)
@@ -632,20 +707,20 @@ class TestDisabledDuringSyncVisual:
         assert all(not lbl.isEnabled() for lbl in p2p_labels)
 
     def test_labels_are_restored_when_sync_stops(self, dialog):
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         dialog.set_connection_active(True)
         dialog.set_connection_active(False)
         assert all(lbl.isEnabled() for lbl in self._labels(dialog, 0))
         assert all(lbl.isEnabled() for lbl in self._p2p_labels(dialog))
 
-    def test_p2p_labels_stay_grayed_when_p2p_is_off_after_sync(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+    def test_the_mode_not_in_use_leaves_no_grayed_page_after_a_sync(self, dialog):
+        dialog.mode_server.setChecked(True)
         dialog.set_connection_active(True)
         dialog.set_connection_active(False)
-        p2p_labels = self._p2p_labels(dialog)
-        assert p2p_labels
-        assert all(not lbl.isEnabled() for lbl in p2p_labels)
-        assert all(lbl.isEnabled() for lbl in self._labels(dialog, 0))
+        # The direct half is hidden, not a page of grayed controls left behind.
+        assert dialog._direct_section.isHidden()
+        assert not dialog._server_section.isHidden()
+        assert dialog.server_url.isEnabled()
 
 
 class TestServerModeSections:
@@ -666,8 +741,8 @@ class TestServerModeSections:
         assert dialog._grp_server_certificates.isAncestorOf(dialog.ca_cert)
         assert dialog._grp_server_advanced.isAncestorOf(dialog.http_timeout)
 
-    def test_the_sections_live_in_the_server_tab(self, dialog):
-        tab = dialog._tabs.widget(_SERVER_TAB_INDEX)
+    def test_the_sections_live_in_the_connection_tab(self, dialog):
+        tab = dialog._tabs.widget(_CONNECTION_TAB_INDEX)
         for group in (
             dialog._grp_server,
             dialog._grp_server_certificates,
@@ -675,10 +750,10 @@ class TestServerModeSections:
         ):
             assert tab.isAncestorOf(group)
 
-    def test_the_p2p_banner_stays_outside_the_groups(self, dialog):
-        tab = dialog._tabs.widget(_SERVER_TAB_INDEX)
-        assert tab.isAncestorOf(dialog._p2p_banner)
-        assert not dialog._grp_server.isAncestorOf(dialog._p2p_banner)
+    def test_the_mode_box_holds_the_two_exclusive_options(self, dialog):
+        assert dialog._grp_mode.isAncestorOf(dialog.mode_direct)
+        assert dialog._grp_mode.isAncestorOf(dialog.mode_server)
+        assert dialog.mode_direct.autoExclusive() and dialog.mode_server.autoExclusive()
 
 
 class TestServerSetupLink:
@@ -701,7 +776,8 @@ class TestServerSetupLink:
 
     def test_the_link_occupies_one_text_line(self, dialog, qtbot):
         """A rich-text label must not reserve three lines for one line of text."""
-        dialog._tabs.setCurrentIndex(_SERVER_TAB_INDEX)
+        dialog.mode_server.setChecked(True)
+        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
         dialog.show()
         qtbot.wait(1)
         label = dialog._lbl_help_server
@@ -729,7 +805,7 @@ class TestRendezvousSetupLink:
 
     def test_the_link_occupies_one_text_line(self, dialog, qtbot):
         """A rich-text label must not reserve three lines for one line of text."""
-        dialog._tabs.setCurrentIndex(_P2P_TAB_INDEX)
+        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
         dialog.show()
         qtbot.wait(1)
         label = dialog._lbl_help_rendezvous

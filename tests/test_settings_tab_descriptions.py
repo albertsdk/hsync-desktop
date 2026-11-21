@@ -11,14 +11,13 @@ from hsync_desktop import i18n
 from hsync_desktop.locales import de, en, es, fr, it, ja, nl, pl, pt, ru, zh
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
     _TAB_DESCRIPTION_KEYS,
 )
 
-_MODE_TABS = (_SYNC_TAB_INDEX, _P2P_TAB_INDEX, _SERVER_TAB_INDEX)
+_MODE_TABS = (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX)
 
 _TRANSLATIONS_BY_CODE = {
     "en": en.translations,
@@ -101,10 +100,10 @@ class TestTabDescriptions:
         dialog.show()
         qtbot.waitExposed(dialog)
         # Opening a mode tab is what lays its page out at the full width.
-        dialog._tabs.setCurrentIndex(_P2P_TAB_INDEX)
+        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
         qtbot.wait(1)
 
-        page = dialog._tabs.widget(_P2P_TAB_INDEX)
+        page = dialog._tabs.widget(_CONNECTION_TAB_INDEX)
         holder = page.layout().itemAt(0).widget()
         assert holder is not None
         column = holder.findChild(QWidget)
@@ -136,13 +135,14 @@ class TestTabDescriptions:
             i18n.set_language(previous)
             dialog._apply_translations()
 
-    def test_server_description_stays_readable_while_p2p_mode_is_on(self, dialog):
-        dialog.p2p_mode.setChecked(True)
-        try:
-            assert not dialog.server_url.isEnabled()
-            assert dialog._tab_descriptions[_SERVER_TAB_INDEX].isEnabled()
-        finally:
-            dialog.p2p_mode.setChecked(False)
+    def test_the_mode_lines_stay_readable_while_a_mode_is_hidden(self, dialog):
+        dialog.mode_direct.setChecked(True)
+        assert not dialog.server_url.isEnabled()
+        assert dialog._tab_descriptions[_CONNECTION_TAB_INDEX].isEnabled()
+        # Both option sentences and the inactive-mode line explain the page,
+        # so hiding a mode must not gray the text that says so.
+        for label in dialog._connection_hint_labels():
+            assert label.isEnabled()
 
     def test_descriptions_stay_readable_during_a_sync(self, dialog):
         dialog.set_connection_active(True)

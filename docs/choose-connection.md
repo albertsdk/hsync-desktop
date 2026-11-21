@@ -2,7 +2,8 @@
 
 HSYNC Desktop reaches your files in one of two ways, called **modes**. Pick the
 one that matches where your devices are and who should hold the authoritative
-copy. The two modes are compatible with each other only in the sense that a device
+copy. Both live in **Settings → Connection**, where the choice sits at the top of
+the tab and only the selected mode's settings are shown. The two modes are compatible with each other only in the sense that a device
 can be switched later; a given setup uses one or the other.
 
 | | **Server mode** | **Direct mode** |

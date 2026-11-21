@@ -29,9 +29,9 @@ def _make_dialog(qtbot, monkeypatch, tmp_path, values: dict | None = None):
 
 
 class TestTabStructure:
-    def test_has_five_tabs_no_log_or_appearance(self, qtbot, monkeypatch, tmp_path):
+    def test_has_four_tabs_no_log_or_appearance(self, qtbot, monkeypatch, tmp_path):
         dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
-        assert dlg._tabs.count() == 5
+        assert dlg._tabs.count() == 4
         names = {dlg._tabs.tabText(i) for i in range(dlg._tabs.count())}
         assert not any("Log" in n or "Appearance" in n or "Aspetto" in n for n in names)
 
@@ -161,7 +161,7 @@ class TestCapabilityGating:
                 "--limit-download",
             ],
         )
-        assert dlg.p2p_mode.isChecked()  # the isolated store runs in p2p mode
+        assert dlg.mode_direct.isChecked()  # the isolated store runs in p2p mode
         assert dlg.autotune.isEnabled()
         assert dlg.mass_delete_threshold.isEnabled()
         assert dlg.peer_download.isEnabled()
@@ -171,10 +171,10 @@ class TestCapabilityGating:
         dlg = self._with_flags(qtbot, monkeypatch, tmp_path, ["--no-peer-download"])
         assert dlg.peer_download.isEnabled()
 
-        dlg.p2p_mode.setChecked(False)
+        dlg.mode_server.setChecked(True)
         assert not dlg.peer_download.isEnabled()
 
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert dlg.peer_download.isEnabled()
 
 

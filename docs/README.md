@@ -49,7 +49,7 @@ prompts, badges and notifications. When something does not work at all, go to
 | [setup-wizard.md](setup-wizard.md) | The guided four-step setup and its fields. |
 | [concepts.md](concepts.md) | The words the app uses (share, group, primary, search servers, conflict copy). |
 | [choose-connection.md](choose-connection.md) | Server mode vs Direct mode, and which to pick. |
-| [choose-sync-type.md](choose-sync-type.md) | Send-only, receive-only, or both. |
+| [choose-sync-direction.md](choose-sync-direction.md) | Send-only, receive-only, or both. |
 | [choose-deletion-policy.md](choose-deletion-policy.md) | Deletions reach every device (mirror) vs never deleting files here. |
 | [choose-trust.md](choose-trust.md) | Trust, fingerprints and identity checks. |
 | [configuration.md](configuration.md) | Every setting in the Settings dialog (the single source of truth). |

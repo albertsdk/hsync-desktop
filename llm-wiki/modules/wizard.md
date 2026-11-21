@@ -133,7 +133,7 @@ and the returned mode so the two can never disagree.
   aligns with the mode-specific fields; long translations wrap.
   The p2p "receive only" switch resolves
   `ConnectionPage._current_direction` → `draft.direction = "download-only"`, the
-  value Settings shows as **Sync Type → Receive only (from other devices)**.
+  value Settings shows as **Sync direction → Receive only (from other devices)**.
 - **Review**: sections are separated by rules and the "Checks" section reflects
   the last real probe (`server_verified`/`rendezvous_server_verified` in the draft, rendered
   as a localised time or the search servers fingerprint); editing a section's

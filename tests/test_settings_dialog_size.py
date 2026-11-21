@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QBoxLayout, QPushButton, QScrollArea
 import hsync_desktop.i18n as i18n_module
 import hsync_desktop.settings.tab_builders as tab_builders
 from hsync_desktop.i18n import get_language, set_language
-from hsync_desktop.settings.dialog import _P2P_TAB_INDEX, _SERVER_TAB_INDEX
+from hsync_desktop.settings.dialog import _CONNECTION_TAB_INDEX
 
 
 class TestScrollableTabs:
@@ -141,9 +141,9 @@ class TestContentWidth:
         qtbot.waitExposed(dialog)
         qtbot.wait(10)
         pairs = (
-            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
+            (_CONNECTION_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
             (
-                _SERVER_TAB_INDEX,
+                _CONNECTION_TAB_INDEX,
                 (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection),
             ),
         )
@@ -267,9 +267,9 @@ class TestContentWiderThanTheReadingColumn:
 
         monkeypatch.setattr(tab_builders, "_available_screen_size", lambda _dlg: QSize(4000, 4000))
         pairs = (
-            (_P2P_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
+            (_CONNECTION_TAB_INDEX, (dialog.btn_manage_trusted_keys, dialog.btn_test_rendezvous)),
             (
-                _SERVER_TAB_INDEX,
+                _CONNECTION_TAB_INDEX,
                 (dialog.btn_manage_trusted_keys_server, dialog.btn_test_connection),
             ),
         )
@@ -329,13 +329,13 @@ class TestPageNeverSqueezesRows:
         dialog.show()
         qtbot.waitExposed(dialog)
         qtbot.wait(10)
-        dialog.set_current_tab(_P2P_TAB_INDEX)
+        dialog.set_current_tab(_CONNECTION_TAB_INDEX)
         qtbot.wait(10)
         # Force a viewport shorter than the content, so the scroll page is the
         # one that must grow (a tall dialog would just fit everything).
         dialog.resize(700, dialog.minimumHeight())
         qtbot.wait(10)
-        scroll = dialog._tabs.widget(_P2P_TAB_INDEX).findChild(QScrollArea)
+        scroll = dialog._tabs.widget(_CONNECTION_TAB_INDEX).findChild(QScrollArea)
         return scroll.widget()
 
     def test_revealing_a_row_grows_the_page(self, qtbot, monkeypatch, tmp_path):

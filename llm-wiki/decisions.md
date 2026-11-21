@@ -359,6 +359,23 @@ disable unsupported controls) is realized in
   cross-platform filename rules, case-collision handling, long-path bounds,
   timestamp precision/DST, permission preservation and symlink replication, and
   the Windows-ACL writability probe (`os.access` left unchanged, unverified here).
+- **One surface for the connection choice**: the two ways of reaching the other
+  devices — directly or through a server — are one exclusive decision, so they share
+  the **Connection** tab (`ui/settings_dialog.ui` `tabConnection`, layout
+  `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`): a radio pair at the
+  top (`mode_direct` / `mode_server`) and, below it, the selected mode's boxes; the
+  other mode is one muted line naming what it holds
+  (`settings.connection.inactive_server` / `settings.connection.inactive_direct`).
+  Rationale: an exclusive choice belongs on radio buttons, not on a checkbox whose
+  alternative lives in another tab — `docs/choose-connection.md` states the rule (a
+  setup uses one or the other) — the page then stays as tall as one mode instead of
+  the two, and every field the choice governs stays on the page that makes the
+  choice. `SettingsDialog._apply_connection_mode` composes the page's enable axes
+  (the selected mode, `_connection_active`, `_unsupported_widgets`), and `_commit`
+  validates only the selected mode, so a stale value in the hidden half never blocks
+  a save. Persisted as `p2p/enabled`: the key already is the mode, so nothing needed
+  to move.
+
 - **A silent link is a suspicion; a master at rest is not a loss**: the "connection
   lost" toast never fires on the transition that made the link silent.
   `EventsMixin._start_link_loss_confirm` arms one shot of

@@ -28,19 +28,19 @@ class TestInsecureApiKeyGate:
     """The API key is gated against insecure transports."""
 
     def test_skipped_in_p2p_mode(self, dialog):
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
 
     def test_allowed_when_api_key_empty(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.api_key.setText("")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
 
     def test_allowed_when_https_and_verify(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("https://host")
         dialog.insecure.setChecked(False)
@@ -48,14 +48,14 @@ class TestInsecureApiKeyGate:
 
     def test_warns_on_http_url_and_user_cancels(self, dialog, monkeypatch):
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.No)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is False
 
     def test_warns_on_http_url_and_user_proceeds(self, dialog, monkeypatch):
         monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.StandardButton.Yes)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("http://host")
         assert dialog._confirm_insecure_api_key() is True
@@ -68,7 +68,7 @@ class TestInsecureApiKeyGate:
             return QMessageBox.StandardButton.No
 
         monkeypatch.setattr(QMessageBox, "exec", fake_exec)
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.api_key.setText("secret")
         dialog.server_url.setText("https://host")
         dialog.insecure.setChecked(True)
@@ -100,7 +100,7 @@ class TestCapabilityGating:
 
     def test_unsupported_flag_disables_widget_and_label(self, qtbot, monkeypatch):
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert not dlg.never_master.isEnabled()
         assert not dlg.p2p_trust.isEnabled()
         assert not dlg._lbl_never_master.isEnabled()
@@ -130,7 +130,7 @@ class TestCapabilityGating:
                 "--no-peer-download",
             ],
         )
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert dlg.prefer_master.isEnabled()
         assert dlg.never_master.isEnabled()
         assert dlg.p2p_trust.isEnabled()
@@ -145,10 +145,10 @@ class TestCapabilityGating:
             monkeypatch,
             p2p_flags=["--prefer-master", "--rendezvous-server", "--map-data-port", "--no-mdns"],
         )
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert dlg.p2p_rendezvous.isEnabled()
         dlg2 = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--prefer-master"])
-        dlg2.p2p_mode.setChecked(True)
+        dlg2.mode_direct.setChecked(True)
         assert not dlg2.p2p_rendezvous.isEnabled()
         assert dlg2.p2p_rendezvous.toolTip() == tr("tip.capability_unsupported")
 
@@ -159,7 +159,7 @@ class TestCapabilityGating:
             monkeypatch,
             p2p_flags=["--rendezvous-server", "--no-mdns"],
         )
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         # No discovery server configured: the toggle would leave no discovery
         # channel at all, so it stays disabled.
         dlg.p2p_rendezvous.setText("")
@@ -167,21 +167,23 @@ class TestCapabilityGating:
         dlg.p2p_rendezvous.setText("rdv.example.net")
         assert dlg.no_mdns.isEnabled()
         # The p2p-mode gate still applies.
-        dlg.p2p_mode.setChecked(False)
+        dlg.mode_server.setChecked(True)
         assert not dlg.no_mdns.isEnabled()
 
     def test_no_mdns_unsupported_disables_toggle(self, qtbot, monkeypatch):
         """A binary without ``--no-mdns`` disables the toggle."""
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_flags=["--rendezvous-server"])
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         dlg.p2p_rendezvous.setText("rdv.example.net")
         assert not dlg.no_mdns.isEnabled()
         assert dlg.no_mdns.toolTip() == tr("tip.capability_unsupported")
 
-    def test_p2p_mode_unsupported_disables_toggle(self, qtbot, monkeypatch):
+    def test_direct_mode_unsupported_disables_the_option(self, qtbot, monkeypatch):
         dlg = self._make_dialog(qtbot, monkeypatch, p2p_supported=False)
-        assert not dlg.p2p_mode.isEnabled()
-        assert dlg.p2p_mode.toolTip() == tr("tip.capability_unsupported")
+        assert not dlg.mode_direct.isEnabled()
+        assert dlg.mode_direct.toolTip() == tr("tip.capability_unsupported")
+        # Without the p2p subcommand the server is the only way to connect.
+        assert dlg.mode_server.isChecked()
 
     def test_unknown_capabilities_leave_controls_enabled(self, qtbot, monkeypatch):
         from hsync_desktop.settings import dialog as dialog_mod
@@ -189,7 +191,7 @@ class TestCapabilityGating:
         monkeypatch.setattr(dialog_mod, "get_binary_capabilities_cached", lambda: None)
         dlg = SettingsDialog()
         qtbot.addWidget(dlg)
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert dlg.never_master.isEnabled()
         assert dlg.p2p_trust.isEnabled()
         assert not dlg._unsupported_widgets
@@ -217,7 +219,7 @@ class TestCapabilityGating:
             monkeypatch,
             p2p_flags=["--prefer-master", "--never-master"],
         )
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         assert not dlg.p2p_trust.isEnabled()
 
 
@@ -309,9 +311,9 @@ class TestTrustedKeysUi:
 
         monkeypatch.setattr(dialog_mod, "TrustedKeysDialog", _Fake)
         # Each button is only clickable in its own mode (p2p / server).
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         dialog.btn_manage_trusted_keys.click()
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.btn_manage_trusted_keys_server.click()
         assert opened == ["rendezvouss", "servers"]
 
@@ -346,22 +348,22 @@ class TestServerTrustPolicy:
         assert dialog._test_connection_ssl_context().verify_mode == ssl.CERT_NONE
 
     def test_combo_is_disabled_in_p2p_mode(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         assert dialog.server_trust.isEnabled()
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         assert not dialog.server_trust.isEnabled()
 
     def test_combo_is_disabled_while_a_sync_is_active(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         dialog.set_connection_active(True)
         assert not dialog.server_trust.isEnabled()
         dialog.set_connection_active(False)
         assert dialog.server_trust.isEnabled()
 
     def test_manage_keys_button_is_disabled_in_p2p_mode(self, dialog):
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         assert dialog.btn_manage_trusted_keys_server.isEnabled()
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         assert not dialog.btn_manage_trusted_keys_server.isEnabled()
 
 
@@ -369,17 +371,17 @@ class TestP2pPanelGating:
     """The p2p trust controls disable with the panel when server mode is active."""
 
     def test_trust_controls_disabled_when_p2p_is_off(self, dialog):
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         assert dialog.p2p_rendezvous_trust.isEnabled()
         assert dialog.p2p_rendezvous_transport.isEnabled()
         assert dialog.btn_manage_trusted_keys.isEnabled()
-        dialog.p2p_mode.setChecked(False)
+        dialog.mode_server.setChecked(True)
         assert not dialog.p2p_rendezvous_trust.isEnabled()
         assert not dialog.p2p_rendezvous_transport.isEnabled()
         assert not dialog.btn_manage_trusted_keys.isEnabled()
 
     def test_trust_controls_disabled_while_a_sync_is_active(self, dialog):
-        dialog.p2p_mode.setChecked(True)
+        dialog.mode_direct.setChecked(True)
         dialog.set_connection_active(True)
         assert not dialog.p2p_rendezvous_trust.isEnabled()
         assert not dialog.p2p_rendezvous_transport.isEnabled()
@@ -529,7 +531,7 @@ class TestPreferMasterDirectionGuard:
 
     def test_declining_reverts_the_direction_to_bidirectional(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         dlg.prefer_master.setChecked(True)
         monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: False)
 
@@ -540,7 +542,7 @@ class TestPreferMasterDirectionGuard:
 
     def test_accepting_disables_prefer_master(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         dlg.prefer_master.setChecked(True)
         monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: True)
 
@@ -550,7 +552,7 @@ class TestPreferMasterDirectionGuard:
 
     def test_declining_prefer_master_reverts_the_toggle(self, qtbot, monkeypatch, tmp_path):
         dlg, _store = _isolated_dialog(qtbot, monkeypatch, tmp_path)
-        dlg.p2p_mode.setChecked(True)
+        dlg.mode_direct.setChecked(True)
         dlg.sync_direction_combo.setCurrentIndex(self._non_bidirectional_index(dlg))
         monkeypatch.setattr(dlg, "_maybe_warn_prefer_master", lambda *a, **k: False)
 

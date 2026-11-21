@@ -150,9 +150,8 @@ from hsync_desktop.settings.reset_state_dialog import ResetStateDialog
 from hsync_desktop.settings.tab_builders import (
     build_advanced_tab,
     build_connection_banner,
+    build_connection_tab,
     build_general_tab,
-    build_p2p_tab,
-    build_server_tab,
     build_sync_tab,
     finalize_size,
     fit_current_tab,
@@ -161,17 +160,15 @@ from hsync_desktop.settings.tab_builders import (
 )
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.settings.tab_layout import (
     equalize_tab_descriptions,
     reorganize_advanced_tab,
+    reorganize_connection_tab,
     reorganize_general_tab,
-    reorganize_p2p_tab,
-    reorganize_server_tab,
     reorganize_sync_tab,
 )
 from hsync_desktop.settings.tab_translations import apply_translations
@@ -298,8 +295,7 @@ class SettingsDialog(QDialog):
 
         build_connection_banner(self)
         build_sync_tab(self)
-        build_server_tab(self)
-        build_p2p_tab(self)
+        build_connection_tab(self)
         build_advanced_tab(self)
         build_general_tab(self)
         set_tab_icons(self)
@@ -413,13 +409,9 @@ class SettingsDialog(QDialog):
         """Regroup the Sync tab (implementation in ``tab_layout.py``)."""
         reorganize_sync_tab(self)
 
-    def _reorganize_p2p_tab(self) -> None:
-        """Regroup the p2p tab (implementation in ``tab_layout.py``)."""
-        reorganize_p2p_tab(self)
-
-    def _reorganize_server_tab(self) -> None:
-        """Regroup the Server Mode tab (implementation in ``tab_layout.py``)."""
-        reorganize_server_tab(self)
+    def _reorganize_connection_tab(self) -> None:
+        """Regroup the connection tab (implementation in ``tab_layout.py``)."""
+        reorganize_connection_tab(self)
 
     def _reorganize_advanced_tab(self) -> None:
         """Regroup the Advanced tab (implementation in ``tab_layout.py``)."""
@@ -464,7 +456,7 @@ class SettingsDialog(QDialog):
             (self.server_trust, "tip.server_trust"),
             (self.http_timeout, "tip.http_timeout"),
             (self.btn_manage_trusted_keys_server, "tip.manage_trusted_keys"),
-            (self.p2p_mode, "tip.p2p_mode"),
+            (self.mode_direct, "tip.p2p_mode"),
             (self.p2p_group, "tip.p2p_group"),
             (self.p2p_rendezvous, "tip.p2p_rendezvous"),
             (self.p2p_rendezvous_trust, "tip.p2p_rendezvous_trust"),
@@ -570,16 +562,15 @@ class SettingsDialog(QDialog):
             self._lbl_p2p_rendezvous.setEnabled(False)
             _set_field_tooltip(self.p2p_rendezvous, tr("tip.capability_unsupported"))
         if not p2p_supported:
-            # The p2p subcommand itself is the master gate for the p2p tab.
-            self._unsupported_widgets.add(self.p2p_mode)
-            self._unsupported_labels.add(self._lbl_p2p_mode)
-            if self.p2p_mode.isChecked():
-                self.p2p_mode.setChecked(False)
-            self.p2p_mode.setEnabled(False)
-            self._lbl_p2p_mode.setEnabled(False)
-            _set_field_tooltip(self.p2p_mode, tr("tip.capability_unsupported"))
+            # The p2p subcommand itself is the master gate for the direct mode:
+            # without it the option is unavailable and the server is the only
+            # way to reach the other devices.
+            self._unsupported_widgets.add(self.mode_direct)
+            self.mode_direct.setEnabled(False)
+            _set_field_tooltip(self.mode_direct, tr("tip.capability_unsupported"))
+            self.mode_server.setChecked(True)
         # Refresh dependent enable-state with the new gates in effect.
-        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+        self._apply_connection_mode()
 
         # Peer download is p2p-only: gate it (and its env-only caps) on the
         # --no-peer-download flag the p2p subcommand advertises.
@@ -639,7 +630,6 @@ class SettingsDialog(QDialog):
         """Connect widget signals."""
         self.deletion_policy.currentIndexChanged.connect(self._on_deletion_policy_changed)
         self.btn_browse_shared.clicked.connect(self._on_browse_shared)
-        self.p2p_mode.toggled.connect(self._on_p2p_mode_toggled)
         self.prefer_master.toggled.connect(self._on_prefer_master_toggled)
         self.never_master.toggled.connect(self._on_never_master_toggled)
         self.verbose.toggled.connect(self._on_verbose_toggled)
@@ -803,38 +793,11 @@ class SettingsDialog(QDialog):
         if folder:
             self.shared_path.setText(folder)
 
-    def _on_p2p_mode_toggled(self, checked: bool) -> None:
-        """Enable/disable Server Mode tab widgets when p2p mode changes,
-        and enable/disable p2p tab widgets based on p2p mode state."""
-        # Show/hide the p2p banner on Server Mode tab
-        self._p2p_banner.setVisible(checked)
-        if checked:
-            self._p2p_banner_text.setText(tr("settings.p2p_disables_server"))
-
-        # Disable/enable all Server Mode tab widgets
-        server_widgets: list[QWidget] = [
-            self.server_url,
-            self.api_key,
-            self.insecure,
-            self.ca_cert,
-            self.http_timeout,
-            self.server_trust,
-            self.btn_manage_trusted_keys_server,
-            self.btn_test_connection,
-        ]
-        for widget in server_widgets:
-            widget.setEnabled(not checked)
-
-        # Also disable the labels in the Server Mode tab
-        self._set_tab_labels_enabled(
-            _SERVER_TAB_INDEX,
-            not checked,
-            exclude=(self._p2p_banner_icon, self._p2p_banner_text),
-        )
-
-        # Enable/disable p2p tab widgets (except the p2p_mode toggle itself)
-        p2p_sub_widgets: list[QWidget] = [
+    def _direct_widgets(self) -> list[QWidget]:
+        """The direct-mode controls, in the order the page presents them."""
+        return [
             self.p2p_group,
+            self.p2p_key,
             self.p2p_rendezvous,
             self.p2p_rendezvous_trust,
             self.p2p_rendezvous_transport,
@@ -843,7 +806,6 @@ class SettingsDialog(QDialog):
             self.btn_show_group_key,
             self.p2p_upnp,
             self.no_mdns,
-            self.p2p_key,
             self.p2p_port,
             self.rendezvous_timeout,
             self.ntp_hosts,
@@ -854,8 +816,69 @@ class SettingsDialog(QDialog):
             self.peer_read_cap,
             self.peer_sources_max,
         ]
-        for widget in p2p_sub_widgets:
-            widget.setEnabled(checked and widget not in self._unsupported_widgets)
+
+    def _server_widgets(self) -> list[QWidget]:
+        """The server-mode controls, in the order the page presents them."""
+        return [
+            self.server_url,
+            self.api_key,
+            self.insecure,
+            self.ca_cert,
+            self.http_timeout,
+            self.server_trust,
+            self.btn_manage_trusted_keys_server,
+            self.btn_test_connection,
+        ]
+
+    def _connection_hint_labels(self) -> tuple[QWidget, ...]:
+        """The connection page's explanatory lines: never grayed out."""
+        labels: list[QWidget | None] = [
+            getattr(self, "_lbl_mode_direct_desc", None),
+            getattr(self, "_lbl_mode_server_desc", None),
+            getattr(self, "_inactive_hint", None),
+        ]
+        return tuple(label for label in labels if label is not None)
+
+    def _apply_connection_mode(self, *_args: object) -> None:
+        """Show and enable the options of the selected connection mode.
+
+        The page carries one mode at a time: the selected half is shown and
+        enabled, the other is hidden with its values intact (switching back finds
+        them) and named by a single muted line. This is also the one place that
+        composes the page's three enable axes — the selected mode, a running sync
+        (``_connection_active``) and the capabilities this binary advertises
+        (``_unsupported_widgets``) — so they cannot override each other.
+        """
+        if not hasattr(self, "_direct_section"):
+            # Wired before the page is regrouped: there is nothing to show yet.
+            return
+        direct = self.mode_direct.isChecked()
+        locked = self._connection_active
+        self._direct_section.setVisible(direct)
+        self._server_section.setVisible(not direct)
+        self._inactive_hint.setText(
+            tr(
+                "settings.connection.inactive_server"
+                if direct
+                else "settings.connection.inactive_direct"
+            )
+        )
+
+        for widget in self._direct_widgets() + self._server_widgets():
+            widget.setEnabled(False)
+        for widget in self._direct_widgets() if direct else self._server_widgets():
+            widget.setEnabled(not locked and widget not in self._unsupported_widgets)
+        for radio in (self.mode_direct, self.mode_server):
+            radio.setEnabled(not locked and radio not in self._unsupported_widgets)
+
+        # Field labels mirror the widgets; the option sentences and the
+        # inactive-mode line stay readable, they are what explains the page.
+        self._set_tab_labels_enabled(
+            _CONNECTION_TAB_INDEX,
+            not locked,
+            exclude=self._connection_hint_labels(),
+        )
+
         # The show-group-key action also needs a configured discovery server and
         # a non-empty shared password; the changed-password warning follows too.
         self._refresh_group_key_button()
@@ -864,20 +887,16 @@ class SettingsDialog(QDialog):
         self._refresh_no_mdns_enabled()
         self._refresh_rdv_key_warning()
 
-        # Also enable/disable the labels in the p2p tab (except p2p_mode label)
-        self._set_tab_labels_enabled(_P2P_TAB_INDEX, checked, exclude=(self._lbl_p2p_mode,))
-        # The toggle's own label follows the toggle's availability, not the mode.
-        self._lbl_p2p_mode.setEnabled(self._lbl_p2p_mode not in self._unsupported_labels)
-
     def _set_tab_labels_enabled(
         self, tab_index: int, enabled: bool, exclude: tuple[QWidget, ...] = ()
     ) -> None:
         """Gray/restore a tab's field labels so a disabled panel reads as disabled.
 
-        Mirrors the widget enable state: the Server Mode tab grays its labels
-        when p2p mode is active, so the Sync and p2p tabs gray theirs while a
-        sync is running. Banner labels, the tab's purpose description and labels
-        unavailable in this build are left untouched.
+        Mirrors the widget enable state: the Sync and Advanced tabs gray their
+        labels while a sync is running, and the connection page composes its own
+        (``_apply_connection_mode``). The tab's purpose description, the
+        explanatory lines passed in ``exclude`` and labels unavailable in this
+        build are left untouched.
         """
         tab = self._tabs.widget(tab_index)
         if not tab:
@@ -951,7 +970,7 @@ class SettingsDialog(QDialog):
         """Warn live when the picked direction conflicts with prefer-master.
 
         The fix here is disabling prefer-master (the user just chose the
-        direction), so "Yes" turns the toggle off and jumps to the p2p tab.
+        direction), so "Yes" turns the toggle off and jumps to its mode.
         """
         if not self._prefer_master_conflict():
             return
@@ -961,7 +980,8 @@ class SettingsDialog(QDialog):
             # switch drawn as ON while checked is False and the user's click
             # re-enables it, re-triggering this prompt in a loop.
             self.prefer_master.setChecked(False)
-            self.set_current_tab(_P2P_TAB_INDEX)
+            self.mode_direct.setChecked(True)
+            self.set_current_tab(_CONNECTION_TAB_INDEX)
         else:
             # Keep prefer-master: the primary device always syncs both ways, so
             # the incompatible direction must not stay selected.
@@ -1090,7 +1110,7 @@ class SettingsDialog(QDialog):
     def _rdv_key_mismatch(self) -> bool:
         """True while a discovery server is set and the Shared password no
         longer derives the key it was provisioned with."""
-        if not self.p2p_mode.isChecked():
+        if not self.mode_direct.isChecked():
             return False
         if not str(self.p2p_rendezvous.text()).strip():
             return False
@@ -1104,7 +1124,7 @@ class SettingsDialog(QDialog):
             return
         show = self._rdv_key_mismatch()
         self._lbl_p2p_key_rdv_warning.setVisible(show)
-        group = getattr(self, "_grp_p2p_mode", None)
+        group = getattr(self, "_grp_p2p_group", None)
         if isinstance(group, QGroupBox):
             layout = group.layout()
             if isinstance(layout, QFormLayout):
@@ -1117,7 +1137,7 @@ class SettingsDialog(QDialog):
         rules as the other p2p controls, plus a non-empty Shared password."""
         if not hasattr(self, "btn_show_group_key"):
             return
-        visible = self.p2p_mode.isChecked() and bool(str(self.p2p_rendezvous.text()).strip())
+        visible = self.mode_direct.isChecked() and bool(str(self.p2p_rendezvous.text()).strip())
         rendezvous_group = getattr(self, "_grp_p2p_rendezvous", None)
         if isinstance(rendezvous_group, QGroupBox):
             layout = rendezvous_group.layout()
@@ -1144,7 +1164,7 @@ class SettingsDialog(QDialog):
         if not hasattr(self, "no_mdns"):
             return
         usable = (
-            self.p2p_mode.isChecked()
+            self.mode_direct.isChecked()
             and bool(str(self.p2p_rendezvous.text()).strip())
             and self.no_mdns not in self._unsupported_widgets
         )
@@ -1288,7 +1308,7 @@ class SettingsDialog(QDialog):
         this check turns that into a decision instead of a first sync that fails
         on it.
         """
-        if self.p2p_mode.isChecked() or not normalized_server:
+        if self.mode_direct.isChecked() or not normalized_server:
             return None
         bucket = self.bucket.text().strip()
         api_key = self.api_key.text().strip()
@@ -1504,7 +1524,7 @@ class SettingsDialog(QDialog):
         is recomputed instead of blindly re-enabling a widget that an active sync
         or a missing capability must keep disabled.
         """
-        p2p_enabled = self.p2p_mode.isChecked()
+        p2p_enabled = self.mode_direct.isChecked()
         self.btn_test_connection.setText(tr("settings.test_connection"))
         self.btn_test_rendezvous.setText(tr("settings.test_connection"))
         self.btn_test_connection.setEnabled(
@@ -1553,7 +1573,7 @@ class SettingsDialog(QDialog):
         """
         direction = self.sync_direction_combo.currentData() or DEFAULT_SYNC_DIRECTION
         return (
-            self.p2p_mode.isChecked()
+            self.mode_direct.isChecked()
             and self.prefer_master.isChecked()
             and direction != "bidirectional"
         )
@@ -1628,22 +1648,30 @@ class SettingsDialog(QDialog):
                 return False  # Go back to dialog
             # Reset to bidirectional and continue saving
             self.sync_direction_combo.setCurrentIndex(0)
-        # Validate: the API key is never sent over an unencrypted channel.
-        if not self._confirm_insecure_api_key():
+        # Each mode validates only its own half: the other one is hidden, so a
+        # value left there must never veto a save (it is validated when that mode
+        # is selected). The endpoints are normalized for the same reason.
+        direct = self.mode_direct.isChecked()
+        if not direct and not self._confirm_insecure_api_key():
             return False  # Go back to dialog
-        # Validate + normalize the server and rendezvous endpoints (shared grammar).
-        try:
-            normalized_server = self._normalize_server_endpoint()
-        except ValueError:
-            QMessageBox.warning(self, tr("settings.title"), tr("settings.invalid_server_endpoint"))
-            return False
-        try:
-            normalized_rendezvous = self._normalize_rendezvous_server_endpoints()
-        except ValueError:
-            QMessageBox.warning(
-                self, tr("settings.title"), tr("settings.invalid_rendezvous_endpoint")
-            )
-            return False
+        normalized_server = None
+        if not direct:
+            try:
+                normalized_server = self._normalize_server_endpoint()
+            except ValueError:
+                QMessageBox.warning(
+                    self, tr("settings.title"), tr("settings.invalid_server_endpoint")
+                )
+                return False
+        normalized_rendezvous = None
+        if direct:
+            try:
+                normalized_rendezvous = self._normalize_rendezvous_server_endpoints()
+            except ValueError:
+                QMessageBox.warning(
+                    self, tr("settings.title"), tr("settings.invalid_rendezvous_endpoint")
+                )
+                return False
         if normalized_server is not None:
             self.server_url.setText(normalized_server)
         if normalized_rendezvous is not None:
@@ -1653,7 +1681,7 @@ class SettingsDialog(QDialog):
             return False  # Go back to dialog
         # Validate a user-typed p2p password (the raw-key path is enforced by
         # the engine's 32-char floor and stays untouched for legacy installs).
-        if self.p2p_mode.isChecked():
+        if self.mode_direct.isChecked():
             password = self.p2p_key.text().strip()
             if password and self._effective_p2p_key_mode() == "passphrase":
                 try:
@@ -1684,7 +1712,7 @@ class SettingsDialog(QDialog):
         # A duplicate p2p bucket is allowed but means the same device: warn only.
         if (
             self._bucket_in_use is not None
-            and self.p2p_mode.isChecked()
+            and self.mode_direct.isChecked()
             and self._bucket_in_use(self.bucket.text().strip())
         ):
             QMessageBox.warning(self, tr("settings.title"), tr("shares.warn.same_bucket"))
@@ -1729,7 +1757,7 @@ class SettingsDialog(QDialog):
         an ``http://`` URL or with SSL verification disabled. Returns True
         to proceed with saving, False to return to the dialog.
         """
-        if self.p2p_mode.isChecked():
+        if self.mode_direct.isChecked():
             return True  # Server-mode settings are unused in p2p mode
         if not self.api_key.text().strip():
             return True
@@ -1787,7 +1815,7 @@ class SettingsDialog(QDialog):
             self.bandwidth_upload.value() or None,
             self.bandwidth_download.value() or None,
         )
-        s.setValue("p2p/enabled", self.p2p_mode.isChecked())
+        s.setValue("p2p/enabled", self.mode_direct.isChecked())
         s.setValue("p2p/group", self.p2p_group.text().strip())
         s.setValue("p2p/rendezvous_server_endpoints", self.p2p_rendezvous.text().strip())
         s.setValue(
@@ -1854,8 +1882,8 @@ class SettingsDialog(QDialog):
         self._load_p2p(s)
         self._load_output(s)
         self._load_appearance(s)
-        # Apply p2p mode state to Server Mode tab
-        self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
+        # Show the selected mode's half of the connection page.
+        self._apply_connection_mode()
 
         # Size last: the advanced visibility and the p2p-mode gate above change
         # which rows are shown, and the size must clamp to the screen.
@@ -1966,8 +1994,10 @@ class SettingsDialog(QDialog):
         self.bandwidth_download.setValue((download_bps or 0) / (1024 * 1024))
 
     def _load_p2p(self, s: QSettings) -> None:
-        """Restore the P2P tab fields."""
-        self.p2p_mode.setChecked(bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool)))
+        """Restore the connection mode and the direct-mode fields."""
+        direct = bool(s.value("p2p/enabled", DEFAULT_P2P_ENABLED, bool))
+        self.mode_direct.setChecked(direct)
+        self.mode_server.setChecked(not direct)
         self.p2p_group.setText(str(s.value("p2p/group", DEFAULT_GROUP, str)))
         self.p2p_rendezvous.setText(
             str(s.value("p2p/rendezvous_server_endpoints", DEFAULT_P2P_RENDEZVOUS, str))
@@ -2102,17 +2132,13 @@ class SettingsDialog(QDialog):
         # Tooltip to show on disabled widgets
         disabled_tip = tr("tip.disabled_during_sync") if active else ""
 
-        # List of widgets to disable during active connection
-        # Connection tab - all settings affect how we connect
-        connection_widgets: list[QWidget] = [
-            self.server_url,
-            self.api_key,
-            self.insecure,
-            self.ca_cert,
-            self.http_timeout,
-            self.server_trust,
-            self.btn_manage_trusted_keys_server,
-        ]
+        # Connection page: the selected mode decides which fields apply, so its
+        # enable state (mode, this lock and the capability gates) is composed in
+        # one place; here it only needs the reason it is locked.
+        if active:
+            for widget in (*self._server_widgets(), *self._direct_widgets()):
+                _set_field_tooltip(widget, disabled_tip)
+        self._apply_connection_mode()
 
         # Sync tab - all settings affect sync behavior
         sync_widgets: list[QWidget] = [
@@ -2136,30 +2162,6 @@ class SettingsDialog(QDialog):
             self.btn_reset_state,
         ]
 
-        # p2p tab - all settings affect p2p mode behavior
-        p2p_widgets: list[QWidget] = [
-            self.p2p_mode,
-            self.p2p_group,
-            self.p2p_rendezvous,
-            self.p2p_rendezvous_trust,
-            self.p2p_rendezvous_transport,
-            self.btn_manage_trusted_keys,
-            self.btn_test_rendezvous,
-            self.btn_show_group_key,
-            self.p2p_upnp,
-            self.no_mdns,
-            self.p2p_key,
-            self.p2p_port,
-            self.rendezvous_timeout,
-            self.ntp_hosts,
-            self.prefer_master,
-            self.never_master,
-            self.p2p_trust,
-            self.peer_download,
-            self.peer_read_cap,
-            self.peer_sources_max,
-        ]
-
         # Advanced tab - engine tuning and logging need a restart
         advanced_widgets: list[QWidget] = [
             self.autotune,
@@ -2177,38 +2179,22 @@ class SettingsDialog(QDialog):
             self.btn_deletion_risk_reset,
         ]
 
-        # Combine all widgets that should be disabled
-        all_disabled_widgets = connection_widgets + sync_widgets + p2p_widgets + advanced_widgets
-
-        for widget in all_disabled_widgets:
+        for widget in sync_widgets + advanced_widgets:
             widget.setEnabled(not active and widget not in self._unsupported_widgets)
             # Set tooltip explaining why it's disabled
             if active:
                 _set_field_tooltip(widget, disabled_tip)
 
-        # Gray the field labels too, so a disabled panel reads as disabled (the
-        # same visual the Server Mode tab uses when p2p mode is active). The
-        # General tab stays live: theme/language/startup change without a restart.
-        if active:
-            self._set_tab_labels_enabled(_SYNC_TAB_INDEX, False)
-            self._set_tab_labels_enabled(_P2P_TAB_INDEX, False)
-            self._set_tab_labels_enabled(_ADVANCED_TAB_INDEX, False)
-            self._set_tab_labels_enabled(
-                _SERVER_TAB_INDEX,
-                False,
-                exclude=(self._p2p_banner_icon, self._p2p_banner_text),
-            )
-        else:
-            # Sync labels are managed only here; the p2p/Server labels are
-            # restored by _on_p2p_mode_toggled below.
-            self._set_tab_labels_enabled(_SYNC_TAB_INDEX, True)
-            self._set_tab_labels_enabled(_ADVANCED_TAB_INDEX, True)
+        # Gray the field labels too, so a disabled panel reads as disabled. The
+        # connection page's labels follow its own composition
+        # (``_apply_connection_mode``); the General tab stays live, since
+        # theme/language/startup change without a restart.
+        self._set_tab_labels_enabled(_SYNC_TAB_INDEX, not active)
+        self._set_tab_labels_enabled(_ADVANCED_TAB_INDEX, not active)
+        if not active:
             self._apply_tooltips()
-            # Re-apply p2p mode state so sub-widgets stay disabled if p2p is off
-            self._on_p2p_mode_toggled(self.p2p_mode.isChecked())
 
-        # The Test Connection buttons are gated by p2p mode, capability and an
-        # active sync. `_restore_test_buttons` owns that state, but it only ran
-        # when a probe ended, so opening the dialog while a sync is already
-        # running left the Server Mode button enabled. Re-derive both here.
+        # The Test Connection buttons follow the connection mode, the capability
+        # gates and this lock: `_restore_test_buttons` owns that state and is
+        # re-derived here, so a dialog opened during a sync starts consistent.
         self._restore_test_buttons()

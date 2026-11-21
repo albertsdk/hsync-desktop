@@ -23,7 +23,7 @@ from hsync_desktop.probe_messages import probe_reason_text
 @pytest.fixture
 def server_dialog(dialog):
     """A dialog in server mode pointed at a host with a key."""
-    dialog.p2p_mode.setChecked(False)
+    dialog.mode_server.setChecked(True)
     dialog.server_url.setText("https://host")
     dialog.api_key.setText("key")
     dialog.http_timeout.setValue(5)
@@ -89,7 +89,7 @@ class TestWhenTheCheckRuns:
         assert server_dialog._bucket_probe_job("https://host") is None
 
     def test_p2p_mode_never_checks(self, server_dialog):
-        server_dialog.p2p_mode.setChecked(True)
+        server_dialog.mode_direct.setChecked(True)
 
         assert server_dialog._bucket_probe_job("https://host") is None
 

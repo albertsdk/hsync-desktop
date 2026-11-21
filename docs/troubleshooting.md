@@ -91,7 +91,7 @@ acknowledgement that silences the prompt and the control that brings it back.
   [Key concepts → Share](concepts.md#share).
 - The devices must be on the same network, with mDNS allowed through the
   firewall.
-- Devices on different networks need a **search servers** set in the Direct mode tab.
+- Devices on different networks need a **search servers** set in the Connection tab (direct mode).
 - If a search server is set but cannot be reached, the app warns you and keeps
   working on the local network — devices on this network are still found. The
   server only adds devices on *other* networks.
@@ -137,7 +137,7 @@ identical on every device in the group.
 
 ## The shared password is rejected
 
-The Direct mode tab field accepts a **shared password** (at least 12 characters; the
+The Connection tab accepts a **shared password** in direct mode (at least 12 characters; the
 client derives the group key from it) or a **raw group key** (at least 32
 characters). A shorter value is refused at startup. Generate a password with
 `openssl rand -hex 16` and use the exact same string on every device in the group.
@@ -151,7 +151,7 @@ not match, the app keeps the run going but shows a warning that reads
 `Rendezvous <server> refused the lease frame: token_required`.
 
 There is **no token to type**: the app derives the key from the **Shared
-password** in the Direct mode tab, so a `token_required` warning means that password
+password** in the Connection tab, so a `token_required` warning means that password
 does not match the key configured on the search server.
 
 To fix it:

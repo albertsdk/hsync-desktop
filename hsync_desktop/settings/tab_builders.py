@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QSpinBox,
     QToolButton,
@@ -50,9 +52,8 @@ from hsync_desktop.settings.form_helpers import (
 )
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
+    _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
-    _P2P_TAB_INDEX,
-    _SERVER_TAB_INDEX,
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.themes import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
@@ -163,10 +164,31 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg._reorganize_sync_tab()
 
 
-def build_server_tab(dlg: SettingsDialog) -> None:
-    """Build the Server Mode-tab widgets, its banner and action row."""
+def build_connection_tab(dlg: SettingsDialog) -> None:
+    """Build the connection tab: the mode choice plus both modes' fields.
 
-    # Connection tab widgets (now second tab, index 1 — "Server Mode")
+    The two ways of reaching the other devices are one decision, so they share
+    one page: the radio pair says which one is in use and the matching half of
+    the page is the only one shown (see ``SettingsDialog._apply_connection_mode``).
+    """
+    dlg.mode_direct = QRadioButton(dlg)
+    dlg.mode_direct.setObjectName("modeDirect")
+    dlg.mode_server = QRadioButton(dlg)
+    dlg.mode_server.setObjectName("modeServer")
+    dlg._mode_group = QButtonGroup(dlg)
+    dlg._mode_group.addButton(dlg.mode_direct)
+    dlg._mode_group.addButton(dlg.mode_server)
+    dlg.mode_direct.toggled.connect(dlg._apply_connection_mode)
+
+    _build_server_fields(dlg)
+    _build_direct_fields(dlg)
+
+    dlg._reorganize_connection_tab()
+
+
+def _build_server_fields(dlg: SettingsDialog) -> None:
+    """Create the server-mode fields and the action row they carry."""
+
     dlg.server_url = dlg.findChild(QLineEdit, "serverUrl")
     # A bare host (or host:port) is enough: https:// and the default port are implied.
     dlg.server_url.setPlaceholderText("hsync.example.com")
@@ -182,46 +204,22 @@ def build_server_tab(dlg: SettingsDialog) -> None:
     dlg.server_trust = QComboBox(dlg)
     dlg.server_trust.setObjectName("serverTrust")
     dlg._lbl_server_trust = QLabel(dlg)
-    # Create info banner for Server Mode tab when p2p is active (hidden by default)
-    dlg._p2p_banner = QFrame(dlg)
-    dlg._p2p_banner.setObjectName("p2pBanner")
-    dlg._p2p_banner.setStyleSheet(
-        "QFrame#p2pBanner { "
-        "background-color: #fff3cd; "
-        "border: 1px solid #ffc107; "
-        "border-radius: 4px; "
-        "padding: 8px; "
-        "}"
-    )
-    p2p_banner_layout = QHBoxLayout(dlg._p2p_banner)
-    p2p_banner_layout.setContentsMargins(8, 4, 8, 4)
-    dlg._p2p_banner_icon = QLabel("⚠️")
-    dlg._p2p_banner_text = QLabel()
-    dlg._p2p_banner_text.setWordWrap(True)
-    dlg._p2p_banner_text.setStyleSheet("color: #856404;")
-    p2p_banner_layout.addWidget(dlg._p2p_banner_icon)
-    p2p_banner_layout.addWidget(dlg._p2p_banner_text, 1)
-    dlg._p2p_banner.hide()
 
-    # Insert p2p banner at the top of the Server Mode (tabConnection) layout
-    # Also insert the server trust-policy controls and Test Connection button
     dlg.btn_test_connection = QPushButton()
     dlg.btn_test_connection.setObjectName("btnTestConnection")
 
-    # Server-panel twin of the p2p "Manage trusted keys" button, opening the
-    # dialog on the Servers tab. Two buttons keep the two panels gated
-    # independently (server fields disabled in p2p mode, and vice versa).
+    # Server-side twin of the direct-mode "Manage trusted keys" button, opening
+    # the dialog on the Servers tab.
     dlg.btn_manage_trusted_keys_server = QPushButton()
     dlg.btn_manage_trusted_keys_server.setObjectName("btnManageTrustedKeysServer")
     dlg.btn_manage_trusted_keys_server.clicked.connect(dlg._open_server_trusted_keys)
 
-    conn_tab = dlg._tabs.widget(_SERVER_TAB_INDEX)
+    conn_tab = dlg._tabs.widget(_CONNECTION_TAB_INDEX)
     if conn_tab:
         conn_layout = conn_tab.layout()
         if isinstance(conn_layout, QFormLayout):
-            conn_layout.insertRow(0, dlg._p2p_banner)
-            # Insert the server trust-policy combo after the http_timeout
-            # row, then the trusted-keys + Test Connection buttons below it.
+            # Insert the server trust-policy combo after the http_timeout row,
+            # then the trusted-keys + Test Connection buttons below it.
             for row in range(conn_layout.rowCount()):
                 item = conn_layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
                 if item and item.widget() == dlg.http_timeout:
@@ -236,15 +234,10 @@ def build_server_tab(dlg: SettingsDialog) -> None:
                     )
                     break
 
-    # Regroup the tab into sections, matching the other settings tabs.
-    dlg._reorganize_server_tab()
 
+def _build_direct_fields(dlg: SettingsDialog) -> None:
+    """Create the direct-mode fields and their dynamic rows."""
 
-def build_p2p_tab(dlg: SettingsDialog) -> None:
-    """Build the p2p-tab widgets and their dynamic rows."""
-
-    # p2p tab widgets
-    dlg.p2p_mode, dlg._lbl_p2p_mode = _replace_checkbox_with_toggle(dlg, "p2pMode")
     dlg.p2p_group = dlg.findChild(QLineEdit, "p2pGroup")
     dlg.p2p_key = dlg.findChild(QLineEdit, "p2pKey")
     # Inline eye toggle: the shared password is masked but the user must be able
@@ -396,9 +389,6 @@ def build_p2p_tab(dlg: SettingsDialog) -> None:
     dlg.peer_sources_max.setRange(1, 8)
     dlg._lbl_peer_sources_max = QLabel(dlg)
 
-    # Reorganize p2p tab into grouped sections
-    dlg._reorganize_p2p_tab()
-
 
 def build_advanced_tab(dlg: SettingsDialog) -> None:
     """Build the Advanced-tab widgets (engine tuning + logging)."""
@@ -524,8 +514,7 @@ def set_tab_icons(dlg: SettingsDialog) -> None:
 
     # Set tab icons programmatically (theme icons don't work cross-platform)
     dlg._tabs.setTabIcon(_SYNC_TAB_INDEX, icon("emblem-synchronizing"))
-    dlg._tabs.setTabIcon(_P2P_TAB_INDEX, icon("network-p2p"))
-    dlg._tabs.setTabIcon(_SERVER_TAB_INDEX, icon("network-cloud"))
+    dlg._tabs.setTabIcon(_CONNECTION_TAB_INDEX, icon("network-cloud"))
     dlg._tabs.setTabIcon(_GENERAL_TAB_INDEX, icon("preferences-system"))
     dlg._tabs.setTabIcon(_ADVANCED_TAB_INDEX, icon("preferences-other"))
 
