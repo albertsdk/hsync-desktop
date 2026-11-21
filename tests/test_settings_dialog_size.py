@@ -36,6 +36,16 @@ def _column_of(dialog, index) -> QWidget:
     return wrapper.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)[0]
 
 
+def _measure_of(dialog, index) -> int:
+    """The column measure of tab *index*.
+
+    Each page's scroll area gives its viewport a bar's width less when the page
+    scrolls, so the *realized* column can be a few pixels narrower; the measure
+    is what every tab must share.
+    """
+    return dialog._tabs.widget(index).findChild(QScrollArea).widget().max_width
+
+
 class TestScrollableTabs:
     def test_every_tab_page_scrolls(self, dialog):
         for index in range(dialog._tabs.count()):
@@ -296,16 +306,20 @@ class TestEveryTabKeepsTheReadingColumn:
                     dialog.show()
                     qtbot.waitExposed(dialog)
                     widths = []
+                    measures = []
                     for index in range(dialog._tabs.count()):
                         dialog.set_current_tab(index)
                         qtbot.wait(10)
                         assert dialog._tabs.currentIndex() == index, f"tab {index} is hidden"
                         column = _column_of(dialog, index)
+                        measure = _measure_of(dialog, index)
                         where = f"scale={scale} locale={lang} tab={dialog._tabs.tabText(index)}"
                         wrapper = column.parentWidget()
                         # The measure is a floor: an uncuttable button may widen it.
-                        assert column.width() >= min(wrapper.width(), _CONTENT_MAX_WIDTH), where
+                        assert measure >= _CONTENT_MAX_WIDTH, where
+                        assert column.width() >= min(wrapper.width(), measure), where
                         widths.append(column.width())
+                        measures.append(measure)
                         for widget in column.findChildren(QWidget):
                             if (
                                 not isinstance(widget, (QLabel, QPushButton))
@@ -317,7 +331,12 @@ class TestEveryTabKeepsTheReadingColumn:
                             assert widget.sizeHint().width() <= widget.width() + 1, (
                                 f"{where}: {widget.text()!r}"
                             )
-                    assert len(set(widths)) == 1, f"scale={scale} locale={lang}: {widths}"
+                    assert len(set(measures)) == 1, f"scale={scale} locale={lang}: {measures}"
+                    # A page that scrolls loses the bar's width from its viewport;
+                    # the realized columns may differ by that much, never more.
+                    assert max(widths) - min(widths) <= tab_builders._scrollbar_allowance(), (
+                        f"scale={scale} locale={lang}: {widths}"
+                    )
         finally:
             app.setFont(base)
             set_language(previous)
@@ -348,7 +367,7 @@ class TestEveryTabKeepsTheReadingColumn:
         tab_builders.fit_current_tab(dialog)
         qtbot.wait(10)
 
-        assert _column_of(dialog, _CONNECTION_TAB_INDEX).width() >= _CONTENT_MAX_WIDTH
+        assert _measure_of(dialog, _CONNECTION_TAB_INDEX) >= _CONTENT_MAX_WIDTH
         assert row.layout().direction() == QBoxLayout.Direction.TopToBottom
 
 
@@ -377,13 +396,13 @@ class TestColumnFitsAnUncuttableControl:
         tab_builders.finalize_size(dialog)
         qtbot.wait(10)
 
-        widths = []
+        measures = []
         for index in range(dialog._tabs.count()):
             dialog.set_current_tab(index)
             qtbot.wait(10)
-            widths.append(_column_of(dialog, index).width())
-        assert len(set(widths)) == 1, widths
-        assert widths[0] > _CONTENT_MAX_WIDTH
+            measures.append(_measure_of(dialog, index))
+        assert len(set(measures)) == 1, measures
+        assert measures[0] > _CONTENT_MAX_WIDTH
 
         dialog.set_current_tab(_ADVANCED_TAB_INDEX)
         qtbot.wait(10)

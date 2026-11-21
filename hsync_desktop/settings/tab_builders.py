@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QComboBox,
     QDoubleSpinBox,
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QScrollArea,
     QSpinBox,
+    QStyle,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -622,9 +624,16 @@ def _action_button_floor(dlg: SettingsDialog) -> int:
 
 
 # Style frames, form spacing and the spanning-row inset are not all reported as
-# layout margins: keep a few pixels so a label that drives the measure never
-# lands on the edge (the 200% Russian caption did, by six).
+# layout margins, and a page that scrolls loses the vertical bar's width from its
+# viewport: both come out of the measure, or a caption that drives it lands on
+# the edge (the 200% Russian one did, by six).
 _COLUMN_FLOOR_SLACK = 8
+
+
+def _scrollbar_allowance() -> int:
+    """Width the vertical bar takes from a page's viewport (style-dependent)."""
+    style = QApplication.style()
+    return style.pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent) if style else 0
 
 
 def fit_column_width(dlg: SettingsDialog) -> None:
@@ -637,7 +646,10 @@ def fit_column_width(dlg: SettingsDialog) -> None:
     the button's width and *every* tab follows, so the pages stay aligned;
     a pair of buttons stays ``_ActionRow``'s business, which stacks instead.
     """
-    cap = max(_CONTENT_MAX_WIDTH, _action_button_floor(dlg) + _COLUMN_FLOOR_SLACK)
+    cap = max(
+        _CONTENT_MAX_WIDTH,
+        _action_button_floor(dlg) + max(_COLUMN_FLOOR_SLACK, _scrollbar_allowance()),
+    )
     for column in dlg.findChildren(_CenteredColumn):
         column.set_max_width(cap)
 

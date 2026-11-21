@@ -158,12 +158,15 @@ the others stay centred — the page with the widest label wins, and which page
 that is depends on the locale and the system font. The one thing the measure
 still follows is an **action button wider than it**
 (`tab_builders.py::fit_column_width`): a `QPushButton` neither wraps nor elides,
-so the column takes the widest button plus its margins (and every tab follows,
-keeping the pages aligned). Windows' larger system metrics are what makes that
+so the column takes the widest button plus its margins — and the vertical bar's
+`PM_ScrollBarExtent`, because a page that scrolls loses it from its viewport —
+and every tab follows, keeping the pages aligned. Windows' larger system metrics are what makes that
 reachable at the default font — the Italian deletion-risk caption needs 658 px
 where a 640 px column leaves 612. Both sizing helpers measure the column itself
 (`column.max_width`), so a page whose content prefers less cannot open the dialog
-at a narrower width than its siblings. The wrapper never resizes
+at a narrower width than its siblings; the *realized* column of a scrolling page
+is at most one bar narrower, which the tests bound explicitly. The wrapper never
+resizes
 itself to its own size
 hint: its width belongs to the host — a parent layout stretches it, a scroll
 area sizes it to the viewport — so only the scroll-area host opts into the
