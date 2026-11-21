@@ -253,6 +253,9 @@ class ActionsMixin:
         self._user_stopped = False
         self._ever_connected = False  # reset per engine process
         self._link_lost_notified = False  # a new run has no lost link to report
+        # No window from the previous run may announce a loss for this one.
+        self._link_loss_timer.stop()
+        self._link_loss_pending = False
         # A new run starts with no transport failure carried over.
         self._conn_reason_code = ""
         self._conn_reason_override = ""

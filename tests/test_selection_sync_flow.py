@@ -265,6 +265,11 @@ class TestConnectionLost:
 
         window._on_status("disconnected")
 
+        # The drop is suspected first: the client retries on its own.
+        assert notifier.calls == []
+
+        window._on_link_loss_confirmed()
+
         assert (
             "warning",
             tr("notif.connection_lost"),

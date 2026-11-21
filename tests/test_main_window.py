@@ -48,6 +48,32 @@ def _stop_the_deferred_timer(monkeypatch) -> None:
     monkeypatch.setattr(start_module, "QTimer", _NoTimer)
 
 
+@contextmanager
+def _engine_running(window):
+    """Report the engine as running for the duration of a block.
+
+    pytest-qt closes the widget in its own teardown, which runs *after* the
+    fixture finalizers: a window still claiming a running engine then tries to
+    quit a process that never existed and blocks on the confirmation dialog.
+    The flag is restored inside the test, whatever the outcome.
+    """
+    window._engine._running = True
+    try:
+        yield
+    finally:
+        window._engine._running = False
+
+
+def _spy_connection_notices(monkeypatch, window) -> list[tuple]:
+    """Capture the warnings the window raises, with the user-stop flag cleared."""
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
+    )
+    window._user_stopped = False
+    return calls
+
+
 class TestOpenSettings:
     def test_second_open_raises_existing_dialog(self, window, monkeypatch, qtbot):
         """A tray re-click raises the open dialog instead of stacking a new one."""
@@ -599,30 +625,52 @@ class TestPeerCountLifecycle:
 
 
 class TestConnectionLostNotification:
-    """An established link that drops raises one "connection lost" toast.
+    """A live link that stays silent raises one "connection lost" toast.
 
     The client reports a drop as "waiting" (server mode, p2p) or, when the
-    process ends, as "disconnected"; the notification must fire on the loss,
-    once, and only when a link actually existed.
+    process ends, as "disconnected". The drop is a *suspicion* first — the client
+    retries on its own — so the toast fires only when the confirmation window
+    expires, exactly once per loss, and only when a link actually existed.
     """
 
     @staticmethod
     def _spy(monkeypatch, window) -> list[tuple]:
-        calls: list[tuple] = []
-        monkeypatch.setattr(
-            window, "_notify_warning", lambda *a, **k: calls.append((a, k)), raising=False
-        )
-        window._user_stopped = False
-        return calls
+        return _spy_connection_notices(monkeypatch, window)
 
-    def test_waiting_after_a_connection_notifies(self, window, monkeypatch):
+    def test_waiting_after_a_connection_suspends_the_loss(self, window, monkeypatch):
+        """The drop is not announced while the client may still recover it."""
         calls = self._spy(monkeypatch, window)
         window._on_status("connected")
 
         window._on_status("waiting")
 
+        assert calls == []
+        assert window._link_loss_pending is True
+        assert window._link_loss_timer.isActive() is True
+
+    def test_the_window_expiry_announces_the_loss(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+        window._on_status("waiting")
+
+        window._on_link_loss_confirmed()
+
         assert len(calls) == 1
         assert calls[0][0][0] == tr("notif.connection_lost")
+        assert window._link_loss_pending is False
+
+    def test_the_timer_announces_the_loss_when_it_expires(self, window, monkeypatch, qtbot):
+        """The window is a real one-shot timer, not a deferred manual call."""
+        import hsync_desktop.main_window.events as events_module
+
+        monkeypatch.setattr(events_module, "LINK_LOSS_CONFIRM_MS", 10)
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+
+        window._on_status("waiting")
+
+        qtbot.waitUntil(lambda: len(calls) == 1, timeout=2000)
+        assert window._link_loss_pending is False
 
     def test_a_drop_notifies_only_once(self, window, monkeypatch):
         calls = self._spy(monkeypatch, window)
@@ -630,6 +678,8 @@ class TestConnectionLostNotification:
 
         window._on_status("waiting")
         window._on_status("disconnected")
+        window._on_link_loss_confirmed()
+        window._on_link_loss_confirmed()
 
         assert len(calls) == 1
 
@@ -639,14 +689,27 @@ class TestConnectionLostNotification:
         window._on_status("waiting")
 
         assert calls == []
+        assert window._link_loss_pending is False
+
+    def test_a_reconnect_inside_the_window_cancels_it(self, window, monkeypatch):
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+        window._on_status("waiting")
+
+        window._on_status("connected")
+
+        assert window._link_loss_pending is False
+        assert window._link_loss_timer.isActive() is False
+        window._on_link_loss_confirmed()
+        assert calls == []
 
     def test_a_reconnect_rearms_the_notification(self, window, monkeypatch):
         calls = self._spy(monkeypatch, window)
 
-        window._on_status("connected")
-        window._on_status("waiting")
-        window._on_status("connected")
-        window._on_status("waiting")
+        for _ in range(2):
+            window._on_status("connected")
+            window._on_status("waiting")
+            window._on_link_loss_confirmed()
 
         assert len(calls) == 2
 
@@ -658,6 +721,20 @@ class TestConnectionLostNotification:
         window._on_status("waiting")
 
         assert calls == []
+        assert window._link_loss_pending is False
+
+    def test_a_stop_cancels_a_window_already_open(self, window, monkeypatch):
+        """The run is being ended: its pending loss must not survive it."""
+        calls = self._spy(monkeypatch, window)
+        window._on_status("connected")
+        window._on_status("waiting")
+
+        window._mark_user_stopped()
+
+        assert window._link_loss_pending is False
+        assert window._link_loss_timer.isActive() is False
+        window._on_link_loss_confirmed()
+        assert calls == []
 
     def test_connecting_after_a_connection_stays_silent(self, window, monkeypatch):
         # "connecting" is the engine's own pre-start/auth-retry status, not a
@@ -668,6 +745,82 @@ class TestConnectionLostNotification:
         window._on_status("connecting")
 
         assert calls == []
+
+
+class TestMasterAtRest:
+    """A serving p2p master with no peer waits for a device; it is not offline.
+
+    Having no peer is the master's normal state between cycles, so silence from
+    the data plane must not be read as a loss — neither before the first link
+    nor after it.
+    """
+
+    @staticmethod
+    def _master(window) -> None:
+        window._p2p_enabled = True
+        window._is_master = True
+
+    def test_a_master_at_rest_never_reports_a_loss(self, window, monkeypatch):
+        calls = _spy_connection_notices(monkeypatch, window)
+        self._master(window)
+        window._on_status("connected")
+        # The flag the "waiting" transition under test reads. Raised only here:
+        # the connected transition would trigger a catch-up preview.
+        with _engine_running(window):
+            window._on_status("waiting")
+
+        assert calls == []
+        assert window._link_loss_pending is False
+
+    def test_the_bar_keeps_the_file_set_state(self, window):
+        self._master(window)
+        window._on_status("connected")
+        with _engine_running(window):
+            window._set_sync_state("in_sync")
+
+            window._on_status("waiting")
+
+        # No peer is not "offline": the last comparison is still what the bar
+        # knows about the file set.
+        assert window._sync_state[0] == "in_sync"
+
+
+class TestLinkLossBadge:
+    """The endpoint badge separates a suspected loss from a confirmed one."""
+
+    @staticmethod
+    def _live(window, *, master: bool | None) -> None:
+        window._p2p_enabled = master is not None
+        window._is_master = master
+        window._ever_connected = True
+        window._link_status = "waiting"
+
+    def test_a_master_at_rest_waits_for_a_device(self, window):
+        self._live(window, master=True)
+
+        with _engine_running(window):
+            assert window._derived_connection_badge(True) == (
+                "connecting",
+                "conn.state.waiting_device",
+            )
+
+    def test_a_suspected_loss_keeps_searching(self, window):
+        self._live(window, master=False)
+        window._link_loss_pending = True
+
+        with _engine_running(window):
+            state = window._derived_connection_badge(True)
+
+        assert state == ("connecting", "conn.state.searching")
+
+    def test_a_confirmed_loss_reports_it(self, window):
+        self._live(window, master=False)
+        window._link_loss_pending = False
+
+        with _engine_running(window):
+            state = window._derived_connection_badge(True)
+
+        assert state == ("lost", "conn.state.lost")
 
 
 class TestPeerLabelSemantics:
@@ -5561,7 +5714,32 @@ class TestStatusBarDuringTransfer:
         window._file_panel.table._transfers["a.bin"].stop_transfer()
         window._note_transfer_progress("↓")
 
+        # The held-back link fact lands now (the bar kept the transfer on screen
+        # until here), but the loss itself is still inside its window: nothing is
+        # announced before it expires.
         assert window._peers_label.text() == "–"
+        assert window._sync_state[0] == "in_sync"
+
+        window._on_link_loss_confirmed()
+
+        assert window._sync_state[0] == "offline"
+
+    def test_a_loss_confirmed_mid_transfer_is_applied_at_settlement(self, window):
+        """The window can expire while bytes still move: the bar waits for them."""
+        self._transferring(window)
+        window._p2p_enabled = True
+        window._ever_connected = True
+        window._set_sync_state("pending", 1, 0, 0)
+
+        window._on_status("waiting")
+        window._on_link_loss_confirmed()
+
+        # The transfer still owns the bar; the fact is applied when it settles.
+        assert window._sync_state[0] == "pending"
+
+        window._file_panel.table._transfers["a.bin"].stop_transfer()
+        window._note_transfer_progress("↓")
+
         assert window._sync_state[0] == "offline"
 
     def test_a_lone_device_is_applied_once_the_transfer_settles(self, window):
@@ -5592,7 +5770,12 @@ class TestStatusBarDuringTransfer:
         window._file_panel.table._transfers["a.bin"].stop_transfer()
         window._note_transfer_progress("↓")
 
+        # The deferred fact was consumed here, so the loss is applied by the
+        # confirmation, which finds no transfer in flight any more.
         assert window._peers_label.text() == "–"
+
+        window._on_link_loss_confirmed()
+
         assert window._sync_state[0] == "offline"
 
     def test_a_failed_transfer_also_settles_the_link_facts(self, window):
@@ -5606,6 +5789,9 @@ class TestStatusBarDuringTransfer:
         window._on_transfer_failed("download", "/share/a.bin", "boom")
 
         assert window._peers_label.text() == "–"
+
+        window._on_link_loss_confirmed()
+
         assert window._sync_state[0] == "offline"
 
     def test_a_planned_row_does_not_suppress_the_link_state(self, window):
@@ -5624,6 +5810,12 @@ class TestStatusBarDuringTransfer:
         window._link_lost_notified = False
 
         window._on_status("waiting")
+
+        # The bar keeps the transfer on screen; the announcement waits for the
+        # window, not for the transfer.
+        assert fired == []
+
+        window._on_link_loss_confirmed()
 
         assert fired == [tr("notif.connection_lost")]
 

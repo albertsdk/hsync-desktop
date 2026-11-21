@@ -699,6 +699,9 @@ class StartMixin:
         """
         self._user_stopped = True
         self._trust_prompted.clear()
+        # A suspected loss belongs to a run the user is ending: its window must
+        # not expire into an announcement (or into an "offline" bar) afterwards.
+        self._cancel_link_loss_confirm()
         if self._notifier:
             self._notifier.user_stopped = True
 

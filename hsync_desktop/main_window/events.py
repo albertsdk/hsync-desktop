@@ -36,6 +36,15 @@ from hsync_desktop.themes import (
 # (many renames in a row) coalesces into at most one extra full scan per window.
 _SCAN_PREVIEW_COOLDOWN_S = 15.0
 
+# How long a live link must stay silent before its loss is announced. A drop is
+# a *suspicion* at first: the client retries on its own, and a presence heartbeat
+# gap or a Wi-Fi handover heals within seconds. Three missed heartbeats is the
+# classic hold-timer rule (``hsync_client/constants.py::HEARTBEAT_INTERVAL``
+# is 5 s), and it stays below the master's own 30 s liveness hold
+# (``hsync_client/p2p_link.py::MASTER_LINK_HOLD_SECONDS``), so the two ends agree
+# on when a peer is gone.
+LINK_LOSS_CONFIRM_MS = 15_000
+
 
 # Counters the engine reports for actions it actually applied. A rename or a
 # delete moves no bytes, so counting `file_transferred` events reported a run
@@ -85,6 +94,9 @@ class EventsMixin:
     _link_down: bool
     # A lost connection already raised its notification: re-armed on "connected".
     _link_lost_notified: bool
+    # The link went silent after being up and is waiting out
+    # ``LINK_LOSS_CONFIRM_MS`` before the loss is announced.
+    _link_loss_pending: bool
     _last_check_at: QTime | None
     _peers_total: int
     # Data-movement phase reported by the engine (``syncing``/``idle``): an
@@ -159,20 +171,34 @@ class EventsMixin:
                 self._deferred_link_status = status
             else:
                 self._peers_label.setText("–")
-                self._set_sync_state("offline" if self._ever_connected else "idle")
-            # An established link that is now down is a lost connection. The
-            # client names that state "waiting" (server mode and p2p) rather than
-            # "disconnected", which only the engine reports when the process ends,
-            # so both must notify. A run that never linked stays silent (a one-shot
-            # must not claim a lost connection), and the latch keeps a following
-            # terminal "disconnected" from repeating the toast.
-            if self._ever_connected and not self._link_lost_notified and not self._user_stopped:
-                self._link_lost_notified = True
-                self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
+                # A serving master between cycles is not offline, and neither is
+                # a loss that is still inside its confirmation window.
+                if not self._link_is_resting():
+                    self._set_sync_state("offline" if self._ever_connected else "idle")
+            # An established link that is now silent is a *suspected* loss: the
+            # client retries on its own, so only ``_start_link_loss_confirm``
+            # decides when it becomes an announcement. The client names a drop
+            # "waiting" (server mode and p2p) rather than "disconnected", which
+            # only the engine reports when the process ends, so both take this
+            # path. A run that never linked stays silent (a one-shot must not
+            # claim a lost connection), the latch keeps a following terminal
+            # "disconnected" from re-arming the window, and a serving master is
+            # not even suspected: having no peer is its resting state.
+            if (
+                self._ever_connected
+                and not self._link_lost_notified
+                and not self._user_stopped
+                and not self._link_is_resting()
+            ):
+                self._start_link_loss_confirm()
+            else:
+                self._cancel_link_loss_confirm()
         elif status == "connected":
             self._ever_connected = True
             self._link_lost_notified = False
             self._link_down = False
+            # The link answered inside the window: nothing was lost.
+            self._cancel_link_loss_confirm()
             # The dry-run preview phase is over: the client is linked and no
             # further SYNC retry is needed (see _show_preview_summary).
             self._is_dry_run_preview = False
@@ -448,7 +474,11 @@ class EventsMixin:
         self._deferred_peers = None
         if deferred_status is not None:
             self._peers_label.setText("–")
-            self._set_sync_state("offline" if self._ever_connected else "idle")
+            # Same rules as the live transition: a master at rest is not
+            # offline, and a loss that is still inside its confirmation window
+            # is not announced by the bar either.
+            if not self._link_is_resting() and not self._link_loss_pending:
+                self._set_sync_state("offline" if self._ever_connected else "idle")
         if deferred_peers is not None:
             connected, total = deferred_peers
             self._peers_label.setText(f"{connected}/{total}")
@@ -467,6 +497,54 @@ class EventsMixin:
             transfer.status in IN_FLIGHT_STATUSES
             for transfer in self._file_panel.table._transfers.values()
         )
+
+    def _link_is_resting(self) -> bool:
+        """True when a serving p2p master has no peer — its normal idle state.
+
+        Only a master is presumed to keep waiting: a slave or a server-mode
+        client holds one link it must keep, so silence from it is a loss. The
+        role is elected after start, so before it is known no endpoint can be
+        called at rest.
+        """
+        return bool(self._p2p_enabled and self._is_master is True and self._engine.is_running)
+
+    def _start_link_loss_confirm(self) -> None:
+        """Suspect a loss and give the link ``LINK_LOSS_CONFIRM_MS`` to recover.
+
+        One window per outage, never one per event: the client repeats the
+        negative status (``waiting``, then the terminal ``disconnected``) and
+        re-arming on each of them would push the announcement out indefinitely.
+        """
+        if self._link_loss_pending or self._user_stopped:
+            return
+        self._link_loss_pending = True
+        self._render_connection_badge()
+        self._link_loss_timer.start(LINK_LOSS_CONFIRM_MS)
+
+    def _cancel_link_loss_confirm(self) -> None:
+        """Retract a suspected loss: the link answered, or it was never a loss."""
+        self._link_loss_timer.stop()
+        if not self._link_loss_pending:
+            return
+        self._link_loss_pending = False
+        self._render_connection_badge()
+
+    def _on_link_loss_confirmed(self) -> None:
+        """Announce the loss the link did not recover from within the window."""
+        if not self._link_loss_pending:
+            # The link answered (or the run ended) before the timer did: a late
+            # timeout must not announce a loss that no longer exists.
+            return
+        self._link_loss_pending = False
+        self._render_connection_badge()
+        # While rows are in flight the bar keeps the transfer on screen: the
+        # deferred link state applies the outcome when the last one settles.
+        if not self._transfer_in_flight():
+            self._set_sync_state("offline" if self._ever_connected else "idle")
+        if self._link_lost_notified or self._user_stopped:
+            return
+        self._link_lost_notified = True
+        self._notify_warning(tr("notif.connection_lost"), tr("notif.connection_lost_msg"))
 
     def _pending_from_table(self) -> tuple[int, int, int]:
         """Plan rows the table still shows as pending: (downloads, uploads, others)."""
@@ -1277,6 +1355,9 @@ class EventsMixin:
         self._is_master = None
         self._connected = False
         self._link_lost_notified = False
+        # A window still open belongs to the link of a process that no longer
+        # exists: confirming it would announce a loss of a run already gone.
+        self._cancel_link_loss_confirm()
         # A dead process cannot finish its comparison: close the window so the
         # manual check is not left disabled for the next run.
         self._set_comparison_in_flight(False)

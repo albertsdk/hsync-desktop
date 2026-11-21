@@ -165,6 +165,12 @@ class MainWindow(
         # The engine reported a connection failure: the link is down until the
         # client says otherwise (see UiBuildMixin._on_engine_error).
         self._link_down = False
+        # A live link that goes silent is only *suspected* to be lost until this
+        # one-shot window expires (see EventsMixin._start_link_loss_confirm).
+        self._link_loss_pending = False
+        self._link_loss_timer = QTimer(self)
+        self._link_loss_timer.setSingleShot(True)
+        self._link_loss_timer.timeout.connect(self._on_link_loss_confirmed)
         # Wall-clock time of the last comparison that actually answered, shown in
         # the action tooltip (the app also checks on its own on every connect).
         self._last_check_at: QTime | None = None

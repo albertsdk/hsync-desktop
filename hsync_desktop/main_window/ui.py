@@ -1277,6 +1277,11 @@ class UiBuildMixin:
         problem = self._connection_problem_key(p2p)
         if transport or self._link_down or problem:
             return "problem", transport or problem or "conn.reason.unknown"
+        # A serving master with no peer is at rest, not in trouble: it waits for
+        # the next device both before and after the first link, so this rule
+        # precedes the ``_ever_connected`` one that calls silence a loss.
+        if status in ("", "waiting") and self._link_is_resting():
+            return "connecting", "conn.state.waiting_device"
         if status == "connecting":
             return "connecting", "conn.state.searching" if p2p else "conn.state.connecting"
         if status in ("", "waiting") and not self._ever_connected:
@@ -1284,6 +1289,10 @@ class UiBuildMixin:
                 return "connecting", "conn.state.waiting_device"
             return "connecting", "conn.state.searching" if p2p else "conn.state.connecting"
         if status in ("waiting", "disconnected") and self._ever_connected:
+            if self._link_loss_pending:
+                # Suspected, not confirmed: the client is already retrying, so
+                # the badge stays in the searching state until the window ends.
+                return "connecting", "conn.state.searching" if p2p else "conn.state.connecting"
             return "lost", "conn.state.lost"
         return "stopped", "conn.state.stopped"
 

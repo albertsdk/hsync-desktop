@@ -161,11 +161,17 @@ Accepting a fingerprint pins it in the client's trust store, so the app and the
 A link that was up and then drops — the server or a peer device becomes
 unreachable — raises a **Disconnected** notification (a toast in the window, and
 a system notification while it is in the background) and the status dot reads
-**Waiting…**. Recovery is automatic: the client keeps retrying and, as soon as
-the network is back, the link is re-established and the dot returns to
-**Connected** — no restart needed. A drop is reported **once**, and a device that
-never connected (a primary waiting for its first peer) is not a lost connection
-and stays silent.
+**Waiting…**. The notification does not fire on the first silent moment: the app
+gives the link a few seconds to recover (a retry, a Wi-Fi handover, a heartbeat
+gap), and announces the loss only if it stays down. Recovery is automatic: the
+client keeps retrying and, as soon as the network is back, the link is
+re-established and the dot returns to **Connected** — no restart needed. A drop
+is reported **once**.
+
+A device that never connected, and a **primary** (the device the others sync
+from) that has no peer connected right now, are not lost connections: the primary
+waits for the next device either way, keeps the last known state of your files,
+and stays silent — even when it was connected a moment ago.
 
 This notification follows the **Connection problems** switch in
 *Settings → General → Notifications*.

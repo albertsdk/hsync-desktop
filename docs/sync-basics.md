@@ -125,7 +125,10 @@ being applied. In Simulation Mode the plan is only ever shown.
   file rows keep the last status they reached: the comparison is stale, not wrong,
   so a synced file never looks unsynced. The app reconnects on its own and the
   state returns to "Checking…" when the link is back; a run that cannot reach the
-  peer reports the cause once instead of repeating it on every attempt.
+  peer reports the cause once instead of repeating it on every attempt. When this
+  app is the **primary** the others sync from, having no device connected between
+  syncs is normal: the summary keeps the last known state and does not switch to
+  Offline.
 - The bottom-right sent/received numbers are the **distinct files** moved this
   session (a file transferred or renamed more than once still counts once); the
   size in parentheses is the total bytes moved, repeats included.
