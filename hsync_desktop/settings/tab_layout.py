@@ -61,9 +61,14 @@ class _CenteredColumn(QWidget):
     leaves it at its size hint beside the spacer items (Qt gives the extra space
     to the spacers). This wrapper gives the child exactly
     ``min(width, max_width)``, so the settings page keeps one bounded reading
-    column, centred when the window grows. ``max_width`` is a preference, not a
-    hard cap: the column widens when the content itself cannot fit inside it
-    (see ``_max_child_width``).
+    column, centred when the window grows.
+
+    ``max_width`` is a hard cap: every tab keeps the same measure whatever its
+    content asks for, and the rows adapt instead (captions wrap, action rows
+    stack — see ``widgets/forms.py::add_row`` and ``_ActionRow``). A cap that
+    yields to a child's size hint makes the column, and the window behind it,
+    follow the widest label of the widest tab — which at a large system font or
+    in a long translation is not the same tab on every desktop.
 
     The width always belongs to the host: a parent layout stretches the wrapper,
     a scroll area sizes it to its viewport. ``reapply_size_on_layout_request``
@@ -84,14 +89,8 @@ class _CenteredColumn(QWidget):
         child.setParent(self)
 
     def _max_child_width(self) -> int:
-        """The column cap, raised when the content itself needs more room.
-
-        A large system font makes a localized label wider than ``max_width``,
-        and a ``QPushButton`` clips its text instead of eliding it: capping at
-        the preference there would hide part of the label, so the child's own
-        hint wins.
-        """
-        return max(self._max_width, self._child.sizeHint().width())
+        """The column cap, whatever the content asks for."""
+        return self._max_width
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         super().resizeEvent(event)
@@ -131,6 +130,12 @@ def _group_box(title_key: str) -> QGroupBox:
     """A titled group box whose title shows its ``&`` literally."""
 
     return QGroupBox(escape_mnemonics(tr(title_key)))
+
+
+def _spanning_row(form: QFormLayout, widget: QWidget) -> None:
+    """Add *widget* across both columns (see ``form_helpers._action_row``)."""
+
+    form.addRow(widget)
 
 
 def _scroll_area(widget: QWidget) -> QScrollArea:
@@ -306,10 +311,10 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     add_row(f4, dlg._lbl_ignore_patterns, dlg.ignore_patterns)
 
     # Edit .hsyncignore button (no left label, like a regular action)
-    f4.addRow("", dlg.btn_edit_hsyncignore)
+    _spanning_row(f4, dlg.btn_edit_hsyncignore)
 
     # Maintenance: forget the folder's sync history (client-side state DB).
-    f4.addRow("", dlg.btn_reset_state)
+    _spanning_row(f4, dlg.btn_reset_state)
     vbox.addWidget(dlg._grp_advanced)
 
     vbox.addStretch()
@@ -402,7 +407,7 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     # The derived group key only matters for a discovery server, so the action
     # lives with the other discovery-server controls; it is hidden until one is
     # configured (see ``SettingsDialog._refresh_group_key_button``).
-    g2.addRow("", dlg.btn_show_group_key)
+    _spanning_row(g2, dlg.btn_show_group_key)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
     add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
     dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
@@ -503,7 +508,7 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     dlg._lbl_guard_percent = QLabel(tr("settings.mass_delete_percent"))
     add_row(f3, dlg._lbl_guard_percent, dlg.mass_delete_percent)
     f3.addRow(dlg._lbl_deletion_risk_reset)
-    f3.addRow("", dlg.btn_deletion_risk_reset)
+    _spanning_row(f3, dlg.btn_deletion_risk_reset)
     vbox.addWidget(dlg._grp_advanced_guard)
 
     # Group 4: network

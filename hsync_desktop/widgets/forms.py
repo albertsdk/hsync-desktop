@@ -23,9 +23,13 @@ def add_row(form: QFormLayout, label: QLabel, field: QWidget, row: int | None = 
     follows the host OS (right-aligned captions on macOS, left on Windows/Linux)
     instead of hard-coding one desktop's convention.
 
+    The caption wraps: a long translation, a large system font or a wide
+    character set must make the row taller, never widen the reading column (see
+    ``settings/tab_layout.py::_CenteredColumn``).
+
     ``row`` inserts at that index (after a removal) instead of appending.
     """
-    label.setWordWrap(False)
+    label.setWordWrap(True)
     label.setBuddy(field)
     if row is None:
         form.addRow(label, field)

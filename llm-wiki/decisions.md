@@ -241,7 +241,11 @@ disable unsupported controls) is realized in
   the GNOME-style card ("switch on the row's trailing edge") was rejected as
   DE-specific for a Linux/Windows/macOS app. `hsync_desktop/settings/tab_layout.py::_CenteredColumn`
   caps and centres the content, so a wider window grows the margins, not the
-  form. Captions carry no trailing colon (the label column separates them; only
+  form. The cap is hard (the same measure in every tab, locale and font size) and
+  the rows adapt instead — captions wrap, single actions span both columns, a
+  button pair stacks — because a cap that yields to the widest label makes one
+  tab stretch while the others stay centred, and which tab that is depends on the
+  locale and the system font. Captions carry no trailing colon (the label column separates them; only
   key/value rows such as the detail panel or the status bar keep one), matching
   the WD OS5 web UI and the modern desktop convention. Switches are kept although
   a checkbox matches a Save/Cancel dialog better (NN/g: a toggle switch should

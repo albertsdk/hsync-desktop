@@ -131,7 +131,11 @@ about a disabled tab: the page it used to gray no longer exists.
 **Form rows** (`hsync_desktop/widgets/forms.py::add_row`): every option is a `QFormLayout`
 row — caption in the label column, control (switch, combo box, spin box, line
 edit) in the field column — added through one helper that gives each caption its
-`setBuddy` target (mnemonic/focus) and keeps it on a single line. Captions carry
+`setBuddy` target (mnemonic/focus) and lets it **word-wrap**: a long translation
+or a large system font makes the row taller, never wider (see *Content column*).
+Single-action rows (`_spanning_row`) span both columns for the same reason: in
+the field column a wide caption column squeezes a `QPushButton` below its own
+hint, and a button clips its label instead of eliding it. Captions carry
 no trailing colon: the two columns separate them (the detail panel and the
 status bar keep one because there it introduces a value). Label alignment, field
 growth and row wrapping are left to the Qt style hints, so the dialog follows the
@@ -144,10 +148,15 @@ window edge, which kept short captions hundreds of pixels away from their switch
 its groups in one column capped at `_CONTENT_MAX_WIDTH` and centred in the page
 (`_scrollable_page`). A wider window grows the empty margins, not the form,
 so controls keep a readable width and the caption-to-control distance stays
-bounded at any window size. The cap is a **preference**: `_max_child_width`
-raises it to the child's own size hint when the content cannot fit inside it
-(a large system font or a long translation), because a `QPushButton` clips its
-label instead of eliding it. The wrapper never resizes itself to its own size
+bounded at any window size. The cap is **hard** — the same measure in every tab,
+locale and font size — and the *rows* adapt to it instead: captions wrap
+(`forms.py::add_row`), single actions span both columns
+(`tab_layout.py::_spanning_row`) and a pair of action buttons that cannot fit
+side by side stacks (`form_helpers.py::_ActionRow`). A cap that yields to the
+content's size hint instead makes one tab widen towards the window edge while
+the others stay centred — the page with the widest label wins, and which page
+that is depends on the locale and the system font. The wrapper never resizes
+itself to its own size
 hint: its width belongs to the host — a parent layout stretches it, a scroll
 area sizes it to the viewport — so only the scroll-area host opts into the
 `LayoutRequest` re-apply (`reapply_size_on_layout_request`) that makes the
