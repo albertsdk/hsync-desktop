@@ -27,9 +27,9 @@ account ids, keys or passwords).
 | `04-tray-menu.png` | The tray icon menu (Show, Start, Compare, Stop, Settings, Setup wizard, Quit). |
 | `05-settings-sync.png` | **Settings → Sync**. |
 | `06-settings-p2p.png` | **Settings → Direct mode**. |
-| `07-settings-server.png` | **Settings → Server mode** (shown while direct mode is active). |
+| `07-settings-server.png` | **Settings → Server mode** (the server section selected). |
 | `08-settings-general.png` | **Settings → General**. |
-| `09-settings-advanced.png` | **Settings → Advanced**. |
+| `09-settings-advanced.png` | **Settings → Advanced** (the tab appears once *Show advanced options* is on). |
 | `10-wizard-purpose.png` | Wizard **Purpose** step, including **Help me choose**. |
 | `11-wizard-folder.png` | Wizard **Folder** step. |
 | `12-wizard-connection.png` | Wizard **Connection** step (group, password, when-to-run). |
