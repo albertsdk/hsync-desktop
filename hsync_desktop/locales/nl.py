@@ -137,7 +137,6 @@ translations: dict[str, str] = {
     "settings.sync": "Synchronisatie",
     "settings.sync.description": "Wat er gesynchroniseerd wordt en hoe overdrachten verlopen. Geldt zowel in directe als in servermodus.",
     "settings.p2p.description": "Rechtstreeks tussen je apparaten synchroniseren, zonder server. Een zoekserver helpt alleen als ze niet in hetzelfde netwerk zitten.",
-    "settings.connection.description": "Hoe uw apparaten elkaar bereiken. De andere tabbladen gelden in beide modi.",
     "settings.connection.inactive_direct": "De directe modus is niet actief: groep, apparaatdetectie en rol. Selecteer hem hierboven om hem in te stellen.",
     "settings.connection.inactive_server": "De servermodus is niet actief: serveradres, API-sleutel en identiteitscontrole. Selecteer hem hierboven om hem in te stellen.",
     "settings.server_mode.description": "Synchroniseren via een centrale HSYNC-server in plaats van van apparaat naar apparaat: adres, inloggegevens en identiteitscontrole.",

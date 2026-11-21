@@ -165,7 +165,6 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.settings.tab_layout import (
-    equalize_tab_descriptions,
     reorganize_advanced_tab,
     reorganize_connection_tab,
     reorganize_general_tab,
@@ -338,12 +337,6 @@ class SettingsDialog(QDialog):
                 ("tcp", "settings.p2p_rendezvous_transport_tcp"),
             ),
         )
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
-        """Re-align the tab purpose lines: their wrap depends on the width."""
-
-        super().resizeEvent(event)
-        equalize_tab_descriptions(self)
 
     def _populate_deletion_policy(self) -> None:
         """Fill the deletion-policy combo, preserving the selection.

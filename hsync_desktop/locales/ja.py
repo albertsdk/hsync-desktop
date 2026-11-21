@@ -137,7 +137,6 @@ translations: dict[str, str] = {
     "settings.sync": "同期",
     "settings.sync.description": "何を同期するか、転送をどう行うかを設定します。直接モードとサーバーモードの両方に適用されます。",
     "settings.p2p.description": "サーバーを使わず、デバイス間で直接同期します。検索サーバーは別のネットワークにあるデバイスを見つけるときだけ役立ちます。",
-    "settings.connection.description": "デバイス同士がどのように接続するか。他のタブは両方のモードに適用されます。",
     "settings.connection.inactive_direct": "直接モードは有効になっていません。グループ、デバイスの検索、役割。上で選択すると設定できます。",
     "settings.connection.inactive_server": "サーバーモードは有効になっていません。サーバーアドレス、API キー、本人確認。上で選択すると設定できます。",
     "settings.server_mode.description": "デバイス間ではなく中央の HSYNC サーバー経由で同期します。アドレス、認証情報、身元の確認を設定します。",

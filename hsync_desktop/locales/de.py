@@ -128,7 +128,6 @@ translations: dict[str, str] = {
     "settings.sync": "Synchronisation",
     "settings.sync.description": "Was synchronisiert wird und wie Übertragungen ablaufen. Gilt sowohl im Direkt- als auch im Servermodus.",
     "settings.p2p.description": "Geräte direkt miteinander synchronisieren, ohne Server. Ein Suchserver hilft nur, wenn sie in verschiedenen Netzwerken sind.",
-    "settings.connection.description": "Wie sich Ihre Geräte erreichen. Die anderen Registerkarten gelten in beiden Modi.",
     "settings.connection.inactive_direct": "Der Direktmodus ist nicht aktiv: Gruppe, Gerätesuche und Rolle. Wählen Sie ihn oben aus, um ihn einzurichten.",
     "settings.connection.inactive_server": "Der Servermodus ist nicht aktiv: Serveradresse, API-Schlüssel und Identitätsprüfung. Wählen Sie ihn oben aus, um ihn einzurichten.",
     "settings.server_mode.description": "Über einen zentralen HSYNC-Server synchronisieren statt von Gerät zu Gerät: Adresse, Anmeldedaten und Identitätsprüfung.",

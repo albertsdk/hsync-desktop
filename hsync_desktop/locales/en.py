@@ -137,7 +137,6 @@ translations: dict[str, str] = {
     "settings.sync": "Sync",
     "settings.sync.description": "What to keep in sync and how transfers behave. Applies to both direct and server mode.",
     "settings.p2p.description": "Sync directly between your devices, with no server. A search server only helps devices on different networks find each other.",
-    "settings.connection.description": "How your devices reach each other. The other tabs apply to both modes.",
     "settings.connection.inactive_direct": "Direct mode is not active: group, device finding and role. Select it above to set it up.",
     "settings.connection.inactive_server": "Server mode is not active: server address, API key and identity check. Select it above to set it up.",
     "settings.server_mode.description": "Sync through a central HSYNC server instead of device to device: address, credentials and identity checks.",

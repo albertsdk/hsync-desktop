@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Tests for the purpose line at the top of the Sync / p2p / Server tabs."""
+"""Tests for the purpose line at the top of the Sync tab and the mode lines."""
 
 from __future__ import annotations
 
@@ -17,7 +17,9 @@ from hsync_desktop.settings.tab_indices import (
     _TAB_DESCRIPTION_KEYS,
 )
 
-_MODE_TABS = (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX)
+# Only the tab whose scope the groups alone do not say carries a line; the
+# connection page explains itself through its two options.
+_DESCRIBED_TABS = (_SYNC_TAB_INDEX,)
 
 _TRANSLATIONS_BY_CODE = {
     "en": en.translations,
@@ -35,10 +37,10 @@ _TRANSLATIONS_BY_CODE = {
 
 
 class TestTabDescriptions:
-    """Each mode tab opens with one muted sentence saying what it is for."""
+    """The Sync tab opens with one muted sentence saying what it is for."""
 
-    def test_every_mode_tab_opens_with_its_description(self, dialog):
-        for tab_index in _MODE_TABS:
+    def test_the_described_tab_opens_with_its_line(self, dialog):
+        for tab_index in _DESCRIBED_TABS:
             label = dialog._tab_descriptions[tab_index]
             layout = dialog._tabs.widget(tab_index).layout()
             first = layout.itemAt(0).widget()
@@ -54,7 +56,10 @@ class TestTabDescriptions:
         for tab_index, key in _TAB_DESCRIPTION_KEYS.items():
             assert dialog._tab_descriptions[tab_index].text() == expected[key]
 
-    def test_general_and_advanced_have_no_description(self, dialog):
+    def test_the_self_explanatory_tabs_have_no_description(self, dialog):
+        # Connection explains itself with its two options; General and
+        # Advanced read as an index through their group titles.
+        assert _CONNECTION_TAB_INDEX not in dialog._tab_descriptions
         assert _GENERAL_TAB_INDEX not in dialog._tab_descriptions
         assert _ADVANCED_TAB_INDEX not in dialog._tab_descriptions
 
@@ -75,7 +80,7 @@ class TestTabDescriptions:
         dialog.show()
         qtbot.waitExposed(dialog)
         qtbot.wait(1)
-        for tab_index in _MODE_TABS:
+        for tab_index in _DESCRIBED_TABS:
             holder = dialog._tabs.widget(tab_index).layout().itemAt(0).widget()
             assert holder is not None
             column = holder.findChild(QWidget)
@@ -99,11 +104,11 @@ class TestTabDescriptions:
         dialog.resize(1100, 700)
         dialog.show()
         qtbot.waitExposed(dialog)
-        # Opening a mode tab is what lays its page out at the full width.
-        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
+        # Opening the described tab is what lays its page out at the full width.
+        dialog._tabs.setCurrentIndex(_SYNC_TAB_INDEX)
         qtbot.wait(1)
 
-        page = dialog._tabs.widget(_CONNECTION_TAB_INDEX)
+        page = dialog._tabs.widget(_SYNC_TAB_INDEX)
         holder = page.layout().itemAt(0).widget()
         assert holder is not None
         column = holder.findChild(QWidget)
@@ -116,7 +121,7 @@ class TestTabDescriptions:
 
     def test_description_has_breathing_room(self, dialog):
         """The purpose line is inset from the tab edge and the first group."""
-        for tab_index in _MODE_TABS:
+        for tab_index in _DESCRIBED_TABS:
             margins = dialog._tab_descriptions[tab_index].contentsMargins()
             assert margins.left() == margins.right() >= 16
             assert margins.top() >= 10
@@ -138,7 +143,6 @@ class TestTabDescriptions:
     def test_the_mode_lines_stay_readable_while_a_mode_is_hidden(self, dialog):
         dialog.mode_direct.setChecked(True)
         assert not dialog.server_url.isEnabled()
-        assert dialog._tab_descriptions[_CONNECTION_TAB_INDEX].isEnabled()
         # Both option sentences and the inactive-mode line explain the page,
         # so hiding a mode must not gray the text that says so.
         for label in dialog._connection_hint_labels():
@@ -148,7 +152,7 @@ class TestTabDescriptions:
         dialog.set_connection_active(True)
         try:
             assert not dialog.shared_path.isEnabled()
-            for tab_index in _MODE_TABS:
+            for tab_index in _DESCRIBED_TABS:
                 assert dialog._tab_descriptions[tab_index].isEnabled()
         finally:
             dialog.set_connection_active(False)

@@ -137,7 +137,6 @@ translations: dict[str, str] = {
     "settings.sync": "同步",
     "settings.sync.description": "同步哪些内容以及传输如何进行，直连模式和服务器模式均适用。",
     "settings.p2p.description": "在设备之间直接同步，无需服务器。搜索服务器只帮助不同网络中的设备找到彼此。",
-    "settings.connection.description": "你的设备之间如何互相访问。其他选项卡在两种模式下都适用。",
     "settings.connection.inactive_direct": "直连模式未启用：分组、设备发现和角色。请在上方选择它以进行设置。",
     "settings.connection.inactive_server": "服务器模式未启用：服务器地址、API 密钥和身份校验。请在上方选择它以进行设置。",
     "settings.server_mode.description": "通过中央 HSYNC 服务器同步，而非在设备之间直接同步：地址、凭据和身份验证。",

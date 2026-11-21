@@ -77,25 +77,22 @@ titles are refreshed in `_apply_translations`, and both that refresh and the
 the `&` of "Share & Path" / "Zeiten & Intervalle" is displayed instead of being
 consumed as a keyboard mnemonic (see [ui.md](ui.md)).
 
-**Tab descriptions** (`_add_tab_description`): the Sync and Connection tabs open
-with one muted sentence stating what the tab is for, built from
-`_TAB_DESCRIPTION_KEYS` (`settings.sync.description` /
-`settings.connection.description`). The two mode sentences
-(`settings.p2p.description` / `settings.server_mode.description`) are the option
-subtitles inside the Connection mode box instead. The label uses
-`hsync_desktop/widgets/labels.py::muted_label` — the same `QLabel#mutedHint` rule as the wizard
-helper text — so it does not introduce a second visual language.
-`hsync_desktop/settings/tab_layout.py::equalize_tab_descriptions` reserves the tallest of the
-two hints on both of them (recomputed from `SettingsDialog.resizeEvent` and on
-re-translation), so the wrap differences between languages do not move the first
-group box by a few pixels when switching tabs. Its insets come
+**Tab descriptions** (`_add_tab_description`): the Sync tab opens with one muted
+sentence stating what it owns, from `_TAB_DESCRIPTION_KEYS`
+(`settings.sync.description`) — it is the tab whose scope the group titles alone
+do not say, because it applies to both connection modes. Connection needs none:each mode option carries its sentence (`settings.p2p.description` /
+`settings.server_mode.description` as the option subtitles) and the mode not in
+use is named by `settings.connection.inactive_*`, so the page explains itself. The
+label uses `hsync_desktop/widgets/labels.py::muted_label` — the same
+`QLabel#mutedHint` rule as the wizard helper text — so it does not introduce a
+second visual language. Its insets come
 from `hsync_desktop/settings/tab_layout.py::_DESCRIPTION_MARGINS` (applied with
 `setContentsMargins`, not QSS, which keeps owning only the muted colour), so the
 sentence is inset from the tab edge, below the tab bar and above the first group
-box. General and
-Advanced are deliberately left undescribed (their group titles already read as an
-index), so `_TAB_DESCRIPTION_KEYS` is the single place that decides which tabs get
-one. Two constraints to keep:
+box. Connection, General and
+Advanced are deliberately left undescribed (each has a self-explanatory index:
+the two options, and their group titles), so `_TAB_DESCRIPTION_KEYS` is the single
+place that decides which tab gets one. Two constraints to keep:
 * `SettingsDialog._set_tab_labels_enabled` skips
   `SettingsDialog._tab_descriptions` and the connection page's explanatory lines
   (`_connection_hint_labels`), so the sentences stay readable while a running sync

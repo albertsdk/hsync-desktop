@@ -15,7 +15,6 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
-from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import (
     QBoxLayout,
     QFormLayout,
@@ -35,43 +34,20 @@ from hsync_desktop.settings.dialog import (
 from hsync_desktop.widgets.text import escape_mnemonics
 
 
-class TestTabDescriptionAlignment:
-    """The mode purpose lines reserve one height, so the tab forms align.
+class TestConnectionPageStartsAtTheChoice:
+    """The connection page explains itself through its options, not a purpose line.
 
-    The description wraps to a different number of lines per locale, and the
-    shorter one used to let its first group box sit higher: the tabs must not
-    shift when switching between them.
+    The two options carry the sentences and the mode not in use is named by one
+    muted line, so the page opens straight on the choice and stays as tall as one
+    mode. Only the Sync tab needs a purpose line (its scope is not visible).
     """
 
-    _DESCRIBED_TABS = (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX)
-
-    def test_descriptions_reserve_one_height(self, dialog, qtbot):
-        dialog.resize(900, 700)
-        dialog.show()
-        qtbot.waitExposed(dialog)
-
-        heights = {
-            index: dialog._tab_descriptions[index].minimumHeight() for index in self._DESCRIBED_TABS
-        }
-
-        assert len(set(heights.values())) == 1
-        assert next(iter(heights.values())) > 0
-
-    def test_first_group_starts_at_the_same_offset(self, dialog, qtbot):
-        dialog.resize(900, 700)
-        dialog.show()
-        qtbot.waitExposed(dialog)
-
-        offsets = {}
-        for index in (_SYNC_TAB_INDEX, _CONNECTION_TAB_INDEX):
-            dialog._tabs.setCurrentIndex(index)
-            qtbot.wait(10)
-            tab = dialog._tabs.widget(index)
-            group = tab.findChild(QGroupBox)
-            assert group is not None
-            offsets[index] = group.mapTo(tab, QPoint(0, 0)).y()
-
-        assert offsets[_SYNC_TAB_INDEX] == offsets[_CONNECTION_TAB_INDEX]
+    def test_no_purpose_line_and_the_mode_box_first(self, dialog):
+        assert _CONNECTION_TAB_INDEX not in dialog._tab_descriptions
+        content = dialog._tabs.widget(_CONNECTION_TAB_INDEX).layout().itemAt(0).widget()
+        assert content is not None
+        groups = content.findChildren(QGroupBox)
+        assert groups[0] is dialog._grp_mode
 
 
 class TestAdvancedLoggingPanel:

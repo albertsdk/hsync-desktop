@@ -607,7 +607,7 @@ class TestEllipsisPolicy:
 
 
 class TestTabDescriptions:
-    """The Settings tabs open with one short, jargon-free purpose sentence."""
+    """The Sync tab line and the two mode sentences are short and jargon-free."""
 
     KEYS = (
         "settings.sync.description",
