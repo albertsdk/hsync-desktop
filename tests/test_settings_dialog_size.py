@@ -287,6 +287,10 @@ class TestEveryTabKeepsTheReadingColumn:
                 for lang in self._LOCALES:
                     set_language(lang)
                     dialog = _fresh_dialog(qtbot, monkeypatch, tmp_path)
+                    # The Advanced tab is hidden until the General tab's toggle is
+                    # on, and ``set_current_tab`` falls back to the first visible
+                    # tab: without this the loop would measure the Sync page twice.
+                    dialog.show_advanced.setChecked(True)
                     dialog.resize(1400, 900)
                     dialog.show()
                     qtbot.waitExposed(dialog)
@@ -294,6 +298,7 @@ class TestEveryTabKeepsTheReadingColumn:
                     for index in range(dialog._tabs.count()):
                         dialog.set_current_tab(index)
                         qtbot.wait(10)
+                        assert dialog._tabs.currentIndex() == index, f"tab {index} is hidden"
                         column = self._column(dialog, index)
                         where = f"scale={scale} locale={lang} tab={dialog._tabs.tabText(index)}"
                         wrapper = column.parentWidget()
