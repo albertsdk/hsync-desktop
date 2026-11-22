@@ -89,7 +89,9 @@ for when to use it.
 | Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
 | Never become primary | Remove this device from the primary election |
 | Primary device identity check | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
-| Download from other devices | In direct mode, fetch file blocks from other devices, not only the primary |
+| Serve files to other devices | In direct mode, serve file blocks to the other devices so they can skip the primary |
+| Download from other devices | In direct mode, download file blocks from other devices, not only the primary |
+| Publish the file index | In direct mode, tell the primary what this device already holds, so it can show what is up to date |
 | Port | Fixed listening port in Direct mode |
 | Device search timeout | How long to wait for device discovery |
 | Time servers | Comma-separated time servers (SNTP) for clock-offset measurement in Direct mode; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
