@@ -395,8 +395,9 @@ def apply_settings_env(env: QProcessEnvironment, s: QSettings) -> None:
     # the environment and overrides an ambient HSYNC_RESYNC.
     if cast(int, s.value("sync/resync", DEFAULT_RESYNC_INTERVAL, int)) <= 0:
         env.insert("HSYNC_RESYNC", "0")
-    # p2p peer-download caps are env-only (no CLI flag); the on/off is the
-    # --no-peer-download flag. Only meaningful in p2p mode.
+    # The p2p serving caps are env-only (no CLI flag); the three role switches
+    # travel as --no-serve-peer-blocks/--no-fetch-from-peers/
+    # --no-publish-inventory. Only meaningful in p2p mode.
     if bool(s.value("p2p/enabled", True, bool)):
         env.insert(
             "HSYNC_P2P_PEER_READ_CAP",

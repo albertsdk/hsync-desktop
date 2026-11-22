@@ -640,7 +640,8 @@ Advanced-tab engine knobs (`--no-autotune`,
 `--no-mass-delete-guard`, `--mass-delete-threshold`, `--mass-delete-percent`),
 and the p2p block (the `p2p`/`server` subcommand is the
 first token, then `--prefer-master`, `--never-master`, `--p2p-trust`,
-`--no-peer-download`). Values matching the client default are omitted so the
+`--no-serve-peer-blocks`, `--no-fetch-from-peers`, `--no-publish-inventory`).
+Values matching the client default are omitted so the
 engine keeps its own default/auto behaviour; the deletion thresholds are always
 clamped and emitted.
 
