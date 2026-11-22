@@ -10,6 +10,12 @@ translations: dict[str, str] = {
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
     "about.version": "version {version} (engine {engine})",
+    "about.tab.info": "Information",
+    "about.tab.credits": "Credits",
+    "about.tab.license": "License",
+    "about.credits.maintainer": "Maintainer",
+    "about.credits.contributors": "Contributors",
+    "about.credits.full_list": "Full list on GitHub",
     "common.checking": "Checking…",
     "app.loading": "Loading…",
     # Status
@@ -719,7 +725,6 @@ translations: dict[str, str] = {
     "updates.later": "Later",
     "updates.check_at_startup": "Check for updates at startup",
     "updates.dont_remind": "Don't remind me about this version",
-    "menu.help.license": "License",
     "license.unavailable": "License text not available.",
     # Bandwidth dialog
     "bandwidth.title": "Bandwidth Limits",

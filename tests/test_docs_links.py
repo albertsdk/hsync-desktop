@@ -18,6 +18,7 @@ from hsync_desktop import docs_links
         docs_links.SERVER_SETUP,
         docs_links.RENDEZVOUS_SETUP,
         docs_links.CONNECTION_MODES,
+        docs_links.CONTRIBUTORS,
         docs_links.DOCS_INDEX,
         docs_links.GITHUB_REPO,
         docs_links.LATEST_RELEASE,

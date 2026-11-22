@@ -265,10 +265,11 @@ instead of Ctrl on macOS), `F1` documentation; the log menu shows
 `StandardKey.SelectAll` / `.Copy` and lets the view handle them.
 
 Help menu (`hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar`): external links
-first (Documentation, Project on GitHub), then a separator and the local
-app-info dialogs — **License** (`hsync_desktop/main_window/actions.py::ActionsMixin._show_license`
-→ `hsync_desktop/license_dialog.py::LicenseDialog`, a scrollable read-only view of the bundled
-`LICENSE`) and **About** last, the conventional position. The two external
+first (Documentation, Project on GitHub), then a separator, the update check
+and **About** last, the conventional position. **About** opens the tabbed
+`hsync_desktop/about_dialog.py::AboutDialog` (information, credits and the bundled
+`LICENSE`) through `hsync_desktop/main_window/actions.py::ActionsMixin._show_about`; its label is the short
+`menu.help.about` text ("About" / "Informazioni"), without the app name. The two external
 targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 `docs_links.open_docs_link`, which only allows the project HTTPS pages.
 `DOCS_INDEX` is the documentation landing page (`docs/README.md`), distinct from
@@ -1667,30 +1668,27 @@ to the release's **tag** page, whose asset list is complete. ADR-0048 is unchang
 the button only opens the operator's browser, the app still never downloads or
 installs anything.
 
-## splash_screen.py — Splash / About
+## splash_screen.py — Welcome splash
 
-`SplashScreen` (`hsync_desktop/splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui` and
-doubles as the Help → About window. It is a fixed 420×330 frameless window whose
-vertical order is: the horizontal brand logo
-(`resources/icons/hsync-logo-horizontal.svg`, the same wordmark as the README top
-banner, drawn at 240 px wide) above the app name (`app.name`, bold at the default
-label size), the version line (`about.version`, `lblVersion`) — the app version
-(`__version__`) and the engine version on one line, the latter resolved off the
-UI thread by `hsync_desktop/engine/cli.py::BinaryVersionProbe` and shown as an em dash when
-undeterminable — the tagline (`app.tagline`), then the copyright (`about.copyright`) and author
-(`about.author`) with space above. As the startup welcome it is a short,
-click-dismissible overlay (`hsync_desktop/main.py::SPLASH_MS`, 1500 ms): it is shown **only on
-the first launch** (`hsync_desktop/main.py::_should_show_splash`: `ui/splash_shown` absent and
+`SplashScreen` (`hsync_desktop/splash_screen.py::SplashScreen`) loads `ui/splash_screen.ui`.
+It is a fixed 420×330 frameless window whose vertical order is: the horizontal
+brand logo (`hsync_desktop/branding.py::LOGO_PATH`, the same wordmark as the README top
+banner, drawn `hsync_desktop/branding.py::LOGO_WIDTH` px wide) above the app name
+(`app.name`, bold at the default label size), the version line (`about.version`,
+`lblVersion`) — the app version (`__version__`) and the engine version on one
+line, the latter resolved off the UI thread by
+`hsync_desktop/engine/cli.py::BinaryVersionProbe` and shown as an em dash when
+undeterminable (`hsync_desktop/about_text.py::version_text`) — the tagline
+(`app.tagline`), then the copyright (`about.copyright`) and author (`about.author`)
+with space above. As the startup welcome it is a short, click-dismissible overlay
+(`hsync_desktop/main.py::SPLASH_MS`, 1500 ms): it is shown **only on the first launch**
+(`hsync_desktop/main.py::_should_show_splash`: `ui/splash_shown` absent and
 `path/local` empty, so an upgraded install with a configured folder never sees it
 again) and **never delays** the main window — `hsync_desktop/main.py::main` calls
 `activate_window()` first, then shows the overlay, and connects its `finished` to
 the setup-wizard hook. On later launches the window is revealed immediately with
-no overlay. `show_as_about`
-(`hsync_desktop/splash_screen.py::SplashScreen.show_as_about`) keeps it open.
-A click anywhere dismisses it: for the splash it emits `finished`
-(`main.py` connects it to the setup-wizard hook), for the About it just closes.
-The Help → About menu entry is the short `menu.help.about` label ("About" /
-"Informazioni"), without the app name.
+no overlay. A click anywhere, or Esc, dismisses it and emits `finished`; the
+Help → About window is a separate dialog (next section), not this widget.
 
 **Frame.** Being frameless, the window draws a 1 px border from the theme's
 `QWidget#SplashScreen` rule (`hsync_desktop/themes.py::_COMMON_QSS`, colours `window_bg` /
@@ -1699,6 +1697,24 @@ The Help → About menu entry is the short `menu.help.about` label ("About" /
 is set, so `SplashScreen.__init__` opts into it; `ui/splash_screen.ui`
 deliberately carries no stylesheet.
 `tests/test_splash_screen.py::TestSplashFrame` guards both halves.
+
+## about_dialog.py — About window
+
+`AboutDialog` (`hsync_desktop/about_dialog.py::AboutDialog`) loads
+`ui/about_dialog.ui`: the brand header (logo, app name, `about.version`, tagline)
+above a `QTabWidget` with three tabs and a Close button (`action.close`).
+**Information** shows the copyright, the author and the *Project on GitHub* /
+*Documentation* buttons (`hsync_desktop/docs_links.py::open_docs_link`).
+**Credits** renders one titled group per
+`hsync_desktop/credits.py::CREDIT_SECTIONS` entry — display names and handles are
+proper nouns and never translated, only the section titles come from the locales —
+plus *Full list on GitHub* (`hsync_desktop/docs_links.py::CONTRIBUTORS`).
+**License** shows the bundled `LICENSE` (`hsync_desktop/about_dialog.py::license_text`,
+resolved from `_MEIPASS` in the frozen build and from the repo root in the source
+tree) in a read-only `small_monospace_font` view, with `license.unavailable` when
+the file is missing. `initial_tab` selects the tab shown on open (Information by
+default). The credits are the runtime twin of the published `CONTRIBUTORS.md`:
+`tests/test_credits.py` fails when the two list different people.
 
 ## Presentation helpers
 
@@ -1803,7 +1819,7 @@ labels at the previous size (only the widgets that receive an explicit
 `setFont` — file table, log view, menus — followed). Those explicit fonts are
 re-applied right after the reset.
 The fonts are set programmatically
-(`hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui`, `hsync_desktop/license_dialog.py::LicenseDialog`);
+(`hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui`, `hsync_desktop/about_dialog.py::AboutDialog`);
 the QSS pins no `font-family`/`font-size` (`hsync_desktop/themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`

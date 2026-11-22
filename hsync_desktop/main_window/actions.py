@@ -499,11 +499,10 @@ class ActionsMixin:
         open_docs_link(GITHUB_REPO)
 
     def _show_about(self) -> None:
-        """Show the splash screen as an About dialog."""
-        from hsync_desktop.splash_screen import SplashScreen
+        """Show the About window: information, credits and license."""
+        from hsync_desktop.about_dialog import AboutDialog
 
-        about = SplashScreen(self)
-        about.show_as_about()
+        AboutDialog(self).exec()
 
     def _open_share_folder(self) -> None:
         """Open the synced folder in the desktop's file manager.
@@ -521,12 +520,6 @@ class ActionsMixin:
         if not folder or not os.path.isdir(folder):
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
-
-    def _show_license(self) -> None:
-        """Show the project license in a scrollable, read-only dialog."""
-        from hsync_desktop.license_dialog import LicenseDialog
-
-        LicenseDialog(self).exec()
 
     # ── Release update check (ADR-0048) ──────────────────────────────────
 

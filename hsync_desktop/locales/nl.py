@@ -10,6 +10,12 @@ translations: dict[str, str] = {
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
     "about.version": "versie {version} (engine {engine})",
+    "about.tab.info": "Informatie",
+    "about.tab.credits": "Dankbetuigingen",
+    "about.tab.license": "Licentie",
+    "about.credits.maintainer": "Beheerder",
+    "about.credits.contributors": "Bijdragers",
+    "about.credits.full_list": "Volledige lijst op GitHub",
     "common.checking": "Bezig met controleren…",
     "app.loading": "Laden…",
     # Status
@@ -718,7 +724,6 @@ translations: dict[str, str] = {
     "updates.later": "Later",
     "updates.check_at_startup": "Bij het starten controleren op updates",
     "updates.dont_remind": "Niet meer herinneren voor deze versie",
-    "menu.help.license": "Licentie",
     "license.unavailable": "Licentietekst niet beschikbaar.",
     # Bandwidth dialog
     "bandwidth.title": "Bandbreedtelimieten",

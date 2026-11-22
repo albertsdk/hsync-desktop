@@ -352,7 +352,7 @@ def table_row_height() -> int:
 def small_monospace_font() -> QFont:
     """Return the monospace font one point smaller for dense text (floor 8 pt).
 
-    Consumers: the license dialog.
+    Consumers: the About window's license tab.
     """
 
     return _point_smaller_monospace(_SMALL_FONT_DELTA, _MIN_SMALL_POINT_SIZE)

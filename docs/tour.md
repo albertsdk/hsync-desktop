@@ -17,8 +17,9 @@ using the app — it is here to answer "what is that icon?".
 - **Settings** — the configuration dialog; see the
   [Configuration Reference](configuration.md).
 - **Help** — this documentation, the [Setup wizard](setup-wizard.md) to re-run
-  the guided setup, the project on GitHub, the license and **About** (which shows
-  the app and engine versions).
+  the guided setup, the project on GitHub, update checks and **About**: one
+  window with the application information, the credits and the license, plus the
+  app and engine versions.
 
 On macOS the same items live in the application menu, as usual on a Mac.
 

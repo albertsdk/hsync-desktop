@@ -10,6 +10,12 @@ translations: dict[str, str] = {
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
     "about.version": "版本 {version} (引擎 {engine})",
+    "about.tab.info": "信息",
+    "about.tab.credits": "鸣谢",
+    "about.tab.license": "许可证",
+    "about.credits.maintainer": "维护者",
+    "about.credits.contributors": "贡献者",
+    "about.credits.full_list": "GitHub 上的完整列表",
     "common.checking": "正在检查…",
     "app.loading": "正在加载…",
     # Status
@@ -718,7 +724,6 @@ translations: dict[str, str] = {
     "updates.later": "稍后",
     "updates.check_at_startup": "启动时检查更新",
     "updates.dont_remind": "不再提示此版本",
-    "menu.help.license": "许可证",
     "license.unavailable": "许可证文本不可用。",
     # Bandwidth dialog
     "bandwidth.title": "带宽限制",

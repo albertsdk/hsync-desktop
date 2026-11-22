@@ -58,13 +58,6 @@ class TestSplashScreen:
         assert hasattr(SplashScreen, "show_and_dismiss")
         assert callable(SplashScreen.show_and_dismiss)
 
-    def test_splash_screen_has_show_as_about_method(self):
-        """Test that SplashScreen has show_as_about method."""
-        from hsync_desktop.splash_screen import SplashScreen
-
-        assert hasattr(SplashScreen, "show_as_about")
-        assert callable(SplashScreen.show_as_about)
-
     def test_splash_screen_has_mouse_press_event(self):
         """Test that SplashScreen has mousePressEvent method."""
         from hsync_desktop.splash_screen import SplashScreen
@@ -117,8 +110,8 @@ class TestModuleImports:
         assert callable(load_ui_widget)
 
 
-class TestSplashLayoutAndAbout:
-    """The redesigned splash / About surface."""
+class TestSplashLayout:
+    """The redesigned splash surface."""
 
     @staticmethod
     def _make(qtbot):
@@ -175,20 +168,20 @@ class TestSplashLayoutAndAbout:
         assert not splash.isVisible()
         assert fired == [True]
 
-    def test_click_closes_the_about_without_revealing_the_app(self, qtbot):
+    def test_escape_closes_the_splash(self, qtbot):
         from PySide6.QtCore import Qt
 
         splash = self._make(qtbot)
         fired: list[bool] = []
         splash.finished.connect(lambda: fired.append(True))
-        splash.show_as_about()
-        qtbot.mouseClick(splash, Qt.MouseButton.LeftButton)
+        splash.show()
+        qtbot.keyClick(splash, Qt.Key.Key_Escape)
         assert not splash.isVisible()
-        assert fired == []
+        assert fired == [True]
 
 
 class TestSplashFrame:
-    """The frameless window draws a themed border around the About surface."""
+    """The frameless window draws a themed border around the splash surface."""
 
     def test_opts_into_the_styled_background(self, qtbot):
         # A plain QWidget ignores its stylesheet background/border unless

@@ -1028,17 +1028,16 @@ class TestHelpMenu:
             tr("menu.help.github"),
             "",
             tr("menu.help.updates"),
-            tr("menu.help.license"),
             tr("menu.help.about"),
         ]
 
-    def test_license_action_opens_the_dialog(self, window, monkeypatch):
-        from hsync_desktop.license_dialog import LicenseDialog
+    def test_about_action_opens_the_dialog(self, window, monkeypatch):
+        from hsync_desktop.about_dialog import AboutDialog
 
         opened: list[int] = []
-        monkeypatch.setattr(LicenseDialog, "exec", lambda self: opened.append(1))
+        monkeypatch.setattr(AboutDialog, "exec", lambda self: opened.append(1))
 
-        window._act_help_license.trigger()
+        window._act_help_about.trigger()
 
         assert opened == [1]
 

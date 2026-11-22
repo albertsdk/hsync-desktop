@@ -10,6 +10,12 @@ translations: dict[str, str] = {
     "about.copyright": "Copyright © 2022-2026",
     "about.author": "Alberto Basso",
     "about.version": "バージョン {version} (エンジン {engine})",
+    "about.tab.info": "情報",
+    "about.tab.credits": "クレジット",
+    "about.tab.license": "ライセンス",
+    "about.credits.maintainer": "メンテナー",
+    "about.credits.contributors": "コントリビューター",
+    "about.credits.full_list": "GitHub の完全なリスト",
     "common.checking": "確認中…",
     "app.loading": "読み込み中…",
     # Status
@@ -718,7 +724,6 @@ translations: dict[str, str] = {
     "updates.later": "後で",
     "updates.check_at_startup": "起動時にアップデートを確認する",
     "updates.dont_remind": "このバージョンについて通知しない",
-    "menu.help.license": "ライセンス",
     "license.unavailable": "ライセンス本文を表示できません。",
     # Bandwidth dialog
     "bandwidth.title": "帯域幅の制限",

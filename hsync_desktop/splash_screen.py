@@ -5,31 +5,22 @@
 Welcome splash screen shown at application startup.
 
 Shows the brand logo, the app name, the version line (app and engine), a short
-tagline and the copyright, and doubles as the "About" window. UI is loaded
-from ui/splash_screen.ui (Qt Designer).
+tagline and the copyright. UI is loaded from ui/splash_screen.ui (Qt Designer).
+The Help → About window is a separate dialog (``hsync_desktop/about_dialog.py``).
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QWidget
 
 from hsync_desktop import __version__
+from hsync_desktop.about_text import version_text
+from hsync_desktop.branding import LOGO_PATH, LOGO_WIDTH
 from hsync_desktop.engine import BinaryVersionProbe
 from hsync_desktop.i18n import tr
 from hsync_desktop.ui.loader import load_ui_widget
-
-# Horizontal wordmark shared with the README top banner (bundled, unthemed).
-_LOGO_PATH = Path(__file__).parent / "resources" / "icons" / "hsync-logo-horizontal.svg"
-_LOGO_WIDTH = 240
-
-
-def _version_text(version: str, engine: str) -> str:
-    """Render the app and engine versions on one line (``about.version``)."""
-    return tr("about.version").replace("{version}", version).replace("{engine}", engine)
 
 
 class SplashScreen(QWidget):
@@ -69,13 +60,13 @@ class SplashScreen(QWidget):
 
     def _set_logo(self) -> None:
         """Show the horizontal brand logo above the app name."""
-        if _LOGO_PATH.is_file():
-            self._lbl_logo.setPixmap(QIcon(str(_LOGO_PATH)).pixmap(QSize(_LOGO_WIDTH, _LOGO_WIDTH)))
+        if LOGO_PATH.is_file():
+            self._lbl_logo.setPixmap(QIcon(str(LOGO_PATH)).pixmap(QSize(LOGO_WIDTH, LOGO_WIDTH)))
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
         self._lbl_app_name.setText(tr("app.name"))
-        self._lbl_version.setText(_version_text(__version__, "…"))
+        self._lbl_version.setText(version_text(__version__, "…"))
         self._lbl_tagline.setText(tr("app.tagline"))
         self._lbl_copyright.setText(tr("about.copyright"))
         self._lbl_author.setText(tr("about.author"))
@@ -94,19 +85,13 @@ class SplashScreen(QWidget):
     @Slot(str)
     def _apply_engine_version(self, version: str) -> None:
         """Fill the engine part of the version line, or an em dash when unknown."""
-        self._lbl_version.setText(_version_text(__version__, version or "—"))
+        self._lbl_version.setText(version_text(__version__, version or "—"))
 
     def show_and_dismiss(self, duration_ms: int = 2500) -> None:
         """Show the splash screen and auto-close after *duration_ms* ms."""
         self.show()
         self._center_on_screen()
         QTimer.singleShot(duration_ms, self.close)
-
-    def show_as_about(self) -> None:
-        """Show the splash screen as an About dialog (no auto-dismiss)."""
-        self._is_about = True
-        self.show()
-        self._center_on_screen()
 
     def _center_on_screen(self) -> None:
         """Center the window on the current screen."""
@@ -118,18 +103,17 @@ class SplashScreen(QWidget):
             self.move(x, y)
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        """Dismiss on click: reveal the app for the splash, close for About."""
+        """Dismiss the splash on click."""
         self.close()
         super().mousePressEvent(event)
 
     def keyPressEvent(self, event) -> None:  # type: ignore[override]
-        """Close on Esc when shown as About dialog."""
+        """Close the splash on Esc."""
         if event.key() == Qt.Key.Key_Escape:
             self.close()
         super().keyPressEvent(event)
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        """Emit finished signal when closing (only for splash, not About)."""
-        if not getattr(self, "_is_about", False):
-            self.finished.emit()
+        """Emit finished when the splash closes."""
+        self.finished.emit()
         super().closeEvent(event)

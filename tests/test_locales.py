@@ -552,6 +552,11 @@ class TestAboutContent:
             assert module.translations["about.copyright"].startswith("Copyright ©")
             assert module.translations["about.author"] == "Alberto Basso"
 
+    def test_about_window_tabs_are_translated(self):
+        for module in self.ALL:
+            for key in ("about.tab.info", "about.tab.credits", "about.tab.license"):
+                assert module.translations[key].strip(), f"{module.__name__}:{key}"
+
     def test_about_menu_item_is_short(self):
         for module in self.ALL:
             label = module.translations["menu.help.about"]

@@ -38,6 +38,8 @@ WATCHER_LIMITS = (
 # wizard's mode step and its "Not sure?" dialog deep-link through CONNECTION_MODES.
 DOCS_INDEX = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/README.md"
 GITHUB_REPO = "https://github.com/albertsdk/hsync-desktop"
+# Published contributors list, linked from the About window's Credits tab.
+CONTRIBUTORS = "https://github.com/albertsdk/hsync-desktop/blob/main/CONTRIBUTORS.md"
 RELEASES = "https://github.com/albertsdk/hsync-desktop/releases"
 # Redirect that resolves the newest release tag without the GitHub API rate
 # limit; ``updates.py`` reads the tag from the final URL.
@@ -60,6 +62,7 @@ _ASSET_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 __all__ = [
     "RENDEZVOUS_SETUP",
     "CONNECTION_MODES",
+    "CONTRIBUTORS",
     "DOCS_INDEX",
     "GITHUB_REPO",
     "LATEST_RELEASE",
