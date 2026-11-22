@@ -41,9 +41,11 @@ from hsync_desktop.config import (
     DEFAULT_MAX_WAIT,
     DEFAULT_MIN_FREE_DISK_SPACE,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_FETCH_FROM_PEERS,
     DEFAULT_P2P_NO_MDNS,
-    DEFAULT_P2P_PEER_DOWNLOAD,
+    DEFAULT_P2P_PUBLISH_INVENTORY,
     DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
+    DEFAULT_P2P_SERVE_BLOCKS,
     DEFAULT_P2P_TRUST,
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
@@ -372,8 +374,12 @@ def _append_p2p_args(args: list[str], s: QSettings, p2p_enabled: bool) -> None:
             args.append("--never-master")
         trust = str(s.value("p2p/trust", DEFAULT_P2P_TRUST, str))
         args += ["--p2p-trust", trust if trust in _P2P_TRUST_POLICIES else DEFAULT_P2P_TRUST]
-        if not s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool):
-            args.append("--no-peer-download")
+        if not s.value("p2p/serve_blocks", DEFAULT_P2P_SERVE_BLOCKS, bool):
+            args.append("--no-serve-peer-blocks")
+        if not s.value("p2p/fetch_from_peers", DEFAULT_P2P_FETCH_FROM_PEERS, bool):
+            args.append("--no-fetch-from-peers")
+        if not s.value("p2p/publish_inventory", DEFAULT_P2P_PUBLISH_INVENTORY, bool):
+            args.append("--no-publish-inventory")
         # The client refuses --no-mdns without a discovery server (nothing would
         # be left to find peers with), so emit it only while one is configured.
         rendezvous = str(s.value("p2p/rendezvous_server_endpoints", "", str)).strip()

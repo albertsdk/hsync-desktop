@@ -127,7 +127,9 @@ class TestCapabilityGating:
                 "--mass-delete-percent",
                 "--limit-upload",
                 "--limit-download",
-                "--no-peer-download",
+                "--no-serve-peer-blocks",
+                "--no-fetch-from-peers",
+                "--no-publish-inventory",
             ],
         )
         dlg.mode_direct.setChecked(True)

@@ -377,12 +377,19 @@ def _build_direct_fields(dlg: SettingsDialog) -> None:
                     add_row(nm_layout, dlg._lbl_p2p_trust, dlg.p2p_trust, row + 1)
                     break
 
-    # Peer download (p2p only): download file blocks from other devices, not
-    # only the primary. The caps are env-only (HSYNC_P2P_PEER_READ_CAP,
-    # HSYNC_P2P_PEER_SOURCES_MAX); the on/off is --no-peer-download.
-    dlg.peer_download = ToggleSwitch(dlg)
-    dlg.peer_download.setObjectName("peerDownload")
-    dlg._lbl_peer_download = QLabel(dlg)
+    # Peer-mesh roles (p2p only): serve blocks to other devices, download
+    # them from other devices, publish this device's file index. One switch
+    # per capability, each with its own --no-* flag; the caps are env-only
+    # (HSYNC_P2P_PEER_READ_CAP, HSYNC_P2P_PEER_SOURCES_MAX).
+    dlg.serve_blocks = ToggleSwitch(dlg)
+    dlg.serve_blocks.setObjectName("serveBlocks")
+    dlg._lbl_serve_blocks = QLabel(dlg)
+    dlg.fetch_from_peers = ToggleSwitch(dlg)
+    dlg.fetch_from_peers.setObjectName("fetchFromPeers")
+    dlg._lbl_fetch_from_peers = QLabel(dlg)
+    dlg.publish_inventory = ToggleSwitch(dlg)
+    dlg.publish_inventory.setObjectName("publishInventory")
+    dlg._lbl_publish_inventory = QLabel(dlg)
     dlg.peer_read_cap = QSpinBox(dlg)
     dlg.peer_read_cap.setObjectName("peerReadCap")
     dlg.peer_read_cap.setRange(1, 32)

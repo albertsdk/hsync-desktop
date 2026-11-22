@@ -289,14 +289,16 @@ standard port does not answer.
 
 **Capability gating (§8)**: the direct-mode option (`mode_direct`, which the
 server then replaces as the only choice) and the p2p toggles (`prefer_master`,
-`never_master`, `p2p_trust`, `peer_download` and its caps) are disabled +
+`never_master`, `p2p_trust`, the three peer roles `serve_blocks` /
+`fetch_from_peers` / `publish_inventory` and the serving caps) are disabled +
 unchecked when the probed `CapabilitiesDoc` (from `engine.get_binary_capabilities`)
 lacks the matching CLI option; the unsupported widgets carry the
 `tip.capability_unsupported` tooltip. The Advanced engine knobs
 (`autotune`, `max_concurrent_transfers`, `delta_enabled`, the delta sizes, the
 deletion-protection controls and the bandwidth limits) are gated on the union of
 the subcommands' advertised options (the same flags exist for p2p and server);
-`--no-peer-download` is p2p-only.
+`--no-serve-peer-blocks`, `--no-fetch-from-peers` and `--no-publish-inventory`
+are p2p-only, and the two serving caps follow the serving flag.
 Tooltips are mirrored onto the row's label (and a toggle's inline label) through
 `_paired_label`/`_set_field_tooltip`, so hovering the label explains the row too;
 the same applies to the capability and the disabled-during-sync tooltips.

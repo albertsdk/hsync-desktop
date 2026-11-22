@@ -157,10 +157,12 @@ DEFAULT_P2P_NO_MDNS = False
 # (pool.ntp.org, time.cloudflare.com, time.google.com); entries may carry a
 # port override (host:port).
 DEFAULT_NTP_HOSTS = ""
-# Download file blocks from other peers in p2p mode (--no-peer-download when
-# off); the read/source caps are env-only (HSYNC_P2P_PEER_READ_CAP,
+# Peer-mesh roles in p2p mode, one default per capability (the --no-<role>
+# flags when off); the read/source caps are env-only (HSYNC_P2P_PEER_READ_CAP,
 # HSYNC_P2P_PEER_SOURCES_MAX).
-DEFAULT_P2P_PEER_DOWNLOAD = defaults.P2P_PEER_DOWNLOAD_DEFAULT
+DEFAULT_P2P_SERVE_BLOCKS = defaults.P2P_SERVE_BLOCKS_DEFAULT
+DEFAULT_P2P_FETCH_FROM_PEERS = defaults.P2P_FETCH_FROM_PEERS_DEFAULT
+DEFAULT_P2P_PUBLISH_INVENTORY = defaults.P2P_PUBLISH_INVENTORY_DEFAULT
 DEFAULT_P2P_PEER_READ_CAP = defaults.P2P_PEER_READ_CAP_DEFAULT
 DEFAULT_P2P_PEER_SOURCES_MAX = defaults.P2P_PEER_SOURCES_MAX_DEFAULT
 

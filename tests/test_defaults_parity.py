@@ -47,7 +47,9 @@ class TestSharedDefaultsAreAliases:
         assert config.BANDWIDTH_MAX_MBPS == defaults.BANDWIDTH_MAX_BPS / (1024 * 1024)
 
     def test_p2p_peer_defaults(self):
-        assert config.DEFAULT_P2P_PEER_DOWNLOAD is defaults.P2P_PEER_DOWNLOAD_DEFAULT
+        assert config.DEFAULT_P2P_SERVE_BLOCKS is defaults.P2P_SERVE_BLOCKS_DEFAULT
+        assert config.DEFAULT_P2P_FETCH_FROM_PEERS is defaults.P2P_FETCH_FROM_PEERS_DEFAULT
+        assert config.DEFAULT_P2P_PUBLISH_INVENTORY is defaults.P2P_PUBLISH_INVENTORY_DEFAULT
         assert config.DEFAULT_P2P_PEER_READ_CAP is defaults.P2P_PEER_READ_CAP_DEFAULT
         assert config.DEFAULT_P2P_PEER_SOURCES_MAX is defaults.P2P_PEER_SOURCES_MAX_DEFAULT
 

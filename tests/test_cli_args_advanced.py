@@ -137,16 +137,48 @@ class TestDeletionProtection:
         assert _value_after(args, "--mass-delete-threshold") == "0"
 
 
-class TestPeerDownload:
-    def test_peer_download_off_emits_flag_in_p2p(self):
-        args = _build_args({"p2p/peer_download": False}, p2p=True)
-        assert "--no-peer-download" in args
+class TestPeerRoles:
+    @pytest.mark.parametrize(
+        ("key", "flag"),
+        [
+            ("p2p/serve_blocks", "--no-serve-peer-blocks"),
+            ("p2p/fetch_from_peers", "--no-fetch-from-peers"),
+            ("p2p/publish_inventory", "--no-publish-inventory"),
+        ],
+    )
+    def test_each_role_off_emits_its_own_flag_in_p2p(self, key, flag):
+        assert flag in _build_args({key: False}, p2p=True)
 
-    def test_peer_download_flag_absent_when_on(self):
-        assert "--no-peer-download" not in _build_args({"p2p/peer_download": True}, p2p=True)
+    def test_one_role_off_leaves_the_others_alone(self):
+        args = _build_args({"p2p/serve_blocks": False}, p2p=True)
+        assert "--no-serve-peer-blocks" in args
+        assert "--no-fetch-from-peers" not in args
+        assert "--no-publish-inventory" not in args
 
-    def test_peer_download_flag_not_emitted_in_server_mode(self):
-        assert "--no-peer-download" not in _build_args({"p2p/peer_download": False}, p2p=False)
+    @pytest.mark.parametrize(
+        ("key", "flag"),
+        [
+            ("p2p/serve_blocks", "--no-serve-peer-blocks"),
+            ("p2p/fetch_from_peers", "--no-fetch-from-peers"),
+            ("p2p/publish_inventory", "--no-publish-inventory"),
+        ],
+    )
+    def test_a_role_flag_is_absent_when_on(self, key, flag):
+        assert flag not in _build_args({key: True}, p2p=True)
+
+    @pytest.mark.parametrize(
+        "flag", ["--no-serve-peer-blocks", "--no-fetch-from-peers", "--no-publish-inventory"]
+    )
+    def test_a_role_flag_is_not_emitted_in_server_mode(self, flag):
+        args = _build_args(
+            {
+                "p2p/serve_blocks": False,
+                "p2p/fetch_from_peers": False,
+                "p2p/publish_inventory": False,
+            },
+            p2p=False,
+        )
+        assert flag not in args
 
 
 class TestNoMdns:

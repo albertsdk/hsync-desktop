@@ -54,10 +54,15 @@ class TestTabStructure:
         assert tab.isAncestorOf(dialog.start_at_login)
         assert tab.isAncestorOf(dialog.show_log_panel)
 
-    def test_peer_download_lives_in_the_p2p_advanced_group(self, dialog):
-        assert dialog._grp_p2p_advanced.isAncestorOf(dialog.peer_download)
-        assert dialog._grp_p2p_advanced.isAncestorOf(dialog.peer_read_cap)
-        assert dialog._grp_p2p_advanced.isAncestorOf(dialog.peer_sources_max)
+    def test_peer_roles_live_in_the_p2p_advanced_group(self, dialog):
+        for widget in (
+            dialog.serve_blocks,
+            dialog.fetch_from_peers,
+            dialog.publish_inventory,
+            dialog.peer_read_cap,
+            dialog.peer_sources_max,
+        ):
+            assert dialog._grp_p2p_advanced.isAncestorOf(widget)
 
 
 class TestPersistence:
@@ -74,7 +79,9 @@ class TestPersistence:
                 "advanced/mass_delete_guard": False,
                 "advanced/mass_delete_threshold": 7,
                 "advanced/mass_delete_percent": 25,
-                "p2p/peer_download": False,
+                "p2p/serve_blocks": False,
+                "p2p/fetch_from_peers": False,
+                "p2p/publish_inventory": False,
                 "p2p/peer_read_cap": 5,
                 "p2p/peer_sources_max": 2,
             },
@@ -86,7 +93,9 @@ class TestPersistence:
         assert dlg.mass_delete_guard.isChecked() is False
         assert dlg.mass_delete_threshold.value() == 7
         assert dlg.mass_delete_percent.value() == 25
-        assert dlg.peer_download.isChecked() is False
+        assert dlg.serve_blocks.isChecked() is False
+        assert dlg.fetch_from_peers.isChecked() is False
+        assert dlg.publish_inventory.isChecked() is False
         assert dlg.peer_read_cap.value() == 5
         assert dlg.peer_sources_max.value() == 2
 
@@ -140,7 +149,9 @@ class TestCapabilityGating:
         dlg = self._with_flags(qtbot, monkeypatch, tmp_path, [])
         assert not dlg.autotune.isEnabled()
         assert not dlg.mass_delete_threshold.isEnabled()
-        assert not dlg.peer_download.isEnabled()
+        assert not dlg.serve_blocks.isEnabled()
+        assert not dlg.fetch_from_peers.isEnabled()
+        assert not dlg.publish_inventory.isEnabled()
 
     def test_advertised_flags_keep_controls_enabled(self, qtbot, monkeypatch, tmp_path):
         dlg = self._with_flags(
@@ -148,7 +159,9 @@ class TestCapabilityGating:
             monkeypatch,
             tmp_path,
             [
-                "--no-peer-download",
+                "--no-serve-peer-blocks",
+                "--no-fetch-from-peers",
+                "--no-publish-inventory",
                 "--no-autotune",
                 "--max-concurrent-transfers",
                 "--no-delta",
@@ -164,18 +177,43 @@ class TestCapabilityGating:
         assert dlg.mode_direct.isChecked()  # the isolated store runs in p2p mode
         assert dlg.autotune.isEnabled()
         assert dlg.mass_delete_threshold.isEnabled()
-        assert dlg.peer_download.isEnabled()
+        for widget in (dlg.serve_blocks, dlg.fetch_from_peers, dlg.publish_inventory):
+            assert widget.isEnabled()
 
-    def test_the_peer_download_switch_follows_the_mode(self, qtbot, monkeypatch, tmp_path):
-        """The flag gates the switch; the mode decides where it applies."""
-        dlg = self._with_flags(qtbot, monkeypatch, tmp_path, ["--no-peer-download"])
-        assert dlg.peer_download.isEnabled()
+    def test_each_peer_role_switch_follows_its_own_flag(self, qtbot, monkeypatch, tmp_path):
+        """An engine that lacks one flag disables exactly that switch."""
+        dlg = self._with_flags(
+            qtbot,
+            monkeypatch,
+            tmp_path,
+            ["--no-serve-peer-blocks", "--no-publish-inventory"],
+        )
+        assert dlg.serve_blocks.isEnabled()
+        assert dlg.publish_inventory.isEnabled()
+        assert not dlg.fetch_from_peers.isEnabled()
+
+    def test_the_peer_role_switches_follow_the_mode(self, qtbot, monkeypatch, tmp_path):
+        """The flags gate the switches; the mode decides where they apply."""
+        dlg = self._with_flags(
+            qtbot,
+            monkeypatch,
+            tmp_path,
+            [
+                "--no-serve-peer-blocks",
+                "--no-fetch-from-peers",
+                "--no-publish-inventory",
+            ],
+        )
+        for widget in (dlg.serve_blocks, dlg.fetch_from_peers, dlg.publish_inventory):
+            assert widget.isEnabled()
 
         dlg.mode_server.setChecked(True)
-        assert not dlg.peer_download.isEnabled()
+        for widget in (dlg.serve_blocks, dlg.fetch_from_peers, dlg.publish_inventory):
+            assert not widget.isEnabled()
 
         dlg.mode_direct.setChecked(True)
-        assert dlg.peer_download.isEnabled()
+        for widget in (dlg.serve_blocks, dlg.fetch_from_peers, dlg.publish_inventory):
+            assert widget.isEnabled()
 
 
 class TestAdvancedToggle:

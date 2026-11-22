@@ -162,7 +162,9 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_never_master.setText(tr("settings.never_master"))
     dlg._lbl_p2p_trust.setText(tr("settings.p2p_trust"))
     dlg._populate_p2p_trust()
-    dlg._lbl_peer_download.setText(tr("settings.peer_download"))
+    dlg._lbl_serve_blocks.setText(tr("settings.serve_blocks"))
+    dlg._lbl_fetch_from_peers.setText(tr("settings.fetch_from_peers"))
+    dlg._lbl_publish_inventory.setText(tr("settings.publish_inventory"))
     dlg._lbl_peer_read_cap.setText(tr("settings.peer_read_cap"))
     dlg._lbl_peer_sources_max.setText(tr("settings.peer_sources_max"))
 

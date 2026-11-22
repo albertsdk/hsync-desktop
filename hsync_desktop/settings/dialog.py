@@ -76,15 +76,17 @@ from hsync_desktop.config import (
     DEFAULT_NOTIFICATIONS,
     DEFAULT_NTP_HOSTS,
     DEFAULT_P2P_ENABLED,
+    DEFAULT_P2P_FETCH_FROM_PEERS,
     DEFAULT_P2P_KEY,
     DEFAULT_P2P_NO_MDNS,
-    DEFAULT_P2P_PEER_DOWNLOAD,
     DEFAULT_P2P_PEER_READ_CAP,
     DEFAULT_P2P_PEER_SOURCES_MAX,
     DEFAULT_P2P_PORT,
+    DEFAULT_P2P_PUBLISH_INVENTORY,
     DEFAULT_P2P_RENDEZVOUS,
     DEFAULT_P2P_RENDEZVOUS_TRANSPORT,
     DEFAULT_P2P_RENDEZVOUS_TRUST,
+    DEFAULT_P2P_SERVE_BLOCKS,
     DEFAULT_P2P_TRUST,
     DEFAULT_P2P_UPNP_ENABLED,
     DEFAULT_PREFER_MASTER,
@@ -463,7 +465,9 @@ class SettingsDialog(QDialog):
             (self.prefer_master, "tip.prefer_master"),
             (self.never_master, "tip.never_master"),
             (self.p2p_trust, "tip.p2p_trust"),
-            (self.peer_download, "tip.peer_download"),
+            (self.serve_blocks, "tip.serve_blocks"),
+            (self.fetch_from_peers, "tip.fetch_from_peers"),
+            (self.publish_inventory, "tip.publish_inventory"),
             (self.peer_read_cap, "tip.peer_read_cap"),
             (self.peer_sources_max, "tip.peer_sources_max"),
             (self.autotune, "tip.autotune"),
@@ -562,19 +566,24 @@ class SettingsDialog(QDialog):
         # Refresh dependent enable-state with the new gates in effect.
         self._apply_connection_mode()
 
-        # Peer download is p2p-only: gate it (and its env-only caps) on the
-        # --no-peer-download flag the p2p subcommand advertises.
-        if not (p2p_supported and supports_cli_option(doc, "--no-peer-download", subcommand="p2p")):
-            for peer_widget, peer_label in (
-                (self.peer_download, self._lbl_peer_download),
-                (self.peer_read_cap, self._lbl_peer_read_cap),
-                (self.peer_sources_max, self._lbl_peer_sources_max),
-            ):
-                self._unsupported_widgets.add(peer_widget)
-                self._unsupported_labels.add(peer_label)
-                peer_widget.setEnabled(False)
-                peer_label.setEnabled(False)
-                _set_field_tooltip(peer_widget, tr("tip.capability_unsupported"))
+        # The peer roles are p2p-only: each switch is gated on its own flag, and
+        # the env-only caps on the serving flag, as the p2p subcommand advertises
+        # them — an engine that lacks one flag disables exactly that control.
+        role_gates: list[tuple[str, QWidget, QLabel]] = [
+            ("--no-serve-peer-blocks", self.serve_blocks, self._lbl_serve_blocks),
+            ("--no-fetch-from-peers", self.fetch_from_peers, self._lbl_fetch_from_peers),
+            ("--no-publish-inventory", self.publish_inventory, self._lbl_publish_inventory),
+            ("--no-serve-peer-blocks", self.peer_read_cap, self._lbl_peer_read_cap),
+            ("--no-serve-peer-blocks", self.peer_sources_max, self._lbl_peer_sources_max),
+        ]
+        for role_flag, role_widget, role_label in role_gates:
+            if p2p_supported and supports_cli_option(doc, role_flag, subcommand="p2p"):
+                continue
+            self._unsupported_widgets.add(role_widget)
+            self._unsupported_labels.add(role_label)
+            role_widget.setEnabled(False)
+            role_label.setEnabled(False)
+            _set_field_tooltip(role_widget, tr("tip.capability_unsupported"))
 
         # Advanced tab: engine-wide knobs are advertised by both subcommands
         # (union check, subcommand=None). Disable a control the binary cannot
@@ -802,7 +811,9 @@ class SettingsDialog(QDialog):
             self.prefer_master,
             self.never_master,
             self.p2p_trust,
-            self.peer_download,
+            self.serve_blocks,
+            self.fetch_from_peers,
+            self.publish_inventory,
             self.peer_read_cap,
             self.peer_sources_max,
         ]
@@ -1821,7 +1832,9 @@ class SettingsDialog(QDialog):
         s.setValue("p2p/prefer_master", self.prefer_master.isChecked())
         s.setValue("p2p/never_master", self.never_master.isChecked())
         s.setValue("p2p/trust", self.p2p_trust.currentData() or DEFAULT_P2P_TRUST)
-        s.setValue("p2p/peer_download", self.peer_download.isChecked())
+        s.setValue("p2p/serve_blocks", self.serve_blocks.isChecked())
+        s.setValue("p2p/fetch_from_peers", self.fetch_from_peers.isChecked())
+        s.setValue("p2p/publish_inventory", self.publish_inventory.isChecked())
         s.setValue("p2p/peer_read_cap", self.peer_read_cap.value())
         s.setValue("p2p/peer_sources_max", self.peer_sources_max.value())
         s.setValue("output/verbose", self.verbose.isChecked())
@@ -2018,8 +2031,14 @@ class SettingsDialog(QDialog):
         self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
         index = self.p2p_trust.findData(str(s.value("p2p/trust", DEFAULT_P2P_TRUST, str)))
         self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
-        self.peer_download.setChecked(
-            bool(s.value("p2p/peer_download", DEFAULT_P2P_PEER_DOWNLOAD, bool))
+        self.serve_blocks.setChecked(
+            bool(s.value("p2p/serve_blocks", DEFAULT_P2P_SERVE_BLOCKS, bool))
+        )
+        self.fetch_from_peers.setChecked(
+            bool(s.value("p2p/fetch_from_peers", DEFAULT_P2P_FETCH_FROM_PEERS, bool))
+        )
+        self.publish_inventory.setChecked(
+            bool(s.value("p2p/publish_inventory", DEFAULT_P2P_PUBLISH_INVENTORY, bool))
         )
         self.peer_read_cap.setValue(
             cast(int, s.value("p2p/peer_read_cap", DEFAULT_P2P_PEER_READ_CAP, int))
