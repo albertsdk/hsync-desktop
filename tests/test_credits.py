@@ -17,9 +17,12 @@ CONTRIBUTORS_MD = Path(__file__).resolve().parents[1] / "CONTRIBUTORS.md"
 SECTION_KEYS = {
     "Maintainer": "about.credits.maintainer",
     "Contributors": "about.credits.contributors",
+    "Windows": "about.credits.windows",
+    "Raspberry Pi": "about.credits.raspberry_pi",
 }
 
-_PERSON_RE = re.compile(r"^- (.+?) \(\[@([\w-]+)\]")
+# ``- Name ([@handle](url)) — role`` or ``- Name`` (no public handle yet).
+_PERSON_RE = re.compile(r"^- ([^(\n—]+?)(?: \(\[@([\w-]+)\]\([^)]*\)\))?(?: — .*)?$")
 
 
 def _documented() -> dict[str, list[tuple[str, str]]]:
@@ -33,7 +36,7 @@ def _documented() -> dict[str, list[tuple[str, str]]]:
         elif current is not None and line.startswith("- "):
             match = _PERSON_RE.match(line)
             assert match, f"unparsable contributors entry: {line!r}"
-            sections[current].append((match.group(1), match.group(2)))
+            sections[current].append((match.group(1), match.group(2) or ""))
     return sections
 
 

@@ -18,10 +18,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Person:
-    """One credited person: display name and GitHub handle."""
+    """One credited person: display name and, when known, the GitHub handle."""
 
     name: str
-    handle: str
+    handle: str = ""
 
 
 @dataclass(frozen=True)
@@ -41,4 +41,17 @@ CREDIT_SECTIONS: tuple[CreditSection, ...] = (
         title_key="about.credits.contributors",
         people=(Person(name="Stefan Hirshi", handle="stefanhirshi"),),
     ),
+    CreditSection(
+        title_key="about.credits.windows",
+        people=(Person(name="Nicola Cotellessa"),),
+    ),
+    CreditSection(
+        title_key="about.credits.raspberry_pi",
+        people=(Person(name="Lorenzo Beltrami"),),
+    ),
 )
+
+
+def person_label(person: Person) -> str:
+    """Display form used by the About window: name, plus ``(@handle)`` if known."""
+    return f"{person.name} (@{person.handle})" if person.handle else person.name

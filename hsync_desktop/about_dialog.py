@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 from hsync_desktop import __version__
 from hsync_desktop.about_text import version_text
 from hsync_desktop.branding import LOGO_PATH, LOGO_WIDTH
-from hsync_desktop.credits import CREDIT_SECTIONS
+from hsync_desktop.credits import CREDIT_SECTIONS, person_label
 from hsync_desktop.docs_links import CONTRIBUTORS, DOCS_INDEX, GITHUB_REPO, open_docs_link
 from hsync_desktop.engine import BinaryVersionProbe
 from hsync_desktop.fonts import small_monospace_font
@@ -138,8 +138,9 @@ class AboutDialog(QDialog):
             title.setFont(title_font)
             self._credits_layout.addWidget(title)
             for person in section.people:
-                name = f"{person.name} (@{person.handle})"
-                self._credits_layout.addWidget(QLabel(name, self._credits_container))
+                self._credits_layout.addWidget(
+                    QLabel(person_label(person), self._credits_container)
+                )
         self._credits_layout.addStretch(1)
 
     def _apply_license(self) -> None:

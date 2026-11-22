@@ -16,7 +16,7 @@ from hsync_desktop.about_dialog import (
     AboutDialog,
     license_text,
 )
-from hsync_desktop.credits import CREDIT_SECTIONS
+from hsync_desktop.credits import CREDIT_SECTIONS, person_label
 from hsync_desktop.i18n import tr
 
 
@@ -115,7 +115,7 @@ class TestCreditsTab:
         for section in CREDIT_SECTIONS:
             assert tr(section.title_key) in labels
             for person in section.people:
-                assert f"{person.name} (@{person.handle})" in labels
+                assert person_label(person) in labels
         # ``tr`` returns the key itself when a translation is missing, so a raw
         # ``about.*`` string here means the locale keys drifted from this data.
         assert not [text for text in labels if text.startswith("about.")]
