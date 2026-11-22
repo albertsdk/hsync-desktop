@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Three settings for the peer-mesh capabilities (serve blocks, fetch from peers, publish
+  inventory), translated in every locale.
+
 ### Changed
 
+- The advanced tab groups them with the existing peer options and shows the
+  `full|leech|seed|off` presets as one choice.
 - The three identity checks default to **Automatic** (a saved pin, then a CA
   chain, then the first sighting) and share one wording; a stored `chain` or
   `accept-new` is normalized to `auto`.
