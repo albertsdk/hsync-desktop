@@ -13,10 +13,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
 from hsync_common.constants import SERVER_DEFAULT_PORT
-from hsync_common.endpoint import parse_host_port
+from hsync_common.endpoint import parse_host_port, url_host_port
 from PySide6.QtCore import QSettings
 
 from hsync_desktop import autostart
@@ -55,11 +54,10 @@ class ApplyResult:
 
 
 def _server_host_port(url: str) -> tuple[str, int] | None:
-    parts = urlsplit(url)
-    if not parts.hostname:
+    host_port = url_host_port(url, https_default=_HTTPS_PORT, http_default=SERVER_DEFAULT_PORT)
+    if host_port is None:
         return None
-    port = parts.port or (_HTTPS_PORT if parts.scheme == "https" else SERVER_DEFAULT_PORT)
-    return parts.hostname, port
+    return host_port.host, host_port.port
 
 
 def _rendezvous_server_host_port(rendezvous_server: str) -> tuple[str, int] | None:

@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import copy
 import os
-import time
 import uuid
 
+from hsync_common.time_utils import quarantine_timestamp
 from PySide6.QtCore import QSettings
 
 from hsync_desktop.config import DEFAULT_BUCKET, SETTINGS_APP, SETTINGS_ORG
@@ -73,7 +73,7 @@ class ShareStore:
 
     def _quarantine(self, raw: str) -> None:
         """Move an unreadable blob aside so the next migration can rebuild it."""
-        stamp = time.strftime("%Y%m%d-%H%M%S")
+        stamp = quarantine_timestamp()
         self._s.setValue(f"{BOOK_KEY}.corrupt-{stamp}", raw)
         self._s.remove(BOOK_KEY)
         self._s.sync()

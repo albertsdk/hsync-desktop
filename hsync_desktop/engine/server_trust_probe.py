@@ -21,8 +21,8 @@ from __future__ import annotations
 import ssl
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit
 
+from hsync_common.endpoint import HostPort, url_host_port
 from hsync_common.protocol.pairing import parse_fingerprint
 from hsync_common.protocol.tls_trust import (
     TrustAction,
@@ -30,6 +30,7 @@ from hsync_common.protocol.tls_trust import (
     evaluate_tls_trust,
     resolve_auto_policy,
 )
+from hsync_common.tls_context import verified_ssl_context
 
 from hsync_desktop.engine.cli import add_server_trust, list_server_trust
 from hsync_desktop.engine.endpoints import unverified_ssl_context
@@ -130,14 +131,12 @@ def resolve_bucket_trust(
 
 
 def _host_port(base_url: str) -> tuple[str, int]:
-    parsed = urlsplit(base_url)
-    return parsed.hostname or "", parsed.port or 443
+    host_port = url_host_port(base_url, http_default=443) or HostPort("", 443)
+    return host_port.host, host_port.port
 
 
 def _verified_context(ca_cert: str) -> ssl.SSLContext:
-    if ca_cert and Path(ca_cert).exists():
-        return ssl.create_default_context(cafile=ca_cert)
-    return ssl.create_default_context()
+    return verified_ssl_context(ca_cert if ca_cert and Path(ca_cert).exists() else None)
 
 
 def _stored_fingerprint(binary: str | None, host: str, port: int) -> str | None:

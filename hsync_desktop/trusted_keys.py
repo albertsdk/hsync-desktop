@@ -13,11 +13,11 @@ truth per store.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any
 
 from hsync_common.endpoint import format_authority, parse_host_port
 from hsync_common.protocol.pairing import parse_fingerprint
+from hsync_common.time_utils import parse_iso_dt
 from PySide6.QtCore import QSettings, Qt, Slot
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -89,7 +89,7 @@ def _format_local_time(iso: str) -> str:
     if not iso:
         return ""
     try:
-        dt = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+        dt = parse_iso_dt(iso).astimezone()
     except ValueError:
         return iso
     return format_mtime(dt.timestamp())

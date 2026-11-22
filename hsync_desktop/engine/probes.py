@@ -10,7 +10,6 @@ and the reason codes live here instead of being duplicated.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import socket
 import ssl
@@ -25,6 +24,8 @@ from hsync_common.protocol.rest import (
     REST_BUCKETS_PREFIX,
     REST_HEALTH_PATH,
 )
+from hsync_common.ssl_utils import fingerprint_from_der
+from hsync_common.tls_context import unverified_ssl_context
 
 __all__ = [
     "REASON_QUOTA",
@@ -73,9 +74,7 @@ def fetch_server_certificate(host: str, port: int, timeout: float) -> tuple[str,
     A raw unverified handshake, so no credential is sent; the fingerprint is the
     canonical lowercase SHA-256 hex digest the client trust store uses.
     """
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+    context = unverified_ssl_context()
     try:
         with socket.create_connection((host, port), timeout=timeout) as raw:
             with context.wrap_socket(raw, server_hostname=host) as tls:
@@ -84,7 +83,7 @@ def fetch_server_certificate(host: str, port: int, timeout: float) -> tuple[str,
         return None
     if not der:
         return None
-    return hashlib.sha256(der).hexdigest(), ssl.DER_cert_to_PEM_cert(der)
+    return fingerprint_from_der(der), ssl.DER_cert_to_PEM_cert(der)
 
 
 def certificate_ssl_context(pem: str) -> ssl.SSLContext:

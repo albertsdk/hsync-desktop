@@ -16,7 +16,12 @@ from pathlib import Path
 
 from hsync_common.constants import SERVER_DEFAULT_PORT
 from hsync_common.endpoint import normalize_endpoint_list, normalize_server_url
-from hsync_common.tls_context import unverified_ssl_context as _unverified_ssl_context
+from hsync_common.tls_context import (
+    unverified_ssl_context as _unverified_ssl_context,
+)
+from hsync_common.tls_context import (
+    verified_ssl_context,
+)
 
 __all__ = [
     "SERVER_DEFAULT_PORT",
@@ -82,7 +87,7 @@ def build_probe_ssl_context(
     if insecure or trust_policy == "none":
         return unverified_ssl_context()
     if ca_cert and Path(ca_cert).exists():
-        return ssl.create_default_context(cafile=ca_cert)
+        return verified_ssl_context(ca_cert)
     if trust_policy in _FINGERPRINT_POLICIES:
         return unverified_ssl_context()
-    return ssl.create_default_context()
+    return verified_ssl_context()
