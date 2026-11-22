@@ -35,6 +35,7 @@ New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsyn
 - **New to HSYNC?** Start with the [What you can do](#what-you-can-do-with-hsync-desktop) overview and [Getting started](#getting-started)
 - **Configuring the app?** See the [Configuration Reference](docs/configuration.md)
 - **Want to contribute?** See [Contributing](CONTRIBUTING.md)
+- **Curious who builds it?** See [Contributors](CONTRIBUTORS.md)
 - **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
 
 ---
