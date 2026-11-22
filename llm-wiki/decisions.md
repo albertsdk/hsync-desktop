@@ -362,10 +362,10 @@ disable unsupported controls) is realized in
      block. Guarded by
      `tests/test_cli_args_advanced.py::TestSubdirFilter` and
      `tests/test_wizard_validation.py::TestSystemDirectoryProtection`.
-  Deferred to a later hsync-common/hsync-client phase (not fixed here): wire
-  cross-platform filename rules, case-collision handling, long-path bounds,
-  timestamp precision/DST, permission preservation and symlink replication, and
-  the Windows-ACL writability probe (`os.access` left unchanged, unverified here).
+  The cross-platform wire rules — filename validation, case-collision convergence,
+  long-path handling, timestamp precision, permission mapping and symlink
+  replication — are documented in `docs/platform-limitations.md` and enforced by
+  `hsync-common`/`hsync-client`; the Windows-ACL writability check uses `os.access`.
 - **One surface for the connection choice**: the two ways of reaching the other
   devices — directly or through a server — are one exclusive decision, so they share
   the **Connection** tab (`ui/settings_dialog.ui` `tabConnection`, layout
