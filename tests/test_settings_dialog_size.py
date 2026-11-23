@@ -54,6 +54,29 @@ class TestScrollableTabs:
             assert page.findChild(QScrollArea) is not None, f"tab {index} has no scroll area"
 
 
+class TestLabelColumnSplit:
+    """Captions reserve a fixed share of the measure so descriptions wrap less."""
+
+    def test_every_caption_reserves_the_label_column(self, dialog):
+        from PySide6.QtWidgets import QFormLayout, QLabel
+
+        from hsync_desktop.settings.tab_layout import _LABEL_COLUMN_MIN_WIDTH
+
+        assert _LABEL_COLUMN_MIN_WIDTH > 0
+        labels = []
+        for index in range(dialog._tabs.count()):
+            page = dialog._tabs.widget(index)
+            assert page is not None
+            for form in page.findChildren(QFormLayout):
+                for row in range(form.rowCount()):
+                    item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                    widget = item.widget() if item is not None else None
+                    if isinstance(widget, QLabel):
+                        labels.append(widget)
+        assert labels
+        assert all(lbl.minimumWidth() == _LABEL_COLUMN_MIN_WIDTH for lbl in labels)
+
+
 class TestResizableDialog:
     def test_minimum_width_covers_the_content_and_description_cap(self, dialog):
         # The mode option sentences cap their width below the dialog's; the

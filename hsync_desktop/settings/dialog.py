@@ -168,6 +168,7 @@ from hsync_desktop.settings.tab_indices import (
     _SYNC_TAB_INDEX,
 )
 from hsync_desktop.settings.tab_layout import (
+    apply_label_column,
     reorganize_advanced_tab,
     reorganize_connection_tab,
     reorganize_general_tab,
@@ -329,6 +330,7 @@ class SettingsDialog(QDialog):
 
         self._apply_translations()
         self._apply_tooltips()
+        apply_label_column(self)
 
     # ── Sync tab grouping ─────────────────────────────────────────
 

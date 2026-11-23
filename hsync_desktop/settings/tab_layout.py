@@ -59,6 +59,16 @@ _CONTENT_MAX_WIDTH = 640
 # indents ``_mode_line`` applies.
 _TAB_DESCRIPTION_MAX_WIDTH = _CONTENT_MAX_WIDTH - 40
 
+# QFormLayout has no column stretch: the caption column only widens when the
+# labels ask for it, so short captions leave the field column to absorb almost
+# the whole page and long descriptions wrap inside a narrow gutter. Giving every
+# caption a shared minimum splits the reading column roughly in half — the
+# descriptions get room to breathe and the value controls (combo/spin/check)
+# keep more than they need. It is a minimum, not a fixed width, so a longer
+# translation still wraps inside the same column instead of widening the page.
+_LABEL_COLUMN_FRACTION = 0.45
+_LABEL_COLUMN_MIN_WIDTH = int(_CONTENT_MAX_WIDTH * _LABEL_COLUMN_FRACTION)
+
 
 class _CenteredColumn(QWidget):
     """Keep one child centred in one reading column, full height.
@@ -146,6 +156,28 @@ class _CenteredColumn(QWidget):
         if self._reapply_size_on_layout_request and event.type() == QEvent.Type.LayoutRequest:
             self.adjustSize()
         return super().event(event)
+
+
+def apply_label_column(dlg: SettingsDialog) -> None:
+    """Give every settings form a wider caption column and a narrower field one.
+
+    Called once after the tabs are built: QFormLayout sizes the caption column
+    from the labels' own hints, so short captions leave the value column with
+    almost all the width and descriptions wrap in a narrow gutter. A shared
+    minimum on each caption widens the description column consistently across
+    tabs; the value column takes the remainder. Spanning rows (action buttons,
+    helper text) have no label role and are left untouched.
+    """
+    for index in range(dlg._tabs.count()):
+        page = dlg._tabs.widget(index)
+        if page is None:
+            continue
+        for form in page.findChildren(QFormLayout):
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                widget = item.widget() if item is not None else None
+                if isinstance(widget, QLabel):
+                    widget.setMinimumWidth(_LABEL_COLUMN_MIN_WIDTH)
 
 
 def _group_box(title_key: str) -> QGroupBox:
