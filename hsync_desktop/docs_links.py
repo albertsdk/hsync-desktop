@@ -19,9 +19,41 @@ from PySide6.QtGui import QDesktopServices
 
 _GITHUB_ORG_PATH = "/albertsdk/hsync-"
 
-SERVER_SETUP = "https://github.com/albertsdk/hsync-server/blob/main/docs/getting-started.md"
-RENDEZVOUS_SETUP = "https://github.com/albertsdk/hsync-rendezvous/blob/main/docs/getting-started.md"
+# One contextual entry point per Settings tab. Each page mirrors its tab (same
+# groups, same order), so a link inside every group would repeat one destination
+# and add a row per group. Ordered like the tabs
+# (``hsync_desktop/settings/tab_indices.py``): the F1 action indexes this tuple
+# with the current tab.
+SETTINGS_SYNC_GUIDE = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/settings-sync.md"
+SETTINGS_CONNECTION_GUIDE = (
+    "https://github.com/albertsdk/hsync-desktop/blob/main/docs/settings-connection.md"
+)
+SETTINGS_GENERAL_GUIDE = (
+    "https://github.com/albertsdk/hsync-desktop/blob/main/docs/settings-general.md"
+)
+SETTINGS_ADVANCED_GUIDE = (
+    "https://github.com/albertsdk/hsync-desktop/blob/main/docs/settings-advanced.md"
+)
+SETTINGS_TAB_GUIDES = (
+    SETTINGS_SYNC_GUIDE,
+    SETTINGS_CONNECTION_GUIDE,
+    SETTINGS_GENERAL_GUIDE,
+    SETTINGS_ADVANCED_GUIDE,
+)
 CONNECTION_MODES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/choose-connection.md"
+# Contextual help of the dialogs that own a procedure: one link per window, to
+# the page that documents it (never the docs index), so the dialog does not send
+# the user hunting for the section it is about.
+TRUST_STORE = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/choose-trust.md#where-to-review-what-is-trusted"
+RESET_SYNC_STATE = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/reset-sync-state.md"
+IGNORE_RULES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/ignore-rules.md"
+SECRETS = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/secrets.md"
+GROUP_KEY = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/secrets.md#the-search-server-uses-the-same-password"
+BANDWIDTH_LIMITS = (
+    "https://github.com/albertsdk/hsync-desktop/blob/main/docs/settings-advanced.md#network"
+)
+COMPARE_PREVIEW = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/sync-basics.md#compare"
+SHARES = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/shares.md"
 # Linked from every persistent warning banner as the generic symptom guide
 # (docs/troubleshooting.md). A warning whose remedy needs host commands links to
 # WATCHER_LIMITS instead, so the copy-paste steps stay one click away.
@@ -60,17 +92,28 @@ _RELEASE_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _ASSET_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 __all__ = [
-    "RENDEZVOUS_SETUP",
+    "BANDWIDTH_LIMITS",
+    "COMPARE_PREVIEW",
     "CONNECTION_MODES",
     "CONTRIBUTORS",
     "DOCS_INDEX",
     "GITHUB_REPO",
+    "GROUP_KEY",
+    "IGNORE_RULES",
     "LATEST_RELEASE",
     "RELEASES",
     "RELEASES_DOWNLOAD_PREFIX",
     "RELEASES_TAG_PREFIX",
-    "SERVER_SETUP",
+    "RESET_SYNC_STATE",
+    "SECRETS",
+    "SETTINGS_ADVANCED_GUIDE",
+    "SETTINGS_CONNECTION_GUIDE",
+    "SETTINGS_GENERAL_GUIDE",
+    "SETTINGS_SYNC_GUIDE",
+    "SETTINGS_TAB_GUIDES",
+    "SHARES",
     "TROUBLESHOOTING",
+    "TRUST_STORE",
     "WATCHER_LIMITS",
     "is_allowed_docs_url",
     "open_docs_link",

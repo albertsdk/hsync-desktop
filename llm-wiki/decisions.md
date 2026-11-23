@@ -96,6 +96,23 @@ disable unsupported controls) is realized in
   wizard's mode step and its "Not sure?" dialog link to. Keeping the two
   constants distinct stops the Help entry from landing on a guide page; guarded
   by `tests/test_docs_links.py::test_docs_index_is_the_documentation_landing_page`.
+- **One in-app help link per context, leading to this repository's docs**: each
+  Settings tab carries a single link above its first group
+  (`docs_links.SETTINGS_TAB_GUIDES`) to its own guide (`docs/settings-<tab>.md`),
+  and those guides are the one place where the fields are documented
+  (`docs/configuration.md` is their hub). A per-group link repeated one
+  destination; the previous targets (`hsync-server`/`hsync-rendezvous`
+  `getting-started.md`) were component *installation* guides, which say nothing
+  about the field in front of the user. F1 opens the current tab's guide through
+  a dialog-scoped action, while the main window keeps F1 on `DOCS_INDEX`. The
+  pages stay English-only (workspace language policy) while the link labels and
+  the per-field tooltips (`tip.*`, one per field) are localized, so the help next
+  to a field is already in the user's language. The link is a `QLabel#helpLink`
+  with a leading `help-about` glyph, never an icon-only control (link purpose,
+  WCAG 2.4.4), and it keeps its natural one-line height (`QSizePolicy.Maximum`),
+  so a tall dialog layout cannot turn it into an empty gap. Guarded by
+  `tests/test_docs_links.py::test_the_settings_guides_are_pages_of_this_repository`
+  and `tests/test_settings_dialog_ui.py::TestTheHelpShortcut`.
 - **User docs keep one role per page**: `docs/concepts.md` only defines the GUI
   vocabulary and links to the client docs for depth; `docs/troubleshooting.md`
   owns the symptoms (the run-time warnings stay in `docs/warnings.md`); `docs/faq.md`

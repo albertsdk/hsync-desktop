@@ -115,6 +115,8 @@ _FALLBACK_MAP: dict[str, str] = {
     "sync-download": "sync-download.svg",
     # Window icons
     "window-close": "window-close.svg",
+    # Contextual help affordance (the settings tab guide link)
+    "help-about": "help-about.svg",
     # Dialog action icons
     "dialog-cancel": "dialog-cancel.svg",
     "dialog-ok": "dialog-ok.svg",

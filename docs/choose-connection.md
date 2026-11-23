@@ -47,13 +47,13 @@ See [Key concepts](concepts.md) for these terms in more detail.
 
 The mode is the first thing the [Setup wizard](setup-wizard.md) asks. To change it
 later, use the wizard again or the **Direct mode** / **Server mode** tabs in
-**Settings** — every field is documented in the
-[Configuration Reference](configuration.md).
+**Settings** — every field is documented in
+[The Connection settings](settings-connection.md).
 
 ## Where to go next
 
 - [Your first sync](first-sync.md) — the guided path, end to end.
 - [Set up with the wizard](setup-wizard.md) — the four common cases, step by step.
-- [Configuration Reference](configuration.md) — every setting of both tabs.
+- [The Connection settings](settings-connection.md) — every setting of both modes.
 - [Trust, fingerprints and identity checks](choose-trust.md) — how devices prove
   who they are.

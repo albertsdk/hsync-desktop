@@ -8,8 +8,8 @@ never on a command line, and they never appear in logs or process listings.
 
 ## How they are stored and used
 
-- Entered in a **dedicated dialog** (see the Direct mode and Server tabs in
-  [Settings](configuration.md)).
+- Entered in a **dedicated dialog** (see
+  [The Connection settings](settings-connection.md)).
 - Stored **encrypted on disk**, with a key derived from your machine.
 - Handed to the sync engine over a **private channel**, so they are not visible as
   command-line arguments or in the log.
@@ -98,4 +98,4 @@ you to confirm; setting a password stops the prompt. See
 
 - [Trust, fingerprints and identity checks](choose-trust.md) — how devices prove
   who they are, beyond the password.
-- [Configuration Reference](configuration.md) — the Direct mode and Server tabs.
+- [The Connection settings](settings-connection.md) — the Direct mode and Server groups.

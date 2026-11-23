@@ -36,5 +36,5 @@ If you have ever worried about losing files, pair a one-way direction with the
 
 ## Related
 
-- [Deletions](configuration.md#sync) — the other half of "what happens to my files".
+- [Deletions](settings-sync.md#sync-mode) — the other half of "what happens to my files".
 - [Choose how your devices connect](choose-connection.md) — server or Direct mode.

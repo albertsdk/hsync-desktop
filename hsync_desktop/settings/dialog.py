@@ -28,7 +28,7 @@ from hsync_common.protocol.rdv_tokens import (
     validate_group_passphrase,
 )
 from PySide6.QtCore import QSettings, QTimer, Slot
-from PySide6.QtGui import QShowEvent
+from PySide6.QtGui import QAction, QKeySequence, QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -108,6 +108,7 @@ from hsync_desktop.config import (
 )
 from hsync_desktop.crypto import decrypt_value, encrypt_value
 from hsync_desktop.deletion_risk import forget_acknowledgement
+from hsync_desktop.docs_links import SETTINGS_TAB_GUIDES, open_docs_link
 from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
@@ -281,6 +282,33 @@ class SettingsDialog(QDialog):
         # warning follow the loaded value, not just later edits.
         self._refresh_group_key_button()
         self._refresh_rdv_key_warning()
+        self._setup_help_shortcut()
+
+    # ── Contextual help ───────────────────────────────────────────
+
+    def _setup_help_shortcut(self) -> None:
+        """Open the current tab's guide with the platform help key (F1).
+
+        ``Help → Documentation`` binds F1 on the *main window* as a
+        window-scoped shortcut, which stays inactive while this modal dialog is
+        open, so the dialog can follow the desktop convention without stealing
+        the menu command.
+        """
+        self._act_help_tab = QAction(self)
+        self._act_help_tab.setShortcut(QKeySequence.StandardKey.HelpContents)
+        self._act_help_tab.triggered.connect(self._open_tab_guide)
+        self.addAction(self._act_help_tab)
+
+    def _open_tab_guide(self) -> None:
+        """Open the documentation page of the tab in front.
+
+        The guides are ordered like the tabs (``docs_links.SETTINGS_TAB_GUIDES``
+        indexes with ``tab_indices``), so an index out of range opens nothing
+        instead of a wrong page.
+        """
+        index = self._tabs.currentIndex()
+        if 0 <= index < len(SETTINGS_TAB_GUIDES):
+            open_docs_link(SETTINGS_TAB_GUIDES[index])
 
     # ── UI loading from .ui file ─────────────────────────────────────────
 

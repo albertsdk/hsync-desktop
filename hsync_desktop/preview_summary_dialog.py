@@ -27,9 +27,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import COMPARE_PREVIEW
 from hsync_desktop.i18n import tr
 from hsync_desktop.themes import COLOR_DISCONNECTED
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.links import insert_help_link_above
 
 # A plan can hold one row per scanned file: the confirmation lists every
 # destructive action (bounded) and only the largest transfers, so it never
@@ -228,6 +230,7 @@ class PreviewSummaryDialog(QDialog):
 
         self._load_ui()
         self._populate()
+        insert_help_link_above(self._button_box, "help.open_guide", COMPARE_PREVIEW)
 
     def _load_ui(self) -> None:
         load_ui_widget("preview_summary_dialog", self)

@@ -210,9 +210,12 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_update_check.setText(tr("updates.check_at_startup"))
     dlg._lbl_show_advanced.setText(tr("settings.show_advanced"))
 
-    # Contextual documentation links (fixed URLs; only the text is localized).
-    set_help_link_text(dlg._lbl_help_server, "help.server_setup")
-    set_help_link_text(dlg._lbl_help_rendezvous, "help.rendezvous_setup")
+    # Contextual documentation links: one per tab, above its first group (fixed
+    # URLs; only the text is localized).
+    set_help_link_text(dlg._lbl_help_sync, "help.settings_sync")
+    set_help_link_text(dlg._lbl_help_connection, "help.settings_connection")
+    set_help_link_text(dlg._lbl_help_general, "help.settings_general")
+    set_help_link_text(dlg._lbl_help_advanced, "help.settings_advanced")
 
     # Button box: the primary action applies the settings (the dialog stays a
     # modal OK/Cancel pair; see the "Apply, not Save" desktop rule). The icon is

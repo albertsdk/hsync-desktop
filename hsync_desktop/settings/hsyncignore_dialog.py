@@ -18,8 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import IGNORE_RULES
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import style_ok_cancel_button_box
+from hsync_desktop.widgets.links import insert_help_link_above
 
 
 class HsyncIgnoreEditorDialog(QDialog):
@@ -51,6 +53,7 @@ class HsyncIgnoreEditorDialog(QDialog):
         button_box.accepted.connect(self._on_save)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
+        insert_help_link_above(button_box, "help.open_guide", IGNORE_RULES)
 
         self._load_file()
 

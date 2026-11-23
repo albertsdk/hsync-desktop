@@ -72,5 +72,5 @@ On macOS the login entry is a LaunchAgent instead — see
 
 ## Next
 
-- Configure Server mode or Direct mode: [Configuration Reference](configuration.md).
+- Configure Server mode or Direct mode: [The Connection settings](settings-connection.md).
 - Prefer a system package? [Debian package](getting-started-deb.md).

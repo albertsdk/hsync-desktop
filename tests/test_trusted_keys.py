@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QLabel, QMessageBox
 
 from hsync_desktop.i18n import tr
 from hsync_desktop.trusted_keys import TrustedKeysDialog, _format_local_time, _PeerAddDialog
@@ -30,6 +30,17 @@ def _patch_store(
 
 
 class TestTrustedKeysDialog:
+    def test_the_dialog_links_to_the_trust_guide(self, qtbot, monkeypatch):
+        """One link, to the section that explains the stores it edits."""
+        from hsync_desktop import docs_links
+
+        _patch_store(monkeypatch)
+        dlg = TrustedKeysDialog()
+
+        links = dlg.findChildren(QLabel, "helpLink")
+        assert len(links) == 1
+        assert links[0].property("docsUrl") == docs_links.TRUST_STORE
+
     def test_rendezvous_list_is_populated(self, qtbot, monkeypatch):
         _patch_store(
             monkeypatch,

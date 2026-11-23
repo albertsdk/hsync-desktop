@@ -1,10 +1,9 @@
 # Set up HSYNC Desktop with the wizard
 
 The **Setup wizard** configures HSYNC Desktop for one of four common use cases in
-four steps. It is the easiest way to get running; the
-[Configuration Reference](configuration.md) remains the full documentation of
-every setting. If you are following the guided path instead, see
-[Your first sync](first-sync.md).
+four steps. It is the easiest way to get running; [Configuration](configuration.md)
+links the guide of every tab and documents how a change is applied. If you are
+following the guided path instead, see [Your first sync](first-sync.md).
 
 ## When it opens
 

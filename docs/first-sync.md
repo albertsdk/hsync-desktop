@@ -2,8 +2,8 @@
 
 This tutorial takes you from a freshly installed app to your first completed
 sync. It follows the happy path once; the field-by-field detail of each screen is
-in [Set up with the wizard](setup-wizard.md), and the full settings are in the
-[Configuration Reference](configuration.md).
+in [Set up with the wizard](setup-wizard.md), and every setting is documented in
+[Configuration](configuration.md).
 
 Before you start, install the app with one of the methods in
 [Getting Started](getting-started.md) and open it once.

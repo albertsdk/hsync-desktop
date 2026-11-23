@@ -28,8 +28,8 @@ launch **HSYNC** from the Start Menu (the last wizard page can launch it too).
 > startup with `Library icuuc.dll … not found`. On Linux use the native package
 > instead — see [Getting Started](getting-started.md).
 
-On first launch open **Settings** and configure a connection — see the
-[Configuration Reference](configuration.md).
+On first launch open **Settings** and configure a connection — see
+[The Connection settings](settings-connection.md).
 
 ## Update and remove
 

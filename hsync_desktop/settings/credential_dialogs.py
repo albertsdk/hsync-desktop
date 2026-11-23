@@ -26,9 +26,11 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
 from hsync_desktop.crypto import decrypt_value, encrypt_value
+from hsync_desktop.docs_links import GROUP_KEY, SECRETS
 from hsync_desktop.fonts import monospace_font
 from hsync_desktop.i18n import tr
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.links import help_link, insert_help_link_above
 from hsync_desktop.widgets.secret_reveal import add_reveal_toggle
 from hsync_desktop.widgets.text import escape_mnemonics
 
@@ -75,6 +77,7 @@ class ApiKeyDialog(QDialog):
         )
         self._button_box.accepted.connect(self._on_save)
         self._button_box.rejected.connect(self.reject)
+        insert_help_link_above(self._button_box, "help.open_guide", SECRETS)
 
         # Focus on input
         self._api_key_edit.setFocus()
@@ -141,6 +144,7 @@ class P2PKeyDialog(QDialog):
         )
         self._button_box.accepted.connect(self._on_save)
         self._button_box.rejected.connect(self.reject)
+        insert_help_link_above(self._button_box, "help.open_guide", SECRETS)
 
         # Focus on input
         self._p2p_key_edit.setFocus()
@@ -261,6 +265,7 @@ class GroupKeyDialog(QDialog):
         self._lbl_warning = QLabel(self)
         self._lbl_warning.setWordWrap(True)
         layout.addWidget(self._lbl_warning)
+        layout.addWidget(help_link("help.open_guide", GROUP_KEY, icon="help-about"))
 
         # Copy + Close
         self._btn_copy = QPushButton(self)

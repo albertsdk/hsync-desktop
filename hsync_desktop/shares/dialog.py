@@ -21,9 +21,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from hsync_desktop.docs_links import SHARES
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
 from hsync_desktop.widgets.dialogs import build_destructive_confirm_box
+from hsync_desktop.widgets.links import insert_help_link_above
 from hsync_desktop.widgets.name_dialog import ask_name
 
 
@@ -62,6 +64,7 @@ class SharesDialog(QDialog):
         close.setIcon(icon("window-close"))
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+        insert_help_link_above(buttons, "help.open_guide", SHARES)
 
         self._btn_new.clicked.connect(self._on_new)
         self._btn_duplicate.clicked.connect(self._on_duplicate)

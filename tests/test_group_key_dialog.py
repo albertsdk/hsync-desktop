@@ -342,10 +342,11 @@ class TestDiscoveryServerTerminology:
     """User-facing strings say 'discovery server', never the internals' name."""
 
     def test_the_settings_help_link_uses_a_short_label(self):
-        # The link sits in the "Finding devices" section it documents, so the
-        # target is not repeated in the label (and the label stays on one line,
-        # which keeps the form row from clipping it).
-        assert tr("help.rendezvous_setup") == "Configuration guide"
+        # One link per tab, above the groups it documents: the label names the
+        # navigation ("how to set up the connection"), never the target, and it
+        # stays short enough to sit on one line of the scrolling page.
+        assert tr("help.settings_connection") == "How to set up the connection"
+        assert len(tr("help.settings_connection")) <= 32
 
     def test_no_new_key_leaks_the_internal_name(self):
         for module in ALL_MODULES:

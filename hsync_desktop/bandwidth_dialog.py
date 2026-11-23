@@ -19,10 +19,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import BANDWIDTH_LIMITS
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import style_ok_cancel_button_box
 from hsync_desktop.settings.cli_args import get_bandwidth_limits, save_bandwidth_limits
 from hsync_desktop.ui.loader import load_ui_widget
+from hsync_desktop.widgets.links import insert_help_link_above
 
 
 class BandwidthDialog(QDialog):
@@ -65,6 +67,7 @@ class BandwidthDialog(QDialog):
 
         # Update translations
         self._apply_translations()
+        insert_help_link_above(self._button_box, "help.open_guide", BANDWIDTH_LIMITS)
 
         # Show/hide warning based on sync state
         if self._sync_active:

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -15,8 +16,10 @@ from hsync_desktop import docs_links
 @pytest.mark.parametrize(
     "url",
     [
-        docs_links.SERVER_SETUP,
-        docs_links.RENDEZVOUS_SETUP,
+        docs_links.SETTINGS_SYNC_GUIDE,
+        docs_links.SETTINGS_CONNECTION_GUIDE,
+        docs_links.SETTINGS_GENERAL_GUIDE,
+        docs_links.SETTINGS_ADVANCED_GUIDE,
         docs_links.CONNECTION_MODES,
         docs_links.CONTRIBUTORS,
         docs_links.DOCS_INDEX,
@@ -30,6 +33,36 @@ from hsync_desktop import docs_links
 def test_targets_are_fixed_https_github_links(url):
     assert url.startswith("https://github.com/albertsdk/hsync-")
     assert docs_links.is_allowed_docs_url(url)
+
+
+def test_the_settings_guides_are_pages_of_this_repository():
+    """The in-app help targets are the tab guides that ship with the app.
+
+    They used to point at the ``hsync-server``/``hsync-rendezvous`` *installation*
+    guides, which told a user looking at the Connection fields nothing about them.
+    Every guide must therefore be a page of this repository, and exist here.
+    """
+    docs_dir = Path(__file__).resolve().parents[1] / "docs"
+    prefix = "https://github.com/albertsdk/hsync-desktop/blob/main/docs/"
+
+    for url in docs_links.SETTINGS_TAB_GUIDES:
+        assert url.startswith(prefix), url
+        assert (docs_dir / url.removeprefix(prefix)).is_file(), url
+
+
+def test_one_guide_per_settings_tab():
+    """The tuple is indexed by the tab position, so it needs one entry per tab."""
+    from hsync_desktop.settings import tab_indices
+
+    indices = {
+        tab_indices._SYNC_TAB_INDEX,
+        tab_indices._CONNECTION_TAB_INDEX,
+        tab_indices._GENERAL_TAB_INDEX,
+        tab_indices._ADVANCED_TAB_INDEX,
+    }
+
+    assert indices == set(range(len(docs_links.SETTINGS_TAB_GUIDES)))
+    assert len(docs_links.SETTINGS_TAB_GUIDES) == len(set(docs_links.SETTINGS_TAB_GUIDES))
 
 
 def test_the_watcher_remedy_deep_links_into_the_client_guide():
@@ -106,5 +139,5 @@ def test_off_allowlist_targets_are_rejected(url):
 
 def test_an_allowed_target_is_opened():
     with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
-        assert docs_links.open_docs_link(docs_links.SERVER_SETUP) is True
+        assert docs_links.open_docs_link(docs_links.SETTINGS_SYNC_GUIDE) is True
     open_url.assert_called_once()

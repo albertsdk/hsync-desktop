@@ -58,6 +58,6 @@ methods are ordered from the simplest and most immediate to the most involved.
 - [Your first sync](first-sync.md) — from opening the app to the first completed sync
 - [A tour of the window](tour.md) — what each part of the app is
 - [Setup wizard](setup-wizard.md) — configure a connection in four steps
-- [Configuration Reference](configuration.md) — every setting
+- [Configuration](configuration.md) — the settings, tab by tab
 - [Start, watch and stop a sync](sync-basics.md) — running and watching a sync
 - [Log Labels](log-labels.md) — the action labels in the log panel

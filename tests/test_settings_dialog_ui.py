@@ -15,6 +15,8 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
+import pytest
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QBoxLayout,
     QFormLayout,
@@ -27,6 +29,7 @@ from PySide6.QtWidgets import (
 from hsync_desktop import docs_links
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import (
+    _ADVANCED_TAB_INDEX,
     _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
     _SYNC_TAB_INDEX,
@@ -746,58 +749,114 @@ class TestServerModeSections:
         assert dialog.mode_direct.autoExclusive() and dialog.mode_server.autoExclusive()
 
 
-class TestServerSetupLink:
-    """The Server group links to the hsync-server setup guide."""
+def _activate_tab(dialog, index: int) -> None:
+    """Select *index*, revealing the Advanced tab first (hidden by default)."""
+    if index == _ADVANCED_TAB_INDEX:
+        dialog.show_advanced.setChecked(True)
+    dialog._tabs.setCurrentIndex(index)
 
-    def test_it_lives_in_the_server_group_with_the_expected_target(self, dialog):
-        label = dialog._lbl_help_server
 
-        assert dialog._grp_server.isAncestorOf(label)
+_TAB_HELP_LINKS = [
+    (_SYNC_TAB_INDEX, "_lbl_help_sync", docs_links.SETTINGS_SYNC_GUIDE, "help.settings_sync"),
+    (
+        _CONNECTION_TAB_INDEX,
+        "_lbl_help_connection",
+        docs_links.SETTINGS_CONNECTION_GUIDE,
+        "help.settings_connection",
+    ),
+    (
+        _GENERAL_TAB_INDEX,
+        "_lbl_help_general",
+        docs_links.SETTINGS_GENERAL_GUIDE,
+        "help.settings_general",
+    ),
+    (
+        _ADVANCED_TAB_INDEX,
+        "_lbl_help_advanced",
+        docs_links.SETTINGS_ADVANCED_GUIDE,
+        "help.settings_advanced",
+    ),
+]
+
+
+class TestTheTabHelpLinks:
+    """One documentation link per settings tab, on the tab's own page.
+
+    The four guides mirror their tab group by group, so a link inside every group
+    would repeat one destination and add a row to each of them. The single link
+    sits above the first group, because the page scrolls.
+    """
+
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_the_link_sits_on_its_tab_with_the_expected_target(
+        self, dialog, index, attr, url, text_key
+    ):
+        label = getattr(dialog, attr)
+        page = dialog._tabs.widget(index)
+
+        assert page.isAncestorOf(label)
         assert label.objectName() == "helpLink"
-        assert label.property("docsUrl") == docs_links.SERVER_SETUP
-        assert docs_links.SERVER_SETUP in label.text()
-        assert tr("help.server_setup") in label.text()
+        assert label.property("docsUrl") == url
+        assert url in label.text()
+        assert tr(text_key) in label.text()
+        assert label.accessibleName() == tr(text_key)
 
-    def test_clicking_it_opens_the_server_guide(self, dialog):
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_the_link_carries_an_icon_before_the_text(self, dialog, index, attr, url, text_key):
+        """The affordance is not text-only: the glyph gets its own inset."""
+        label = getattr(dialog, attr)
+
+        assert label.contentsMargins().left() > 0
+
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_it_opens_the_page_above_the_first_group(self, dialog, index, attr, url, text_key):
+        label = getattr(dialog, attr)
+        content = label.parentWidget()
+
+        assert content.layout().itemAt(0).widget() is label
+
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_a_tab_has_exactly_one_help_link(self, dialog, index, attr, url, text_key):
+        page = dialog._tabs.widget(index)
+
+        assert len(page.findChildren(QLabel, "helpLink")) == 1
+
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_clicking_it_opens_that_tabs_guide(self, dialog, index, attr, url, text_key):
+        label = getattr(dialog, attr)
         with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
-            dialog._lbl_help_server.linkActivated.emit(docs_links.SERVER_SETUP)
+            label.linkActivated.emit(url)
 
-        open_url.assert_called_once()
+        assert open_url.call_args.args[0].toString() == url
 
-    def test_the_link_occupies_one_text_line(self, dialog, qtbot):
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_the_link_occupies_one_text_line(self, dialog, qtbot, index, attr, url, text_key):
         """A rich-text label must not reserve three lines for one line of text."""
-        dialog.mode_server.setChecked(True)
-        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
+        _activate_tab(dialog, index)
         dialog.show()
         qtbot.wait(1)
-        label = dialog._lbl_help_server
+        label = getattr(dialog, attr)
 
         assert label.height() <= 2 * label.fontMetrics().height()
 
 
-class TestRendezvousSetupLink:
-    """The p2p rendezvous group links to the hsync-rendezvous guide."""
+class TestTheHelpShortcut:
+    """F1 opens the guide of the tab in front.
 
-    def test_it_lives_in_the_rendezvous_group_with_the_expected_target(self, dialog):
-        label = dialog._lbl_help_rendezvous
+    ``Help → Documentation`` binds F1 on the main window only, so the modal
+    dialog is free to follow the desktop convention instead of stealing it.
+    """
 
-        assert dialog._grp_p2p_rendezvous.isAncestorOf(label)
-        assert label.objectName() == "helpLink"
-        assert label.property("docsUrl") == docs_links.RENDEZVOUS_SETUP
-        assert docs_links.RENDEZVOUS_SETUP in label.text()
-        assert tr("help.rendezvous_setup") in label.text()
+    def test_the_shortcut_is_the_platform_help_key(self, dialog):
+        assert dialog._act_help_tab.shortcut() == QKeySequence(
+            QKeySequence.StandardKey.HelpContents
+        )
 
-    def test_clicking_it_opens_the_rendezvous_guide(self, dialog):
+    @pytest.mark.parametrize(("index", "attr", "url", "text_key"), _TAB_HELP_LINKS)
+    def test_it_opens_the_current_tabs_guide(self, dialog, index, attr, url, text_key):
+        _activate_tab(dialog, index)
+
         with patch.object(docs_links.QDesktopServices, "openUrl") as open_url:
-            dialog._lbl_help_rendezvous.linkActivated.emit(docs_links.RENDEZVOUS_SETUP)
+            dialog._act_help_tab.trigger()
 
-        open_url.assert_called_once()
-
-    def test_the_link_occupies_one_text_line(self, dialog, qtbot):
-        """A rich-text label must not reserve three lines for one line of text."""
-        dialog._tabs.setCurrentIndex(_CONNECTION_TAB_INDEX)
-        dialog.show()
-        qtbot.wait(1)
-        label = dialog._lbl_help_rendezvous
-
-        assert label.height() <= 2 * label.fontMetrics().height()
+        assert open_url.call_args.args[0].toString() == url

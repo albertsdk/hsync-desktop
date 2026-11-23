@@ -2,7 +2,7 @@
 
 This page covers the everyday controls: opening the app, starting a sync, watching
 it, checking for changes and syncing a single folder on demand. The settings
-behind these actions live in the [Configuration Reference](configuration.md).
+behind these actions live in [The Sync settings](settings-sync.md).
 
 ## Start the app
 

@@ -14,8 +14,8 @@ using the app — it is here to answer "what is that icon?".
   and **Quit** at the bottom.
 - **Sync** — start, stop and compare, **Send now** / **Receive now** for one
   selection, and the sync direction.
-- **Settings** — the configuration dialog; see the
-  [Configuration Reference](configuration.md).
+- **Settings** — the configuration dialog; see
+  [Configuration](configuration.md).
 - **Help** — this documentation, the [Setup wizard](setup-wizard.md) to re-run
   the guided setup, the project on GitHub, update checks and **About**: one
   window with the application information, the credits and the license, plus the

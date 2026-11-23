@@ -455,5 +455,5 @@ class TestPageNeverSqueezesRows:
 
         pair = dialog.btn_manage_trusted_keys.parent()
         assert pair.height() >= pair.sizeHint().height()
-        link = dialog._lbl_help_rendezvous
+        link = dialog._lbl_help_connection
         assert link.height() >= link.heightForWidth(link.width())

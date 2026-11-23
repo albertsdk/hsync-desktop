@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop import autostart
 from hsync_desktop.config import DEFAULT_HTTP_TIMEOUT
+from hsync_desktop.docs_links import SETTINGS_CONNECTION_GUIDE
 from hsync_desktop.engine import (
     REASON_UNREACHABLE,
     AsyncProbe,
@@ -45,6 +46,7 @@ from hsync_desktop.i18n import tr
 from hsync_desktop.probe_messages import probe_reason_text
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.labels import muted_label
+from hsync_desktop.widgets.links import help_link
 from hsync_desktop.widgets.text import escape_mnemonics
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
 from hsync_desktop.wizard.defaults import generate_group_name, generate_password
@@ -297,6 +299,9 @@ class ConnectionPage(WizardPage):
 
         self.hints = muted_label()
         layout.addWidget(self.hints)
+        layout.addWidget(
+            help_link("help.settings_connection", SETTINGS_CONNECTION_GUIDE, icon="help-about")
+        )
         layout.addStretch(1)
         self.apply_translations()
 

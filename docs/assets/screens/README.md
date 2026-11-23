@@ -25,11 +25,47 @@ account ids, keys or passwords).
 | `02-status-bar.png` | Close-up of the status bar: role, `Shared: X / Y`, download/send counts, `Sent`/`Received`. |
 | `03-menu-bar.png` | The menu bar: **Sync**, **File**, **Settings**, **Setup wizard**, **Help**. |
 | `04-tray-menu.png` | The tray icon menu (Show, Start, Compare, Stop, Settings, Setup wizard, Quit). |
-| `05-settings-sync.png` | **Settings → Sync**. |
-| `06-settings-p2p.png` | **Settings → Direct mode**. |
-| `07-settings-server.png` | **Settings → Server mode** (the server section selected). |
-| `08-settings-general.png` | **Settings → General**. |
-| `09-settings-advanced.png` | **Settings → Advanced** (the tab appears once *Show advanced options* is on). |
+| `05-settings-sync.png` | **Settings → Sync**, the whole tab. |
+| `06-settings-p2p.png` | **Settings → Connection → Direct mode**, the whole tab. |
+| `07-settings-server.png` | **Settings → Connection → Server mode**, the whole tab. |
+| `08-settings-general.png` | **Settings → General**, the whole tab. |
+| `09-settings-advanced.png` | **Settings → Advanced**, the whole tab (the tab appears once *Show advanced options* is on). |
+
+### Settings groups (the four tab guides)
+
+One capture per `QGroupBox`, used by `docs/settings-{sync,connection,general,advanced}.md`
+so the reader sees the group the paragraph talks about instead of hunting it in a
+full-tab picture. Same rules as above (English UI, Light theme, sample data:
+share `my-share`, group `my-group`, server `my-nas:9753`, search server
+`rdv.example.net`, folder `/home/user/Documents`).
+
+| File | What it shows |
+| ---- | ------------- |
+| `05a-sync-share-path.png` | **Sync → Share & Path**. |
+| `05b-sync-mode.png` | **Sync → Sync Mode**. |
+| `05c-sync-timing.png` | **Sync → Timing & Intervals**. |
+| `05d-sync-advanced.png` | **Sync → Advanced Options** (needs *Show advanced options*). |
+| `06a-connection-mode.png` | **Connection → Connection mode**. |
+| `06b-connection-group.png` | **Connection → Direct mode → Group**. |
+| `06c-connection-finding-devices.png` | **Connection → Direct mode → Finding devices**. |
+| `06d-connection-role-security.png` | **Connection → Direct mode → Role & security**. |
+| `06e-connection-direct-advanced.png` | **Connection → Direct mode → Advanced Options**. |
+| `07a-connection-server.png` | **Connection → Server mode → Server**. |
+| `07b-connection-certificates.png` | **Connection → Server mode → Certificates**. |
+| `07c-connection-server-advanced.png` | **Connection → Server mode → Advanced Options**. |
+| `08a-general-appearance.png` | **General → Appearance**. |
+| `08b-general-notifications.png` | **General → Notifications**. |
+| `08c-general-window-startup.png` | **General → Window & Startup**. |
+| `09a-advanced-performance.png` | **Advanced → Performance**. |
+| `09b-advanced-changed-parts.png` | **Advanced → Changed parts only**. |
+| `09c-advanced-deletion-protection.png` | **Advanced → Deletion protection**. |
+| `09d-advanced-network.png` | **Advanced → Network**. |
+| `09e-advanced-logging.png` | **Advanced → Logging**. |
+
+These are `QWidget.grab()` renders of the real dialog on `QT_QPA_PLATFORM=offscreen`,
+with `appearance/language = en`, `appearance/theme = light` and the sample values
+above set on the widgets before grabbing, so they never contain real host data.
+Re-capture them the same way and keep the file names.
 | `10-wizard-purpose.png` | Wizard **Purpose** step, including **Help me choose**. |
 | `11-wizard-folder.png` | Wizard **Folder** step. |
 | `12-wizard-connection.png` | Wizard **Connection** step (group, password, when-to-run). |

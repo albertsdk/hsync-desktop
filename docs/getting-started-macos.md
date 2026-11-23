@@ -56,8 +56,8 @@ After that it opens normally.
 ## Run
 
 Open **HSYNC** from Launchpad or Applications — it runs in the menu bar with a
-tray icon. On first launch open **Settings** and configure a connection; see the
-[Configuration Reference](configuration.md).
+tray icon. On first launch open **Settings** and configure a connection; see
+[The Connection settings](settings-connection.md).
 
 ## Update and remove
 

@@ -516,7 +516,10 @@ when `_row_width` (both labels plus their spacing) does not fit the row; its
 ask for a window wide enough to unfold the pair instead of freezing the stacked
 column as the page's natural width. Its vertical size policy is `Minimum`, so a
 short page scrolls instead of compressing the buttons below their own height.
-The group help links are also spanning rows (`addRow(label)`) for the same
+The tab help link is added as the page's first item, above the first group, by
+`hsync_desktop/settings/tab_layout.py::_tab_help_row` (one per tab: the guide it
+opens mirrors the tab group by group, so a per-group link would repeat one
+destination). The action rows are spanning rows (`addRow(widget)`) for the same
 reason; `TestActionRow` pins the stacking, the advertised width and the trailing
 alignment, and
 `tests/test_settings_dialog_size.py::TestContentWidth::test_the_trust_action_rows_are_not_clipped`

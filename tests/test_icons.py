@@ -102,6 +102,16 @@ class TestWizardModeIcons:
             assert not icons.icon(name).isNull(), name
 
 
+class TestHelpIcon:
+    """The contextual help affordance has a registered, loadable bundled icon."""
+
+    def test_the_help_icon_is_registered(self):
+        assert icons._FALLBACK_MAP.get("help-about") == "help-about.svg"
+
+    def test_the_help_icon_loads(self, qapp):
+        assert not icons.icon("help-about").isNull()
+
+
 class TestActionBarCompareIcon:
     """The compare action uses a refresh icon: a magnifier reads as "search"."""
 

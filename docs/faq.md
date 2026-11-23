@@ -42,7 +42,7 @@ devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-perm
 In Direct mode they must use the **same group name** and the **same share name**, and
 be on the same network (or reach the same search servers). A device with no
 group only sees other no-group devices. The full checklist is in
-[Troubleshooting → Devices are not found in Direct mode](troubleshooting.md#devices-are-not-found-in-p2p-mode).
+[Troubleshooting → Devices are not found in Direct mode](troubleshooting.md#devices-are-not-found-in-direct-mode).
 
 ## Why does HSYNC warn that local files may be deleted?
 

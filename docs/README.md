@@ -52,7 +52,12 @@ prompts, badges and notifications. When something does not work at all, go to
 | [choose-sync-direction.md](choose-sync-direction.md) | Send-only, receive-only, or both. |
 | [choose-deletion-policy.md](choose-deletion-policy.md) | Deletions reach every device (mirror) vs never deleting files here. |
 | [choose-trust.md](choose-trust.md) | Trust, fingerprints and identity checks. |
-| [configuration.md](configuration.md) | Every setting in the Settings dialog (the single source of truth). |
+| [configuration.md](configuration.md) | The Settings dialog: the four tabs, how a change is applied, where the values are stored. |
+| [settings-sync.md](settings-sync.md) | The **Sync** tab, group by group. |
+| [settings-connection.md](settings-connection.md) | The **Connection** tab: Direct mode, Server mode, certificates. |
+| [settings-general.md](settings-general.md) | The **General** tab: appearance, notifications, startup. |
+| [settings-advanced.md](settings-advanced.md) | The **Advanced** tab: performance, changed parts, deletion guard, bandwidth, logs. |
+| [ignore-rules.md](ignore-rules.md) | Keeping files out of the sync: the `.hsyncignore` patterns. |
 | [sync-basics.md](sync-basics.md) | Starting, watching and stopping a sync; shortcuts. |
 | [file-list.md](file-list.md) | The file table: columns, actions, hidden files. |
 | [warnings.md](warnings.md) | Toasts, banners, notifications, badges and the "in sync?" states. |

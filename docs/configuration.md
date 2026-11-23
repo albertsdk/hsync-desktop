@@ -1,300 +1,70 @@
-# Configuration Reference
+# Configuration
 
-Every HSYNC Desktop setting lives in the GUI **Settings** dialog and is persisted
-with Qt `QSettings`. This page is the single source of truth for the settings.
+Every HSYNC Desktop setting lives in the **Settings** dialog and is persisted
+with Qt `QSettings`. This page is the map of that dialog: which tabs exist, how a
+change is applied, and where the values are kept. **The fields themselves are
+documented once, in the guide of their tab:**
 
-- New to the app? Start from [Your first sync](first-sync.md) or the
-  [Setup wizard](setup-wizard.md).
-- Deciding between options? The dedicated guides —
-  [Choose your sync direction](choose-sync-direction.md),
-  [Choose what happens to deleted files](choose-deletion-policy.md),
-  [Choose how your devices connect](choose-connection.md) and
-  [Trust, fingerprints and identity checks](choose-trust.md) — explain the choice
-  and link back here for the exact field.
+| Tab | The guide |
+| --- | --------- |
+| **Sync** | [The Sync settings](settings-sync.md) — share and folder, direction, deletions, timings, limits |
+| **Connection** | [The Connection settings](settings-connection.md) — Direct mode and Server mode, identity checks, certificates |
+| **General** | [The General settings](settings-general.md) — language, theme, notifications, startup |
+| **Advanced** | [The Advanced settings](settings-advanced.md) — performance, changed parts, deletion guard, bandwidth, logs |
 
-Open **Settings** from the main window (or the tray menu). The dialog is organised
-into four tabs: **Sync**, **Connection**, **General** and **Advanced**. The two ways
-of reaching the other devices — **Direct mode** and **Server mode** — live in
-**Connection**, where one of them is selected and the other stays one line away.
-The **Advanced** tab is hidden until you enable **Show advanced options** in
-General; the same toggle also reveals the **Advanced Options** sections in the
-other tabs, so the standard view stays uncluttered. Controls for
-features your installed sync engine does not support are automatically disabled,
-with a tooltip explaining why. Settings are read when a sync starts: while one runs
-the connection-critical controls are disabled, and a change takes effect at the
-next start. **Apply** (with **Cancel**) saves the changes and closes the dialog —
-an editor or credential prompt keeps its **Save** label instead. On a fresh
-install (no saved settings yet) the app starts in **Direct mode**.
+Deciding rather than filling? The dedicated guides explain the choice:
+[Choose how your devices connect](choose-connection.md),
+[Choose your sync direction](choose-sync-direction.md),
+[Choose what happens to deleted files](choose-deletion-policy.md) and
+[Trust, fingerprints and identity checks](choose-trust.md).
 
-## Sync
+## How the dialog works
 
-<img src="assets/screens/05-settings-sync.png" alt="Settings, Sync tab" width="640">
+Open **Settings** from the menu bar or the tray menu. The dialog has four tabs.
+**Direct mode** and **Server mode** are not tabs of their own: they are the two
+halves of **Connection**, where one is selected and the other stays one line
+away at the top of the tab.
 
-This tab holds the share name, local folder and compression toggle, plus the
-transfer behaviour. It is used in both Direct mode and Server mode.
+- **Show advanced options** (in **General**) hides the **Advanced** tab and the
+  **Advanced Options** groups of the other tabs until it is on, so the standard
+  view stays uncluttered.
+- **Apply** saves the changes and closes the dialog (with **Cancel** next to it).
+  An editor or a credential prompt keeps its **Save** label instead.
+- Settings are read when a sync starts. While a run is in progress the
+  connection-critical controls are disabled, and a change takes effect at the
+  next start.
+- Controls for a feature the installed sync engine does not support are
+  disabled, with a tooltip saying why.
+- Every field has a tooltip; **Show tooltips** in **General** turns them off.
 
-| Setting | Description |
-|---------|-------------|
-| Share name | Name of the share: the folder name on the HSYNC server, or the share name in direct mode. Devices that sync the same folder must use the **same share name** (and, in Direct mode, the same group name) |
-| Sync direction | `Keep aligned (Send & Receive)`, `Send only (to other devices)` or `Receive only (from other devices)` — see [Choose your sync direction](choose-sync-direction.md) |
-| Watch for changes (continuous) | Keep syncing automatically as files change |
-| Deletions | `Deletions reach every device` keeps this device aligned: a file deleted on one device is deleted on the others. `Never delete files on this device` never deletes here — local deletions are not sent and deletions from the other devices are not applied, so the folder only grows and a folder emptied elsewhere is left in place. It never deletes on the other devices either: a deletion recorded earlier cannot remove a file that still exists there. While it is active the main window shows a **Deletions kept** badge next to the status. Switching back to `Deletions reach every device` asks for confirmation first — see [Choose what happens to deleted files](choose-deletion-policy.md) |
-| Auto-sync on startup | Start syncing as soon as the app launches. Off by default and never enabled for you: turn it on only if you want a run to begin on every launch. When the current settings could delete local files and the deletion-risk warning has not been acknowledged for this folder, when the one-time disclaimer has not been accepted yet, or when the plan the run computed includes deletions, the startup run stops and warns you instead of asking (and never opens a dialog) — press **Start** or **Compare** to review the plan and confirm it |
-| Sync without asking | Apply the plan without the confirmation dialog when it deletes nothing — transfers and renames run straight away. Off by default. A plan that deletes anything still opens the dialog, and so does **Compare**, which exists to show the plan |
-| Periodic full check | Run a full check every N seconds (minimum 20 s; **Disabled** turns it off) |
-| Wait before retry | Delay before a failed transfer is retried (minimum 5 s) |
-| Wait for file to settle | Ignore a file for this long while it is still being written |
-| Maximum wait | Upper bound for the settle and timing waits (default 120 s, minimum 60 s) |
-| Min free disk space | Refuse transfers below this free space |
-| Max inbound file size | Refuse files larger than this |
-| Sync only a specific subfolder | Restrict sync to a subfolder of the local folder |
-| Simulation Mode | Show what a sync would do without applying it: the run is a one-shot preview that stops after the summary, so nothing is transferred or deleted and the pre-start file-deletion confirmation is skipped. While it is on, the main window shows a **Simulation — no changes** badge and the title ends with **— Simulation** |
-| Extra ignore patterns | Additional gitignore-style exclusion patterns |
-| Ignore rules… | Edit the ignore patterns for the selected folder (stored as `.hsyncignore`) |
+On a fresh install (no saved settings yet) the app starts in **Direct mode**.
 
-Large files already transfer only their changed blocks by default; the option
-and its minimum sizes are on the **Advanced** tab.
+## Secrets
 
-## Connection
+The API key (Server mode) and the shared password (Direct mode) are the two
+secrets. They are entered through dedicated dialogs, stored encrypted with a key
+derived from the machine, and handed to the engine over a private channel —
+never on the command line. See [Secrets](secrets.md).
 
-The first thing the tab asks is **how this device reaches the others**:
-**Direct mode** (device to device, with no server) or **Server mode** (through a
-central HSYNC server). The two are mutually exclusive and a setup uses one of
-them; switching later keeps every value of the other, so nothing has to be typed
-again. Only the selected mode's settings are shown, so the page stays as short as
-one mode and never doubles; the option you did not pick stays one click away at
-the top of the tab. On a fresh install the app starts in **Direct mode**.
-Only the selected mode is validated when you apply: a value left in the other mode
-is checked when you select it, so it never blocks a save you did not ask for.
+## Updates
 
-### Direct mode
+**Help → Check for Updates…** asks the release page for the newest published
+version and answers with either the version you are running or the release you
+can download. **Check for updates at startup** (in **General**) does the same
+once a day, and is off by default.
 
-<img src="assets/screens/06-settings-p2p.png" alt="Settings, Connection tab in Direct mode" width="640">
-
-For peer-to-peer sync with no server. See the
-[client p2p guide](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-mode.md)
-for the underlying behaviour and [Choose how your devices connect](choose-connection.md)
-for when to use it.
-
-| Setting | Description |
-|---------|-------------|
-| Group name | Partition key for device discovery in Direct mode: devices only sync with other devices using the exact same group name. Leave it empty to put this device in the "no group" partition — it then syncs only with other devices that also left it empty |
-| Shared password | Password shared by the devices in the group; the client derives the group key from it (at least 12 characters), so the same password on every device yields the same key. A **protected search server** checks this same password (there is no separate token), so it must match the key configured on the server — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password). Changing this password derives a different key: the app warns under the field and asks before applying, because the server's key file must be updated too |
-| Search servers (optional) | Endpoint of an optional search server (an HSYNC Rendezvous) for cross-network discovery (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`); empty uses mDNS on the local network only. It only helps devices find each other and never carries or stores your files. If it is *private* or protects its buckets, it also checks the group key; set the matching **Shared password** in the Connection tab. While one is set, this section shows **Show group key…**, which reveals the masked `bucket=<key>` line for the server's key file — see [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password) |
-| Search servers identity check | How the app checks the search server's identity: ask on first use (default), accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
-| Reach the search server via | How the app connects to the search server: **Auto** (default) races QUIC/UDP (preferred) and TLS/TCP; **QUIC/UDP only** and **TLS/TCP only** use one transport. Choose TLS/TCP when the network filters UDP |
-| Manage trusted servers & devices | List, add and remove the search servers, server and device fingerprints the client actually uses |
-| Open the port on my router automatically | Open the primary port so devices on other networks can connect to this one (only takes effect with a search server set) |
-| Exclude the local network | Find devices only through the search servers, not mDNS, so the app ignores the local network. Useful on a shared network or when the local interface is a VPN; only takes effect with a search server set |
-| Prefer primary role | Express a preference for the primary role. A device already serving as primary keeps the role |
-| Never become primary | Remove this device from the primary election |
-| Primary device identity check | How this device trusts a primary it has never seen: **Ask for confirmation** (default: confirm the fingerprint on first contact, and refuse it when nothing can ask), **Accept automatically** (pin the first fingerprint silently) or **Require an explicit confirmation** (refuse it until you pin it). A changed fingerprint is always refused. **Confirm a primary device…** pins a fingerprint you read on that device, which is what **Require an explicit confirmation** waits for |
-| Serve files to other devices | In direct mode, serve file blocks to the other devices so they can skip the primary |
-| Download from other devices | In direct mode, download file blocks from other devices, not only the primary |
-| Publish the file index | In direct mode, tell the primary what this device already holds, so it can show what is up to date |
-| Port | Fixed listening port in Direct mode |
-| Device search timeout | How long to wait for device discovery |
-| Time servers | Comma-separated time servers (SNTP) for clock-offset measurement in Direct mode; empty uses the built-in defaults. Entries may carry a port override, e.g. `ntp.local:123` |
-
-The section also holds **Max simultaneous reads from other devices** (1–32) and
-**Max devices per file** (1–8).
-
-**Prefer primary role and sync type.** *Prefer primary role* is a preference, and
-it only applies to the **Keep aligned (Send & Receive)** sync type, so the
-conflict is caught as soon as it appears. Picking a one-way type (send-only or
-receive-only) while direct mode and *Prefer primary role* are both on offers to turn
-it off because it is incompatible (accept jumps to the Connection tab); switching
-*Prefer primary role* on while a one-way type is active offers to go back to the
-**Keep aligned (Send & Receive)** type because they are incompatible (accept jumps
-to the Sync tab). Declining either prompt keeps your choice and repeats the
-generic warning when saving.
-
-**Trust stores.** *Manage trusted servers & devices…* edits the client's
-known-hosts (search servers and sync server) and known-devices stores directly —
-there is no separate setting — so the GUI and the `hsync` CLI share the same
-source of truth. The dialog shows only the stores relevant to the active mode: Direct mode
-shows the discovery-server and device stores, Server mode shows the **Server
-HSYNC** store.
-
-**Keyless runs.** Without a shared password the app confirms before starting:
-devices are not authenticated and reads are open to anyone who can reach this
-device. Set a shared password in the Connection tab to avoid the prompt; the confirmation
-is requested on every start and is not a stored setting. See [Secrets](secrets.md).
-
-**Test Connection.** *Test Connection* contacts the configured search server
-and shows the certificate fingerprint it presents, which proves the address is
-reachable; no pin is written. The button reads **Checking…** while the request
-runs and the window stays responsive, so the result arrives in a dialog when the
-server answers or the request times out.
-
-### Server mode
-
-<img src="assets/screens/07-settings-server.png" alt="Settings, Connection tab in Server mode" width="640">
-
-For syncing against a central HSYNC server.
-
-The server section is grouped into **Server** (URL, API key, identity check and
-the manage/test actions), **Certificates** (skip certificate check and CA file)
-and **Advanced Options** (request timeout).
-
-| Setting | Description |
-|---------|-------------|
-| Server address | Hostname, IP or `host:port` of the HSYNC server, e.g. `my-nas` or `my-nas:9753`; `https://` and port 9753 are implied. Leave empty for Direct mode only |
-| API key | Account token (`hs_<id>_<secret>`); entered through a dedicated dialog (see [Secrets](secrets.md)) |
-| Server identity check | How the app checks the server identity: standard verification (default), ask on first use, accept automatically, require the saved identity, or don't verify — see [Trust, fingerprints and identity checks](choose-trust.md) |
-| Skip certificate check (insecure) | Disable TLS verification (trusted networks only) |
-| Certificate authority file | Use a custom certificate file for a self-signed server |
-
-It also holds **Request timeout** (seconds). *Test Connection* contacts the
-server health endpoint and reports whether it answers; the button reads
-**Checking…** while the request runs, so the window stays responsive until the
-result appears.
-
-Devices that sync the same folder on one server use the **same share name**, and
-each **API key must be the server admin's or a member of that share**: the same
-key on every device works, one key per device keeps revoking and rotating per
-device — see [Roles and Permissions → Sharing one bucket between
-devices](https://github.com/albertsdk/hsync-server/blob/main/docs/roles-and-permissions.md#sharing-one-bucket-between-devices).
-
-Changing the **share name** in server mode keeps your API key: the key identifies
-your account, the share name only says which bucket it works on. The app checks
-the name against the server before saving — an edited name, and a share you just
-created, whose name the server has never seen. When the server answers that the
-share does not exist (or that your account has no access to it) it offers to
-**create the share on the server**, to save without creating, or to cancel. A
-share is never created implicitly — the first sync lists the remote files before
-uploading anything, so a share that does not exist stops the sync instead of
-being created. If the account already owns as many shares as the server allows
-(`HSYNC_MAX_BUCKETS_PER_ACCOUNT`), the app says so and names the limit: delete a
-share, or ask the server administrator to raise it. To use a share owned by
-another account, ask its owner (or the server admin) to add you as a member; with
-no membership the server answers *not found* for a share that exists. Saving a
-preference that is not about the connection (the language, the theme, a sync
-interval) does not contact the server at all: only an edited connection is
-checked, so a rejected key or an unreachable host never stops the rest of the
-settings from being saved. Creating or duplicating a share in server mode checks
-its new bucket the same way before the share is saved, and offers to create it
-on the server when it is missing.
-
-## General
-
-<img src="assets/screens/08-settings-general.png" alt="Settings, General tab" width="640">
-
-Application-wide preferences, grouped in three sections.
-
-### Appearance
-
-| Setting | Description |
-|---------|-------------|
-| Language | Interface language. **System default** (the default) follows the system locale; picking a language pins it |
-| Theme | **System default** (follows the desktop and updates live), Light or Dark |
-| Font size | Standard or **Slightly reduced** (every application font one point smaller, never below 8 pt) |
-
-### Notifications
-
-| Setting | Description |
-|---------|-------------|
-| Enable system notifications | Show desktop/system notifications for sync events. Errors and warnings are always shown in the app window; this setting only controls the OS notifications |
-| Notifications for | Which events produce a system notification, one switch each: **Errors**, **Warnings**, **Connection problems**, **Synchronisation events**, **Devices and role changes**. Greyed out and inert while system notifications are off |
-
-### Window & Startup
-
-| Setting | Description |
-|---------|-------------|
-| Launch at login | Start HSYNC minimized to the tray when you log in |
-| Show advanced options | Reveal the Advanced tab and the Advanced Options sections (off by default) |
-
-**Show tooltips** and **Show log panel** toggle the option tooltips and the in-app
-log viewer.
-
-### Updates
-
-| Setting | Description |
-|---------|-------------|
-| Check for updates at startup | Off by default. When on, the app asks the release page once a day whether a newer version exists. The switch sits in the two update dialogs (Help → Check for Updates… and the startup reminder), where the choice is relevant |
-
-**Help → Check for Updates…** always works, whatever the setting: it asks the
-GitHub release page for the newest published version and answers with either the
-version you are running or the release you can download. The request needs no
-account, carries no identifier and is the only outbound request the app makes to
-a host other than your own sync server or peers.
-
-The app never downloads or installs the update itself: **Download** opens the
-release page, and the upgrade stays with the process your installation already
-uses — `snap refresh`, the Windows installer, `apt`/`dnf`, or a manual replace of
-the portable bundle. The startup reminder appears once per release; choosing not
-to be reminded again for that version silences it until the next one.
-
-Supported interface languages: English, Italian, German, Spanish, French,
-Portuguese (Brazil), Chinese (Simplified), Russian, Dutch, Polish and Japanese.
-
-The interface uses the desktop's configured **UI and monospace fonts** and follows
-the system text scaling (GNOME/Ubuntu and KDE). The font-size choice applies
-immediately; a desktop font/scale change is picked up on the next launch.
-
-**Launch at login.** When enabled, the app registers a per-user autostart entry
-that launches `hsync-desktop --minimized`, so the window stays in the tray at
-login; disabling the option removes it. This is a desktop preference only: it
-opens the app but does not start a sync (that is **Auto-sync on startup** on the
-Sync tab).
-
-## Advanced
-
-<img src="assets/screens/09-settings-advanced.png" alt="Settings, Advanced tab" width="640">
-
-Engine-level tuning and diagnostics. The tab is hidden until **Show advanced
-options** is enabled in General. Changes apply at the next sync start.
-
-| Setting | Description |
-|---------|-------------|
-| Auto-tune performance | Let the engine tune transfer concurrency, timeouts and retries |
-| Max concurrent transfers | Ceiling on simultaneous transfers; **Auto** uses the engine default |
-| Send only the parts that changed | Transfer only changed blocks of large files |
-| Only for files larger than | Send only the changed parts of files at least this large (server mode) |
-| Only for files larger than (direct) | Send only the changed parts of files at least this large (direct mode) |
-| Deletion protection | Pause a cycle that would delete too many local files (see below) |
-| Stop after this many deletions | Number of deletions that trips the guard; 0 disables this rule |
-| Stop when this share of files would be deleted | Percentage of local files whose deletion trips the guard; 0 disables this rule |
-| Show the deletion-risk warning again | Bring back the warning silenced from its own dialog; it is scoped to the folder and settings you confirmed |
-| Upload limit / Download limit | Bandwidth caps (1 MB/s = 1 MiB/s), enforced from the first byte and shared by all transfers of that direction; 0 (**Unlimited**) uses all available bandwidth |
-| Detailed log output | Enable verbose (debug-level) logging. If the log panel is hidden and no log file is set, enabling it offers to show the panel |
-
-**Log file** mirrors the same output to a file: the log panel keeps showing the
-live log, and the file is a rotated copy of it. The panel also shows the app's
-own lines (the ones with `[desktop]` where the engine puts its device id), which
-the file does not contain — they describe the window, not the sync. The panel
-itself is a bounded window — it keeps the last 10 000 lines and truncates a very
-long line — so a long session never grows without bound; the log file is where
-the full history lives.
-
-**Deletion protection.** When a cycle would delete more than the configured
-threshold (absolute count or percentage of local files), those deletions are
-skipped and the main window shows a warning, so a stray delete on one device
-cannot wipe the folder. The sync itself keeps running and a later cycle retries
-the deletions. Set either rule to 0 to disable it. See
-[Warnings and notifications](warnings.md).
-
-**Deletion-risk warning.** The pre-flight notice about **Receive only** can be
-silenced with its own checkbox, for the folder and settings it was confirmed for.
-**Show the deletion-risk warning again** clears that acknowledgement, so the next
-start asks again; nothing else changes. See
-[Warnings and notifications](warnings.md#warnings-before-a-sync).
-
-**Bandwidth limits** are also editable from the status bar: open **Details ▾**
-in the bottom-right of the main window (or click the sent/received values
-inside it). Both entry points
-share the same values, and 0 means unlimited in both.
-
-The action labels the log panel can show are listed in
-[Log Labels](log-labels.md).
+The request needs no account, carries no identifier and is the only outbound
+request the app makes to a host other than your own sync server or peers. The app
+never downloads or installs the update itself: **Download** opens the release
+page, and the upgrade stays with the process your installation already uses —
+`snap refresh`, the Windows installer, `apt`/`dnf`, or a manual replace of the
+portable bundle. The startup reminder appears once per release; choosing not to
+be reminded again for that version silences it until the next one.
 
 ## Where settings are stored
 
-Settings are persisted by Qt `QSettings`; secrets (the API key and the shared password) are stored
-encrypted with a machine-derived key and handed to the engine over a private
-channel, never on the command line. See [Secrets](secrets.md).
-
-The settings live in the per-user Qt location:
+Settings are persisted by Qt `QSettings`; secrets are stored encrypted (see
+[Secrets](secrets.md)). The settings live in the per-user Qt location:
 
 - Linux: `~/.config/HSYNC/HSYNCDesktop.conf`
 - macOS: `~/Library/Preferences/com.HSYNC.HSYNCDesktop.plist`

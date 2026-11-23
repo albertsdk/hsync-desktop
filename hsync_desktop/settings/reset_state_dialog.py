@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from hsync_desktop.docs_links import RESET_SYNC_STATE
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon
+from hsync_desktop.widgets.links import insert_help_link_above
 
 
 class ResetStateDialog(QDialog):
@@ -68,6 +70,7 @@ class ResetStateDialog(QDialog):
         buttons.rejected.connect(self.reject)
         self._reset.clicked.connect(self.accept)
         layout.addWidget(buttons)
+        insert_help_link_above(buttons, "help.open_guide", RESET_SYNC_STATE)
 
         self._fit_to_content()
 

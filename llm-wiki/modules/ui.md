@@ -276,17 +276,36 @@ targets come from `docs_links.py` (`DOCS_INDEX`, `GITHUB_REPO`) and open through
 `CONNECTION_MODES` (`docs/choose-connection.md`) that the wizard's mode step links to, so
 **Help → Documentation** always starts from the docs index.
 
-**Contextual documentation links**: the Server tab links to the hsync-server
-guide (`help.server_setup`), the p2p "Finding devices" group to the hsync-rendezvous
-guide (`help.rendezvous_setup`), and the wizard's mode step plus its "Not sure?"
-dialog to the desktop choose-connection guide (`help.connection_modes`). The two
-Settings links are labelled **"Configuration guide"** (each sits in the section it
-documents, so the target is not repeated in the label); the wizard link keeps its
-mode-specific label. They are
-`QLabel#helpLink` anchors built by `hsync_desktop/widgets/links.py::help_link`, keyboard
-accessible (`LinksAccessibleByKeyboard`), with the URL in the tooltip; the
+**Contextual documentation links**: one per context, never one per field or per
+group. Each Settings tab carries a single link above its first group
+(`hsync_desktop/settings/tab_layout.py::_tab_help_row`), pointing at its own guide
+(`hsync_desktop/docs_links.py::SETTINGS_TAB_GUIDES`, ordered like
+`hsync_desktop/settings/tab_indices.py`) and labelled `help.settings_*`. The same
+help key is a dialog-scoped action (`QKeySequence.StandardKey.HelpContents`, F1):
+`hsync_desktop/settings/dialog.py::SettingsDialog._open_tab_guide` opens the
+current tab's page, while **Help → Documentation** keeps F1 on the main window (a
+window-scoped shortcut, so the two never collide). The wizard's mode step and its
+"Not sure?" dialog link to the desktop choose-connection guide
+(`help.connection_modes`). They are
+`QLabel#helpLink` anchors built by `hsync_desktop/widgets/links.py::help_link`,
+keyboard accessible (`LinksAccessibleByKeyboard`), always underlined (WCAG 1.4.1)
+and with the URL in the tooltip. Every guide link — the tab rows and the dialog
+footers alike — paints the same leading `help-about` glyph in the left inset the
+label reserves (`hsync_desktop/widgets/links.py::_HelpLinkLabel.set_leading_icon`,
+drawn with `hsync_desktop/icons.py::icon`), so the affordance is identical and never
+text-only. The label's vertical size policy is `Maximum`: it keeps the height
+`sizeHint` reports at the real width, so a tall layout never hands it the spare
+space (a 40 px "one-line" link read as an empty gap). The
 Settings dialog re-applies the translated text in
-`hsync_desktop/settings/tab_translations.py::apply_translations`. The toast's guide link is the
+`hsync_desktop/settings/tab_translations.py::apply_translations`.
+
+The dialogs that own a procedure carry the same single link, above their button
+box (`hsync_desktop/widgets/links.py::insert_help_link_above`), each to the page
+that documents that window: `docs_links.RESET_SYNC_STATE`, `IGNORE_RULES`,
+`SECRETS` (the API-key and shared-password prompts), `GROUP_KEY`, `TRUST_STORE`,
+`BANDWIDTH_LIMITS`, `COMPARE_PREVIEW`, `SHARES`, and the wizard's connection step
+(`SETTINGS_CONNECTION_GUIDE`). They are pinned by
+`tests/test_context_help_links.py`. The toast's guide link is the
 same widget retargeted at runtime (`hsync_desktop/widgets/links.py::set_help_link_url`): a
 persistent engine warning points it at `hsync_desktop/docs_links.py::WATCHER_LIMITS` (the client
 guide's file-watcher/inotify section, where the copy-paste host commands are) when

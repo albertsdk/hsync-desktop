@@ -92,5 +92,5 @@ you removed, re-add a share for it.
 
 - [Choose how your devices connect](choose-connection.md)
 - [Set up with the wizard](setup-wizard.md)
-- [Configuration](configuration.md) — every setting in the Settings dialog.
+- [The Sync settings](settings-sync.md) — the share name, the folder and the direction.
 - [Reset sync state](reset-sync-state.md) — reconciling a folder from scratch.

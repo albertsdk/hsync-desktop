@@ -25,7 +25,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.docs_links import RENDEZVOUS_SETUP, SERVER_SETUP
+from hsync_desktop.docs_links import (
+    SETTINGS_ADVANCED_GUIDE,
+    SETTINGS_CONNECTION_GUIDE,
+    SETTINGS_GENERAL_GUIDE,
+    SETTINGS_SYNC_GUIDE,
+)
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.form_helpers import _action_row
 from hsync_desktop.settings.tab_indices import (
@@ -155,6 +160,20 @@ def _spanning_row(form: QFormLayout, widget: QWidget) -> None:
     form.addRow(widget)
 
 
+def _tab_help_row(vbox: QVBoxLayout, text_key: str, url: str) -> QLabel:
+    """Add a tab's single documentation link above its first group.
+
+    One entry point per tab, not one per group: the page it opens mirrors the tab
+    group by group, so a per-group link would repeat one destination and add a
+    row to every group. It sits first because the page scrolls — a link at the
+    bottom is invisible until the user scrolls to it.
+    """
+
+    link = help_link(text_key, url, icon="help-about")
+    vbox.addWidget(link)
+    return link
+
+
 def _scroll_area(widget: QWidget) -> QScrollArea:
     """A frame-less, resizable scroll area hosting ``widget`` (no horizontal scroll)."""
 
@@ -223,6 +242,8 @@ def reorganize_general_tab(dlg: SettingsDialog) -> None:
 
     outer, vbox = _scrollable_page(general_tab)
 
+    dlg._lbl_help_general = _tab_help_row(vbox, "help.settings_general", SETTINGS_GENERAL_GUIDE)
+
     # Group 1: appearance and language (what a first launch needs).
     dlg._grp_general_appearance = _group_box("settings.group.appearance")
     f1 = QFormLayout(dlg._grp_general_appearance)
@@ -282,6 +303,8 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
 
     # ── Build new grouped layout inside a scroll area ──────
     _, vbox = _scrollable_page(sync_tab)
+
+    dlg._lbl_help_sync = _tab_help_row(vbox, "help.settings_sync", SETTINGS_SYNC_GUIDE)
 
     # Group 1: Path & Bucket
     dlg._grp_path = _group_box("settings.group.path_bucket")
@@ -385,6 +408,10 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
 
     _, vbox = _scrollable_page(page)
 
+    dlg._lbl_help_connection = _tab_help_row(
+        vbox, "help.settings_connection", SETTINGS_CONNECTION_GUIDE
+    )
+
     # Group 1: the choice itself, with the sentence that explains each option.
     dlg._grp_mode = _group_box("settings.group.connection_mode")
     mode_box = QVBoxLayout(dlg._grp_mode)
@@ -427,8 +454,6 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     _spanning_row(g2, dlg.btn_show_group_key)
     add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
     add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
-    dlg._lbl_help_rendezvous = help_link("help.rendezvous_setup", RENDEZVOUS_SETUP)
-    g2.addRow(dlg._lbl_help_rendezvous)
     direct.addWidget(dlg._grp_p2p_rendezvous)
 
     dlg._grp_p2p_role = _group_box("settings.group.p2p_role")
@@ -464,8 +489,6 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     add_row(s1, dlg._lbl_server_trust, dlg.server_trust)
     # Spanning row, trailing-aligned to the same content edge as the inputs.
     s1.addRow(manage_server)
-    dlg._lbl_help_server = help_link("help.server_setup", SERVER_SETUP)
-    s1.addRow(dlg._lbl_help_server)
     server_box.addWidget(dlg._grp_server)
 
     dlg._grp_server_certificates = _group_box("settings.group.server_certificates")
@@ -499,6 +522,8 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
         _tmp.setLayout(old)
 
     _, vbox = _scrollable_page(advanced_tab)
+
+    dlg._lbl_help_advanced = _tab_help_row(vbox, "help.settings_advanced", SETTINGS_ADVANCED_GUIDE)
 
     # Group 1: performance
     dlg._grp_advanced_perf = _group_box("settings.group.performance")

@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.config import DEFAULT_P2P_ENABLED, SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.docs_links import TRUST_STORE
 from hsync_desktop.engine import (
     AsyncProbe,
     ProbeOutcome,
@@ -57,6 +58,7 @@ from hsync_desktop.engine import (
 from hsync_desktop.file_panel.utils import format_mtime
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon, style_ok_cancel_button_box
+from hsync_desktop.widgets.links import insert_help_link_above
 
 # A host trust helper: ``(binary, host, fingerprint, port) -> bool`` (add) or
 # ``(binary, host, port) -> str | None`` (fingerprint probe).
@@ -280,6 +282,7 @@ class TrustedKeysDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(self._tabs)
         layout.addWidget(buttons)
+        insert_help_link_above(buttons, "help.open_guide", TRUST_STORE)
 
         self._refresh()
 

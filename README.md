@@ -33,7 +33,7 @@ New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsyn
 
 **Quick navigation:**
 - **New to HSYNC?** Start with the [What you can do](#what-you-can-do-with-hsync-desktop) overview and [Getting started](#getting-started)
-- **Configuring the app?** See the [Configuration Reference](docs/configuration.md)
+- **Configuring the app?** See the [settings guides](docs/configuration.md)
 - **Want to contribute?** See [Contributing](CONTRIBUTING.md)
 - **Curious who builds it?** See [Contributors](CONTRIBUTORS.md)
 - **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
@@ -90,7 +90,7 @@ chooser:
 - [Windows installer](docs/getting-started-windows.md) — per-user `.exe` setup;
 - [From source](docs/getting-started-source.md) — clone and run.
 
-Then configure a connection in the [Configuration Reference](docs/configuration.md)
+Then configure a connection in [The Connection settings](docs/settings-connection.md)
 and run a sync with the [Usage Guide](docs/sync-basics.md).
 
 ## Associated Ecosystem Components
