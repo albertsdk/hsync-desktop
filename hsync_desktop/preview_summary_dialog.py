@@ -280,8 +280,8 @@ class PreviewSummaryDialog(QDialog):
         if self._scope:
             parts.append(tr("preview_summary.context_scope").format(path=self._scope))
         if self._direction != "bidirectional":
-            key = "menu.sync.direction." + self._direction.replace("-", "_")
-            parts.append(f"{tr('menu.sync.direction')}: {tr(key)}")
+            key = "settings.sync_direction." + self._direction.replace("-", "_")
+            parts.append(f"{tr('settings.sync_direction')}: {tr(key)}")
         if self._simulation:
             parts.append(tr("preview_summary.simulation"))
         if self._stats.skipped_deletes:

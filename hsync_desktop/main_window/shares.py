@@ -53,9 +53,9 @@ from hsync_desktop.widgets.dialogs import (
 from hsync_desktop.widgets.name_dialog import ask_name
 
 _DIRECTION_KEYS = {
-    "bidirectional": "menu.sync.direction.bidirectional",
-    "upload-only": "menu.sync.direction.upload_only",
-    "download-only": "menu.sync.direction.download_only",
+    "bidirectional": "settings.sync_direction.bidirectional",
+    "upload-only": "settings.sync_direction.upload_only",
+    "download-only": "settings.sync_direction.download_only",
 }
 
 

@@ -4818,6 +4818,64 @@ class TestMenuConventions:
         assert tr("menu.setup_wizard") not in self._bar_texts(window)
         assert tr("menu.setup_wizard") in self._texts(window._menu_help)
 
+    def test_the_sync_menu_has_no_direction_submenu(self, window):
+        """The direction is configured in Settings → Sync, never in the menu."""
+        assert [action.menu() for action in window._menu_sync.actions() if action.menu()] == []
+        assert tr("settings.sync_direction") not in self._texts(window._menu_sync)
+
+    def test_the_trash_sits_after_the_scoped_runs(self, window):
+        """Recovery closes the menu; only commands that start work lead it."""
+        sync_texts = self._texts(window._menu_sync)
+        trash, send = sync_texts.index(tr("menu.sync.trash")), sync_texts.index(
+            tr("action.send_now")
+        )
+        assert trash > send
+        assert trash > sync_texts.index(tr("action.receive_now"))
+        assert sync_texts.index(tr("menu.sync.preview")) + 1 != trash
+
+    def test_the_file_menu_offers_new_share_first(self, window):
+        """Creating a profile leads File, and needs no selected row."""
+        assert window._menu_file.actions()[0] is window._act_file_new_share
+        assert window._act_file_new_share.text() == tr("shares.menu.new")
+
+        window._set_file_menu_enabled(False)
+
+        assert window._act_file_new_share.isEnabled()
+
+    def test_the_new_share_entry_runs_the_share_flow(self, window, monkeypatch):
+        calls: list[int] = []
+        monkeypatch.setattr(window, "_on_new_share", lambda: calls.append(1))
+
+        window._act_file_new_share.trigger()
+
+        assert calls == [1]
+
+    def test_both_new_share_entries_are_equally_available(self, window, monkeypatch):
+        """The File entry and the dropdown entry reach one flow, alike."""
+        calls: list[int] = []
+        monkeypatch.setattr(window, "_on_new_share", lambda: calls.append(1))
+
+        window._set_file_menu_enabled(False)
+        window._rebuild_shares_menu()
+        dropdown = next(
+            action
+            for action in window._shares_menu.actions()
+            if action.text() == tr("shares.menu.new")
+        )
+
+        assert dropdown.isEnabled() is window._act_file_new_share.isEnabled()
+        dropdown.trigger()
+        window._act_file_new_share.trigger()
+
+        assert calls == [1, 1]
+
+    def test_a_language_change_relabels_the_new_share_entry(self, window):
+        window._act_file_new_share.setText("stale")
+
+        window._apply_translations()
+
+        assert window._act_file_new_share.text() == tr("shares.menu.new")
+
 
 class TestFileMenuCopyPath:
     """The copy-path commands are in the File menu, with conventional keys."""

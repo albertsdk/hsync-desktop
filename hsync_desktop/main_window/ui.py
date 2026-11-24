@@ -14,7 +14,6 @@ from hsync_common.logger import format_log_line
 from PySide6.QtCore import QLocale, QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
-    QActionGroup,
     QKeySequence,
     QTextCursor,
 )
@@ -37,7 +36,6 @@ from PySide6.QtWidgets import (
 from hsync_desktop.busy import BusyText
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
-    DEFAULT_SYNC_DIRECTION,
 )
 from hsync_desktop.docs_links import TROUBLESHOOTING, WATCHER_LIMITS, open_docs_link
 from hsync_desktop.file_panel import FilePanel
@@ -510,12 +508,9 @@ class UiBuildMixin:
             # like the labels above. The preview wording is state-dependent and
             # owned by ``_update_preview_changes_tooltip``.
             self._act_start.setToolTip(tr("tip.start"))
-            self._menu_direction.setTitle(tr("menu.sync.direction"))
-            self._act_dir_bidi.setText(tr("menu.sync.direction.bidirectional"))
-            self._act_dir_upload.setText(tr("menu.sync.direction.upload_only"))
-            self._act_dir_download.setText(tr("menu.sync.direction.download_only"))
             self._act_quit.setText(tr("menu.sync.quit"))
             self._menu_file.setTitle(tr("menu.file"))
+            self._act_file_new_share.setText(tr("shares.menu.new"))
             self._act_file_open.setText(tr("menu.file.open"))
             self._act_file_open_containing.setText(tr("menu.file.open_containing"))
             self._act_file_open_with.setText(tr("menu.file.open_with"))
@@ -738,13 +733,6 @@ class UiBuildMixin:
         self._act_preview_changes.triggered.connect(self._on_preview_changes)
         self._menu_sync.addAction(self._act_preview_changes)
 
-        # The trash is the recovery surface for the deletions this device
-        # applied (ADR-0056), so it sits with the run controls, after Compare.
-        self._act_trash = QAction(tr("menu.sync.trash"), self)
-        self._act_trash.setToolTip(tr("trash.hint"))
-        self._act_trash.triggered.connect(self._show_trash_dialog)
-        self._menu_sync.addAction(self._act_trash)
-
         # A scoped one-shot run acts on the selection, so it sits with the run
         # controls instead of among the per-file actions in File.
         self._menu_sync.addSeparator()
@@ -759,43 +747,23 @@ class UiBuildMixin:
 
         self._menu_sync.addSeparator()
 
-        # ── Sync direction submenu ──────────────────────────────────
-        self._menu_direction = self._menu_sync.addMenu(tr("menu.sync.direction"))
-        self._direction_group = QActionGroup(self)
-        self._direction_group.setExclusive(True)
-
-        self._act_dir_bidi = QAction(tr("menu.sync.direction.bidirectional"), self)
-        self._act_dir_bidi.setCheckable(True)
-        self._act_dir_bidi.setData("bidirectional")
-        self._direction_group.addAction(self._act_dir_bidi)
-        self._menu_direction.addAction(self._act_dir_bidi)
-
-        self._act_dir_upload = QAction(tr("menu.sync.direction.upload_only"), self)
-        self._act_dir_upload.setCheckable(True)
-        self._act_dir_upload.setData("upload-only")
-        self._direction_group.addAction(self._act_dir_upload)
-        self._menu_direction.addAction(self._act_dir_upload)
-
-        self._act_dir_download = QAction(tr("menu.sync.direction.download_only"), self)
-        self._act_dir_download.setCheckable(True)
-        self._act_dir_download.setData("download-only")
-        self._direction_group.addAction(self._act_dir_download)
-        self._menu_direction.addAction(self._act_dir_download)
-
-        # Load saved direction and check the right action
-        saved_dir = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
-            "sync/direction", DEFAULT_SYNC_DIRECTION, str
-        )
-        for act in self._direction_group.actions():
-            if act.data() == saved_dir:
-                act.setChecked(True)
-                break
-        else:
-            self._act_dir_bidi.setChecked(True)
-
-        self._direction_group.triggered.connect(self._on_direction_changed)
+        # The trash is the recovery surface for the deletions this device
+        # applied (ADR-0056): a recovery entry, not a run control, so it closes
+        # the menu after the commands that start work.
+        self._act_trash = QAction(tr("menu.sync.trash"), self)
+        self._act_trash.setToolTip(tr("trash.hint"))
+        self._act_trash.triggered.connect(self._show_trash_dialog)
+        self._menu_sync.addAction(self._act_trash)
 
         # ── File actions ─────────────────────────────────────────────
+        # Creating a share opens a new configuration profile, so it leads the
+        # File menu (create before open) instead of joining the run controls.
+        self._act_file_new_share = QAction(tr("shares.menu.new"), self)
+        self._act_file_new_share.triggered.connect(self._on_new_share)
+        self._menu_file.addAction(self._act_file_new_share)
+
+        self._menu_file.addSeparator()
+
         self._act_file_open = QAction(tr("menu.file.open"), self)
         # Ctrl+O is the platform-standard "open" (Qt renders it as Cmd+O on
         # macOS, where Control maps to Meta); Return stays as the list

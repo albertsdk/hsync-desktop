@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""ActionsMixin: action bar, sync controls, preview and direction menu."""
+"""ActionsMixin: action bar, sync controls and preview."""
 
 from __future__ import annotations
 
@@ -10,9 +10,6 @@ import os
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSettings, QTime, Slot
-from PySide6.QtGui import (
-    QAction,
-)
 from PySide6.QtWidgets import (
     QCheckBox,
     QMessageBox,
@@ -71,20 +68,6 @@ class ActionsMixin:
     _link_down: bool
     _last_check_at: QTime | None
     _peers_total: int
-
-    @Slot(QAction)
-    def _on_direction_changed(self, action: QAction) -> None:
-        """Handle sync direction change from the menu."""
-        direction = action.data()
-        if not direction:
-            return
-        # Persist to QSettings
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("sync/direction", direction)
-        # If the engine is running, send the command dynamically
-        if self._engine.is_running:
-            self._engine.set_sync_direction(direction)
-        # Refresh path display to update sync direction icon
-        self._update_path_display()
 
     @Slot(object)
     def _on_file_selection_changed(self, _selection=None) -> None:

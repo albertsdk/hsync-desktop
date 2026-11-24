@@ -259,7 +259,7 @@ class TestContext:
 
         context = dialog._lbl_context.text()
         assert tr("preview_summary.context_scope").format(path="photos/2024") in context
-        assert tr("menu.sync.direction.upload_only") in context
+        assert tr("settings.sync_direction.upload_only") in context
 
     def test_a_bidirectional_run_states_no_direction(self, qtbot):
         dialog = PreviewSummaryDialog(_stats(to_upload=1))

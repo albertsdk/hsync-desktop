@@ -499,9 +499,8 @@ class TestTerminologyConsistency:
         """
         for module in self.ALL:
             name = module.__name__.rsplit(".", 1)[-1]
-            for key in ("settings.sync_direction", "menu.sync.direction"):
-                value = module.translations[key].lower()
-                assert self._DIRECTION_WORD[name] in value, f"{module.__name__}:{key}"
+            value = module.translations["settings.sync_direction"].lower()
+            assert self._DIRECTION_WORD[name] in value, f"{module.__name__}:settings.sync_direction"
 
     def test_endpoint_warnings_avoid_raw_host_grammar(self):
         """Invalid-endpoint prompts give an example, not host/port/IPv6 grammar."""

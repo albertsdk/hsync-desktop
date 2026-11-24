@@ -17,7 +17,7 @@ window's attributes.
 | ------ | -------- | ---- |
 | `MainWindow` | `hsync_desktop/main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
 | `_load_ui` | `hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/direction/file ops/help) |
+| `_create_menu_bar` | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/scoped runs/trash/file ops/help) |
 | `_connect_signals` | `hsync_desktop/main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `hsync_desktop/main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `hsync_desktop/main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in Direct mode, **Connected users** in Server mode |
@@ -100,8 +100,22 @@ The bar reads **File · Sync · Settings · Help** (File is created first in
 File, never a run menu; **Send now / Receive now** (selection-scoped one-shot
 runs) live in Sync with Start/Compare/Stop, not in File; **Setup wizard** is a
 Help entry (onboarding is re-runnable, like a Welcome page) instead of a
-top-level command. `tests/test_main_window.py::TestMenuConventions` locks all
-three placements.
+top-level command.
+
+Inside Sync the order follows the kind of command: the run controls, then the
+selection-scoped runs, then **Trash…**, the recovery surface, which closes the
+menu instead of sitting among the commands that start work. The sync direction
+has **no menu entry**: it is configured only in Settings → Sync
+(`hsync_desktop/settings/tab_builders.py::build_sync_tab`, applied by
+`hsync_desktop/main_window/start.py::StartMixin._apply_settings_changes` through
+`ShareStore.snapshot_active`), and its `settings.sync_direction.*` labels are the
+only direction wording: the direction icon tooltip, the share header tooltip and
+the preview context line read them too.
+**New share…** is the first File entry: a share is a persisted configuration
+profile, not a run, and the entry calls
+`hsync_desktop/main_window/shares.py::SharesMixin._on_new_share` — the same slot
+as the share dropdown, so the two cannot drift. Help keeps About last.
+`tests/test_main_window.py::TestMenuConventions` locks all of it.
 
 ### System tray menu
 
@@ -401,8 +415,8 @@ and the destructive part in the open:
   transfer volume, from `PreviewStats.action_count` / `transfer_size`.
 * **Context line** (`lblContext`, hidden when empty): the scoped path for a
   Send/Receive (`context_scope`), the direction when it is not bidirectional
-  (`hsync_desktop/settings/cli_args.py::get_sync_direction` + the existing
-  `menu.sync.direction.*` labels), the Simulation notice, and
+  (`hsync_desktop/settings/cli_args.py::get_sync_direction` + the
+  `settings.sync_direction.*` labels), the Simulation notice, and
   `skipped_deletions` when the policy dropped planned deletions.
 * **Warning line** (`lblWarning`, hidden when empty, red with a ``glyph`` for a
   non-colour cue): `warning_guard` when the client reported a plan the
