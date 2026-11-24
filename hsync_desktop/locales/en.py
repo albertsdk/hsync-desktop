@@ -424,7 +424,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Password shared by all devices in the group (at least 12 characters); it must be identical on every device. It is also used as the group key for a protected search server.",
     "tip.p2p_port": "Port used in Direct mode (0 = automatic).",
     "tip.rendezvous_timeout": "How long to search for other devices nearby.",
-    "tip.ntp_hosts": "Time servers used to align clocks between devices (empty = built-in defaults; entries may include a port, e.g. host:port).",
+    "tip.ntp_hosts": "Time servers used to align clocks between devices. Leave empty for no public time servers — the master/rendezvous is the reference; on a slave the trusted master has precedence. Entries may include a port, e.g. host:port.",
     "tip.prefer_master": "Prefer this device as primary in direct mode (a primary that is already serving keeps the role)",
     "tip.never_master": "Never make this device primary; it always stays secondary",
     "tip.p2p_trust": "How this device trusts a primary it has never seen: ask for confirmation the first time (recommended), accept it automatically, or require an explicit confirmation before connecting.",

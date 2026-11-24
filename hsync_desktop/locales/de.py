@@ -494,7 +494,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Passwort, das alle Geräte der Gruppe teilen; es muss auf jedem Gerät identisch sein. Es dient auch als Gruppenschlüssel für einen geschützten Suchserver.",
     "tip.p2p_port": "Im Direktmodus verwendeter Port (0 = automatisch).",
     "tip.rendezvous_timeout": "Wie lange nach anderen Geräten in der Nähe gesucht wird.",
-    "tip.ntp_hosts": "Zeitserver zum Abgleich der Uhren zwischen Geräten (leer = integrierte Standardwerte; Einträge können einen Port enthalten, z. B. host:port).",
+    "tip.ntp_hosts": "Zeitserver zum Abgleich der Uhren zwischen Geräten. Leer = keine öffentlichen Zeitserver — Referenz sind Master/Rendezvous; auf einem Slave hat der vertrauenswürdige Master Vorrang. Einträge können einen Port enthalten, z. B. host:port.",
     "tip.prefer_master": "Dieses Gerät im Direktmodus bevorzugt als primär verwenden (ein bereits aktiver Primär behält die Rolle)",
     "tip.never_master": "Dieses Gerät nie primär werden lassen; es bleibt immer sekundär",
     "tip.p2p_trust": "Wie dieses Gerät einem noch nie gesehenen Primärgerät vertraut: beim ersten Mal eine Bestätigung anfordern (empfohlen), es automatisch akzeptieren oder vor dem Verbinden eine ausdrückliche Bestätigung verlangen.",

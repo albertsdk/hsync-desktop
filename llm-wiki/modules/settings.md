@@ -431,8 +431,7 @@ after the rendezvous-timeout row) + `_lbl_ntp_hosts`; save/load under the
 `settings.ntp_hosts` and the tooltip from `tip.ntp_hosts` (all locales). It is
 an env-driven setting (no client CLI flag), so `settings/cli_args.py` deliberately does
 NOT handle it: the engine injects it as ``HSYNC_NTP_HOSTS`` via
-`apply_settings_env` (`hsync_desktop/engine/process.py::apply_settings_env`, called from `hsync_desktop/engine/process.py::HsyncEngine.start`). Empty = the
-client's built-in defaults.
+`apply_settings_env` (`hsync_desktop/engine/process.py::apply_settings_env`, called from `hsync_desktop/engine/process.py::HsyncEngine.start`). Empty = **no public time servers**: the server/master is the reference (a slave prefers the trusted master); the field is an opt-in deployment override.
 
 **Rendezvous node** (user-facing label **Search server**, translated in every
 locale — `Server di individuazione`, `Erkennungsserver`, `Serveur de

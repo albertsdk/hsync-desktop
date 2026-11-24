@@ -424,7 +424,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Hasło współdzielone przez wszystkie urządzenia w grupie; musi być identyczne na każdym urządzeniu. Jest również używane jako klucz grupy dla chronionego serwera wyszukiwania.",
     "tip.p2p_port": "Port używany w trybie bezpośrednim (0 = automatycznie).",
     "tip.rendezvous_timeout": "Jak długo szukać innych urządzeń w pobliżu.",
-    "tip.ntp_hosts": "Serwery czasu używane do synchronizacji zegarów między urządzeniami (puste = wbudowane wartości domyślne; wpisy mogą zawierać port, np. host:port).",
+    "tip.ntp_hosts": "Serwery czasu używane do synchronizacji zegarów między urządzeniami. Puste = brak publicznych serwerów czasu — punktem odniesienia jest master/rendezvous; na węźle podrzędnym pierwszeństwo ma zaufany master. Wpisy mogą zawierać port, np. host:port.",
     "tip.prefer_master": "Preferuj to urządzenie jako główne w trybie bezpośrednim (aktywne już urządzenie główne zachowuje rolę)",
     "tip.never_master": "Nigdy nie ustawiaj tego urządzenia jako głównego; zawsze pozostaje podrzędne",
     "tip.p2p_trust": "Jak to urządzenie ufa urządzeniu głównemu, którego nigdy nie widziało: poproś o potwierdzenie przy pierwszym kontakcie (zalecane), akceptuj je automatycznie lub wymagaj wyraźnego potwierdzenia przed połączeniem.",

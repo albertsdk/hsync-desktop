@@ -494,7 +494,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Mot de passe partagé par tous les appareils du groupe ; il doit être identique sur chaque appareil. Il sert aussi de clé de groupe pour un serveur de recherche protégé.",
     "tip.p2p_port": "Port utilisé en mode direct (0 = automatique).",
     "tip.rendezvous_timeout": "Durée de recherche d'autres appareils à proximité.",
-    "tip.ntp_hosts": "Serveurs de temps utilisés pour aligner les horloges entre appareils (vide = valeurs par défaut ; les entrées peuvent inclure un port, ex. hôte:port).",
+    "tip.ntp_hosts": "Serveurs de temps utilisés pour aligner les horloges entre appareils. Vide = aucun serveur public : la référence est le master/rendezvous ; sur un esclave, le master de confiance a priorité. Les entrées peuvent inclure un port, ex. hôte:port.",
     "tip.prefer_master": "Préférer cet appareil comme primaire en mode direct (un primaire déjà actif garde le rôle)",
     "tip.never_master": "Ne jamais rendre cet appareil principal ; il reste toujours secondaire",
     "tip.p2p_trust": "Comment cet appareil fait confiance à un principal qu'il n'a jamais vu : demander confirmation la première fois (recommandé), l'accepter automatiquement ou exiger une confirmation explicite avant de se connecter.",

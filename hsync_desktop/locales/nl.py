@@ -424,7 +424,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Wachtwoord dat door alle apparaten in de groep wordt gedeeld; het moet op elk apparaat identiek zijn. Het wordt ook gebruikt als groupsleutel voor een beveiligde zoekserver.",
     "tip.p2p_port": "Poort gebruikt in directe modus (0 = automatisch).",
     "tip.rendezvous_timeout": "Hoe lang wordt gezocht naar andere apparaten in de buurt.",
-    "tip.ntp_hosts": "Tijdservers die worden gebruikt om klokken tussen apparaten uit te lijnen (leeg = ingebouwde standaardwaarden; vermeldingen kunnen een poort bevatten, bijv. host:poort).",
+    "tip.ntp_hosts": "Tijdservers die worden gebruikt om klokken tussen apparaten uit te lijnen. Leeg = geen openbare tijdservers — de master/rendezvous is de referentie; op een slave heeft de vertrouwde master voorrang. Vermeldingen kunnen een poort bevatten, bijv. host:poort.",
     "tip.prefer_master": "Geef dit apparaat voorrang als primair in directe modus (een al actieve primaire behoudt de rol)",
     "tip.never_master": "Dit apparaat nooit primair maken; het blijft altijd secundair",
     "tip.p2p_trust": "Hoe dit apparaat een primair apparaat vertrouwt dat het nog nooit heeft gezien: vraag de eerste keer om bevestiging (aanbevolen), accepteer het automatisch of vereis een expliciete bevestiging voordat er verbinding wordt gemaakt.",
