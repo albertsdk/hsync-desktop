@@ -11,7 +11,7 @@ groups appear: **Appearance**, **Notifications** and **Window & Startup**.
 
 ## Appearance
 
-<img src="assets/screens/08a-general-appearance.png" alt="Settings, General tab: Appearance" width="632">
+<img src="assets/screens/08a-general-appearance.png" alt="Settings, General tab: Appearance" width="632" style="background: #f0f0f0;">
 
 - **Language** — the interface language. `System default` (the default) follows
   the system locale; picking a language pins it, whatever the system says.
@@ -26,7 +26,7 @@ launch.
 
 ## Notifications
 
-<img src="assets/screens/08b-general-notifications.png" alt="Settings, General tab: Notifications" width="632">
+<img src="assets/screens/08b-general-notifications.png" alt="Settings, General tab: Notifications" width="632" style="background: #f0f0f0;">
 
 - **Enable system notifications** — show desktop notifications for sync events.
   Errors and warnings always appear in the application window; this switch only
@@ -41,7 +41,7 @@ What each event looks like in the window is described in
 
 ## Window & Startup
 
-<img src="assets/screens/08c-general-window-startup.png" alt="Settings, General tab: Window & Startup" width="632">
+<img src="assets/screens/08c-general-window-startup.png" alt="Settings, General tab: Window & Startup" width="632" style="background: #f0f0f0;">
 
 - **Show tooltips** — show or hide the tooltips on the settings options. Turning
   them off does not change any value; it only hides the explanations.

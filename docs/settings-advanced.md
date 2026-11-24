@@ -14,7 +14,7 @@ appear: **Performance**, **Changed parts only**, **Deletion protection**,
 
 ## Performance
 
-<img src="assets/screens/09a-advanced-performance.png" alt="Settings, Advanced tab: Performance" width="632">
+<img src="assets/screens/09a-advanced-performance.png" alt="Settings, Advanced tab: Performance" width="632" style="background: #f0f0f0;">
 
 - **Auto-tune performance** — let the engine tune transfer concurrency, timeouts
   and retries to the environment. It is the right choice unless you are
@@ -26,7 +26,7 @@ appear: **Performance**, **Changed parts only**, **Deletion protection**,
 
 ## Changed parts only
 
-<img src="assets/screens/09b-advanced-changed-parts.png" alt="Settings, Advanced tab: Changed parts only" width="632">
+<img src="assets/screens/09b-advanced-changed-parts.png" alt="Settings, Advanced tab: Changed parts only" width="632" style="background: #f0f0f0;">
 
 - **Send only the parts that changed** — transfer only the changed blocks of
   large files (rsync-style) instead of the whole file. It is on by default and
@@ -42,7 +42,7 @@ comparison cost more than the transfer it saves.
 
 ## Deletion protection
 
-<img src="assets/screens/09c-advanced-deletion-protection.png" alt="Settings, Advanced tab: Deletion protection" width="632">
+<img src="assets/screens/09c-advanced-deletion-protection.png" alt="Settings, Advanced tab: Deletion protection" width="632" style="background: #f0f0f0;">
 
 When a cycle would delete more local files than the thresholds below, those
 deletions are skipped and the main window shows a warning, so a stray delete on
@@ -64,7 +64,7 @@ Set both rules to `0` to disable the guard entirely.
 
 ## Network
 
-<img src="assets/screens/09d-advanced-network.png" alt="Settings, Advanced tab: Network" width="632">
+<img src="assets/screens/09d-advanced-network.png" alt="Settings, Advanced tab: Network" width="632"  style="background: #f0f0f0;">
 
 - **Upload limit** and **Download limit** — bandwidth caps, enforced from the
   first byte and shared by every transfer of that direction. `0` (**Unlimited**)
@@ -75,7 +75,7 @@ Set both rules to `0` to disable the guard entirely.
 
 ## Logging
 
-<img src="assets/screens/09e-advanced-logging.png" alt="Settings, Advanced tab: Logging" width="632">
+<img src="assets/screens/09e-advanced-logging.png" alt="Settings, Advanced tab: Logging" width="632"  style="background: #f0f0f0;">
 
 - **Detailed log output** — verbose (debug-level) logging. If the log panel is
   hidden and no log file is set, enabling it offers to show the panel, so the
