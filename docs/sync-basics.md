@@ -47,10 +47,11 @@ The first time you start a sync, the app shows a liability disclaimer: choose
 **Don't show this message again** to stop asking; the app prompts again only when
 the disclaimer text changes.
 
-With **Sync without asking** (Settings → Sync) enabled, a plan that transfers or
-renames files but deletes nothing is applied without the confirmation dialog. A
-plan with any deletion still asks, and **Compare** always shows the plan:
-that entry point exists to review it.
+With **Apply changes that delete nothing** (Settings → Sync, on by default) a plan
+that transfers or renames files but deletes nothing is applied without the
+confirmation dialog. The first plan of the installation is always shown, a plan
+with any deletion still asks, and **Compare** always shows the plan: that entry
+point exists to review it.
 
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
 the summary and transfers or deletes nothing. While it is on, the main window

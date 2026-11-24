@@ -72,6 +72,9 @@ class TestSyncDefaults:
     def test_default_auto_sync(self):
         assert config.DEFAULT_AUTO_SYNC is False
 
+    def test_default_auto_apply(self):
+        assert config.DEFAULT_AUTO_APPLY is True
+
 
 class TestP2PDefaults:
     """Test p2p mode default values."""

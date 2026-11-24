@@ -236,10 +236,10 @@
        <item row="12" column="1">
         <widget class="QCheckBox" name="autoApply">
          <property name="text">
-          <string>Sync without asking</string>
+          <string>Apply changes that delete nothing</string>
          </property>
          <property name="checked">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>

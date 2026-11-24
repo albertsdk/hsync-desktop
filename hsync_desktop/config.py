@@ -64,8 +64,11 @@ DEFAULT_NO_COMPRESSION = False  # Default for migrating the legacy sync/no_compr
 DEFAULT_COMPRESSION_ENABLED = True
 DEFAULT_DRY_RUN = False
 DEFAULT_AUTO_SYNC = False
-# Apply the plan without the confirmation dialog when it deletes nothing.
-DEFAULT_AUTO_APPLY = False
+# Apply the plan without the confirmation dialog when it deletes nothing. The
+# first plan of an installation is always shown (``ui/plan_confirmation_seen``),
+# so the default never hides what the dialog reports, and a plan that deletes
+# always asks.
+DEFAULT_AUTO_APPLY = True
 # The release update check is opt-in: an installation that never asked about
 # updates makes no request outside the servers the operator configured
 # (ADR-0048).

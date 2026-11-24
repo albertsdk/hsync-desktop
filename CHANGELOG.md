@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows: the log panel uses a slightly larger font (one point below the system
   monospace, 9 pt floor) instead of the uniform two-point reduction, which read
   too small there.
+- A plan that deletes nothing is applied without the confirmation dialog by
+  default; the first plan of an installation is always shown, and any plan with
+  a deletion still asks. The setting is renamed from *Sync without asking* to
+  *Apply changes that delete nothing*, the scope it always had.
 
 ### Fixed
 

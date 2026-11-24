@@ -3546,17 +3546,27 @@ class TestAutomaticPlan:
 
 
 class TestAutoApplySetting:
-    """*Sync without asking* skips the dialog only for a plan that deletes nothing."""
+    """*Apply changes that delete nothing* skips the dialog only for a plan that
+    deletes nothing, and only once a confirmation has been shown."""
 
     @staticmethod
     def _stub(
-        window, monkeypatch, *, enabled: bool, to_delete: int, intent: str = "start"
-    ) -> tuple[list, list]:
+        window,
+        monkeypatch,
+        *,
+        enabled: bool,
+        to_delete: int,
+        intent: str = "start",
+        seen: bool = True,
+    ) -> tuple[list, list, list]:
         import hsync_desktop.main_window.actions as actions_module
         from hsync_desktop.preview_summary_dialog import PreviewSummaryDialog
 
         monkeypatch.setattr(actions_module, "is_simulation_mode", lambda: False)
         monkeypatch.setattr(actions_module, "is_auto_apply_enabled", lambda: enabled)
+        monkeypatch.setattr(actions_module, "has_seen_plan_confirmation", lambda: seen)
+        marked: list[int] = []
+        monkeypatch.setattr(actions_module, "mark_plan_confirmation_seen", lambda: marked.append(1))
         opened: list = []
         monkeypatch.setattr(PreviewSummaryDialog, "exec", lambda self: opened.append(self) or 0)
         sent: list[str] = []
@@ -3568,10 +3578,10 @@ class TestAutoApplySetting:
         window._preview_intent = intent
         # An interactive Start, not an unattended run.
         window._dry_run_unattended = False
-        return opened, sent
+        return opened, sent, marked
 
     def test_a_non_destructive_plan_is_applied_without_the_dialog(self, window, monkeypatch):
-        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=0)
+        opened, sent, _marked = self._stub(window, monkeypatch, enabled=True, to_delete=0)
 
         window._show_preview_summary()
 
@@ -3579,7 +3589,7 @@ class TestAutoApplySetting:
         assert sent == ["sync"]
 
     def test_a_deletable_plan_still_opens_the_dialog(self, window, monkeypatch):
-        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=1)
+        opened, sent, _marked = self._stub(window, monkeypatch, enabled=True, to_delete=1)
 
         window._show_preview_summary()
 
@@ -3587,7 +3597,9 @@ class TestAutoApplySetting:
         assert sent == []
 
     def test_an_explicit_preview_always_opens_the_dialog(self, window, monkeypatch):
-        opened, sent = self._stub(window, monkeypatch, enabled=True, to_delete=0, intent="preview")
+        opened, sent, _marked = self._stub(
+            window, monkeypatch, enabled=True, to_delete=0, intent="preview"
+        )
 
         window._show_preview_summary()
 
@@ -3595,12 +3607,25 @@ class TestAutoApplySetting:
         assert sent == []
 
     def test_the_setting_off_keeps_the_dialog(self, window, monkeypatch):
-        opened, sent = self._stub(window, monkeypatch, enabled=False, to_delete=0)
+        opened, sent, _marked = self._stub(window, monkeypatch, enabled=False, to_delete=0)
 
         window._show_preview_summary()
 
         assert len(opened) == 1
         assert sent == []
+
+    def test_the_first_plan_is_shown_before_any_automatic_apply(self, window, monkeypatch):
+        """The default-on setting never hides the confirmation it replaces."""
+        opened, sent, marked = self._stub(
+            window, monkeypatch, enabled=True, to_delete=0, seen=False
+        )
+
+        window._show_preview_summary()
+
+        assert len(opened) == 1
+        assert sent == []
+        # Showing it is what teaches: the next non-destructive plan may skip it.
+        assert marked == [1]
 
 
 class TestAuthRetryPlan:

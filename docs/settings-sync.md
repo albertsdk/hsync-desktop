@@ -48,9 +48,10 @@ appears only when **Show advanced options** is on).
   default and never enabled for you. A startup run that could delete local files,
   or whose plan contains deletions, stops and warns instead of running: press
   **Start** or **Compare** to review the plan.
-- **Sync without asking** — apply the plan without the confirmation dialog when
-  it only transfers or renames files. A plan that deletes anything still asks,
-  and **Compare** always shows the plan.
+- **Apply changes that delete nothing** — on by default. The plan is applied
+  without the confirmation dialog when it only transfers or renames files. A plan
+  that deletes anything still asks, and the first plan of the installation is
+  always shown; **Compare** always shows the plan too.
 
 ## Timing & Intervals
 

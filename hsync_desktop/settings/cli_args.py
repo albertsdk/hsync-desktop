@@ -26,6 +26,7 @@ from hsync_desktop.config import (
     BANDWIDTH_MAX_BPS,
     BANDWIDTH_MAX_MBPS,
     BANDWIDTH_MIN_BPS,
+    DEFAULT_AUTO_APPLY,
     DEFAULT_AUTOTUNE,
     DEFAULT_BUCKET,
     DEFAULT_DELETION_POLICY,
@@ -513,13 +514,32 @@ def is_auto_sync_enabled() -> bool:
 
 
 def is_auto_apply_enabled() -> bool:
-    """Return whether a plan is applied without confirmation (default: disabled).
+    """Return whether a plan is applied without confirmation (default: enabled).
 
-    Applies to the plan only: a plan that deletes anything still asks, so this
-    setting never removes the confirmation on a destructive run.
+    Applies to the plan only: a plan that deletes anything still asks, and so
+    does the first plan of the installation (see
+    ``has_seen_plan_confirmation``), so this setting never removes the
+    confirmation on a destructive run nor the one that introduces the dialog.
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
-    return bool(s.value("sync/auto_apply", False, bool))
+    return bool(s.value("sync/auto_apply", DEFAULT_AUTO_APPLY, bool))
+
+
+def has_seen_plan_confirmation() -> bool:
+    """Return whether a plan confirmation was already shown (default: not yet).
+
+    *Apply changes that delete nothing* skips the dialog only once this is true:
+    the first plan of the installation is always confirmed, so the default-on
+    setting cannot hide what the dialog reports.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    return bool(s.value("ui/plan_confirmation_seen", False, bool))
+
+
+def mark_plan_confirmation_seen() -> None:
+    """Record that the plan confirmation was shown (``has_seen_plan_confirmation``)."""
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    s.setValue("ui/plan_confirmation_seen", True)
 
 
 def is_simulation_mode() -> bool:
