@@ -17,7 +17,7 @@ appears only when **Show advanced options** is on).
 
 ## Share & Path
 
-<img src="assets/screens/05a-sync-share-path.png" alt="Settings, Sync tab: Share & Path" width="632">
+<img src="assets/screens/05a-sync-share-path.png" alt="Settings, Sync tab: Share & Path" width="632" style="background: #f0f0f0;">
 
 - **Share name** — the name of the folder as the other devices and the server
   see it. Devices that sync the same folder must use the **same share name**
@@ -30,7 +30,7 @@ appears only when **Show advanced options** is on).
 
 ## Sync Mode
 
-<img src="assets/screens/05b-sync-mode.png" alt="Settings, Sync tab: Sync Mode" width="632">
+<img src="assets/screens/05b-sync-mode.png" alt="Settings, Sync tab: Sync Mode" width="632" style="background: #f0f0f0;">
 
 - **Sync direction** — `Keep aligned (Send & Receive)`, `Send only (to other
   devices)` or `Receive only (from other devices)`. Pick `Keep aligned` when both
@@ -48,13 +48,14 @@ appears only when **Show advanced options** is on).
   default and never enabled for you. A startup run that could delete local files,
   or whose plan contains deletions, stops and warns instead of running: press
   **Start** or **Compare** to review the plan.
-- **Sync without asking** — apply the plan without the confirmation dialog when
-  it only transfers or renames files. A plan that deletes anything still asks,
-  and **Compare** always shows the plan.
+- **Apply changes that delete nothing** — on by default. The plan is applied
+  without the confirmation dialog when it only transfers or renames files. A plan
+  that deletes anything still asks, and the first plan of the installation is
+  always shown; **Compare** always shows the plan too.
 
 ## Timing & Intervals
 
-<img src="assets/screens/05c-sync-timing.png" alt="Settings, Sync tab: Timing & Intervals" width="632">
+<img src="assets/screens/05c-sync-timing.png" alt="Settings, Sync tab: Timing & Intervals" width="632" style="background: #f0f0f0;">
 
 The defaults suit a normal desktop; change these only when a specific problem
 tells you to.
@@ -74,7 +75,7 @@ tells you to.
 
 This group appears only when **Show advanced options** is on in **General**.
 
-<img src="assets/screens/05d-sync-advanced.png" alt="Settings, Sync tab: Advanced Options" width="632">
+<img src="assets/screens/05d-sync-advanced.png" alt="Settings, Sync tab: Advanced Options" width="632" style="background: #f0f0f0;">
 
 - **Min free disk space** — refuse transfers that would leave less free space
   than this. `Disabled` turns the check off.

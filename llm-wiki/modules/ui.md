@@ -492,11 +492,17 @@ An unattended run (`_dry_run_unattended`, set by `_start_preview_run` from
 `PreviewStats.to_delete == 0` — reported through `_report_result`, so the apply
 also reaches the OS while the window is in the tray — and otherwise stops and
 calls `_report_plan_needs_confirmation` (category `sync`: a user who muted
-connection problems still learns that nothing was applied). The *Sync without
-asking* setting (`hsync_desktop/settings/cli_args.py::is_auto_apply_enabled`, `sync/auto_apply`)
-extends the same rule to an interactive Start: a plan that deletes nothing is
-applied without the dialog, while a deletable plan and an explicit Preview always
-open it. The settings-level deletion gate
+connection problems still learns that nothing was applied). The *Apply changes
+that delete nothing* setting (`hsync_desktop/settings/cli_args.py::is_auto_apply_enabled`,
+`sync/auto_apply`, on by default) extends the same rule to an interactive Start: a
+plan that deletes nothing is applied without the dialog, while a deletable plan
+and an explicit Preview always open it. It also requires
+`hsync_desktop/settings/cli_args.py::has_seen_plan_confirmation`
+(`ui/plan_confirmation_seen`), which `_show_preview_summary` sets with
+`hsync_desktop/settings/cli_args.py::mark_plan_confirmation_seen` right before it
+opens the dialog: the first plan of an installation is always reviewed, so the
+default-on setting cannot hide what the dialog reports. The settings-level
+deletion gate
 (`_check_deletion_risk(interactive=False)`) already refused the
 destructive configurations, so this branch only covers deletions the plan itself
 introduces. `to_delete` already counts the deletions the mass-deletion guard will

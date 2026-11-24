@@ -99,7 +99,10 @@ and the returned mode so the two can never disagree.
   `WizardDraft.auto_sync` starts from `hsync_desktop/config.py::DEFAULT_AUTO_SYNC` and neither
   `SetupWizard._apply_mode_defaults` nor `SetupWizard._on_skip_defaults` turns it
   on: a startup run begins with no user action, so it stays an explicit choice
-  (see the *Startup run* note in [ui.md](ui.md)).
+  (see the *Startup run* note in [ui.md](ui.md)). `sync/auto_apply` is not part of
+  the draft either: a fresh install takes `hsync_desktop/config.py::DEFAULT_AUTO_APPLY`
+  (on), and the first plan the user confirms is what lets the next
+  non-destructive one apply without the dialog (see *Compare* in [ui.md](ui.md)).
 
 ## Layout
 

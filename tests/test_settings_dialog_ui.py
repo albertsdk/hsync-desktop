@@ -860,3 +860,18 @@ class TestTheHelpShortcut:
             dialog._act_help_tab.trigger()
 
         assert open_url.call_args.args[0].toString() == url
+
+
+class TestTheAutoApplyToggle:
+    """*Apply changes that delete nothing* is on by default and names its scope.
+
+    The caption dropped "without asking": the dialog still asks for any plan that
+    deletes something (and for the first plan of an installation), so the label
+    must not promise silence.
+    """
+
+    def test_it_is_on_by_default(self, dialog):
+        assert dialog.auto_apply.isChecked() is True
+
+    def test_the_caption_names_the_scope(self, dialog):
+        assert dialog._lbl_auto_apply.text() == tr("settings.auto_apply")

@@ -33,8 +33,10 @@ from hsync_desktop.settings import (
     get_bandwidth_limits,
     get_deletion_policy,
     get_sync_direction,
+    has_seen_plan_confirmation,
     is_auto_apply_enabled,
     is_simulation_mode,
+    mark_plan_confirmation_seen,
 )
 
 if TYPE_CHECKING:
@@ -656,9 +658,10 @@ class ActionsMixin:
         apply path; a ``preview`` run exists to show the plan, so it applies only
         on "Sync now" and ends on Close. A run nobody is watching never opens the
         dialog: it applies a plan that deletes nothing and otherwise stops and
-        asks for confirmation, so it can never block on a modal. *Sync without
-        asking* extends that rule to an interactive Start, for a plan that
-        deletes nothing.
+        asks for confirmation, so it can never block on a modal. *Apply changes
+        that delete nothing* extends that rule to an interactive Start, for a
+        plan that deletes nothing, once a confirmation has been shown: the first
+        plan of an installation is always reviewed.
         """
         # The wait is over: the plan arrived or the comparison ended.
         self._exit_preparing_plan_ui()
@@ -678,13 +681,15 @@ class ActionsMixin:
         # keeps the sync semantics of the run that started it.
         preview_intent = self._is_dry_run_preview and self._preview_intent == "preview"
         # A plan is applied without the dialog when nobody is watching it, or
-        # under *Sync without asking* when it deletes nothing. An explicit
-        # Preview never skips the dialog: showing the plan is its whole purpose.
+        # under *Apply changes that delete nothing* when it deletes nothing, once
+        # the user has seen a confirmation. An explicit Preview never skips the
+        # dialog: showing the plan is its whole purpose.
         quiet = (self._dry_run_unattended and self._is_dry_run_preview) or (
             self._is_dry_run_preview
             and not preview_intent
             and is_auto_apply_enabled()
             and not s.to_delete
+            and has_seen_plan_confirmation()
         )
 
         if not s.has_work():
@@ -750,6 +755,9 @@ class ActionsMixin:
             scope=scope,
             intent="preview" if preview_intent else "start",
         )
+        # The plan is on screen: *Apply changes that delete nothing* may skip the
+        # next one. Any confirmation teaches, Preview included.
+        mark_plan_confirmation_seen()
         if dlg.exec() == PreviewSummaryDialog.DialogCode.Accepted:
             if selection:
                 # Scoped Send/Receive: start the confirmed one-shot for real.

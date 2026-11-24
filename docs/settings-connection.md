@@ -23,7 +23,7 @@ then the Direct mode groups — **Group**, **Finding devices**, **Role & securit
 
 ## Connection mode
 
-<img src="assets/screens/06a-connection-mode.png" alt="Settings, Connection tab: the two connection modes" width="632">
+<img src="assets/screens/06a-connection-mode.png" alt="Settings, Connection tab: the two connection modes" width="632" style="background: #f0f0f0;">
 
 Two exclusive options, each with a sentence under it:
 
@@ -39,7 +39,7 @@ shows its own groups in place of these, and nothing is lost.
 
 ### Direct mode · Group
 
-<img src="assets/screens/06b-connection-group.png" alt="Settings, Connection tab: the Group section of Direct mode" width="632">
+<img src="assets/screens/06b-connection-group.png" alt="Settings, Connection tab: the Group section of Direct mode" width="632" style="background: #f0f0f0;">
 
 A *group* is a partition of the devices in Direct mode: your devices sync only
 with devices that use the **same group name**, and the shared password is what
@@ -66,7 +66,7 @@ one.
 
 ### Direct mode · Finding devices
 
-<img src="assets/screens/06c-connection-finding-devices.png" alt="Settings, Connection tab: the Finding devices section" width="632">
+<img src="assets/screens/06c-connection-finding-devices.png" alt="Settings, Connection tab: the Finding devices section" width="632" style="background: #f0f0f0;">
 
 This is where devices on **different networks** are told how to find each other.
 Nothing here carries or stores your files.
@@ -105,7 +105,7 @@ Nothing here carries or stores your files.
 
 ### Direct mode · Role & security
 
-<img src="assets/screens/06d-connection-role-security.png" alt="Settings, Connection tab: the Role & security section" width="632">
+<img src="assets/screens/06d-connection-role-security.png" alt="Settings, Connection tab: the Role & security section" width="632" style="background: #f0f0f0;">
 
 In a group, one device is the **primary** (it serves the files) and the others are
 **secondary**. See [Key concepts](concepts.md#primary-and-secondary-role-direct-mode).
@@ -128,7 +128,7 @@ In a group, one device is the **primary** (it serves the files) and the others a
 These groups appear only when **Show advanced options** is on in **General**.
 Leave the defaults unless you know what you are changing.
 
-<img src="assets/screens/06e-connection-direct-advanced.png" alt="Settings, Connection tab: the Direct mode advanced options" width="632">
+<img src="assets/screens/06e-connection-direct-advanced.png" alt="Settings, Connection tab: the Direct mode advanced options" width="632" style="background: #f0f0f0;">
 
 - **Port** — the fixed listening port in Direct mode (`0` = automatic).
 - **Device search timeout** — how long to wait for device discovery.
@@ -148,7 +148,7 @@ Leave the defaults unless you know what you are changing.
 
 ### Server mode · Server
 
-<img src="assets/screens/07a-connection-server.png" alt="Settings, Connection tab: the Server section" width="632">
+<img src="assets/screens/07a-connection-server.png" alt="Settings, Connection tab: the Server section" width="632" style="background: #f0f0f0;">
 
 - **Server address** — hostname, IP or `host:port` of the HSYNC server, e.g.
   `my-nas` or `my-nas:9753`: `https://` and port 9753 are implied. Leave it empty
@@ -184,7 +184,7 @@ a rejected key or an unreachable host cannot block the rest of the settings.
 
 ### Server mode · Certificates
 
-<img src="assets/screens/07b-connection-certificates.png" alt="Settings, Connection tab: the Certificates section" width="632">
+<img src="assets/screens/07b-connection-certificates.png" alt="Settings, Connection tab: the Certificates section" width="632" style="background: #f0f0f0;">
 
 A fresh server answers with a **self-signed certificate** unless you installed a
 real one. Two options cover that:
@@ -200,7 +200,7 @@ real one. Two options cover that:
 
 Appears only when **Show advanced options** is on in **General**.
 
-<img src="assets/screens/07c-connection-server-advanced.png" alt="Settings, Connection tab: the Server mode advanced options" width="632">
+<img src="assets/screens/07c-connection-server-advanced.png" alt="Settings, Connection tab: the Server mode advanced options" width="632" style="background: #f0f0f0;">
 
 - **Request timeout** — how long to wait for one HTTP request to the server, in
   seconds. Raise it on a slow or high-latency link.
