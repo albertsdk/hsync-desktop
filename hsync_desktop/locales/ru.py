@@ -944,4 +944,6 @@ translations: dict[str, str] = {
     "trash.empty_done": "Корзина очищена.",
     "trash.list_failed": "Не удалось прочитать корзину.",
     "preview_summary.warning_delete_recoverable": "Удаления попадают в корзину этого устройства: запланировано {count}, восстановление доступно {days} дн.",
+    "settings.trash_retention": "Хранить удалённые файлы (дней)",
+    "tip.trash_retention": "Сколько дней удалённый файл можно восстановить из корзины. 0 = без восстановления.",
 }

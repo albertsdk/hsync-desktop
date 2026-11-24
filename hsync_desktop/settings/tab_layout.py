@@ -357,6 +357,7 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     add_row(f2, dlg._lbl_continuous, dlg.continuous)
     add_row(f2, dlg._lbl_auto_sync, dlg.auto_sync)
     add_row(f2, dlg._lbl_auto_apply, dlg.auto_apply)
+    add_row(f2, dlg._lbl_trash_retention, dlg.trash_retention)
     vbox.addWidget(dlg._grp_sync)
 
     # Group 3: Timing & Intervals

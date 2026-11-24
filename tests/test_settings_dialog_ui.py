@@ -875,3 +875,18 @@ class TestTheAutoApplyToggle:
 
     def test_the_caption_names_the_scope(self, dialog):
         assert dialog._lbl_auto_apply.text() == tr("settings.auto_apply")
+
+
+class TestTheTrashRetentionRow:
+    """The restore window is a Settings spin bounded by the shared maximum."""
+
+    def test_it_is_bounded_and_translated(self, dialog):
+        from hsync_desktop.config import TRASH_RETENTION_DAYS_MAX
+
+        assert dialog.trash_retention.maximum() == TRASH_RETENTION_DAYS_MAX
+        assert dialog._lbl_trash_retention.text() == tr("settings.trash_retention")
+
+    def test_zero_reads_as_disabled(self, dialog):
+        dialog.trash_retention.setValue(0)
+
+        assert dialog.trash_retention.text() == tr("settings.disabled")

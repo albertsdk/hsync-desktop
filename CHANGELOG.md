@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The confirmation of a plan with deletions states how long they stay restorable
   (`HSYNC_TRASH_RETENTION_DAYS`, 30 days by default) instead of "cannot be
   undone"; with the trash off the old warning is kept.
+- **Keep deleted files for (days)** in *Settings → Sync* stores the restore
+  window (`sync/trash_retention`) and passes it to the engine as
+  `--trash-retention`; it is emitted only once stored, so an installation that
+  never saved the tab keeps honouring `HSYNC_TRASH_RETENTION_DAYS`.
 - The advanced tab groups them with the existing peer options as three independent
   switches.
 - The three identity checks default to **Automatic** (a saved pin, then a CA

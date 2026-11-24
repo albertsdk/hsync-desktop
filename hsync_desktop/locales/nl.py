@@ -944,4 +944,6 @@ translations: dict[str, str] = {
     "trash.empty_done": "Prullenbak geleegd.",
     "trash.list_failed": "De prullenbak kon niet worden gelezen.",
     "preview_summary.warning_delete_recoverable": "Verwijderingen gaan naar de prullenbak van dit apparaat: {count} gepland, {days} dagen herstelbaar.",
+    "settings.trash_retention": "Verwijderde bestanden bewaren (dagen)",
+    "tip.trash_retention": "Hoe lang een toegepaste verwijdering herstelbaar blijft uit de prullenbak. 0 = geen herstelbelofte.",
 }

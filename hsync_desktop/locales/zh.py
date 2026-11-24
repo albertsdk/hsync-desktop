@@ -944,4 +944,6 @@ translations: dict[str, str] = {
     "trash.empty_done": "回收站已清空。",
     "trash.list_failed": "无法读取回收站。",
     "preview_summary.warning_delete_recoverable": "删除内容会进入此设备的回收站：计划 {count} 项，可在 {days} 天内恢复。",
+    "settings.trash_retention": "保留已删除的文件（天）",
+    "tip.trash_retention": "已应用的删除可从回收站恢复的时长。0 = 不提供恢复。",
 }

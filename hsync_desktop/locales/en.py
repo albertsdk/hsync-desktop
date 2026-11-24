@@ -945,4 +945,6 @@ translations: dict[str, str] = {
     "trash.empty_done": "Trash emptied.",
     "trash.list_failed": "The trash could not be read.",
     "preview_summary.warning_delete_recoverable": "Deletions go to this device's trash — {count} planned, restorable for {days} days.",
+    "settings.trash_retention": "Keep deleted files for (days)",
+    "tip.trash_retention": "How long an applied deletion stays restorable from the trash. 0 = no restore promise.",
 }

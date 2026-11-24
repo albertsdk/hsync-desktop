@@ -72,6 +72,8 @@ DEFAULT_AUTO_APPLY = True
 # Days a deletion stays restorable in the device-local trash (ADR-0056): the
 # shared default keeps the GUI's promise and the client's window identical.
 DEFAULT_TRASH_RETENTION_DAYS = defaults.TRASH_RETENTION_DAYS_DEFAULT
+# Upper bound the spin box offers; the same value the client validates against.
+TRASH_RETENTION_DAYS_MAX = defaults.TRASH_RETENTION_DAYS_MAX
 # The release update check is opt-in: an installation that never asked about
 # updates makes no request outside the servers the operator configured
 # (ADR-0048).

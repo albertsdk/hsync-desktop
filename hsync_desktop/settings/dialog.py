@@ -100,6 +100,7 @@ from hsync_desktop.config import (
     DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
+    DEFAULT_TRASH_RETENTION_DAYS,
     DEFAULT_VERBOSE,
     DELETION_POLICIES,
     MIN_RESYNC_INTERVAL,
@@ -467,6 +468,7 @@ class SettingsDialog(QDialog):
             (self.dry_run, "tip.dry_run"),
             (self.auto_sync, "tip.auto_sync"),
             (self.auto_apply, "tip.auto_apply"),
+            (self.trash_retention, "tip.trash_retention"),
             (self.ignore_patterns, "tip.ignore_patterns"),
             (self.btn_edit_hsyncignore, "tip.edit_hsyncignore"),
             (self.btn_reset_state, "tip.reset_state"),
@@ -1827,6 +1829,9 @@ class SettingsDialog(QDialog):
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("sync/auto_apply", self.auto_apply.isChecked())
+        # From the first save on, this key exists and the GUI's window wins over
+        # the environment (``get_trash_retention_days`` checks ``contains``).
+        s.setValue("sync/trash_retention", self.trash_retention.value())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
         # Advanced tab (engine tuning)
         s.setValue("advanced/autotune", self.autotune.isChecked())
@@ -1973,6 +1978,9 @@ class SettingsDialog(QDialog):
         self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
         self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
         self.auto_apply.setChecked(bool(s.value("sync/auto_apply", DEFAULT_AUTO_APPLY, bool)))
+        self.trash_retention.setValue(
+            cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int))
+        )
         self.ignore_patterns.setText(
             str(s.value("sync/ignore_patterns", DEFAULT_IGNORE_PATTERNS, str))
         )

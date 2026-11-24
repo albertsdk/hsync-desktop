@@ -921,4 +921,6 @@ translations: dict[str, str] = {
     "trash.empty_done": "Papelera vaciada.",
     "trash.list_failed": "No se pudo leer la papelera.",
     "preview_summary.warning_delete_recoverable": "Las eliminaciones van a la papelera de este dispositivo: {count} previstas, restaurables durante {days} días.",
+    "settings.trash_retention": "Conservar archivos eliminados (días)",
+    "tip.trash_retention": "Cuánto tiempo una eliminación aplicada sigue siendo restaurable desde la papelera. 0 = sin promesa de restauración.",
 }
