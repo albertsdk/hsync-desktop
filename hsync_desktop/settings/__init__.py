@@ -29,6 +29,7 @@ from hsync_desktop.settings.cli_args import (
     mark_plan_confirmation_seen,
     save_bandwidth_limits,
     secure_config_file,
+    trash_retention_days,
 )
 from hsync_desktop.settings.credential_dialogs import ApiKeyDialog, P2PKeyDialog
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -58,4 +59,5 @@ __all__ = [
     "mark_plan_confirmation_seen",
     "save_bandwidth_limits",
     "secure_config_file",
+    "trash_retention_days",
 ]

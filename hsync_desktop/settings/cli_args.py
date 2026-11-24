@@ -51,6 +51,7 @@ from hsync_desktop.config import (
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
     DEFAULT_SYNC_DIRECTION,
+    DEFAULT_TRASH_RETENTION_DAYS,
     DELETION_POLICIES,
     FONT_SCALE_COMPACT,
     FONT_SCALE_STANDARD,
@@ -540,6 +541,28 @@ def mark_plan_confirmation_seen() -> None:
     """Record that the plan confirmation was shown (``has_seen_plan_confirmation``)."""
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     s.setValue("ui/plan_confirmation_seen", True)
+
+
+def trash_retention_days() -> int:
+    """Days a deletion stays restorable, as the engine will run it (ADR-0056).
+
+    The value comes from ``HSYNC_TRASH_ENABLED`` / ``HSYNC_TRASH_RETENTION_DAYS``,
+    which the client reads too: the confirmation dialog must promise exactly the
+    window the engine honours, not a copy that can drift. ``0`` means "nothing is
+    restorable" — the trash is off, or the window is unlimited (a plan dialog
+    cannot state "forever" as a number, so it falls back to the plain warning).
+    """
+    enabled = os.environ.get("HSYNC_TRASH_ENABLED", "").strip().lower()
+    if enabled in {"0", "false", "no", "off"}:
+        return 0
+    raw = os.environ.get("HSYNC_TRASH_RETENTION_DAYS", "").strip()
+    if not raw:
+        return DEFAULT_TRASH_RETENTION_DAYS
+    try:
+        days = int(raw)
+    except ValueError:
+        return DEFAULT_TRASH_RETENTION_DAYS
+    return days if days > 0 else 0
 
 
 def is_simulation_mode() -> bool:

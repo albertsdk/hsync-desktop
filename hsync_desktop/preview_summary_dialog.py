@@ -217,6 +217,7 @@ class PreviewSummaryDialog(QDialog):
         deletions_kept: bool = False,
         scope: str = "",
         intent: str = "start",
+        trash_retention_days: int = 0,
     ) -> None:
         super().__init__(parent)
         self._stats = stats
@@ -227,6 +228,8 @@ class PreviewSummaryDialog(QDialog):
         self._direction = direction
         self._deletions_kept = deletions_kept
         self._scope = scope
+        # 0 = nothing is restorable (the trash is off, or its window is unlimited)
+        self._trash_retention_days = max(trash_retention_days, 0)
 
         self._load_ui()
         self._populate()
@@ -293,6 +296,12 @@ class PreviewSummaryDialog(QDialog):
         if self._stats.guard_deletes:
             text = tr("preview_summary.warning_guard").format(
                 deletes=self._stats.guard_deletes, local=self._stats.guard_local
+            )
+        elif self._stats.to_delete and self._trash_retention_days > 0:
+            # The trash keeps every applied deletion for the engine's window
+            # (ADR-0056), so "cannot be undone" would be false.
+            text = tr("preview_summary.warning_delete_recoverable").format(
+                count=self._stats.to_delete, days=self._trash_retention_days
             )
         elif self._stats.to_delete:
             text = tr("preview_summary.warning_delete").format(count=self._stats.to_delete)

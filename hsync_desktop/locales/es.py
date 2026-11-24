@@ -920,4 +920,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "No se puede restaurar {path}.",
     "trash.empty_done": "Papelera vaciada.",
     "trash.list_failed": "No se pudo leer la papelera.",
+    "preview_summary.warning_delete_recoverable": "Las eliminaciones van a la papelera de este dispositivo: {count} previstas, restaurables durante {days} días.",
 }

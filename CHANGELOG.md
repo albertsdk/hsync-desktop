@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The confirmation of a plan with deletions states how long they stay restorable
+  (`HSYNC_TRASH_RETENTION_DAYS`, 30 days by default) instead of "cannot be
+  undone"; with the trash off the old warning is kept.
 - The advanced tab groups them with the existing peer options as three independent
   switches.
 - The three identity checks default to **Automatic** (a saved pin, then a CA

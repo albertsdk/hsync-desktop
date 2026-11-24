@@ -533,6 +533,16 @@ folder, corrupt copy) instead of being re-worded here. The per-row **Move to
 trash** action in the file table is the *system* trash and stays a separate,
 unrelated path until the store gains a "park this file" command.
 
+`hsync_desktop/preview_summary_dialog.py::PreviewSummaryDialog` renders
+`PreviewStats` as the confirmation of a plan. The warning label states, in one
+sentence, the fact the plan cannot: `preview_summary.warning_guard` when the
+mass-deletion guard will pause deletions, `preview_summary.warning_delete` when a
+deletion cannot be undone, and `preview_summary.warning_delete_recoverable`
+(with the window) when the device-local trash keeps the bytes — the window comes
+from `hsync_desktop/settings/cli_args.py::trash_retention_days`, which reads the
+same `HSYNC_TRASH_*` the engine honours (ADR-0056), so the promise can never
+drift from the real retention.
+
 ### Engine start failure feedback
 
 `_start_engine` (`hsync_desktop/main_window/start.py::StartMixin._start_engine`) wraps

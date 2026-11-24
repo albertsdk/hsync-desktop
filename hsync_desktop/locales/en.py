@@ -944,4 +944,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Cannot restore {path}.",
     "trash.empty_done": "Trash emptied.",
     "trash.list_failed": "The trash could not be read.",
+    "preview_summary.warning_delete_recoverable": "Deletions go to this device's trash — {count} planned, restorable for {days} days.",
 }

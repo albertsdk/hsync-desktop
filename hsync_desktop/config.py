@@ -69,6 +69,9 @@ DEFAULT_AUTO_SYNC = False
 # so the default never hides what the dialog reports, and a plan that deletes
 # always asks.
 DEFAULT_AUTO_APPLY = True
+# Days a deletion stays restorable in the device-local trash (ADR-0056): the
+# shared default keeps the GUI's promise and the client's window identical.
+DEFAULT_TRASH_RETENTION_DAYS = defaults.TRASH_RETENTION_DAYS_DEFAULT
 # The release update check is opt-in: an installation that never asked about
 # updates makes no request outside the servers the operator configured
 # (ADR-0048).

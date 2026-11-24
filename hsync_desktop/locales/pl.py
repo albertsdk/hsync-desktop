@@ -943,4 +943,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Nie można przywrócić {path}.",
     "trash.empty_done": "Kosz opróżniony.",
     "trash.list_failed": "Nie można odczytać kosza.",
+    "preview_summary.warning_delete_recoverable": "Usunięcia trafiają do kosza tego urządzenia: {count} zaplanowanych, do przywrócenia przez {days} dni.",
 }

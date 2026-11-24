@@ -32,9 +32,12 @@ splash appears only on the first launch.
    the plan grouped by action — **deletions first**, then renames, then the
    downloads and uploads largest-first. The deletions are stated before you
    confirm, with an estimate of the transfer time at the bandwidth limit you set
-   (no limit, no estimate — the number is never invented). If the plan would trip
-   the mass-deletion guard, the dialog says those deletions will be paused.
-   **Cancel** is the default button: only **Synchronize** applies the plan.
+   (no limit, no estimate — the number is never invented), and with how long they
+   stay restorable in the trash (`HSYNC_TRASH_RETENTION_DAYS`, 30 days by
+   default; with the trash off the warning says they cannot be undone). If the
+   plan would trip the mass-deletion guard, the dialog says those deletions will
+   be paused. **Cancel** is the default button: only **Synchronize** applies the
+   plan.
 3. The sync runs until you stop it. **Stop** asks for confirmation while a run is
    in progress: the transfers in flight are abandoned (a partial upload resumes on
    the next run, a partial download is fetched again), so the click must be

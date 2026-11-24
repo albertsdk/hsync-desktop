@@ -38,6 +38,7 @@ from hsync_desktop.settings import (
     is_auto_apply_enabled,
     is_simulation_mode,
     mark_plan_confirmation_seen,
+    trash_retention_days,
 )
 from hsync_desktop.trash_dialog import TrashDialog
 from hsync_desktop.widgets.dialogs import dialog_parent
@@ -757,6 +758,7 @@ class ActionsMixin:
             deletions_kept=get_deletion_policy() != "propagate",
             scope=scope,
             intent="preview" if preview_intent else "start",
+            trash_retention_days=trash_retention_days(),
         )
         # The plan is on screen: *Apply changes that delete nothing* may skip the
         # next one. Any confirmation teaches, Preview included.

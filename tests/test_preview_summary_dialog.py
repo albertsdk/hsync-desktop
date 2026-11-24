@@ -287,6 +287,25 @@ class TestWarnings:
         assert dialog._lbl_warning.isVisibleTo(dialog)
         assert tr("preview_summary.warning_delete").format(count=3) in (dialog._lbl_warning.text())
 
+    def test_a_trashed_deletion_promises_the_restore_window(self, qtbot):
+        """ "Cannot be undone" is false while the trash keeps the bytes (ADR-0056)."""
+        dialog = PreviewSummaryDialog(_stats(to_delete=3), trash_retention_days=30)
+        qtbot.addWidget(dialog)
+
+        assert (
+            tr("preview_summary.warning_delete_recoverable").format(count=3, days=30)
+            in dialog._lbl_warning.text()
+        )
+        assert tr("preview_summary.warning_delete").format(count=3) not in (
+            dialog._lbl_warning.text()
+        )
+
+    def test_without_the_trash_the_plain_warning_stays(self, qtbot):
+        dialog = PreviewSummaryDialog(_stats(to_delete=3), trash_retention_days=0)
+        qtbot.addWidget(dialog)
+
+        assert tr("preview_summary.warning_delete").format(count=3) in (dialog._lbl_warning.text())
+
     def test_the_guard_warning_takes_precedence(self, qtbot):
         stats = _stats(to_delete=3, guard_deletes=3, guard_local=10)
         dialog = PreviewSummaryDialog(stats)

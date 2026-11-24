@@ -943,4 +943,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Kan {path} niet herstellen.",
     "trash.empty_done": "Prullenbak geleegd.",
     "trash.list_failed": "De prullenbak kon niet worden gelezen.",
+    "preview_summary.warning_delete_recoverable": "Verwijderingen gaan naar de prullenbak van dit apparaat: {count} gepland, {days} dagen herstelbaar.",
 }

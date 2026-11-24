@@ -943,4 +943,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "{path} を復元できません。",
     "trash.empty_done": "ゴミ箱を空にしました。",
     "trash.list_failed": "ゴミ箱を読み取れませんでした。",
+    "preview_summary.warning_delete_recoverable": "削除はこのデバイスのゴミ箱に入ります。予定 {count} 件、{days} 日間復元できます。",
 }

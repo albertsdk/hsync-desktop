@@ -943,4 +943,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Не удалось восстановить {path}.",
     "trash.empty_done": "Корзина очищена.",
     "trash.list_failed": "Не удалось прочитать корзину.",
+    "preview_summary.warning_delete_recoverable": "Удаления попадают в корзину этого устройства: запланировано {count}, восстановление доступно {days} дн.",
 }

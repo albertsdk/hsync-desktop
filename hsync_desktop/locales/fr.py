@@ -920,4 +920,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Impossible de restaurer {path}.",
     "trash.empty_done": "Corbeille vidée.",
     "trash.list_failed": "Impossible de lire la corbeille.",
+    "preview_summary.warning_delete_recoverable": "Les suppressions vont dans la corbeille de cet appareil : {count} prévues, restaurables pendant {days} jours.",
 }

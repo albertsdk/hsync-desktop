@@ -920,4 +920,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Impossibile ripristinare {path}.",
     "trash.empty_done": "Cestino svuotato.",
     "trash.list_failed": "Impossibile leggere il cestino.",
+    "preview_summary.warning_delete_recoverable": "Le cancellazioni finiscono nel cestino di questo dispositivo: {count} pianificate, ripristinabili per {days} giorni.",
 }

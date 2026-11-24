@@ -943,4 +943,5 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Não é possível restaurar {path}.",
     "trash.empty_done": "Lixeira esvaziada.",
     "trash.list_failed": "Não foi possível ler a lixeira.",
+    "preview_summary.warning_delete_recoverable": "As eliminações vão para a lixeira deste dispositivo: {count} previstas, restauráveis durante {days} dias.",
 }
