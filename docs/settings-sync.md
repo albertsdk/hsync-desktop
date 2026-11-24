@@ -58,6 +58,11 @@ appears only when **Show advanced options** is on).
   is passed to the engine as `--trash-retention` (or `--no-trash` for `Disabled`)
   once you save it; until then the client's own
   `HSYNC_TRASH_RETENTION_DAYS`/default applies.
+- **Trash size limit (GB)** — how much disk the trash may use in total. `Auto`
+  (the default) hands the cap back to the client, which keeps a share of the
+  filesystem hosting the trash with a floor. The value is passed to the engine as
+  `--trash-max-size NGB` once you save it; until then `HSYNC_TRASH_MAX_SIZE`/the
+  derived cap applies.
 
 ## Timing & Intervals
 

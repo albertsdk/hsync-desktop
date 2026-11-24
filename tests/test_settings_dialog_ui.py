@@ -890,3 +890,19 @@ class TestTheTrashRetentionRow:
         dialog.trash_retention.setValue(0)
 
         assert dialog.trash_retention.text() == tr("settings.disabled")
+
+
+class TestTheTrashSizeRow:
+    """The store budget is a whole-GB spin whose 0 hands the cap to the client."""
+
+    def test_it_is_bounded_suffixed_and_translated(self, dialog):
+        from hsync_desktop.config import GUI_TRASH_MAX_SIZE_GB_MAX
+
+        assert dialog.trash_max_size.maximum() == GUI_TRASH_MAX_SIZE_GB_MAX
+        assert dialog.trash_max_size.suffix() == " GB"
+        assert dialog._lbl_trash_max_size.text() == tr("settings.trash_max_size")
+
+    def test_zero_reads_as_auto(self, dialog):
+        dialog.trash_max_size.setValue(0)
+
+        assert dialog.trash_max_size.text() == tr("settings.auto")

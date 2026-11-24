@@ -923,4 +923,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Le cancellazioni finiscono nel cestino di questo dispositivo: {count} pianificate, ripristinabili per {days} giorni.",
     "settings.trash_retention": "Conserva i file cancellati per (giorni)",
     "tip.trash_retention": "Per quanto tempo una cancellazione resta ripristinabile dal cestino. 0 = nessuna promessa di ripristino.",
+    "settings.trash_max_size": "Limite dimensione cestino (GB)",
+    "tip.trash_max_size": "Quanto disco può usare il cestino. Auto ne riserva una quota del disco, con un minimo.",
 }

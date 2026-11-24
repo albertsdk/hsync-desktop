@@ -106,6 +106,8 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg._lbl_auto_apply.setText(tr("settings.auto_apply"))
     dlg._lbl_trash_retention.setText(tr("settings.trash_retention"))
     dlg.trash_retention.setSpecialValueText(tr("settings.disabled"))
+    dlg._lbl_trash_max_size.setText(tr("settings.trash_max_size"))
+    dlg.trash_max_size.setSpecialValueText(tr("settings.auto"))
     dlg._lbl_ignore_patterns.setText(tr("settings.ignore_patterns"))
     dlg.btn_edit_hsyncignore.setText(escape_mnemonics(tr("settings.edit_hsyncignore")))
     dlg.btn_reset_state.setText(escape_mnemonics(tr("settings.reset_state.button")))

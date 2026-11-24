@@ -946,4 +946,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Usunięcia trafiają do kosza tego urządzenia: {count} zaplanowanych, do przywrócenia przez {days} dni.",
     "settings.trash_retention": "Przechowuj usunięte pliki (dni)",
     "tip.trash_retention": "Jak długo usunięcie pozostaje do przywrócenia z kosza. 0 = brak przywracania.",
+    "settings.trash_max_size": "Limit rozmiaru kosza (GB)",
+    "tip.trash_max_size": "Ile miejsca na dysku może zająć kosz. Auto rezerwuje część dysku, z minimum.",
 }

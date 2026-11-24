@@ -923,4 +923,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Les suppressions vont dans la corbeille de cet appareil : {count} prévues, restaurables pendant {days} jours.",
     "settings.trash_retention": "Conserver les fichiers supprimés (jours)",
     "tip.trash_retention": "Combien de temps une suppression appliquée reste restaurable depuis la corbeille. 0 = aucune restauration possible.",
+    "settings.trash_max_size": "Taille maximale de la corbeille (Go)",
+    "tip.trash_max_size": "Combien d'espace disque la corbeille peut utiliser. Auto réserve une part du disque, avec un minimum.",
 }

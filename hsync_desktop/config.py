@@ -74,6 +74,12 @@ DEFAULT_AUTO_APPLY = True
 DEFAULT_TRASH_RETENTION_DAYS = defaults.TRASH_RETENTION_DAYS_DEFAULT
 # Upper bound the spin box offers; the same value the client validates against.
 TRASH_RETENTION_DAYS_MAX = defaults.TRASH_RETENTION_DAYS_MAX
+# Byte budget of the trash store, edited in whole GB; 0 = derive it from the
+# filesystem that hosts the store (the client's own rule, ADR-0056).
+DEFAULT_TRASH_MAX_SIZE_GB = defaults.TRASH_MAX_SIZE_MB_DEFAULT // 1024
+# GUI-only guardrail: a spin box needs a ceiling, and a terabyte is far beyond
+# any share this app is pointed at. The CLI accepts anything up to 1 PiB.
+GUI_TRASH_MAX_SIZE_GB_MAX = 1024
 # The release update check is opt-in: an installation that never asked about
 # updates makes no request outside the servers the operator configured
 # (ADR-0048).

@@ -946,4 +946,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "As eliminações vão para a lixeira deste dispositivo: {count} previstas, restauráveis durante {days} dias.",
     "settings.trash_retention": "Guardar ficheiros eliminados (dias)",
     "tip.trash_retention": "Durante quanto tempo uma eliminação aplicada continua restaurável da lixeira. 0 = sem promessa de restauro.",
+    "settings.trash_max_size": "Limite de tamanho da lixeira (GB)",
+    "tip.trash_max_size": "Quanto disco a lixeira pode usar. Automático reserva uma parte do disco, com um mínimo.",
 }

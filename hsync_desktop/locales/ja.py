@@ -946,4 +946,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "削除はこのデバイスのゴミ箱に入ります。予定 {count} 件、{days} 日間復元できます。",
     "settings.trash_retention": "削除したファイルの保持（日）",
     "tip.trash_retention": "削除したファイルをゴミ箱から復元できる期間。0 = 復元できません。",
+    "settings.trash_max_size": "ゴミ箱の容量上限 (GB)",
+    "tip.trash_max_size": "ゴミ箱が使用できるディスク容量。自動ではディスクの一部を下限付きで確保します。",
 }

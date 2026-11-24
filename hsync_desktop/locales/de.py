@@ -923,4 +923,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Löschungen landen im Papierkorb dieses Geräts: {count} geplant, {days} Tage wiederherstellbar.",
     "settings.trash_retention": "Gelöschte Dateien aufbewahren (Tage)",
     "tip.trash_retention": "Wie lange eine angewandte Löschung aus dem Papierkorb wiederherstellbar bleibt. 0 = keine Wiederherstellung.",
+    "settings.trash_max_size": "Größe des Papierkorbs (GB)",
+    "tip.trash_max_size": "Wie viel Speicherplatz der Papierkorb nutzen darf. Automatisch reserviert einen Anteil des Datenträgers, mit Mindestwert.",
 }

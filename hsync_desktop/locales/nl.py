@@ -946,4 +946,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Verwijderingen gaan naar de prullenbak van dit apparaat: {count} gepland, {days} dagen herstelbaar.",
     "settings.trash_retention": "Verwijderde bestanden bewaren (dagen)",
     "tip.trash_retention": "Hoe lang een toegepaste verwijdering herstelbaar blijft uit de prullenbak. 0 = geen herstelbelofte.",
+    "settings.trash_max_size": "Maximale grootte van de prullenbak (GB)",
+    "tip.trash_max_size": "Hoeveel schijfruimte de prullenbak mag gebruiken. Automatisch reserveert een deel van de schijf, met een minimum.",
 }

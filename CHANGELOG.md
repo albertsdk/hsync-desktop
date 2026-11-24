@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   listing and both actions go through `hsync trash`, so it works while a sync
   runs and a restored file returns to every device at the next cycle.
 
+- A **Keep deleted files for (days)** and a **Trash size limit (GB)** spin in
+  *Settings → Sync*, translated in every locale, emitted to the engine as
+  `--trash-retention` and `--trash-max-size` only once saved.
+
 - Three settings for the peer-mesh capabilities (serve blocks, fetch from peers, publish
   inventory), translated in every locale.
 

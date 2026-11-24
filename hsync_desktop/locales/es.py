@@ -923,4 +923,6 @@ translations: dict[str, str] = {
     "preview_summary.warning_delete_recoverable": "Las eliminaciones van a la papelera de este dispositivo: {count} previstas, restaurables durante {days} días.",
     "settings.trash_retention": "Conservar archivos eliminados (días)",
     "tip.trash_retention": "Cuánto tiempo una eliminación aplicada sigue siendo restaurable desde la papelera. 0 = sin promesa de restauración.",
+    "settings.trash_max_size": "Límite de tamaño de la papelera (GB)",
+    "tip.trash_max_size": "Cuánto disco puede usar la papelera. Automático reserva una parte del disco, con un mínimo.",
 }

@@ -51,6 +51,7 @@ from hsync_desktop.config import (
     DEFAULT_RESYNC_INTERVAL,
     DEFAULT_RETRY_DELAY,
     DEFAULT_SYNC_DIRECTION,
+    DEFAULT_TRASH_MAX_SIZE_GB,
     DEFAULT_TRASH_RETENTION_DAYS,
     DELETION_POLICIES,
     FONT_SCALE_COMPACT,
@@ -261,6 +262,13 @@ def _append_sync_mode_args(
     if s.contains("sync/trash_retention"):
         days = get_trash_retention_days()
         args += ["--no-trash"] if days == 0 else ["--trash-retention", str(days)]
+    # Same rule for the budget: an unstored key leaves the cap to the client,
+    # which derives a share of the filesystem hosting the store. ``0`` is the
+    # dialog's "Auto", so an explicit 0 emits nothing at all.
+    if s.contains("sync/trash_max_size_gb"):
+        gigabytes = get_trash_max_size_gb()
+        if gigabytes > 0:
+            args += ["--trash-max-size", f"{gigabytes}GB"]
 
     sync_dir = get_sync_direction()
     if sync_dir != DEFAULT_SYNC_DIRECTION:
@@ -563,6 +571,19 @@ def get_trash_retention_days() -> int:
         return max(cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int)), 0)
     except (TypeError, ValueError):
         return DEFAULT_TRASH_RETENTION_DAYS
+
+
+def get_trash_max_size_gb() -> int:
+    """Return the stored trash budget in whole GB (``0`` = derive it).
+
+    ``sync/trash_max_size_gb`` is written by the Settings dialog; the client's
+    ``--trash-max-size`` takes a size string, so this is emitted as ``NGB``.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    try:
+        return max(cast(int, s.value("sync/trash_max_size_gb", DEFAULT_TRASH_MAX_SIZE_GB, int)), 0)
+    except (TypeError, ValueError):
+        return DEFAULT_TRASH_MAX_SIZE_GB
 
 
 def trash_retention_days() -> int:
