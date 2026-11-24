@@ -80,8 +80,8 @@ disable unsupported controls) is realized in
   host fonts vary, and proprietary system fonts cannot be redistributed. The
   Linux `QT_QPA_PLATFORMTHEME=generic` harden stays (the GTK3 theme aborts
   against the bundled GLib); the host `gsettings` probe drops `LD_LIBRARY_PATH`
-  and the other bundled-library overrides (`hsync_desktop/host_env.py::host_env`,
-  shared with the file panel's `gio trash`) so it loads the host GLib. The global
+  and the other bundled-library overrides (`hsync_desktop/host_env.py::host_env`)
+  so it loads the host GLib. The global
   **Font size** preference (`appearance/font_scale`,
   `standard` default / `compact`) scales the resolved UI and monospace bases
   once, so every derived font follows; the file table has no separate size knob.

@@ -927,13 +927,16 @@ row alone, the standard desktop behaviour.
 | Open, Open With…, Open Containing Folder, Rename, Properties | disabled (inherently single-target) |
 
 `FileTransferTable._trash_many` asks one confirmation for the batch (the count,
-not one prompt per item) and moves everything with a single `gio trash` call on
-Linux; macOS/Windows iterate (`_trash_platform`) and report the failures in one
-warning. Windows uses `DeleteDirectory` for a folder and `DeleteFile` for a file
-(the recycle-bin API has no single call for both), and it hands the path over
-through an environment variable rather than interpolating it into the script, so
-a name containing a quote or a shell metacharacter cannot inject PowerShell; the
-AppleScript literal is escaped for the same reason.
+not one prompt per item) and parks each entry through
+`hsync_desktop/engine/cli.py::trash_add` — the client's `hsync trash add`, so the
+bytes land in the same device-local store the sync engine uses for its own
+deletions (ADR-0056) with origin `user`. The removal stays a normal deletion: the
+watcher records the marker, the peers converge, and **Sync → Trash…** can restore
+it. One code path for every platform: the client does the moving (no `gio`, no
+AppleScript, no Win32 call), and the path travels as a single argv element, so a
+name with spaces, quotes or non-ASCII characters needs no escaping anywhere. A
+per-entry failure reports the client's own message in one warning, and only the
+rows that moved leave the table.
 `_copy_to_many` picks one destination, asks one confirmation and one overwrite
 question for the whole batch, then copies every entry. A partial failure never
 stops the rest: the summary reports how many succeeded. `_remove_files` drops
@@ -1841,8 +1844,8 @@ family that is not installed is kept (Qt/fontconfig substitutes it, as in a
 native app) so the configured size is preserved; only a failed probe or an
 unknown desktop falls back to `QFontDatabase.systemFont`. The `gsettings`
 subprocess runs with the bundled-library overrides removed
-(`hsync_desktop/host_env.py::host_env`, the same environment the file panel's
-`gio trash` gets) so the host binary does not load the bundled GLib. No fonts
+(`hsync_desktop/host_env.py::host_env`) so the host binary does not load the
+bundled GLib. No fonts
 are bundled. All three sizes derive from the same cached monospace font
 (`hsync_desktop/fonts.py::_point_smaller_monospace`): the license dialog uses
 `small_monospace_font` (`hsync_desktop/fonts.py::small_monospace_font`, one point

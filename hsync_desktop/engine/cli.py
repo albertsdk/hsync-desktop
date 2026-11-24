@@ -346,6 +346,31 @@ def restore_from_trash(
     return TrashActionResult(ok=True, message=(result.stdout or "").strip())
 
 
+def trash_add(
+    binary: str,
+    folder: str,
+    path: str,
+    *,
+    trash_dir: str | None = None,
+    timeout: float = 60.0,
+) -> TrashActionResult:
+    """Move one file into the device-local trash (``hsync trash add``).
+
+    This is the front-end's delete path (ADR-0056): the client parks the bytes
+    and the removal still propagates as a normal deletion, so a file the user
+    removed stays restorable from the trash view. The path travels as one argv
+    element — no shell, no platform helper — so spaces, quotes and non-ASCII
+    names are safe on every platform.
+    """
+    args = [*_trash_command("add", folder, trash_dir), path]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None:
+        return TrashActionResult(ok=False)
+    if result.returncode != 0:
+        return TrashActionResult(ok=False, message=_result_message(result))
+    return TrashActionResult(ok=True, message=(result.stdout or "").strip())
+
+
 def empty_trash(
     binary: str,
     folder: str,

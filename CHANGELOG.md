@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Move to trash** in the file list now uses the app's own trash instead of the
+  operating system's: one confirmation for the selection, the bytes are kept for
+  the restore window and come back through **Sync → Trash…**, and the same code
+  runs on Linux, macOS and Windows (no `gio`, PowerShell or AppleScript helper).
 - The confirmation of a plan with deletions states how long they stay restorable
   (`HSYNC_TRASH_RETENTION_DAYS`, 30 days by default) instead of "cannot be
   undone"; with the trash off the old warning is kept.

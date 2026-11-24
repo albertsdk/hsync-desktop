@@ -36,6 +36,7 @@ from hsync_desktop.engine.cli import (
     reset_sync_state,
     restore_from_trash,
     supports_peer_trust,
+    trash_add,
 )
 from hsync_desktop.engine.endpoints import (
     SERVER_DEFAULT_PORT,
@@ -120,6 +121,7 @@ __all__ = [
     "restore_from_trash",
     "list_trash",
     "empty_trash",
+    "trash_add",
     "TrashActionResult",
     "TrashEntrySummary",
     "TrashListResult",
