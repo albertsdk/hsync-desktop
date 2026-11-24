@@ -46,6 +46,15 @@ def _push_button_border(qss: str) -> str:
     return match.group(1).lower()
 
 
+def _tooltip_max_width(qss: str) -> int:
+    """Return the ``QToolTip`` ``max-width`` in px from *qss*."""
+    rule = re.search(r"QToolTip \{[^}]*\}", qss)
+    assert rule is not None
+    match = re.search(r"max-width:\s*(\d+)\s*px", rule.group(0))
+    assert match is not None
+    return int(match.group(1))
+
+
 class TestThemeConstants:
     """Test theme constants."""
 
@@ -154,6 +163,12 @@ class TestCommonQSS:
     def test_common_qss_has_qtooltip(self):
         """Common QSS should have QToolTip styles."""
         assert "QToolTip" in themes._COMMON_QSS
+
+    def test_tooltips_are_width_bounded(self):
+        """A plain tooltip would otherwise stay on one line across the screen."""
+        assert _tooltip_max_width(themes._COMMON_QSS) == 400
+        assert _tooltip_max_width(themes._light_qss()) == 400
+        assert _tooltip_max_width(themes._dark_qss()) == 400
 
     def test_common_qss_has_qpushbutton(self):
         """Common QSS should have QPushButton styles."""

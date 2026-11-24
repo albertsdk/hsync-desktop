@@ -1882,7 +1882,9 @@ The fonts are set programmatically
 the QSS pins no `font-family`/`font-size` (`hsync_desktop/themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
-guards it).
+guards it). The same QSS carries the one `QToolTip` rule, whose `max-width` caps
+every tooltip and makes long plain-text tips word-wrap instead of spanning the
+screen (`tests/test_themes.py::TestCommonQSS` guards the cap).
 
 ### Log panel colors
 
