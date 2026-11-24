@@ -235,6 +235,9 @@ QToolTip {{
     padding: 4px 8px;
     border: 1px solid #C0A000;
     border-radius: 4px;
+    /* Plain-text tooltips would otherwise stay on one line and grow to the
+       platform maximum, spanning the screen; this caps the label and wraps. */
+    max-width: 400px;
 }}
 QPushButton {{
     padding: 6px 16px;

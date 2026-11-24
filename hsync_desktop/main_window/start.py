@@ -191,9 +191,9 @@ class StartMixin:
                 "download-only": "sync-download",
             }
             dir_tip_map = {
-                "bidirectional": tr("menu.sync.direction.bidirectional"),
-                "upload-only": tr("menu.sync.direction.upload_only"),
-                "download-only": tr("menu.sync.direction.download_only"),
+                "bidirectional": tr("settings.sync_direction.bidirectional"),
+                "upload-only": tr("settings.sync_direction.upload_only"),
+                "download-only": tr("settings.sync_direction.download_only"),
             }
             icon_name = dir_icon_map.get(direction, "sync-bidirectional")
             self._sync_dir_icon.setPixmap(

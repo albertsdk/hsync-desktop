@@ -17,7 +17,7 @@ window's attributes.
 | ------ | -------- | ---- |
 | `MainWindow` | `hsync_desktop/main_window/window.py::MainWindow` | top-level window; owns engine + tray; single open `SettingsDialog` (`_settings_dialog`, re-raised on re-open) |
 | `_load_ui` | `hsync_desktop/main_window/ui.py::UiBuildMixin._load_ui` | build/compose the central UI |
-| `_create_menu_bar` | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/direction/file ops/help) |
+| `_create_menu_bar` | `hsync_desktop/main_window/ui.py::UiBuildMixin._create_menu_bar` | menus + actions (start/stop/compare/scoped runs/trash/file ops/help) |
 | `_connect_signals` | `hsync_desktop/main_window/window.py::MainWindow._connect_signals` | bind every engine `Signal` to a slot |
 | `_apply_translations` | `hsync_desktop/main_window/ui.py::UiBuildMixin._apply_translations` | re-translate on language change |
 | `_update_peers_label_title` | `hsync_desktop/main_window/ui.py::UiBuildMixin._update_peers_label_title` | status-bar presence title: **Devices** in Direct mode, **Connected users** in Server mode |
@@ -100,8 +100,22 @@ The bar reads **File · Sync · Settings · Help** (File is created first in
 File, never a run menu; **Send now / Receive now** (selection-scoped one-shot
 runs) live in Sync with Start/Compare/Stop, not in File; **Setup wizard** is a
 Help entry (onboarding is re-runnable, like a Welcome page) instead of a
-top-level command. `tests/test_main_window.py::TestMenuConventions` locks all
-three placements.
+top-level command.
+
+Inside Sync the order follows the kind of command: the run controls, then the
+selection-scoped runs, then **Trash…**, the recovery surface, which closes the
+menu instead of sitting among the commands that start work. The sync direction
+has **no menu entry**: it is configured only in Settings → Sync
+(`hsync_desktop/settings/tab_builders.py::build_sync_tab`, applied by
+`hsync_desktop/main_window/start.py::StartMixin._apply_settings_changes` through
+`ShareStore.snapshot_active`), and its `settings.sync_direction.*` labels are the
+only direction wording: the direction icon tooltip, the share header tooltip and
+the preview context line read them too.
+**New share…** is the first File entry: a share is a persisted configuration
+profile, not a run, and the entry calls
+`hsync_desktop/main_window/shares.py::SharesMixin._on_new_share` — the same slot
+as the share dropdown, so the two cannot drift. Help keeps About last.
+`tests/test_main_window.py::TestMenuConventions` locks all of it.
 
 ### System tray menu
 
@@ -401,8 +415,8 @@ and the destructive part in the open:
   transfer volume, from `PreviewStats.action_count` / `transfer_size`.
 * **Context line** (`lblContext`, hidden when empty): the scoped path for a
   Send/Receive (`context_scope`), the direction when it is not bidirectional
-  (`hsync_desktop/settings/cli_args.py::get_sync_direction` + the existing
-  `menu.sync.direction.*` labels), the Simulation notice, and
+  (`hsync_desktop/settings/cli_args.py::get_sync_direction` + the
+  `settings.sync_direction.*` labels), the Simulation notice, and
   `skipped_deletions` when the policy dropped planned deletions.
 * **Warning line** (`lblWarning`, hidden when empty, red with a ``glyph`` for a
   non-colour cue): `warning_guard` when the client reported a plan the
@@ -513,6 +527,35 @@ pause (the client emits the rows and only adds `preview_warning`), so
 after the credential prompt (the user is present again, so the retried plan is
 confirmed like a manual one) and re-enters `_enter_preparing_plan_ui`, which the
 restarted dry-run needs to avoid a silent wait.
+
+### Trash
+
+**Sync → Trash…** (`hsync_desktop/main_window/ui.py::UiBuildMixin._act_trash` →
+`hsync_desktop/main_window/actions.py::ActionsMixin._show_trash_dialog`) opens
+`hsync_desktop/trash_dialog.py::TrashDialog`, the recovery surface for the
+deletions this device applied (ADR-0056). The dialog owns no store: listing,
+restore and empty go through `hsync_desktop/engine/cli.py::list_trash` /
+`::restore_from_trash` / `::empty_trash`, i.e. `hsync trash list|restore|empty`,
+and the dialog only renders the outcome. None of those commands takes the folder
+lock, so the view opens during a run; a restored file is a plain local write that
+the next cycle propagates (delete-vs-recreate, ADR-0003).
+
+The three collaborators are injected (`load`/`restore`/`empty`), which is what
+lets `tests/test_trash_dialog.py` drive the dialog without a subprocess. The
+client's own refusal text is shown verbatim (destination exists, `download-only`
+folder, corrupt copy) instead of being re-worded here. The per-row **Move to
+trash** action in the file table is the *system* trash and stays a separate,
+unrelated path until the store gains a "park this file" command.
+
+`hsync_desktop/preview_summary_dialog.py::PreviewSummaryDialog` renders
+`PreviewStats` as the confirmation of a plan. The warning label states, in one
+sentence, the fact the plan cannot: `preview_summary.warning_guard` when the
+mass-deletion guard will pause deletions, `preview_summary.warning_delete` when a
+deletion cannot be undone, and `preview_summary.warning_delete_recoverable`
+(with the window) when the device-local trash keeps the bytes — the window comes
+from `hsync_desktop/settings/cli_args.py::trash_retention_days`, which reads the
+same `HSYNC_TRASH_*` the engine honours (ADR-0056), so the promise can never
+drift from the real retention.
 
 ### Engine start failure feedback
 
@@ -898,13 +941,16 @@ row alone, the standard desktop behaviour.
 | Open, Open With…, Open Containing Folder, Rename, Properties | disabled (inherently single-target) |
 
 `FileTransferTable._trash_many` asks one confirmation for the batch (the count,
-not one prompt per item) and moves everything with a single `gio trash` call on
-Linux; macOS/Windows iterate (`_trash_platform`) and report the failures in one
-warning. Windows uses `DeleteDirectory` for a folder and `DeleteFile` for a file
-(the recycle-bin API has no single call for both), and it hands the path over
-through an environment variable rather than interpolating it into the script, so
-a name containing a quote or a shell metacharacter cannot inject PowerShell; the
-AppleScript literal is escaped for the same reason.
+not one prompt per item) and parks each entry through
+`hsync_desktop/engine/cli.py::trash_add` — the client's `hsync trash add`, so the
+bytes land in the same device-local store the sync engine uses for its own
+deletions (ADR-0056) with origin `user`. The removal stays a normal deletion: the
+watcher records the marker, the peers converge, and **Sync → Trash…** can restore
+it. One code path for every platform: the client does the moving (no `gio`, no
+AppleScript, no Win32 call), and the path travels as a single argv element, so a
+name with spaces, quotes or non-ASCII characters needs no escaping anywhere. A
+per-entry failure reports the client's own message in one warning, and only the
+rows that moved leave the table.
 `_copy_to_many` picks one destination, asks one confirmation and one overwrite
 question for the whole batch, then copies every entry. A partial failure never
 stops the rest: the summary reports how many succeeded. `_remove_files` drops
@@ -1812,8 +1858,8 @@ family that is not installed is kept (Qt/fontconfig substitutes it, as in a
 native app) so the configured size is preserved; only a failed probe or an
 unknown desktop falls back to `QFontDatabase.systemFont`. The `gsettings`
 subprocess runs with the bundled-library overrides removed
-(`hsync_desktop/host_env.py::host_env`, the same environment the file panel's
-`gio trash` gets) so the host binary does not load the bundled GLib. No fonts
+(`hsync_desktop/host_env.py::host_env`) so the host binary does not load the
+bundled GLib. No fonts
 are bundled. All three sizes derive from the same cached monospace font
 (`hsync_desktop/fonts.py::_point_smaller_monospace`): the license dialog uses
 `small_monospace_font` (`hsync_desktop/fonts.py::small_monospace_font`, one point
@@ -1850,7 +1896,9 @@ The fonts are set programmatically
 the QSS pins no `font-family`/`font-size` (`hsync_desktop/themes.py::_COMMON_QSS`) but
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
-guards it).
+guards it). The same QSS carries the one `QToolTip` rule, whose `max-width` caps
+every tooltip and makes long plain-text tips word-wrap instead of spanning the
+screen (`tests/test_themes.py::TestCommonQSS` guards the cap).
 
 ### Log panel colors
 

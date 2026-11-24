@@ -259,7 +259,7 @@ class TestContext:
 
         context = dialog._lbl_context.text()
         assert tr("preview_summary.context_scope").format(path="photos/2024") in context
-        assert tr("menu.sync.direction.upload_only") in context
+        assert tr("settings.sync_direction.upload_only") in context
 
     def test_a_bidirectional_run_states_no_direction(self, qtbot):
         dialog = PreviewSummaryDialog(_stats(to_upload=1))
@@ -285,6 +285,25 @@ class TestWarnings:
         qtbot.addWidget(dialog)
 
         assert dialog._lbl_warning.isVisibleTo(dialog)
+        assert tr("preview_summary.warning_delete").format(count=3) in (dialog._lbl_warning.text())
+
+    def test_a_trashed_deletion_promises_the_restore_window(self, qtbot):
+        """ "Cannot be undone" is false while the trash keeps the bytes (ADR-0056)."""
+        dialog = PreviewSummaryDialog(_stats(to_delete=3), trash_retention_days=30)
+        qtbot.addWidget(dialog)
+
+        assert (
+            tr("preview_summary.warning_delete_recoverable").format(count=3, days=30)
+            in dialog._lbl_warning.text()
+        )
+        assert tr("preview_summary.warning_delete").format(count=3) not in (
+            dialog._lbl_warning.text()
+        )
+
+    def test_without_the_trash_the_plain_warning_stays(self, qtbot):
+        dialog = PreviewSummaryDialog(_stats(to_delete=3), trash_retention_days=0)
+        qtbot.addWidget(dialog)
+
         assert tr("preview_summary.warning_delete").format(count=3) in (dialog._lbl_warning.text())
 
     def test_the_guard_warning_takes_precedence(self, qtbot):

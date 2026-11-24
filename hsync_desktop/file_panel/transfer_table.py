@@ -18,7 +18,6 @@ from hsync_common.format import format_bytes, format_duration
 from PySide6.QtCore import (
     QAbstractTableModel,
     QByteArray,
-    QFile,
     QItemSelectionModel,
     QModelIndex,
     QMutex,
@@ -61,6 +60,7 @@ from PySide6.QtWidgets import (
 )
 
 from hsync_desktop.config import SETTINGS_APP, SETTINGS_ORG
+from hsync_desktop.engine import find_hsync_binary, trash_add
 from hsync_desktop.file_panel.delegates import ProgressBarDelegate
 from hsync_desktop.file_panel.dialogs import _confirm_dialog
 from hsync_desktop.file_panel.filter import has_dot_segment
@@ -90,7 +90,6 @@ from hsync_desktop.file_panel.utils import (
     folder_count_text,
     format_mtime,
 )
-from hsync_desktop.host_env import host_env
 from hsync_desktop.i18n import tr
 from hsync_desktop.icons import icon as get_icon
 from hsync_desktop.subprocess_utils import no_console_kwargs
@@ -273,20 +272,6 @@ def row_is_change(transfer: FileTransfer | None) -> bool:
     the button can never disagree with the list it controls.
     """
     return transfer is not None and transfer.status not in RESTING_STATUSES
-
-
-def _trash_error(exc: subprocess.CalledProcessError) -> str:
-    """The helper's own stderr line for a failed move, else the exit status.
-
-    ``str(CalledProcessError)`` only reports ``returned non-zero exit status N``,
-    which tells the user nothing actionable; ``gio`` explains the failure on
-    stderr (a locked path, a missing trash directory).
-    """
-    stderr = exc.stderr or ""
-    if isinstance(stderr, bytes):
-        stderr = stderr.decode(errors="replace")
-    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
-    return lines[-1] if lines else str(exc)
 
 
 class FileTransferModel(QAbstractTableModel):
@@ -2444,14 +2429,21 @@ class FileTransferTable(QTableView):
         self.refresh_view()
 
     def _ctx_trash(self, transfer: FileTransfer) -> None:
-        """Move one entry to the system trash (single-row caller)."""
+        """Move one entry into the app's trash (single-row caller)."""
         self._trash_many([transfer])
 
     def _trash_many(self, transfers: Sequence[FileTransfer]) -> None:
-        """Move every entry to the system trash behind ONE confirmation.
+        """Move every entry into the app's trash behind ONE confirmation.
 
-        No-op for the entries the engine owns: trashing a file with a transfer in
-        flight resurrects it at the next commit, and deleting a folder with
+        The bytes go to the device-local store the sync engine uses for its own
+        deletions (ADR-0056), through ``hsync trash add``: the removal stays a
+        normal deletion — recorded with origin ``user``, restorable from
+        **Sync → Trash…** — and the client does the moving, so there is no
+        platform helper here (no ``gio``, no AppleScript, no Win32 call) and
+        spaces, quotes or non-ASCII names cannot be mangled.
+
+        No-op for the entries the engine owns: trashing a file with a transfer
+        in flight resurrects it at the next commit, and deleting a folder with
         transfers inside would orphan the in-flight rows. The busy ones are
         skipped, and the confirmation states how many entries are actually moved
         so the user is never asked to confirm more than will happen.
@@ -2466,121 +2458,33 @@ class FileTransferTable(QTableView):
         if not _confirm_dialog(self, tr("ctx.confirm_trash_title"), message):
             return
 
-        system = platform.system()
+        binary = find_hsync_binary()
+        folder = str(self._base_directory or "")
+        if not binary or not folder:
+            QMessageBox.warning(
+                self,
+                tr("ctx.error_title"),
+                tr("ctx.trash_many_failed").format(count=len(allowed)),
+            )
+            return
+
         trashed: list[FileTransfer] = []
         failures: list[str] = []
-        if system == "Linux":
-            # One invocation: ``gio trash`` accepts several paths and fails as a
-            # whole, which is the honest outcome (a partial move would be
-            # indistinguishable from a success). It runs with the host
-            # environment: inheriting the bundle's ``LD_LIBRARY_PATH`` makes the
-            # system ``gio`` load the bundled GLib/GIO and die at dynamic-link
-            # time (exit status 127) whenever the host is newer than the bundle.
-            paths = [self._absolute_path(transfer) for transfer in allowed]
-            if shutil.which("gio") is None:
-                # Minimal installs carry no GLib tools: fall back to Qt's own
-                # trash implementation, which needs no helper binary.
-                for transfer, path in zip(allowed, paths, strict=True):
-                    if self._move_to_trash(path):
-                        trashed.append(transfer)
-                    else:
-                        failures.append(path)
+        for transfer in allowed:
+            result = trash_add(binary, folder, self._absolute_path(transfer))
+            if result.ok:
+                trashed.append(transfer)
             else:
-                try:
-                    subprocess.run(
-                        ["gio", "trash", *paths],
-                        check=True,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE,
-                        env=host_env(),
-                    )
-                except subprocess.CalledProcessError as exc:
-                    failures = [_trash_error(exc)]
-                except (OSError, subprocess.SubprocessError) as exc:
-                    failures = [str(exc)]
-                else:
-                    trashed = allowed
-        else:
-            for transfer in allowed:
-                try:
-                    self._trash_platform(self._absolute_path(transfer), system)
-                except Exception as exc:
-                    failures.append(str(exc))
-                else:
-                    trashed.append(transfer)
+                failures.append(result.message or transfer.filepath)
 
         if trashed:
             self._remove_files([transfer.filepath for transfer in trashed])
         if failures:
-            detail = failures[0]
             if len(allowed) == 1:
-                message = tr("ctx.error_trash").format(error=detail)
+                message = tr("ctx.error_trash").format(error=failures[0])
             else:
                 message = tr("ctx.trash_many_failed").format(count=len(failures))
             QMessageBox.warning(self, tr("ctx.error_title"), message)
-
-    @staticmethod
-    def _move_to_trash(abs_path: str) -> bool:
-        """Trash one path through Qt (no helper binary, no host libraries).
-
-        Used on Linux when ``gio`` is not installed: Qt implements the
-        freedesktop trash specification itself, so the fallback needs nothing
-        from the host besides the XDG directories every session has.
-        """
-        return bool(QFile.moveToTrash(abs_path))
-
-    @staticmethod
-    def _trash_platform(abs_path: str, system: str) -> None:
-        """Move one path to the trash on macOS/Windows (Linux uses ``gio``).
-
-        Linux goes through ``gio trash`` (or :meth:`_move_to_trash` when the
-        helper is missing); this path covers the platforms that need a
-        per-file tool.
-
-        Windows needs two calls: ``DeleteFile`` refuses a directory, so a folder
-        goes through ``DeleteDirectory`` (the old single-target code called
-        ``DeleteFile`` for both, which silently failed on folders).
-
-        The path is handed over through the environment, never interpolated into
-        the script: a name containing a quote, a ``$`` or a backtick would
-        otherwise end the string literal and run attacker-chosen PowerShell. The
-        same reasoning applies to the AppleScript literal, which is escaped.
-        """
-        if system == "Darwin":
-            # AppleScript: a backslash and a quote both end the literal, so both
-            # are escaped before it is embedded.
-            escaped = abs_path.replace("\\", "\\\\").replace('"', '\\"')
-            subprocess.run(
-                [
-                    "osascript",
-                    "-e",
-                    f'tell application "Finder" to delete (POSIX file "{escaped}" as alias)',
-                ],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            return
-        if system == "Windows":
-            is_dir = os.path.isdir(abs_path)
-            method = "DeleteDirectory" if is_dir else "DeleteFile"
-            ps_cmd = (
-                "Add-Type -AssemblyName Microsoft.VisualBasic; "
-                f"[Microsoft.VisualBasic.FileIO.FileSystem]::{method}("
-                "$env:HSYNC_TRASH_PATH, "
-                "'OnlyErrorDialogs', 'SendToRecycleBin')"
-            )
-            env = dict(os.environ, HSYNC_TRASH_PATH=abs_path)
-            subprocess.run(
-                ["powershell", "-Command", ps_cmd],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                env=env,
-                **no_console_kwargs(),
-            )
-            return
-        raise OSError("Unsupported platform for trash operation")
 
     def _ctx_properties(self, transfer: FileTransfer) -> None:
         """Open the properties panel."""

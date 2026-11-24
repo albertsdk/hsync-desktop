@@ -21,6 +21,8 @@ from hsync_desktop.settings.cli_args import (
     get_saved_theme,
     get_sync_direction,
     get_theme_setting,
+    get_trash_max_size_gb,
+    get_trash_retention_days,
     has_seen_plan_confirmation,
     is_auto_apply_enabled,
     is_auto_sync_enabled,
@@ -29,6 +31,7 @@ from hsync_desktop.settings.cli_args import (
     mark_plan_confirmation_seen,
     save_bandwidth_limits,
     secure_config_file,
+    trash_retention_days,
 )
 from hsync_desktop.settings.credential_dialogs import ApiKeyDialog, P2PKeyDialog
 from hsync_desktop.settings.dialog import SettingsDialog
@@ -48,6 +51,8 @@ __all__ = [
     "get_saved_font_scale",
     "get_saved_theme",
     "get_theme_setting",
+    "get_trash_max_size_gb",
+    "get_trash_retention_days",
     "has_seen_plan_confirmation",
     "is_auto_sync_enabled",
     "is_auto_apply_enabled",
@@ -58,4 +63,5 @@ __all__ = [
     "mark_plan_confirmation_seen",
     "save_bandwidth_limits",
     "secure_config_file",
+    "trash_retention_days",
 ]

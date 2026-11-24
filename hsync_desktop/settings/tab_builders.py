@@ -38,11 +38,13 @@ from hsync_desktop.config import (
     BANDWIDTH_MAX_MBPS,
     FONT_SCALE_COMPACT,
     FONT_SCALE_STANDARD,
+    GUI_TRASH_MAX_SIZE_GB_MAX,
     MAX_INBOUND_SIZE_MB_MAX,
     MAX_INBOUND_SIZE_MB_MIN,
     MIN_FREE_DISK_SPACE_MB_MAX,
     MIN_FREE_DISK_SPACE_MB_MIN,
     NOTIFICATION_CATEGORIES,
+    TRASH_RETENTION_DAYS_MAX,
 )
 from hsync_desktop.i18n import AUTO_LANGUAGE, SUPPORTED_LANGUAGES, tr
 from hsync_desktop.icons import icon
@@ -150,6 +152,21 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.dry_run, dlg._lbl_dry_run = _replace_checkbox_with_toggle(dlg, "dryRun")
     dlg.auto_sync, dlg._lbl_auto_sync = _replace_checkbox_with_toggle(dlg, "autoSync")
     dlg.auto_apply, dlg._lbl_auto_apply = _replace_checkbox_with_toggle(dlg, "autoApply")
+    # Trash retention (ADR-0056): the window in which an applied deletion stays
+    # restorable. 0 disables the promise (the plan then says "cannot be undone").
+    dlg.trash_retention = QSpinBox(dlg)
+    dlg.trash_retention.setObjectName("trashRetention")
+    dlg.trash_retention.setRange(0, TRASH_RETENTION_DAYS_MAX)
+    dlg.trash_retention.setSpecialValueText(tr("settings.disabled"))
+    dlg._lbl_trash_retention = QLabel(dlg)
+    # The store's budget (ADR-0056): 0 hands the cap back to the client, which
+    # derives a share of the hosting filesystem.
+    dlg.trash_max_size = QSpinBox(dlg)
+    dlg.trash_max_size.setObjectName("trashMaxSize")
+    dlg.trash_max_size.setRange(0, GUI_TRASH_MAX_SIZE_GB_MAX)
+    dlg.trash_max_size.setSuffix(" GB")
+    dlg.trash_max_size.setSpecialValueText(tr("settings.auto"))
+    dlg._lbl_trash_max_size = QLabel(dlg)
 
     # Hidden-file / .hsyncignore controls (dynamic, no .ui counterpart)
     dlg.ignore_patterns = QLineEdit(dlg)

@@ -13,6 +13,17 @@ and appears in the problems badge so you can rename it. The one exception is a
 rename that changes only the capitalisation, which follows the destination's
 spelling on a case-insensitive filesystem.
 
+## Deleting a file
+
+**Move to trash** in the right-click menu removes the entry through the app's own
+trash, on every platform and without asking the operating system for anything:
+one confirmation covers the whole selection, the bytes land in the device-local
+store (30 days by default, *Settings → Sync*), and the removal propagates like any
+other deletion. Nothing is lost by accident — **Sync → Trash…** lists what this
+device removed and puts a file back, which returns it to every device at the next
+sync. A row the sync is transferring at that moment is skipped: deleting it would
+resurrect the file at the next cycle.
+
 ## Columns
 
 Each row starts with an icon that carries the file type and, when the row has an

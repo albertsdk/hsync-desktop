@@ -3460,106 +3460,75 @@ class TestMultiSelection:
         assert self._action(menu, "action.send_now").isEnabled()
         assert self._action(menu, "action.receive_now").isEnabled()
 
-    def test_trash_many_confirms_once_and_removes_every_entry(self, qtbot, monkeypatch):
+    def _trashing_table(self, qtbot, monkeypatch, *paths, ok=True, message=""):
+        """A table whose deletes go through a recorded ``hsync trash add``."""
+        from types import SimpleNamespace
+
         import hsync_desktop.file_panel.transfer_table as tt
 
-        table = self._table(qtbot, "a.bin", "b.bin")
-        calls: list[tuple[list[str], dict]] = []
-        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
-        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
+        table = self._table(qtbot, *paths)
+        table.set_base_directory("/share")
+        calls: list[tuple[str, str, str]] = []
+        monkeypatch.setattr(tt, "find_hsync_binary", lambda: "/usr/bin/hsync")
         monkeypatch.setattr(
-            tt.subprocess, "run", lambda args, **kw: calls.append((list(args), dict(kw)))
+            tt,
+            "trash_add",
+            lambda binary, folder, path: (
+                calls.append((binary, folder, path)) or SimpleNamespace(ok=ok, message=message)
+            ),
         )
         monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
+        return table, calls, tt
+
+    def test_trash_many_parks_every_entry_through_the_client(self, qtbot, monkeypatch):
+        table, calls, _tt = self._trashing_table(qtbot, monkeypatch, "a.bin", "b.bin")
 
         table._trash_many(list(table.selected_transfers()) or [])
-
-        # The selection is empty (nothing clicked), so nothing happened.
-        assert calls == []
+        assert calls == []  # nothing selected, nothing moved
 
         self._select(table, 0, 1)
         table._trash_many(table.selected_transfers())
 
-        assert len(calls) == 1
-        args, kwargs = calls[0]
-        assert args[:2] == ["gio", "trash"]
-        assert len(args) == 4
+        assert [os.path.basename(path) for _binary, _folder, path in calls] == ["a.bin", "b.bin"]
+        assert {binary for binary, _folder, _path in calls} == {"/usr/bin/hsync"}
+        assert {folder for _binary, folder, _path in calls} == {"/share"}
         assert table.model().rowCount() == 0
-        assert kwargs["check"] is True
-        assert isinstance(kwargs["env"], dict)
 
-    def test_trash_runs_the_helper_without_the_bundled_library_env(self, qtbot, monkeypatch):
-        """``gio`` inheriting the bundle's ``LD_LIBRARY_PATH`` exits 127.
-
-        The frozen payload points the environment at its own GLib/GIO; the
-        system helper then fails at dynamic-link time instead of trashing.
-        """
-        import hsync_desktop.file_panel.transfer_table as tt
-
-        table = self._table(qtbot, "a.bin")
-        seen: dict = {}
-        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
-        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
-        monkeypatch.setattr(tt.subprocess, "run", lambda args, **kw: seen.update(kw))
-        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
-        monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/hsync-desktop/_internal")
-        monkeypatch.setenv("PYTHONPATH", "/usr/lib/hsync-desktop/_internal")
-        # Windows has no ``HOME`` (it uses ``USERPROFILE``), so the inherited
-        # environment is probed with a variable the test owns.
-        monkeypatch.setenv("HSYNC_HOST_ENV_PROBE", "/home/probe")
+    def test_a_cancelled_confirmation_moves_nothing(self, qtbot, monkeypatch):
+        table, calls, tt = self._trashing_table(qtbot, monkeypatch, "a.bin")
+        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: False)
 
         self._select(table, 0)
         table._trash_many(table.selected_transfers())
 
-        env = seen.get("env")
-        assert isinstance(env, dict)
-        assert "LD_LIBRARY_PATH" not in env
-        assert "PYTHONPATH" not in env
-        assert env["HSYNC_HOST_ENV_PROBE"] == "/home/probe"
+        assert calls == []
+        assert table.model().rowCount() == 1
 
-    def test_a_missing_gio_falls_back_to_the_qt_trash(self, qtbot, monkeypatch):
-        """A minimal install carries no GLib tools; Qt's own trash needs none."""
-        import hsync_desktop.file_panel.transfer_table as tt
-
-        table = self._table(qtbot, "a.bin", "b.bin")
-        moved: list[str] = []
-        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
-        monkeypatch.setattr(tt.shutil, "which", lambda name: None)
-        monkeypatch.setattr(tt.QFile, "moveToTrash", lambda path: moved.append(path) or True)
-
-        def _never_runs(*_args, **_kwargs):
-            pytest.fail("the gio helper ran although it is not installed")
-
-        monkeypatch.setattr(tt.subprocess, "run", _never_runs)
-        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
-
-        self._select(table, 0, 1)
-        table._trash_many(table.selected_transfers())
-
-        assert [os.path.basename(path) for path in moved] == ["a.bin", "b.bin"]
-        assert table.model().rowCount() == 0
-
-    def test_a_failed_trash_reports_the_helper_message(self, qtbot, monkeypatch):
-        """The dialog shows gio's own stderr, not just ``exit status 127``."""
-        import hsync_desktop.file_panel.transfer_table as tt
-
-        table = self._table(qtbot, "a.bin")
+    def test_a_refused_move_reports_the_client_message(self, qtbot, monkeypatch):
+        table, _calls, tt = self._trashing_table(
+            qtbot, monkeypatch, "a.bin", ok=False, message="Cannot move it: boom"
+        )
         shown: list[str] = []
-
-        def _failing_run(args, **_kwargs):
-            raise tt.subprocess.CalledProcessError(127, args, stderr=b"gio: boom\n")
-
-        monkeypatch.setattr(tt.platform, "system", lambda: "Linux")
-        monkeypatch.setattr(tt.shutil, "which", lambda name: "/usr/bin/gio")
-        monkeypatch.setattr(tt.subprocess, "run", _failing_run)
-        monkeypatch.setattr(tt, "_confirm_dialog", lambda *a, **k: True)
         monkeypatch.setattr(tt.QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
 
         self._select(table, 0)
         table._trash_many(table.selected_transfers())
 
-        assert shown == [tr("ctx.error_trash").format(error="gio: boom")]
+        assert shown == [tr("ctx.error_trash").format(error="Cannot move it: boom")]
         # The row survives: nothing was moved.
+        assert table.model().rowCount() == 1
+
+    def test_without_the_client_nothing_is_moved(self, qtbot, monkeypatch):
+        table, calls, tt = self._trashing_table(qtbot, monkeypatch, "a.bin")
+        monkeypatch.setattr(tt, "find_hsync_binary", lambda: None)
+        shown: list[str] = []
+        monkeypatch.setattr(tt.QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
+
+        self._select(table, 0)
+        table._trash_many(table.selected_transfers())
+
+        assert calls == []
+        assert shown == [tr("ctx.trash_many_failed").format(count=1)]
         assert table.model().rowCount() == 1
 
     def test_copy_many_copies_every_entry(self, qtbot, tmp_path, monkeypatch):
@@ -3583,63 +3552,6 @@ class TestMultiSelection:
         assert (dest / "a.bin").read_bytes() == b"a"
         assert (dest / "b.bin").read_bytes() == b"b"
         assert shown == ["info"]
-
-
-class TestTrashPlatform:
-    """The per-platform trash helpers, without touching a real trash.
-
-    Windows needs ``DeleteDirectory`` for a folder (``DeleteFile`` refuses one),
-    and the path must never be interpolated into the script: a file name can
-    contain a quote or a shell metacharacter.
-    """
-
-    @staticmethod
-    def _run(monkeypatch, system, abs_path, *, exists_dir=False):
-        import hsync_desktop.file_panel.transfer_table as tt
-
-        calls: list[tuple[list[str], dict]] = []
-        monkeypatch.setattr(tt.platform, "system", lambda: system)
-        monkeypatch.setattr(tt.os.path, "isdir", lambda _p: exists_dir)
-        monkeypatch.setattr(
-            tt.subprocess,
-            "run",
-            lambda args, **kw: calls.append((list(args), dict(kw))),
-        )
-        tt.FileTransferTable._trash_platform(abs_path, system)
-        return calls
-
-    def test_windows_uses_delete_directory_for_a_folder(self, monkeypatch):
-        calls = self._run(monkeypatch, "Windows", r"C:\share\docs", exists_dir=True)
-
-        assert len(calls) == 1
-        script = calls[0][0][2]
-        assert "::DeleteDirectory(" in script
-        assert "::DeleteFile(" not in script
-
-    def test_windows_uses_delete_file_for_a_file(self, monkeypatch):
-        calls = self._run(monkeypatch, "Windows", r"C:\share\a.txt")
-
-        assert len(calls) == 1
-        script = calls[0][0][2]
-        assert "::DeleteFile(" in script
-        assert "::DeleteDirectory(" not in script
-
-    def test_windows_never_interpolates_the_path_into_the_script(self, monkeypatch):
-        hostile = r"C:\share\a\"; Remove-Item C:\ -Recurse; \"$x"
-        calls = self._run(monkeypatch, "Windows", hostile)
-
-        script = calls[0][0][2]
-        assert hostile not in script
-        assert "Remove-Item" not in script
-        # The path travels through the environment instead.
-        assert calls[0][1]["env"]["HSYNC_TRASH_PATH"] == hostile
-
-    def test_macos_escapes_the_path_in_the_applescript(self, monkeypatch):
-        calls = self._run(monkeypatch, "Darwin", '/share/a"b/c.bin')
-
-        script = calls[0][0][2]
-        assert '\\"' in script
-        assert '/share/a"b/c.bin' not in script
 
 
 class TestUnknownTransferTotal:

@@ -14,7 +14,7 @@ A thin Qt (PySide6) front-end over the `hsync` client binary. The GUI owns
 | Settings | `hsync_desktop/settings/dialog.py::SettingsDialog` + `config.py` | edit + persist config (QSettings) |
 | Args | `hsync_desktop/settings/cli_args.py::build_hsync_args` | translate persisted config → binary CLI flags |
 | Presentation | `themes.py`, `fonts.py`, `icons.py`, `i18n.py`, `system_tray.py`, `notifications.py` | look, host fonts, localization, tray, OS notifications |
-| Host tools | `hsync_desktop/host_env.py::host_env` | environment for every spawned host binary (`gsettings`, `gio trash`): the process env minus the bundled-library overrides (`hsync_desktop/host_env.py::LIBRARY_ENV_KEYS`) |
+| Host tools | `hsync_desktop/host_env.py::host_env` | environment for every spawned host binary (`gsettings`): the process env minus the bundled-library overrides (`hsync_desktop/host_env.py::LIBRARY_ENV_KEYS`) |
 | Startup | `autostart.py` | launch-at-login entry (XDG / LaunchAgent / Windows `Run`), toggled from the General tab; `main.py::_handle_early_cli_args` answers `--version`/`--help` before Qt starts (plain stream, or a dialog when the Windows GUI build has no console) |
 
 ## Runtime flow

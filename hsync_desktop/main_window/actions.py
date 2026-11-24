@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""ActionsMixin: action bar, sync controls, preview and direction menu."""
+"""ActionsMixin: action bar, sync controls and preview."""
 
 from __future__ import annotations
 
@@ -10,9 +10,6 @@ import os
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSettings, QTime, Slot
-from PySide6.QtGui import (
-    QAction,
-)
 from PySide6.QtWidgets import (
     QCheckBox,
     QMessageBox,
@@ -22,6 +19,7 @@ from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
 )
+from hsync_desktop.engine import empty_trash, find_hsync_binary, list_trash, restore_from_trash
 from hsync_desktop.file_panel.transfer_table import selection_subdir
 from hsync_desktop.foreground import app_in_foreground
 from hsync_desktop.i18n import tr
@@ -37,7 +35,10 @@ from hsync_desktop.settings import (
     is_auto_apply_enabled,
     is_simulation_mode,
     mark_plan_confirmation_seen,
+    trash_retention_days,
 )
+from hsync_desktop.trash_dialog import TrashDialog
+from hsync_desktop.widgets.dialogs import dialog_parent
 
 if TYPE_CHECKING:
     from hsync_desktop.engine.async_probe import AsyncProbe
@@ -67,20 +68,6 @@ class ActionsMixin:
     _link_down: bool
     _last_check_at: QTime | None
     _peers_total: int
-
-    @Slot(QAction)
-    def _on_direction_changed(self, action: QAction) -> None:
-        """Handle sync direction change from the menu."""
-        direction = action.data()
-        if not direction:
-            return
-        # Persist to QSettings
-        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue("sync/direction", direction)
-        # If the engine is running, send the command dynamically
-        if self._engine.is_running:
-            self._engine.set_sync_direction(direction)
-        # Refresh path display to update sync direction icon
-        self._update_path_display()
 
     @Slot(object)
     def _on_file_selection_changed(self, _selection=None) -> None:
@@ -754,6 +741,7 @@ class ActionsMixin:
             deletions_kept=get_deletion_policy() != "propagate",
             scope=scope,
             intent="preview" if preview_intent else "start",
+            trash_retention_days=trash_retention_days(),
         )
         # The plan is on screen: *Apply changes that delete nothing* may skip the
         # next one. Any confirmation teaches, Preview included.
@@ -816,6 +804,31 @@ class ActionsMixin:
         # Same session, same SYNC as a confirmed plan: no restart, no recount.
         self._engine.sync()
         self._is_dry_run_preview = False
+
+    def _show_trash_dialog(self) -> None:
+        """Open the trash of the active folder (ADR-0056).
+
+        The store belongs to the client, so the dialog reads it through
+        ``hsync trash list`` and acts through ``restore``/``empty``. Neither takes
+        the folder lock, so the view opens while a sync runs; a restore is then a
+        plain local write the next cycle propagates.
+        """
+        folder = str(self._local_path or "").strip()
+        if not folder:
+            QMessageBox.warning(dialog_parent(self), tr("notif.error"), tr("trash.list_failed"))
+            return
+        binary = self._engine.binary_path or find_hsync_binary() or ""
+        if not binary:
+            QMessageBox.warning(dialog_parent(self), tr("notif.error"), tr("trash.list_failed"))
+            return
+        direction = get_sync_direction()
+        dialog = TrashDialog(
+            dialog_parent(self),
+            load=lambda: list_trash(binary, folder),
+            restore=lambda path: restore_from_trash(binary, folder, path, direction=direction),
+            empty=lambda: empty_trash(binary, folder),
+        )
+        dialog.exec()
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""

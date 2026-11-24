@@ -238,8 +238,8 @@ class ShareStore:
         source = next((s for s in book.shares if s.id == book.active), None)
         if source is not None:
             # Refresh the active record from the live flat keys first: several
-            # paths (direction menu, bandwidth dialog, key re-prompts) write the
-            # projection without going through the snapshot points.
+            # paths (bandwidth dialog, key re-prompts) write the projection
+            # without going through the snapshot points.
             self.snapshot_active()
             book = self._book()
             source = next((s for s in book.shares if s.id == book.active), None)

@@ -10,12 +10,13 @@ using the app — it is here to answer "what is that icon?".
 
 <img src="assets/screens/03-menu-bar.png" alt="The menu bar: File, Sync, Settings, Help" width="720">
 
-- **File** — actions on the file or folder you selected (open, copy, rename, …)
-  and **Quit** at the bottom.
-- **Sync** — start, stop and compare, **Send now** / **Receive now** for one
-  selection, and the sync direction.
+- **File** — **New share…** creates another share, then the actions on the file
+  or folder you selected (open, copy, rename, …) and **Quit** at the bottom.
+- **Sync** — start, stop and compare, plus **Send now** / **Receive now** for one
+  selection and the trash of the files this device deleted.
 - **Settings** — the configuration dialog; see
-  [Configuration](configuration.md).
+  [Configuration](configuration.md). The [sync
+  direction](choose-sync-direction.md) is set here, on the **Sync** tab.
 - **Help** — this documentation, the [Setup wizard](setup-wizard.md) to re-run
   the guided setup, the project on GitHub, update checks and **About**: one
   window with the application information, the credits and the license, plus the
