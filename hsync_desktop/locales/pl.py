@@ -15,8 +15,6 @@ translations: dict[str, str] = {
     "about.tab.license": "Licencja",
     "about.credits.maintainer": "Opiekun",
     "about.credits.contributors": "Współtwórcy",
-    "about.credits.windows": "Windows",
-    "about.credits.raspberry_pi": "Raspberry Pi",
     "about.credits.full_list": "Pełna lista na GitHubie",
     "common.checking": "Sprawdzanie…",
     "app.loading": "Ładowanie…",

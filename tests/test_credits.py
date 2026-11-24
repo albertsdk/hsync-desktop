@@ -17,8 +17,6 @@ CONTRIBUTORS_MD = Path(__file__).resolve().parents[1] / "CONTRIBUTORS.md"
 SECTION_KEYS = {
     "Maintainer": "about.credits.maintainer",
     "Contributors": "about.credits.contributors",
-    "Windows": "about.credits.windows",
-    "Raspberry Pi": "about.credits.raspberry_pi",
 }
 
 # ``- Name ([@handle](url)) — role`` or ``- Name`` (no public handle yet).

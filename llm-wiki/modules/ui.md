@@ -1739,7 +1739,9 @@ resolved from `_MEIPASS` in the frozen build and from the repo root in the sourc
 tree) in a read-only `small_monospace_font` view, with `license.unavailable` when
 the file is missing. `initial_tab` selects the tab shown on open (Information by
 default). The credits are the runtime twin of the published `CONTRIBUTORS.md`:
-`tests/test_credits.py` fails when the two list different people.
+`tests/test_credits.py` fails when the two list different people. A person's
+platform speciality is prose in the Markdown only and never splits the credits
+into extra sections.
 
 ## Presentation helpers
 
