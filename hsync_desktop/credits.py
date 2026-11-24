@@ -39,15 +39,11 @@ CREDIT_SECTIONS: tuple[CreditSection, ...] = (
     ),
     CreditSection(
         title_key="about.credits.contributors",
-        people=(Person(name="Stefan Hirshi", handle="stefanhirshi"),),
-    ),
-    CreditSection(
-        title_key="about.credits.windows",
-        people=(Person(name="Nicola Cotellessa"),),
-    ),
-    CreditSection(
-        title_key="about.credits.raspberry_pi",
-        people=(Person(name="Lorenzo Beltrami"),),
+        people=(
+            Person(name="Stefan Hirshi", handle="stefanhirshi"),
+            Person(name="Nicola Cotellessa"),
+            Person(name="Lorenzo Beltrami"),
+        ),
     ),
 )
 
