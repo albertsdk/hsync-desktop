@@ -75,7 +75,7 @@ Set both rules to `0` to disable the guard entirely.
 
 ## Logging
 
-<img src="assets/screens/09e-advanced-logging.png" alt="Settings, Advanced tab: Logging" width="632"  style="background: #f0f0f0;">
+<img src="assets/screens/09e-advanced-logging.png" alt="Settings, Advanced tab: Logging" width="632" style="background: #f0f0f0;">
 
 - **Detailed log output** — verbose (debug-level) logging. If the log panel is
   hidden and no log file is set, enabling it offers to show the panel, so the
