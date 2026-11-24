@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trash…** in the Sync menu (ADR-0056): lists the files this device deleted,
+  restores one into the folder, or empties the store after a confirmation. The
+  listing and both actions go through `hsync trash`, so it works while a sync
+  runs and a restored file returns to every device at the next cycle.
+
 - Three settings for the peer-mesh capabilities (serve blocks, fetch from peers, publish
   inventory), translated in every locale.
 

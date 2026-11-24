@@ -514,6 +514,25 @@ after the credential prompt (the user is present again, so the retried plan is
 confirmed like a manual one) and re-enters `_enter_preparing_plan_ui`, which the
 restarted dry-run needs to avoid a silent wait.
 
+### Trash
+
+**Sync → Trash…** (`hsync_desktop/main_window/ui.py::UiBuildMixin._act_trash` →
+`hsync_desktop/main_window/actions.py::ActionsMixin._show_trash_dialog`) opens
+`hsync_desktop/trash_dialog.py::TrashDialog`, the recovery surface for the
+deletions this device applied (ADR-0056). The dialog owns no store: listing,
+restore and empty go through `hsync_desktop/engine/cli.py::list_trash` /
+`::restore_from_trash` / `::empty_trash`, i.e. `hsync trash list|restore|empty`,
+and the dialog only renders the outcome. None of those commands takes the folder
+lock, so the view opens during a run; a restored file is a plain local write that
+the next cycle propagates (delete-vs-recreate, ADR-0003).
+
+The three collaborators are injected (`load`/`restore`/`empty`), which is what
+lets `tests/test_trash_dialog.py` drive the dialog without a subprocess. The
+client's own refusal text is shown verbatim (destination exists, `download-only`
+folder, corrupt copy) instead of being re-worded here. The per-row **Move to
+trash** action in the file table is the *system* trash and stays a separate,
+unrelated path until the store gains a "park this file" command.
+
 ### Engine start failure feedback
 
 `_start_engine` (`hsync_desktop/main_window/start.py::StartMixin._start_engine`) wraps

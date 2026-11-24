@@ -499,6 +499,7 @@ class UiBuildMixin:
             self._menu_sync.setTitle(tr("menu.sync"))
             self._act_start.setText(tr("menu.sync.start"))
             self._act_preview_changes.setText(tr("menu.sync.preview"))
+            self._act_trash.setText(tr("menu.sync.trash"))
             self._act_stop.setText(tr("menu.sync.stop"))
             # The action bar mirrors these three, so a language change must
             # re-translate the buttons too (they are no longer icon-only).
@@ -736,6 +737,13 @@ class UiBuildMixin:
         self._act_preview_changes.setToolTip(tr("tip.preview_changes"))
         self._act_preview_changes.triggered.connect(self._on_preview_changes)
         self._menu_sync.addAction(self._act_preview_changes)
+
+        # The trash is the recovery surface for the deletions this device
+        # applied (ADR-0056), so it sits with the run controls, after Compare.
+        self._act_trash = QAction(tr("menu.sync.trash"), self)
+        self._act_trash.setToolTip(tr("trash.hint"))
+        self._act_trash.triggered.connect(self._show_trash_dialog)
+        self._menu_sync.addAction(self._act_trash)
 
         # A scoped one-shot run acts on the selection, so it sits with the run
         # controls instead of among the per-file actions in File.

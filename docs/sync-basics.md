@@ -53,6 +53,18 @@ confirmation dialog. The first plan of the installation is always shown, a plan
 with any deletion still asks, and **Compare** always shows the plan: that entry
 point exists to review it.
 
+## Restore a deleted file
+
+**Sync → Trash…** lists the files this device deleted, newest first, with when
+and how large they were. Select one and press **Restore**: the file goes back
+into the folder and the next sync propagates it to every device. **Empty trash**
+deletes the stored copies for good, after a confirmation.
+
+The list comes from the client's own store (`hsync trash list`), so it opens
+while a sync runs; the files are kept for the client's retention window (30 days
+by default). A restore refuses when the path already exists in the folder, and in
+a **Receive only** folder — the mirror rule would delete the file again.
+
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
 the summary and transfers or deletes nothing. While it is on, the main window
 shows a **Simulation — no changes** badge next to the connection status, the

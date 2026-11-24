@@ -216,10 +216,7 @@ def reset_sync_state(binary: str, folder: str, timeout: float = 60.0) -> ResetSt
     if result is None:
         return ResetStateResult(ok=False)
     if result.returncode != 0:
-        lines = [
-            line.strip() for line in (result.stderr or result.stdout).splitlines() if line.strip()
-        ]
-        return ResetStateResult(ok=False, message=lines[-1] if lines else "")
+        return ResetStateResult(ok=False, message=_result_message(result))
     try:
         payload = json.loads(result.stdout)
         if not isinstance(payload, dict):
@@ -233,6 +230,141 @@ def reset_sync_state(binary: str, folder: str, timeout: float = 60.0) -> ResetSt
         )
     except (ValueError, TypeError):
         return ResetStateResult(ok=False)
+
+
+@dataclass(frozen=True)
+class TrashEntrySummary:
+    """One restorable file, as ``hsync trash list --json`` reports it."""
+
+    path: str
+    size: int = 0
+    deleted_at: int = 0
+    origin: str = "sync"
+    entry_id: str = ""
+
+
+@dataclass(frozen=True)
+class TrashListResult:
+    """Outcome of ``hsync trash list`` (ADR-0056)."""
+
+    ok: bool
+    entries: tuple[TrashEntrySummary, ...] = ()
+    message: str = ""
+
+
+@dataclass(frozen=True)
+class TrashActionResult:
+    """Outcome of ``hsync trash restore`` / ``hsync trash empty``.
+
+    ``message`` carries the client's own text, so a refusal (the destination
+    exists, the folder is download-only, the copy is corrupt) is shown verbatim
+    instead of being re-worded here.
+    """
+
+    ok: bool
+    message: str = ""
+
+
+def _trash_command(command: str, folder: str, trash_dir: str | None) -> list[str]:
+    """Build ``hsync trash <command> --folder DIR [--trash-dir DIR]``."""
+    args = ["trash", command, "--folder", folder]
+    if trash_dir:
+        args += ["--trash-dir", trash_dir]
+    return args
+
+
+def _result_message(result: subprocess.CompletedProcess[str] | None) -> str:
+    """Last non-empty line of the client's output, for a failed command."""
+    if result is None:
+        return ""
+    lines = [line.strip() for line in (result.stderr or result.stdout).splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def list_trash(
+    binary: str,
+    folder: str,
+    *,
+    trash_dir: str | None = None,
+    timeout: float = 30.0,
+) -> TrashListResult:
+    """List the files this device deleted and can still restore.
+
+    The store is client-owned, so the GUI never reads it itself: the listing is
+    the ``hsync trash list --json`` contract (ADR-0056), which works while a sync
+    runs because the command takes no folder lock.
+    """
+    args = [*_trash_command("list", folder, trash_dir), "--json"]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None or result.returncode != 0:
+        return TrashListResult(ok=False, message=_result_message(result))
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return TrashListResult(ok=False)
+    if not isinstance(payload, list):
+        return TrashListResult(ok=False)
+    entries: list[TrashEntrySummary] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        path = str(item.get("path") or "").strip()
+        if not path:
+            continue
+        entries.append(
+            TrashEntrySummary(
+                path=path,
+                size=int(item.get("size") or 0),
+                deleted_at=int(item.get("deleted_at") or 0),
+                origin=str(item.get("origin") or "sync"),
+                entry_id=str(item.get("entry_id") or ""),
+            )
+        )
+    return TrashListResult(ok=True, entries=tuple(entries))
+
+
+def restore_from_trash(
+    binary: str,
+    folder: str,
+    relpath: str,
+    *,
+    direction: str = "bidirectional",
+    trash_dir: str | None = None,
+    timeout: float = 60.0,
+) -> TrashActionResult:
+    """Put one trashed file back into *folder* (``hsync trash restore``).
+
+    The direction is forwarded because a ``download-only`` folder refuses the
+    restore: the mirror rule would delete the file again.
+    """
+    args = [*_trash_command("restore", folder, trash_dir), relpath, "--direction", direction]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None:
+        return TrashActionResult(ok=False)
+    if result.returncode != 0:
+        return TrashActionResult(ok=False, message=_result_message(result))
+    return TrashActionResult(ok=True, message=(result.stdout or "").strip())
+
+
+def empty_trash(
+    binary: str,
+    folder: str,
+    *,
+    trash_dir: str | None = None,
+    timeout: float = 60.0,
+) -> TrashActionResult:
+    """Delete this folder's trashed files for good (``hsync trash empty``).
+
+    ``--yes`` because the GUI asked for its own confirmation: the command must
+    not prompt a second time on a pipe with no terminal.
+    """
+    args = [*_trash_command("empty", folder, trash_dir), "--yes"]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None:
+        return TrashActionResult(ok=False)
+    if result.returncode != 0:
+        return TrashActionResult(ok=False, message=_result_message(result))
+    return TrashActionResult(ok=True, message=(result.stdout or "").strip())
 
 
 def find_hsync_binary() -> str | None:

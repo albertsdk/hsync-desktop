@@ -22,6 +22,7 @@ from hsync_desktop.bandwidth_dialog import BandwidthDialog
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
 )
+from hsync_desktop.engine import empty_trash, find_hsync_binary, list_trash, restore_from_trash
 from hsync_desktop.file_panel.transfer_table import selection_subdir
 from hsync_desktop.foreground import app_in_foreground
 from hsync_desktop.i18n import tr
@@ -38,6 +39,8 @@ from hsync_desktop.settings import (
     is_simulation_mode,
     mark_plan_confirmation_seen,
 )
+from hsync_desktop.trash_dialog import TrashDialog
+from hsync_desktop.widgets.dialogs import dialog_parent
 
 if TYPE_CHECKING:
     from hsync_desktop.engine.async_probe import AsyncProbe
@@ -816,6 +819,31 @@ class ActionsMixin:
         # Same session, same SYNC as a confirmed plan: no restart, no recount.
         self._engine.sync()
         self._is_dry_run_preview = False
+
+    def _show_trash_dialog(self) -> None:
+        """Open the trash of the active folder (ADR-0056).
+
+        The store belongs to the client, so the dialog reads it through
+        ``hsync trash list`` and acts through ``restore``/``empty``. Neither takes
+        the folder lock, so the view opens while a sync runs; a restore is then a
+        plain local write the next cycle propagates.
+        """
+        folder = str(self._local_path or "").strip()
+        if not folder:
+            QMessageBox.warning(dialog_parent(self), tr("notif.error"), tr("trash.list_failed"))
+            return
+        binary = self._engine.binary_path or find_hsync_binary() or ""
+        if not binary:
+            QMessageBox.warning(dialog_parent(self), tr("notif.error"), tr("trash.list_failed"))
+            return
+        direction = get_sync_direction()
+        dialog = TrashDialog(
+            dialog_parent(self),
+            load=lambda: list_trash(binary, folder),
+            restore=lambda path: restore_from_trash(binary, folder, path, direction=direction),
+            empty=lambda: empty_trash(binary, folder),
+        )
+        dialog.exec()
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""
