@@ -426,7 +426,7 @@ translations: dict[str, str] = {
     "tip.p2p_key": "Palavra-passe partilhada por todos os dispositivos do grupo; deve ser idêntica em cada dispositivo. Também é usada como chave do grupo para um servidor de pesquisa protegido.",
     "tip.p2p_port": "Porta usada em modo direto (0 = automática).",
     "tip.rendezvous_timeout": "Por quanto tempo procurar outros dispositivos nas proximidades.",
-    "tip.ntp_hosts": "Servidores de horário usados para alinhar os relógios entre os dispositivos (vazio = padrões internos; as entradas podem incluir uma porta, ex.: host:porta).",
+    "tip.ntp_hosts": "Servidores de horário usados para alinhar os relógios entre dispositivos. Vazio = nenhum servidor público: a referência é o master/rendezvous; num escravo o master de confiança tem prioridade. As entradas podem incluir uma porta, ex.: host:porta.",
     "tip.prefer_master": "Preferir este dispositivo como primário no modo direto (um primário já ativo mantém a função)",
     "tip.never_master": "Nunca tornar este dispositivo primário; ele permanece sempre secundário",
     "tip.p2p_trust": "Como este dispositivo confia num principal que nunca viu: pede confirmação na primeira vez (recomendado), aceita-o automaticamente ou exige uma confirmação explícita antes de ligar.",

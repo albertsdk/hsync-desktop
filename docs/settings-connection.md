@@ -133,8 +133,10 @@ Leave the defaults unless you know what you are changing.
 - **Port** — the fixed listening port in Direct mode (`0` = automatic).
 - **Device search timeout** — how long to wait for device discovery.
 - **Time servers** — comma-separated SNTP servers used to measure the clock offset
-  between devices; empty uses the built-in defaults, and an entry may carry a
-  port (`ntp.local:123`).
+  between devices. Empty uses **no public time servers**: the reference is the
+  server/master (on a slave the trusted master has precedence); configure this
+  only when you need a specific source (e.g. an internal NTP). An entry may carry
+  a port (`ntp.local:123`).
 - **Serve files to other devices** — serve file blocks to the other devices, so
   they can skip the primary.
 - **Download from other devices** — fetch file blocks from the other devices, not
