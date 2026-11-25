@@ -72,6 +72,10 @@ A row marked **no stored copy** is a record the store kept without its bytes (a
 crash between the record and the move): it is listed so you know it existed, and
 Restore stays disabled for it.
 
+Above the list the dialog states what the store holds and the limit it counts
+against (*Store: 120 MB of 4 GB, 8 files*) — one `hsync trash stats` call, which
+covers every share because that limit is shared.
+
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
 the summary and transfers or deletes nothing. While it is on, the main window
 shows a **Simulation — no changes** badge next to the connection status, the

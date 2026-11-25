@@ -942,6 +942,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "The trash could not be read.",
     "trash.not_restorable": "no stored copy",
     "trash.not_restorable_tip": "The store kept this record but not its bytes, so it cannot be restored.",
+    "trash.usage": "Store: {used} of {budget} ({count} files)",
     "preview_summary.warning_delete_recoverable": "Deletions go to this device's trash — {count} planned, restorable for {days} days.",
     "settings.trash_enabled": "Keep deleted files in the local trash",
     "settings.trash_retention": "Restore window (days)",

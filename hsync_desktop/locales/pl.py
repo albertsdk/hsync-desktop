@@ -941,6 +941,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "Nie można odczytać kosza.",
     "trash.not_restorable": "brak zapisanej kopii",
     "trash.not_restorable_tip": "Kosz zachował wpis, ale nie dane: nie można przywrócić.",
+    "trash.usage": "Kosz: {used} z {budget} ({count} plików)",
     "preview_summary.warning_delete_recoverable": "Usunięcia trafiają do kosza tego urządzenia: {count} zaplanowanych, do przywrócenia przez {days} dni.",
     "settings.trash_enabled": "Zachowaj usunięte pliki w lokalnym koszu",
     "settings.trash_retention": "Okno przywracania (dni)",

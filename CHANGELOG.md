@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trash…** states what the store holds against its shared limit (*Store: 120 MB
+  of 4 GB, 8 files*) from one `hsync trash stats` call.
 - **Trash…** marks a row whose stored copy is gone (*no stored copy*) and keeps
   Restore disabled for it, so the view never offers a command that can only
   refuse.

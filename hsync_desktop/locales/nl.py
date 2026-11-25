@@ -941,6 +941,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "De prullenbak kon niet worden gelezen.",
     "trash.not_restorable": "geen bewaarde kopie",
     "trash.not_restorable_tip": "De prullenbak bewaarde de vermelding maar niet de gegevens: herstellen kan niet.",
+    "trash.usage": "Prullenbak: {used} van {budget} ({count} bestanden)",
     "preview_summary.warning_delete_recoverable": "Verwijderingen gaan naar de prullenbak van dit apparaat: {count} gepland, {days} dagen herstelbaar.",
     "settings.trash_enabled": "Verwijderde bestanden in de lokale prullenbak bewaren",
     "settings.trash_retention": "Herstelvenster (dagen)",

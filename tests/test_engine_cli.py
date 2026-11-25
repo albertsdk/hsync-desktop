@@ -702,9 +702,59 @@ class TestResetSyncState:
         assert reset_sync_state("/bin/hsync", "/data/photos").ok is False
 
 
-def test_list_trash_marks_an_entry_without_a_stored_copy(monkeypatch):
-    """`payload_present: false` reaches the dialog, which disables the restore."""
+def test_trash_stats_reads_the_summary(monkeypatch):
+    """The dialog's "X of Y" comes from one `hsync trash stats --json` call."""
     import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps(
+        {
+            "root": "/state/trash",
+            "entries": 4,
+            "bytes": 8192,
+            "oldest": 1_700_000_000,
+            "budget": 1_073_741_824,
+            "folders": 2,
+        }
+    )
+    seen: list[list[str]] = []
+
+    def _capture(binary, args, timeout):
+        seen.append(list(args))
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+
+    monkeypatch.setattr(engine_cli, "_run_hsync_capture", _capture)
+
+    stats = engine_cli.trash_stats("hsync")
+
+    assert seen == [["trash", "stats", "--json"]]
+    assert stats == engine_cli.TrashStats(
+        root="/state/trash",
+        entries=4,
+        bytes=8192,
+        oldest=1_700_000_000,
+        budget=1_073_741_824,
+        folders=2,
+    )
+
+
+def test_trash_stats_is_none_when_the_client_refuses(monkeypatch):
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="boom"
+        ),
+    )
+
+    assert engine_cli.trash_stats("hsync") is None
+
+    """`payload_present: false` reaches the dialog, which disables the restore."""
 
     from hsync_desktop.engine import cli as engine_cli
 

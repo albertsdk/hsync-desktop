@@ -534,8 +534,9 @@ restarted dry-run needs to avoid a silent wait.
 `hsync_desktop/main_window/actions.py::ActionsMixin._show_trash_dialog`) opens
 `hsync_desktop/trash_dialog.py::TrashDialog`, the recovery surface for the
 deletions this device applied (ADR-0056). The dialog owns no store: listing,
-restore and empty go through `hsync_desktop/engine/cli.py::list_trash` /
-`::restore_from_trash` / `::empty_trash`, i.e. `hsync trash list|restore|empty`,
+restore, empty and the usage line go through
+`hsync_desktop/engine/cli.py::list_trash` / `::restore_from_trash` /
+`::empty_trash` / `::trash_stats`, i.e. `hsync trash list|restore|empty|stats`,
 and the dialog only renders the outcome. None of those commands takes the folder
 lock, so the view opens during a run; a restored file is a plain local write that
 the next cycle propagates (delete-vs-recreate, ADR-0003).

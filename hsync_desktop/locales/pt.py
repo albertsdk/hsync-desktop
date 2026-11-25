@@ -941,6 +941,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "Não foi possível ler a lixeira.",
     "trash.not_restorable": "sem cópia guardada",
     "trash.not_restorable_tip": "A lixeira guardou o registro mas não os dados: não é possível restaurar.",
+    "trash.usage": "Lixeira: {used} de {budget} ({count} arquivos)",
     "preview_summary.warning_delete_recoverable": "As eliminações vão para a lixeira deste dispositivo: {count} previstas, restauráveis durante {days} dias.",
     "settings.trash_enabled": "Manter os arquivos eliminados na lixeira local",
     "settings.trash_retention": "Janela de restauração (dias)",

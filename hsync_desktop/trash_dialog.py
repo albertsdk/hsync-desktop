@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.engine import TrashActionResult, TrashListResult
+from hsync_desktop.engine import TrashActionResult, TrashListResult, TrashStats
 from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.labels import muted_label
 
@@ -69,11 +69,13 @@ class TrashDialog(QDialog):
         load: Callable[[], TrashListResult],
         restore: Callable[[str], TrashActionResult],
         empty: Callable[[], TrashActionResult],
+        stats: Callable[[], TrashStats | None] | None = None,
     ) -> None:
         super().__init__(parent)
         self._load = load
         self._restore = restore
         self._empty = empty
+        self._stats = stats
 
         self.setWindowTitle(tr("trash.title"))
         self.resize(640, 420)
@@ -84,6 +86,9 @@ class TrashDialog(QDialog):
         layout = QVBoxLayout(self)
         self._lbl_hint = muted_label()
         layout.addWidget(self._lbl_hint)
+        # How much the store holds, against its shared budget ("X of Y").
+        self._lbl_usage = muted_label()
+        layout.addWidget(self._lbl_usage)
 
         self._table = QTableWidget(0, 3, self)
         self._table.setHorizontalHeaderLabels(
@@ -124,6 +129,7 @@ class TrashDialog(QDialog):
 
     def reload(self) -> None:
         """Refresh the listing from the client's store."""
+        self._render_usage()
         result = self._load()
         self._table.setRowCount(0)
         if not result.ok:
@@ -154,6 +160,25 @@ class TrashDialog(QDialog):
             self._table.setItem(row, 2, size_item)
         self._lbl_status.setText("")
         self._sync_buttons()
+
+    def _render_usage(self) -> None:
+        """Show how much the store holds, when the client can tell us."""
+        if self._stats is None:
+            self._lbl_usage.setText("")
+            return
+        stats = self._stats()
+        if stats is None or stats.budget <= 0:
+            # No usable summary: say nothing rather than show a zero we cannot
+            # vouch for (the client also omits the budget when unbounded).
+            self._lbl_usage.setText("")
+            return
+        self._lbl_usage.setText(
+            tr("trash.usage").format(
+                used=format_bytes(stats.bytes),
+                budget=format_bytes(stats.budget),
+                count=stats.entries,
+            )
+        )
 
     def selected_path(self) -> str:
         """Path of the selected row, or ``""`` when nothing is selected."""

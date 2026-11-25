@@ -12,9 +12,10 @@ button is reachable.
 from __future__ import annotations
 
 import pytest
+from hsync_common.format import format_bytes
 from PySide6.QtWidgets import QMessageBox
 
-from hsync_desktop.engine import TrashActionResult, TrashEntrySummary, TrashListResult
+from hsync_desktop.engine import TrashActionResult, TrashEntrySummary, TrashListResult, TrashStats
 from hsync_desktop.i18n import tr
 from hsync_desktop.trash_dialog import TrashDialog
 
@@ -22,12 +23,20 @@ from hsync_desktop.trash_dialog import TrashDialog
 class _Fake:
     """One fake engine: a queue of listings and the recorded actions."""
 
-    def __init__(self, listings: list[TrashListResult], *, restore_ok: bool = True) -> None:
+    def __init__(
+        self,
+        listings: list[TrashListResult],
+        *,
+        restore_ok: bool = True,
+        stats_value: TrashStats | None = None,
+    ) -> None:
         self.listings = listings
         self.restore_ok = restore_ok
+        self.stats_value = stats_value
         self.loads = 0
         self.restored: list[str] = []
         self.emptied = 0
+        self.stat_calls = 0
 
     def load(self) -> TrashListResult:
         self.loads += 1
@@ -42,6 +51,10 @@ class _Fake:
     def empty(self) -> TrashActionResult:
         self.emptied += 1
         return TrashActionResult(ok=True, message="")
+
+    def stats(self) -> TrashStats | None:
+        self.stat_calls += 1
+        return self.stats_value
 
 
 def _entries(*paths: str, missing_copy: tuple[str, ...] = ()) -> TrashListResult:
@@ -65,9 +78,40 @@ def _dialog(qtbot, fake: _Fake) -> TrashDialog:
         load=fake.load,
         restore=fake.restore,
         empty=fake.empty,
+        stats=fake.stats,
     )
     qtbot.addWidget(dlg)
     return dlg
+
+
+def test_the_usage_line_reports_what_the_store_holds(qtbot):
+    """`hsync trash stats` gives the dialog "X of Y" without summing the rows."""
+    fake = _Fake(
+        [_entries("docs/report.pdf")],
+        stats_value=TrashStats(
+            root="/state/trash",
+            entries=3,
+            bytes=2048,
+            oldest=1_700_000_000,
+            budget=4096,
+            folders=1,
+        ),
+    )
+
+    dlg = _dialog(qtbot, fake)
+
+    assert fake.stat_calls == 1
+    assert dlg._lbl_usage.text() == tr("trash.usage").format(
+        used=format_bytes(2048), budget=format_bytes(4096), count=3
+    )
+
+
+def test_no_summary_is_shown_when_the_client_cannot_report_one(qtbot):
+    fake = _Fake([_entries("docs/report.pdf")], stats_value=None)
+
+    dlg = _dialog(qtbot, fake)
+
+    assert dlg._lbl_usage.text() == ""
 
 
 def test_it_lists_what_the_client_reports(qtbot):

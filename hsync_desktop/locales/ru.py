@@ -941,6 +941,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "Не удалось прочитать корзину.",
     "trash.not_restorable": "копия отсутствует",
     "trash.not_restorable_tip": "В корзине осталась запись, но не данные: восстановить нельзя.",
+    "trash.usage": "Корзина: {used} из {budget} ({count} файлов)",
     "preview_summary.warning_delete_recoverable": "Удаления попадают в корзину этого устройства: запланировано {count}, восстановление доступно {days} дн.",
     "settings.trash_enabled": "Хранить удалённые файлы в локальной корзине",
     "settings.trash_retention": "Окно восстановления (дни)",

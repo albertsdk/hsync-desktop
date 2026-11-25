@@ -249,6 +249,18 @@ class TrashEntrySummary:
 
 
 @dataclass(frozen=True)
+class TrashStats:
+    """What ``hsync trash stats --json`` reports (ADR-0056)."""
+
+    root: str = ""
+    entries: int = 0
+    bytes: int = 0
+    oldest: int = 0
+    budget: int = 0
+    folders: int = 0
+
+
+@dataclass(frozen=True)
 class TrashListResult:
     """Outcome of ``hsync trash list`` (ADR-0056)."""
 
@@ -329,6 +341,43 @@ def list_trash(
             )
         )
     return TrashListResult(ok=True, entries=tuple(entries))
+
+
+def trash_stats(
+    binary: str,
+    *,
+    trash_dir: str | None = None,
+    timeout: float = 30.0,
+) -> TrashStats | None:
+    """Summarize the whole store from ``hsync trash stats --json``.
+
+    ``None`` when the client refuses or reports something unusable: the dialog
+    then omits the summary instead of showing figures it cannot vouch for. The
+    command walks the store only, so it runs while a sync does.
+    """
+    args = ["trash", "stats", "--json"]
+    if trash_dir:
+        args += ["--trash-dir", trash_dir]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None or result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return TrashStats(
+            root=str(payload.get("root") or ""),
+            entries=int(payload.get("entries") or 0),
+            bytes=int(payload.get("bytes") or 0),
+            oldest=int(payload.get("oldest") or 0),
+            budget=int(payload.get("budget") or 0),
+            folders=int(payload.get("folders") or 0),
+        )
+    except (TypeError, ValueError):
+        return None
 
 
 def restore_from_trash(

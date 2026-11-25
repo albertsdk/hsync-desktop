@@ -918,6 +918,7 @@ translations: dict[str, str] = {
     "trash.list_failed": "Impossibile leggere il cestino.",
     "trash.not_restorable": "copia non disponibile",
     "trash.not_restorable_tip": "Il cestino ha conservato la voce ma non i dati: non è ripristinabile.",
+    "trash.usage": "Cestino: {used} di {budget} ({count} file)",
     "preview_summary.warning_delete_recoverable": "Le cancellazioni finiscono nel cestino di questo dispositivo: {count} pianificate, ripristinabili per {days} giorni.",
     "settings.trash_enabled": "Conserva i file eliminati nel cestino locale",
     "settings.trash_retention": "Finestra di ripristino (giorni)",
