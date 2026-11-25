@@ -4826,8 +4826,9 @@ class TestMenuConventions:
     def test_the_trash_sits_after_the_scoped_runs(self, window):
         """Recovery closes the menu; only commands that start work lead it."""
         sync_texts = self._texts(window._menu_sync)
-        trash, send = sync_texts.index(tr("menu.sync.trash")), sync_texts.index(
-            tr("action.send_now")
+        trash, send = (
+            sync_texts.index(tr("menu.sync.trash")),
+            sync_texts.index(tr("action.send_now")),
         )
         assert trash > send
         assert trash > sync_texts.index(tr("action.receive_now"))
