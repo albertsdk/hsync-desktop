@@ -44,11 +44,17 @@ class _Fake:
         return TrashActionResult(ok=True, message="")
 
 
-def _entries(*paths: str) -> TrashListResult:
+def _entries(*paths: str, missing_copy: tuple[str, ...] = ()) -> TrashListResult:
     return TrashListResult(
         ok=True,
         entries=tuple(
-            TrashEntrySummary(path=path, size=1024, deleted_at=1_700_000_000) for path in paths
+            TrashEntrySummary(
+                path=path,
+                size=1024,
+                deleted_at=1_700_000_000,
+                payload_present=path not in missing_copy,
+            )
+            for path in paths
         ),
     )
 
@@ -91,6 +97,28 @@ def test_selecting_a_row_enables_the_restore(qtbot):
     dlg._table.selectRow(0)
 
     assert dlg.selected_path() == "docs/report.pdf"
+    assert dlg._btn_restore.isEnabled() is True
+
+
+def test_a_row_without_a_stored_copy_cannot_be_restored(qtbot):
+    """The record can outlive its bytes: the row says so and stays unselectable."""
+    fake = _Fake(
+        [
+            _entries("docs/report.pdf", "gone.txt", missing_copy=("gone.txt",)),
+            _entries(),
+        ]
+    )
+    dlg = _dialog(qtbot, fake)
+
+    assert tr("trash.not_restorable") in dlg._table.item(1, 0).text()
+    assert dlg._table.item(1, 0).toolTip() == tr("trash.not_restorable_tip")
+    assert tr("trash.not_restorable") not in dlg._table.item(0, 0).text()
+
+    dlg._table.selectRow(1)
+    assert dlg.selected_path() == "gone.txt"
+    assert dlg._btn_restore.isEnabled() is False
+
+    dlg._table.selectRow(0)
     assert dlg._btn_restore.isEnabled() is True
 
 

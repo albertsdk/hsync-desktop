@@ -543,7 +543,10 @@ the next cycle propagates (delete-vs-recreate, ADR-0003).
 The three collaborators are injected (`load`/`restore`/`empty`), which is what
 lets `tests/test_trash_dialog.py` drive the dialog without a subprocess. The
 client's own refusal text is shown verbatim (destination exists, `download-only`
-folder, corrupt copy) instead of being re-worded here. The per-row **Move to
+folder, corrupt copy) instead of being re-worded here. A row whose listing says
+`payload_present: false` (the record outlived its bytes) is marked with
+`trash.not_restorable` and keeps **Restore** disabled, so the dialog never offers
+a command that can only refuse. The per-row **Move to
 trash** action in the file table is the *system* trash and stays a separate,
 unrelated path until the store gains a "park this file" command.
 

@@ -700,3 +700,32 @@ class TestResetSyncState:
         from hsync_desktop.engine import reset_sync_state
 
         assert reset_sync_state("/bin/hsync", "/data/photos").ok is False
+
+
+def test_list_trash_marks_an_entry_without_a_stored_copy(monkeypatch):
+    """`payload_present: false` reaches the dialog, which disables the restore."""
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps(
+        [
+            {"path": "gone.txt", "size": 3, "deleted_at": 1_700_000_000, "payload_present": False},
+            {"path": "kept.txt", "size": 5, "deleted_at": 1_700_000_100},
+        ]
+    )
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=payload, stderr=""
+        ),
+    )
+
+    result = engine_cli.list_trash("hsync", "/share")
+
+    assert result.ok is True
+    assert [(entry.path, entry.payload_present) for entry in result.entries] == [
+        ("gone.txt", False),
+        ("kept.txt", True),
+    ]

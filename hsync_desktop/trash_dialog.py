@@ -39,6 +39,10 @@ from hsync_desktop.widgets.labels import muted_label
 
 __all__ = ["TrashDialog"]
 
+# Row role holding whether the entry's bytes are still in the store (UserRole
+# carries the path the client expects back on restore).
+_RESTORABLE_ROLE = int(Qt.ItemDataRole.UserRole) + 1
+
 
 def _deleted_label(stamp: int) -> str:
     """Render a deletion timestamp in the host's locale format."""
@@ -131,8 +135,18 @@ class TrashDialog(QDialog):
         for entry in result.entries:
             row = self._table.rowCount()
             self._table.insertRow(row)
-            path_item = QTableWidgetItem(entry.path)
+            # The store can keep a record whose bytes are gone (a crash or a
+            # hand-edit): say so on the row and make it unselectable for restore.
+            label = (
+                entry.path
+                if entry.payload_present
+                else f"{entry.path}  ({tr('trash.not_restorable')})"
+            )
+            path_item = QTableWidgetItem(label)
             path_item.setData(Qt.ItemDataRole.UserRole, entry.path)
+            path_item.setData(_RESTORABLE_ROLE, entry.payload_present)
+            if not entry.payload_present:
+                path_item.setToolTip(tr("trash.not_restorable_tip"))
             self._table.setItem(row, 0, path_item)
             self._table.setItem(row, 1, QTableWidgetItem(_deleted_label(entry.deleted_at)))
             size_item = QTableWidgetItem(format_bytes(entry.size))
@@ -151,8 +165,17 @@ class TrashDialog(QDialog):
         return str(item.data(Qt.ItemDataRole.UserRole) or "") if item is not None else ""
 
     def _sync_buttons(self) -> None:
-        self._btn_restore.setEnabled(bool(self.selected_path()))
+        self._btn_restore.setEnabled(self._selected_restorable())
         self._btn_empty.setEnabled(self._table.rowCount() > 0)
+
+    def _selected_restorable(self) -> bool:
+        """True when a row is selected and its bytes are still in the store."""
+        model = self._table.selectionModel()
+        rows = model.selectedRows() if model is not None else []
+        if not rows:
+            return False
+        item = self._table.item(rows[0].row(), 0)
+        return bool(item.data(_RESTORABLE_ROLE)) if item is not None else False
 
     # ── actions ───────────────────────────────────────────────────────────
 

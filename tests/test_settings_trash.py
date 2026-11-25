@@ -10,9 +10,14 @@ order, so the GUI cannot promise a window the engine does not use (ADR-0056).
 
 from __future__ import annotations
 
-from hsync_desktop.config import DEFAULT_TRASH_MAX_SIZE_GB, DEFAULT_TRASH_RETENTION_DAYS
+from hsync_desktop.config import (
+    DEFAULT_TRASH_ENABLED,
+    DEFAULT_TRASH_MAX_SIZE_GB,
+    DEFAULT_TRASH_RETENTION_DAYS,
+)
 from hsync_desktop.settings.cli_args import (
     build_hsync_args,
+    get_trash_enabled,
     get_trash_max_size_gb,
     get_trash_retention_days,
     trash_retention_days,
@@ -25,6 +30,11 @@ def _flag_values(args: list[str], flag: str) -> list[str]:
 
 
 class TestStoredValue:
+    def test_the_trash_is_on_by_default(self, monkeypatch, tmp_path):
+        _patch_settings_qsettings(monkeypatch, _settings(tmp_path))
+
+        assert get_trash_enabled() is DEFAULT_TRASH_ENABLED is True
+
     def test_the_default_is_the_shared_window(self, monkeypatch, tmp_path):
         _patch_settings_qsettings(monkeypatch, _settings(tmp_path))
 
@@ -69,16 +79,34 @@ class TestEmission:
         assert _flag_values(args, "--trash-retention") == ["7"]
         assert "--no-trash" not in args
 
-    def test_the_disabled_choice_turns_the_trash_off(self, monkeypatch, tmp_path):
-        """``0`` must not reach the client, where ``--trash-retention 0`` = forever."""
+    def test_the_disabled_switch_turns_the_trash_off(self, monkeypatch, tmp_path):
+        """The switch is the only "off": the client still reads 0 as "forever"."""
         store = _settings(tmp_path)
-        store.setValue("sync/trash_retention", 0)
+        store.setValue("sync/trash_enabled", False)
         _patch_settings_qsettings(monkeypatch, store)
 
         args = build_hsync_args(str(tmp_path))
 
         assert "--no-trash" in args
         assert _flag_values(args, "--trash-retention") == []
+
+    def test_a_stored_zero_window_clamps_to_one_day(self, monkeypatch, tmp_path):
+        """An older build could store 0; the client would read it as forever."""
+        store = _settings(tmp_path)
+        store.setValue("sync/trash_retention", 0)
+        _patch_settings_qsettings(monkeypatch, store)
+
+        assert get_trash_retention_days() == 1
+        assert _flag_values(build_hsync_args(str(tmp_path)), "--trash-retention") == ["1"]
+
+    def test_the_environment_disable_applies_until_the_user_stores_it(self, monkeypatch, tmp_path):
+        _patch_settings_qsettings(monkeypatch, _settings(tmp_path))
+        monkeypatch.setenv("HSYNC_TRASH_ENABLED", "false")
+
+        assert get_trash_enabled() is False
+        assert trash_retention_days() == 0
+        # Nothing stored: the client's own environment decides, so no flag.
+        assert _flag_values(build_hsync_args(str(tmp_path)), "--trash-retention") == []
 
 
 class TestBudget:

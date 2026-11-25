@@ -52,12 +52,16 @@ appears only when **Show advanced options** is on).
   without the confirmation dialog when it only transfers or renames files. A plan
   that deletes anything still asks, and the first plan of the installation is
   always shown; **Compare** always shows the plan too.
-- **Keep deleted files for (days)** — how long a deletion this device applied
-  stays restorable from **Sync → Trash…** (default 30 days; `Disabled` turns the
-  trash off, and the plan then warns that deletions cannot be undone). The value
-  is passed to the engine as `--trash-retention` (or `--no-trash` for `Disabled`)
-  once you save it; until then the client's own
-  `HSYNC_TRASH_RETENTION_DAYS`/default applies.
+- **Keep deleted files in the local trash** — whether a deletion this device
+  applied keeps its bytes, so **Sync → Trash…** can put them back (on by
+  default). With it off, an applied deletion unlinks the file and the plan warns
+  that it cannot be undone; until you save it, the client's own
+  `HSYNC_TRASH_ENABLED` decides.
+- **Restore window (days)** — how long such a deletion stays restorable (default
+  30 days, one day to ten years; the spin is disabled while the switch is off).
+  The value is passed to the engine as `--trash-retention` once you save it;
+  turning the trash off is `--no-trash`, so the dialog never emits a `0` the
+  client would read as "keep until the size limit evicts".
 - **Trash size limit (GB)** — how much disk the trash may use in total. `Auto`
   (the default) hands the cap back to the client, which keeps a share of the
   filesystem hosting the trash with a floor. The value is passed to the engine as

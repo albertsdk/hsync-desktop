@@ -100,6 +100,7 @@ from hsync_desktop.config import (
     DEFAULT_START_AT_LOGIN,
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_TOOLTIPS,
+    DEFAULT_TRASH_ENABLED,
     DEFAULT_TRASH_MAX_SIZE_GB,
     DEFAULT_TRASH_RETENTION_DAYS,
     DEFAULT_VERBOSE,
@@ -469,6 +470,7 @@ class SettingsDialog(QDialog):
             (self.dry_run, "tip.dry_run"),
             (self.auto_sync, "tip.auto_sync"),
             (self.auto_apply, "tip.auto_apply"),
+            (self.trash_enabled, "tip.trash_enabled"),
             (self.trash_retention, "tip.trash_retention"),
             (self.trash_max_size, "tip.trash_max_size"),
             (self.ignore_patterns, "tip.ignore_patterns"),
@@ -1831,8 +1833,9 @@ class SettingsDialog(QDialog):
         s.setValue("sync/dry_run", self.dry_run.isChecked())
         s.setValue("sync/auto_sync", self.auto_sync.isChecked())
         s.setValue("sync/auto_apply", self.auto_apply.isChecked())
-        # From the first save on, this key exists and the GUI's window wins over
-        # the environment (``get_trash_retention_days`` checks ``contains``).
+        # From the first save on, the key exists and the GUI's switch/window win
+        # over the environment (``get_trash_enabled`` checks ``contains``).
+        s.setValue("sync/trash_enabled", self.trash_enabled.isChecked())
         s.setValue("sync/trash_retention", self.trash_retention.value())
         s.setValue("sync/trash_max_size_gb", self.trash_max_size.value())
         s.setValue("sync/ignore_patterns", self.ignore_patterns.text())
@@ -1981,8 +1984,17 @@ class SettingsDialog(QDialog):
         self.dry_run.setChecked(bool(s.value("sync/dry_run", DEFAULT_DRY_RUN, bool)))
         self.auto_sync.setChecked(bool(s.value("sync/auto_sync", DEFAULT_AUTO_SYNC, bool)))
         self.auto_apply.setChecked(bool(s.value("sync/auto_apply", DEFAULT_AUTO_APPLY, bool)))
+        self.trash_enabled.setChecked(
+            bool(s.value("sync/trash_enabled", DEFAULT_TRASH_ENABLED, bool))
+        )
+        self.trash_retention.setEnabled(self.trash_enabled.isChecked())
         self.trash_retention.setValue(
-            cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int))
+            # A window below one day would be "off" spelled as a number; the
+            # switch owns that choice, so a stored 0 (an older build) clamps up.
+            max(
+                cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int)),
+                1,
+            )
         )
         self.trash_max_size.setValue(
             cast(int, s.value("sync/trash_max_size_gb", DEFAULT_TRASH_MAX_SIZE_GB, int))
