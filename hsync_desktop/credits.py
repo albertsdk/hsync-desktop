@@ -42,7 +42,7 @@ CREDIT_SECTIONS: tuple[CreditSection, ...] = (
         people=(
             Person(name="Stefan Hirshi", handle="stefanhirshi"),
             Person(name="Nicola Cotellessa"),
-            Person(name="Lorenzo Beltrami"),
+            Person(name="Lorenzo Beltrami", handle="nonnemilia"),
         ),
     ),
 )
