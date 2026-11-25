@@ -940,8 +940,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Prullenbak geleegd.",
     "trash.list_failed": "De prullenbak kon niet worden gelezen.",
     "preview_summary.warning_delete_recoverable": "Verwijderingen gaan naar de prullenbak van dit apparaat: {count} gepland, {days} dagen herstelbaar.",
-    "settings.trash_retention": "Verwijderde bestanden bewaren (dagen)",
-    "tip.trash_retention": "Hoe lang een toegepaste verwijdering herstelbaar blijft uit de prullenbak. 0 = geen herstelbelofte.",
+    "settings.trash_enabled": "Verwijderde bestanden in de lokale prullenbak bewaren",
+    "settings.trash_retention": "Herstelvenster (dagen)",
+    "tip.trash_enabled": "Uit: een toegepaste verwijdering wist het bestand; het plan waarschuwt dat dit niet ongedaan kan worden gemaakt.",
+    "tip.trash_retention": "Hoe lang een toegepaste verwijdering herstelbaar blijft uit de prullenbak.",
     "settings.trash_max_size": "Maximale grootte van de prullenbak (GB)",
     "tip.trash_max_size": "Hoeveel schijfruimte de prullenbak mag gebruiken. Automatisch reserveert een deel van de schijf, met een minimum.",
 }

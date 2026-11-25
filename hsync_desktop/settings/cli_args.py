@@ -254,14 +254,15 @@ def _append_sync_mode_args(
     """Append the sync-mode, filter, ignore and compression flags."""
     args += ["--deletion-policy", get_deletion_policy()]
 
-    # The trash window (ADR-0056) is emitted only once the user stored it, so an
-    # installation that never opened the Sync tab keeps honouring
-    # ``HSYNC_TRASH_RETENTION_DAYS``/the client default instead of a GUI copy.
-    # ``0`` is the dialog's "Disabled", which the client spells ``--no-trash``:
-    # ``--trash-retention 0`` there means "keep forever", the opposite of off.
-    if s.contains("sync/trash_retention"):
-        days = get_trash_retention_days()
-        args += ["--no-trash"] if days == 0 else ["--trash-retention", str(days)]
+    # Trash (ADR-0056): the switch is emitted as ``--no-trash`` and the window as
+    # ``--trash-retention``. Both are emitted only once the user stored them, so
+    # an installation that never opened the Sync tab keeps honouring
+    # ``HSYNC_TRASH_ENABLED``/``HSYNC_TRASH_RETENTION_DAYS`` or the client default.
+    if s.contains("sync/trash_enabled") or s.contains("sync/trash_retention"):
+        if get_trash_enabled():
+            args += ["--trash-retention", str(get_trash_retention_days())]
+        else:
+            args += ["--no-trash"]
     # Same rule for the budget: an unstored key leaves the cap to the client,
     # which derives a share of the filesystem hosting the store. ``0`` is the
     # dialog's "Auto", so an explicit 0 emits nothing at all.
@@ -560,17 +561,31 @@ def mark_plan_confirmation_seen() -> None:
     s.setValue("ui/plan_confirmation_seen", True)
 
 
+def get_trash_enabled() -> bool:
+    """Return whether applied deletions keep their bytes (default: on).
+
+    ``sync/trash_enabled`` is written by the Settings dialog's switch; an
+    installation that never saved it keeps honouring ``HSYNC_TRASH_ENABLED``.
+    """
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    if s.contains("sync/trash_enabled"):
+        return bool(s.value("sync/trash_enabled", True, bool))
+    raw = os.environ.get("HSYNC_TRASH_ENABLED", "").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
 def get_trash_retention_days() -> int:
     """Return the stored trash window in days (default: the shared 30).
 
-    ``sync/trash_retention`` is written by the Settings dialog; ``0`` means the
-    dialog's "Disabled", i.e. no restore promise (ADR-0056).
+    ``sync/trash_retention`` is written by the Settings dialog; the window is
+    always at least one day, because "off" is the switch's job (ADR-0056).
     """
     s = QSettings(SETTINGS_ORG, SETTINGS_APP)
     try:
-        return max(cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int)), 0)
+        days = cast(int, s.value("sync/trash_retention", DEFAULT_TRASH_RETENTION_DAYS, int))
     except (TypeError, ValueError):
         return DEFAULT_TRASH_RETENTION_DAYS
+    return max(days, 1)
 
 
 def get_trash_max_size_gb() -> int:
@@ -589,15 +604,16 @@ def get_trash_max_size_gb() -> int:
 def trash_retention_days() -> int:
     """Days a deletion stays restorable, as the engine will run it (ADR-0056).
 
-    One resolution order for the promise the plan dialog makes and for the flag
-    the engine receives: the stored Settings value wins (it is what
+    One resolution order for the promise the plan dialog makes and for the flags
+    the engine receives: the stored switch/window win (they are what
     ``build_hsync_args`` emits), then ``HSYNC_TRASH_ENABLED`` /
     ``HSYNC_TRASH_RETENTION_DAYS``, which the client reads too, then the shared
-    default. ``0`` means "nothing is restorable" — the trash is off, or the
-    window is unlimited (a plan dialog cannot state "forever" as a number, so it
-    falls back to the plain warning).
+    default. ``0`` means "nothing is restorable": the trash is off.
     """
-    if QSettings(SETTINGS_ORG, SETTINGS_APP).contains("sync/trash_retention"):
+    s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+    if s.contains("sync/trash_enabled"):
+        return get_trash_retention_days() if get_trash_enabled() else 0
+    if s.contains("sync/trash_retention"):
         return get_trash_retention_days()
     enabled = os.environ.get("HSYNC_TRASH_ENABLED", "").strip().lower()
     if enabled in {"0", "false", "no", "off"}:

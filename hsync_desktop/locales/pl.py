@@ -940,8 +940,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Kosz opróżniony.",
     "trash.list_failed": "Nie można odczytać kosza.",
     "preview_summary.warning_delete_recoverable": "Usunięcia trafiają do kosza tego urządzenia: {count} zaplanowanych, do przywrócenia przez {days} dni.",
-    "settings.trash_retention": "Przechowuj usunięte pliki (dni)",
-    "tip.trash_retention": "Jak długo usunięcie pozostaje do przywrócenia z kosza. 0 = brak przywracania.",
+    "settings.trash_enabled": "Zachowaj usunięte pliki w lokalnym koszu",
+    "settings.trash_retention": "Okno przywracania (dni)",
+    "tip.trash_enabled": "Wyłączone: zastosowane usunięcie usuwa plik; plan ostrzega, że nie można tego cofnąć.",
+    "tip.trash_retention": "Jak długo zastosowane usunięcie pozostaje do przywrócenia z kosza.",
     "settings.trash_max_size": "Limit rozmiaru kosza (GB)",
     "tip.trash_max_size": "Ile miejsca na dysku może zająć kosz. Auto rezerwuje część dysku, z minimum.",
 }

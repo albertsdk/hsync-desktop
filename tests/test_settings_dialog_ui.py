@@ -878,18 +878,29 @@ class TestTheAutoApplyToggle:
 
 
 class TestTheTrashRetentionRow:
-    """The restore window is a Settings spin bounded by the shared maximum."""
+    """The trash is a switch plus a restore window bounded by the shared maximum."""
 
     def test_it_is_bounded_and_translated(self, dialog):
         from hsync_desktop.config import TRASH_RETENTION_DAYS_MAX
 
+        assert dialog.trash_retention.minimum() == 1
         assert dialog.trash_retention.maximum() == TRASH_RETENTION_DAYS_MAX
         assert dialog._lbl_trash_retention.text() == tr("settings.trash_retention")
+        assert dialog._lbl_trash_enabled.text() == tr("settings.trash_enabled")
 
-    def test_zero_reads_as_disabled(self, dialog):
-        dialog.trash_retention.setValue(0)
+    def test_the_window_is_only_meaningful_while_the_trash_is_on(self, dialog):
+        dialog.trash_enabled.setChecked(False)
+        assert not dialog.trash_retention.isEnabled()
 
-        assert dialog.trash_retention.text() == tr("settings.disabled")
+        dialog.trash_enabled.setChecked(True)
+        assert dialog.trash_retention.isEnabled()
+
+    def test_no_value_reads_as_disabled(self, dialog):
+        """`0` is not the dialog's word for off: the switch is (ADR-0056)."""
+        dialog.trash_retention.setValue(dialog.trash_retention.minimum())
+
+        assert dialog.trash_retention.value() == 1
+        assert dialog.trash_retention.text() == "1"
 
 
 class TestTheTrashSizeRow:

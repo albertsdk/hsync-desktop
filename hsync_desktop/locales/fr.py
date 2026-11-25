@@ -917,8 +917,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Corbeille vidée.",
     "trash.list_failed": "Impossible de lire la corbeille.",
     "preview_summary.warning_delete_recoverable": "Les suppressions vont dans la corbeille de cet appareil : {count} prévues, restaurables pendant {days} jours.",
-    "settings.trash_retention": "Conserver les fichiers supprimés (jours)",
-    "tip.trash_retention": "Combien de temps une suppression appliquée reste restaurable depuis la corbeille. 0 = aucune restauration possible.",
+    "settings.trash_enabled": "Conserver les fichiers supprimés dans la corbeille locale",
+    "settings.trash_retention": "Fenêtre de restauration (jours)",
+    "tip.trash_enabled": "Désactivé, une suppression appliquée efface le fichier : le plan prévient qu'elle est irréversible.",
+    "tip.trash_retention": "Combien de temps une suppression appliquée reste restaurable depuis la corbeille.",
     "settings.trash_max_size": "Taille maximale de la corbeille (Go)",
     "tip.trash_max_size": "Combien d'espace disque la corbeille peut utiliser. Auto réserve une part du disque, avec un minimum.",
 }

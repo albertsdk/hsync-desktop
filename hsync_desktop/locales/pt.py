@@ -940,8 +940,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Lixeira esvaziada.",
     "trash.list_failed": "Não foi possível ler a lixeira.",
     "preview_summary.warning_delete_recoverable": "As eliminações vão para a lixeira deste dispositivo: {count} previstas, restauráveis durante {days} dias.",
-    "settings.trash_retention": "Guardar ficheiros eliminados (dias)",
-    "tip.trash_retention": "Durante quanto tempo uma eliminação aplicada continua restaurável da lixeira. 0 = sem promessa de restauro.",
+    "settings.trash_enabled": "Manter os arquivos eliminados na lixeira local",
+    "settings.trash_retention": "Janela de restauração (dias)",
+    "tip.trash_enabled": "Desativado, uma eliminação aplicada apaga o arquivo: o plano avisa que não pode ser desfeita.",
+    "tip.trash_retention": "Por quanto tempo uma eliminação aplicada continua restaurável da lixeira.",
     "settings.trash_max_size": "Limite de tamanho da lixeira (GB)",
     "tip.trash_max_size": "Quanto disco a lixeira pode usar. Automático reserva uma parte do disco, com um mínimo.",
 }

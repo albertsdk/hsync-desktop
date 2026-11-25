@@ -69,6 +69,11 @@ DEFAULT_AUTO_SYNC = False
 # so the default never hides what the dialog reports, and a plan that deletes
 # always asks.
 DEFAULT_AUTO_APPLY = True
+# Whether an applied deletion keeps its bytes in the local trash (ADR-0056). The
+# dialog has one switch for this and one window below it, so ``0`` never has to
+# mean "off" here: ``--trash-retention 0`` keeps entries until the size budget
+# evicts them, and off is ``--no-trash``.
+DEFAULT_TRASH_ENABLED = True
 # Days a deletion stays restorable in the device-local trash (ADR-0056): the
 # shared default keeps the GUI's promise and the client's window identical.
 DEFAULT_TRASH_RETENTION_DAYS = defaults.TRASH_RETENTION_DAYS_DEFAULT

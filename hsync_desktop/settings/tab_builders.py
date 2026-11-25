@@ -152,13 +152,18 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.dry_run, dlg._lbl_dry_run = _replace_checkbox_with_toggle(dlg, "dryRun")
     dlg.auto_sync, dlg._lbl_auto_sync = _replace_checkbox_with_toggle(dlg, "autoSync")
     dlg.auto_apply, dlg._lbl_auto_apply = _replace_checkbox_with_toggle(dlg, "autoApply")
-    # Trash retention (ADR-0056): the window in which an applied deletion stays
-    # restorable. 0 disables the promise (the plan then says "cannot be undone").
+    # Trash (ADR-0056): whether an applied deletion keeps its bytes, and for how
+    # long. The switch owns "off", so the window never needs a magic 0 — the
+    # client reads `--trash-retention 0` as "keep until the size budget evicts".
+    dlg.trash_enabled = ToggleSwitch(dlg)
+    dlg.trash_enabled.setObjectName("trashEnabled")
+    dlg._lbl_trash_enabled = QLabel(dlg)
     dlg.trash_retention = QSpinBox(dlg)
     dlg.trash_retention.setObjectName("trashRetention")
-    dlg.trash_retention.setRange(0, TRASH_RETENTION_DAYS_MAX)
-    dlg.trash_retention.setSpecialValueText(tr("settings.disabled"))
+    dlg.trash_retention.setRange(1, TRASH_RETENTION_DAYS_MAX)
     dlg._lbl_trash_retention = QLabel(dlg)
+    # A window with the trash off would promise something nothing backs.
+    dlg.trash_enabled.toggled.connect(dlg.trash_retention.setEnabled)
     # The store's budget (ADR-0056): 0 hands the cap back to the client, which
     # derives a share of the hosting filesystem.
     dlg.trash_max_size = QSpinBox(dlg)

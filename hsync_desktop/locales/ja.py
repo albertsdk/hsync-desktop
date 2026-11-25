@@ -940,8 +940,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "ゴミ箱を空にしました。",
     "trash.list_failed": "ゴミ箱を読み取れませんでした。",
     "preview_summary.warning_delete_recoverable": "削除はこのデバイスのゴミ箱に入ります。予定 {count} 件、{days} 日間復元できます。",
-    "settings.trash_retention": "削除したファイルの保持（日）",
-    "tip.trash_retention": "削除したファイルをゴミ箱から復元できる期間。0 = 復元できません。",
+    "settings.trash_enabled": "削除したファイルをローカルのゴミ箱に保持する",
+    "settings.trash_retention": "復元できる期間 (日)",
+    "tip.trash_enabled": "オフの場合、適用された削除はファイルを消去します。プランは元に戻せないことを警告します。",
+    "tip.trash_retention": "適用された削除がゴミ箱から復元できる期間。",
     "settings.trash_max_size": "ゴミ箱の容量上限 (GB)",
     "tip.trash_max_size": "ゴミ箱が使用できるディスク容量。自動ではディスクの一部を下限付きで確保します。",
 }

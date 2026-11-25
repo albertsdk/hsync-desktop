@@ -917,8 +917,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Papierkorb geleert.",
     "trash.list_failed": "Der Papierkorb konnte nicht gelesen werden.",
     "preview_summary.warning_delete_recoverable": "Löschungen landen im Papierkorb dieses Geräts: {count} geplant, {days} Tage wiederherstellbar.",
-    "settings.trash_retention": "Gelöschte Dateien aufbewahren (Tage)",
-    "tip.trash_retention": "Wie lange eine angewandte Löschung aus dem Papierkorb wiederherstellbar bleibt. 0 = keine Wiederherstellung.",
+    "settings.trash_enabled": "Gelöschte Dateien im lokalen Papierkorb behalten",
+    "settings.trash_retention": "Wiederherstellungsfenster (Tage)",
+    "tip.trash_enabled": "Wenn aus, wird eine angewendete Löschung endgültig: der Plan warnt, dass sie nicht rückgängig gemacht werden kann.",
+    "tip.trash_retention": "Wie lange eine angewendete Löschung aus dem Papierkorb wiederherstellbar bleibt.",
     "settings.trash_max_size": "Größe des Papierkorbs (GB)",
     "tip.trash_max_size": "Wie viel Speicherplatz der Papierkorb nutzen darf. Automatisch reserviert einen Anteil des Datenträgers, mit Mindestwert.",
 }

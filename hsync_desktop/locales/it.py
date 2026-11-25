@@ -917,8 +917,10 @@ translations: dict[str, str] = {
     "trash.empty_done": "Cestino svuotato.",
     "trash.list_failed": "Impossibile leggere il cestino.",
     "preview_summary.warning_delete_recoverable": "Le cancellazioni finiscono nel cestino di questo dispositivo: {count} pianificate, ripristinabili per {days} giorni.",
-    "settings.trash_retention": "Conserva i file cancellati per (giorni)",
-    "tip.trash_retention": "Per quanto tempo una cancellazione resta ripristinabile dal cestino. 0 = nessuna promessa di ripristino.",
+    "settings.trash_enabled": "Conserva i file eliminati nel cestino locale",
+    "settings.trash_retention": "Finestra di ripristino (giorni)",
+    "tip.trash_enabled": "Se disattivato, una cancellazione applicata elimina il file: il piano avvisa che non è reversibile.",
+    "tip.trash_retention": "Per quanto tempo una cancellazione applicata resta ripristinabile dal cestino.",
     "settings.trash_max_size": "Limite dimensione cestino (GB)",
     "tip.trash_max_size": "Quanto disco può usare il cestino. Auto ne riserva una quota del disco, con un minimo.",
 }
