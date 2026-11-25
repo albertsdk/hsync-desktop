@@ -57,7 +57,10 @@ appears only when **Show advanced options** is on).
   trash off, and the plan then warns that deletions cannot be undone). The value
   is passed to the engine as `--trash-retention` (or `--no-trash` for `Disabled`)
   once you save it; until then the client's own
-  `HSYNC_TRASH_RETENTION_DAYS`/default applies.
+  `HSYNC_TRASH_RETENTION_DAYS`/default applies. `Disabled` is this dialog's word
+  for **off**: on the command line the same number means the opposite —
+  `--trash-retention 0` keeps entries until the trash size limit evicts them,
+  and turning the trash off there is `--no-trash`.
 - **Trash size limit (GB)** — how much disk the trash may use in total. `Auto`
   (the default) hands the cap back to the client, which keeps a share of the
   filesystem hosting the trash with a floor. The value is passed to the engine as
