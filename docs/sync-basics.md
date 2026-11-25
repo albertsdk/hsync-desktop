@@ -68,6 +68,10 @@ while a sync runs; the files are kept for the client's retention window (30 days
 by default). A restore refuses when the path already exists in the folder, and in
 a **Receive only** folder — the mirror rule would delete the file again.
 
+A row marked **no stored copy** is a record the store kept without its bytes (a
+crash between the record and the move): it is listed so you know it existed, and
+Restore stays disabled for it.
+
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
 the summary and transfers or deletes nothing. While it is on, the main window
 shows a **Simulation — no changes** badge next to the connection status, the

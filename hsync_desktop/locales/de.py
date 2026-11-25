@@ -916,6 +916,8 @@ translations: dict[str, str] = {
     "trash.restore_failed": "{path} kann nicht wiederhergestellt werden.",
     "trash.empty_done": "Papierkorb geleert.",
     "trash.list_failed": "Der Papierkorb konnte nicht gelesen werden.",
+    "trash.not_restorable": "keine Kopie mehr",
+    "trash.not_restorable_tip": "Der Papierkorb hat den Eintrag, aber nicht die Daten: er lässt sich nicht wiederherstellen.",
     "preview_summary.warning_delete_recoverable": "Löschungen landen im Papierkorb dieses Geräts: {count} geplant, {days} Tage wiederherstellbar.",
     "settings.trash_enabled": "Gelöschte Dateien im lokalen Papierkorb behalten",
     "settings.trash_retention": "Wiederherstellungsfenster (Tage)",

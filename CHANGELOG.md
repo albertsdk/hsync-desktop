@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trash…** marks a row whose stored copy is gone (*no stored copy*) and keeps
+  Restore disabled for it, so the view never offers a command that can only
+  refuse.
+
 - **Trash…** in the Sync menu (ADR-0056): lists the files this device deleted,
   restores one into the folder, or empties the store after a confirmation. The
   listing and both actions go through `hsync trash`, so it works while a sync

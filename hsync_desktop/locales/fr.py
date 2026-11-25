@@ -916,6 +916,8 @@ translations: dict[str, str] = {
     "trash.restore_failed": "Impossible de restaurer {path}.",
     "trash.empty_done": "Corbeille vidée.",
     "trash.list_failed": "Impossible de lire la corbeille.",
+    "trash.not_restorable": "copie absente",
+    "trash.not_restorable_tip": "La corbeille a gardé l'entrée mais pas les données : elle ne peut pas être restaurée.",
     "preview_summary.warning_delete_recoverable": "Les suppressions vont dans la corbeille de cet appareil : {count} prévues, restaurables pendant {days} jours.",
     "settings.trash_enabled": "Conserver les fichiers supprimés dans la corbeille locale",
     "settings.trash_retention": "Fenêtre de restauration (jours)",

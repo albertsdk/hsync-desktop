@@ -234,13 +234,18 @@ def reset_sync_state(binary: str, folder: str, timeout: float = 60.0) -> ResetSt
 
 @dataclass(frozen=True)
 class TrashEntrySummary:
-    """One restorable file, as ``hsync trash list --json`` reports it."""
+    """One restorable file, as ``hsync trash list --json`` reports it.
+
+    ``payload_present`` is False when the store kept the record but not the
+    bytes (a crash or a hand-edit): the row is listed and cannot be restored.
+    """
 
     path: str
     size: int = 0
     deleted_at: int = 0
     origin: str = "sync"
     entry_id: str = ""
+    payload_present: bool = True
 
 
 @dataclass(frozen=True)
@@ -318,6 +323,9 @@ def list_trash(
                 deleted_at=int(item.get("deleted_at") or 0),
                 origin=str(item.get("origin") or "sync"),
                 entry_id=str(item.get("entry_id") or ""),
+                # Absent in a client that predates the field: assume the bytes are
+                # there, and let the restore itself report a missing copy.
+                payload_present=bool(item.get("payload_present", True)),
             )
         )
     return TrashListResult(ok=True, entries=tuple(entries))
