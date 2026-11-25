@@ -23,6 +23,7 @@ from hsync_desktop.engine import (
     empty_trash,
     find_hsync_binary,
     list_trash,
+    restore_all_from_trash,
     restore_from_trash,
     trash_stats,
 )
@@ -832,6 +833,7 @@ class ActionsMixin:
             dialog_parent(self),
             load=lambda: list_trash(binary, folder),
             restore=lambda path: restore_from_trash(binary, folder, path, direction=direction),
+            restore_all=lambda: restore_all_from_trash(binary, folder, direction=direction),
             empty=lambda: empty_trash(binary, folder),
             stats=lambda: trash_stats(binary),
         )

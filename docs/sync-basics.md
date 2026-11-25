@@ -60,7 +60,10 @@ point exists to review it.
 
 **Sync → Trash…** lists the files this device deleted, newest first, with when
 and how large they were. Select one and press **Restore**: the file goes back
-into the folder and the next sync propagates it to every device. **Empty trash**
+into the folder and the next sync propagates it to every device. **Restore all**
+does the same for every entry in one go — after a bulk deletion you do not
+re-pick hundreds of rows; whatever cannot come back (a path that exists again,
+a folder in **Receive only**) stays in the list with its reason. **Empty trash**
 deletes the stored copies for good, after a confirmation.
 
 The list comes from the client's own store (`hsync trash list`), so it opens

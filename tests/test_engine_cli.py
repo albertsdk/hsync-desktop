@@ -739,6 +739,79 @@ def test_trash_stats_reads_the_summary(monkeypatch):
     )
 
 
+def test_restore_all_forwards_the_batch_and_reads_the_counts(monkeypatch):
+    """One call puts the whole folder back: `hsync trash restore --all --json`."""
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps(
+        {
+            "folder": "/share",
+            "status": "ok",
+            "restored": 7,
+            "skipped": 1,
+            "failed": 0,
+            "bytes": 2048,
+            "dry_run": False,
+            "problems": {"docs/b.txt": "destination-exists"},
+        }
+    )
+    seen: list[list[str]] = []
+
+    def _capture(binary, args, timeout):
+        seen.append(list(args))
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+
+    monkeypatch.setattr(engine_cli, "_run_hsync_capture", _capture)
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share", direction="upload-only")
+
+    assert seen == [
+        ["trash", "restore", "--folder", "/share", "--all", "--direction", "upload-only", "--json"]
+    ]
+    assert (result.ok, result.restored, result.skipped, result.failed) == (True, 7, 1, 0)
+
+
+def test_restore_all_keeps_the_counts_on_a_non_zero_exit(monkeypatch):
+    """An unusable stored copy exits non-zero, but the batch still reports."""
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps({"status": "ok", "restored": 1, "skipped": 0, "failed": 1})
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *a, **k: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=payload, stderr=""
+        ),
+    )
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share")
+
+    assert (result.ok, result.restored, result.failed) == (False, 1, 1)
+
+
+def test_restore_all_is_a_failure_when_the_client_prints_no_json(monkeypatch):
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *a, **k: subprocess.CompletedProcess(
+            args=[], returncode=2, stdout="", stderr="boom"
+        ),
+    )
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share")
+
+    assert (result.ok, result.message) == (False, "boom")
+
+
 def test_trash_stats_is_none_when_the_client_refuses(monkeypatch):
     import subprocess
 

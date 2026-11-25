@@ -33,7 +33,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hsync_desktop.engine import TrashActionResult, TrashListResult, TrashStats
+from hsync_desktop.engine import (
+    TrashActionResult,
+    TrashListResult,
+    TrashRestoreAllResult,
+    TrashStats,
+)
 from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.labels import muted_label
 
@@ -57,9 +62,11 @@ def _deleted_label(stamp: int) -> str:
 class TrashDialog(QDialog):
     """List the restorable files, with restore and empty.
 
-    The three collaborators are injected so the dialog is testable without a
-    subprocess: *load* returns the listing, *restore* takes one path and *empty*
-    clears the store. A refusal is surfaced with the client's own wording.
+    The collaborators are injected so the dialog is testable without a
+    subprocess: *load* returns the listing, *restore* takes one path, *empty*
+    clears the store and *restore_all* puts the whole folder back in one call
+    (``hsync trash restore --all``); without it the bulk button is not offered.
+    A refusal is surfaced with the client's own wording.
     """
 
     def __init__(
@@ -70,12 +77,14 @@ class TrashDialog(QDialog):
         restore: Callable[[str], TrashActionResult],
         empty: Callable[[], TrashActionResult],
         stats: Callable[[], TrashStats | None] | None = None,
+        restore_all: Callable[[], TrashRestoreAllResult] | None = None,
     ) -> None:
         super().__init__(parent)
         self._load = load
         self._restore = restore
         self._empty = empty
         self._stats = stats
+        self._restore_all = restore_all
 
         self.setWindowTitle(tr("trash.title"))
         self.resize(640, 420)
@@ -112,9 +121,16 @@ class TrashDialog(QDialog):
         row = QHBoxLayout()
         self._btn_restore = QPushButton(tr("trash.restore"), self)
         self._btn_restore.clicked.connect(self._on_restore)
+        row.addWidget(self._btn_restore)
+        # Bulk restore: one client call for the whole list, so a deletion of
+        # hundreds of files is not undone one dialog click at a time.
+        self._btn_restore_all: QPushButton | None = None
+        if self._restore_all is not None:
+            self._btn_restore_all = QPushButton(tr("trash.restore_all"), self)
+            self._btn_restore_all.clicked.connect(self._on_restore_all)
+            row.addWidget(self._btn_restore_all)
         self._btn_empty = QPushButton(tr("trash.empty"), self)
         self._btn_empty.clicked.connect(self._on_empty)
-        row.addWidget(self._btn_restore)
         row.addWidget(self._btn_empty)
         row.addStretch(1)
         layout.addLayout(row)
@@ -191,7 +207,18 @@ class TrashDialog(QDialog):
 
     def _sync_buttons(self) -> None:
         self._btn_restore.setEnabled(self._selected_restorable())
+        if self._btn_restore_all is not None:
+            self._btn_restore_all.setEnabled(self._restorable_rows() > 0)
         self._btn_empty.setEnabled(self._table.rowCount() > 0)
+
+    def _restorable_rows(self) -> int:
+        """How many listed entries still have their bytes in the store."""
+        total = 0
+        for row in range(self._table.rowCount()):
+            item = self._table.item(row, 0)
+            if item is not None and bool(item.data(_RESTORABLE_ROLE)):
+                total += 1
+        return total
 
     def _selected_restorable(self) -> bool:
         """True when a row is selected and its bytes are still in the store."""
@@ -219,6 +246,28 @@ class TrashDialog(QDialog):
             tr("notif.error"),
             result.message or tr("trash.restore_failed").format(path=path),
         )
+
+    def _on_restore_all(self) -> None:
+        if self._restore_all is None or self._restorable_rows() == 0:
+            return
+        result = self._restore_all()
+        # Reload first: it clears the status line and drops the rows that came
+        # back, so what stays listed is exactly what did not.
+        self.reload()
+        left = result.skipped + result.failed
+        if result.restored and left:
+            text = tr("trash.restore_all_partial").format(restored=result.restored, left=left)
+        elif result.restored:
+            text = tr("trash.restore_all_done").format(restored=result.restored)
+        else:
+            text = tr("trash.restore_all_none")
+        self._lbl_status.setText(text)
+        if not result.ok and not result.restored:
+            QMessageBox.warning(
+                self,
+                tr("notif.error"),
+                result.message or tr("trash.restore_all_none"),
+            )
 
     def _on_empty(self) -> None:
         if self._table.rowCount() == 0:
