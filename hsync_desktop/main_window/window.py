@@ -269,14 +269,13 @@ class MainWindow(
     def _fit_table_width(self) -> None:
         """Grow the window once so the file table stays readable.
 
-        The table keeps the user's column widths, but the Name column is
-        ``Stretch``: a narrow saved window (or the default one from
-        ``ui/main_window.ui``) is absorbed by shrinking that column to the
-        global minimum section size instead of showing a horizontal scrollbar,
-        so the table looks truncated until the user widens the window by hand.
-        The window is therefore sized from the columns' own requirement
-        (``FileTransferTable.required_viewport_width``) and clamped to the
-        screen; the fit runs once and never fights a later manual resize.
+        The table keeps the user's column widths, but a narrow saved window (or
+        the default one from ``ui/main_window.ui``) cannot hold the Name column
+        and the fixed-width sections together, so the table starts truncated
+        behind a horizontal scrollbar. The window is therefore sized from the
+        columns' own requirement (``FileTransferTable.required_viewport_width``)
+        and clamped to the screen; the fit runs once and never fights a later
+        manual resize.
         """
         if self._table_width_fitted or self.isMaximized():
             return

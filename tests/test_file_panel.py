@@ -1513,10 +1513,10 @@ class TestColumnResizing:
 class TestRequiredViewportWidth:
     """The startup window fit asks the table for the width its columns need.
 
-    The Name column is ``Stretch``: Qt answers a shortage by shrinking it to
-    the global minimum section size instead of extending the scroll range, so
-    the requirement must be built from the sections plus a Name floor — the
-    horizontal scrollbar cannot report it.
+    The Name column keeps a readable floor (``name_floor``): when the viewport
+    cannot hold it, the column stays at the floor and the horizontal scrollbar
+    reports the shortage. The requirement is the visible fixed-width sections
+    plus that floor.
     """
 
     @staticmethod
@@ -1590,8 +1590,8 @@ class TestRequiredViewportWidth:
 
         assert table.required_viewport_width() == expected
 
-    def test_a_crushed_name_column_still_reports_the_shortage(self, qtbot, tmp_path, monkeypatch):
-        """The regression this guards: an empty scroll range hides the need."""
+    def test_a_crushed_name_column_keeps_the_floor_and_scrolls(self, qtbot, tmp_path, monkeypatch):
+        """The regression this guards: a crushed Name used to hide the shortage."""
         from hsync_desktop.file_panel import transfer_table as tt
 
         table = self._table(qtbot, tmp_path, monkeypatch)
@@ -1604,7 +1604,7 @@ class TestRequiredViewportWidth:
             )
         )
         # The layout the app persists on a first run (Qt's default 100/130 px
-        # widths) restored into an 800 px table.
+        # widths) restored into an 800 px table: too narrow for floor + columns.
         header = table.horizontalHeader()
         for col, width in (
             (tt.COL_SIZE, 130),
@@ -1619,9 +1619,28 @@ class TestRequiredViewportWidth:
         table.show()
         qtbot.wait(5)
 
-        assert header.sectionSize(tt.COL_NAME) < tt._MIN_NAME_WIDTH
-        assert table.horizontalScrollBar().maximum() == 0
+        assert header.sectionSize(tt.COL_NAME) == table.name_floor()
+        assert table.horizontalScrollBar().maximum() > 0
         assert table.required_viewport_width() > table.viewport().width()
+
+    def test_a_roomy_table_fills_name_with_the_leftover(self, qtbot, tmp_path, monkeypatch):
+        """No shortage: Name grows to fill and there is nothing to scroll."""
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        table = self._table(qtbot, tmp_path, monkeypatch)
+        table.add_transfer(
+            FileTransfer(filepath="a.bin", direction="—", size=10, status=TransferStatus.LOCAL)
+        )
+        table.resize(1600, 300)
+        table.show()
+        qtbot.wait(5)
+
+        header = table.horizontalHeader()
+        others = self._other_sections(tt, header, range(table.model().columnCount()))
+
+        assert header.sectionSize(tt.COL_NAME) == table.viewport().width() - others
+        assert header.sectionSize(tt.COL_NAME) > table.name_floor()
+        assert table.horizontalScrollBar().maximum() == 0
 
 
 class TestCopyPath:

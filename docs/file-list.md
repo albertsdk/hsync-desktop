@@ -46,7 +46,10 @@ type and the operation, and the two live metrics only say something while a
 transfer runs. Turn them on from the header menu, which lists the columns in the
 order you arranged them (**Name** stays first).
 You can drag a divider to resize a column, drag a header to reorder the columns,
-and double-click a divider to fit a column to its content. Widths, order and
+and double-click a divider to fit a column to its content. The **Name** column
+keeps a minimum width so file names stay readable: when the window is too narrow
+to show it alongside the other columns, a horizontal scrollbar appears instead of
+squeezing it. Widths, order and
 visible columns are remembered across runs; **Reset columns** in the header menu
 restores the default layout — order, visibility and fitted widths. An active sort
 stays: it is a view choice, never persisted.

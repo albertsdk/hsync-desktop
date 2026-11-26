@@ -1058,9 +1058,11 @@ table) and omits **Name** (the primary column carries the row identity); Name is
 pinned as the first section (`QHeaderView.setFirstSectionMovable`), so a reorder
 cannot push the identity column inward. The **data columns are user-resizable**
 (`Interactive`, floor `_MIN_COLUMN_WIDTH`, which is also the header's
-`setMinimumSectionSize`, so Qt enforces it on a drag), **Name** stays `Stretch`
-(the flexible column, still sized by the window); a double-click on a section
-handle fits that column to its content
+`setMinimumSectionSize`, so Qt enforces it on a drag), while **Name** is `Fixed`
+(not user-draggable) and sized to the leftover width by
+`FileTransferTable._stretch_name_column`: it fills the window when there is room
+but never drops below `FileTransferTable.name_floor()`. A double-click on a
+section handle fits that column to its content
 (`FileTransferTable._fit_column_to_contents`).
 
 The whole layout — widths, visual order and hidden sections — is one
@@ -1072,9 +1074,10 @@ the drag settles (`_STATE_SAVE_DELAY_MS` debounce, flushed by
 changes**: `restoreState` does not validate the section count and would apply a
 stale blob to the wrong sections. Widths are seeded once from the content on the
 first populated refresh (`FileTransferTable._size_columns_to_contents`) when
-nothing is stored. Stretch-driven resizes are **not** persisted: Name also
-resizes when the window grows, which is not a layout the user chose, so a plain
-window resize never marks the profile as having a saved layout. The blob stores
+nothing is stored. Name's window-driven resizes are **not** persisted: it is
+resized by `_stretch_name_column` whenever the window or a data column changes,
+which is not a layout the user chose, so a plain window resize never marks the
+profile as having a saved layout. The blob stores
 the sort indicator too, which `FileTransferTable._restore_sort_indicator` clears
 after the restore (the table starts in the natural folders-first order until the
 user clicks a header). **Reset columns** (`file.reset_columns`,
@@ -1085,12 +1088,11 @@ layout (with the compact Name floor, the profile now having a saved layout). The
 active sort is deliberately untouched: it is a transient view choice, never
 persisted. Guarded by `tests/test_file_panel.py::TestResetColumns`.
 
-Because **Name** is the stretch column, Qt answers a shortage by shrinking it
-down to the minimum section size instead of extending the scroll range, so the
-persisted widths in a narrow window leave file names
-unusable while the horizontal scrollbar stays empty:
-`FileTransferTable.required_viewport_width` therefore reports the width the
-visible sections need with `FileTransferTable.name_floor()` reserved for Name —
+In a narrow window **Name** keeps its readable floor: the column stays at
+`FileTransferTable.name_floor()` and the horizontal scrollbar reports the
+shortage instead of the file names being crushed.
+`FileTransferTable.required_viewport_width` reports the width the visible
+sections need with that floor reserved for Name —
 `_MIN_NAME_WIDTH` normally, or the roomier `_MIN_NAME_FIRST_RUN` while the
 profile has never saved a layout (`FileTransferTable.has_saved_layout`,
 captured at construction because the header persists its initial section sizes

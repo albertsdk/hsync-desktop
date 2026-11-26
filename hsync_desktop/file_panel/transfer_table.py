@@ -47,6 +47,7 @@ from PySide6.QtGui import (
     QPainter,
     QPalette,
     QPixmap,
+    QResizeEvent,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -200,10 +201,11 @@ _UNMATERIALIZED_STATUSES = {
 # is also the header's global minimum section size, so Qt enforces the floor on
 # an interactive drag.
 _MIN_COLUMN_WIDTH = 48
-# Readable floor for the stretch Name column, in px. A stretch column is
-# shrunk to the global minimum section size instead of extending the scroll
-# range, so a narrow window silently crushes file names and the horizontal
-# scrollbar reports no deficit: the window fit asks for this width instead.
+# Readable floor for the Name column, in px. Name is sized to the leftover
+# width but never below this: when the viewport cannot hold it the column keeps
+# the floor and the horizontal scrollbar reports the shortage. A Qt ``Stretch``
+# section would instead be crushed to the global minimum section size with no
+# scroll range, so the leftover width is applied by ``_stretch_name_column``.
 _MIN_NAME_WIDTH = 320
 # A profile that never saved column widths has no layout to honour, so the very
 # first launch reserves a roomier Name column (the window fit widens the window
@@ -222,8 +224,8 @@ _DELETE_DISPLAY_GRACE_MS = 1500
 # How long the deleted marker stays visible before the row is removed.
 _DELETED_MARKER_MS = 1500
 
-# Data columns whose width is fitted to the content once (Name stretches and
-# Progress keeps its explicit default width).
+# Data columns whose width is fitted to the content once (Name is sized to the
+# leftover width, Progress keeps its explicit default width).
 _FITTED_COLUMNS = (COL_SIZE, COL_TYPE, COL_MODIFIED, COL_STATUS, COL_ETA, COL_SPEED)
 # The row icon is the file type; the operation glyph gets its own slot after
 # it, so the type icons stay aligned whether or not the row has an operation.
@@ -956,7 +958,11 @@ class FileTransferTable(QTableView):
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         # Name is the row identity: keep it leading whatever the user drags.
         header.setFirstSectionMovable(False)
-        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
+        # Name is ``Fixed`` (not user-draggable) rather than ``Stretch``: Qt
+        # crushes a stretch section to the global minimum with no scroll range,
+        # so ``_stretch_name_column`` gives it the leftover width down to a
+        # readable floor and lets the horizontal scrollbar report the shortage.
+        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.Interactive)
@@ -1020,8 +1026,7 @@ class FileTransferTable(QTableView):
         """Apply the saved header layout: widths, order, hidden sections.
 
         Falls back to the defaults when nothing is stored or the blob cannot be
-        restored. Name is always shown: it carries the row identity and hiding it
-        would leave no stretch section.
+        restored. Name is always shown: it carries the row identity.
         """
         raw = QSettings(SETTINGS_ORG, SETTINGS_APP).value(
             self._HEADER_STATE_SETTINGS_KEY, QByteArray()
@@ -1043,6 +1048,7 @@ class FileTransferTable(QTableView):
         # (a first run, or a blob this build could not restore).
         self._columns_sized = restored
         self.horizontalHeader().showSection(COL_NAME)
+        self._stretch_name_column()
 
     def _restore_sort_indicator(self) -> None:
         """Start unsorted even when the restored blob carries a sort indicator.
@@ -1069,17 +1075,18 @@ class FileTransferTable(QTableView):
             self._state_save_timer.start()
 
     def _on_section_resized(self, logical: int, old: int, new: int) -> None:
-        """Persist the new layout after a user drag.
+        """Persist the new layout after a user drag and keep Name filling.
 
-        Name is ``Stretch``: it also resizes when the window grows, which is not a
-        layout the user chose. Skipping it (on top of the debounce) keeps a plain
-        window resize from creating a saved layout, so the first-run Name floor
-        survives the whole session. The data floor needs no clamp here: it is the
-        header's minimum section size.
+        Name is resized by ``_stretch_name_column`` (window and data-column
+        changes), which is not a layout the user chose: skipping it (on top of
+        the debounce) keeps a plain window resize from creating a saved layout,
+        so the first-run Name floor survives the whole session. The data floor
+        needs no clamp here: it is the header's minimum section size.
         """
         if self._restoring_columns or logical == COL_NAME:
             return
         self._schedule_header_state_save()
+        self._stretch_name_column()
 
     def _fit_column_to_contents(self, logical: int) -> None:
         """Fit one data column to its content (header handle double-click)."""
@@ -1112,16 +1119,38 @@ class FileTransferTable(QTableView):
         """Minimum width the Name column keeps when the window is sized."""
         return _MIN_NAME_WIDTH if self.has_saved_layout() else _MIN_NAME_FIRST_RUN
 
+    def _stretch_name_column(self) -> None:
+        """Give the Name column the leftover width, never below its floor.
+
+        Name is ``Fixed``, so nothing else sizes it. When the leftover is under
+        the floor the column keeps the floor and the horizontal scrollbar reports
+        the shortage, instead of the column being crushed to the global minimum.
+        """
+        header = self.horizontalHeader()
+        viewport = self.viewport().width()
+        if viewport <= 0 or header.isSectionHidden(COL_NAME):
+            return
+        others = sum(
+            header.sectionSize(col)
+            for col in range(self._model.columnCount())
+            if col != COL_NAME and not header.isSectionHidden(col)
+        )
+        width = max(viewport - others, self.name_floor())
+        if header.sectionSize(COL_NAME) != width:
+            header.resizeSection(COL_NAME, width)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 (Qt override)
+        super().resizeEvent(event)
+        self._stretch_name_column()
+
     def required_viewport_width(self) -> int:
         """Viewport width the table needs to keep its columns readable.
 
         Used by the window's one-shot startup fit
-        (``hsync_desktop.main_window.window::MainWindow._fit_table_width``).
-        Qt absorbs a shortage by shrinking the stretch column (Name) down to
-        the global minimum section size instead of widening the scroll range,
-        so ``horizontalScrollBar`` reports almost no deficit even when file
-        names are unusable. The requirement is therefore built from the
-        visible fixed-width sections plus the Name floor.
+        (``hsync_desktop.main_window.window::MainWindow._fit_table_width``) so a
+        fresh launch opens wide enough to show the file names without a
+        horizontal scrollbar. Built from the visible fixed-width sections plus
+        the Name floor — the same floor ``_stretch_name_column`` enforces.
         """
         header = self.horizontalHeader()
         total = 0
@@ -1148,6 +1177,7 @@ class FileTransferTable(QTableView):
             needed = header.sectionSizeHint(col) + 8
             if header.sectionSize(col) < needed:
                 header.resizeSection(col, needed)
+        self._stretch_name_column()
 
     def _size_columns_to_contents(self) -> None:
         """Seed sensible widths from the content, once, before user resizing.
@@ -1155,7 +1185,7 @@ class FileTransferTable(QTableView):
         ``Interactive`` columns have no default width, so the first populated
         refresh fits them to their contents (like the old ``ResizeToContents``
         behaviour); afterwards the user's widths are kept. Only the data columns
-        are touched: Icon stays fixed, Name stretches and Progress keeps its
+        are touched: Name is sized to the leftover width and Progress keeps its
         default width.
         """
         if self._columns_sized or self._model.rowCount() == 0:
@@ -1170,6 +1200,7 @@ class FileTransferTable(QTableView):
             self._columns_sized = True
         finally:
             self._restoring_columns = was_restoring
+        self._stretch_name_column()
 
     def _build_header_menu(self) -> QMenu:
         """Build the column menu in the order the columns are shown.
@@ -1228,6 +1259,7 @@ class FileTransferTable(QTableView):
             # A hidden section keeps whatever width it had when it was hidden, so
             # a stale narrow one would clip its (centred) label on both sides.
             self._ensure_readable_headers()
+        self._stretch_name_column()
         self._save_header_state()
 
     def _reset_columns(self) -> None:
