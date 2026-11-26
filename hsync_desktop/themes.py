@@ -235,8 +235,9 @@ QToolTip {{
     padding: 4px 8px;
     border: 1px solid #C0A000;
     border-radius: 4px;
-    /* Plain-text tooltips would otherwise stay on one line and grow to the
-       platform maximum, spanning the screen; this caps the label and wraps. */
+    /* Caps the tooltip width. The wrapping itself comes from the rich-text
+       filter (hsync_desktop/widgets/tooltips.py): Qt wraps only rich text, so
+       a plain tip would stay on one line and this cap would just clip it. */
     max-width: 400px;
 }}
 QPushButton {{

@@ -165,7 +165,10 @@ class TestCommonQSS:
         assert "QToolTip" in themes._COMMON_QSS
 
     def test_tooltips_are_width_bounded(self):
-        """A plain tooltip would otherwise stay on one line across the screen."""
+        """The cap bounds the width; the rich-text filter makes the tip wrap.
+
+        Qt only word-wraps rich text, so the cap alone would clip a long plain
+        tip (see hsync_desktop/widgets/tooltips.py::TooltipWrapFilter)."""
         assert _tooltip_max_width(themes._COMMON_QSS) == 400
         assert _tooltip_max_width(themes._light_qss()) == 400
         assert _tooltip_max_width(themes._dark_qss()) == 400

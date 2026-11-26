@@ -1908,8 +1908,19 @@ the QSS pins no `font-family`/`font-size` (`hsync_desktop/themes.py::_COMMON_QSS
 does frame the log box via `QPlainTextEdit#logView` (the selector must match the
 object name in `ui/main_window.ui`; `tests/test_themes.py::TestObjectNameSelectors`
 guards it). The same QSS carries the one `QToolTip` rule, whose `max-width` caps
-every tooltip and makes long plain-text tips word-wrap instead of spanning the
-screen (`tests/test_themes.py::TestCommonQSS` guards the cap).
+every tooltip's width. The wrapping itself is done at display time by
+`hsync_desktop/widgets/tooltips.py::TooltipWrapFilter` (installed on the app in
+`hsync_desktop/main.py`): Qt word-wraps only rich text (`QTipLabel::updateSize`
+→ `Qt::mightBeRichText`), so a plain-text tip would stay on one line and the cap
+would merely clip it. The filter rewrites the tip as escaped rich text just
+before it is shown — for a widget, a `QMenu` action and an item-view cell
+(`ToolTipRole`) — leaving `QWidget.toolTip()`/`QAction.toolTip()` plain (the
+contract the "show tooltips" preference and the tests rely on). It preserves
+Qt's own gating (a menu action's tip shows only when `QMenu.toolTipsVisible` is
+set) and forwards the menu-action / view-cell rect so the tip still hides when
+the pointer leaves the item.
+`tests/test_themes.py::TestCommonQSS` guards the cap; `tests/test_tooltips.py`
+guards the wrapping.
 
 ### Log panel colors
 

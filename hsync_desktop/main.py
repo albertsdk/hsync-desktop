@@ -217,9 +217,13 @@ def main(argv: list[str] | None = None) -> int:
     from hsync_desktop.splash_screen import SplashScreen
     from hsync_desktop.system_tray import SystemTray
     from hsync_desktop.themes import apply_theme
+    from hsync_desktop.widgets.tooltips import install_tooltip_wrap_filter
 
     app = QApplication([sys.argv[0], *(a for a in args if a != MINIMIZED_FLAG)])
     _configure_app(app)
+    # Qt only word-wraps rich-text tooltips; the QSS max-width would otherwise
+    # clip long plain-text tips (see hsync_desktop/widgets/tooltips.py).
+    install_tooltip_wrap_filter(app)
     # Follow the desktop's configured fonts (the generic platform theme we force
     # on Linux does not read them; see hsync_desktop/fonts.py).
     apply_system_fonts(app, get_saved_font_scale())
