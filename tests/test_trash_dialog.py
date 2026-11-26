@@ -12,9 +12,16 @@ button is reachable.
 from __future__ import annotations
 
 import pytest
+from hsync_common.format import format_bytes
 from PySide6.QtWidgets import QMessageBox
 
-from hsync_desktop.engine import TrashActionResult, TrashEntrySummary, TrashListResult
+from hsync_desktop.engine import (
+    TrashActionResult,
+    TrashEntrySummary,
+    TrashListResult,
+    TrashRestoreAllResult,
+    TrashStats,
+)
 from hsync_desktop.i18n import tr
 from hsync_desktop.trash_dialog import TrashDialog
 
@@ -22,12 +29,23 @@ from hsync_desktop.trash_dialog import TrashDialog
 class _Fake:
     """One fake engine: a queue of listings and the recorded actions."""
 
-    def __init__(self, listings: list[TrashListResult], *, restore_ok: bool = True) -> None:
+    def __init__(
+        self,
+        listings: list[TrashListResult],
+        *,
+        restore_ok: bool = True,
+        stats_value: TrashStats | None = None,
+        bulk: TrashRestoreAllResult | None = None,
+    ) -> None:
         self.listings = listings
         self.restore_ok = restore_ok
+        self.stats_value = stats_value
+        self.bulk = bulk if bulk is not None else TrashRestoreAllResult(ok=True)
         self.loads = 0
         self.restored: list[str] = []
         self.emptied = 0
+        self.stat_calls = 0
+        self.bulk_calls = 0
 
     def load(self) -> TrashListResult:
         self.loads += 1
@@ -39,9 +57,17 @@ class _Fake:
         self.restored.append(path)
         return TrashActionResult(ok=self.restore_ok, message="" if self.restore_ok else "refused")
 
+    def restore_all(self) -> TrashRestoreAllResult:
+        self.bulk_calls += 1
+        return self.bulk
+
     def empty(self) -> TrashActionResult:
         self.emptied += 1
         return TrashActionResult(ok=True, message="")
+
+    def stats(self) -> TrashStats | None:
+        self.stat_calls += 1
+        return self.stats_value
 
 
 def _entries(*paths: str, missing_copy: tuple[str, ...] = ()) -> TrashListResult:
@@ -65,9 +91,41 @@ def _dialog(qtbot, fake: _Fake) -> TrashDialog:
         load=fake.load,
         restore=fake.restore,
         empty=fake.empty,
+        stats=fake.stats,
+        restore_all=fake.restore_all,
     )
     qtbot.addWidget(dlg)
     return dlg
+
+
+def test_the_usage_line_reports_what_the_store_holds(qtbot):
+    """`hsync trash stats` gives the dialog "X of Y" without summing the rows."""
+    fake = _Fake(
+        [_entries("docs/report.pdf")],
+        stats_value=TrashStats(
+            root="/state/trash",
+            entries=3,
+            bytes=2048,
+            oldest=1_700_000_000,
+            budget=4096,
+            folders=1,
+        ),
+    )
+
+    dlg = _dialog(qtbot, fake)
+
+    assert fake.stat_calls == 1
+    assert dlg._lbl_usage.text() == tr("trash.usage").format(
+        used=format_bytes(2048), budget=format_bytes(4096), count=3
+    )
+
+
+def test_no_summary_is_shown_when_the_client_cannot_report_one(qtbot):
+    fake = _Fake([_entries("docs/report.pdf")], stats_value=None)
+
+    dlg = _dialog(qtbot, fake)
+
+    assert dlg._lbl_usage.text() == ""
 
 
 def test_it_lists_what_the_client_reports(qtbot):
@@ -151,6 +209,83 @@ def test_a_refusal_is_shown_with_the_clients_wording(qtbot, monkeypatch):
 
     assert shown == [(tr("notif.error"), "refused")]
     assert dlg._table.rowCount() == 1  # the refusal keeps the entry
+
+
+def test_restore_all_is_offered_only_while_a_copy_is_stored(qtbot):
+    """A list of records whose bytes are gone has nothing to bulk-restore."""
+    restore_all_dlg = _dialog(
+        qtbot, _Fake([_entries("a.txt", "gone.txt", missing_copy=("gone.txt",))])
+    )
+    assert restore_all_dlg._btn_restore_all is not None
+    assert restore_all_dlg._btn_restore_all.isEnabled() is True
+
+    nothing_left = _dialog(qtbot, _Fake([_entries("gone.txt", missing_copy=("gone.txt",))]))
+    assert nothing_left._btn_restore_all is not None
+    assert nothing_left._btn_restore_all.isEnabled() is False
+
+
+def test_restore_all_forwards_one_call_and_reports_the_count(qtbot):
+    fake = _Fake(
+        [_entries("a.txt", "b.txt"), _entries()],
+        bulk=TrashRestoreAllResult(ok=True, restored=2),
+    )
+    dlg = _dialog(qtbot, fake)
+
+    dlg._on_restore_all()
+
+    assert fake.bulk_calls == 1
+    assert fake.restored == []  # one client call, not one per entry
+    assert fake.loads == 2
+    assert dlg._table.rowCount() == 0
+    assert dlg._lbl_status.text() == tr("trash.restore_all_done").format(restored=2)
+
+
+def test_restore_all_names_what_stayed_behind(qtbot):
+    fake = _Fake(
+        [_entries("a.txt", "b.txt"), _entries("b.txt")],
+        bulk=TrashRestoreAllResult(ok=True, restored=1, skipped=1),
+    )
+    dlg = _dialog(qtbot, fake)
+
+    dlg._on_restore_all()
+
+    assert dlg._lbl_status.text() == tr("trash.restore_all_partial").format(restored=1, left=1)
+    assert dlg._table.rowCount() == 1
+
+
+def test_restore_all_warns_when_nothing_came_back(qtbot, monkeypatch):
+    shown: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "warning",
+        staticmethod(lambda _parent, title, text, *a, **k: shown.append((title, text))),
+    )
+    fake = _Fake(
+        [_entries("a.txt")],
+        bulk=TrashRestoreAllResult(ok=False, failed=1, message="boom"),
+    )
+    dlg = _dialog(qtbot, fake)
+
+    dlg._on_restore_all()
+
+    assert shown == [(tr("notif.error"), "boom")]
+    assert dlg._lbl_status.text() == tr("trash.restore_all_none")
+
+
+def test_without_the_bulk_collaborator_no_restore_all_button_is_offered(qtbot):
+    fake = _Fake([_entries("a.txt")])
+    dlg = TrashDialog(
+        None,
+        load=fake.load,
+        restore=fake.restore,
+        empty=fake.empty,
+        stats=fake.stats,
+    )
+    qtbot.addWidget(dlg)
+
+    assert dlg._btn_restore_all is None
+    dlg._on_restore_all()  # a no-op, never a crash
+    assert fake.bulk_calls == 0
 
 
 def test_empty_needs_a_confirmation(qtbot, monkeypatch):

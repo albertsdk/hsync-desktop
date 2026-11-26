@@ -249,6 +249,18 @@ class TrashEntrySummary:
 
 
 @dataclass(frozen=True)
+class TrashStats:
+    """What ``hsync trash stats --json`` reports (ADR-0056)."""
+
+    root: str = ""
+    entries: int = 0
+    bytes: int = 0
+    oldest: int = 0
+    budget: int = 0
+    folders: int = 0
+
+
+@dataclass(frozen=True)
 class TrashListResult:
     """Outcome of ``hsync trash list`` (ADR-0056)."""
 
@@ -267,6 +279,24 @@ class TrashActionResult:
     """
 
     ok: bool
+    message: str = ""
+
+
+@dataclass(frozen=True)
+class TrashRestoreAllResult:
+    """Outcome of ``hsync trash restore --all`` (ADR-0056).
+
+    ``ok`` is False when the batch could not run and when an entry's stored copy
+    was unusable (the client keeps a non-zero exit code for that); entries that
+    merely stayed behind — a path that exists again, a ``download-only`` folder —
+    count in ``skipped`` and leave the run a success. ``restored + skipped +
+    failed`` is how many entries the batch covered.
+    """
+
+    ok: bool
+    restored: int = 0
+    skipped: int = 0
+    failed: int = 0
     message: str = ""
 
 
@@ -331,6 +361,43 @@ def list_trash(
     return TrashListResult(ok=True, entries=tuple(entries))
 
 
+def trash_stats(
+    binary: str,
+    *,
+    trash_dir: str | None = None,
+    timeout: float = 30.0,
+) -> TrashStats | None:
+    """Summarize the whole store from ``hsync trash stats --json``.
+
+    ``None`` when the client refuses or reports something unusable: the dialog
+    then omits the summary instead of showing figures it cannot vouch for. The
+    command walks the store only, so it runs while a sync does.
+    """
+    args = ["trash", "stats", "--json"]
+    if trash_dir:
+        args += ["--trash-dir", trash_dir]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None or result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return TrashStats(
+            root=str(payload.get("root") or ""),
+            entries=int(payload.get("entries") or 0),
+            bytes=int(payload.get("bytes") or 0),
+            oldest=int(payload.get("oldest") or 0),
+            budget=int(payload.get("budget") or 0),
+            folders=int(payload.get("folders") or 0),
+        )
+    except (TypeError, ValueError):
+        return None
+
+
 def restore_from_trash(
     binary: str,
     folder: str,
@@ -352,6 +419,48 @@ def restore_from_trash(
     if result.returncode != 0:
         return TrashActionResult(ok=False, message=_result_message(result))
     return TrashActionResult(ok=True, message=(result.stdout or "").strip())
+
+
+def restore_all_from_trash(
+    binary: str,
+    folder: str,
+    *,
+    direction: str = "bidirectional",
+    trash_dir: str | None = None,
+    timeout: float = 900.0,
+) -> TrashRestoreAllResult:
+    """Put every trashed file back into *folder* (``hsync trash restore --all``).
+
+    One subprocess for the whole batch: after a bulk deletion the store holds
+    hundreds of entries, and each one would otherwise cost a process. The wider
+    timeout is the batch. The client answers in JSON even when it exits non-zero,
+    so the counts survive a refusal.
+    """
+    args = [
+        *_trash_command("restore", folder, trash_dir),
+        "--all",
+        "--direction",
+        direction,
+        "--json",
+    ]
+    result = _run_hsync_capture(binary, args, timeout)
+    if result is None:
+        return TrashRestoreAllResult(ok=False)
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return TrashRestoreAllResult(ok=False, message=_result_message(result))
+    if not isinstance(payload, dict):
+        return TrashRestoreAllResult(ok=False)
+    try:
+        return TrashRestoreAllResult(
+            ok=result.returncode == 0,
+            restored=int(payload.get("restored") or 0),
+            skipped=int(payload.get("skipped") or 0),
+            failed=int(payload.get("failed") or 0),
+        )
+    except (TypeError, ValueError):
+        return TrashRestoreAllResult(ok=False)
 
 
 def trash_add(

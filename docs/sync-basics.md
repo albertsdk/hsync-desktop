@@ -60,7 +60,10 @@ point exists to review it.
 
 **Sync → Trash…** lists the files this device deleted, newest first, with when
 and how large they were. Select one and press **Restore**: the file goes back
-into the folder and the next sync propagates it to every device. **Empty trash**
+into the folder and the next sync propagates it to every device. **Restore all**
+does the same for every entry in one go — after a bulk deletion you do not
+re-pick hundreds of rows; whatever cannot come back (a path that exists again,
+a folder in **Receive only**) stays in the list with its reason. **Empty trash**
 deletes the stored copies for good, after a confirmation.
 
 The list comes from the client's own store (`hsync trash list`), so it opens
@@ -71,6 +74,10 @@ a **Receive only** folder — the mirror rule would delete the file again.
 A row marked **no stored copy** is a record the store kept without its bytes (a
 crash between the record and the move): it is listed so you know it existed, and
 Restore stays disabled for it.
+
+Above the list the dialog states what the store holds and the limit it counts
+against (*Store: 120 MB of 4 GB, 8 files*) — one `hsync trash stats` call, which
+covers every share because that limit is shared.
 
 **Simulation Mode** (Settings → Sync) turns the run into a preview: it stops at
 the summary and transfers or deletes nothing. While it is on, the main window

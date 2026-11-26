@@ -702,9 +702,132 @@ class TestResetSyncState:
         assert reset_sync_state("/bin/hsync", "/data/photos").ok is False
 
 
-def test_list_trash_marks_an_entry_without_a_stored_copy(monkeypatch):
-    """`payload_present: false` reaches the dialog, which disables the restore."""
+def test_trash_stats_reads_the_summary(monkeypatch):
+    """The dialog's "X of Y" comes from one `hsync trash stats --json` call."""
     import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps(
+        {
+            "root": "/state/trash",
+            "entries": 4,
+            "bytes": 8192,
+            "oldest": 1_700_000_000,
+            "budget": 1_073_741_824,
+            "folders": 2,
+        }
+    )
+    seen: list[list[str]] = []
+
+    def _capture(binary, args, timeout):
+        seen.append(list(args))
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+
+    monkeypatch.setattr(engine_cli, "_run_hsync_capture", _capture)
+
+    stats = engine_cli.trash_stats("hsync")
+
+    assert seen == [["trash", "stats", "--json"]]
+    assert stats == engine_cli.TrashStats(
+        root="/state/trash",
+        entries=4,
+        bytes=8192,
+        oldest=1_700_000_000,
+        budget=1_073_741_824,
+        folders=2,
+    )
+
+
+def test_restore_all_forwards_the_batch_and_reads_the_counts(monkeypatch):
+    """One call puts the whole folder back: `hsync trash restore --all --json`."""
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps(
+        {
+            "folder": "/share",
+            "status": "ok",
+            "restored": 7,
+            "skipped": 1,
+            "failed": 0,
+            "bytes": 2048,
+            "dry_run": False,
+            "problems": {"docs/b.txt": "destination-exists"},
+        }
+    )
+    seen: list[list[str]] = []
+
+    def _capture(binary, args, timeout):
+        seen.append(list(args))
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+
+    monkeypatch.setattr(engine_cli, "_run_hsync_capture", _capture)
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share", direction="upload-only")
+
+    assert seen == [
+        ["trash", "restore", "--folder", "/share", "--all", "--direction", "upload-only", "--json"]
+    ]
+    assert (result.ok, result.restored, result.skipped, result.failed) == (True, 7, 1, 0)
+
+
+def test_restore_all_keeps_the_counts_on_a_non_zero_exit(monkeypatch):
+    """An unusable stored copy exits non-zero, but the batch still reports."""
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    payload = json.dumps({"status": "ok", "restored": 1, "skipped": 0, "failed": 1})
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *a, **k: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=payload, stderr=""
+        ),
+    )
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share")
+
+    assert (result.ok, result.restored, result.failed) == (False, 1, 1)
+
+
+def test_restore_all_is_a_failure_when_the_client_prints_no_json(monkeypatch):
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *a, **k: subprocess.CompletedProcess(
+            args=[], returncode=2, stdout="", stderr="boom"
+        ),
+    )
+
+    result = engine_cli.restore_all_from_trash("hsync", "/share")
+
+    assert (result.ok, result.message) == (False, "boom")
+
+
+def test_trash_stats_is_none_when_the_client_refuses(monkeypatch):
+    import subprocess
+
+    from hsync_desktop.engine import cli as engine_cli
+
+    monkeypatch.setattr(
+        engine_cli,
+        "_run_hsync_capture",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="boom"
+        ),
+    )
+
+    assert engine_cli.trash_stats("hsync") is None
+
+    """`payload_present: false` reaches the dialog, which disables the restore."""
 
     from hsync_desktop.engine import cli as engine_cli
 

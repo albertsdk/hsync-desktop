@@ -534,19 +534,27 @@ restarted dry-run needs to avoid a silent wait.
 `hsync_desktop/main_window/actions.py::ActionsMixin._show_trash_dialog`) opens
 `hsync_desktop/trash_dialog.py::TrashDialog`, the recovery surface for the
 deletions this device applied (ADR-0056). The dialog owns no store: listing,
-restore and empty go through `hsync_desktop/engine/cli.py::list_trash` /
-`::restore_from_trash` / `::empty_trash`, i.e. `hsync trash list|restore|empty`,
-and the dialog only renders the outcome. None of those commands takes the folder
-lock, so the view opens during a run; a restored file is a plain local write that
-the next cycle propagates (delete-vs-recreate, ADR-0003).
+restore (one entry or all of them), empty and the usage line go through
+`hsync_desktop/engine/cli.py::list_trash` / `::restore_from_trash` /
+`::restore_all_from_trash` / `::empty_trash` / `::trash_stats`, i.e.
+`hsync trash list|restore|restore --all|empty|stats`, and the dialog only renders
+the outcome. None of those commands takes the folder lock, so the view opens
+during a run; a restored file is a plain local write that the next cycle
+propagates (delete-vs-recreate, ADR-0003).
 
-The three collaborators are injected (`load`/`restore`/`empty`), which is what
-lets `tests/test_trash_dialog.py` drive the dialog without a subprocess. The
-client's own refusal text is shown verbatim (destination exists, `download-only`
-folder, corrupt copy) instead of being re-worded here. A row whose listing says
+The collaborators are injected (`load`/`restore`/`empty`/`stats`/`restore_all`),
+which is what lets `tests/test_trash_dialog.py` drive the dialog without a
+subprocess; without `restore_all` the bulk button is not built. The client's own
+refusal text is shown verbatim (destination exists, `download-only` folder,
+corrupt copy) instead of being re-worded here. A row whose listing says
 `payload_present: false` (the record outlived its bytes) is marked with
 `trash.not_restorable` and keeps **Restore** disabled, so the dialog never offers
-a command that can only refuse. The per-row **Move to
+a command that can only refuse. **Restore all** is one `hsync trash restore --all`
+call for the whole list (one subprocess, not one per row) and is enabled while at
+least one row still has its copy; the status line splits the counts
+(`trash.restore_all_done` / `trash.restore_all_partial` /
+`trash.restore_all_none`), and the rows that did not come back are exactly the
+ones still listed after the reload. The per-row **Move to
 trash** action in the file table is the *system* trash and stays a separate,
 unrelated path until the store gains a "park this file" command.
 
