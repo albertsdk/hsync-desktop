@@ -178,13 +178,15 @@ def _configure_app(app: QApplication) -> None:
     the taskbar shows the app icon instead of a generic one.
     """
     from hsync_desktop import __version__
-    from hsync_desktop.icons import icon
+    from hsync_desktop.icons import icon, install_dialog_button_icons
 
     app.setApplicationName(APP_DISPLAY_NAME)
     app.setOrganizationName("HSYNC")
     app.setApplicationVersion(__version__)
     app.setDesktopFileName("hsync-desktop")
     app.setWindowIcon(icon("hsync-desktop"))
+    # Every Yes/No and Ok/Cancel dialog uses the app icons, not the platform's.
+    install_dialog_button_icons(app)
 
 
 def main(argv: list[str] | None = None) -> int:

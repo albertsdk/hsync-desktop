@@ -20,9 +20,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray
+from PySide6.QtCore import QByteArray, QEvent, QObject
 from PySide6.QtGui import QIcon, QPalette, QPixmap
-from PySide6.QtWidgets import QApplication, QDialogButtonBox
+from PySide6.QtWidgets import QApplication, QDialogButtonBox, QMessageBox
 
 
 def _is_dark_theme() -> bool:
@@ -263,8 +263,10 @@ def style_ok_cancel_button_box(
     theme's icons or the (untranslated) Qt standard labels. The icon follows the
     action: the floppy (``document-save``) means *save to disk*, so an **Apply**
     caller passes ``accept_icon_key="dialog-ok"`` (the app's confirm idiom)
-    instead. The settings and bandwidth dialogs apply; the credential prompts,
-    the trusted-keys Add dialogs and the ``.hsyncignore`` editor save.
+    instead. Applied by the name prompt, the bandwidth dialog, the trusted-keys
+    Add dialogs, the ``.hsyncignore`` editor save and the translations
+    sub-dialog; any other box is covered app-wide by
+    :func:`install_dialog_button_icons`.
     """
     from hsync_desktop.i18n import tr
 
@@ -276,3 +278,67 @@ def style_ok_cancel_button_box(
     if cancel is not None:
         cancel.setText(tr(cancel_text_key))
         cancel.setIcon(icon("dialog-cancel"))
+
+
+# ── Dialog-button icon policy ────────────────────────────────────────────────
+
+# Qt assigns no icon to a QMessageBox/QDialogButtonBox standard button; a
+# platform theme may paint its own (system) icon instead. The app's helpers
+# (``widgets/dialogs.py``, :func:`style_ok_cancel_button_box`) set the app icons
+# explicitly; this policy fills the app icon in for every button left without
+# one, so a Yes/No or Ok/Cancel choice is consistent on every platform. The
+# standard enum values are shared between ``QMessageBox`` and
+# ``QDialogButtonBox`` (both use the ``QDialogButtonBox`` constants), so one
+# table covers both.
+_STANDARD_BUTTON_ICON = {
+    QDialogButtonBox.StandardButton.Ok.value: "dialog-ok",
+    QDialogButtonBox.StandardButton.Yes.value: "dialog-ok",
+    QDialogButtonBox.StandardButton.Save.value: "document-save",
+    QDialogButtonBox.StandardButton.Apply.value: "dialog-ok",
+    QDialogButtonBox.StandardButton.No.value: "dialog-cancel",
+    QDialogButtonBox.StandardButton.Cancel.value: "dialog-cancel",
+    QDialogButtonBox.StandardButton.Close.value: "dialog-cancel",
+    QDialogButtonBox.StandardButton.Discard.value: "edit-delete",
+    QDialogButtonBox.StandardButton.Retry.value: "view-refresh",
+}
+
+_BUTTON_ROLE_ICON = {
+    QDialogButtonBox.ButtonRole.AcceptRole.value: "dialog-ok",
+    QDialogButtonBox.ButtonRole.YesRole.value: "dialog-ok",
+    QDialogButtonBox.ButtonRole.ApplyRole.value: "dialog-ok",
+    QDialogButtonBox.ButtonRole.RejectRole.value: "dialog-cancel",
+    QDialogButtonBox.ButtonRole.NoRole.value: "dialog-cancel",
+    QDialogButtonBox.ButtonRole.DestructiveRole.value: "edit-delete",
+}
+
+
+class _DialogButtonIconFilter(QObject):
+    """Fill in the app icon on a dialog button that has none, as its box shows."""
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt override)
+        if event.type() != QEvent.Type.Show:
+            return False
+        if isinstance(obj, (QMessageBox, QDialogButtonBox)):
+            for button in obj.buttons():
+                if not button.icon().isNull():
+                    continue  # an explicit icon (helpers) wins
+                name = _STANDARD_BUTTON_ICON.get(obj.standardButton(button).value) or (
+                    _BUTTON_ROLE_ICON.get(obj.buttonRole(button).value)
+                )
+                if name:
+                    button.setIcon(icon(name))
+        return False
+
+
+_dialog_button_icon_filter: _DialogButtonIconFilter | None = None
+
+
+def install_dialog_button_icons(app: QApplication) -> None:
+    """Install the app-wide dialog-button icon policy and keep a reference.
+
+    ``installEventFilter`` does not take ownership, so the filter is also stored
+    at module level.
+    """
+    global _dialog_button_icon_filter
+    _dialog_button_icon_filter = _DialogButtonIconFilter()
+    app.installEventFilter(_dialog_button_icon_filter)

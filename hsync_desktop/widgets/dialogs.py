@@ -4,9 +4,16 @@
 """Shared localized Yes/No confirmation dialogs.
 
 Every confirmation in the GUI shares the same contract: standard ``Yes``/``No``
-buttons, retitled with the localized ``action.yes`` / ``action.no`` labels (and
-optionally the app icons), with ``No`` as the safe default. Hand-building the
-box at each call site let those details drift, so the construction lives here.
+buttons, retitled with the localized ``action.yes`` / ``action.no`` labels, with
+``No`` as the safe default. Hand-building the box at each call site let those
+details drift, so the construction lives here.
+
+The app icons on those buttons come from the app-wide policy
+(``hsync_desktop/icons.py::install_dialog_button_icons``), which fills the icon
+in for a standard button that has none (a ``with_icons=True`` box sets them up
+front); so a Yes/No box here and a bare ``QMessageBox.warning`` elsewhere both
+show the app's ``dialog-ok`` / ``dialog-cancel`` instead of the platform theme's
+icons.
 
 A confirmation that may be silenced adds an opt-out checkbox through
 ``build_optout_confirm_box``: the checkbox always starts unchecked, so silence is
@@ -101,7 +108,13 @@ def build_confirm_box(
     default_yes: bool = False,
     with_icons: bool = False,
 ) -> QMessageBox:
-    """Build a localized Yes/No box whose default answer is ``No`` unless asked."""
+    """Build a localized Yes/No box whose default answer is ``No`` unless asked.
+
+    ``with_icons`` sets the app icons on the buttons right away; regardless, the
+    app-wide policy (`hsync_desktop/icons.py::install_dialog_button_icons`) fills
+    them in for any standard button shown without one, so the buttons never fall
+    back to the platform theme's icons.
+    """
     box = QMessageBox(parent)
     box.setIcon(icon_name)
     box.setWindowTitle(title)
