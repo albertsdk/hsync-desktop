@@ -427,18 +427,21 @@ def restore_all_from_trash(
     *,
     direction: str = "bidirectional",
     trash_dir: str | None = None,
+    prefix: str | None = None,
     timeout: float = 900.0,
 ) -> TrashRestoreAllResult:
-    """Put every trashed file back into *folder* (``hsync trash restore --all``).
+    """Put every trashed file of *folder* back (``hsync trash restore``).
 
-    One subprocess for the whole batch: after a bulk deletion the store holds
-    hundreds of entries, and each one would otherwise cost a process. The wider
-    timeout is the batch. The client answers in JSON even when it exits non-zero,
-    so the counts survive a refusal.
+    ``--all`` restores the whole store; *prefix* narrows it to one deleted
+    folder's subtree (``restore --prefix``). One subprocess for the whole batch:
+    after a bulk deletion the store holds hundreds of entries, and each one would
+    otherwise cost a process. The wider timeout is the batch. The client answers
+    in JSON even when it exits non-zero, so the counts survive a refusal.
     """
+    scope = ["--prefix", prefix] if prefix is not None else ["--all"]
     args = [
         *_trash_command("restore", folder, trash_dir),
-        "--all",
+        *scope,
         "--direction",
         direction,
         "--json",
