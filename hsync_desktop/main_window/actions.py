@@ -25,7 +25,6 @@ from hsync_desktop.engine import (
     list_trash,
     restore_all_from_trash,
     restore_from_trash,
-    trash_stats,
 )
 from hsync_desktop.file_panel.transfer_table import selection_subdir
 from hsync_desktop.foreground import app_in_foreground
@@ -835,7 +834,6 @@ class ActionsMixin:
             restore=lambda path: restore_from_trash(binary, folder, path, direction=direction),
             restore_all=lambda: restore_all_from_trash(binary, folder, direction=direction),
             empty=lambda: empty_trash(binary, folder),
-            stats=lambda: trash_stats(binary),
         )
         dialog.exec()
 

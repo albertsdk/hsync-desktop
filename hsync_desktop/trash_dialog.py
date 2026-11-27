@@ -35,9 +35,9 @@ from PySide6.QtWidgets import (
 
 from hsync_desktop.engine import (
     TrashActionResult,
+    TrashEntrySummary,
     TrashListResult,
     TrashRestoreAllResult,
-    TrashStats,
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.labels import muted_label
@@ -76,14 +76,12 @@ class TrashDialog(QDialog):
         load: Callable[[], TrashListResult],
         restore: Callable[[str], TrashActionResult],
         empty: Callable[[], TrashActionResult],
-        stats: Callable[[], TrashStats | None] | None = None,
         restore_all: Callable[[], TrashRestoreAllResult] | None = None,
     ) -> None:
         super().__init__(parent)
         self._load = load
         self._restore = restore
         self._empty = empty
-        self._stats = stats
         self._restore_all = restore_all
 
         self.setWindowTitle(tr("trash.title"))
@@ -95,9 +93,10 @@ class TrashDialog(QDialog):
         layout = QVBoxLayout(self)
         self._lbl_hint = muted_label()
         layout.addWidget(self._lbl_hint)
-        # How much the store holds, against its shared budget ("X of Y").
-        self._lbl_usage = muted_label()
-        layout.addWidget(self._lbl_usage)
+        # How many files this share's trash holds; matches the rows below (the
+        # store-wide figure would count every share and never match the list).
+        self._lbl_summary = muted_label()
+        layout.addWidget(self._lbl_summary)
 
         self._table = QTableWidget(0, 3, self)
         self._table.setHorizontalHeaderLabels(
@@ -145,14 +144,15 @@ class TrashDialog(QDialog):
 
     def reload(self) -> None:
         """Refresh the listing from the client's store."""
-        self._render_usage()
         result = self._load()
         self._table.setRowCount(0)
         if not result.ok:
+            self._lbl_summary.setText("")
             self._lbl_hint.setText(tr("trash.list_failed"))
             self._lbl_status.setText(result.message)
             self._sync_buttons()
             return
+        self._render_summary(result.entries)
         self._lbl_hint.setText(tr("trash.empty_state") if not result.entries else tr("trash.hint"))
         for entry in result.entries:
             row = self._table.rowCount()
@@ -177,23 +177,10 @@ class TrashDialog(QDialog):
         self._lbl_status.setText("")
         self._sync_buttons()
 
-    def _render_usage(self) -> None:
-        """Show how much the store holds, when the client can tell us."""
-        if self._stats is None:
-            self._lbl_usage.setText("")
-            return
-        stats = self._stats()
-        if stats is None or stats.budget <= 0:
-            # No usable summary: say nothing rather than show a zero we cannot
-            # vouch for (the client also omits the budget when unbounded).
-            self._lbl_usage.setText("")
-            return
-        self._lbl_usage.setText(
-            tr("trash.usage").format(
-                used=format_bytes(stats.bytes),
-                budget=format_bytes(stats.budget),
-                count=stats.entries,
-            )
+    def _render_summary(self, entries: tuple[TrashEntrySummary, ...]) -> None:
+        """Count the files *this share's* trash holds (the rows shown)."""
+        self._lbl_summary.setText(
+            "" if not entries else tr("trash.summary").format(count=len(entries))
         )
 
     def selected_path(self) -> str:
@@ -284,4 +271,8 @@ class TrashDialog(QDialog):
             QMessageBox.warning(self, tr("notif.error"), result.message or tr("trash.list_failed"))
             return
         self.reload()
-        self._lbl_status.setText(result.message or tr("trash.empty_done"))
+        # Show the client's counts through our own localized wording: its stdout
+        # ("Removed N entries, M B freed") is English-only.
+        self._lbl_status.setText(
+            tr("trash.empty_done").format(removed=result.removed, freed=format_bytes(result.freed))
+        )

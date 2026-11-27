@@ -534,19 +534,24 @@ restarted dry-run needs to avoid a silent wait.
 `hsync_desktop/main_window/actions.py::ActionsMixin._show_trash_dialog`) opens
 `hsync_desktop/trash_dialog.py::TrashDialog`, the recovery surface for the
 deletions this device applied (ADR-0056). The dialog owns no store: listing,
-restore (one entry or all of them), empty and the usage line go through
+restore (one entry or all of them) and empty go through
 `hsync_desktop/engine/cli.py::list_trash` / `::restore_from_trash` /
-`::restore_all_from_trash` / `::empty_trash` / `::trash_stats`, i.e.
-`hsync trash list|restore|restore --all|empty|stats`, and the dialog only renders
+`::restore_all_from_trash` / `::empty_trash`, i.e.
+`hsync trash list|restore|restore --all|empty`, and the dialog only renders
 the outcome. None of those commands takes the folder lock, so the view opens
 during a run; a restored file is a plain local write that the next cycle
-propagates (delete-vs-recreate, ADR-0003).
+propagates (delete-vs-recreate, ADR-0003). The header summarizes **this share**
+(the count of the listed rows, `trash.summary`), not the whole device store: a
+store-wide figure counted every share and never matched the list.
 
-The collaborators are injected (`load`/`restore`/`empty`/`stats`/`restore_all`),
+The collaborators are injected (`load`/`restore`/`empty`/`restore_all`),
 which is what lets `tests/test_trash_dialog.py` drive the dialog without a
 subprocess; without `restore_all` the bulk button is not built. The client's own
 refusal text is shown verbatim (destination exists, `download-only` folder,
-corrupt copy) instead of being re-worded here. A row whose listing says
+corrupt copy) instead of being re-worded here; a successful empty is worded from
+the counts — `hsync_desktop/engine/cli.py::empty_trash` runs
+`hsync trash empty --json` and the dialog formats `trash.empty_done` — never from
+the client's English stdout. A row whose listing says
 `payload_present: false` (the record outlived its bytes) is marked with
 `trash.not_restorable` and keeps **Restore** disabled, so the dialog never offers
 a command that can only refuse. **Restore all** is one `hsync trash restore --all`
@@ -955,7 +960,8 @@ row alone, the standard desktop behaviour.
 not one prompt per item) and parks each entry through
 `hsync_desktop/engine/cli.py::trash_add` — the client's `hsync trash add`, so the
 bytes land in the same device-local store the sync engine uses for its own
-deletions (ADR-0056) with origin `user`. The removal stays a normal deletion: the
+deletions (ADR-0056) with origin `user`; a folder is parked file by file and then
+removed, a symlink only removed. The removal stays a normal deletion: the
 watcher records the marker, the peers converge, and **Sync → Trash…** can restore
 it. One code path for every platform: the client does the moving (no `gio`, no
 AppleScript, no Win32 call), and the path travels as a single argv element, so a

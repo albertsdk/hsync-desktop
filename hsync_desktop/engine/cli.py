@@ -249,18 +249,6 @@ class TrashEntrySummary:
 
 
 @dataclass(frozen=True)
-class TrashStats:
-    """What ``hsync trash stats --json`` reports (ADR-0056)."""
-
-    root: str = ""
-    entries: int = 0
-    bytes: int = 0
-    oldest: int = 0
-    budget: int = 0
-    folders: int = 0
-
-
-@dataclass(frozen=True)
 class TrashListResult:
     """Outcome of ``hsync trash list`` (ADR-0056)."""
 
@@ -275,11 +263,15 @@ class TrashActionResult:
 
     ``message`` carries the client's own text, so a refusal (the destination
     exists, the folder is download-only, the copy is corrupt) is shown verbatim
-    instead of being re-worded here.
+    instead of being re-worded here. ``empty`` also reports how many entries it
+    removed and how many bytes it freed, so the caller can word the result in the
+    user's own language instead of echoing the client's English stdout.
     """
 
     ok: bool
     message: str = ""
+    removed: int = 0
+    freed: int = 0
 
 
 @dataclass(frozen=True)
@@ -361,43 +353,6 @@ def list_trash(
     return TrashListResult(ok=True, entries=tuple(entries))
 
 
-def trash_stats(
-    binary: str,
-    *,
-    trash_dir: str | None = None,
-    timeout: float = 30.0,
-) -> TrashStats | None:
-    """Summarize the whole store from ``hsync trash stats --json``.
-
-    ``None`` when the client refuses or reports something unusable: the dialog
-    then omits the summary instead of showing figures it cannot vouch for. The
-    command walks the store only, so it runs while a sync does.
-    """
-    args = ["trash", "stats", "--json"]
-    if trash_dir:
-        args += ["--trash-dir", trash_dir]
-    result = _run_hsync_capture(binary, args, timeout)
-    if result is None or result.returncode != 0:
-        return None
-    try:
-        payload = json.loads(result.stdout)
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    try:
-        return TrashStats(
-            root=str(payload.get("root") or ""),
-            entries=int(payload.get("entries") or 0),
-            bytes=int(payload.get("bytes") or 0),
-            oldest=int(payload.get("oldest") or 0),
-            budget=int(payload.get("budget") or 0),
-            folders=int(payload.get("folders") or 0),
-        )
-    except (TypeError, ValueError):
-        return None
-
-
 def restore_from_trash(
     binary: str,
     folder: str,
@@ -474,13 +429,14 @@ def trash_add(
     trash_dir: str | None = None,
     timeout: float = 60.0,
 ) -> TrashActionResult:
-    """Move one file into the device-local trash (``hsync trash add``).
+    """Move one file or folder into the device-local trash (``hsync trash add``).
 
     This is the front-end's delete path (ADR-0056): the client parks the bytes
-    and the removal still propagates as a normal deletion, so a file the user
-    removed stays restorable from the trash view. The path travels as one argv
-    element — no shell, no platform helper — so spaces, quotes and non-ASCII
-    names are safe on every platform.
+    and the removal still propagates as a normal deletion, so a path the user
+    removed stays restorable from the trash view. A folder is parked file by file
+    and then removed. The path travels as one argv element — no shell, no
+    platform helper — so spaces, quotes and non-ASCII names are safe on every
+    platform.
     """
     args = [*_trash_command("add", folder, trash_dir), path]
     result = _run_hsync_capture(binary, args, timeout)
@@ -501,15 +457,27 @@ def empty_trash(
     """Delete this folder's trashed files for good (``hsync trash empty``).
 
     ``--yes`` because the GUI asked for its own confirmation: the command must
-    not prompt a second time on a pipe with no terminal.
+    not prompt a second time on a pipe with no terminal. ``--json`` so the caller
+    gets the counts (``removed``/``freed``) instead of the client's English
+    summary line.
     """
-    args = [*_trash_command("empty", folder, trash_dir), "--yes"]
+    args = [*_trash_command("empty", folder, trash_dir), "--yes", "--json"]
     result = _run_hsync_capture(binary, args, timeout)
     if result is None:
         return TrashActionResult(ok=False)
     if result.returncode != 0:
         return TrashActionResult(ok=False, message=_result_message(result))
-    return TrashActionResult(ok=True, message=(result.stdout or "").strip())
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return TrashActionResult(ok=True)
+    if not isinstance(payload, dict):
+        return TrashActionResult(ok=True)
+    return TrashActionResult(
+        ok=True,
+        removed=int(payload.get("removed") or 0),
+        freed=int(payload.get("freed") or 0),
+    )
 
 
 def find_hsync_binary() -> str | None:

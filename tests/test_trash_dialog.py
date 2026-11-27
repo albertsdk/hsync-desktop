@@ -20,7 +20,6 @@ from hsync_desktop.engine import (
     TrashEntrySummary,
     TrashListResult,
     TrashRestoreAllResult,
-    TrashStats,
 )
 from hsync_desktop.i18n import tr
 from hsync_desktop.trash_dialog import TrashDialog
@@ -34,17 +33,14 @@ class _Fake:
         listings: list[TrashListResult],
         *,
         restore_ok: bool = True,
-        stats_value: TrashStats | None = None,
         bulk: TrashRestoreAllResult | None = None,
     ) -> None:
         self.listings = listings
         self.restore_ok = restore_ok
-        self.stats_value = stats_value
         self.bulk = bulk if bulk is not None else TrashRestoreAllResult(ok=True)
         self.loads = 0
         self.restored: list[str] = []
         self.emptied = 0
-        self.stat_calls = 0
         self.bulk_calls = 0
 
     def load(self) -> TrashListResult:
@@ -63,11 +59,7 @@ class _Fake:
 
     def empty(self) -> TrashActionResult:
         self.emptied += 1
-        return TrashActionResult(ok=True, message="")
-
-    def stats(self) -> TrashStats | None:
-        self.stat_calls += 1
-        return self.stats_value
+        return TrashActionResult(ok=True, removed=1, freed=10_161_646)
 
 
 def _entries(*paths: str, missing_copy: tuple[str, ...] = ()) -> TrashListResult:
@@ -91,41 +83,25 @@ def _dialog(qtbot, fake: _Fake) -> TrashDialog:
         load=fake.load,
         restore=fake.restore,
         empty=fake.empty,
-        stats=fake.stats,
         restore_all=fake.restore_all,
     )
     qtbot.addWidget(dlg)
     return dlg
 
 
-def test_the_usage_line_reports_what_the_store_holds(qtbot):
-    """`hsync trash stats` gives the dialog "X of Y" without summing the rows."""
-    fake = _Fake(
-        [_entries("docs/report.pdf")],
-        stats_value=TrashStats(
-            root="/state/trash",
-            entries=3,
-            bytes=2048,
-            oldest=1_700_000_000,
-            budget=4096,
-            folders=1,
-        ),
-    )
+def test_the_summary_counts_the_rows_of_this_share(qtbot):
+    """The count describes the listed rows, never the whole device store."""
+    fake = _Fake([_entries("docs/report.pdf", "b.txt")])
 
     dlg = _dialog(qtbot, fake)
 
-    assert fake.stat_calls == 1
-    assert dlg._lbl_usage.text() == tr("trash.usage").format(
-        used=format_bytes(2048), budget=format_bytes(4096), count=3
-    )
+    assert dlg._lbl_summary.text() == tr("trash.summary").format(count=2)
 
 
-def test_no_summary_is_shown_when_the_client_cannot_report_one(qtbot):
-    fake = _Fake([_entries("docs/report.pdf")], stats_value=None)
+def test_no_summary_is_shown_for_an_empty_share(qtbot):
+    dlg = _dialog(qtbot, _Fake([TrashListResult(ok=True, entries=())]))
 
-    dlg = _dialog(qtbot, fake)
-
-    assert dlg._lbl_usage.text() == ""
+    assert dlg._lbl_summary.text() == ""
 
 
 def test_it_lists_what_the_client_reports(qtbot):
@@ -279,7 +255,6 @@ def test_without_the_bulk_collaborator_no_restore_all_button_is_offered(qtbot):
         load=fake.load,
         restore=fake.restore,
         empty=fake.empty,
-        stats=fake.stats,
     )
     qtbot.addWidget(dlg)
 
@@ -316,7 +291,9 @@ def test_confirmed_empty_clears_and_reloads(qtbot, monkeypatch):
 
     assert fake.emptied == 1
     assert dlg._table.rowCount() == 0
-    assert dlg._lbl_status.text() == tr("trash.empty_done")
+    assert dlg._lbl_status.text() == tr("trash.empty_done").format(
+        removed=1, freed=format_bytes(10_161_646)
+    )
 
 
 def test_an_unreadable_store_reports_the_client_message(qtbot):

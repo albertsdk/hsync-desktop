@@ -15,7 +15,6 @@ from hsync_desktop.engine.cli import (
     TrashEntrySummary,
     TrashListResult,
     TrashRestoreAllResult,
-    TrashStats,
     add_peer_pin,
     add_rendezvous_trust,
     add_server_trust,
@@ -40,7 +39,6 @@ from hsync_desktop.engine.cli import (
     restore_from_trash,
     supports_peer_trust,
     trash_add,
-    trash_stats,
 )
 from hsync_desktop.engine.endpoints import (
     SERVER_DEFAULT_PORT,
@@ -127,12 +125,10 @@ __all__ = [
     "list_trash",
     "empty_trash",
     "trash_add",
-    "trash_stats",
     "TrashActionResult",
     "TrashEntrySummary",
     "TrashListResult",
     "TrashRestoreAllResult",
-    "TrashStats",
     "supports_peer_trust",
     "unverified_ssl_context",
     "write_secret_pipe",
