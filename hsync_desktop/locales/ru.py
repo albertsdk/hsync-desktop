@@ -55,7 +55,6 @@ translations: dict[str, str] = {
     "label.sent": "↑ Отправлено:",
     "label.received": "↓ Получено:",
     "label.files": "файлов",
-    "label.files_fmt": "{count} файлов ({size})",
     # Buttons
     "btn.start": "▶  Запустить",
     "btn.stop": "■  Остановить",

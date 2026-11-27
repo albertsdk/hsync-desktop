@@ -293,7 +293,7 @@ class TestTranslateFunction:
 
     def test_tr_with_format_args(self):
         """Keys with format placeholders should work."""
-        result = i18n.tr("label.files_fmt").format(count=3, size="1 MB")
+        result = i18n.tr("notif.transfers_failed").format(count=3)
         assert "3" in result
 
 
