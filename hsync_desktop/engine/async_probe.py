@@ -22,13 +22,13 @@ from typing import Any, cast
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
-__all__ = ["AsyncProbe", "ProbeOutcome"]
+__all__ = ["AsyncCall", "AsyncProbe", "ProbeOutcome"]
 
 # Probes still in flight, keyed by their thread. Module-level so that a cancelled
 # probe whose owner (a dialog or the main window) is destroyed keeps its thread
 # and worker referenced until the blocking call returns: destroying a running
 # QThread, or a QObject that lives in another thread, aborts the process.
-_PENDING: dict[QThread, _Worker] = {}
+_PENDING: dict[QThread, QObject] = {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,5 +110,76 @@ class AsyncProbe(QObject):
     @Slot(object)
     def _on_worker_finished(self, result: Any) -> None:
         worker = cast(_Worker | None, self.sender())
+        if worker is not None and worker.generation == self._generation:
+            self.done.emit(result)
+
+
+class _CallWorker(QObject):
+    finished = Signal(object)
+
+    def __init__(self, job: Callable[[], object]) -> None:
+        super().__init__()
+        self._job = job
+        self.cancelled = False
+        self.generation = 0
+
+    def cancel(self) -> None:
+        self.cancelled = True
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            result: object = self._job()
+        except Exception:  # pragma: no cover - jobs must never crash the UI
+            result = None
+        if not self.cancelled:
+            self.finished.emit(result)
+
+
+class AsyncCall(QObject):
+    """Runs one off-thread job at a time; a new ``start`` (or ``cancel``) drops the old result.
+
+    Generic sibling of ``AsyncProbe`` for a blocking call that returns an
+    arbitrary object (e.g. counting the trash through a ``hsync`` subprocess),
+    sharing the same ``_PENDING`` lifecycle so a cancelled call whose owner is
+    destroyed keeps its thread referenced until the call returns.
+    """
+
+    done = Signal(object)
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._thread: QThread | None = None
+        self._worker: _CallWorker | None = None
+        self._generation = 0
+
+    def start(self, job: Callable[[], object]) -> None:
+        self.cancel()
+        self._generation += 1
+        thread = QThread()
+        worker = _CallWorker(job)
+        worker.generation = self._generation
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_finished)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(lambda retired=thread: _PENDING.pop(retired, None))
+        self._thread = thread
+        self._worker = worker
+        _PENDING[thread] = worker
+        thread.start()
+
+    def cancel(self) -> None:
+        self._generation += 1
+        if self._worker is not None:
+            self._worker.cancel()
+        if self._thread is not None:
+            self._thread.quit()
+        self._thread = None
+        self._worker = None
+
+    @Slot(object)
+    def _on_finished(self, result: Any) -> None:
+        worker = cast(_CallWorker | None, self.sender())
         if worker is not None and worker.generation == self._generation:
             self.done.emit(result)

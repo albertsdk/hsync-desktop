@@ -20,6 +20,7 @@ from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
 )
 from hsync_desktop.engine import (
+    TrashListResult,
     empty_trash,
     find_hsync_binary,
     list_trash,
@@ -47,7 +48,7 @@ from hsync_desktop.trash_dialog import TrashDialog
 from hsync_desktop.widgets.dialogs import dialog_parent
 
 if TYPE_CHECKING:
-    from hsync_desktop.engine.async_probe import AsyncProbe
+    from hsync_desktop.engine.async_probe import AsyncCall, AsyncProbe
 
 
 class ActionsMixin:
@@ -56,6 +57,10 @@ class ActionsMixin:
     # or the opt-in startup check (the two render differently).
     _update_probe: AsyncProbe | None
     _update_manual: bool
+
+    # The trash count shown on the "Sync → Trash…" item, refreshed off the UI
+    # thread when the Sync menu opens (created on first use; None until then).
+    _trash_call: AsyncCall | None
 
     # Scoped Send/Receive target ``(subdir, direction)``; None when idle. Declared
     # here so the composed ``MainWindow`` shares the optional type.
@@ -842,6 +847,34 @@ class ActionsMixin:
             empty=lambda: empty_trash(binary, folder),
         )
         dialog.exec()
+
+    def _refresh_trash_menu_label(self) -> None:
+        """Refresh the "Sync → Trash…" count when the Sync menu opens.
+
+        The listing is a ``hsync trash list`` subprocess, so it runs off the UI
+        thread (``AsyncCall``): the menu opens immediately and the count lands a
+        moment later. Without an active folder or binary the plain label stays.
+        """
+        folder = str(self._local_path or "").strip()
+        binary = self._engine.binary_path or find_hsync_binary() or ""
+        if not folder or not binary:
+            self._act_trash.setText(tr("menu.sync.trash"))
+            return
+
+        from hsync_desktop.engine.async_probe import AsyncCall
+
+        if self._trash_call is None:
+            self._trash_call = AsyncCall(self)
+            self._trash_call.done.connect(self._on_trash_count)
+        self._trash_call.start(lambda: list_trash(binary, folder, timeout=5.0))
+
+    @Slot(object)
+    def _on_trash_count(self, result: object) -> None:
+        """Label the Trash… item with its count, or keep the plain label."""
+        if isinstance(result, TrashListResult) and result.ok and result.entries:
+            self._act_trash.setText(tr("menu.sync.trash_count").format(count=len(result.entries)))
+        else:
+            self._act_trash.setText(tr("menu.sync.trash"))
 
     def _show_bandwidth_dialog(self) -> None:
         """Show the bandwidth settings dialog."""

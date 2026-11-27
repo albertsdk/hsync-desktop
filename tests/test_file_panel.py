@@ -4543,6 +4543,15 @@ class TestPendingScope:
         assert panel._btn_pending.toolTip() == tr("tip.pending_toggle")
         assert panel._btn_pending.text().startswith(tr("file.pending_toggle"))
 
+    def test_the_scope_button_carries_a_filter_icon(self, qtbot, monkeypatch, tmp_path):
+        """The funnel icon signals that pressing it filters the list."""
+        from PySide6.QtCore import Qt
+
+        panel = self._panel(qtbot, monkeypatch, tmp_path)
+
+        assert not panel._btn_pending.icon().isNull()
+        assert panel._btn_pending.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+
     def test_double_click_reveals_a_root_file_from_a_subfolder(self, qtbot, monkeypatch, tmp_path):
         """A root-level item must leave the subfolder the browser was showing."""
         from hsync_desktop.file_panel import transfer_table as tt

@@ -905,6 +905,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "L'empreinte du certificat du serveur n'a pas pu être enregistrée ; la clé API n'a donc pas été envoyée. Réessayez ou confirmez-la dans Gérer les clés de confiance.",
     "settings.bucket_probe.tofu_saved": "L'empreinte du certificat de ce serveur a été mémorisée (première utilisation). Tout changement ultérieur sera refusé. Vous pouvez la vérifier dans Gérer les clés de confiance.\n\nEmpreinte :\n{fingerprint}",
     "menu.sync.trash": "Corbeille…",
+    "menu.sync.trash_count": "Corbeille ({count})…",
     "trash.title": "Corbeille",
     "trash.hint": "Fichiers supprimés par cet appareil. Un fichier restauré revient partout à la prochaine synchronisation.",
     "trash.empty_state": "Aucun fichier supprimé.",

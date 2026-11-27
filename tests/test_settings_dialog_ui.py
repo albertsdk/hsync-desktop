@@ -33,6 +33,7 @@ from hsync_desktop.settings.dialog import (
     _CONNECTION_TAB_INDEX,
     _GENERAL_TAB_INDEX,
     _SYNC_TAB_INDEX,
+    SettingsDialog,
 )
 from hsync_desktop.widgets.text import escape_mnemonics
 
@@ -949,3 +950,29 @@ class TestTheTrashSizeRow:
         dialog.trash_max_size.setValue(0)
 
         assert dialog.trash_max_size.text() == tr("settings.auto")
+
+    def test_both_spins_follow_the_trash_switch(self, dialog):
+        # A store budget with the trash off would promise storage nothing keeps.
+        dialog.trash_enabled.setChecked(False)
+        assert not dialog.trash_retention.isEnabled()
+        assert not dialog.trash_max_size.isEnabled()
+
+        dialog.trash_enabled.setChecked(True)
+        assert dialog.trash_retention.isEnabled()
+        assert dialog.trash_max_size.isEnabled()
+
+    def test_both_spins_are_disabled_at_load_when_the_trash_is_off(
+        self, qtbot, monkeypatch, tmp_path
+    ):
+        """``setChecked`` in ``load`` emits no ``toggled`` at the widget default,
+        so the initial gate cannot rely on the signal."""
+        from tests._helpers import _patch_settings_qsettings, _settings
+
+        store = _settings(tmp_path)
+        store.setValue("sync/trash_enabled", False)
+        _patch_settings_qsettings(monkeypatch, store)
+        dlg = SettingsDialog()
+        qtbot.addWidget(dlg)
+
+        assert not dlg.trash_retention.isEnabled()
+        assert not dlg.trash_max_size.isEnabled()

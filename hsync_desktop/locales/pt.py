@@ -928,6 +928,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "Não foi possível guardar a impressão digital do certificado do servidor, por isso a chave API não foi enviada. Tente novamente ou confirme-a em Gerir chaves de confiança.",
     "settings.bucket_probe.tofu_saved": "A impressão digital do certificado deste servidor foi memorizada (primeira utilização). Uma alteração posterior será recusada. Pode revê-la em Gerir chaves de confiança.\n\nImpressão digital:\n{fingerprint}",
     "menu.sync.trash": "Lixeira…",
+    "menu.sync.trash_count": "Lixeira ({count})…",
     "trash.title": "Lixeira",
     "trash.hint": "Ficheiros que este dispositivo eliminou. Ao restaurar um, ele volta a todos na próxima sincronização.",
     "trash.empty_state": "Nenhum ficheiro eliminado.",

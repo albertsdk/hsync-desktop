@@ -928,6 +928,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "サーバー証明書のフィンガープリントを保存できなかったため、API キーは送信されていません。再試行するか、「信頼済みキーの管理」で確認してください。",
     "settings.bucket_probe.tofu_saved": "このサーバーの証明書フィンガープリントを記憶しました（初回使用）。以降の変更は拒否されます。「信頼済みキーの管理」で確認できます。\n\nフィンガープリント:\n{fingerprint}",
     "menu.sync.trash": "ゴミ箱…",
+    "menu.sync.trash_count": "ゴミ箱 ({count})…",
     "trash.title": "ゴミ箱",
     "trash.hint": "このデバイスが削除したファイルです。復元すると次回の同期ですべてのデバイスに戻ります。",
     "trash.empty_state": "削除されたファイルはありません。",

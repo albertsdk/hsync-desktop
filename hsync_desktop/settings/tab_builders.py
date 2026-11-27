@@ -162,8 +162,9 @@ def build_sync_tab(dlg: SettingsDialog) -> None:
     dlg.trash_retention.setObjectName("trashRetention")
     dlg.trash_retention.setRange(1, TRASH_RETENTION_DAYS_MAX)
     dlg._lbl_trash_retention = QLabel(dlg)
-    # A window with the trash off would promise something nothing backs.
-    dlg.trash_enabled.toggled.connect(dlg.trash_retention.setEnabled)
+    # A window (and a store budget) with the trash off would promise something
+    # nothing backs: both spins follow the switch.
+    dlg.trash_enabled.toggled.connect(dlg._set_trash_controls_enabled)
     # The store's budget (ADR-0056): 0 hands the cap back to the client, which
     # derives a share of the hosting filesystem.
     dlg.trash_max_size = QSpinBox(dlg)

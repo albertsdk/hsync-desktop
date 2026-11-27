@@ -928,6 +928,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "De vingerafdruk van het servercertificaat kon niet worden opgeslagen, dus de API-sleutel is niet verzonden. Probeer het opnieuw of bevestig deze onder Vertrouwde sleutels beheren.",
     "settings.bucket_probe.tofu_saved": "De vingerafdruk van het certificaat van deze server is onthouden (eerste gebruik). Een latere wijziging wordt geweigerd. Je kunt deze controleren onder Vertrouwde sleutels beheren.\n\nVingerafdruk:\n{fingerprint}",
     "menu.sync.trash": "Prullenbak…",
+    "menu.sync.trash_count": "Prullenbak ({count})…",
     "trash.title": "Prullenbak",
     "trash.hint": "Bestanden die dit apparaat verwijderde. Een hersteld bestand komt bij de volgende synchronisatie overal terug.",
     "trash.empty_state": "Geen verwijderde bestanden.",

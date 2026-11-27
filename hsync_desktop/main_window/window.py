@@ -120,6 +120,9 @@ class MainWindow(
         # click or the opt-in startup check (the two render differently).
         self._update_probe = None
         self._update_manual = False
+        # "Sync → Trash…" count: the listing runs off the UI thread when the Sync
+        # menu opens, so the call object is created on first use.
+        self._trash_call = None
 
         # Preview statistics tracking
         self._preview_stats = PreviewStats()

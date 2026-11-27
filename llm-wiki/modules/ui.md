@@ -256,7 +256,9 @@ button in step when a navigation leaves the list. Empty state: query →
 *comparing* (`FilePanel.set_comparing`, driven by
 `events.py::EventsMixin._set_comparison_in_flight`) → `file.filter_not_compared` →
 `file.pending_empty`. Keys: `file.pending_toggle`, `file.pending_breadcrumb`,
-`file.pending_empty`, `tip.pending_toggle`. Guarded by
+`file.pending_empty`, `tip.pending_toggle`. The button carries a funnel icon
+(`hsync_desktop/resources/icons/view-filter.svg`, `icons.py::_FALLBACK_MAP` key
+`view-filter`) beside its label, so it reads as a filter. Guarded by
 `tests/test_file_panel.py::TestPendingScope`.
 
 `_on_auto_start` hands the origin over as `MainWindow._pending_start_automatic`
@@ -543,6 +545,14 @@ during a run; a restored file is a plain local write that the next cycle
 propagates (delete-vs-recreate, ADR-0003). The header summarizes **this share**
 (the count of the listed rows, `trash.summary`), not the whole device store: a
 store-wide figure counted every share and never matched the list.
+
+The **Trash…** menu item itself carries the count when the trash is not empty
+(`menu.sync.trash_count`, e.g. *Trash (3)…*): `_menu_sync.aboutToShow` runs
+`hsync_desktop/main_window/actions.py::ActionsMixin._refresh_trash_menu_label`,
+which lists the active folder's trash through `list_trash` on an
+`hsync_desktop/engine/async_probe.py::AsyncCall` (off the UI thread, 5 s cap) and
+sets the label from `ActionsMixin._on_trash_count`; an empty trash, a failure or
+no active folder keeps the plain `menu.sync.trash`.
 
 The collaborators are injected (`load`/`restore`/`empty`/`restore_all`),
 which is what lets `tests/test_trash_dialog.py` drive the dialog without a

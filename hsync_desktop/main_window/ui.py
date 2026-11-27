@@ -754,6 +754,9 @@ class UiBuildMixin:
         self._act_trash.setToolTip(tr("trash.hint"))
         self._act_trash.triggered.connect(self._show_trash_dialog)
         self._menu_sync.addAction(self._act_trash)
+        # Refresh the count shown on the item when the menu opens (it lists the
+        # active folder's trash off the UI thread).
+        self._menu_sync.aboutToShow.connect(self._refresh_trash_menu_label)
 
         # ── File actions ─────────────────────────────────────────────
         # Creating a share opens a new configuration profile, so it leads the

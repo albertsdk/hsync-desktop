@@ -220,6 +220,11 @@ class FilePanel(QWidget):
         self._btn_pending.setObjectName("btnPending")
         self._btn_pending.setCheckable(True)
         self._btn_pending.setAutoRaise(True)
+        # A funnel icon beside the label signals that pressing it filters the
+        # list to the share-wide pending scope (it is not a run control).
+        self._btn_pending.setIcon(get_icon("view-filter"))
+        self._btn_pending.setIconSize(QSize(_NAV_FILTER_ICON_PX, _NAV_FILTER_ICON_PX))
+        self._btn_pending.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self._btn_pending.setToolTip(tr("tip.pending_toggle"))
         self._btn_pending.setText(tr("file.pending_toggle"))
         nav_layout.addWidget(self._btn_pending)

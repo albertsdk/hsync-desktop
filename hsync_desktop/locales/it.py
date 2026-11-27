@@ -905,6 +905,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "Non è stato possibile salvare l'impronta del certificato, quindi la chiave API non è stata inviata. Riprova, oppure confermala in Gestisci chiavi fidate.",
     "settings.bucket_probe.tofu_saved": "L'impronta del certificato di questo server è stata memorizzata (primo utilizzo). Un cambiamento futuro verrà rifiutato. Puoi verificarla in Gestisci chiavi fidate.\n\nImpronta:\n{fingerprint}",
     "menu.sync.trash": "Cestino…",
+    "menu.sync.trash_count": "Cestino ({count})…",
     "trash.title": "Cestino",
     "trash.hint": "File cancellati da questo dispositivo. Ripristinandone uno torna su ogni dispositivo alla prossima sincronizzazione.",
     "trash.empty_state": "Nessun file cancellato.",

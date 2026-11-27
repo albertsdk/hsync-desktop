@@ -4780,6 +4780,59 @@ class TestDryRunSyncRetry:
         assert sync.call_count == 2
 
 
+class TestTrashMenuCount:
+    """The Sync → Trash… item shows how many files the trash holds."""
+
+    @staticmethod
+    def _entries(count: int):
+        from hsync_desktop.engine.cli import TrashEntrySummary
+
+        return tuple(TrashEntrySummary(path=f"f{i}.txt") for i in range(count))
+
+    def test_it_shows_the_count_when_the_trash_has_files(self, window, qtbot, monkeypatch):
+        from hsync_desktop.engine.cli import TrashListResult
+
+        window._local_path = "/home/user/Documents"
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.actions.list_trash",
+            lambda *a, **k: TrashListResult(ok=True, entries=self._entries(3)),
+        )
+
+        window._menu_sync.aboutToShow.emit()
+
+        qtbot.waitUntil(
+            lambda: window._act_trash.text() == tr("menu.sync.trash_count").format(count=3)
+        )
+
+    def test_it_keeps_the_plain_label_when_the_trash_is_empty(self, window, qtbot, monkeypatch):
+        from hsync_desktop.engine.cli import TrashListResult
+
+        window._local_path = "/home/user/Documents"
+        window._act_trash.setText(tr("menu.sync.trash_count").format(count=9))
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.actions.list_trash",
+            lambda *a, **k: TrashListResult(ok=True),
+        )
+
+        window._menu_sync.aboutToShow.emit()
+
+        qtbot.waitUntil(lambda: window._act_trash.text() == tr("menu.sync.trash"))
+
+    def test_no_folder_keeps_the_plain_label_without_a_listing(self, window, monkeypatch):
+        window._local_path = ""
+        window._act_trash.setText(tr("menu.sync.trash_count").format(count=9))
+        calls: list[int] = []
+        monkeypatch.setattr(
+            "hsync_desktop.main_window.actions.list_trash",
+            lambda *a, **k: calls.append(1),
+        )
+
+        window._menu_sync.aboutToShow.emit()
+
+        assert window._act_trash.text() == tr("menu.sync.trash")
+        assert calls == []
+
+
 class TestMenuConventions:
     """The bar and the menus follow the desktop conventions."""
 

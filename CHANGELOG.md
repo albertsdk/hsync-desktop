@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Three settings for the peer-mesh capabilities (serve blocks, fetch from peers, publish
   inventory), translated in every locale.
 
+- **Sync → Trash…** shows how many files the trash holds (e.g. *Trash (3)…*) when
+  it is not empty, refreshed off the UI thread as the Sync menu opens — a recovery
+  surface stays discoverable without a permanent badge.
+
 ### Changed
 
 - **Move to trash** in the file list now uses the app's own trash instead of the
@@ -60,8 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default; the first plan of an installation is always shown, and any plan with
   a deletion still asks. The setting is renamed from *Sync without asking* to
   *Apply changes that delete nothing*, the scope it always had.
+- **Pending** in the file-panel navigation bar carries a funnel icon, so the
+  button reads as a filter (it lists the share-wide pending scope) rather than a
+  plain label.
 
 ### Fixed
+
+- The **Trash size limit** spin follows the **Keep deleted files in the local
+  trash** switch: with the trash off it is disabled like the restore window (it
+  stayed editable, promising a budget nothing kept).
 
 - The "Time left" column is populated on folder rows too: it derives the
   estimate from the remaining wire bytes and the summed rate of the children in

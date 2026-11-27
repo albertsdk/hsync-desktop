@@ -905,6 +905,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "No se pudo guardar la huella del certificado del servidor, así que no se envió la clave API. Inténtalo de nuevo o confírmala en Gestionar claves de confianza.",
     "settings.bucket_probe.tofu_saved": "Se ha recordado la huella del certificado de este servidor (primer uso). Un cambio posterior será rechazado. Puedes revisarla en Gestionar claves de confianza.\n\nHuella:\n{fingerprint}",
     "menu.sync.trash": "Papelera…",
+    "menu.sync.trash_count": "Papelera ({count})…",
     "trash.title": "Papelera",
     "trash.hint": "Archivos que este dispositivo eliminó. Al restaurar uno vuelve a todos los dispositivos en la próxima sincronización.",
     "trash.empty_state": "No hay archivos eliminados.",

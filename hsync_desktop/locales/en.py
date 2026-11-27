@@ -929,6 +929,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "The server's certificate fingerprint could not be saved, so the API key was not sent. Try again, or confirm it under Manage trusted keys.",
     "settings.bucket_probe.tofu_saved": "This server's certificate fingerprint was remembered (first use). A later change is refused. You can review it under Manage trusted keys.\n\nFingerprint:\n{fingerprint}",
     "menu.sync.trash": "Trash…",
+    "menu.sync.trash_count": "Trash ({count})…",
     "trash.title": "Trash",
     "trash.hint": "Files this device deleted. Restoring one brings it back on every device at the next sync.",
     "trash.empty_state": "No deleted files.",

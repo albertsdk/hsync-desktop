@@ -7,7 +7,7 @@ Re-exports the engine's public surface: ``from hsync_desktop.engine import ...``
 is the single import path.
 """
 
-from hsync_desktop.engine.async_probe import AsyncProbe, ProbeOutcome
+from hsync_desktop.engine.async_probe import AsyncCall, AsyncProbe, ProbeOutcome
 from hsync_desktop.engine.cli import (
     BinaryVersionProbe,
     ResetStateResult,
@@ -78,6 +78,7 @@ __all__ = [
     "REASON_QUOTA",
     "REASON_UNREACHABLE",
     "SERVER_DEFAULT_PORT",
+    "AsyncCall",
     "AsyncProbe",
     "BinaryVersionProbe",
     "HsyncEngine",

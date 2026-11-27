@@ -928,6 +928,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "无法保存服务器证书的指纹，因此未发送 API 密钥。请重试，或在“管理受信任的密钥”中确认。",
     "settings.bucket_probe.tofu_saved": "已记住此服务器证书的指纹（首次使用）。之后的变化将被拒绝。可在“管理受信任的密钥”中查看。\n\n指纹：\n{fingerprint}",
     "menu.sync.trash": "回收站…",
+    "menu.sync.trash_count": "回收站 ({count})…",
     "trash.title": "回收站",
     "trash.hint": "此设备删除的文件。恢复后会在下次同步时回到所有设备。",
     "trash.empty_state": "没有已删除的文件。",

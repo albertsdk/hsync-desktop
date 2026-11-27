@@ -928,6 +928,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "Nie udało się zapisać odcisku certyfikatu serwera, więc klucz API nie został wysłany. Spróbuj ponownie lub potwierdź go w Zarządzaj zaufanymi kluczami.",
     "settings.bucket_probe.tofu_saved": "Odcisk certyfikatu tego serwera został zapamiętany (pierwsze użycie). Późniejsza zmiana zostanie odrzucona. Możesz go sprawdzić w Zarządzaj zaufanymi kluczami.\n\nOdcisk:\n{fingerprint}",
     "menu.sync.trash": "Kosz…",
+    "menu.sync.trash_count": "Kosz ({count})…",
     "trash.title": "Kosz",
     "trash.hint": "Pliki usunięte przez to urządzenie. Przywrócony plik wróci wszędzie przy następnej synchronizacji.",
     "trash.empty_state": "Brak usuniętych plików.",

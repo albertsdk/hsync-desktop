@@ -979,6 +979,19 @@ class SettingsDialog(QDialog):
             label.setEnabled(enabled)
             toggle.setEnabled(enabled)
 
+    def _set_trash_controls_enabled(self, enabled: bool) -> None:
+        """Gate the trash spins on the "keep deleted files" switch.
+
+        Both the restore window and the store budget are meaningless while the
+        trash is off, so they follow the switch (the switch itself owns "off",
+        and the spin min value would otherwise read as a number, not disabled).
+        Called on the switch's ``toggled`` and once from ``load``: assigning the
+        checked state does not emit ``toggled`` when it matches the widget's
+        default (off), so the initial gate cannot rely on the signal.
+        """
+        self.trash_retention.setEnabled(enabled)
+        self.trash_max_size.setEnabled(enabled)
+
     def _on_verbose_toggled(self, checked: bool) -> None:
         """Offer to show the log panel when detailed logging would be invisible.
 
@@ -2006,7 +2019,7 @@ class SettingsDialog(QDialog):
         self.trash_enabled.setChecked(
             bool(s.value("sync/trash_enabled", DEFAULT_TRASH_ENABLED, bool))
         )
-        self.trash_retention.setEnabled(self.trash_enabled.isChecked())
+        self._set_trash_controls_enabled(self.trash_enabled.isChecked())
         self.trash_retention.setValue(
             # A window below one day would be "off" spelled as a number; the
             # switch owns that choice, so a stored 0 (an older build) clamps up.

@@ -905,6 +905,7 @@ translations: dict[str, str] = {
     "settings.bucket_probe.trust_pin_failed": "Der Fingerabdruck des Serverzertifikats konnte nicht gespeichert werden, daher wurde der API-Schlüssel nicht gesendet. Erneut versuchen oder unter Vertrauenswürdige Schlüssel verwalten bestätigen.",
     "settings.bucket_probe.tofu_saved": "Der Fingerabdruck des Serverzertifikats wurde gespeichert (erste Verwendung). Eine spätere Änderung wird abgelehnt. Prüfen Sie ihn unter Vertrauenswürdige Schlüssel verwalten.\n\nFingerabdruck:\n{fingerprint}",
     "menu.sync.trash": "Papierkorb…",
+    "menu.sync.trash_count": "Papierkorb ({count})…",
     "trash.title": "Papierkorb",
     "trash.hint": "Von diesem Gerät gelöschte Dateien. Eine wiederhergestellte Datei kommt bei der nächsten Synchronisierung überall zurück.",
     "trash.empty_state": "Keine gelöschten Dateien.",

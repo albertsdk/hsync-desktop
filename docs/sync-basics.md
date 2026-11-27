@@ -59,7 +59,9 @@ point exists to review it.
 ## Restore a deleted file
 
 **Sync → Trash…** lists the files this device deleted, newest first, with when
-and how large they were. Select one and press **Restore**: the file goes back
+and how large they were. The menu item itself shows the number of files while the
+trash is not empty (e.g. *Trash (3)…*), so a recoverable deletion is easy to find
+again. Select one and press **Restore**: the file goes back
 into the folder and the next sync propagates it to every device. **Restore all**
 does the same for every entry in one go — after a bulk deletion you do not
 re-pick hundreds of rows; whatever cannot come back (a path that exists again,
