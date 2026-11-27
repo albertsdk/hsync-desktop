@@ -1686,24 +1686,10 @@ class SettingsDialog(QDialog):
         direct = self.mode_direct.isChecked()
         if not direct and not self._confirm_insecure_api_key():
             return False  # Go back to dialog
-        normalized_server = None
-        if not direct:
-            try:
-                normalized_server = self._normalize_server_endpoint()
-            except ValueError:
-                QMessageBox.warning(
-                    self, tr("settings.title"), tr("settings.invalid_server_endpoint")
-                )
-                return False
-        normalized_rendezvous = None
-        if direct:
-            try:
-                normalized_rendezvous = self._normalize_rendezvous_server_endpoints()
-            except ValueError:
-                QMessageBox.warning(
-                    self, tr("settings.title"), tr("settings.invalid_rendezvous_endpoint")
-                )
-                return False
+        endpoints = self._normalize_endpoints(direct)
+        if endpoints is None:
+            return False
+        normalized_server, normalized_rendezvous = endpoints
         if normalized_server is not None:
             self.server_url.setText(normalized_server)
         if normalized_rendezvous is not None:
@@ -1713,18 +1699,8 @@ class SettingsDialog(QDialog):
             return False  # Go back to dialog
         # Validate a user-typed p2p password (the raw-key path is enforced by
         # the engine's 32-char floor and stays untouched for legacy installs).
-        if self.mode_direct.isChecked():
-            password = self.p2p_key.text().strip()
-            if password and self._effective_p2p_key_mode() == "passphrase":
-                try:
-                    validate_group_passphrase(password)
-                except WeakGroupPassphrase as exc:
-                    QMessageBox.warning(
-                        self,
-                        tr("settings.title"),
-                        tr(f"p2pauth.error.{exc.code}"),
-                    )
-                    return False
+        if not self._validate_p2p_passphrase():
+            return False
         # A changed Shared password invalidates the key the configured discovery
         # server was provisioned with: the server would refuse the group, so ask
         # once per session (unless the user already saw the new key).
@@ -1733,13 +1709,7 @@ class SettingsDialog(QDialog):
                 return False
         # The local folder must stay unique across shares. Only an edit can claim
         # another share's folder, so the check is scoped to a changed field.
-        folder = self.shared_path.text().strip()
-        if (
-            self._folder_in_use is not None
-            and folder != self._folder_loaded
-            and self._folder_in_use(folder)
-        ):
-            QMessageBox.warning(self, tr("settings.title"), tr("shares.error.folder_duplicate"))
+        if not self._folder_not_duplicated():
             return False
         # A duplicate p2p bucket is allowed but means the same device: warn only.
         if (
@@ -1757,6 +1727,54 @@ class SettingsDialog(QDialog):
             self._start_bucket_probe(probe_job)
             return False  # nothing is persisted: the probe's answer decides
         self.save()
+        return True
+
+    def _normalize_endpoints(self, direct: bool) -> tuple[str | None, str | None] | None:
+        """Validate/normalize the address of the selected mode; None on failure."""
+        normalized_server = None
+        if not direct:
+            try:
+                normalized_server = self._normalize_server_endpoint()
+            except ValueError:
+                QMessageBox.warning(
+                    self, tr("settings.title"), tr("settings.invalid_server_endpoint")
+                )
+                return None
+        normalized_rendezvous = None
+        if direct:
+            try:
+                normalized_rendezvous = self._normalize_rendezvous_server_endpoints()
+            except ValueError:
+                QMessageBox.warning(
+                    self, tr("settings.title"), tr("settings.invalid_rendezvous_endpoint")
+                )
+                return None
+        return normalized_server, normalized_rendezvous
+
+    def _validate_p2p_passphrase(self) -> bool:
+        """Validate a user-typed p2p passphrase; False when it is too weak."""
+        if not self.mode_direct.isChecked():
+            return True
+        password = self.p2p_key.text().strip()
+        if not password or self._effective_p2p_key_mode() != "passphrase":
+            return True
+        try:
+            validate_group_passphrase(password)
+        except WeakGroupPassphrase as exc:
+            QMessageBox.warning(self, tr("settings.title"), tr(f"p2pauth.error.{exc.code}"))
+            return False
+        return True
+
+    def _folder_not_duplicated(self) -> bool:
+        """True when the folder is unique across shares (or unchanged)."""
+        folder = self.shared_path.text().strip()
+        if (
+            self._folder_in_use is not None
+            and folder != self._folder_loaded
+            and self._folder_in_use(folder)
+        ):
+            QMessageBox.warning(self, tr("settings.title"), tr("shares.error.folder_duplicate"))
+            return False
         return True
 
     def _apply_start_at_login(self) -> bool:

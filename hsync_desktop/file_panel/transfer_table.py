@@ -2320,18 +2320,34 @@ class FileTransferTable(QTableView):
         )
         if not dest_dir:
             return
+        if not self._copy_confirmation(allowed, dest_dir):
+            return
+        plan, clashes = self._build_copy_plan(allowed, dest_dir)
+        if clashes and not self._overwrite_confirmation(clashes, dest_dir):
+            return
+        copied, failures = self._execute_copy_plan(plan, dest_dir)
+        self._report_copy_result(allowed, copied, failures)
 
+    def _copy_confirmation(self, allowed: Sequence[FileTransfer], dest_dir: str) -> bool:
         if len(allowed) == 1:
             message = tr("ctx.confirm_copy").format(
                 name=allowed[0].filepath.rstrip("/"), dest=dest_dir
             )
         else:
             message = tr("ctx.confirm_copy_many").format(count=len(allowed), dest=dest_dir)
-        if not _confirm_dialog(self, tr("ctx.confirm_copy_title"), message):
-            return
+        return _confirm_dialog(self, tr("ctx.confirm_copy_title"), message)
 
-        # Resolve every destination first: the overwrite question is asked once,
-        # for the whole batch, before anything is deleted.
+    def _overwrite_confirmation(self, clashes: list[str], dest_dir: str) -> bool:
+        if len(clashes) == 1:
+            message = tr("ctx.confirm_overwrite").format(name=clashes[0], dest=dest_dir)
+        else:
+            message = tr("ctx.confirm_overwrite_many").format(count=len(clashes), dest=dest_dir)
+        return _confirm_dialog(self, tr("ctx.confirm_overwrite_title"), message)
+
+    def _build_copy_plan(
+        self, allowed: Sequence[FileTransfer], dest_dir: str
+    ) -> tuple[list[tuple[FileTransfer, str, str, bool]], list[str]]:
+        """Resolve every destination first, so the overwrite question is asked once."""
         plan: list[tuple[FileTransfer, str, str, bool]] = []
         clashes: list[str] = []
         for transfer in allowed:
@@ -2342,14 +2358,13 @@ class FileTransferTable(QTableView):
             if exists:
                 clashes.append(item_name)
             plan.append((transfer, abs_path, dest_path, exists))
-        if clashes:
-            if len(clashes) == 1:
-                message = tr("ctx.confirm_overwrite").format(name=clashes[0], dest=dest_dir)
-            else:
-                message = tr("ctx.confirm_overwrite_many").format(count=len(clashes), dest=dest_dir)
-            if not _confirm_dialog(self, tr("ctx.confirm_overwrite_title"), message):
-                return
+        return plan, clashes
 
+    @staticmethod
+    def _execute_copy_plan(
+        plan: list[tuple[FileTransfer, str, str, bool]], dest_dir: str
+    ) -> tuple[int, list[str]]:
+        """Copy each planned item; a failure never stops the others."""
         copied = 0
         failures: list[str] = []
         for _transfer, abs_path, dest_path, exists in plan:
@@ -2367,7 +2382,11 @@ class FileTransferTable(QTableView):
                 failures.append(str(exc))
             else:
                 copied += 1
+        return copied, failures
 
+    def _report_copy_result(
+        self, allowed: Sequence[FileTransfer], copied: int, failures: list[str]
+    ) -> None:
         if failures:
             if len(allowed) == 1:
                 message = tr("ctx.error_copy").format(error=failures[0])

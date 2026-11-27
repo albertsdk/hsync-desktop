@@ -14,6 +14,7 @@ import shutil
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 from hsync_common.ignore import IgnoreMatcher
 from PySide6.QtCore import QObject, Signal, Slot
@@ -125,90 +126,82 @@ class DirectoryScanWorker(QObject):
 
     def _scan_with_scandir(self, base_path: Path, total: int) -> None:
         """Scan directory using os.scandir() for better performance."""
-        batch: list[tuple[str, int, float]] = []
-        processed = 0
-        total_bytes = 0
-        last_progress_time = 0.0
+        self._scan_base = base_path
+        self._scan_total = total
+        self._scan_batch: list[tuple[str, int, float]] = []
+        self._scan_processed = 0
+        self._scan_bytes = 0
+        self._scan_last_progress = 0.0
 
-        def flush_batch() -> None:
-            nonlocal batch, last_progress_time
-            self.files_found.emit(batch)
-            current_time = time.monotonic()
-            if current_time - last_progress_time >= _PROGRESS_THROTTLE_MS / 1000:
-                self.progress.emit(processed, total)
-                self.size_progress.emit(total_bytes)
-                last_progress_time = current_time
-            batch = []
-
-        def scan_directory(dir_path: Path) -> None:
-            nonlocal processed, last_progress_time, batch, total_bytes
-
-            if self._cancelled:
-                return
-
-            entries = self._synced_entries(dir_path)
-            if entries is None:
-                return
-            dirs, files = entries
-
-            # Handle empty directories (leaf dirs)
-            if self._emit_rows and not files and not dirs and str(dir_path) != str(base_path):
-                try:
-                    stat = dir_path.stat()
-                    mtime = stat.st_mtime
-                except OSError:
-                    mtime = 0.0
-                try:
-                    rel_path = to_posix_separators(str(dir_path.relative_to(base_path)))
-                except ValueError:
-                    rel_path = str(dir_path)
-                batch.append((rel_path + "/", 0, mtime))
-                processed += 1
-
-                if len(batch) >= FILE_BATCH_SIZE:
-                    flush_batch()
-
-            # Process files
-            for entry in files:
-                if self._cancelled:
-                    return
-
-                try:
-                    stat = entry.stat(follow_symlinks=False)
-                    size = stat.st_size
-                    mtime = stat.st_mtime
-                except OSError:
-                    size = 0
-                    mtime = 0.0
-
-                total_bytes += size
-
-                if not self._emit_rows:
-                    continue
-
-                try:
-                    rel_path = to_posix_separators(str(Path(entry.path).relative_to(base_path)))
-                except ValueError:
-                    rel_path = entry.path
-
-                batch.append((rel_path, size, mtime))
-                processed += 1
-
-                if len(batch) >= FILE_BATCH_SIZE:
-                    flush_batch()
-
-            # Recursively scan subdirectories
-            for entry in dirs:
-                scan_directory(Path(entry.path))
-
-        scan_directory(base_path)
+        self._scan_dir(base_path)
 
         # Emit remaining files
-        if batch and not self._cancelled:
-            self.files_found.emit(batch)
-            self.progress.emit(processed, total)
+        if self._scan_batch and not self._cancelled:
+            self.files_found.emit(self._scan_batch)
+            self.progress.emit(self._scan_processed, total)
         if not self._cancelled:
-            self.size_progress.emit(total_bytes)
+            self.size_progress.emit(self._scan_bytes)
+
+    def _flush_scan_batch(self) -> None:
+        self.files_found.emit(self._scan_batch)
+        current_time = time.monotonic()
+        if current_time - self._scan_last_progress >= _PROGRESS_THROTTLE_MS / 1000:
+            self.progress.emit(self._scan_processed, self._scan_total)
+            self.size_progress.emit(self._scan_bytes)
+            self._scan_last_progress = current_time
+        self._scan_batch = []
+
+    def _scan_dir(self, dir_path: Path) -> None:
+        if self._cancelled:
+            return
+        entries = self._synced_entries(dir_path)
+        if entries is None:
+            return
+        dirs, files = entries
+        self._scan_empty_dir(dir_path, dirs, files)
+        for entry in files:
+            if self._cancelled:
+                return
+            self._scan_file(entry)
+        for entry in dirs:
+            self._scan_dir(Path(entry.path))
+
+    def _scan_empty_dir(self, dir_path: Path, dirs: list, files: list) -> None:
+        # Handle empty directories (leaf dirs)
+        if not self._emit_rows or files or dirs or str(dir_path) == str(self._scan_base):
+            return
+        try:
+            mtime = dir_path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        try:
+            rel_path = to_posix_separators(str(dir_path.relative_to(self._scan_base)))
+        except ValueError:
+            rel_path = str(dir_path)
+        self._scan_batch.append((rel_path + "/", 0, mtime))
+        self._scan_processed += 1
+        if len(self._scan_batch) >= FILE_BATCH_SIZE:
+            self._flush_scan_batch()
+
+    def _scan_file(self, entry: Any) -> None:
+        try:
+            stat = entry.stat(follow_symlinks=False)
+            size = stat.st_size
+            mtime = stat.st_mtime
+        except OSError:
+            size = 0
+            mtime = 0.0
+        self._scan_bytes += size
+        if not self._emit_rows:
+            return
+        try:
+            rel_path = to_posix_separators(str(Path(entry.path).relative_to(self._scan_base)))
+        except ValueError:
+            rel_path = entry.path
+        self._scan_batch.append((rel_path, size, mtime))
+        self._scan_processed += 1
+        if len(self._scan_batch) >= FILE_BATCH_SIZE:
+            self._flush_scan_batch()
 
     @Slot()
     def run(self) -> None:

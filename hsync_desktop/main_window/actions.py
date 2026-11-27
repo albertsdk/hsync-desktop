@@ -644,6 +644,46 @@ class ActionsMixin:
 
     # ── Signal wiring ────────────────────────────────────────────────────
 
+    def _preview_nothing_to_do(
+        self, selection: bool, preview_intent: bool, simulation: bool
+    ) -> None:
+        """Report an empty plan (a peer may not have answered) and end the run."""
+        # Skip the dialog entirely. "Nothing to do" is only true when a peer
+        # answered: a lone device has nothing to compare yet, and saying
+        # "everything is in sync" would claim an answer that never came.
+        message = (
+            tr("compare.no_devices")
+            if not selection and self._sync_state[0] == "no_devices"
+            else tr("preview.no_actions")
+        )
+        self._append_desktop_log("INFO", message)
+        if selection:
+            # Scoped op with nothing to transfer: report it instead of silence.
+            self._finish_selection_sync("already_synced")
+            return
+        if preview_intent and not simulation:
+            # The preview has answered: end the run instead of sending the SYNC
+            # that only a Start intent asks for.
+            self._stop_preview_run()
+            self._report_result(message, success=False)
+            return
+        if self._is_dry_run_preview and not simulation:
+            # Send SYNC to switch from dry-run to real sync. The dry-run phase
+            # stays armed: the client may be serving as master when the command
+            # is written (its stdin is only read by the slave role), so the next
+            # preview it runs in this phase must send it again. The phase ends
+            # when the link comes up (_on_status).
+            self._engine.sync()
+            self._awaiting_preview_for_sync = True
+            if not self._dry_run_preview_reported:
+                self._dry_run_preview_reported = True
+                # Surface the result without needing the log panel.
+                self._report_result(message, success=False)
+            return
+        self._is_dry_run_preview = False
+        # Non-scoped: surface the result without needing the log panel.
+        self._report_result(message, success=False)
+
     def _show_preview_summary(self) -> None:
         """Show the plan and apply it when confirmed.
 
@@ -686,41 +726,7 @@ class ActionsMixin:
         )
 
         if not s.has_work():
-            # Skip the dialog entirely. "Nothing to do" is only true when a peer
-            # answered: a lone device has nothing to compare yet, and saying
-            # "everything is in sync" would claim an answer that never came.
-            message = (
-                tr("compare.no_devices")
-                if not selection and self._sync_state[0] == "no_devices"
-                else tr("preview.no_actions")
-            )
-            self._append_desktop_log("INFO", message)
-            if selection:
-                # Scoped op with nothing to transfer: report it instead of silence.
-                self._finish_selection_sync("already_synced")
-                return
-            if preview_intent and not simulation:
-                # The preview has answered: end the run instead of sending the
-                # SYNC that only a Start intent asks for.
-                self._stop_preview_run()
-                self._report_result(message, success=False)
-                return
-            if self._is_dry_run_preview and not simulation:
-                # Send SYNC to switch from dry-run to real sync. The dry-run
-                # phase stays armed: the client may be serving as master when
-                # the command is written (its stdin is only read by the slave
-                # role), so the next preview it runs in this phase must send it
-                # again. The phase ends when the link comes up (_on_status).
-                self._engine.sync()
-                self._awaiting_preview_for_sync = True
-                if not self._dry_run_preview_reported:
-                    self._dry_run_preview_reported = True
-                    # Surface the result without needing the log panel.
-                    self._report_result(message, success=False)
-                return
-            self._is_dry_run_preview = False
-            # Non-scoped: surface the result without needing the log panel.
-            self._report_result(message, success=False)
+            self._preview_nothing_to_do(selection, preview_intent, simulation)
             return
 
         if quiet and not selection and not simulation:

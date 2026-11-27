@@ -615,6 +615,45 @@ class HsyncEngine(QObject):
         set_modifier(_no_console)
         self._create_process_modifier = _no_console
 
+    def _inject_secrets(
+        self,
+        env: QProcessEnvironment,
+        pipe_args: list[str],
+        pipe_fds: list[int],
+        mode: str,
+        settings: QSettings,
+    ) -> None:
+        """Inject the API/p2p secret through an inherited pipe fd (POSIX) or env.
+
+        The secret transport is subcommand-specific: the server reads the API key
+        and the p2p subcommand the p2p key. On POSIX the values travel through an
+        inherited pipe fd (never in argv or the environment); Windows cannot
+        inherit those fds, so the value goes through the environment instead.
+        """
+        api_key = decrypt_value(str(settings.value("connection/api_key", "", str)))
+        if api_key and mode == "server":
+            if _IS_WINDOWS:
+                env.insert("HSYNC_API_KEY", api_key)
+            else:
+                read_fd = write_secret_pipe(api_key)
+                pipe_fds.append(read_fd)
+                pipe_args.extend(["--api-key-fd", str(read_fd)])
+
+        p2p_key = decrypt_value(str(settings.value("p2p/key", "", str)))
+        p2p_key_mode = str(settings.value("p2p/key_mode", "raw", str)) or "raw"
+        if p2p_key and mode == "p2p":
+            secret_mode = p2p_secret_mode(p2p_key, p2p_key_mode)
+            if _IS_WINDOWS:
+                env.insert(p2p_secret_env_var(secret_mode), p2p_key)
+            else:
+                read_fd = write_secret_pipe(p2p_key)
+                pipe_fds.append(read_fd)
+                pipe_args.extend([p2p_secret_option(secret_mode), str(read_fd)])
+        elif not p2p_key and mode == "p2p":
+            # Keyless P2P: the desktop already confirmed via its own pre-flight
+            # dialog, so acknowledge the posture for the CLI subprocess.
+            pipe_args.append("--allow-unauthenticated-p2p")
+
     def start(self, args: list[str]) -> bool:
         """Start the hsync-client with the given CLI arguments.
 
@@ -662,37 +701,9 @@ class HsyncEngine(QObject):
         pipe_fds: list[int] = []
         pipe_args: list[str] = []
 
-        # On POSIX the secrets travel through an inherited pipe fd, so they
-        # never appear in process arguments (visible in ``ps``) or environment
-        # variables (visible in ``/proc/<pid>/environ``). Windows cannot inherit
-        # those fds (see the module docstring), so the value goes through the
-        # environment instead; the client reads the same HSYNC_* variables.
-        api_key = decrypt_value(str(s.value("connection/api_key", "", str)))
-        if api_key and mode == "server":
-            if _IS_WINDOWS:
-                env.insert("HSYNC_API_KEY", api_key)
-            else:
-                # write_secret_pipe marks the read end inheritable (required for
-                # QProcess fork+exec) and closes the write end so the child sees
-                # EOF. The parent keeps the read fd until waitForStarted succeeds.
-                read_fd = write_secret_pipe(api_key)
-                pipe_fds.append(read_fd)
-                pipe_args.extend(["--api-key-fd", str(read_fd)])
-
-        p2p_key = decrypt_value(str(s.value("p2p/key", "", str)))
-        p2p_key_mode = str(s.value("p2p/key_mode", "raw", str)) or "raw"
-        if p2p_key and mode == "p2p":
-            secret_mode = p2p_secret_mode(p2p_key, p2p_key_mode)
-            if _IS_WINDOWS:
-                env.insert(p2p_secret_env_var(secret_mode), p2p_key)
-            else:
-                read_fd = write_secret_pipe(p2p_key)
-                pipe_fds.append(read_fd)
-                pipe_args.extend([p2p_secret_option(secret_mode), str(read_fd)])
-        elif not p2p_key and mode == "p2p":
-            # Keyless P2P: the desktop already confirmed via its own pre-flight
-            # dialog, so acknowledge the posture for the CLI subprocess.
-            pipe_args.append("--allow-unauthenticated-p2p")
+        # The secret transport (POSIX pipe fd, or the environment on Windows) is
+        # subcommand-specific; see ``_inject_secrets``.
+        self._inject_secrets(env, pipe_args, pipe_fds, mode, s)
 
         proc.setProcessEnvironment(env)
 
