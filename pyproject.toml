@@ -93,6 +93,7 @@ select = [
     "FURB", "RUF",
     "PGH", "LOG", "G",
     "PL", "T10", "ERA",
+    "C90",
 ]
 ignore = [
     # pre-existing
@@ -118,6 +119,11 @@ ignore = [
     "RSE102", "PERF401",
 ]
 "bench/**" = ["ARG001", "ARG005", "RUF059", "PIE810", "PLW1510"]
+
+[tool.ruff.lint.mccabe]
+# A pragmatic ceiling that the current code meets; lower it as functions are
+# refactored.
+max-complexity = 25
 
 [tool.mypy]
 python_version = "3.13"
