@@ -168,7 +168,7 @@ def fetch_latest_version(timeout: float = TIMEOUT_SECONDS) -> str | None:
         return None
     try:
         request = Request(LATEST_RELEASE, method="HEAD")
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310 - pinned https URL
+        with urlopen(request, timeout=timeout) as response:
             final_url = response.geturl()
     except (OSError, ValueError, HTTPException):
         return None

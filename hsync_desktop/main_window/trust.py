@@ -371,11 +371,11 @@ class TrustMixin:
         binary = find_hsync_binary()
         if not binary:
             return []  # the engine reports the missing binary
-        checks: list[_TrustCheck] = []
-        for check in (self._rendezvous_trust_check(binary), self._server_trust_check(binary)):
-            if check is not None:
-                checks.append(check)
-        return checks
+        return [
+            check
+            for check in (self._rendezvous_trust_check(binary), self._server_trust_check(binary))
+            if check is not None
+        ]
 
     def _rendezvous_trust_check(self, binary: str) -> _TrustCheck | None:
         """Rendezvous pre-flight (ADR-0035), or ``None`` when nothing to ask."""

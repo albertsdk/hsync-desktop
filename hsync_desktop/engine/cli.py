@@ -572,7 +572,7 @@ def _get_binary_capabilities_raw(path: str) -> str | None:
 
 def is_binary_version_compatible(binary_version: str) -> bool:
     """Return True when *binary_version* shares the desktop's major version."""
-    return binary_version.split(".")[0] == _EXPECTED_VERSION.split(".")[0]
+    return binary_version.split(".", maxsplit=1)[0] == _EXPECTED_VERSION.split(".")[0]
 
 
 # ─── Binary-probe cache (QSettings) ──────────────────────────────────────────

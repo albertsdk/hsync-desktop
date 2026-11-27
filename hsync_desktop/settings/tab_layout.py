@@ -125,11 +125,11 @@ class _CenteredColumn(QWidget):
         width = min(self.width(), self._max_child_width())
         self._child.setGeometry((self.width() - width) // 2, 0, width, self.height())
 
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._apply_child_geometry()
 
-    def sizeHint(self) -> QSize:  # noqa: N802 (Qt override)
+    def sizeHint(self) -> QSize:
         hint = self._child.sizeHint()
         # A child's preferred height can be smaller than what it requires (a
         # label with a reserved minimum height): never advertise less than the
@@ -137,7 +137,7 @@ class _CenteredColumn(QWidget):
         height = max(hint.height(), self._child.minimumSizeHint().height())
         return QSize(min(hint.width(), self._max_child_width()), height)
 
-    def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt override)
+    def minimumSizeHint(self) -> QSize:
         # The scroll area sizes this wrapper to its minimum height when the
         # viewport is shorter, and the form layout then squeezes every row to
         # fit — clipping wrapped labels and action buttons. Demand the height
@@ -272,7 +272,7 @@ def reorganize_general_tab(dlg: SettingsDialog) -> None:
         _tmp = QWidget()
         _tmp.setLayout(old)
 
-    outer, vbox = _scrollable_page(general_tab)
+    _outer, vbox = _scrollable_page(general_tab)
 
     dlg._lbl_help_general = _tab_help_row(vbox, "help.settings_general", SETTINGS_GENERAL_GUIDE)
 
@@ -292,7 +292,7 @@ def reorganize_general_tab(dlg: SettingsDialog) -> None:
     f2 = QFormLayout(dlg._grp_general_notifications)
     add_row(f2, dlg._lbl_notifications, dlg.notifications_enabled)
     f2.addRow(dlg._lbl_notifications_categories)
-    for _category, (toggle, label) in dlg.notification_toggles.items():
+    for toggle, label in dlg.notification_toggles.values():
         add_row(f2, label, toggle)
     vbox.addWidget(dlg._grp_general_notifications)
 

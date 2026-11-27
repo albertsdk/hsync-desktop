@@ -211,7 +211,7 @@ def _populate_combo(
         for value, key in options:
             combo.addItem(tr(key), value)
         index = combo.findData(current)
-        combo.setCurrentIndex(index if index >= 0 else 0)
+        combo.setCurrentIndex(max(index, 0))
     finally:
         if block_signals:
             combo.blockSignals(previous)
@@ -813,7 +813,7 @@ class SettingsDialog(QDialog):
                 icon_name=QMessageBox.Icon.Warning,
             ):
                 index = self.deletion_policy.findData("keep")
-                self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
+                self.deletion_policy.setCurrentIndex(max(index, 0))
                 return
         self._deletion_policy_loaded = str(policy)
 
@@ -1940,7 +1940,7 @@ class SettingsDialog(QDialog):
         trust_index = self.server_trust.findData(
             s.value("connection/server_trust", DEFAULT_SERVER_TRUST, str)
         )
-        self.server_trust.setCurrentIndex(trust_index if trust_index >= 0 else 0)
+        self.server_trust.setCurrentIndex(max(trust_index, 0))
         self.http_timeout.setValue(
             cast(int, s.value("connection/http_timeout", DEFAULT_HTTP_TIMEOUT, int))
         )
@@ -1959,7 +1959,7 @@ class SettingsDialog(QDialog):
             s.value("sync/deletion_policy", DEFAULT_DELETION_POLICY, str)
         )
         index = self.deletion_policy.findData(self._deletion_policy_loaded)
-        self.deletion_policy.setCurrentIndex(index if index >= 0 else 0)
+        self.deletion_policy.setCurrentIndex(max(index, 0))
         saved_dir = s.value("sync/direction", DEFAULT_SYNC_DIRECTION, str)
         for i in range(self.sync_direction_combo.count()):
             if self.sync_direction_combo.itemData(i) == saved_dir:
@@ -2059,11 +2059,11 @@ class SettingsDialog(QDialog):
         index = self.p2p_rendezvous_trust.findData(
             str(s.value("p2p/rendezvous_server_trust", DEFAULT_P2P_RENDEZVOUS_TRUST, str))
         )
-        self.p2p_rendezvous_trust.setCurrentIndex(index if index >= 0 else 0)
+        self.p2p_rendezvous_trust.setCurrentIndex(max(index, 0))
         index = self.p2p_rendezvous_transport.findData(
             str(s.value("p2p/rendezvous_transport", DEFAULT_P2P_RENDEZVOUS_TRANSPORT, str))
         )
-        self.p2p_rendezvous_transport.setCurrentIndex(index if index >= 0 else 0)
+        self.p2p_rendezvous_transport.setCurrentIndex(max(index, 0))
         self.p2p_upnp.setChecked(bool(s.value("p2p/upnp_enabled", DEFAULT_P2P_UPNP_ENABLED, bool)))
         self.no_mdns.setChecked(bool(s.value("p2p/no_mdns", DEFAULT_P2P_NO_MDNS, bool)))
         self.p2p_key.setText(decrypt_value(str(s.value("p2p/key", DEFAULT_P2P_KEY, str))))
@@ -2086,7 +2086,7 @@ class SettingsDialog(QDialog):
         )
         self.never_master.setChecked(bool(s.value("p2p/never_master", DEFAULT_NEVER_MASTER, bool)))
         index = self.p2p_trust.findData(str(s.value("p2p/trust", DEFAULT_P2P_TRUST, str)))
-        self.p2p_trust.setCurrentIndex(index if index >= 0 else 0)
+        self.p2p_trust.setCurrentIndex(max(index, 0))
         self.serve_blocks.setChecked(
             bool(s.value("p2p/serve_blocks", DEFAULT_P2P_SERVE_BLOCKS, bool))
         )
@@ -2119,7 +2119,7 @@ class SettingsDialog(QDialog):
         self.theme_combo.setCurrentIndex(theme_index)
         saved_font_scale = str(s.value("appearance/font_scale", DEFAULT_FONT_SCALE, str))
         font_index = self.font_scale_combo.findData(saved_font_scale)
-        self.font_scale_combo.setCurrentIndex(font_index if font_index >= 0 else 0)
+        self.font_scale_combo.setCurrentIndex(max(font_index, 0))
         self.show_advanced.setChecked(bool(s.value("ui/show_advanced", False, bool)))
         self._apply_advanced_visibility()
         self.notifications_enabled.setChecked(

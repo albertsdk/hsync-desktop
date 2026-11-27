@@ -112,6 +112,6 @@ class StepIndicator(QWidget):
                 )
             )
 
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._apply_elision()

@@ -605,7 +605,7 @@ class TestTabOrderAndDefaultMode:
         dlg = dialog_mod.SettingsDialog()
         qtbot.addWidget(dlg)
         idx = dlg.p2p_rendezvous_transport.findData("tcp")
-        dlg.p2p_rendezvous_transport.setCurrentIndex(idx if idx >= 0 else 0)
+        dlg.p2p_rendezvous_transport.setCurrentIndex(max(idx, 0))
         dlg.save()
         assert s.value("p2p/rendezvous_transport") == "tcp"
 

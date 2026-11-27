@@ -42,7 +42,7 @@ LARGEST_CAP = 20
 
 def _format_time(seconds: float) -> str:
     """Format seconds as the largest unit pair, without empty sub-units."""
-    total = max(int(round(seconds)), 0)
+    total = max(round(seconds), 0)
     if total < 60:
         return f"{total} {tr('preview_summary.seconds')}"
     minutes, secs = divmod(total, 60)

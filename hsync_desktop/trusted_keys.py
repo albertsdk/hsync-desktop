@@ -13,7 +13,7 @@ truth per store.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from hsync_common.endpoint import format_authority, parse_host_port
 from hsync_common.protocol.pairing import parse_fingerprint
@@ -247,7 +247,7 @@ class TrustedKeysDialog(QDialog):
     """Manage the rendezvous/server known-hosts stores and the P2P known-peers store."""
 
     # ``initial_tab`` values → index in ``self._tabs``.
-    _TAB_INDEX = {"rendezvouss": 0, "servers": 1, "peers": 2}
+    _TAB_INDEX: ClassVar[dict[str, int]] = {"rendezvouss": 0, "servers": 1, "peers": 2}
 
     def __init__(self, parent: QWidget | None = None, *, initial_tab: str = "rendezvouss") -> None:
         super().__init__(parent)

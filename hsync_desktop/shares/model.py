@@ -29,9 +29,11 @@ class Share:
         values: dict[str, object] = {}
         raw_values = data.get("values", {})
         if isinstance(raw_values, dict):
-            for key, value in raw_values.items():
-                if isinstance(key, str) and isinstance(value, (str, bool, int, float, type(None))):
-                    values[key] = value
+            values = {
+                key: value
+                for key, value in raw_values.items()
+                if isinstance(key, str) and isinstance(value, (str, bool, int, float, type(None)))
+            }
         return cls(id=str(data.get("id", "")), name=str(data.get("name", "")), values=values)
 
 

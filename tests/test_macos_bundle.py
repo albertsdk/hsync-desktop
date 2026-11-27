@@ -55,7 +55,9 @@ def test_guide_names_the_built_bundle():
 
 
 def _function_body(name: str) -> str:
-    match = re.search(rf"^{name}\(\) \{{\n(.*?)^\}}", COMPILE_SH.read_text(), re.M | re.S)
+    match = re.search(
+        rf"^{name}\(\) \{{\n(.*?)^\}}", COMPILE_SH.read_text(), re.MULTILINE | re.DOTALL
+    )
     assert match is not None, f"{name}() is missing from compile.sh"
     return match.group(1)
 
@@ -88,7 +90,9 @@ def test_the_signing_identity_is_overridable():
     """A Developer ID can be passed through the environment without editing the
     script; the default stays ad hoc (no Apple account required)."""
     assert re.search(
-        r'^readonly MACOS_SIGN_IDENTITY="\$\{MACOS_SIGN_IDENTITY:-', COMPILE_SH.read_text(), re.M
+        r'^readonly MACOS_SIGN_IDENTITY="\$\{MACOS_SIGN_IDENTITY:-',
+        COMPILE_SH.read_text(),
+        re.MULTILINE,
     )
 
 

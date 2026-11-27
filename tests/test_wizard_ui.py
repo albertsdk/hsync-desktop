@@ -327,7 +327,7 @@ class TestSwitches:
         page.load(WizardDraft(mode=WizardMode.REMOTE_SYNC, rendezvous_transport="tcp"))
         assert page.rendezvous_transport.currentData() == "tcp"
         idx = page.rendezvous_transport.findData("quic")
-        page.rendezvous_transport.setCurrentIndex(idx if idx >= 0 else 0)
+        page.rendezvous_transport.setCurrentIndex(max(idx, 0))
         out = WizardDraft(mode=WizardMode.REMOTE_SYNC)
         page.store(out)
         assert out.rendezvous_transport == "quic"

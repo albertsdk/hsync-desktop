@@ -63,7 +63,7 @@ class _HelpLinkLabel(QLabel):
         self.setContentsMargins(left, 0, 0, 0)
         self.updateGeometry()
 
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+    def paintEvent(self, event) -> None:
         super().paintEvent(event)
         name = self._leading_icon_name
         if not name:
@@ -76,7 +76,7 @@ class _HelpLinkLabel(QLabel):
         painter = QPainter(self)
         painter.drawPixmap(0, (self.height() - _LEADING_ICON_PX) // 2, pixmap)
 
-    def sizeHint(self) -> QSize:  # noqa: N802 - Qt override
+    def sizeHint(self) -> QSize:
         hint = super().sizeHint()
         width = self.width() if self.width() > 0 else hint.width()
         return QSize(hint.width(), self.heightForWidth(width))

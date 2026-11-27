@@ -54,7 +54,9 @@ _SAMPLES = frozenset(
 def _literals(path: Path) -> list[str]:
     return [
         match.group(1)
-        for match in re.finditer(r"<string>(.*?)</string>", path.read_text(encoding="utf-8"), re.S)
+        for match in re.finditer(
+            r"<string>(.*?)</string>", path.read_text(encoding="utf-8"), re.DOTALL
+        )
         if match.group(1)
     ]
 

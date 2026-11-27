@@ -68,7 +68,7 @@ def _accepting_confirm(monkeypatch, *, clear_state: bool = False) -> None:
         def exec(self) -> int:
             return 0
 
-        def clickedButton(self):  # noqa: N802 - Qt spelling
+        def clickedButton(self):
             return accept
 
     monkeypatch.setattr(

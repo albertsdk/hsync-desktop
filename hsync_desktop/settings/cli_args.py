@@ -625,7 +625,7 @@ def trash_retention_days() -> int:
         days = int(raw)
     except ValueError:
         return DEFAULT_TRASH_RETENTION_DAYS
-    return days if days > 0 else 0
+    return max(0, days)
 
 
 def is_simulation_mode() -> bool:

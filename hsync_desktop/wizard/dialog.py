@@ -422,7 +422,7 @@ class SetupWizard(QDialog):
             self._page_title.setText(tr(_PAGE_TITLE_KEYS[self._step]))
         self._update_footer()
 
-    def closeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+    def closeEvent(self, event) -> None:
         self._save_draft()
         if self.applied:
             mark_completed(self._settings)

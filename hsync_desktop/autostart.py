@@ -52,7 +52,7 @@ def _home_dir() -> Path:
 def is_supported() -> bool:
     """Whether this platform has an autostart mechanism the GUI can manage."""
     plat = _platform()
-    return plat.startswith("linux") or plat == "darwin" or plat == "win32"
+    return plat.startswith("linux") or plat in {"darwin", "win32"}
 
 
 def is_enabled() -> bool:

@@ -312,7 +312,7 @@ class ImportWorker(QObject):
                 self._emit_progress(force=True)
                 try:
                     self._perform(item)
-                except Exception as exc:  # noqa: BLE001 - report and keep going
+                except Exception as exc:
                     failed += 1
                     errors.append(f"{os.path.basename(item.src)}: {exc}")
                 else:

@@ -99,14 +99,14 @@ class PrimaryButton(QPushButton):
         layout.addStretch(1)
         self.setText(text)
 
-    def setText(self, text: str) -> None:  # noqa: N802 (Qt naming)
+    def setText(self, text: str) -> None:
         self._label.setText(text)
         self.setAccessibleName(text)
 
     def text(self) -> str:
         return self._label.text()
 
-    def setTrailingIcon(self, icon: QIcon) -> None:  # noqa: N802 (Qt naming)
+    def setTrailingIcon(self, icon: QIcon) -> None:
         """Show *icon* after the text (pass a null icon to hide it)."""
         self._icon_label.setPixmap(icon.pixmap(16, 16))
         self._icon_label.setVisible(not icon.isNull())
@@ -179,7 +179,7 @@ class RadioCard(QFrame):
     def is_selected(self) -> bool:
         return self.radio.isChecked()
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt override)
+    def mousePressEvent(self, event) -> None:
         self.radio.setChecked(True)
         super().mousePressEvent(event)
 
@@ -190,7 +190,7 @@ class RadioCard(QFrame):
         self._description.setText(description)
         self._sync_description_height()
 
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._sync_description_height()
 
@@ -244,7 +244,7 @@ class SecretField(QWidget):
     def text(self) -> str:
         return self.edit.text()
 
-    def setText(self, value: str) -> None:  # noqa: N802 (Qt naming)
+    def setText(self, value: str) -> None:
         self.edit.setText(value)
 
     def apply_translations(self) -> None:

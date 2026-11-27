@@ -298,7 +298,7 @@ class ShareStore:
             if next_active in survivors:
                 book.active = next_active
             elif book.shares:
-                book.active = sorted(book.shares, key=sort_key)[0].id
+                book.active = min(book.shares, key=sort_key).id
             else:
                 book.active = ""
         self._write(book)

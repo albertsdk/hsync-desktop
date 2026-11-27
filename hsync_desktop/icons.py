@@ -315,7 +315,7 @@ _BUTTON_ROLE_ICON = {
 class _DialogButtonIconFilter(QObject):
     """Fill in the app icon on a dialog button that has none, as its box shows."""
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt override)
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if event.type() != QEvent.Type.Show:
             return False
         if isinstance(obj, (QMessageBox, QDialogButtonBox)):

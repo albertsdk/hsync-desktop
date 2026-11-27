@@ -66,7 +66,7 @@ def _standard_shortcuts(standard: QKeySequence.StandardKey, fallback: str) -> li
     shortcut. On macOS the binding is reported as ``Ctrl`` but triggers ``Cmd``.
     """
     bindings = list(QKeySequence.keyBindings(standard))
-    return bindings if bindings else [QKeySequence(fallback)]
+    return bindings or [QKeySequence(fallback)]
 
 
 # ── Button styles ────────────────────────────────────────────────────────────
@@ -998,9 +998,12 @@ class UiBuildMixin:
             buffer = deque(maxlen=_LOG_MAX_BLOCKS)
             self._log_buffers[share_id] = buffer
         for line in lines:
-            if len(line) > _LOG_LINE_MAX_CHARS:
-                line = line[:_LOG_LINE_MAX_CHARS] + _LOG_LINE_ELLIPSIS
-            buffer.append(line)
+            clipped = (
+                line[:_LOG_LINE_MAX_CHARS] + _LOG_LINE_ELLIPSIS
+                if len(line) > _LOG_LINE_MAX_CHARS
+                else line
+            )
+            buffer.append(clipped)
 
     def _seed_log_buffer_from_view(self, share_id: str) -> None:
         """Seed *share_id*'s buffer with the lines currently shown (first adopt)."""

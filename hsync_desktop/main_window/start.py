@@ -224,7 +224,7 @@ class StartMixin:
                 self._remote_icon.setPixmap(
                     get_icon("network-cloud").pixmap(HEADER_ICON_PX, HEADER_ICON_PX)
                 )
-                server_ip = self._engine.server_ip if self._engine.server_ip else ""
+                server_ip = self._engine.server_ip or ""
                 if not server_ip:
                     server_url = str(s.value("connection/server_url", "", str))
                     if server_url:
@@ -232,7 +232,7 @@ class StartMixin:
 
                         parsed = urlparse(server_url)
                         server_ip = parsed.hostname or ""
-                self._remote_label.setText(server_ip if server_ip else tr("label.remote_server"))
+                self._remote_label.setText(server_ip or tr("label.remote_server"))
                 self._remote_base_tip = tr("label.remote_server_tip")
                 self._remote_icon.setToolTip(self._remote_base_tip)
                 self._remote_label.setToolTip(self._remote_base_tip)

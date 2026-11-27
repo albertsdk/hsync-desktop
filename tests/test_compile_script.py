@@ -303,7 +303,7 @@ def test_release_frees_disk_space_before_packaging_the_dmg() -> None:
 
 # ── Client/desktop version compatibility (build-time gate) ────────────────────
 
-_VERIFY_RE = re.compile(r"^_verify_client_compatible\(\) \{.*?^\}", re.S | re.M)
+_VERIFY_RE = re.compile(r"^_verify_client_compatible\(\) \{.*?^\}", re.DOTALL | re.MULTILINE)
 
 
 def _verify_client_compatible_body() -> str:
@@ -487,7 +487,7 @@ class TestSelfContainedPackages:
 
 
 def _shell_fn_body(name: str) -> str:
-    match = re.search(rf"^{name}\(\) \{{.*?^\}}", _script(), re.S | re.M)
+    match = re.search(rf"^{name}\(\) \{{.*?^\}}", _script(), re.DOTALL | re.MULTILINE)
     assert match, f"{name}() not found in compile.sh"
     return match.group(0)
 

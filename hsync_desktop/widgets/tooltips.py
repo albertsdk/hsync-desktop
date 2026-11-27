@@ -79,7 +79,7 @@ class TooltipWrapFilter(QObject):
     action, view cell) is forwarded so the tip still hides on leaving the item.
     """
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt naming)
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if event.type() != QEvent.Type.ToolTip or not isinstance(event, QHelpEvent):
             return False
         text, rect = _tooltip(obj, event)

@@ -1139,7 +1139,7 @@ class FileTransferTable(QTableView):
         if header.sectionSize(COL_NAME) != width:
             header.resizeSection(COL_NAME, width)
 
-    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 (Qt override)
+    def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._stretch_name_column()
 

@@ -29,7 +29,7 @@ class _FakeQSettings:
     def contains(self, key: str) -> bool:
         return key in self._values
 
-    def setValue(self, key: str, value: Any) -> None:  # noqa: N802 (Qt name)
+    def setValue(self, key: str, value: Any) -> None:
         self._values[key] = value
 
     def remove(self, key: str) -> None:

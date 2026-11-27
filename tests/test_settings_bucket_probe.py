@@ -43,7 +43,7 @@ def _choice_box(monkeypatch, choice: int) -> list[str]:
         def exec(self) -> int:
             return 0
 
-        def clickedButton(self):  # noqa: N802 - Qt spelling
+        def clickedButton(self):
             return buttons[choice]
 
     def fake_build(_parent, *, title, text, choices, default_index=0):
