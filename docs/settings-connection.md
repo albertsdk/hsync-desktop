@@ -13,9 +13,11 @@ read when a sync starts, and the controls that change the connection are disable
 while a run is in progress. Every field also has a tooltip.
 
 This page follows the tab in the order the groups appear: **Connection mode**,
-then the Direct mode groups — **Group**, **Finding devices**, **Role & security**,
-**Advanced Options** — or the Server mode groups — **Server**, **Certificates**,
-**Advanced Options**.
+then the Direct mode groups — **Group**, **Finding devices**, **Role & security**
+and **Sharing with devices** — or the Server mode groups — **Server** and
+**Certificates**. Role & security, Sharing with devices and Certificates appear
+only when **Show advanced options** is on in **General**; a few extra rows appear
+*inside* Group, Finding devices and Server when it is on.
 
 > Which mode is right for you is a different question:
 > [Choose how your devices connect](choose-connection.md) compares the two in one
@@ -59,6 +61,8 @@ authorises changes in it.
   the password derives a new key, so the server's key file must be updated too
   (use **Show group key…**). Without that the server refuses the group, and
   **Apply** asks before going ahead.
+- **Port** (advanced) — the fixed listening port in Direct mode (`0` =
+  automatic).
 
 Without a shared password the app asks for confirmation before every start:
 devices are not authenticated and reads are open to anyone who can reach this
@@ -81,10 +85,6 @@ Nothing here carries or stores your files.
   trusting it: `Ask on first use` (default: you confirm the fingerprint once),
   `Accept automatically`, `Require the saved identity`, or `Don't verify
   (insecure)`. See [Trust, fingerprints and identity checks](choose-trust.md).
-- **Connection to the search server** — `Automatic (recommended)` races the fast
-  UDP path and the compatible TCP one; `Fast only (UDP)` and `Compatible only
-  (TCP)` pin one transport. Pick `Compatible only (TCP)` when the network filters
-  UDP.
 - **Manage trusted servers & devices** — list, add and remove the search servers,
   the server and the device fingerprints the client actually uses. This is the
   same store the `hsync` command line uses, so the two never disagree.
@@ -96,6 +96,19 @@ Nothing here carries or stores your files.
   masked line to add to the server's key file, so the server recognises this
   group; see
   [Secrets → The search server uses the same password](secrets.md#the-search-server-uses-the-same-password).
+
+When **Show advanced options** is on, these rows appear here too:
+
+- **Device search timeout** — how long to wait for device discovery.
+- **Time servers** — comma-separated SNTP servers used to measure the clock offset
+  between devices. Empty uses **no public time servers**: the reference is the
+  server/master (on a slave the trusted master has precedence); configure this
+  only when you need a specific source (e.g. an internal NTP). An entry may carry
+  a port (`ntp.local:123`).
+- **Connection to the search server** — `Automatic (recommended)` races the fast
+  UDP path and the compatible TCP one; `Fast only (UDP)` and `Compatible only
+  (TCP)` pin one transport. Pick `Compatible only (TCP)` when the network filters
+  UDP.
 - **Open the port on my router automatically** — ask the router (UPnP) to open
   the listening port so other networks can reach this device. It only takes
   effect with a search server set.
@@ -104,6 +117,8 @@ Nothing here carries or stores your files.
   interface is a VPN; it requires a search server.
 
 ### Direct mode · Role & security
+
+This group appears only when **Show advanced options** is on in **General**.
 
 <img src="assets/screens/06d-connection-role-security.png" alt="Settings, Connection tab: the Role & security section" width="632" style="background: #f0f0f0;">
 
@@ -123,20 +138,15 @@ In a group, one device is the **primary** (it serves the files) and the others a
   fingerprint is always refused. Pins are reviewed under **Manage trusted
   servers & devices**.
 
-### Direct mode · Advanced Options
+### Direct mode · Sharing with devices
 
-These groups appear only when **Show advanced options** is on in **General**.
-Leave the defaults unless you know what you are changing.
+This group appears only when **Show advanced options** is on in **General**.
 
-<img src="assets/screens/06e-connection-direct-advanced.png" alt="Settings, Connection tab: the Direct mode advanced options" width="632" style="background: #f0f0f0;">
+<img src="assets/screens/06e-connection-direct-advanced.png" alt="Settings, Connection tab: the Sharing with devices section" width="632" style="background: #f0f0f0;">
 
-- **Port** — the fixed listening port in Direct mode (`0` = automatic).
-- **Device search timeout** — how long to wait for device discovery.
-- **Time servers** — comma-separated SNTP servers used to measure the clock offset
-  between devices. Empty uses **no public time servers**: the reference is the
-  server/master (on a slave the trusted master has precedence); configure this
-  only when you need a specific source (e.g. an internal NTP). An entry may carry
-  a port (`ntp.local:123`).
+These options let the other devices help move the files instead of always going
+through the primary.
+
 - **Serve files to other devices** — serve file blocks to the other devices, so
   they can skip the primary.
 - **Download from other devices** — fetch file blocks from the other devices, not
@@ -166,6 +176,8 @@ Leave the defaults unless you know what you are changing.
   fingerprints this device trusts.
 - **Test Connection** — contacts the server's health endpoint and reports whether
   it answers. It writes no pin and sends no credentials.
+- **Request timeout** (advanced) — how long to wait for one HTTP request to the
+  server, in seconds. Raise it on a slow or high-latency link.
 
 **What happens when you save.** Changing the share name or the API key makes the
 app ask the server about the share before saving. When the server says the share
@@ -186,6 +198,8 @@ a rejected key or an unreachable host cannot block the rest of the settings.
 
 ### Server mode · Certificates
 
+This group appears only when **Show advanced options** is on in **General**.
+
 <img src="assets/screens/07b-connection-certificates.png" alt="Settings, Connection tab: the Certificates section" width="632" style="background: #f0f0f0;">
 
 A fresh server answers with a **self-signed certificate** unless you installed a
@@ -197,15 +211,6 @@ real one. Two options cover that:
 - **Certificate authority file** — point the app at the certificate file the
   server uses, so its chain verifies normally. This is the clean choice for a
   self-signed server on a network you control.
-
-### Server mode · Advanced Options
-
-Appears only when **Show advanced options** is on in **General**.
-
-<img src="assets/screens/07c-connection-server-advanced.png" alt="Settings, Connection tab: the Server mode advanced options" width="632" style="background: #f0f0f0;">
-
-- **Request timeout** — how long to wait for one HTTP request to the server, in
-  seconds. Raise it on a slow or high-latency link.
 
 ## Common mistakes
 

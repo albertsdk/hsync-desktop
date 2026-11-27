@@ -57,9 +57,10 @@ What each event looks like in the window is described in
   release page once a day whether a newer version exists. **Help → Check for
   Updates…** works whatever the setting. Nothing is downloaded or installed: the
   update stays with the process your installation already uses.
-- **Show advanced options** — reveal the **Advanced** tab and the **Advanced
-  Options** groups in the other tabs. It is off by default, so the standard view
-  stays short; the choice is a preference, so it survives a restart.
+- **Show advanced options** — reveal the **Advanced** tab and the advanced rows
+  and groups of the other tabs (shown in place, inside their section). It is off
+  by default, so the standard view stays short; the choice is a preference, so it
+  survives a restart.
 
 ## Where to go next
 

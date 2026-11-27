@@ -112,7 +112,7 @@ what to do:
   Tick **Don't warn me again for this folder and these settings** to stop it for
   the folder and the configuration you confirmed: another folder, or a changed
   sync type, deletion policy or direct-mode settings, asks again. **Settings → Advanced →
-  Deletion protection → Show the deletion-risk warning again** brings it back.
+  Maintenance → Show the deletion-risk warning again** brings it back.
   Neither choice weakens the run: the plan is always listed before it is applied
   and its deletions are confirmed there, and the mass-deletion guard still pauses
   a cycle that would remove too many files.

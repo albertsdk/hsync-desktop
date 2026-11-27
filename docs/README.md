@@ -56,7 +56,7 @@ prompts, badges and notifications. When something does not work at all, go to
 | [settings-sync.md](settings-sync.md) | The **Sync** tab, group by group. |
 | [settings-connection.md](settings-connection.md) | The **Connection** tab: Direct mode, Server mode, certificates. |
 | [settings-general.md](settings-general.md) | The **General** tab: appearance, notifications, startup. |
-| [settings-advanced.md](settings-advanced.md) | The **Advanced** tab: performance, changed parts, deletion guard, bandwidth, logs. |
+| [settings-advanced.md](settings-advanced.md) | The **Advanced** tab: performance, changed parts, deletion guard, bandwidth, logs, maintenance. |
 | [ignore-rules.md](ignore-rules.md) | Keeping files out of the sync: the `.hsyncignore` patterns. |
 | [sync-basics.md](sync-basics.md) | Starting, watching and stopping a sync; shortcuts. |
 | [file-list.md](file-list.md) | The file table: columns, actions, hidden files. |

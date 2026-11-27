@@ -388,13 +388,13 @@ class TestConnectionSections:
         return {g.title(): g for g in tab.findChildren(QGroupBox)}
 
     def test_the_mode_box_and_both_modes_sections(self, dialog):
-        # The choice, the four direct-mode boxes and the three server-mode ones.
+        # The choice, the direct-mode boxes and the server-mode ones.
         assert set(self._groups(dialog)) == {
             escape_mnemonics(tr("settings.group.connection_mode")),
             escape_mnemonics(tr("settings.group.p2p_group")),
             escape_mnemonics(tr("settings.group.p2p_rendezvous")),
             escape_mnemonics(tr("settings.group.p2p_role")),
-            escape_mnemonics(tr("settings.group.advanced")),
+            escape_mnemonics(tr("settings.group.sharing")),
             escape_mnemonics(tr("settings.group.server")),
             escape_mnemonics(tr("settings.group.server_certificates")),
         }
@@ -404,20 +404,23 @@ class TestConnectionSections:
         mode = groups[escape_mnemonics(tr("settings.group.p2p_group"))]
         rendezvous = groups[escape_mnemonics(tr("settings.group.p2p_rendezvous"))]
         role = groups[escape_mnemonics(tr("settings.group.p2p_role"))]
-        # Both modes keep an Advanced box; the direct one is reached by
-        # attribute because the title is shared with the server one.
-        advanced = dialog._grp_p2p_advanced
+        sharing = groups[escape_mnemonics(tr("settings.group.sharing"))]
 
         assert dialog.p2p_group.parent() is mode
         assert dialog.p2p_key.parent() is mode
+        # The port is advanced: revealed in place under Group.
+        assert dialog.p2p_port.parent() is mode
         assert dialog.p2p_rendezvous.parent() is rendezvous
         assert dialog.p2p_rendezvous_trust.parent() is rendezvous
         assert dialog.p2p_rendezvous_transport.parent() is rendezvous
+        assert dialog.rendezvous_timeout.parent() is rendezvous
+        assert dialog.ntp_hosts.parent() is rendezvous
+        assert dialog.p2p_upnp.parent() is rendezvous
+        assert dialog.no_mdns.parent() is rendezvous
         assert dialog.prefer_master.parent() is role
         assert dialog.p2p_trust.parent() is role
-        assert dialog.p2p_port.parent() is advanced
-        assert dialog.rendezvous_timeout.parent() is advanced
-        assert dialog.ntp_hosts.parent() is advanced
+        assert dialog.serve_blocks.parent() is sharing
+        assert dialog.peer_sources_max.parent() is sharing
 
 
 class TestShareNameLabel:
@@ -449,7 +452,37 @@ class TestShareNameLabel:
         dialog._apply_translations()
         assert dialog._grp_mode.title() == "<settings.group.connection_mode>"
         assert dialog._grp_p2p_group.title() == "<settings.group.p2p_group>"
-        assert dialog._grp_p2p_advanced.title() == "<settings.group.advanced>"
+        assert dialog._grp_p2p_sharing.title() == "<settings.group.sharing>"
+
+
+class TestSyncGrouping:
+    """The Sync tab groups: scope and trash are visible; engine knobs advanced."""
+
+    def test_trash_group_is_visible_and_holds_its_options(self, dialog):
+        assert not dialog._grp_trash.isHidden()
+        for widget in (dialog.trash_enabled, dialog.trash_retention, dialog.trash_max_size):
+            assert dialog._grp_trash.isAncestorOf(widget)
+
+    def test_scope_group_is_visible_and_holds_its_options(self, dialog):
+        assert not dialog._grp_scope.isHidden()
+        assert dialog._grp_scope.isAncestorOf(dialog.filter_path)
+        assert dialog._grp_scope.isAncestorOf(dialog.ignore_patterns)
+        assert dialog._grp_scope.isAncestorOf(dialog.btn_edit_hsyncignore)
+
+    def test_sync_mode_holds_the_in_place_advanced_rows(self, dialog):
+        assert dialog._grp_sync.isAncestorOf(dialog.auto_sync)
+        assert dialog._grp_sync.isAncestorOf(dialog.auto_apply)
+        assert dialog._grp_sync.isAncestorOf(dialog.dry_run)
+        # Revealed in place: hidden until the advanced options are on.
+        assert dialog.auto_apply.isHidden()
+        assert dialog.dry_run.isHidden()
+
+    def test_transfer_group_holds_the_engine_limits_and_is_advanced(self, dialog):
+        assert dialog._grp_transfer.isAncestorOf(dialog.compression_enabled)
+        assert dialog._grp_transfer.isAncestorOf(dialog.min_free_disk_space)
+        assert dialog._grp_transfer.isAncestorOf(dialog.max_inbound_size)
+        assert dialog._grp_transfer in dialog._advanced_groups
+        assert dialog._grp_transfer.isHidden()
 
 
 class TestLabelTooltips:
@@ -719,10 +752,9 @@ class TestDisabledDuringSyncVisual:
 class TestServerModeSections:
     """The Server Mode tab is grouped like the other settings tabs."""
 
-    def test_the_three_sections_exist(self, dialog):
+    def test_the_two_sections_exist(self, dialog):
         assert dialog._grp_server.title() == tr("settings.group.server")
         assert dialog._grp_server_certificates.title() == tr("settings.group.server_certificates")
-        assert dialog._grp_server_advanced.title() == tr("settings.group.advanced")
 
     def test_each_section_holds_its_fields(self, dialog):
         assert dialog._grp_server.isAncestorOf(dialog.server_url)
@@ -730,16 +762,16 @@ class TestServerModeSections:
         assert dialog._grp_server.isAncestorOf(dialog.server_trust)
         assert dialog._grp_server.isAncestorOf(dialog.btn_manage_trusted_keys_server)
         assert dialog._grp_server.isAncestorOf(dialog.btn_test_connection)
+        # The request timeout is advanced, revealed in place under Server.
+        assert dialog._grp_server.isAncestorOf(dialog.http_timeout)
         assert dialog._grp_server_certificates.isAncestorOf(dialog.insecure)
         assert dialog._grp_server_certificates.isAncestorOf(dialog.ca_cert)
-        assert dialog._grp_server_advanced.isAncestorOf(dialog.http_timeout)
 
     def test_the_sections_live_in_the_connection_tab(self, dialog):
         tab = dialog._tabs.widget(_CONNECTION_TAB_INDEX)
         for group in (
             dialog._grp_server,
             dialog._grp_server_certificates,
-            dialog._grp_server_advanced,
         ):
             assert tab.isAncestorOf(group)
 

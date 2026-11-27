@@ -115,18 +115,19 @@ def apply_translations(dlg: SettingsDialog) -> None:
     # Sync tab group box titles
     dlg._grp_path.setTitle(escape_mnemonics(tr("settings.group.path_bucket")))
     dlg._grp_sync.setTitle(escape_mnemonics(tr("settings.group.sync_mode")))
+    dlg._grp_scope.setTitle(escape_mnemonics(tr("settings.group.what_to_sync")))
+    dlg._grp_trash.setTitle(escape_mnemonics(tr("settings.group.trash")))
     dlg._grp_timing.setTitle(escape_mnemonics(tr("settings.group.timing")))
-    dlg._grp_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
+    dlg._grp_transfer.setTitle(escape_mnemonics(tr("settings.group.transfer")))
     dlg._grp_mode.setTitle(escape_mnemonics(tr("settings.group.connection_mode")))
     dlg._grp_p2p_group.setTitle(escape_mnemonics(tr("settings.group.p2p_group")))
     dlg._grp_p2p_rendezvous.setTitle(escape_mnemonics(tr("settings.group.p2p_rendezvous")))
     dlg._grp_p2p_role.setTitle(escape_mnemonics(tr("settings.group.p2p_role")))
-    dlg._grp_p2p_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
+    dlg._grp_p2p_sharing.setTitle(escape_mnemonics(tr("settings.group.sharing")))
     dlg._grp_server.setTitle(escape_mnemonics(tr("settings.group.server")))
     dlg._grp_server_certificates.setTitle(
         escape_mnemonics(tr("settings.group.server_certificates"))
     )
-    dlg._grp_server_advanced.setTitle(escape_mnemonics(tr("settings.group.advanced")))
 
     # Advanced tab group box titles
     dlg._grp_advanced_perf.setTitle(escape_mnemonics(tr("settings.group.performance")))
@@ -136,6 +137,7 @@ def apply_translations(dlg: SettingsDialog) -> None:
     dlg.btn_deletion_risk_reset.setText(escape_mnemonics(tr("settings.deletion_risk_reset")))
     dlg._grp_advanced_network.setTitle(escape_mnemonics(tr("settings.group.network")))
     dlg._grp_advanced_logging.setTitle(escape_mnemonics(tr("settings.group.logging")))
+    dlg._grp_advanced_maintenance.setTitle(escape_mnemonics(tr("settings.group.maintenance")))
 
     # p2p tab labels
     dlg.mode_direct.setText(tr("settings.p2p"))

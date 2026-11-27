@@ -7,7 +7,7 @@ as if it were not there — it is never uploaded, downloaded or deleted.
 Patterns come from two places, applied together:
 
 - the folder's **`.hsyncignore`** file, edited from **Settings → Sync →
-  Advanced Options → Ignore rules…** (or with any text editor, at the root of the
+  What to sync → Ignore rules…** (or with any text editor, at the root of the
   shared folder);
 - the **Extra ignore patterns** field in the same group, for a few one-off
   patterns you do not want in the file.

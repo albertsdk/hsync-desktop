@@ -323,6 +323,12 @@ class SettingsDialog(QDialog):
         self._tabs: QTabWidget = self.findChild(QTabWidget, "tabWidget")  # type: ignore[assignment]
         self._button_box: QDialogButtonBox = self.findChild(QDialogButtonBox, "buttonBox")  # type: ignore[assignment]
 
+        # Advanced-visibility registries, filled by the reorganizers: whole
+        # groups that appear only with the advanced options on, and individual
+        # rows revealed in place inside an always-visible group.
+        self._advanced_groups: list[QWidget] = []
+        self._advanced_widgets: list[tuple[QWidget, ...]] = []
+
         build_connection_banner(self)
         build_sync_tab(self)
         build_connection_tab(self)
@@ -710,24 +716,19 @@ class SettingsDialog(QDialog):
         finalize_size(self, allow_shrink=False)
 
     def _apply_advanced_visibility(self) -> None:
-        """Show the Advanced tab and the advanced sections only when enabled."""
+        """Show the Advanced tab and the advanced sections only when enabled.
+
+        Advanced options that belong to an always-visible group are revealed *in
+        place* (the reorganizers registered each row in ``_advanced_widgets``);
+        groups that are wholly advanced are toggled as a unit
+        (``_advanced_groups``). No "advanced" catch-all box remains.
+        """
         show = self.show_advanced.isChecked()
         self._tabs.setTabVisible(_ADVANCED_TAB_INDEX, show)
-        for group in (
-            getattr(self, "_grp_advanced", None),
-            getattr(self, "_grp_p2p_advanced", None),
-            getattr(self, "_grp_server_certificates", None),
-            getattr(self, "_grp_server_advanced", None),
-        ):
-            if group is not None:
-                group.setVisible(show)
-        # The transport choice is a protocol detail (UDP/TCP), not something an
-        # everyday user should have to decide: it lives with the advanced options.
-        for widget in (
-            getattr(self, "_lbl_p2p_rendezvous_transport", None),
-            getattr(self, "p2p_rendezvous_transport", None),
-        ):
-            if widget is not None:
+        for group in self._advanced_groups:
+            group.setVisible(show)
+        for widgets in self._advanced_widgets:
+            for widget in widgets:
                 widget.setVisible(show)
         if not show and self._tabs.currentIndex() == _ADVANCED_TAB_INDEX:
             self._tabs.setCurrentIndex(_GENERAL_TAB_INDEX)

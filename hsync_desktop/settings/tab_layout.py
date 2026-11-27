@@ -32,7 +32,10 @@ from hsync_desktop.docs_links import (
     SETTINGS_SYNC_GUIDE,
 )
 from hsync_desktop.i18n import tr
-from hsync_desktop.settings.form_helpers import _action_row
+from hsync_desktop.settings.form_helpers import (
+    _action_row,
+    add_advanced_row,
+)
 from hsync_desktop.settings.tab_indices import (
     _ADVANCED_TAB_INDEX,
     _CONNECTION_TAB_INDEX,
@@ -349,48 +352,56 @@ def reorganize_sync_tab(dlg: SettingsDialog) -> None:
     f1.addRow(lbl_shared, path_row)
     vbox.addWidget(dlg._grp_path)
 
-    # Group 2: Sync Mode
+    # Group 2: Sync Mode. "Apply changes that delete nothing" and "Simulation
+    # Mode" are advanced: revealed in place under this group when the advanced
+    # options are on (they change the run, engine-level behaviour).
     dlg._grp_sync = _group_box("settings.group.sync_mode")
     f2 = QFormLayout(dlg._grp_sync)
     add_row(f2, dlg._lbl_sync_direction, dlg.sync_direction_combo)
     add_row(f2, dlg._lbl_deletion_policy, dlg.deletion_policy)
     add_row(f2, dlg._lbl_continuous, dlg.continuous)
     add_row(f2, dlg._lbl_auto_sync, dlg.auto_sync)
-    add_row(f2, dlg._lbl_auto_apply, dlg.auto_apply)
-    add_row(f2, dlg._lbl_trash_enabled, dlg.trash_enabled)
-    add_row(f2, dlg._lbl_trash_retention, dlg.trash_retention)
-    add_row(f2, dlg._lbl_trash_max_size, dlg.trash_max_size)
+    add_advanced_row(dlg, f2, dlg._lbl_auto_apply, dlg.auto_apply)
+    add_advanced_row(dlg, f2, dlg._lbl_dry_run, dlg.dry_run)
     vbox.addWidget(dlg._grp_sync)
 
-    # Group 3: Timing & Intervals
+    # Group 3: what is synchronized (scope). Choosing the subfolder and the
+    # ignored patterns is part of "what to sync", not an engine knob.
+    dlg._grp_scope = _group_box("settings.group.what_to_sync")
+    f3 = QFormLayout(dlg._grp_scope)
+    add_row(f3, lbl_filter, dlg.filter_path)
+    add_row(f3, dlg._lbl_ignore_patterns, dlg.ignore_patterns)
+    _spanning_row(f3, dlg.btn_edit_hsyncignore)
+    vbox.addWidget(dlg._grp_scope)
+
+    # Group 4: the local trash a deletion keeps its bytes in.
+    dlg._grp_trash = _group_box("settings.group.trash")
+    f4 = QFormLayout(dlg._grp_trash)
+    add_row(f4, dlg._lbl_trash_enabled, dlg.trash_enabled)
+    add_row(f4, dlg._lbl_trash_retention, dlg.trash_retention)
+    add_row(f4, dlg._lbl_trash_max_size, dlg.trash_max_size)
+    vbox.addWidget(dlg._grp_trash)
+
+    # Group 5 (advanced): Timing & Intervals.
     dlg._grp_timing = _group_box("settings.group.timing")
-    f3 = QFormLayout(dlg._grp_timing)
-    add_row(f3, lbl_resync, dlg.resync)
-    add_row(f3, lbl_retry, dlg.retry_delay)
-    add_row(f3, lbl_stability, dlg.stability_delay)
-    add_row(f3, lbl_max_wait, dlg.max_wait)
+    f5 = QFormLayout(dlg._grp_timing)
+    add_row(f5, lbl_resync, dlg.resync)
+    add_row(f5, lbl_retry, dlg.retry_delay)
+    add_row(f5, lbl_stability, dlg.stability_delay)
+    add_row(f5, lbl_max_wait, dlg.max_wait)
+    dlg._advanced_groups.append(dlg._grp_timing)
     vbox.addWidget(dlg._grp_timing)
 
-    # Group 4: Advanced Options
-    dlg._grp_advanced = _group_box("settings.group.advanced")
-    f4 = QFormLayout(dlg._grp_advanced)
+    # Group 6 (advanced): transfer constraints.
+    dlg._grp_transfer = _group_box("settings.group.transfer")
+    f6 = QFormLayout(dlg._grp_transfer)
+    add_row(f6, dlg._lbl_compression_enabled, dlg.compression_enabled)
     dlg._lbl_min_free_disk_space = QLabel(tr("settings.min_free_disk_space"))
-    add_row(f4, dlg._lbl_min_free_disk_space, dlg.min_free_disk_space)
+    add_row(f6, dlg._lbl_min_free_disk_space, dlg.min_free_disk_space)
     dlg._lbl_max_inbound_size = QLabel(tr("settings.max_inbound_size"))
-    add_row(f4, dlg._lbl_max_inbound_size, dlg.max_inbound_size)
-    add_row(f4, lbl_filter, dlg.filter_path)
-    add_row(f4, dlg._lbl_compression_enabled, dlg.compression_enabled)
-    add_row(f4, dlg._lbl_dry_run, dlg.dry_run)
-
-    # Extra ignore patterns
-    add_row(f4, dlg._lbl_ignore_patterns, dlg.ignore_patterns)
-
-    # Edit .hsyncignore button (no left label, like a regular action)
-    _spanning_row(f4, dlg.btn_edit_hsyncignore)
-
-    # Maintenance: forget the folder's sync history (client-side state DB).
-    _spanning_row(f4, dlg.btn_reset_state)
-    vbox.addWidget(dlg._grp_advanced)
+    add_row(f6, dlg._lbl_max_inbound_size, dlg.max_inbound_size)
+    dlg._advanced_groups.append(dlg._grp_transfer)
+    vbox.addWidget(dlg._grp_transfer)
 
     vbox.addStretch()
 
@@ -458,7 +469,7 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     mode_box.addWidget(dlg._lbl_mode_server_desc)
     vbox.addWidget(dlg._grp_mode)
 
-    # Direct mode: group identity, device finding, role, tuning.
+    # Direct mode: group identity, device finding, role, sharing.
     dlg._direct_section = QWidget()
     direct = QVBoxLayout(dlg._direct_section)
     direct.setContentsMargins(0, 0, 0, 0)
@@ -472,13 +483,14 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     # discovery server derives from it. Hidden until that condition holds.
     g1.addRow(dlg._lbl_p2p_key_rdv_warning)
     dlg._lbl_p2p_key_rdv_warning.setVisible(False)
+    # The listening port is a protocol detail: advanced, in place under Group.
+    add_advanced_row(dlg, g1, lbl_port, dlg.p2p_port)
     direct.addWidget(dlg._grp_p2p_group)
 
     dlg._grp_p2p_rendezvous = _group_box("settings.group.p2p_rendezvous")
     g2 = QFormLayout(dlg._grp_p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous, dlg.p2p_rendezvous)
     add_row(g2, dlg._lbl_p2p_rendezvous_trust, dlg.p2p_rendezvous_trust)
-    add_row(g2, dlg._lbl_p2p_rendezvous_transport, dlg.p2p_rendezvous_transport)
     # Spanning row: the pair needs more width than the field column leaves, and
     # ``_ActionRow`` trailing-aligns it to the content edge (stacking when even
     # the full width cannot hold both labels).
@@ -487,28 +499,33 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     # lives with the other discovery-server controls; it is hidden until one is
     # configured (see ``SettingsDialog._refresh_group_key_button``).
     _spanning_row(g2, dlg.btn_show_group_key)
-    add_row(g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
-    add_row(g2, dlg._lbl_no_mdns, dlg.no_mdns)
+    # Advanced, in place: protocol/timing knobs and the transport choice.
+    add_advanced_row(dlg, g2, lbl_rendezvous, dlg.rendezvous_timeout)
+    add_advanced_row(dlg, g2, dlg._lbl_ntp_hosts, dlg.ntp_hosts)
+    add_advanced_row(dlg, g2, dlg._lbl_p2p_rendezvous_transport, dlg.p2p_rendezvous_transport)
+    add_advanced_row(dlg, g2, dlg._lbl_p2p_upnp, dlg.p2p_upnp)
+    add_advanced_row(dlg, g2, dlg._lbl_no_mdns, dlg.no_mdns)
     direct.addWidget(dlg._grp_p2p_rendezvous)
 
+    # Advanced-only: device role and new-primary trust policy.
     dlg._grp_p2p_role = _group_box("settings.group.p2p_role")
     g3 = QFormLayout(dlg._grp_p2p_role)
     add_row(g3, dlg._lbl_prefer_master, dlg.prefer_master)
     add_row(g3, dlg._lbl_never_master, dlg.never_master)
     add_row(g3, dlg._lbl_p2p_trust, dlg.p2p_trust)
+    dlg._advanced_groups.append(dlg._grp_p2p_role)
     direct.addWidget(dlg._grp_p2p_role)
 
-    dlg._grp_p2p_advanced = _group_box("settings.group.advanced")
-    g4 = QFormLayout(dlg._grp_p2p_advanced)
-    add_row(g4, lbl_port, dlg.p2p_port)
-    add_row(g4, lbl_rendezvous, dlg.rendezvous_timeout)
-    add_row(g4, dlg._lbl_ntp_hosts, dlg.ntp_hosts)
+    # Advanced-only: peer-to-peer sharing toggles and their caps.
+    dlg._grp_p2p_sharing = _group_box("settings.group.sharing")
+    g4 = QFormLayout(dlg._grp_p2p_sharing)
     add_row(g4, dlg._lbl_serve_blocks, dlg.serve_blocks)
     add_row(g4, dlg._lbl_fetch_from_peers, dlg.fetch_from_peers)
     add_row(g4, dlg._lbl_publish_inventory, dlg.publish_inventory)
     add_row(g4, dlg._lbl_peer_read_cap, dlg.peer_read_cap)
     add_row(g4, dlg._lbl_peer_sources_max, dlg.peer_sources_max)
-    direct.addWidget(dlg._grp_p2p_advanced)
+    dlg._advanced_groups.append(dlg._grp_p2p_sharing)
+    direct.addWidget(dlg._grp_p2p_sharing)
     vbox.addWidget(dlg._direct_section)
 
     # Server mode: endpoint and identity, certificates, tuning.
@@ -524,18 +541,16 @@ def reorganize_connection_tab(dlg: SettingsDialog) -> None:
     add_row(s1, dlg._lbl_server_trust, dlg.server_trust)
     # Spanning row, trailing-aligned to the same content edge as the inputs.
     s1.addRow(manage_server)
+    # Request timeout is a tuning knob: advanced, in place under Server.
+    add_advanced_row(dlg, s1, lbl_timeout, dlg.http_timeout)
     server_box.addWidget(dlg._grp_server)
 
     dlg._grp_server_certificates = _group_box("settings.group.server_certificates")
     s2 = QFormLayout(dlg._grp_server_certificates)
     add_row(s2, dlg._lbl_insecure, dlg.insecure)
     add_row(s2, lbl_ca_cert, dlg.ca_cert)
+    dlg._advanced_groups.append(dlg._grp_server_certificates)
     server_box.addWidget(dlg._grp_server_certificates)
-
-    dlg._grp_server_advanced = _group_box("settings.group.advanced")
-    s3 = QFormLayout(dlg._grp_server_advanced)
-    add_row(s3, lbl_timeout, dlg.http_timeout)
-    server_box.addWidget(dlg._grp_server_advanced)
     vbox.addWidget(dlg._server_section)
 
     vbox.addStretch()
@@ -586,8 +601,6 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     add_row(f3, dlg._lbl_guard_threshold, dlg.mass_delete_threshold)
     dlg._lbl_guard_percent = QLabel(tr("settings.mass_delete_percent"))
     add_row(f3, dlg._lbl_guard_percent, dlg.mass_delete_percent)
-    f3.addRow(dlg._lbl_deletion_risk_reset)
-    _spanning_row(f3, dlg.btn_deletion_risk_reset)
     vbox.addWidget(dlg._grp_advanced_guard)
 
     # Group 4: network
@@ -605,5 +618,15 @@ def reorganize_advanced_tab(dlg: SettingsDialog) -> None:
     add_row(f5, dlg._lbl_verbose, dlg.verbose)
     add_row(f5, lbl_logfile, dlg.logfile)
     vbox.addWidget(dlg._grp_advanced_logging)
+
+    # Group 6: maintenance. The reset actions (bring back the deletion-risk
+    # notice, forget the folder's sync history) live together: neither is a
+    # tuning knob, both are rare "undo/forget" operations.
+    dlg._grp_advanced_maintenance = _group_box("settings.group.maintenance")
+    f6 = QFormLayout(dlg._grp_advanced_maintenance)
+    _spanning_row(f6, dlg._lbl_deletion_risk_reset)
+    _spanning_row(f6, dlg.btn_deletion_risk_reset)
+    _spanning_row(f6, dlg.btn_reset_state)
+    vbox.addWidget(dlg._grp_advanced_maintenance)
 
     vbox.addStretch()

@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import QEvent, QSize
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -20,6 +22,20 @@ from PySide6.QtWidgets import (
 from hsync_desktop.i18n import tr
 from hsync_desktop.widgets.forms import add_row
 from hsync_desktop.widgets.toggle_switch import ToggleSwitch
+
+if TYPE_CHECKING:
+    from hsync_desktop.settings.dialog import SettingsDialog
+
+
+def add_advanced_row(dlg: SettingsDialog, form: QFormLayout, label: QLabel, field: QWidget) -> None:
+    """Add a form row revealed only while the advanced options are shown.
+
+    The row is a normal form row (label + field); it is registered on the dialog
+    so ``SettingsDialog._apply_advanced_visibility`` can hide/show the pair in
+    place, inside the group it belongs to, instead of a separate "advanced" box.
+    """
+    add_row(form, label, field)
+    dlg._advanced_widgets.append((label, field))
 
 
 def _paired_label(widget: QWidget) -> QLabel | None:

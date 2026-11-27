@@ -4,7 +4,7 @@ When a folder keeps re-syncing, reports conflicts on files nobody edited, or the
 log shows a database error, the folder's local **sync state** is inconsistent.
 Resetting it makes the next sync reconcile the folder from scratch.
 
-Open **Settings → Sync → Advanced options → Reset sync state…**. The control is
+Open **Settings → Advanced → Maintenance → Reset sync state…**. The control is
 disabled while a sync runs, so stop the sync first.
 
 ## What to expect on the next cycle

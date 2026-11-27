@@ -26,8 +26,9 @@ halves of **Connection**, where one is selected and the other stays one line
 away at the top of the tab.
 
 - **Show advanced options** (in **General**) hides the **Advanced** tab and the
-  **Advanced Options** groups of the other tabs until it is on, so the standard
-  view stays uncluttered.
+  advanced rows and groups of the other tabs until it is on, so the standard view
+  stays uncluttered. The advanced options are shown *in place*, inside the
+  section they belong to.
 - **Apply** saves the changes and closes the dialog (with **Cancel** next to it).
   An editor or a credential prompt keeps its **Save** label instead.
 - Settings are read when a sync starts. While a run is in progress the

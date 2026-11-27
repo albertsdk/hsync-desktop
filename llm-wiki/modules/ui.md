@@ -369,7 +369,7 @@ skips the entries the engine ignores (`is_hidden_file` / `is_hidden_dir` /
 ends the gate for a folder and posture the user confirmed with the dialog's
 checkbox (value
 `<DELETION_RISK_NOTICE_VERSION>|download-only|<sha256(folder+posture)[:16]>`).
-`SettingsDialog._on_reset_deletion_risk`, under *Advanced → Deletion protection*,
+`SettingsDialog._on_reset_deletion_risk`, under *Advanced → Maintenance*,
 removes the key. Simulation Mode makes
 every run a preview-only one-shot: `build_hsync_args` emits `--once -n`, so the
 client shows the preview and exits instead of parking in the dry-run "wait for a

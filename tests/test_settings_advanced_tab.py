@@ -54,7 +54,7 @@ class TestTabStructure:
         assert tab.isAncestorOf(dialog.start_at_login)
         assert tab.isAncestorOf(dialog.show_log_panel)
 
-    def test_peer_roles_live_in_the_p2p_advanced_group(self, dialog):
+    def test_peer_roles_live_in_the_sharing_group(self, dialog):
         for widget in (
             dialog.serve_blocks,
             dialog.fetch_from_peers,
@@ -62,7 +62,7 @@ class TestTabStructure:
             dialog.peer_read_cap,
             dialog.peer_sources_max,
         ):
-            assert dialog._grp_p2p_advanced.isAncestorOf(widget)
+            assert dialog._grp_p2p_sharing.isAncestorOf(widget)
 
 
 class TestPersistence:
@@ -224,10 +224,13 @@ class TestAdvancedToggle:
 
         assert not dlg.show_advanced.isChecked()
         assert not dlg._tabs.isTabVisible(_ADVANCED_TAB_INDEX)
-        assert dlg._grp_advanced.isHidden()
-        assert dlg._grp_p2p_advanced.isHidden()
-        assert dlg._grp_server_certificates.isHidden()
-        assert dlg._grp_server_advanced.isHidden()
+        # Whole groups that are advanced-only.
+        for group in dlg._advanced_groups:
+            assert group.isHidden()
+        # Rows revealed in place inside always-visible groups.
+        for widgets in dlg._advanced_widgets:
+            for widget in widgets:
+                assert widget.isHidden()
 
     def test_enabling_restores_the_advanced_areas(self, qtbot, monkeypatch, tmp_path):
         dlg, _ = _make_dialog(qtbot, monkeypatch, tmp_path)
@@ -235,8 +238,11 @@ class TestAdvancedToggle:
         dlg.show_advanced.setChecked(True)
 
         assert dlg._tabs.isTabVisible(_ADVANCED_TAB_INDEX)
-        assert not dlg._grp_advanced.isHidden()
-        assert not dlg._grp_p2p_advanced.isHidden()
+        for group in dlg._advanced_groups:
+            assert not group.isHidden()
+        for widgets in dlg._advanced_widgets:
+            for widget in widgets:
+                assert not widget.isHidden()
 
     def test_persisted_choice_is_restored(self, qtbot, monkeypatch, tmp_path):
         dlg, store = _make_dialog(qtbot, monkeypatch, tmp_path, {"ui/show_advanced": True})
@@ -325,11 +331,12 @@ class TestThemeSetting:
 class TestDeletionRiskReset:
     """The silenced deletion-risk notice has a way back in the Advanced tab."""
 
-    def test_the_control_lives_in_the_deletion_protection_group(self, dialog):
+    def test_the_control_lives_in_the_maintenance_group(self, dialog):
         from hsync_desktop.i18n import tr
 
-        assert dialog._grp_advanced_guard.isAncestorOf(dialog.btn_deletion_risk_reset)
-        assert dialog._grp_advanced_guard.isAncestorOf(dialog._lbl_deletion_risk_reset)
+        assert dialog._grp_advanced_maintenance.isAncestorOf(dialog.btn_deletion_risk_reset)
+        assert dialog._grp_advanced_maintenance.isAncestorOf(dialog._lbl_deletion_risk_reset)
+        assert dialog._grp_advanced_maintenance.isAncestorOf(dialog.btn_reset_state)
         assert dialog.btn_deletion_risk_reset.text() == tr("settings.deletion_risk_reset")
         assert dialog._lbl_deletion_risk_reset.text() == tr("settings.deletion_risk_reset_hint")
 

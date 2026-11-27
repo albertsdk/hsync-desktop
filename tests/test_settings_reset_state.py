@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox
 from hsync_desktop.i18n import tr
 from hsync_desktop.settings.dialog import SettingsDialog
 from hsync_desktop.settings.reset_state_dialog import ResetStateDialog
-from hsync_desktop.settings.tab_indices import _SYNC_TAB_INDEX
+from hsync_desktop.settings.tab_indices import _ADVANCED_TAB_INDEX
 
 
 def _answer(monkeypatch, *, accepted: bool) -> None:
@@ -38,8 +38,10 @@ def _isolated_settings(monkeypatch, tmp_path):
 
 
 class TestButtonPlacement:
-    def test_button_is_in_the_sync_tab(self, dialog):
-        assert dialog._tabs.widget(_SYNC_TAB_INDEX).isAncestorOf(dialog.btn_reset_state)
+    def test_button_is_in_the_advanced_tab(self, dialog):
+        # Maintenance action: it lives in the Advanced tab's Maintenance group.
+        assert dialog._tabs.widget(_ADVANCED_TAB_INDEX).isAncestorOf(dialog.btn_reset_state)
+        assert dialog._grp_advanced_maintenance.isAncestorOf(dialog.btn_reset_state)
 
     def test_button_label_is_translated(self, dialog):
         assert dialog.btn_reset_state.text() == tr("settings.reset_state.button")

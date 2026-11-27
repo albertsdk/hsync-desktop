@@ -10,8 +10,9 @@ would change the connection are disabled. Every field also has a tooltip — if
 you see none, turn **Show tooltips** on in **General**.
 
 This page follows the tab in the order the groups appear: **Share & Path**,
-**Sync Mode**, **Timing & Intervals** and **Advanced Options** (the last one
-appears only when **Show advanced options** is on).
+**Sync Mode**, **What to sync** and **Trash**. Two more groups — **Timing &
+Intervals** and **Transfers** — appear only when **Show advanced options** is on
+in **General**.
 
 <img src="assets/screens/05-settings-sync.png" alt="Settings, Sync tab" width="640">
 
@@ -48,15 +49,41 @@ appears only when **Show advanced options** is on).
   default and never enabled for you. A startup run that could delete local files,
   or whose plan contains deletions, stops and warns instead of running: press
   **Start** or **Compare** to review the plan.
+
+When **Show advanced options** is on, two more rows appear here:
+
 - **Apply changes that delete nothing** — on by default. The plan is applied
   without the confirmation dialog when it only transfers or renames files. A plan
   that deletes anything still asks, and the first plan of the installation is
   always shown; **Compare** always shows the plan too.
-- **Keep deleted files in the local trash** — whether a deletion this device
-  applied keeps its bytes, so **Sync → Trash…** can put them back (on by
-  default). With it off, an applied deletion unlinks the file and the plan warns
-  that it cannot be undone; until you save it, the client's own
-  `HSYNC_TRASH_ENABLED` decides.
+- **Simulation Mode** — every run only shows the preview: nothing is transferred
+  or deleted, and the window shows a **Simulation — no changes** badge. Useful to
+  see what a change would do before trusting it.
+
+## What to sync
+
+<img src="assets/screens/05e-sync-what-to-sync.png" alt="Settings, Sync tab: What to sync" width="632" style="background: #f0f0f0;">
+
+This group decides *which files* the folder syncs.
+
+- **Sync only a specific subfolder** — restrict the sync to one subfolder of the
+  local folder. Leave it empty to sync the whole folder.
+- **Extra ignore patterns** — gitignore-style patterns excluded from the sync, in
+  addition to the folder's `.hsyncignore`.
+- **Ignore rules…** — edit the patterns for the selected folder; they are stored
+  in its `.hsyncignore`. The syntax and the common cases are in
+  [Ignore files you do not want to sync](ignore-rules.md).
+
+## Trash
+
+<img src="assets/screens/05f-sync-trash.png" alt="Settings, Sync tab: Trash" width="632" style="background: #f0f0f0;">
+
+Whether a deletion this device applies keeps its bytes, so **Sync → Trash…** can
+put them back.
+
+- **Keep deleted files in the local trash** — on by default. With it off, an
+  applied deletion unlinks the file and the plan warns that it cannot be undone;
+  until you save it, the client's own `HSYNC_TRASH_ENABLED` decides.
 - **Restore window (days)** — how long such a deletion stays restorable (default
   30 days, one day to ten years; the spin is disabled while the switch is off).
   The value is passed to the engine as `--trash-retention` once you save it;
@@ -69,6 +96,8 @@ appears only when **Show advanced options** is on).
   derived cap applies.
 
 ## Timing & Intervals
+
+This group appears only when **Show advanced options** is on in **General**.
 
 <img src="assets/screens/05c-sync-timing.png" alt="Settings, Sync tab: Timing & Intervals" width="632" style="background: #f0f0f0;">
 
@@ -86,31 +115,18 @@ tells you to.
 - **Maximum wait** — upper bound for the settle and timing waits (default 120 s,
   minimum 60 s).
 
-## Advanced Options
+## Transfers
 
 This group appears only when **Show advanced options** is on in **General**.
 
-<img src="assets/screens/05d-sync-advanced.png" alt="Settings, Sync tab: Advanced Options" width="632" style="background: #f0f0f0;">
+<img src="assets/screens/05d-sync-advanced.png" alt="Settings, Sync tab: Transfers" width="632" style="background: #f0f0f0;">
 
 - **Min free disk space** — refuse transfers that would leave less free space
   than this. `Disabled` turns the check off.
 - **Max inbound file size** — refuse files larger than this.
-- **Sync only a specific subfolder** — restrict the sync to one subfolder of the
-  local folder. Leave it empty to sync the whole folder.
 - **Enable compression** — compress the transfer stream. Turn it off when the
   files are already compressed (photos, videos, archives) and the CPU cost is not
   worth it.
-- **Simulation Mode** — every run only shows the preview: nothing is transferred
-  or deleted, and the window shows a **Simulation — no changes** badge. Useful to
-  see what a change would do before trusting it.
-- **Extra ignore patterns** — gitignore-style patterns excluded from the sync, in
-  addition to the folder's `.hsyncignore`.
-- **Ignore rules…** — edit the patterns for the selected folder; they are stored
-  in its `.hsyncignore`. The syntax and the common cases are in
-  [Ignore files you do not want to sync](ignore-rules.md).
-- **Reset sync state…** — forget this folder's sync history so the next cycle
-  rebuilds it. Your files are never touched; see
-  [Reset the sync state](reset-sync-state.md).
 
 ## Where to go next
 

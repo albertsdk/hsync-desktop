@@ -274,8 +274,8 @@ class TestRendezvousTransport:
         assert [combo.itemData(i) for i in range(combo.count())] == ["auto", "quic", "tcp"]
         assert combo.currentData() == "auto"
 
-    def test_label_sits_directly_under_the_trust_row(self, dialog):
-        """The transport label is the caption of the row right under the trust combo."""
+    def test_label_sits_under_the_trust_row_in_the_same_group(self, dialog):
+        """The transport caption lives with the other discovery-server rows."""
         form = dialog.p2p_rendezvous.parentWidget().layout()
         assert isinstance(form, QFormLayout)
         trust_row = transport_row = None
@@ -289,7 +289,10 @@ class TestRendezvousTransport:
             ):
                 transport_row = row
         assert trust_row is not None and transport_row is not None
-        assert transport_row == trust_row + 1
+        assert transport_row > trust_row
+        # It is an advanced row, revealed in place: hidden until advanced is on.
+        assert dialog.p2p_rendezvous_transport.isHidden()
+        assert dialog._lbl_p2p_rendezvous_transport.isHidden()
 
 
 class TestTrustedKeysUi:

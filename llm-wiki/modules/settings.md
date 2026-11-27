@@ -40,11 +40,11 @@ emitted subcommand always agree.
 | tab indices | `hsync_desktop/settings/tab_indices.py::_CONNECTION_TAB_INDEX` | sync/connection tab positions (shared by dialog + builders + layout) |
 | tab layout | `hsync_desktop/settings/tab_layout.py::reorganize_sync_tab`, `hsync_desktop/settings/tab_layout.py::reorganize_connection_tab`, `hsync_desktop/settings/tab_layout.py::_scrollable_page`, `hsync_desktop/settings/tab_layout.py::_group_box`, `hsync_desktop/settings/tab_layout.py::_mode_line` | regroup the Sync and Connection tabs into `QGroupBox` sections inside the scrolling page |
 | tab translations | `hsync_desktop/settings/tab_translations.py::apply_translations` | apply the i18n strings to every widget, including the tab titles and group titles |
-| form helpers | `hsync_desktop/settings/form_helpers.py::_replace_checkbox_with_toggle`, `hsync_desktop/settings/form_helpers.py::_maybe_tip`, `hsync_desktop/settings/form_helpers.py::_paired_label`, `hsync_desktop/settings/form_helpers.py::_set_field_tooltip`, `hsync_desktop/settings/form_helpers.py::_action_row`, `hsync_desktop/settings/form_helpers.py::_insert_row_after` | QFormLayout/QWidget construction helpers shared by the dialogs |
+| form helpers | `hsync_desktop/settings/form_helpers.py::_replace_checkbox_with_toggle`, `hsync_desktop/settings/form_helpers.py::_maybe_tip`, `hsync_desktop/settings/form_helpers.py::_paired_label`, `hsync_desktop/settings/form_helpers.py::_set_field_tooltip`, `hsync_desktop/settings/form_helpers.py::_action_row`, `hsync_desktop/settings/form_helpers.py::_insert_row_after`, `hsync_desktop/settings/form_helpers.py::add_advanced_row` | QFormLayout/QWidget construction helpers shared by the dialogs (``add_advanced_row`` registers an in-place advanced row) |
 | `ApiKeyDialog` | `hsync_desktop/settings/credential_dialogs.py::ApiKeyDialog` | enter/replace the server API key (secret) |
 | `P2PKeyDialog` | `hsync_desktop/settings/credential_dialogs.py::P2PKeyDialog` | enter/replace the p2p key (secret) |
 | `HsyncIgnoreEditorDialog` | `hsync_desktop/settings/hsyncignore_dialog.py::HsyncIgnoreEditorDialog` | edit `.hsyncignore` patterns |
-| reset sync state | `hsync_desktop/settings/dialog.py::SettingsDialog._on_reset_state` → `hsync_desktop/settings/reset_state_dialog.py::ResetStateDialog` → `SettingsDialog.reset_state_folder` → `hsync_desktop/main_window/start.py::StartMixin._reset_sync_state` | **Settings → Sync → Advanced options → "Reset sync state…"**: a custom dialog rather than `QMessageBox` — the Qt-owned details toggle has no bundled translation and the standard buttons carry no app icon — with a translated details toggle and themed Reset/Cancel icons. It only confirms and closes (setting `reset_state_folder`); the window runs `hsync_desktop/engine/cli.py::reset_sync_state` and logs the outcome. Cancel is the destructive default, so a stray Enter never resets. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
+| reset sync state | `hsync_desktop/settings/dialog.py::SettingsDialog._on_reset_state` → `hsync_desktop/settings/reset_state_dialog.py::ResetStateDialog` → `SettingsDialog.reset_state_folder` → `hsync_desktop/main_window/start.py::StartMixin._reset_sync_state` | **Settings → Advanced → Maintenance → "Reset sync state…"**: a custom dialog rather than `QMessageBox` — the Qt-owned details toggle has no bundled translation and the standard buttons carry no app icon — with a translated details toggle and themed Reset/Cancel icons. It only confirms and closes (setting `reset_state_folder`); the window runs `hsync_desktop/engine/cli.py::reset_sync_state` and logs the outcome. Cancel is the destructive default, so a stray Enter never resets. Gated on `supports_subcommand(doc, "state")` in `_apply_capabilities` and disabled while the sync runs (`set_connection_active`). Never touches files/settings/secrets/identity — see the client's `hsync state reset` |
 
 The settings dialog is a **modal Apply/Cancel** pair: the primary button is
 labelled with `settings.apply` (not "Save" — it applies preferences, it does
@@ -59,13 +59,16 @@ after `hsync_desktop/main_window/start.py::StartMixin._open_settings`); there is
 Apply button.
 
 **Tab sections** (`_reorganize_sync_tab` / `_reorganize_connection_tab`):
-the sync tab groups Path & Bucket, Sync Mode, Timing & Intervals, Advanced Options;
-the connection tab groups the choice itself (Connection mode) and then, per
-selected mode, the direct boxes (Group, Finding devices, Role & security, Advanced
-Options) or the server ones (Server: URL, API key, server identity check and the
-manage/test action row; Certificates: skip-certificate check, CA file; Advanced
-Options: request timeout) — the user-facing group titles; the wiki below names the
-settings keys.
+the sync tab groups Share & Path, Sync Mode, What to sync, Trash and — advanced
+only — Timing & Intervals and Transfers; the connection tab groups the choice
+itself (Connection mode) and then, per selected mode, the direct boxes (Group,
+Finding devices and — advanced only — Role & security and Sharing with devices)
+or the server ones (Server: URL, API key, server identity check and the
+manage/test action row plus the advanced request-timeout row in place;
+Certificates: skip-certificate check, CA file — advanced only). Advanced options
+are revealed **in place** inside their section (see "Standard vs advanced"); there
+is no per-tab "Advanced Options" box any more. The user-facing group titles are
+the ones above; the wiki below names the settings keys.
 In the sync "Share & Path" group the remote bucket is shown **first** and
 presented as **Share name** (`settings.bucket`; `tip.bucket` and the
 `trusted_keys.bucket` column use the same share terminology, and `label.bucket`
@@ -102,8 +105,9 @@ app preferences, matching comparable tools). `_SYNC_TAB_INDEX` /
 (`hsync_desktop/settings/tab_indices.py::_ADVANCED_TAB_INDEX`) name the positions; the
 prefer-primary-role prompts' tab jumps and the per-tab enable/disable handlers use
 them instead of literals. Advanced holds the engine tuning (performance, delta
-transfer, deletion protection, bandwidth, logging); General holds the app
-preferences (font size, language, theme, notifications, tooltips, log panel,
+transfer, deletion protection, bandwidth, logging) plus the **Maintenance**
+actions (reset sync state, bring back the deletion-risk notice); General holds the
+app preferences (font size, language, theme, notifications, tooltips, log panel,
 launch at login).
 
 **Connection mode**: the connection tab asks one thing first — how this device
@@ -179,8 +183,14 @@ the full width, which broke the alignment with the groups below.
 (`settings.show_advanced`, persisted as `ui/show_advanced`, default **off**)
 drives `SettingsDialog._apply_advanced_visibility`
 (`hsync_desktop/settings/dialog.py::SettingsDialog._apply_advanced_visibility`): it hides the
-Advanced tab (`setTabVisible`) and the Advanced Options groups in the Sync and
-connection tabs plus the Certificates group of the server mode.
+Advanced tab (`setTabVisible`), the wholly-advanced groups
+(`SettingsDialog._advanced_groups`: Timing & Intervals, Transfers, Role & security,
+Sharing with devices, Certificates) and the advanced rows revealed **in place**
+inside an always-visible group (`SettingsDialog._advanced_widgets`, registered by
+`hsync_desktop/settings/form_helpers.py::add_advanced_row`: the Sync Mode
+`auto_apply`/`dry_run` rows, the Direct `p2p_port` row, the Finding-devices
+`rendezvous_timeout`/`ntp_hosts`/`p2p_upnp`/`no_mdns`/transport rows, and the
+Server `http_timeout` row). There is no per-tab "Advanced Options" box.
 `set_current_tab` (`hsync_desktop/settings/dialog.py::SettingsDialog.set_current_tab`) falls
 back to the first visible tab so a hidden target never shows a blank page. The
 advanced values themselves are preserved; the toggle only changes visibility.
@@ -209,7 +219,7 @@ p2p-role warnings it already had, so the two are tunable independently.
 **Dialog sizing & scrolling** (`hsync_desktop/settings/tab_layout.py::_scrollable_page`,
 `hsync_desktop/settings/tab_builders.py::finalize_size`): every tab page hosts its content in a
 frameless `QScrollArea` (`_scroll_area`), so a tall page — the Advanced tab, or the
-mode tabs with their Advanced Options groups shown — scrolls instead of forcing a
+mode tabs with their advanced rows shown — scrolls instead of forcing a
 tall, fixed window. `finalize_size` runs **after**
 `_apply_advanced_visibility`, and the `show_advanced` toggle re-fits the dialog
 through `SettingsDialog._on_show_advanced_toggled` with `allow_shrink=False` (it
@@ -457,11 +467,14 @@ saved/loaded under
 `tip.p2p_rendezvous` (what a rendezvous is/does) / `tip.p2p_rendezvous_trust` /
 `tip.p2p_rendezvous_transport` /
 `tip.manage_trusted_keys` / `tip.p2p_upnp` / `tip.p2p_no_mdns` / `tip.test_rendezvous`, shown per the
-`tooltips` preference. These rows are grouped (like the sync tab) into four
+`tooltips` preference. These rows are grouped (like the sync tab) into
 `QGroupBox` sections by `reorganize_connection_tab`, inside the direct-mode half of
 the page: Group (`settings.group.p2p_group`), Finding devices
-(`settings.group.p2p_rendezvous`), Role & Pairing (`settings.group.p2p_role`) and
-Advanced Options (`settings.group.advanced`, shared with the sync tab).
+(`settings.group.p2p_rendezvous`), and — advanced only — Role & security
+(`settings.group.p2p_role`) and Sharing with devices (`settings.group.sharing`).
+The Direct advanced knobs (`p2p_port`, `rendezvous_timeout`, `ntp_hosts`,
+`p2p_upnp`, `no_mdns`, the transport combo) are rows revealed **in place** inside
+Group / Finding devices when "Show advanced options" is on.
 Like NTP hosts this is
 env-driven (the client positional exists, but `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` is the documented
 equivalent needing no argument plumbing): `apply_settings_env` inserts

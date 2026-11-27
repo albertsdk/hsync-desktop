@@ -43,16 +43,18 @@ share `my-share`, group `my-group`, server `my-nas:9753`, search server
 | ---- | ------------- |
 | `05a-sync-share-path.png` | **Sync → Share & Path**. |
 | `05b-sync-mode.png` | **Sync → Sync Mode**. |
-| `05c-sync-timing.png` | **Sync → Timing & Intervals**. |
-| `05d-sync-advanced.png` | **Sync → Advanced Options** (needs *Show advanced options*). |
+| `05c-sync-timing.png` | **Sync → Timing & Intervals** (needs *Show advanced options*). |
+| `05d-sync-advanced.png` | **Sync → Transfers** (needs *Show advanced options*). |
+| `05e-sync-what-to-sync.png` | **Sync → What to sync**. |
+| `05f-sync-trash.png` | **Sync → Trash**. |
 | `06a-connection-mode.png` | **Connection → Connection mode**. |
 | `06b-connection-group.png` | **Connection → Direct mode → Group**. |
 | `06c-connection-finding-devices.png` | **Connection → Direct mode → Finding devices**. |
-| `06d-connection-role-security.png` | **Connection → Direct mode → Role & security**. |
-| `06e-connection-direct-advanced.png` | **Connection → Direct mode → Advanced Options**. |
+| `06d-connection-role-security.png` | **Connection → Direct mode → Role & security** (needs *Show advanced options*). |
+| `06e-connection-direct-advanced.png` | **Connection → Direct mode → Sharing with devices** (needs *Show advanced options*). |
 | `07a-connection-server.png` | **Connection → Server mode → Server**. |
-| `07b-connection-certificates.png` | **Connection → Server mode → Certificates**. |
-| `07c-connection-server-advanced.png` | **Connection → Server mode → Advanced Options**. |
+| `07b-connection-certificates.png` | **Connection → Server mode → Certificates** (needs *Show advanced options*). |
+| `07c-connection-server-advanced.png` | **Connection → Server mode → Server** (the *Request timeout* advanced row). |
 | `08a-general-appearance.png` | **General → Appearance**. |
 | `08b-general-notifications.png` | **General → Notifications**. |
 | `08c-general-window-startup.png` | **General → Window & Startup**. |
@@ -61,6 +63,7 @@ share `my-share`, group `my-group`, server `my-nas:9753`, search server
 | `09c-advanced-deletion-protection.png` | **Advanced → Deletion protection**. |
 | `09d-advanced-network.png` | **Advanced → Network**. |
 | `09e-advanced-logging.png` | **Advanced → Logging**. |
+| `09f-advanced-maintenance.png` | **Advanced → Maintenance**. |
 
 These are `QWidget.grab()` renders of the real dialog on `QT_QPA_PLATFORM=offscreen`,
 with `appearance/language = en`, `appearance/theme = light` and the sample values

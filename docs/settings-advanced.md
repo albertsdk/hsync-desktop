@@ -1,14 +1,14 @@
 # The Advanced settings
 
 The **Advanced** tab collects the engine-level tuning: performance, changed parts
-only, deletion protection, bandwidth and logging. It is hidden until **Show
-advanced options** is on in **General** — the same switch reveals the **Advanced
-Options** groups of the other tabs.
+only, deletion protection, bandwidth, logging and the maintenance actions. It is
+hidden until **Show advanced options** is on in **General** — the same switch
+reveals the advanced rows and groups of the other tabs, in place.
 
 Open it with **Settings → Advanced**. Changes apply at the next sync start, not
 while a run is in progress. This page follows the tab in the order the groups
 appear: **Performance**, **Changed parts only**, **Deletion protection**,
-**Network** and **Logging**.
+**Network**, **Logging** and **Maintenance**.
 
 <img src="assets/screens/09-settings-advanced.png" alt="Settings, Advanced tab" width="640">
 
@@ -54,11 +54,6 @@ retries the deletions.
   trips it; `0` disables this rule.
 - **Max deletions percent** — the share of local files whose deletion trips it;
   `0` disables this rule.
-- **Show the deletion-risk warning again** — the pre-flight notice about
-  **Receive only** can be silenced from its own dialog, for the folder and
-  settings you confirmed. This button clears that acknowledgement, so the next
-  start asks again; nothing else changes. See
-  [Warnings before a sync](warnings.md#warnings-before-a-sync).
 
 Set both rules to `0` to disable the guard entirely.
 
@@ -87,6 +82,22 @@ Set both rules to `0` to disable the guard entirely.
 
 The action labels the log panel can show are listed in
 [Log Labels](log-labels.md).
+
+## Maintenance
+
+<img src="assets/screens/09f-advanced-maintenance.png" alt="Settings, Advanced tab: Maintenance" width="632" style="background: #f0f0f0;">
+
+Rare "undo/forget" operations. Neither is a tuning knob, so they live together
+here.
+
+- **Show the deletion-risk warning again** — the pre-flight notice about
+  **Receive only** can be silenced from its own dialog, for the folder and
+  settings you confirmed. This button clears that acknowledgement, so the next
+  start asks again; nothing else changes. See
+  [Warnings before a sync](warnings.md#warnings-before-a-sync).
+- **Reset sync state…** — forget this folder's sync history so the next cycle
+  rebuilds it. Your files are never touched; see
+  [Reset the sync state](reset-sync-state.md).
 
 ## Where to go next
 
