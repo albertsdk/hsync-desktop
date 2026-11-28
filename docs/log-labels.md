@@ -73,8 +73,9 @@ source:
 | `--- … ---` | The desktop's phase markers: a run starting (`--- Sync started ---`; in Simulation Mode the run opens with `--- Simulation: … ---` instead), a comparison starting (`--- Updating file status... ---`) or finishing (`--- File status updated ---`), `--- Stopping ---`, the plan being prepared, a Send/Receive of a selection, and the engine exiting (`--- Process finished (…, exit code N) ---`) |
 
 The panel keeps the lines of previous runs: each new sync appends its boundary
-marker instead of clearing it, so a session reads as one continuous log. Only
-**Clear Log** (right-click on the panel) empties it.
+marker instead of clearing it, so a session reads as one continuous log.
+**Clear Log** — the toolbar's clear button, or the right-click menu — empties it
+(and the per-folder history it buffers).
 
 A malformed engine event is logged as
 `<timestamp> - [<pid>] [desktop] ERROR: [EVENT ERROR] …` and nothing else: it is

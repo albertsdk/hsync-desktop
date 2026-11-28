@@ -1295,6 +1295,95 @@ class TestRemoteRenameMtime:
         assert captured["kwargs"]["mtime"] == 1000.0
 
 
+class TestLogLevelFilter:
+    """The log toolbar filters by level groups and by a search string."""
+
+    @staticmethod
+    def _line(level: str, message: str) -> str:
+        return f"2026-01-01T00:00:00.000Z - [1] [cid] {level}: {message}"
+
+    def test_the_default_levels_hide_debug(self, window):
+        from hsync_desktop.main_window.ui import _LOG_DEFAULT_LEVELS
+
+        assert window._log_levels == set(_LOG_DEFAULT_LEVELS)
+        window._log_active_share = "share-1"
+
+        window._append_log(self._line("DEBUG", "dbg") + "\n" + self._line("INFO", "inf"))
+
+        text = window._log_view.toPlainText()
+        assert "dbg" not in text and "inf" in text
+
+    def test_the_default_action_restores_the_preset(self, window):
+        from hsync_desktop.main_window.ui import _LOG_DEFAULT_LEVELS
+
+        window._log_levels = set()
+        window._on_log_levels_default()
+
+        assert window._log_levels == set(_LOG_DEFAULT_LEVELS)
+
+    def test_a_group_toggle_enables_and_disables_its_levels(self, window):
+        window._log_active_share = "share-1"
+        window._append_log(self._line("WARNING", "warn") + "\n" + self._line("ERROR", "err"))
+
+        window._log_level_actions["warning"].setChecked(False)
+        text = window._log_view.toPlainText()
+        assert "warn" not in text and "err" in text
+
+        window._log_level_actions["warning"].setChecked(True)
+        assert "warn" in window._log_view.toPlainText()
+
+    def test_verbose_toggles_debug(self, window):
+        window._log_active_share = "share-1"
+        window._append_log(self._line("DEBUG", "dbg"))
+        assert "dbg" not in window._log_view.toPlainText()
+
+        window._log_level_actions["verbose"].setChecked(True)
+
+        assert "dbg" in window._log_view.toPlainText()
+
+    def test_the_search_keeps_only_matching_records(self, window):
+        window._log_active_share = "share-1"
+        window._append_log(self._line("INFO", "alpha one") + "\n" + self._line("ERROR", "beta two"))
+
+        window._log_search.setText("beta")
+        text = window._log_view.toPlainText()
+        assert "alpha" not in text and "beta" in text
+
+        window._log_search.clear()  # the little clear button
+        assert "alpha" in window._log_view.toPlainText()
+
+    def test_the_search_matches_continuation_lines(self, window):
+        window._log_active_share = "share-1"
+        window._append_log(self._line("INFO", "header") + "\n  needle detail")
+
+        window._log_search.setText("needle")
+
+        text = window._log_view.toPlainText()
+        assert "header" in text and "needle detail" in text
+
+    def test_the_levels_are_persisted_and_restored(self, window, settings, qtbot):
+        from hsync_desktop.engine import HsyncEngine
+        from hsync_desktop.main_window import MainWindow
+
+        window._log_level_actions["verbose"].setChecked(True)
+        assert "DEBUG" in str(settings.value("ui/log_levels"))
+
+        fresh = MainWindow(HsyncEngine(binary_path="/fake/hsync"))
+        qtbot.addWidget(fresh)
+
+        assert "DEBUG" in fresh._log_levels
+
+    def test_the_bar_clear_empties_the_view_and_the_buffer(self, window):
+        window._log_active_share = "share-1"
+        window._append_log(self._line("INFO", "one"))
+        assert "one" in window._log_view.toPlainText()
+
+        window._log_clear_button.click()
+
+        assert window._log_view.toPlainText() == ""
+        assert not window._log_buffers.get("share-1")
+
+
 class TestLogViewerFont:
     """The log viewer uses the dedicated log font, not a QSS family."""
 

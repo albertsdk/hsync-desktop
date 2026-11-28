@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it is not empty, refreshed off the UI thread as the Sync menu opens — a recovery
   surface stays discoverable without a permanent badge.
 
+- The log panel has a **toolbar** (Chromium-style): a **search box** (filters the
+  records by a plain string, with its own clear button), a **levels menu**
+  (Verbose / Info / Warnings / Errors, grouped and checkable, with a **Default
+  levels** preset) and a **clear** button. The chosen levels are remembered across
+  sessions; **Clear Log** now empties the buffered history too.
+
 ### Changed
 
 - **Move to trash** in the file list now uses the app's own trash instead of the

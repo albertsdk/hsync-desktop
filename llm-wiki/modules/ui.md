@@ -1491,6 +1491,22 @@ clearing the document, and `_scroll_log_to_end`
 event-loop turn later (the scroll range is final only after Qt lays the new block
 out). Only the context-menu **Clear Log** empties the panel.
 
+A **toolbar** above the view (Chromium-style, built in
+`hsync_desktop/main_window/ui.py::UiBuildMixin._build_log_panel`) filters the
+panel on two axes: a **search box** (`_log_search`, `setClearButtonEnabled` for
+its clear button) and a **levels menu** (`_log_levels_button` +
+`_log_level_actions`): four grouped, checkable entries — *verbose* (DEBUG), *info*
+(INFO+SUCCESS), *warning* (WARNING), *error* (ERROR+CRITICAL) — plus a *Default
+levels* reset (= every level but DEBUG), per `_LOG_LEVEL_GROUPS` /
+`_LOG_DEFAULT_LEVELS`. The enabled set (`_log_levels`) is persisted as
+`ui/log_levels`; the search text is not. Both are applied at render time in
+`UiBuildMixin._filter_log_lines` over `UiBuildMixin._log_records` (a record starts
+at a `LEVEL:` line and carries its continuation lines, so a multi-line message is
+kept or dropped whole); a change re-renders the active share's buffer
+(`UiBuildMixin._render_active_log`). The toolbar's clear button
+(`UiBuildMixin._clear_log`, also the context menu's **Clear Log**) empties the
+view and the active share's buffer.
+
 Both producers show the timestamp in the same gray: the engine's lines carry the
 client's `<dim>` SGR, and for the SGR-free desktop lines
 `hsync_desktop/log_style.py::_fallback_runs` dims the `timestamp` group of `LOG_LINE_RE` with

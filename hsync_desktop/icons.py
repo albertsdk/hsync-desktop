@@ -106,6 +106,7 @@ _FALLBACK_MAP: dict[str, str] = {
     "edit-copy": "edit-copy.svg",
     "edit-rename": "edit-rename.svg",
     "edit-delete": "edit-delete.svg",
+    "edit-clear": "edit-clear.svg",
     # Navigation icons
     "go-previous": "go-previous.svg",
     "go-next": "go-next.svg",

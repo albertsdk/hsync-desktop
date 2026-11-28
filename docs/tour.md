@@ -77,9 +77,14 @@ first place to look when something does not work.
 
 The panel **keeps the lines of previous runs**: a new sync opens with a
 `--- Sync started ---` marker and appends below it, so the history of the
-session stays readable. Right-click the panel and choose **Clear Log** to empty
-it. The labels are explained in [Log Labels](log-labels.md), and you can hide the
-panel from **Settings → General**.
+session stays readable. A **toolbar** above the log has a **search box** (filters the records by a plain
+string, case-insensitive, with its own clear button), a **levels menu**
+(Chromium-style: *Verbose*, *Info*, *Warnings*, *Errors*, with a **Default
+levels** preset that shows everything but verbose) and a **clear** button. The
+chosen levels are remembered across sessions. Right-click the panel for
+**Select All**, **Copy** and **Clear Log** (which empties the buffer too). The
+labels are explained in [Log Labels](log-labels.md), and you can hide the panel
+from **Settings → General**.
 
 ## The status bar
 

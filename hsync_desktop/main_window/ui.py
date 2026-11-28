@@ -10,7 +10,7 @@ import os
 from collections import deque
 
 from hsync_common.format import format_bytes
-from hsync_common.logger import format_log_line
+from hsync_common.logger import LOG_LEVELS, LOG_LINE_RE, format_log_line
 from PySide6.QtCore import QLocale, QPoint, QSettings, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QPlainTextEdit,
     QProgressBar,
@@ -33,6 +34,7 @@ from PySide6.QtWidgets import (
     QWidgetAction,
 )
 
+from hsync_desktop.ansi import strip_sgr
 from hsync_desktop.busy import BusyText
 from hsync_desktop.config import (
     DEFAULT_P2P_ENABLED,
@@ -125,6 +127,22 @@ _LOG_MAX_BLOCKS = 10000
 #: on every re-render.
 _LOG_LINE_MAX_CHARS = 4000
 _LOG_LINE_ELLIPSIS = " …"
+
+#: The log panel's level groups (Chromium-style): each menu entry toggles a whole
+#: group. ``INFO`` carries ``SUCCESS`` and ``ERROR`` carries ``CRITICAL``, so four
+#: entries cover every level.
+_LOG_LEVEL_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("verbose", ("DEBUG",)),
+    ("info", ("INFO", "SUCCESS")),
+    ("warning", ("WARNING",)),
+    ("error", ("ERROR", "CRITICAL")),
+)
+#: Every level, and the default set: every level but ``DEBUG`` (the "Default
+#: levels" preset shows info, success, warning, error and critical).
+_LOG_ALL_LEVELS: frozenset[str] = frozenset(LOG_LEVELS)
+_LOG_DEFAULT_LEVELS: frozenset[str] = _LOG_ALL_LEVELS - {"DEBUG"}
+#: Persisted UI preference: the enabled levels, comma-separated.
+_LOG_LEVELS_SETTING = "ui/log_levels"
 
 #: The connectivity dot overlaid on the endpoint mode icon (a neutral/in-progress
 #: state) keeps to this fraction of the icon so it annotates the mode instead of
@@ -302,6 +320,192 @@ class UiBuildMixin:
         # SharesMixin swaps them on switch. Each share keeps a bounded history.
         self._log_buffers: dict[str, deque[str]] = {}
         self._log_active_share: str = ""
+        # Log toolbar (Chromium-style): a search box with its own clear button, a
+        # levels menu and a clear-log button, wrapped with the view in one splitter
+        # pane. Built in code rather than in the .ui: the splitter pane must hold
+        # the toolbar + view container, not the bare view.
+        from hsync_desktop.icons import icon as get_icon
+
+        self._log_search_text = ""
+        self._log_search = QLineEdit()
+        self._log_search.setClearButtonEnabled(True)
+        self._log_levels = self._load_log_levels()
+        self._log_levels_button = QToolButton()
+        self._log_levels_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._log_levels_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._log_levels_button.setIcon(get_icon("view-filter"))
+        self._log_levels_menu = QMenu(self._log_levels_button)
+        self._log_levels_button.setMenu(self._log_levels_menu)
+        self._log_level_actions: dict[str, QAction] = {}
+        self._log_clear_button = QToolButton()
+        self._log_clear_button.setAutoRaise(True)
+        self._log_clear_button.setIcon(get_icon("edit-clear"))
+        self._log_clear_button.clicked.connect(self._clear_log)
+
+        header = QHBoxLayout()
+        header.setContentsMargins(4, 2, 4, 2)
+        header.addWidget(self._log_search, 1)
+        header.addWidget(self._log_levels_button)
+        header.addWidget(self._log_clear_button)
+
+        pane = QWidget()
+        pane_layout = QVBoxLayout(pane)
+        pane_layout.setContentsMargins(0, 0, 0, 0)
+        pane_layout.setSpacing(0)
+        pane_layout.addLayout(header)
+        index = self._main_splitter.indexOf(self._log_view)
+        self._main_splitter.insertWidget(index, pane)
+        # Reparenting the view into the pane removes it from the splitter, so the
+        # pane (toolbar + view) becomes the single log splitter child.
+        pane_layout.addWidget(self._log_view)
+        # The pane is what the splitter and the visibility code own now; hiding
+        # the view alone would leave the toolbar behind.
+        self._log_pane = pane
+
+        # The texts are applied by ``_apply_translations`` (which runs after the
+        # build); wire the inputs here so an early change cannot slip through.
+        self._log_search.textChanged.connect(self._on_log_search_changed)
+        self._build_log_levels_menu()
+
+    def _load_log_levels(self) -> set[str]:
+        """The enabled levels, defaulting to every level but ``DEBUG``."""
+        raw = QSettings(SETTINGS_ORG, SETTINGS_APP).value(_LOG_LEVELS_SETTING, None)
+        if raw is None:
+            return set(_LOG_DEFAULT_LEVELS)
+        return {level for level in str(raw).split(",") if level in _LOG_ALL_LEVELS}
+
+    def _persist_log_levels(self) -> None:
+        QSettings(SETTINGS_ORG, SETTINGS_APP).setValue(
+            _LOG_LEVELS_SETTING, ",".join(sorted(self._log_levels))
+        )
+
+    def _build_log_levels_menu(self) -> None:
+        """(Re)build the levels menu; safe to call on a language change."""
+        menu = self._log_levels_menu
+        menu.clear()
+        self._log_level_actions = {}
+        reset = menu.addAction(tr("log.levels_default"))
+        reset.triggered.connect(self._on_log_levels_default)
+        menu.addSeparator()
+        for group, _levels in _LOG_LEVEL_GROUPS:
+            action = menu.addAction(tr(f"log.level_{group}"))
+            action.setCheckable(True)
+            action.toggled.connect(
+                lambda checked, name=group: self._on_log_level_group_toggled(name, checked)
+            )
+            self._log_level_actions[group] = action
+        self._sync_log_level_actions()
+        self._update_log_levels_button()
+
+    def _sync_log_level_actions(self) -> None:
+        for group, levels in _LOG_LEVEL_GROUPS:
+            action = self._log_level_actions[group]
+            action.blockSignals(True)
+            action.setChecked(all(level in self._log_levels for level in levels))
+            action.blockSignals(False)
+
+    def _update_log_levels_button(self) -> None:
+        groups_on = sum(
+            1
+            for _group, levels in _LOG_LEVEL_GROUPS
+            if all(lv in self._log_levels for lv in levels)
+        )
+        if self._log_levels == _LOG_DEFAULT_LEVELS:
+            text = tr("log.levels_default")
+        elif self._log_levels == _LOG_ALL_LEVELS:
+            text = tr("log.levels_all")
+        elif not self._log_levels:
+            text = tr("log.levels_none")
+        else:
+            text = tr("log.levels_count").format(count=groups_on)
+        self._log_levels_button.setText(text)
+
+    @Slot(str)
+    def _on_log_search_changed(self, text: str) -> None:
+        self._log_search_text = text.strip().lower()
+        self._render_active_log()
+
+    def _on_log_level_group_toggled(self, group: str, checked: bool) -> None:
+        levels = dict(_LOG_LEVEL_GROUPS)[group]
+        if checked:
+            self._log_levels |= set(levels)
+        else:
+            self._log_levels -= set(levels)
+        self._persist_log_levels()
+        self._update_log_levels_button()
+        self._render_active_log()
+
+    def _on_log_levels_default(self) -> None:
+        self._log_levels = set(_LOG_DEFAULT_LEVELS)
+        self._sync_log_level_actions()
+        self._persist_log_levels()
+        self._update_log_levels_button()
+        self._render_active_log()
+
+    def _clear_log(self) -> None:
+        """Empty the panel and the active share's buffered history."""
+        self._log_view.clear()
+        buffer = self._log_buffers.get(getattr(self, "_log_active_share", ""))
+        if buffer is not None:
+            buffer.clear()
+
+    def _retranslate_log_controls(self) -> None:
+        """Re-translate the log toolbar: search hint, levels menu, tooltips."""
+        self._log_search.setPlaceholderText(tr("log.search_placeholder"))
+        self._log_search.setToolTip(tr("tip.log_search"))
+        self._log_clear_button.setToolTip(tr("log.clear"))
+        self._log_levels_button.setToolTip(tr("tip.log_levels"))
+        self._build_log_levels_menu()
+
+    def _render_active_log(self) -> None:
+        """Show the active share's buffered lines under the current filters."""
+        self._log_view.clear()
+        buffer = self._log_buffers.get(getattr(self, "_log_active_share", ""))
+        if buffer:
+            self._insert_log_lines(list(buffer))
+
+    @staticmethod
+    def _log_records(lines: list[str]) -> list[tuple[str | None, list[str]]]:
+        """Split *lines* into ``(level, lines)`` records.
+
+        A new record starts at a line carrying the canonical ``LEVEL:`` token; its
+        following token-less lines are its continuation (a multi-line message has
+        no token of its own). Lines before the first token form a leading record
+        with ``level=None`` (they cannot be classified).
+        """
+        records: list[tuple[str | None, list[str]]] = []
+        level: str | None = None
+        current: list[str] = []
+        for line in lines:
+            parsed = LOG_LINE_RE.match(strip_sgr(line))
+            if parsed is not None:
+                if current or level is not None:
+                    records.append((level, current))
+                current = []
+                level = parsed.group("level")
+            current.append(line)
+        if current:
+            records.append((level, current))
+        return records
+
+    def _filter_log_lines(self, lines: list[str]) -> list[str]:
+        """Keep the records that pass the enabled levels and the search text.
+
+        A record is shown when its level is enabled (a level-less record is never
+        filtered by level) and, when a search is set, one of its lines contains the
+        search text. Returns *lines* untouched when nothing is filtered.
+        """
+        search = getattr(self, "_log_search_text", "")
+        if self._log_levels == _LOG_ALL_LEVELS and not search:
+            return lines
+        kept: list[str] = []
+        for level, record in self._log_records(lines):
+            if level is not None and level not in self._log_levels:
+                continue
+            if search and not any(search in strip_sgr(line).lower() for line in record):
+                continue
+            kept.extend(record)
+        return kept
 
     def _build_bottom_bar(self) -> None:
         """Bind the status-bar widgets and the share-size/sync-state labels."""
@@ -467,6 +671,7 @@ class UiBuildMixin:
 
     def _apply_translations(self) -> None:
         """Apply i18n translations to UI elements."""
+        self._retranslate_log_controls()
         self._btn_start.setToolTip(tr("tip.start"))
         self._btn_stop.setToolTip(tr("btn.stop"))
         self._update_preview_changes_tooltip()
@@ -1018,10 +1223,7 @@ class UiBuildMixin:
     def _set_log_share(self, share_id: str) -> None:
         """Show *share_id*'s log history (each share keeps its own buffer)."""
         self._log_active_share = share_id
-        self._log_view.clear()
-        buffer = self._log_buffers.get(share_id)
-        if buffer:
-            self._insert_log_lines(list(buffer))
+        self._render_active_log()
 
     def _insert_log_lines(self, lines: list[str]) -> None:
         """Insert *lines* at the tail in one edit block, keeping the scroll state.
@@ -1030,6 +1232,9 @@ class UiBuildMixin:
         eviction (``maximumBlockCount``) and the scrollbar settle once, instead
         of once per line (measured 7-17x faster on a panel already at its cap).
         """
+        lines = self._filter_log_lines(lines)
+        if not lines:
+            return
         vertical = self._log_view.verticalScrollBar()
         horizontal = self._log_view.horizontalScrollBar()
         # Appending moves the cursor to the end of the new (possibly long) line,
@@ -1421,7 +1626,7 @@ class UiBuildMixin:
         elif action == act_copy:
             self._log_view.copy()
         elif action == act_clear:
-            self._log_view.clear()
+            self._clear_log()
 
     def _create_info_banner(self) -> QFrame:
         """Create a hidden overlay toast for transient feedback."""
@@ -1791,13 +1996,14 @@ class UiBuildMixin:
         """Show or hide the log panel based on settings."""
         show_log = is_log_panel_visible()
         if show_log:
+            self._log_pane.show()
             self._log_view.show()
             # Restore splitter sizes if log was hidden
             sizes = self._main_splitter.sizes()
             if sizes[1] == 0:
                 self._main_splitter.setSizes([400, 200])
         else:
-            self._log_view.hide()
+            self._log_pane.hide()
             # Give all space to file panel
             sizes = self._main_splitter.sizes()
             total = sum(sizes)
@@ -1805,6 +2011,7 @@ class UiBuildMixin:
 
     def _show_log_panel(self) -> None:
         """Reveal the log panel (the startup-failure dialog's "Show log")."""
+        self._log_pane.show()
         self._log_view.show()
         sizes = self._main_splitter.sizes()
         if sizes[1] == 0:
