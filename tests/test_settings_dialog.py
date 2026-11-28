@@ -397,6 +397,41 @@ class TestP2pPanelGating:
         assert dialog.btn_manage_trusted_keys.isEnabled()
 
 
+class TestSyncPanelLockedDuringSync:
+    """Every Sync-tab setting is locked while a sync runs (labels and widgets)."""
+
+    def test_behaviour_and_trash_controls_lock_together(self, dialog):
+        dialog.set_connection_active(True)
+
+        for widget in (
+            dialog.auto_sync,
+            dialog.auto_apply,
+            dialog.trash_enabled,
+            dialog.trash_retention,
+            dialog.trash_max_size,
+        ):
+            assert not widget.isEnabled()
+
+        dialog.set_connection_active(False)
+
+        for widget in (dialog.auto_sync, dialog.auto_apply, dialog.trash_enabled):
+            assert widget.isEnabled()
+
+    def test_the_trash_spins_follow_the_switch_after_a_sync(self, dialog):
+        """The spins answer to two locks: ending a sync must not re-enable a spin
+        the trash switch keeps off."""
+        dialog.trash_enabled.setChecked(False)
+        dialog.set_connection_active(True)
+        dialog.set_connection_active(False)
+
+        assert not dialog.trash_retention.isEnabled()
+        assert not dialog.trash_max_size.isEnabled()
+
+        dialog.trash_enabled.setChecked(True)
+        assert dialog.trash_retention.isEnabled()
+        assert dialog.trash_max_size.isEnabled()
+
+
 class TestEndpointNormalization:
     """Server/rendezvous fields validate + normalize through the shared grammar."""
 

@@ -2237,6 +2237,9 @@ class SettingsDialog(QDialog):
             self.shared_path,
             self.btn_browse_shared,
             self.bucket,
+            self.auto_sync,
+            self.auto_apply,
+            self.trash_enabled,
             self.continuous,
             self.deletion_policy,
             self.sync_direction_combo,
@@ -2276,6 +2279,14 @@ class SettingsDialog(QDialog):
             # Set tooltip explaining why it's disabled
             if active:
                 _set_field_tooltip(widget, disabled_tip)
+
+        # The two trash spins answer to two locks: this one and the trash switch.
+        # The switch axis is applied last, so ending a sync cannot re-enable a
+        # spin the switch keeps off (the switch itself is locked above).
+        self._set_trash_controls_enabled(self.trash_enabled.isChecked() and not active)
+        if active:
+            _set_field_tooltip(self.trash_retention, disabled_tip)
+            _set_field_tooltip(self.trash_max_size, disabled_tip)
 
         # Gray the field labels too, so a disabled panel reads as disabled. The
         # connection page's labels follow its own composition
