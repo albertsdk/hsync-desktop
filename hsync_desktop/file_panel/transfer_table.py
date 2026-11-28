@@ -958,20 +958,7 @@ class FileTransferTable(QTableView):
         header.setSectionsMovable(True)  # Allow drag-and-drop column reordering
         # Name is the row identity: keep it leading whatever the user drags.
         header.setFirstSectionMovable(False)
-        # Name is ``Fixed`` (not user-draggable) rather than ``Stretch``: Qt
-        # crushes a stretch section to the global minimum with no scroll range,
-        # so ``_stretch_name_column`` gives it the leftover width down to a
-        # readable floor and lets the horizontal scrollbar report the shortage.
-        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(COL_SIZE, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_TYPE, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_MODIFIED, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_PROGRESS, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_ETA, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(COL_SPEED, QHeaderView.ResizeMode.Interactive)
-        # Keep every column wide enough to stay readable when dragged narrow.
-        header.setMinimumSectionSize(_MIN_COLUMN_WIDTH)
+        self._apply_resize_modes()
 
         # Progress bar delegate and default column width
         self.setItemDelegateForColumn(COL_PROGRESS, ProgressBarDelegate(self))
@@ -1022,6 +1009,31 @@ class FileTransferTable(QTableView):
             if key:
                 header.setSectionHidden(col, key in hidden)
 
+    def _apply_resize_modes(self) -> None:
+        """Pin the section resize modes: Name ``Fixed``, data columns ``Interactive``.
+
+        Name is ``Fixed`` (not user-draggable) rather than ``Stretch``: Qt crushes
+        a stretch section to the global minimum with no scroll range, so
+        ``_stretch_name_column`` gives it the leftover width down to a readable
+        floor and the horizontal scrollbar reports the shortage. Re-applied after
+        ``restoreState`` because a blob saved by a build where Name was
+        ``Stretch`` carries that mode and would otherwise undo the floor.
+        """
+        header = self.horizontalHeader()
+        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Fixed)
+        for col in (
+            COL_SIZE,
+            COL_TYPE,
+            COL_MODIFIED,
+            COL_PROGRESS,
+            COL_STATUS,
+            COL_ETA,
+            COL_SPEED,
+        ):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+        # Keep every column wide enough to stay readable when dragged narrow.
+        header.setMinimumSectionSize(_MIN_COLUMN_WIDTH)
+
     def _restore_header_state(self) -> None:
         """Apply the saved header layout: widths, order, hidden sections.
 
@@ -1042,6 +1054,9 @@ class FileTransferTable(QTableView):
             restored = self.horizontalHeader().restoreState(state)
         if not restored:
             self._apply_default_columns()
+        # A blob saved when Name was a ``Stretch`` section restores that mode and
+        # would undo the floor-and-scroll behaviour: re-assert the mode policy.
+        self._apply_resize_modes()
         # A restored layout is the user's choice: never fit the data columns to
         # their content afterwards, or the first refresh would overwrite the
         # saved widths. Content fitting runs only when there is nothing to honour

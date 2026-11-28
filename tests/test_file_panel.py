@@ -1224,10 +1224,16 @@ class TestColumnResizing:
         qtbot.addWidget(table)
         return table
 
-    def test_data_columns_are_interactive(self, qtbot):
+    def test_data_columns_are_interactive(self, qtbot, tmp_path, monkeypatch):
+        from PySide6.QtCore import QSettings
         from PySide6.QtWidgets import QHeaderView
 
         from hsync_desktop.file_panel import transfer_table as tt
+
+        # Isolate QSettings: a persisted header blob (a machine's saved layout)
+        # must not decide this test's outcome.
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
 
         table = self._table(qtbot)
         header = table.horizontalHeader()
@@ -1242,10 +1248,35 @@ class TestColumnResizing:
             tt.COL_SPEED,
         ):
             assert header.sectionResizeMode(col) is QHeaderView.ResizeMode.Interactive
-        assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Stretch
+        # Name is Fixed (not Stretch): its width is driven by _stretch_name_column
+        # down to a readable floor, and the scrollbar reports the shortage.
+        assert header.sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Fixed
         assert header.minimumSectionSize() == tt._MIN_COLUMN_WIDTH
         # Name leads the rows: it stays the first section whatever is dragged.
         assert header.isFirstSectionMovable() is False
+
+    def test_a_saved_layout_cannot_reintroduce_stretch_name(self, qtbot, tmp_path, monkeypatch):
+        """Regression: a blob saved when Name was ``Stretch`` must not restore it."""
+        from PySide6.QtCore import QSettings
+        from PySide6.QtWidgets import QHeaderView
+
+        from hsync_desktop.file_panel import transfer_table as tt
+
+        # Craft a blob the way an older build wrote it: Name = Stretch.
+        source = self._table(qtbot)
+        source.horizontalHeader().setSectionResizeMode(tt.COL_NAME, QHeaderView.ResizeMode.Stretch)
+        store = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
+        store.setValue(
+            tt.FileTransferTable._HEADER_STATE_SETTINGS_KEY,
+            source.horizontalHeader().saveState(),
+        )
+        monkeypatch.setattr(tt, "QSettings", lambda *a, **k: store)
+
+        fresh = self._table(qtbot)
+
+        assert (
+            fresh.horizontalHeader().sectionResizeMode(tt.COL_NAME) is QHeaderView.ResizeMode.Fixed
+        )
 
     def test_a_user_width_is_persisted_and_restored(self, qtbot, tmp_path, monkeypatch):
         from PySide6.QtCore import QSettings
