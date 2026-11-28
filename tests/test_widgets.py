@@ -171,6 +171,26 @@ class TestOptoutConfirmBox:
         assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
 
 
+class TestConfirmBox:
+    """A Yes/No confirm carries the app icons without the app-wide filter."""
+
+    def test_the_yes_no_buttons_carry_the_app_icons_at_build(self, qtbot):
+        from PySide6.QtWidgets import QMessageBox
+
+        from hsync_desktop.icons import icon
+        from hsync_desktop.widgets.dialogs import build_confirm_box
+
+        box = build_confirm_box(None, title="Stop", text="Stop the sync?")
+        qtbot.addWidget(box)
+        yes = box.button(QMessageBox.StandardButton.Yes)
+        no = box.button(QMessageBox.StandardButton.No)
+
+        # Set at build time, so a platform style that paints its own glyph on a
+        # standard button cannot override the app's.
+        assert yes.icon().cacheKey() == icon("dialog-ok").cacheKey()
+        assert no.icon().cacheKey() == icon("dialog-cancel").cacheKey()
+
+
 class TestDestructiveConfirmBox:
     """A destructive confirm names the verb, localizes Cancel and stays safe."""
 

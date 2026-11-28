@@ -8,12 +8,12 @@ buttons, retitled with the localized ``action.yes`` / ``action.no`` labels, with
 ``No`` as the safe default. Hand-building the box at each call site let those
 details drift, so the construction lives here.
 
-The app icons on those buttons come from the app-wide policy
-(``hsync_desktop/icons.py::install_dialog_button_icons``), which fills the icon
-in for a standard button that has none (a ``with_icons=True`` box sets them up
-front); so a Yes/No box here and a bare ``QMessageBox.warning`` elsewhere both
-show the app's ``dialog-ok`` / ``dialog-cancel`` instead of the platform theme's
-icons.
+The app icons on those buttons are set here, at build time (``with_icons``), so
+they never depend on the platform style: a box built by these helpers carries the
+app's ``dialog-ok`` / ``dialog-cancel``. The app-wide policy
+(``hsync_desktop/icons.py::install_dialog_button_icons``) remains the safety net
+for a bare ``QMessageBox`` built elsewhere, filling an icon in only where none is
+set (an explicit icon always wins).
 
 A confirmation that may be silenced adds an opt-out checkbox through
 ``build_optout_confirm_box``: the checkbox always starts unchecked, so silence is
@@ -106,14 +106,14 @@ def build_confirm_box(
     text: str,
     icon_name: QMessageBox.Icon = QMessageBox.Icon.Warning,
     default_yes: bool = False,
-    with_icons: bool = False,
+    with_icons: bool = True,
 ) -> QMessageBox:
     """Build a localized Yes/No box whose default answer is ``No`` unless asked.
 
-    ``with_icons`` sets the app icons on the buttons right away; regardless, the
-    app-wide policy (`hsync_desktop/icons.py::install_dialog_button_icons`) fills
-    them in for any standard button shown without one, so the buttons never fall
-    back to the platform theme's icons.
+    The app icons are set on the buttons right away (``with_icons``), not left to
+    the app-wide policy: that policy skips a button that already carries an icon,
+    so a platform style that paints its own glyph on a standard button would keep
+    the *platform* icon. Setting them here is style- and platform-independent.
     """
     box = QMessageBox(parent)
     box.setIcon(icon_name)
@@ -172,7 +172,7 @@ def confirm(
     text: str,
     icon_name: QMessageBox.Icon = QMessageBox.Icon.Warning,
     default_yes: bool = False,
-    with_icons: bool = False,
+    with_icons: bool = True,
 ) -> bool:
     """Show a localized Yes/No confirmation; True only on an explicit ``Yes``."""
     box = build_confirm_box(
@@ -204,6 +204,9 @@ def build_warning_box(
     box.setWindowTitle(title)
     box.setText(text)
     box.setStandardButtons(QMessageBox.StandardButton.Ok)
+    ok = box.button(QMessageBox.StandardButton.Ok)
+    if ok is not None:
+        ok.setIcon(icon("dialog-ok"))
     box.setMinimumWidth(_MESSAGE_BOX_MIN_WIDTH)
     return box
 

@@ -2000,15 +2000,19 @@ the running window's WM_CLASS/app_id matches `hsync-desktop.desktop` and the
 taskbar shows the app icon. The app-icon SVG keeps `<svg` at the very top of the
 file (no long leading comment): gdk-pixbuf/GNOME only recognizes an SVG when the
 root element is within the first bytes, otherwise the icon renders blank. The
-dialog accept button's icon is not the only one: an app-wide policy
+dialog accept button's icon is not the only one: the shared builders in
+`hsync_desktop/widgets/dialogs.py` set the app icons **at build time** —
+`build_confirm_box`/`confirm`/`build_optout_confirm_box` → `dialog-ok` /
+`dialog-cancel`, `build_warning_box` → `dialog-ok` — so a Yes/No or Ok choice
+never depends on the platform style. An app-wide policy
 (`hsync_desktop/icons.py::install_dialog_button_icons`, installed in
-`main.py::_configure_app`) gives every `QMessageBox`/`QDialogButtonBox` button the
-app icon when it has none — `Ok`/`Yes`/`Apply`/`AcceptRole` → `dialog-ok`,
+`main.py::_configure_app`) is the backstop for a bare `QMessageBox`/
+`QDialogButtonBox` built elsewhere: it gives a button the app icon only when none
+is set — `Ok`/`Yes`/`Apply`/`AcceptRole` → `dialog-ok`,
 `No`/`Cancel`/`Close`/`RejectRole` → `dialog-cancel`, `Save` → `document-save`,
-`Discard`/`DestructiveRole` → `edit-delete`, `Retry` → `view-refresh`. It is the
-backstop for a bare `QMessageBox.warning` and for Yes/No boxes, so no choice ever
-falls back to the platform theme's icons while a button an explicit helper already
-iconed keeps its icon. Where the icon **follows the action**
+`Discard`/`DestructiveRole` → `edit-delete`, `Retry` → `view-refresh`. An explicit
+icon always wins, so a box that must not keep a style-provided glyph sets its own
+at build. Where the icon **follows the action**
 (`hsync_desktop/icons.py::style_ok_cancel_button_box`), an **Apply** caller passes
 `accept_icon_key="dialog-ok"` (the confirm check — the translations sub-dialog
 does), while a **Save** caller keeps the default `document-save`

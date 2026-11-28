@@ -76,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Yes/No **confirmation** boxes (Stop, Quit, …) set the app icons on their
+  buttons at build time instead of relying on the app-wide policy, which skips a
+  button a platform style already icons — so a themed button no longer keeps the
+  platform glyph.
+
 - The **Trash size limit** spin follows the **Keep deleted files in the local
   trash** switch: with the trash off it is disabled like the restore window (it
   stayed editable, promising a budget nothing kept).
